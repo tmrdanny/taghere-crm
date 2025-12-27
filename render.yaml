@@ -8,7 +8,7 @@ services:
     runtime: node
     region: singapore  # 한국에서 가장 가까운 리전
     plan: starter  # $7/month - 추천
-    buildCommand: npm install --include=dev && npx prisma generate && cd apps/api && npm install --include=dev && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npx prisma db push && npx tsx prisma/seed.ts && cd apps/api && npm install --include=dev && npm run build
     startCommand: cd apps/api && npm run start
     envVars:
       - key: NODE_ENV
@@ -37,6 +37,10 @@ services:
         sync: false
       - key: PUBLIC_APP_URL
         sync: false  # https://taghere-web.onrender.com
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      - key: SEED_USER_PASSWORD
+        sync: false
     healthCheckPath: /api/health
     autoDeploy: true
 
