@@ -52,10 +52,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: taghere-crm-api
-          property: hostport
+        sync: false  # https://taghere-crm-api-g96p.onrender.com
       - key: NEXT_PUBLIC_TOSS_CLIENT_KEY
         sync: false
     autoDeploy: true
