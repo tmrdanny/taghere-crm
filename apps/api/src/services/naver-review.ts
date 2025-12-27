@@ -191,12 +191,15 @@ async function scrapeFromHtml(placeId: string): Promise<NaverReviewCounts | null
 }
 
 /**
- * 오늘 날짜를 UTC 기준 자정으로 생성합니다 (MySQL DATE 필드와 호환).
+ * 오늘 날짜를 KST(한국 표준시) 기준 자정으로 생성합니다.
  */
-function getTodayDate(): Date {
+function getTodayDateKST(): Date {
   const now = new Date();
-  // UTC 기준 오늘 날짜의 자정으로 설정
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0));
+  // KST는 UTC+9
+  const kstOffset = 9 * 60 * 60 * 1000; // 9시간 in milliseconds
+  const kstTime = new Date(now.getTime() + kstOffset);
+  // KST 기준 오늘 날짜의 UTC 자정으로 설정 (DB 저장용)
+  return new Date(Date.UTC(kstTime.getUTCFullYear(), kstTime.getUTCMonth(), kstTime.getUTCDate(), 0, 0, 0, 0));
 }
 
 /**
@@ -227,8 +230,8 @@ export async function fetchAndSaveNaverReviewStats(storeId: string): Promise<Nav
 
     console.log('Fetched review counts:', counts);
 
-    // 오늘 날짜로 통계 저장
-    const today = getTodayDate();
+    // 오늘 날짜로 통계 저장 (KST 기준)
+    const today = getTodayDateKST();
 
     // 기존 레코드 확인
     const existing = await prisma.naverReviewStats.findUnique({
@@ -274,9 +277,10 @@ export async function fetchAndSaveNaverReviewStats(storeId: string): Promise<Nav
  * 매장의 네이버 리뷰 통계 차트 데이터를 가져옵니다.
  */
 export async function getNaverReviewChartData(storeId: string, days: number = 7) {
-  const startDate = new Date();
+  // KST 기준 시작 날짜 계산
+  const today = getTodayDateKST();
+  const startDate = new Date(today);
   startDate.setDate(startDate.getDate() - days);
-  startDate.setHours(0, 0, 0, 0);
 
   const stats = await prisma.naverReviewStats.findMany({
     where: {
@@ -297,7 +301,7 @@ export async function getNaverReviewChartData(storeId: string, days: number = 7)
  * 오늘 늘어난 리뷰 수를 계산합니다.
  */
 export async function getDailyReviewGrowth(storeId: string) {
-  const today = getTodayDate();
+  const today = getTodayDateKST();
 
   // 어제 날짜 계산
   const yesterday = new Date(today);
