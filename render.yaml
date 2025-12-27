@@ -1,0 +1,72 @@
+# Render Blueprint - TagHere CRM
+# https://render.com/docs/blueprint-spec
+
+services:
+  # Backend API (Express + Prisma)
+  - type: web
+    name: taghere-api
+    runtime: node
+    region: singapore  # 한국에서 가장 가까운 리전
+    plan: starter  # $7/month - 추천
+    rootDir: apps/api
+    buildCommand: |
+      npm install
+      cd ../.. && npx prisma generate
+      npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        sync: false  # Render Dashboard에서 직접 설정
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SOLAPI_API_KEY
+        sync: false
+      - key: SOLAPI_API_SECRET
+        sync: false
+      - key: SOLAPI_PF_ID
+        sync: false
+      - key: SOLAPI_TEMPLATE_ID_POINTS_EARNED
+        sync: false
+      - key: SOLAPI_TEMPLATE_ID_POINTS_USED
+        sync: false
+      - key: SOLAPI_TEMPLATE_ID_REVIEW_REQUEST
+        sync: false
+      - key: TOSS_CLIENT_KEY
+        sync: false
+      - key: TOSS_SECRET_KEY
+        sync: false
+      - key: PUBLIC_APP_URL
+        sync: false  # https://taghere-web.onrender.com
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+  # Frontend (Next.js)
+  - type: web
+    name: taghere-web
+    runtime: node
+    region: singapore
+    plan: starter  # $7/month - 추천
+    rootDir: apps/web
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: taghere-api
+          property: hostport
+      - key: NEXT_PUBLIC_TOSS_CLIENT_KEY
+        sync: false
+    autoDeploy: true
+
+# 데이터베이스는 Render PostgreSQL 또는 외부 DB 사용
+# databases:
+#   - name: taghere-db
+#     plan: starter  # $7/month
+#     region: singapore

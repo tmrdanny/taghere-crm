@@ -1,0 +1,49 @@
+# Render Blueprint for API Server
+# Documentation: https://docs.render.com/blueprint-spec
+
+services:
+  - type: web
+    name: taghere-api
+    runtime: node
+    region: singapore  # Asia region
+    plan: starter
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: taghere-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: KAKAO_CLIENT_ID
+        sync: false
+      - key: KAKAO_CLIENT_SECRET
+        sync: false
+      - key: KAKAO_REDIRECT_URI
+        sync: false
+      - key: PUBLIC_APP_URL
+        sync: false
+      - key: API_URL
+        sync: false
+      - key: SOLAPI_API_KEY
+        sync: false
+      - key: SOLAPI_API_SECRET
+        sync: false
+      - key: SOLAPI_PF_ID
+        sync: false
+      - key: SOLAPI_TEMPLATE_ID_POINTS_EARNED
+        sync: false
+      - key: SOLAPI_TEMPLATE_ID_POINTS_USED
+        sync: false
+      - key: SOLAPI_TEMPLATE_ID_REVIEW_REQUEST
+        sync: false
+
+databases:
+  - name: taghere-db
+    databaseName: taghere_crm
+    user: taghere
+    region: singapore
+    plan: starter

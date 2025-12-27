@@ -1,0 +1,261 @@
+import { Router } from 'express';
+import { prisma } from '../lib/prisma.js';
+import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+
+const router = Router();
+
+// GET /api/review-automation/settings
+router.get('/settings', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+
+    let settings = await prisma.reviewAutomationSetting.findUnique({
+      where: { storeId },
+    });
+
+    // Create default settings if not exists
+    if (!settings) {
+      settings = await prisma.reviewAutomationSetting.create({
+        data: {
+          storeId,
+          enabled: false,
+          benefitText: '',
+          costPerSend: 50,
+          autoTopupEnabled: false,
+          autoTopupThreshold: 10000,
+          autoTopupAmount: 100000,
+        },
+      });
+    }
+
+    const wallet = await prisma.wallet.findUnique({ where: { storeId } });
+
+    res.json({
+      ...settings,
+      balance: wallet?.balance || 0,
+    });
+  } catch (error) {
+    console.error('Review settings get error:', error);
+    res.status(500).json({ error: '리뷰 설정 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/review-automation/settings
+router.post('/settings', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const {
+      enabled,
+      benefitText,
+      autoTopupEnabled,
+      autoTopupThreshold,
+      autoTopupAmount,
+      naverReviewUrl,
+    } = req.body;
+
+    const settings = await prisma.reviewAutomationSetting.upsert({
+      where: { storeId },
+      update: {
+        enabled: enabled !== undefined ? enabled : undefined,
+        benefitText: benefitText !== undefined ? benefitText : undefined,
+        autoTopupEnabled: autoTopupEnabled !== undefined ? autoTopupEnabled : undefined,
+        autoTopupThreshold: autoTopupThreshold !== undefined ? autoTopupThreshold : undefined,
+        autoTopupAmount: autoTopupAmount !== undefined ? autoTopupAmount : undefined,
+        naverReviewUrl: naverReviewUrl !== undefined ? naverReviewUrl : undefined,
+      },
+      create: {
+        storeId,
+        enabled: enabled || false,
+        benefitText: benefitText || '',
+        autoTopupEnabled: autoTopupEnabled || false,
+        autoTopupThreshold: autoTopupThreshold || 10000,
+        autoTopupAmount: autoTopupAmount || 100000,
+        naverReviewUrl,
+      },
+    });
+
+    res.json({ success: true, settings });
+  } catch (error) {
+    console.error('Review settings update error:', error);
+    res.status(500).json({ error: '리뷰 설정 저장 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/review-automation/test-send - 테스트 발송 (하루 5회 제한, 무료)
+router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ error: '전화번호를 입력해주세요.' });
+    }
+
+    // 오늘 날짜의 시작과 끝
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // 오늘 테스트 발송 횟수 확인
+    const todayTestCount = await prisma.reviewRequestLog.count({
+      where: {
+        storeId,
+        isTest: true,
+        createdAt: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+    });
+
+    if (todayTestCount >= 5) {
+      return res.status(400).json({
+        error: '오늘의 테스트 발송 횟수(5회)를 모두 사용했습니다.',
+        remainingTests: 0,
+      });
+    }
+
+    // 리뷰 설정 조회
+    const settings = await prisma.reviewAutomationSetting.findUnique({
+      where: { storeId },
+    });
+
+    // 매장 정보 조회
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    // 테스트 발송 로그 생성
+    const log = await prisma.reviewRequestLog.create({
+      data: {
+        storeId,
+        phone,
+        status: 'SENT',
+        cost: 0, // 테스트는 무료
+        isTest: true,
+        sentAt: new Date(),
+      },
+    });
+
+    // 실제 알림톡 발송 (SOLAPI)
+    const templateId = process.env.SOLAPI_TEMPLATE_ID_REVIEW_REQUEST;
+    const pfId = process.env.SOLAPI_PF_ID;
+    const apiKey = process.env.SOLAPI_API_KEY;
+    const apiSecret = process.env.SOLAPI_API_SECRET;
+
+    if (templateId && pfId && apiKey && apiSecret) {
+      try {
+        // SOLAPI 발송
+        const { SolapiService } = await import('../services/solapi.js');
+        const solapiService = new SolapiService(apiKey, apiSecret);
+
+        await solapiService.sendAlimTalk({
+          to: phone,
+          pfId,
+          templateId,
+          variables: {
+            '#{customerName}': '고객',
+            '#{storeName}': store.name,
+            '#{reviewLink}': settings?.naverReviewUrl || 'https://naver.com',
+            '#{쿠폰코드}': settings?.benefitText || '',
+          },
+        });
+      } catch (sendError) {
+        console.error('Test send error:', sendError);
+        // 발송 실패해도 테스트 로그는 유지
+      }
+    }
+
+    res.json({
+      success: true,
+      message: '테스트 발송이 완료되었습니다.',
+      remainingTests: 5 - todayTestCount - 1,
+    });
+  } catch (error) {
+    console.error('Test send error:', error);
+    res.status(500).json({ error: '테스트 발송 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/review-automation/test-count - 오늘 테스트 발송 횟수 조회
+router.get('/test-count', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayTestCount = await prisma.reviewRequestLog.count({
+      where: {
+        storeId,
+        isTest: true,
+        createdAt: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+    });
+
+    res.json({
+      usedCount: todayTestCount,
+      remainingCount: Math.max(0, 5 - todayTestCount),
+      maxCount: 5,
+    });
+  } catch (error) {
+    console.error('Test count error:', error);
+    res.status(500).json({ error: '테스트 횟수 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/review-automation/logs
+router.get('/logs', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { page = '1', limit = '20' } = req.query;
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    const [logs, total] = await Promise.all([
+      prisma.reviewRequestLog.findMany({
+        where: { storeId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limitNum,
+        include: {
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+            },
+          },
+        },
+      }),
+      prisma.reviewRequestLog.count({ where: { storeId } }),
+    ]);
+
+    res.json({
+      logs,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error) {
+    console.error('Review logs error:', error);
+    res.status(500).json({ error: '리뷰 발송 로그 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+export default router;

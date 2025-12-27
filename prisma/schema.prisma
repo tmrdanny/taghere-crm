@@ -1,0 +1,408 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// 매장
+model Store {
+  id                     String   @id @default(cuid())
+  slug                   String?  @unique // URL 슬러그 (고객 등록 링크용)
+  name                   String   // 상호명
+  ownerName              String?  // 대표자명
+  phone                  String?  // 연락처
+  businessRegNumber      String?  @unique // 사업자등록번호
+  address                String?
+  naverPlaceId           String?  // 네이버 플레이스 ID (리뷰 연동용)
+  naverPlaceUrl          String?  // 네이버 플레이스 공유 링크
+  pointsAlimtalkEnabled  Boolean  @default(true) // 포인트 적립/사용 알림톡 자동 발송
+  // 랜덤 포인트 설정
+  randomPointEnabled     Boolean  @default(true)  // 랜덤 포인트 활성화 (기본 ON)
+  randomPointMin         Int      @default(1)     // 최소 포인트
+  randomPointMax         Int      @default(1500)  // 최대 포인트
+  // 고정 포인트 설정
+  fixedPointEnabled      Boolean  @default(false) // 고정 포인트 활성화
+  fixedPointAmount       Int      @default(100)   // 고정 포인트 금액
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  // Relations
+  staffUsers            StaffUser[]
+  customers             Customer[]
+  visitsOrOrders        VisitOrOrder[]
+  pointLedger           PointLedger[]
+  pointPolicy           PointPolicy?
+  reviewAutomationSetting ReviewAutomationSetting?
+  reviewRequestLogs     ReviewRequestLog[]
+  wallet                Wallet?
+  cards                 Card[]
+  paymentTransactions   PaymentTransaction[]
+  alimTalkConfig        AlimTalkConfig?
+
+  @@map("stores")
+}
+
+// 점주/직원 계정
+model StaffUser {
+  id           String    @id @default(cuid())
+  storeId      String
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         StaffRole @default(STAFF)
+  isAdmin      Boolean   @default(false) // 시스템 관리자 여부
+  profileImage String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  store       Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  pointLedger PointLedger[]
+
+  @@index([storeId])
+  @@map("staff_users")
+}
+
+enum StaffRole {
+  OWNER
+  STAFF
+}
+
+// 고객 (매장별로 별도 관리)
+model Customer {
+  id               String    @id @default(cuid())
+  storeId          String
+  kakaoId          String?   // 카카오 OAuth 고유 ID (매장별로 별도 고객)
+  name             String?
+  phone            String?   // 전화번호 (뒷자리만 저장 가능)
+  phoneLastDigits  String?   // 전화번호 뒤 8자리 (검색용)
+  gender           Gender?
+  birthday         DateTime? @db.Date
+  memo             String?   @db.Text
+
+  // 고객 피드백
+  feedbackRating   Int?      // 별점 (1~5)
+  feedbackText     String?   @db.Text // 피드백 내용
+  feedbackAt       DateTime? // 피드백 작성 시간
+
+  // 마케팅 동의
+  consentMarketing Boolean   @default(false)
+  consentSms       Boolean   @default(false)
+  consentKakao     Boolean   @default(false)
+  consentAt        DateTime?
+
+  // 통계
+  visitCount       Int       @default(0)
+  totalPoints      Int       @default(0) // 현재 보유 포인트
+  lastVisitAt      DateTime?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  store             Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  visitsOrOrders    VisitOrOrder[]
+  pointLedger       PointLedger[]
+  reviewRequestLogs ReviewRequestLog[]
+  feedbacks         CustomerFeedback[]
+
+  @@unique([storeId, kakaoId])  // 매장별 카카오ID 유니크
+  @@unique([storeId, phoneLastDigits])
+  @@index([storeId])
+  @@index([phoneLastDigits])
+  @@index([kakaoId])
+  @@map("customers")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+// 고객 피드백 (누적)
+model CustomerFeedback {
+  id         String   @id @default(cuid())
+  customerId String
+  rating     Int      // 별점 (1~5)
+  text       String?  @db.Text // 피드백 내용
+  createdAt  DateTime @default(now())
+
+  // Relations
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([createdAt])
+  @@map("customer_feedbacks")
+}
+
+// 방문/주문 기록
+model VisitOrOrder {
+  id          String    @id @default(cuid())
+  storeId     String
+  customerId  String
+  orderId     String?   // 외부 주문 ID (POS 등에서 전달)
+  visitedAt   DateTime  @default(now())
+  items       Json?     // 주문 내역 (선택적)
+  totalAmount Int?      // 결제 금액 (선택적)
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, orderId])
+  @@index([storeId])
+  @@index([customerId])
+  @@map("visits_orders")
+}
+
+// 포인트 원장 (적립/사용 내역)
+model PointLedger {
+  id          String       @id @default(cuid())
+  storeId     String
+  customerId  String
+  staffUserId String?      // 처리한 직원 (nullable: 자동 적립 시)
+  delta       Int          // +/- 포인트 (양수: 적립, 음수: 사용)
+  balance     Int          // 처리 후 잔액
+  type        PointType
+  reason      String?      // 사용 사유
+  orderId     String?      // 관련 주문 ID
+  createdAt   DateTime     @default(now())
+
+  // Relations
+  store     Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer  Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  staffUser StaffUser? @relation(fields: [staffUserId], references: [id], onDelete: SetNull)
+
+  @@index([storeId])
+  @@index([customerId])
+  @@index([createdAt])
+  @@map("point_ledger")
+}
+
+enum PointType {
+  EARN       // 적립
+  USE        // 사용
+  EXPIRE     // 만료
+  ADJUST     // 조정
+}
+
+// 포인트 적립 정책
+model PointPolicy {
+  id        String          @id @default(cuid())
+  storeId   String          @unique
+  type      PointPolicyType @default(FIXED)
+  value     Int             @default(100) // PERCENT: 비율(%), FIXED: 고정 포인트
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("point_policies")
+}
+
+enum PointPolicyType {
+  PERCENT // 결제금액의 N%
+  FIXED   // 방문당 고정 포인트
+}
+
+// 리뷰 자동 요청 설정
+model ReviewAutomationSetting {
+  id                  String   @id @default(cuid())
+  storeId             String   @unique
+  enabled             Boolean  @default(false) // 자동 발송 ON/OFF
+  benefitText         String?  @db.Text // 혜택 내용 문구
+  costPerSend         Int      @default(50) // 건당 비용 (원)
+  autoTopupEnabled    Boolean  @default(false) // 자동 충전 ON/OFF
+  autoTopupThreshold  Int      @default(10000) // 임계값 (이 금액 이하면 충전)
+  autoTopupAmount     Int      @default(100000) // 충전 금액
+  naverReviewUrl      String?  // 네이버 리뷰 작성 URL
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("review_automation_settings")
+}
+
+// 리뷰 요청 발송 로그
+model ReviewRequestLog {
+  id         String              @id @default(cuid())
+  storeId    String
+  customerId String?
+  orderId    String?
+  phone      String?
+  status     ReviewRequestStatus @default(PENDING)
+  cost       Int                 @default(50) // 차감 비용
+  failReason String?
+  isTest     Boolean             @default(false) // 테스트 발송 여부
+  sentAt     DateTime?
+  createdAt  DateTime            @default(now())
+
+  // Relations
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([storeId])
+  @@index([createdAt])
+  @@map("review_request_logs")
+}
+
+enum ReviewRequestStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// 매장 지갑 (리뷰 요청 충전금)
+model Wallet {
+  id        String   @id @default(cuid())
+  storeId   String   @unique
+  balance   Int      @default(0) // 잔액 (원)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("wallets")
+}
+
+// 등록된 결제 카드
+model Card {
+  id        String   @id @default(cuid())
+  storeId   String
+  brand     String?  // 카드사 (국민, 신한 등)
+  last4     String   // 마지막 4자리
+  holderName String?
+  expiryMonth Int?
+  expiryYear  Int?
+  enabled   Boolean  @default(true)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@map("cards")
+}
+
+// 결제 트랜잭션
+model PaymentTransaction {
+  id        String                   @id @default(cuid())
+  storeId   String
+  amount    Int                      // 금액
+  type      PaymentTransactionType
+  status    PaymentTransactionStatus @default(PENDING)
+  cardId    String?                  // 사용한 카드
+  meta      Json?                    // 추가 정보
+  failReason String?
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([createdAt])
+  @@map("payment_transactions")
+}
+
+enum PaymentTransactionType {
+  TOPUP        // 충전
+  SUBSCRIPTION // 구독료
+  REFUND       // 환불
+  ALIMTALK_SEND // 알림톡 발송
+}
+
+enum PaymentTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+// SOLAPI 알림톡 설정 (매장별)
+model AlimTalkConfig {
+  id                      String   @id @default(cuid())
+  storeId                 String   @unique
+  solapiApiKey            String?  // SOLAPI API Key
+  solapiApiSecret         String?  // SOLAPI API Secret
+  pfId                    String?  // 카카오 채널 ID
+  templateIdPointsEarned  String?  // 포인트 적립 템플릿 ID
+  templateIdReviewRequest String?  // 리뷰 요청 템플릿 ID
+  enabled                 Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("alimtalk_configs")
+}
+
+// 알림톡 발송 Outbox (재시도 및 멱등성 보장)
+model AlimTalkOutbox {
+  id            String             @id @default(cuid())
+  storeId       String
+  customerId    String?
+  phone         String             // 수신자 전화번호
+  messageType   AlimTalkType       // 메시지 유형
+  templateId    String             // 사용된 템플릿 ID
+  variables     Json               // 템플릿 변수 (JSON)
+  status        AlimTalkStatus     @default(PENDING)
+  retryCount    Int                @default(0)
+  maxRetries    Int                @default(3)
+  idempotencyKey String            @unique // 중복 발송 방지 키
+  solapiMessageId String?          // SOLAPI 메시지 ID (발송 후)
+  failReason    String?            @db.Text
+  scheduledAt   DateTime?          // 예약 발송 시간 (null = 즉시)
+  sentAt        DateTime?          // 실제 발송 시간
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([storeId])
+  @@index([status, scheduledAt])
+  @@index([idempotencyKey])
+  @@index([createdAt])
+  @@map("alimtalk_outbox")
+}
+
+enum AlimTalkType {
+  POINTS_EARNED       // 포인트 적립 알림
+  NAVER_REVIEW_REQUEST // 네이버 리뷰 요청
+}
+
+enum AlimTalkStatus {
+  PENDING    // 대기 중
+  PROCESSING // 처리 중
+  SENT       // 발송 완료
+  FAILED     // 발송 실패 (재시도 불가)
+  RETRY      // 재시도 대기
+}
+
+// 네이버 리뷰 통계 기록 (일별)
+model NaverReviewStats {
+  id             String   @id @default(cuid())
+  storeId        String
+  date           DateTime @db.Date
+  visitorReviews Int      @default(0) // 방문자 리뷰 수
+  blogReviews    Int      @default(0) // 블로그 리뷰 수
+  totalReviews   Int      @default(0) // 총 리뷰 수
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([storeId, date])
+  @@index([storeId])
+  @@index([date])
+  @@map("naver_review_stats")
+}
