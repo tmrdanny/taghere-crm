@@ -187,7 +187,7 @@ router.get('/search/phone/:digits', authMiddleware, async (req: AuthRequest, res
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { name, phone, gender, birthday, memo, initialPoints, feedbackRating, feedbackText } = req.body;
+    const { name, phone, gender, birthday, birthYear, memo, initialPoints, feedbackRating, feedbackText } = req.body;
 
     // 필수 필드 검증
     if (!phone) {
@@ -218,7 +218,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         phone: normalizedPhone,
         phoneLastDigits,
         gender: gender || null,
-        birthday: birthday ? new Date(birthday) : null,
+        birthday: birthday || null,  // MM-DD 형식 문자열
+        birthYear: birthYear || null,  // YYYY 숫자
         memo: memo || null,
         totalPoints: initialPoints || 0,
         visitCount: 0,
@@ -259,7 +260,7 @@ router.patch('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const storeId = req.user!.storeId;
-    const { name, gender, birthday, memo, feedbackRating, feedbackText } = req.body;
+    const { name, gender, birthday, birthYear, memo, feedbackRating, feedbackText } = req.body;
 
     // Check if customer exists and belongs to the store
     const customer = await prisma.customer.findFirst({
@@ -275,7 +276,10 @@ router.patch('/:id', authMiddleware, async (req: AuthRequest, res) => {
     if (name !== undefined) updateData.name = name;
     if (gender !== undefined) updateData.gender = gender;
     if (birthday !== undefined) {
-      updateData.birthday = birthday ? new Date(birthday) : null;
+      updateData.birthday = birthday || null;  // MM-DD 형식 문자열
+    }
+    if (birthYear !== undefined) {
+      updateData.birthYear = birthYear || null;  // YYYY 숫자
     }
     if (memo !== undefined) updateData.memo = memo;
     if (feedbackRating !== undefined) updateData.feedbackRating = feedbackRating;

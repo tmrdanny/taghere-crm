@@ -116,7 +116,8 @@ router.get('/callback', async (req, res) => {
         phone_number?: string;
         profile?: { nickname?: string };
         gender?: string;
-        birthday?: string;
+        birthday?: string;      // MMDD 형식
+        birthyear?: string;     // YYYY 형식
       };
     };
 
@@ -201,8 +202,9 @@ router.get('/callback', async (req, res) => {
           phoneLastDigits,
           gender: kakaoAccount.gender === 'male' ? 'MALE' : kakaoAccount.gender === 'female' ? 'FEMALE' : null,
           birthday: kakaoAccount.birthday
-            ? new Date(`2000-${kakaoAccount.birthday.slice(0, 2)}-${kakaoAccount.birthday.slice(2, 4)}`)
+            ? `${kakaoAccount.birthday.slice(0, 2)}-${kakaoAccount.birthday.slice(2, 4)}`
             : null,
+          birthYear: kakaoAccount.birthyear ? parseInt(kakaoAccount.birthyear) : null,
           consentMarketing: true,
           consentKakao: true,
           consentAt: new Date(),

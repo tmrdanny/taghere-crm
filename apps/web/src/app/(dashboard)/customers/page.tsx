@@ -22,7 +22,8 @@ interface Customer {
   phone: string;
   totalPoints: number;
   gender: string;
-  birthday: string;
+  birthday: string | null;   // MM-DD 형식
+  birthYear: number | null;  // YYYY 형식
   memo: string | null;
   feedbackRating: number | null;
   feedbackText: string | null;
@@ -103,7 +104,8 @@ export default function CustomersPage() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editName, setEditName] = useState('');
   const [editGender, setEditGender] = useState<'MALE' | 'FEMALE'>('MALE');
-  const [editBirthday, setEditBirthday] = useState('');
+  const [editBirthday, setEditBirthday] = useState('');  // MM-DD 형식
+  const [editBirthYear, setEditBirthYear] = useState('');  // YYYY 형식
   const [editMemo, setEditMemo] = useState('');
   const [submittingEdit, setSubmittingEdit] = useState(false);
 
@@ -117,7 +119,8 @@ export default function CustomersPage() {
   const [addName, setAddName] = useState('');
   const [addPhone, setAddPhone] = useState('');
   const [addGender, setAddGender] = useState<'MALE' | 'FEMALE' | ''>('');
-  const [addBirthday, setAddBirthday] = useState('');
+  const [addBirthday, setAddBirthday] = useState('');  // MM-DD 형식
+  const [addBirthYear, setAddBirthYear] = useState('');  // YYYY 형식
   const [addMemo, setAddMemo] = useState('');
   const [addInitialPoints, setAddInitialPoints] = useState('');
   const [addFeedbackRating, setAddFeedbackRating] = useState(0);
@@ -285,7 +288,8 @@ export default function CustomersPage() {
     setEditingCustomer(customer);
     setEditName(customer.name || '');
     setEditGender(customer.gender === 'FEMALE' ? 'FEMALE' : 'MALE');
-    setEditBirthday(customer.birthday ? customer.birthday.split('T')[0] : '');
+    setEditBirthday(customer.birthday || '');  // MM-DD 형식
+    setEditBirthYear(customer.birthYear ? customer.birthYear.toString() : '');
     setEditMemo(customer.memo || '');
     setEditFeedbackRating(customer.feedbackRating || 0);
     setEditFeedbackText(customer.feedbackText || '');
@@ -328,6 +332,7 @@ export default function CustomersPage() {
           name: editName || null,
           gender: editGender,
           birthday: editBirthday || null,
+          birthYear: editBirthYear ? parseInt(editBirthYear, 10) : null,
           memo: editMemo || null,
         }),
       });
@@ -367,6 +372,7 @@ export default function CustomersPage() {
           phone: addPhone,
           gender: addGender || null,
           birthday: addBirthday || null,
+          birthYear: addBirthYear ? parseInt(addBirthYear, 10) : null,
           memo: addMemo || null,
           initialPoints: addInitialPoints ? parseInt(addInitialPoints, 10) : 0,
           feedbackRating: addFeedbackRating || null,
@@ -384,6 +390,7 @@ export default function CustomersPage() {
       setAddPhone('');
       setAddGender('');
       setAddBirthday('');
+      setAddBirthYear('');
       setAddMemo('');
       setAddInitialPoints('');
       setAddFeedbackRating(0);
@@ -664,7 +671,10 @@ export default function CustomersPage() {
                   성별
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  생년월일
+                  생일
+                </th>
+                <th className="p-4 text-left text-sm font-medium text-neutral-600">
+                  출생연도
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
                   메모
@@ -683,21 +693,21 @@ export default function CustomersPage() {
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={10} className="p-8 text-center text-neutral-500">
+                  <td colSpan={11} className="p-8 text-center text-neutral-500">
                     불러오는 중...
                   </td>
                 </tr>
               )}
               {!isLoading && error && (
                 <tr>
-                  <td colSpan={10} className="p-8 text-center text-error">
+                  <td colSpan={11} className="p-8 text-center text-error">
                     {error}
                   </td>
                 </tr>
               )}
               {!isLoading && !error && customers.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="p-8 text-center text-neutral-500">
+                  <td colSpan={11} className="p-8 text-center text-neutral-500">
                     결과가 없습니다.
                   </td>
                 </tr>
@@ -748,7 +758,10 @@ export default function CustomersPage() {
                         {customer.gender === 'MALE' ? '남성' : customer.gender === 'FEMALE' ? '여성' : '-'}
                       </td>
                       <td className="p-4 text-neutral-600">
-                        {customer.birthday ? formatDate(customer.birthday) : '-'}
+                        {customer.birthday || '-'}
+                      </td>
+                      <td className="p-4 text-neutral-600">
+                        {customer.birthYear || '-'}
                       </td>
                       <td className="p-4 max-w-[200px]">
                         <div className="flex items-center gap-2">
@@ -1098,14 +1111,29 @@ export default function CustomersPage() {
               </div>
             </div>
 
-            {/* Birthday */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">생년월일</label>
-              <Input
-                type="date"
-                value={editBirthday}
-                onChange={(e) => setEditBirthday(e.target.value)}
-              />
+            {/* Birthday and Birth Year */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-neutral-600">생일 (MM-DD)</label>
+                <Input
+                  type="text"
+                  placeholder="01-15"
+                  value={editBirthday}
+                  onChange={(e) => setEditBirthday(e.target.value)}
+                  maxLength={5}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-neutral-600">출생연도</label>
+                <Input
+                  type="number"
+                  placeholder="1990"
+                  value={editBirthYear}
+                  onChange={(e) => setEditBirthYear(e.target.value)}
+                  min={1900}
+                  max={new Date().getFullYear()}
+                />
+              </div>
             </div>
 
             {/* Memo / Feedback Tabs */}
@@ -1335,14 +1363,29 @@ export default function CustomersPage() {
               </div>
             </div>
 
-            {/* Birthday */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">생년월일</label>
-              <Input
-                type="date"
-                value={addBirthday}
-                onChange={(e) => setAddBirthday(e.target.value)}
-              />
+            {/* Birthday and Birth Year */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-neutral-600">생일 (MM-DD)</label>
+                <Input
+                  type="text"
+                  placeholder="01-15"
+                  value={addBirthday}
+                  onChange={(e) => setAddBirthday(e.target.value)}
+                  maxLength={5}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-neutral-600">출생연도</label>
+                <Input
+                  type="number"
+                  placeholder="1990"
+                  value={addBirthYear}
+                  onChange={(e) => setAddBirthYear(e.target.value)}
+                  min={1900}
+                  max={new Date().getFullYear()}
+                />
+              </div>
             </div>
 
             {/* Initial Points */}

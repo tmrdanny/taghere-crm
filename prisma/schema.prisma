@@ -83,7 +83,8 @@ model Customer {
   phone            String?   // 전화번호 (뒷자리만 저장 가능)
   phoneLastDigits  String?   // 전화번호 뒤 8자리 (검색용)
   gender           Gender?
-  birthday         DateTime? @db.Date
+  birthday         String?   // 생일 (MM-DD 형식)
+  birthYear        Int?      // 출생연도 (YYYY)
   memo             String?   @db.Text
 
   // 고객 피드백
