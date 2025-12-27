@@ -4,7 +4,7 @@
 services:
   # Backend API (Express + Prisma)
   - type: web
-    name: taghere-api
+    name: taghere-crm-api
     runtime: node
     region: singapore  # 한국에서 가장 가까운 리전
     plan: starter  # $7/month - 추천
@@ -42,7 +42,7 @@ services:
 
   # Frontend (Next.js)
   - type: web
-    name: taghere-web
+    name: taghere-crm-web
     runtime: node
     region: singapore
     plan: starter  # $7/month - 추천
@@ -54,7 +54,7 @@ services:
       - key: NEXT_PUBLIC_API_URL
         fromService:
           type: web
-          name: taghere-api
+          name: taghere-crm-api
           property: hostport
       - key: NEXT_PUBLIC_TOSS_CLIENT_KEY
         sync: false
