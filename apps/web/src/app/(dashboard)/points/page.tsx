@@ -40,7 +40,7 @@ interface RecentTransaction {
 }
 
 // Preset point amounts
-const POINT_PRESETS = [100, 500, 1000, 2000];
+const POINT_PRESETS = [500, 1000, 2000, 5000];
 
 export default function PointsPage() {
   // Input states
@@ -86,7 +86,7 @@ export default function PointsPage() {
       const token = getAuthToken();
       if (!token) return;
 
-      const res = await fetch(`${API_BASE}/api/points/recent?limit=5`, {
+      const res = await fetch(`${API_BASE}/api/points/recent?limit=10`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -315,269 +315,328 @@ export default function PointsPage() {
   const currentPoints = parseInt(pointsInput) || 0;
 
   return (
-    <div className="h-[calc(100vh-4rem)] p-3 overflow-hidden">
-      <div className="h-full max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 h-full">
-          {/* Left: Recent Transactions */}
-          <Card className="p-3 lg:col-span-2 order-2 lg:order-1 hidden lg:flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-semibold text-neutral-500">
-                최근 적립 내역
-              </h2>
-              <button
-                onClick={fetchRecentTransactions}
-                className="p-1 rounded hover:bg-neutral-100 transition-colors"
-                title="새로고침"
-              >
-                <RefreshCw className="w-4 h-4 text-neutral-400" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto space-y-1">
-              {isLoadingRecent ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
-                </div>
-              ) : recentTransactions.length === 0 ? (
-                <p className="text-center text-sm text-neutral-400 py-8">
-                  적립 내역이 없습니다
-                </p>
-              ) : (
-                recentTransactions.map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between py-2 border-b border-neutral-100 last:border-0"
+    <div className="min-h-screen bg-neutral-100 p-4 lg:p-6 flex items-center justify-center">
+      {/* Hidden input for keyboard typing */}
+      <input
+        ref={hiddenInputRef}
+        type="text"
+        inputMode="numeric"
+        value={step === 'phone' ? phoneInput : pointsInput}
+        onChange={handleHiddenInputChange}
+        onKeyDown={handleHiddenInputKeyDown}
+        className="absolute opacity-0 pointer-events-none"
+        autoFocus
+      />
+
+      <div className="w-full max-w-7xl">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+
+          {/* Left Panel - Recent Transactions */}
+          <div className="lg:col-span-4 order-2 lg:order-1">
+            <Card className="h-full bg-white shadow-sm">
+              <div className="p-4 border-b border-neutral-100">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-semibold text-neutral-900">
+                    최근 적립 내역
+                  </h2>
+                  <button
+                    onClick={fetchRecentTransactions}
+                    className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
+                    title="새로고침"
                   >
-                    <div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-sm font-medium text-neutral-900">
-                          {tx.customerName || (tx.phone ? formatPhone(tx.phone) : '알 수 없음')}
-                        </span>
-                        {tx.isVip && <Badge variant="vip">VIP</Badge>}
-                        {tx.isNew && <Badge variant="new">신규</Badge>}
-                      </div>
-                      <span className="text-xs text-neutral-500">
-                        {formatTime(tx.createdAt)}
-                      </span>
-                    </div>
-                    <span className="text-sm font-semibold text-green-600">
-                      +{formatNumber(tx.points)}P
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
-
-          {/* Right: Input Section */}
-          <Card className="p-4 lg:col-span-3 order-1 lg:order-2 flex flex-col h-full overflow-hidden">
-            {/* Hidden input for keyboard typing */}
-            <input
-              ref={hiddenInputRef}
-              type="text"
-              inputMode="numeric"
-              value={step === 'phone' ? phoneInput : pointsInput}
-              onChange={handleHiddenInputChange}
-              onKeyDown={handleHiddenInputKeyDown}
-              className="absolute opacity-0 pointer-events-none"
-              autoFocus
-            />
-
-            <h1 className="text-xl font-bold text-neutral-900 text-center mb-1">
-              포인트 적립
-            </h1>
-
-            {/* Error message */}
-            {error && (
-              <div className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-2 rounded-lg mb-2 text-sm">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{error}</span>
-                <button
-                  onClick={() => setError(null)}
-                  className="ml-auto text-red-500 hover:text-red-700"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-
-            {/* Customer info card */}
-            {step === 'points' && (
-              <div className="mb-2">
-                {isSearching ? (
-                  <div className="flex items-center justify-center py-3 bg-neutral-50 rounded-xl">
-                    <Loader2 className="w-5 h-5 animate-spin text-neutral-400 mr-2" />
-                    <span className="text-sm text-neutral-500">고객 검색 중...</span>
-                  </div>
-                ) : customer ? (
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-neutral-900">
-                          {customer.name || '이름 없음'}
-                        </span>
-                        {customer.isVip && <Badge variant="vip">VIP</Badge>}
-                      </div>
-                      <span className="text-brand-800 font-bold">
-                        {formatNumber(customer.totalPoints)}P 보유
-                      </span>
-                    </div>
-                    <p className="text-xs text-neutral-500 mt-1">
-                      방문 {customer.visitCount}회
-                      {customer.lastVisitAt && ` · ${getRelativeTime(customer.lastVisitAt)}`}
-                    </p>
-                  </div>
-                ) : isNewCustomer ? (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                    <div className="flex items-center gap-2">
-                      <UserPlus className="w-5 h-5 text-amber-600" />
-                      <span className="font-semibold text-amber-800">신규 고객</span>
-                    </div>
-                    <p className="text-xs text-amber-600 mt-1">
-                      적립 시 자동으로 고객이 등록됩니다
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            )}
-
-            {/* Phone input display */}
-            <div className="mb-2">
-              <label className="text-xs font-medium text-brand-800 block mb-1">
-                전화번호
-              </label>
-              <div
-                className={`flex items-center justify-center px-3 py-3 border-2 rounded-xl bg-white cursor-text ${
-                  step === 'phone' ? 'border-brand-800' : 'border-neutral-200'
-                }`}
-                onClick={() => {
-                  if (step !== 'phone') {
-                    setStep('phone');
-                    setCustomer(null);
-                    setIsNewCustomer(false);
-                  }
-                  hiddenInputRef.current?.focus();
-                }}
-              >
-                <span className="text-xl font-medium text-neutral-900">010</span>
-                <span className="text-xl font-medium text-neutral-400 mx-2">-</span>
-                <span className="text-xl font-medium text-neutral-900 tracking-widest">
-                  {part1.split('').map((char, i) => (
-                    <span key={i} className={char === '_' ? 'text-neutral-300' : ''}>
-                      {char}
-                    </span>
-                  ))}
-                </span>
-                <span className="text-xl font-medium text-neutral-400 mx-2">-</span>
-                <span className="text-xl font-medium text-neutral-900 tracking-widest">
-                  {part2.split('').map((char, i) => (
-                    <span key={i} className={char === '_' ? 'text-neutral-300' : ''}>
-                      {char}
-                    </span>
-                  ))}
-                </span>
-              </div>
-            </div>
-
-            {/* Points input display with presets */}
-            <div className="mb-2">
-              <label className="text-xs font-medium text-neutral-500 block mb-1">
-                적립 포인트
-              </label>
-
-              {/* Preset buttons */}
-              {step === 'points' && (
-                <div className="flex gap-1.5 mb-2">
-                  {POINT_PRESETS.map((preset) => (
-                    <button
-                      key={preset}
-                      onClick={() => handlePresetSelect(preset)}
-                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        currentPoints === preset
-                          ? 'bg-brand-800 text-white'
-                          : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                      }`}
-                    >
-                      {formatNumber(preset)}
-                    </button>
-                  ))}
+                    <RefreshCw className="w-4 h-4 text-neutral-500" />
+                  </button>
                 </div>
-              )}
+              </div>
 
-              <div
-                className={`flex items-center justify-center px-3 py-3 rounded-xl cursor-text ${
-                  step === 'points'
-                    ? 'border-2 border-brand-800 bg-white'
-                    : 'bg-neutral-100 border border-neutral-200'
-                }`}
-                onClick={() => {
-                  if (phoneInput.length === 8 && !isSearching) {
-                    setStep('points');
-                    hiddenInputRef.current?.focus();
-                  }
-                }}
-              >
-                {step === 'points' ? (
-                  <span className="text-xl font-bold text-neutral-900">
-                    {pointsInput ? `${formatNumber(parseInt(pointsInput))} P` : '0 P'}
-                  </span>
+              <div className="p-2 max-h-[calc(100vh-12rem)] overflow-y-auto">
+                {isLoadingRecent ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-neutral-400" />
+                  </div>
+                ) : recentTransactions.length === 0 ? (
+                  <p className="text-center text-sm text-neutral-400 py-12">
+                    적립 내역이 없습니다
+                  </p>
                 ) : (
-                  <span className="text-sm text-neutral-400">
-                    번호 입력 후 포인트를 입력하세요
-                  </span>
+                  <div className="space-y-1">
+                    {recentTransactions.map((tx) => (
+                      <div
+                        key={tx.id}
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-neutral-900 truncate">
+                              {tx.customerName || (tx.phone ? formatPhone(tx.phone) : '알 수 없음')}
+                            </span>
+                            {tx.isVip && <Badge variant="vip">VIP</Badge>}
+                            {tx.isNew && <Badge variant="new">신규</Badge>}
+                          </div>
+                          <span className="text-xs text-neutral-500">
+                            {formatTime(tx.createdAt)}
+                          </span>
+                        </div>
+                        <span className="text-sm font-bold text-green-600 ml-2">
+                          +{formatNumber(tx.points)}P
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-            </div>
+            </Card>
+          </div>
 
-            {/* Keypad */}
-            <div className="grid grid-cols-3 gap-1.5 mb-3 flex-1 min-h-0">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                <button
-                  key={num}
-                  onClick={() => handleKeypadPress(num.toString())}
-                  className="text-xl font-medium text-neutral-900 bg-neutral-50 rounded-lg hover:bg-neutral-100 active:bg-neutral-200 transition-colors"
+          {/* Right Panel - Point Input */}
+          <div className="lg:col-span-8 order-1 lg:order-2">
+            <Card className="bg-white shadow-sm">
+              {/* Header */}
+              <div className="p-4 lg:p-6 border-b border-neutral-100">
+                <h1 className="text-xl font-bold text-neutral-900">
+                  포인트 적립
+                </h1>
+                <p className="text-sm text-neutral-500 mt-1">
+                  전화번호를 입력하고 적립할 포인트를 선택하세요
+                </p>
+              </div>
+
+              <div className="p-4 lg:p-6">
+                {/* Error message */}
+                {error && (
+                  <div className="flex items-center gap-2 bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                    <span className="text-sm">{error}</span>
+                    <button
+                      onClick={() => setError(null)}
+                      className="ml-auto text-red-500 hover:text-red-700 p-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                {/* Two Column Layout for inputs */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+
+                  {/* Left Column - Phone & Points Input */}
+                  <div className="space-y-4">
+                    {/* Phone Input */}
+                    <div>
+                      <label className="text-sm font-medium text-neutral-700 block mb-2">
+                        전화번호
+                      </label>
+                      <div
+                        className={`flex items-center justify-center px-4 py-4 border-2 rounded-xl bg-white cursor-text transition-colors ${
+                          step === 'phone'
+                            ? 'border-brand-800 ring-2 ring-brand-100'
+                            : 'border-neutral-200 hover:border-neutral-300'
+                        }`}
+                        onClick={() => {
+                          if (step !== 'phone') {
+                            setStep('phone');
+                            setCustomer(null);
+                            setIsNewCustomer(false);
+                          }
+                          hiddenInputRef.current?.focus();
+                        }}
+                      >
+                        <span className="text-2xl font-semibold text-neutral-900">010</span>
+                        <span className="text-2xl font-semibold text-neutral-300 mx-1">-</span>
+                        <span className="text-2xl font-semibold tracking-wider">
+                          {part1.split('').map((char, i) => (
+                            <span key={i} className={char === '_' ? 'text-neutral-300' : 'text-neutral-900'}>
+                              {char}
+                            </span>
+                          ))}
+                        </span>
+                        <span className="text-2xl font-semibold text-neutral-300 mx-1">-</span>
+                        <span className="text-2xl font-semibold tracking-wider">
+                          {part2.split('').map((char, i) => (
+                            <span key={i} className={char === '_' ? 'text-neutral-300' : 'text-neutral-900'}>
+                              {char}
+                            </span>
+                          ))}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Customer Info */}
+                    {step === 'points' && (
+                      <div>
+                        {isSearching ? (
+                          <div className="flex items-center justify-center py-4 bg-neutral-50 rounded-xl">
+                            <Loader2 className="w-5 h-5 animate-spin text-neutral-400 mr-2" />
+                            <span className="text-sm text-neutral-500">고객 검색 중...</span>
+                          </div>
+                        ) : customer ? (
+                          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-neutral-900">
+                                  {customer.name || '이름 없음'}
+                                </span>
+                                {customer.isVip && <Badge variant="vip">VIP</Badge>}
+                              </div>
+                              <span className="text-brand-800 font-bold">
+                                {formatNumber(customer.totalPoints)}P
+                              </span>
+                            </div>
+                            <p className="text-xs text-neutral-500 mt-1">
+                              방문 {customer.visitCount}회
+                              {customer.lastVisitAt && ` · ${getRelativeTime(customer.lastVisitAt)}`}
+                            </p>
+                          </div>
+                        ) : isNewCustomer ? (
+                          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+                            <div className="flex items-center gap-2">
+                              <UserPlus className="w-5 h-5 text-amber-600" />
+                              <span className="font-semibold text-amber-800">신규 고객</span>
+                            </div>
+                            <p className="text-xs text-amber-600 mt-1">
+                              적립 시 자동으로 고객이 등록됩니다
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+
+                    {/* Points Input */}
+                    <div>
+                      <label className="text-sm font-medium text-neutral-700 block mb-2">
+                        적립 포인트
+                      </label>
+
+                      {/* Preset Buttons */}
+                      <div className="grid grid-cols-4 gap-2 mb-3">
+                        {POINT_PRESETS.map((preset) => (
+                          <button
+                            key={preset}
+                            onClick={() => {
+                              if (step === 'points' || phoneInput.length === 8) {
+                                if (step === 'phone' && phoneInput.length === 8) {
+                                  handlePhoneComplete(phoneInput);
+                                }
+                                handlePresetSelect(preset);
+                              }
+                            }}
+                            disabled={step === 'phone' && phoneInput.length !== 8}
+                            className={`py-3 rounded-xl text-sm font-semibold transition-all ${
+                              currentPoints === preset
+                                ? 'bg-brand-800 text-white shadow-sm'
+                                : step === 'phone' && phoneInput.length !== 8
+                                ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                                : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                            }`}
+                          >
+                            {formatNumber(preset)}P
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Points Display */}
+                      <div
+                        className={`flex items-center justify-center px-4 py-4 rounded-xl cursor-text transition-colors ${
+                          step === 'points'
+                            ? 'border-2 border-brand-800 bg-white ring-2 ring-brand-100'
+                            : 'bg-neutral-100 border border-neutral-200'
+                        }`}
+                        onClick={() => {
+                          if (phoneInput.length === 8 && !isSearching) {
+                            setStep('points');
+                            hiddenInputRef.current?.focus();
+                          }
+                        }}
+                      >
+                        {step === 'points' ? (
+                          <span className="text-3xl font-bold text-neutral-900">
+                            {pointsInput ? `${formatNumber(parseInt(pointsInput))} P` : '0 P'}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-neutral-400">
+                            번호 입력 후 포인트를 선택하세요
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Submit Button - Desktop */}
+                    <Button
+                      onClick={() => {
+                        if (step === 'phone' && phoneInput.length === 8) {
+                          handlePhoneComplete(phoneInput);
+                        } else if (step === 'points' && currentPoints > 0) {
+                          setShowConfirmModal(true);
+                        }
+                      }}
+                      disabled={
+                        (step === 'phone' && phoneInput.length !== 8) ||
+                        (step === 'points' && currentPoints <= 0) ||
+                        isSearching
+                      }
+                      className="w-full py-4 text-base font-semibold rounded-xl hidden lg:flex"
+                      size="lg"
+                    >
+                      {step === 'phone' ? '다음' : '적립하기'}
+                    </Button>
+                  </div>
+
+                  {/* Right Column - Keypad */}
+                  <div className="bg-neutral-50 rounded-2xl p-4">
+                    <div className="grid grid-cols-3 gap-2">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                        <button
+                          key={num}
+                          onClick={() => handleKeypadPress(num.toString())}
+                          className="aspect-square flex items-center justify-center text-2xl font-semibold text-neutral-900 bg-white rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
+                        >
+                          {num}
+                        </button>
+                      ))}
+                      <button
+                        onClick={handleKeypadClear}
+                        className="aspect-square flex items-center justify-center text-sm font-semibold text-neutral-600 bg-red-50 rounded-xl hover:bg-red-100 active:bg-red-200 transition-colors"
+                      >
+                        초기화
+                      </button>
+                      <button
+                        onClick={() => handleKeypadPress('0')}
+                        className="aspect-square flex items-center justify-center text-2xl font-semibold text-neutral-900 bg-white rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
+                      >
+                        0
+                      </button>
+                      <button
+                        onClick={handleKeypadDelete}
+                        className="aspect-square flex items-center justify-center text-neutral-600 bg-neutral-200 rounded-xl hover:bg-neutral-300 active:bg-neutral-400 transition-colors"
+                      >
+                        <Delete className="w-6 h-6" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit Button - Mobile */}
+                <Button
+                  onClick={() => {
+                    if (step === 'phone' && phoneInput.length === 8) {
+                      handlePhoneComplete(phoneInput);
+                    } else if (step === 'points' && currentPoints > 0) {
+                      setShowConfirmModal(true);
+                    }
+                  }}
+                  disabled={
+                    (step === 'phone' && phoneInput.length !== 8) ||
+                    (step === 'points' && currentPoints <= 0) ||
+                    isSearching
+                  }
+                  className="w-full py-4 text-base font-semibold rounded-xl mt-4 lg:hidden"
+                  size="lg"
                 >
-                  {num}
-                </button>
-              ))}
-              <button
-                onClick={handleKeypadClear}
-                className="text-sm font-medium text-neutral-700 bg-red-50 rounded-lg hover:bg-red-100 active:bg-red-200 transition-colors"
-              >
-                초기화
-              </button>
-              <button
-                onClick={() => handleKeypadPress('0')}
-                className="text-xl font-medium text-neutral-900 bg-neutral-50 rounded-lg hover:bg-neutral-100 active:bg-neutral-200 transition-colors"
-              >
-                0
-              </button>
-              <button
-                onClick={handleKeypadDelete}
-                className="flex items-center justify-center text-neutral-700 bg-neutral-50 rounded-lg hover:bg-neutral-100 active:bg-neutral-200 transition-colors"
-              >
-                <Delete className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Submit button */}
-            <Button
-              onClick={() => {
-                if (step === 'phone' && phoneInput.length === 8) {
-                  handlePhoneComplete(phoneInput);
-                } else if (step === 'points' && currentPoints > 0) {
-                  setShowConfirmModal(true);
-                }
-              }}
-              disabled={
-                (step === 'phone' && phoneInput.length !== 8) ||
-                (step === 'points' && currentPoints <= 0) ||
-                isSearching
-              }
-              className="w-full py-3 text-base font-semibold rounded-full flex-shrink-0"
-            >
-              {step === 'phone' ? '다음' : '적립 완료'}
-            </Button>
-          </Card>
+                  {step === 'phone' ? '다음' : '적립하기'}
+                </Button>
+              </div>
+            </Card>
+          </div>
         </div>
       </div>
 
