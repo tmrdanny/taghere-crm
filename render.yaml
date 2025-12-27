@@ -8,7 +8,7 @@ services:
     runtime: node
     region: singapore  # 한국에서 가장 가까운 리전
     plan: starter  # $7/month - 추천
-    buildCommand: npm install && npx prisma generate && cd apps/api && npm install && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && cd apps/api && npm install --include=dev && npm run build
     startCommand: cd apps/api && npm run start
     envVars:
       - key: NODE_ENV
@@ -46,7 +46,7 @@ services:
     runtime: node
     region: singapore
     plan: starter  # $7/month - 추천
-    buildCommand: cd apps/web && npm install && npm run build
+    buildCommand: cd apps/web && npm install --include=dev && npm run build
     startCommand: cd apps/web && npm run start
     envVars:
       - key: NODE_ENV
