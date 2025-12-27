@@ -79,14 +79,25 @@ router.get('/transactions', authMiddleware, async (req: AuthRequest, res) => {
     const limitNum = parseInt(limit as string);
     const skip = (pageNum - 1) * limitNum;
 
+    // 충전 관련 타입만 필터링 (ALIMTALK_SEND 제외)
+    const chargeTypes = ['TOPUP', 'SUBSCRIPTION', 'REFUND'];
+
     const [transactions, total] = await Promise.all([
       prisma.paymentTransaction.findMany({
-        where: { storeId },
+        where: {
+          storeId,
+          type: { in: chargeTypes },
+        },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limitNum,
       }),
-      prisma.paymentTransaction.count({ where: { storeId } }),
+      prisma.paymentTransaction.count({
+        where: {
+          storeId,
+          type: { in: chargeTypes },
+        },
+      }),
     ]);
 
     res.json({
