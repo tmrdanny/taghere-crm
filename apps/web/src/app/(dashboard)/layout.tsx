@@ -74,5 +74,5 @@ export default function DashboardLayout({
     return null;
   }
 
-  return <MainLayout user={user}>{children}</MainLayout>;
+  return <MainLayout>{children}</MainLayout>;
 }
