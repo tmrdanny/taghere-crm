@@ -144,6 +144,12 @@ export default function BillingPage() {
       return;
     }
 
+    // 클라이언트 키가 없으면 초기화하지 않음
+    if (!TOSS_CLIENT_KEY) {
+      console.error('TossPayments client key is not set');
+      return;
+    }
+
     const initAndRenderWidgets = async () => {
       isInitializingRef.current = true;
 
@@ -190,7 +196,9 @@ export default function BillingPage() {
         setIsPaymentReady(true);
       } catch (error) {
         console.error('Failed to initialize TossPayments:', error);
+        // 에러 발생 시 재시도 가능하도록 플래그 리셋
         isInitializingRef.current = false;
+        setIsPaymentReady(false);
       }
     };
 

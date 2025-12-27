@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { PaymentTransactionType } from '@prisma/client';
 
 const router = Router();
 
@@ -80,7 +81,11 @@ router.get('/transactions', authMiddleware, async (req: AuthRequest, res) => {
     const skip = (pageNum - 1) * limitNum;
 
     // 충전 관련 타입만 필터링 (ALIMTALK_SEND 제외)
-    const chargeTypes = ['TOPUP', 'SUBSCRIPTION', 'REFUND'];
+    const chargeTypes: PaymentTransactionType[] = [
+      PaymentTransactionType.TOPUP,
+      PaymentTransactionType.SUBSCRIPTION,
+      PaymentTransactionType.REFUND,
+    ];
 
     const [transactions, total] = await Promise.all([
       prisma.paymentTransaction.findMany({
