@@ -265,8 +265,10 @@ router.post('/stores/:storeId/wallet/topup', adminAuthMiddleware, async (req: Ad
         amount,
         type: 'TOPUP',
         status: 'SUCCESS',
-        paymentMethod: 'ADMIN',
-        description: reason || '관리자 충전',
+        meta: {
+          paymentMethod: 'ADMIN',
+          description: reason || '관리자 충전',
+        },
       },
     });
 
