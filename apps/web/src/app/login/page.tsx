@@ -52,7 +52,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center pb-2">
           <Image
-            src="/taghere-logo.png"
+            src="/Taghere-logo.png"
             alt="태그히어"
             width={120}
             height={40}
