@@ -123,8 +123,6 @@ export default function CustomersPage() {
   const [addBirthYear, setAddBirthYear] = useState('');  // YYYY 형식
   const [addMemo, setAddMemo] = useState('');
   const [addInitialPoints, setAddInitialPoints] = useState('');
-  const [addFeedbackRating, setAddFeedbackRating] = useState(0);
-  const [addFeedbackText, setAddFeedbackText] = useState('');
   const [submittingAdd, setSubmittingAdd] = useState(false);
 
   // Edit modal tab and feedback states
@@ -375,8 +373,6 @@ export default function CustomersPage() {
           birthYear: addBirthYear ? parseInt(addBirthYear, 10) : null,
           memo: addMemo || null,
           initialPoints: addInitialPoints ? parseInt(addInitialPoints, 10) : 0,
-          feedbackRating: addFeedbackRating || null,
-          feedbackText: addFeedbackText || null,
         }),
       });
 
@@ -393,8 +389,6 @@ export default function CustomersPage() {
       setAddBirthYear('');
       setAddMemo('');
       setAddInitialPoints('');
-      setAddFeedbackRating(0);
-      setAddFeedbackText('');
       setPage(1);
       setRefreshKey((key) => key + 1);
       showToast('고객이 등록되었습니다.', 'success');
@@ -1416,28 +1410,6 @@ export default function CustomersPage() {
                 value={addMemo}
                 onChange={(e) => setAddMemo(e.target.value)}
               />
-            </div>
-
-            {/* Feedback */}
-            <div className="space-y-3 pt-3 border-t border-neutral-200">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-neutral-500" />
-                <label className="text-sm font-medium text-neutral-600">고객 피드백 (선택)</label>
-              </div>
-              <div>
-                <label className="text-xs text-neutral-500 block mb-2">별점</label>
-                <StarRating rating={addFeedbackRating} onRatingChange={setAddFeedbackRating} />
-              </div>
-              <div>
-                <label className="text-xs text-neutral-500 block mb-2">피드백 내용</label>
-                <textarea
-                  className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-800 focus:border-transparent"
-                  rows={2}
-                  placeholder="고객이 남긴 피드백을 입력하세요"
-                  value={addFeedbackText}
-                  onChange={(e) => setAddFeedbackText(e.target.value)}
-                />
-              </div>
             </div>
           </div>
 

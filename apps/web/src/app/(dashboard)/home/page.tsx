@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber, formatCurrency } from '@/lib/utils';
-import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Star } from 'lucide-react';
 import {
   XAxis,
   YAxis,
@@ -116,8 +116,31 @@ export default function HomePage() {
 
     fetchStats();
     fetchStoreName();
-    fetchNaverReviewStats();
+    // 홈 화면 진입 시 네이버 리뷰 데이터 새로고침 (크롤링)
+    refreshNaverReviewOnLoad();
   }, [apiUrl]);
+
+  // 홈 화면 로드 시 네이버 리뷰 새로고침
+  const refreshNaverReviewOnLoad = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/api/naver-review/refresh`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.stats) {
+          setNaverReviewStats(data.stats);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh naver review on load:', error);
+    }
+  };
 
   // Fetch chart data based on period
   useEffect(() => {
@@ -234,7 +257,7 @@ export default function HomePage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Total Customers */}
         <Card>
           <CardContent className="p-6">
@@ -266,6 +289,26 @@ export default function HomePage() {
               </div>
               <div className="p-3 bg-blue-50 rounded-lg">
                 <UserPlus className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Total Naver Reviews */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-neutral-500 mb-1">네이버 총 리뷰</p>
+                <p className="text-3xl font-bold text-neutral-900">
+                  {formatNumber(naverReviewStats?.currentTotal ?? 0)}건
+                </p>
+                <p className="text-sm text-neutral-500 mt-2">
+                  방문자 {formatNumber(naverReviewStats?.visitorReviews ?? 0)} · 블로그 {formatNumber(naverReviewStats?.blogReviews ?? 0)}
+                </p>
+              </div>
+              <div className="p-3 bg-yellow-50 rounded-lg">
+                <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
               </div>
             </div>
           </CardContent>

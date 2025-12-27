@@ -39,8 +39,8 @@ export default function BillingPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { showToast, ToastComponent } = useToast();
-  const [amount, setAmount] = useState<number>(100000);
-  const [customAmount, setCustomAmount] = useState<string>('100,000');
+  const [amount, setAmount] = useState<number>(50000);
+  const [customAmount, setCustomAmount] = useState<string>('50,000');
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
