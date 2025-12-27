@@ -55,6 +55,7 @@ export default function HomePage() {
   const [isRefreshingStats, setIsRefreshingStats] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const [chartRefreshKey, setChartRefreshKey] = useState(0);
 
   // Fetch dashboard stats
   useEffect(() => {
@@ -96,10 +97,12 @@ export default function HomePage() {
       }
     };
 
-    const fetchNaverReviewStats = async () => {
+    // 홈 화면 로드 시 네이버 리뷰 새로고침 (크롤링)
+    const refreshNaverReviewOnLoad = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/naver-review/stats`, {
+        const res = await fetch(`${apiUrl}/api/naver-review/refresh`, {
+          method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -107,40 +110,21 @@ export default function HomePage() {
 
         if (res.ok) {
           const data = await res.json();
-          setNaverReviewStats(data);
+          if (data.stats) {
+            setNaverReviewStats(data.stats);
+          }
+          // 새로고침 후 차트 데이터도 다시 불러오기
+          setChartRefreshKey(prev => prev + 1);
         }
       } catch (error) {
-        console.error('Failed to fetch naver review stats:', error);
+        console.error('Failed to refresh naver review on load:', error);
       }
     };
 
     fetchStats();
     fetchStoreName();
-    // 홈 화면 진입 시 네이버 리뷰 데이터 새로고침 (크롤링)
     refreshNaverReviewOnLoad();
   }, [apiUrl]);
-
-  // 홈 화면 로드 시 네이버 리뷰 새로고침
-  const refreshNaverReviewOnLoad = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/naver-review/refresh`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.stats) {
-          setNaverReviewStats(data.stats);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to refresh naver review on load:', error);
-    }
-  };
 
   // Fetch chart data based on period
   useEffect(() => {
@@ -176,7 +160,7 @@ export default function HomePage() {
     };
 
     fetchChartData();
-  }, [apiUrl, chartPeriod]);
+  }, [apiUrl, chartPeriod, chartRefreshKey]);
 
   // Refresh Naver review data
   const handleRefreshNaverReview = async () => {
