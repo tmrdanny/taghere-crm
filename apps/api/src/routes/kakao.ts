@@ -232,7 +232,7 @@ router.get('/callback', async (req, res) => {
       //   return res.redirect(alreadyUrl.toString());
       // }
 
-      // 기존 고객 정보 업데이트 (kakaoId, 이름, 성별 등)
+      // 기존 고객 정보 업데이트 (kakaoId, 이름, 성별, 생일 등)
       customer = await prisma.customer.update({
         where: { id: customer.id },
         data: {
@@ -241,6 +241,11 @@ router.get('/callback', async (req, res) => {
           phone: kakaoAccount.phone_number || customer.phone,
           phoneLastDigits: phoneLastDigits || customer.phoneLastDigits,
           gender: kakaoAccount.gender === 'male' ? 'MALE' : kakaoAccount.gender === 'female' ? 'FEMALE' : customer.gender,
+          // 생일 정보도 없으면 업데이트
+          birthday: customer.birthday || (kakaoAccount.birthday
+            ? `${kakaoAccount.birthday.slice(0, 2)}-${kakaoAccount.birthday.slice(2, 4)}`
+            : null),
+          birthYear: customer.birthYear || (kakaoAccount.birthyear ? parseInt(kakaoAccount.birthyear) : null),
         },
       });
     }

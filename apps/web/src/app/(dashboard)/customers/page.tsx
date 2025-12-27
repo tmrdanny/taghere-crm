@@ -1301,12 +1301,12 @@ export default function CustomersPage() {
 
       {/* Add Customer Modal */}
       <Modal open={addModal} onOpenChange={setAddModal}>
-        <ModalContent className="sm:max-w-lg">
-          <ModalHeader>
+        <ModalContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+          <ModalHeader className="flex-shrink-0">
             <ModalTitle>고객 등록</ModalTitle>
           </ModalHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 overflow-y-auto flex-1 px-1">
             {/* Phone - Required */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-neutral-600">
@@ -1441,7 +1441,7 @@ export default function CustomersPage() {
             </div>
           </div>
 
-          <ModalFooter>
+          <ModalFooter className="flex-shrink-0">
             <Button
               variant="secondary"
               onClick={() => setAddModal(false)}
