@@ -288,7 +288,7 @@ export default function HomePage() {
                 </p>
               </div>
               <div className="flex flex-col items-end gap-2">
-                {(stats?.reviewBalance ?? 0) < 5000 && (
+                {(stats?.reviewBalance ?? 0) < 1000 && (
                   <Badge variant="error" className="flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
                     잔액 부족

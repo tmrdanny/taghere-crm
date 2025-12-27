@@ -154,15 +154,21 @@ router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
         const { SolapiService } = await import('../services/solapi.js');
         const solapiService = new SolapiService(apiKey, apiSecret);
 
+        // 네이버 플레이스 URL에서 프로토콜 제거 (버튼 변수용)
+        let placeAddress = settings?.naverReviewUrl || '';
+        if (placeAddress.startsWith('https://')) {
+          placeAddress = placeAddress.replace('https://', '');
+        } else if (placeAddress.startsWith('http://')) {
+          placeAddress = placeAddress.replace('http://', '');
+        }
+
         await solapiService.sendAlimTalk({
           to: phone,
           pfId,
           templateId,
           variables: {
-            '#{customerName}': '고객',
-            '#{storeName}': store.name,
-            '#{reviewLink}': settings?.naverReviewUrl || 'https://naver.com',
-            '#{쿠폰코드}': settings?.benefitText || '',
+            '#{리뷰내용}': settings?.benefitText || '',
+            '#{플레이스주소}': placeAddress,
           },
         });
       } catch (sendError) {
