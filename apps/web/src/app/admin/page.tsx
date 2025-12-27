@@ -14,6 +14,13 @@ interface Store {
   ownerEmail: string | null;
   ownerId: string | null;
   customerCount: number;
+  walletBalance?: number;
+}
+
+interface TopupModalData {
+  storeId: string;
+  storeName: string;
+  currentBalance: number;
 }
 
 interface Stats {
@@ -29,6 +36,10 @@ export default function AdminDashboardPage() {
   const [resettingStoreId, setResettingStoreId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [topupModal, setTopupModal] = useState<TopupModalData | null>(null);
+  const [topupAmount, setTopupAmount] = useState('');
+  const [topupReason, setTopupReason] = useState('');
+  const [isTopupLoading, setIsTopupLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -57,7 +68,25 @@ export default function AdminDashboardPage() {
 
       if (storesRes.ok) {
         const storesData = await storesRes.json();
-        setStores(storesData);
+        // Fetch wallet balance for each store
+        const storesWithWallet = await Promise.all(
+          storesData.map(async (store: Store) => {
+            try {
+              const walletRes = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${store.id}/wallet`,
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              if (walletRes.ok) {
+                const walletData = await walletRes.json();
+                return { ...store, walletBalance: walletData.balance };
+              }
+            } catch (e) {
+              console.error('Failed to fetch wallet for store:', store.id);
+            }
+            return { ...store, walletBalance: 0 };
+          })
+        );
+        setStores(storesWithWallet);
       }
 
       if (statsRes.ok) {
@@ -107,6 +136,66 @@ export default function AdminDashboardPage() {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setToast({ message: '클립보드에 복사되었습니다.', type: 'success' });
+  };
+
+  const openTopupModal = (store: Store) => {
+    setTopupModal({
+      storeId: store.id,
+      storeName: store.name,
+      currentBalance: store.walletBalance || 0,
+    });
+    setTopupAmount('');
+    setTopupReason('');
+  };
+
+  const handleTopup = async () => {
+    if (!topupModal) return;
+
+    const amount = parseInt(topupAmount);
+    if (!amount || amount <= 0) {
+      setToast({ message: '유효한 충전 금액을 입력해주세요.', type: 'error' });
+      return;
+    }
+
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsTopupLoading(true);
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${topupModal.storeId}/wallet/topup`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ amount, reason: topupReason }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setToast({ message: data.message, type: 'success' });
+        setTopupModal(null);
+        // Update local store data with new balance
+        setStores((prevStores) =>
+          prevStores.map((store) =>
+            store.id === topupModal.storeId
+              ? { ...store, walletBalance: data.newBalance }
+              : store
+          )
+        );
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      setToast({ message: error.message || '충전에 실패했습니다.', type: 'error' });
+    } finally {
+      setIsTopupLoading(false);
+    }
   };
 
   const filteredStores = stores.filter((store) => {
@@ -210,6 +299,9 @@ export default function AdminDashboardPage() {
                 <th className="text-left text-xs font-medium text-neutral-500 uppercase tracking-wider px-4 py-3">
                   고객 수
                 </th>
+                <th className="text-right text-xs font-medium text-neutral-500 uppercase tracking-wider px-4 py-3">
+                  충전금
+                </th>
                 <th className="text-left text-xs font-medium text-neutral-500 uppercase tracking-wider px-4 py-3">
                   가입일
                 </th>
@@ -256,6 +348,22 @@ export default function AdminDashboardPage() {
                   <td className="px-4 py-3">
                     <span className="text-sm text-neutral-400">{formatNumber(store.customerCount)}</span>
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <span className="text-sm font-medium text-white">
+                        {formatNumber(store.walletBalance || 0)}원
+                      </span>
+                      <button
+                        onClick={() => openTopupModal(store)}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-400 hover:text-green-300 hover:bg-green-500/10 rounded transition-colors"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        충전
+                      </button>
+                    </div>
+                  </td>
                   <td className="px-4 py-3">
                     <span className="text-sm text-neutral-500">
                       {new Date(store.createdAt).toLocaleDateString('ko-KR')}
@@ -291,7 +399,7 @@ export default function AdminDashboardPage() {
               ))}
               {filteredStores.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-neutral-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-neutral-500">
                     {searchQuery ? '검색 결과가 없습니다.' : '등록된 매장이 없습니다.'}
                   </td>
                 </tr>
@@ -300,6 +408,80 @@ export default function AdminDashboardPage() {
           </table>
         </div>
       </div>
+
+      {/* Topup Modal */}
+      {topupModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-md mx-4 p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              충전금 충전
+            </h3>
+            <p className="text-sm text-neutral-400 mb-4">
+              <span className="text-white font-medium">{topupModal.storeName}</span> 매장에 충전금을 충전합니다.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  현재 잔액
+                </label>
+                <p className="text-lg font-semibold text-white">
+                  {formatNumber(topupModal.currentBalance)}원
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  충전 금액 <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={topupAmount}
+                  onChange={(e) => setTopupAmount(e.target.value)}
+                  placeholder="충전할 금액을 입력하세요"
+                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  충전 사유 (선택)
+                </label>
+                <input
+                  type="text"
+                  value={topupReason}
+                  onChange={(e) => setTopupReason(e.target.value)}
+                  placeholder="예: 프로모션 지급, 보상 처리 등"
+                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setTopupModal(null)}
+                className="flex-1 h-10 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-sm font-medium transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleTopup}
+                disabled={isTopupLoading || !topupAmount}
+                className="flex-1 h-10 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isTopupLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    충전 중...
+                  </>
+                ) : (
+                  '충전하기'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

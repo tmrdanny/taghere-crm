@@ -203,4 +203,82 @@ router.get('/stats', adminAuthMiddleware, async (req: AdminRequest, res: Respons
   }
 });
 
+// GET /api/admin/stores/:storeId/wallet - 매장 충전금 조회
+router.get('/stores/:storeId/wallet', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { storeId } = req.params;
+
+    const wallet = await prisma.wallet.findUnique({
+      where: { storeId },
+    });
+
+    if (!wallet) {
+      return res.json({ balance: 0, walletExists: false });
+    }
+
+    res.json({
+      balance: wallet.balance,
+      walletExists: true,
+      updatedAt: wallet.updatedAt,
+    });
+  } catch (error) {
+    console.error('Admin wallet error:', error);
+    res.status(500).json({ error: '충전금 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/stores/:storeId/wallet/topup - 매장 충전금 충전
+router.post('/stores/:storeId/wallet/topup', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { storeId } = req.params;
+    const { amount, reason } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: '유효한 충전 금액을 입력해주세요.' });
+    }
+
+    // 매장 확인
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    // 지갑이 없으면 생성, 있으면 업데이트
+    const wallet = await prisma.wallet.upsert({
+      where: { storeId },
+      create: {
+        storeId,
+        balance: amount,
+      },
+      update: {
+        balance: { increment: amount },
+      },
+    });
+
+    // 결제 트랜잭션 기록
+    await prisma.paymentTransaction.create({
+      data: {
+        storeId,
+        amount,
+        type: 'TOPUP',
+        status: 'SUCCESS',
+        paymentMethod: 'ADMIN',
+        description: reason || '관리자 충전',
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `${store.name} 매장에 ${amount.toLocaleString()}원이 충전되었습니다.`,
+      newBalance: wallet.balance,
+    });
+  } catch (error) {
+    console.error('Admin wallet topup error:', error);
+    res.status(500).json({ error: '충전 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;
