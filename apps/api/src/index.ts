@@ -23,6 +23,7 @@ import alimtalkRoutes from './routes/alimtalk.js';
 import naverReviewRoutes from './routes/naver-review.js';
 import paymentsRoutes from './routes/payments.js';
 import storesRoutes from './routes/stores.js';
+import adminRoutes from './routes/admin.js';
 import { startAlimTalkWorker } from './services/alimtalk-worker.js';
 
 const app = express();
@@ -111,6 +112,7 @@ app.use('/api/alimtalk', alimtalkRoutes);
 app.use('/api/naver-review', naverReviewRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/stores', storesRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Kakao OAuth routes (without /api prefix)
 app.use('/auth/kakao', kakaoRoutes);
