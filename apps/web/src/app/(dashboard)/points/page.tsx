@@ -12,8 +12,7 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatNumber, formatPhone, getRelativeTime } from '@/lib/utils';
-import { Delete, Loader2, UserPlus, RefreshCw, AlertCircle, CheckCircle2, Calculator, Keyboard } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Delete, Loader2, UserPlus, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -40,22 +39,14 @@ interface RecentTransaction {
   isNew: boolean;
 }
 
-interface StoreSettings {
-  pointRateEnabled: boolean;
-  pointRatePercent: number;
-}
-
 // Preset point amounts
 const POINT_PRESETS = [500, 1000, 2000, 5000];
-
-// Payment amount presets
-const PAYMENT_PRESETS = [10000, 20000, 30000, 50000];
 
 export default function PointsPage() {
   // Input states
   const [phoneInput, setPhoneInput] = useState('');
   const [pointsInput, setPointsInput] = useState('');
-  const [paymentInput, setPaymentInput] = useState('');
+  const [step, setStep] = useState<'phone' | 'points'>('phone');
 
   // Customer states
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -65,16 +56,6 @@ export default function PointsPage() {
   // Recent transactions
   const [recentTransactions, setRecentTransactions] = useState<RecentTransaction[]>([]);
   const [isLoadingRecent, setIsLoadingRecent] = useState(true);
-
-  // Point input method modal (after phone complete)
-  const [showInputMethodModal, setShowInputMethodModal] = useState(false);
-  const [inputMethod, setInputMethod] = useState<'payment' | 'direct' | null>(null);
-
-  // Store settings (for point rate)
-  const [storeSettings, setStoreSettings] = useState<StoreSettings>({
-    pointRateEnabled: false,
-    pointRatePercent: 5,
-  });
 
   // Confirmation modal
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -92,8 +73,6 @@ export default function PointsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const hiddenInputRef = useRef<HTMLInputElement>(null);
-  const paymentInputRef = useRef<HTMLInputElement>(null);
-  const pointsInputRef = useRef<HTMLInputElement>(null);
 
   // Get auth token from localStorage (fallback to dev-token for MVP)
   const getAuthToken = () => {
@@ -122,43 +101,14 @@ export default function PointsPage() {
     }
   }, []);
 
-  // Fetch store settings (point rate)
-  const fetchStoreSettings = useCallback(async () => {
-    try {
-      const token = getAuthToken();
-      if (!token) return;
-
-      const res = await fetch(`${API_BASE}/api/settings/point-rate`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setStoreSettings({
-          pointRateEnabled: data.pointRateEnabled ?? false,
-          pointRatePercent: data.pointRatePercent ?? 5,
-        });
-      }
-    } catch (err) {
-      console.error('Failed to fetch store settings:', err);
-    }
-  }, []);
-
   // Initial load
   useEffect(() => {
     fetchRecentTransactions();
-    fetchStoreSettings();
     // Auto focus on mount
     setTimeout(() => {
       hiddenInputRef.current?.focus();
     }, 100);
-  }, [fetchRecentTransactions, fetchStoreSettings]);
-
-  // Calculate points from payment amount
-  const calculatePointsFromPayment = (amount: number) => {
-    if (!storeSettings.pointRateEnabled) return 0;
-    return Math.floor(amount * storeSettings.pointRatePercent / 100);
-  };
+  }, [fetchRecentTransactions]);
 
   // Search customer by phone
   const searchCustomer = useCallback(async (digits: string) => {
@@ -192,8 +142,7 @@ export default function PointsPage() {
         setIsNewCustomer(true);
       }
 
-      // 팝업 모달 표시
-      setShowInputMethodModal(true);
+      setStep('points');
     } catch (err) {
       setError(err instanceof Error ? err.message : '고객 검색 실패');
     } finally {
@@ -215,26 +164,47 @@ export default function PointsPage() {
     }
   }, [searchCustomer]);
 
-  // Handle keypad press (phone only now)
+  // Handle keypad press
   const handleKeypadPress = (key: string) => {
-    if (phoneInput.length < 8) {
-      const newValue = phoneInput + key;
-      setPhoneInput(newValue);
+    if (step === 'phone') {
+      if (phoneInput.length < 8) {
+        const newValue = phoneInput + key;
+        setPhoneInput(newValue);
+        if (newValue.length === 8) {
+          handlePhoneComplete(newValue);
+        }
+      }
+    } else {
+      if (pointsInput.length < 6) {
+        setPointsInput(pointsInput + key);
+      }
     }
   };
 
   const handleKeypadDelete = () => {
-    setPhoneInput(phoneInput.slice(0, -1));
+    if (step === 'phone') {
+      setPhoneInput(phoneInput.slice(0, -1));
+    } else {
+      // 포인트 단계에서 포인트가 비어있으면 전화번호 수정 모드로
+      if (pointsInput === '') {
+        setStep('phone');
+        setPhoneInput(phoneInput.slice(0, -1));
+        setCustomer(null);
+        setIsNewCustomer(false);
+      } else {
+        setPointsInput(pointsInput.slice(0, -1));
+      }
+    }
   };
 
   const handleKeypadClear = () => {
+    // 전체 초기화 (전화번호, 포인트, 고객정보 모두)
     setPhoneInput('');
     setPointsInput('');
-    setPaymentInput('');
+    setStep('phone');
     setCustomer(null);
     setIsNewCustomer(false);
     setError(null);
-    setInputMethod(null);
     setTimeout(() => {
       hiddenInputRef.current?.focus();
     }, 100);
@@ -245,17 +215,30 @@ export default function PointsPage() {
     setPointsInput(amount.toString());
   };
 
-  // Handle keyboard input (phone only now)
+  // Handle keyboard input
   const handleHiddenInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, '');
-    if (value.length <= 8) {
-      setPhoneInput(value);
+    if (step === 'phone') {
+      if (value.length <= 8) {
+        setPhoneInput(value);
+        if (value.length === 8) {
+          handlePhoneComplete(value);
+        }
+      }
+    } else {
+      if (value.length <= 6) {
+        setPointsInput(value);
+      }
     }
   };
 
   const handleHiddenInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && phoneInput.length === 8) {
-      handlePhoneComplete(phoneInput);
+    if (e.key === 'Enter') {
+      if (step === 'phone' && phoneInput.length === 8) {
+        handlePhoneComplete(phoneInput);
+      } else if (step === 'points' && pointsInput && parseInt(pointsInput) > 0) {
+        setShowConfirmModal(true);
+      }
     }
   };
 
@@ -263,51 +246,13 @@ export default function PointsPage() {
   const handleReset = () => {
     setPhoneInput('');
     setPointsInput('');
-    setPaymentInput('');
+    setStep('phone');
     setCustomer(null);
     setIsNewCustomer(false);
     setError(null);
-    setInputMethod(null);
     setTimeout(() => {
       hiddenInputRef.current?.focus();
     }, 100);
-  };
-
-  // Handle input method selection
-  const handleSelectInputMethod = (method: 'payment' | 'direct') => {
-    setInputMethod(method);
-    setPaymentInput('');
-    setPointsInput('');
-    // 포커스를 해당 입력 필드로
-    setTimeout(() => {
-      if (method === 'payment') {
-        paymentInputRef.current?.focus();
-      } else {
-        pointsInputRef.current?.focus();
-      }
-    }, 100);
-  };
-
-  // Handle confirm from input method modal
-  const handleInputMethodConfirm = () => {
-    let finalPoints = 0;
-
-    if (inputMethod === 'payment') {
-      const paymentAmount = parseInt(paymentInput) || 0;
-      finalPoints = calculatePointsFromPayment(paymentAmount);
-    } else {
-      finalPoints = parseInt(pointsInput) || 0;
-    }
-
-    if (finalPoints <= 0) {
-      setError('적립할 포인트가 0보다 커야 합니다.');
-      return;
-    }
-
-    // 포인트 설정 후 확인 모달 표시
-    setPointsInput(finalPoints.toString());
-    setShowInputMethodModal(false);
-    setShowConfirmModal(true);
   };
 
   // Submit points earn
@@ -389,7 +334,7 @@ export default function PointsPage() {
         ref={hiddenInputRef}
         type="text"
         inputMode="numeric"
-        value={phoneInput}
+        value={step === 'phone' ? phoneInput : pointsInput}
         onChange={handleHiddenInputChange}
         onKeyDown={handleHiddenInputKeyDown}
         className="absolute opacity-0 pointer-events-none"
@@ -495,8 +440,17 @@ export default function PointsPage() {
                         전화번호
                       </label>
                       <div
-                        className="flex items-center justify-center px-4 py-4 border-2 rounded-xl bg-white cursor-text transition-colors border-brand-800 ring-2 ring-brand-100"
+                        className={`flex items-center justify-center px-4 py-4 border-2 rounded-xl bg-white cursor-text transition-colors ${
+                          step === 'phone'
+                            ? 'border-brand-800 ring-2 ring-brand-100'
+                            : 'border-neutral-200 hover:border-neutral-300'
+                        }`}
                         onClick={() => {
+                          if (step !== 'phone') {
+                            setStep('phone');
+                            setCustomer(null);
+                            setIsNewCustomer(false);
+                          }
                           hiddenInputRef.current?.focus();
                         }}
                       >
@@ -520,26 +474,123 @@ export default function PointsPage() {
                       </div>
                     </div>
 
-                    {/* Customer Search Status */}
-                    {isSearching && (
-                      <div className="flex items-center justify-center py-4 bg-neutral-50 rounded-xl">
-                        <Loader2 className="w-5 h-5 animate-spin text-neutral-400 mr-2" />
-                        <span className="text-sm text-neutral-500">고객 검색 중...</span>
+                    {/* Customer Info */}
+                    {step === 'points' && (
+                      <div>
+                        {isSearching ? (
+                          <div className="flex items-center justify-center py-4 bg-neutral-50 rounded-xl">
+                            <Loader2 className="w-5 h-5 animate-spin text-neutral-400 mr-2" />
+                            <span className="text-sm text-neutral-500">고객 검색 중...</span>
+                          </div>
+                        ) : customer ? (
+                          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-neutral-900">
+                                  {customer.name || '이름 없음'}
+                                </span>
+                                {customer.isVip && <Badge variant="vip">VIP</Badge>}
+                              </div>
+                              <span className="text-brand-800 font-bold">
+                                {formatNumber(customer.totalPoints)}P
+                              </span>
+                            </div>
+                            <p className="text-xs text-neutral-500 mt-1">
+                              방문 {customer.visitCount}회
+                              {customer.lastVisitAt && ` · ${getRelativeTime(customer.lastVisitAt)}`}
+                            </p>
+                          </div>
+                        ) : isNewCustomer ? (
+                          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+                            <div className="flex items-center gap-2">
+                              <UserPlus className="w-5 h-5 text-amber-600" />
+                              <span className="font-semibold text-amber-800">신규 고객</span>
+                            </div>
+                            <p className="text-xs text-amber-600 mt-1">
+                              적립 시 자동으로 고객이 등록됩니다
+                            </p>
+                          </div>
+                        ) : null}
                       </div>
                     )}
+
+                    {/* Points Input */}
+                    <div>
+                      <label className="text-sm font-medium text-neutral-700 block mb-2">
+                        적립 포인트
+                      </label>
+
+                      {/* Preset Buttons */}
+                      <div className="grid grid-cols-4 gap-2 mb-3">
+                        {POINT_PRESETS.map((preset) => (
+                          <button
+                            key={preset}
+                            onClick={() => {
+                              if (step === 'points' || phoneInput.length === 8) {
+                                if (step === 'phone' && phoneInput.length === 8) {
+                                  handlePhoneComplete(phoneInput);
+                                }
+                                handlePresetSelect(preset);
+                              }
+                            }}
+                            disabled={step === 'phone' && phoneInput.length !== 8}
+                            className={`py-3 rounded-xl text-sm font-semibold transition-all ${
+                              currentPoints === preset
+                                ? 'bg-brand-800 text-white shadow-sm'
+                                : step === 'phone' && phoneInput.length !== 8
+                                ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                                : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                            }`}
+                          >
+                            {formatNumber(preset)}P
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Points Display */}
+                      <div
+                        className={`flex items-center justify-center px-4 py-4 rounded-xl cursor-text transition-colors ${
+                          step === 'points'
+                            ? 'border-2 border-brand-800 bg-white ring-2 ring-brand-100'
+                            : 'bg-neutral-100 border border-neutral-200'
+                        }`}
+                        onClick={() => {
+                          if (phoneInput.length === 8 && !isSearching) {
+                            setStep('points');
+                            hiddenInputRef.current?.focus();
+                          }
+                        }}
+                      >
+                        {step === 'points' ? (
+                          <span className="text-3xl font-bold text-neutral-900">
+                            {pointsInput ? `${formatNumber(parseInt(pointsInput))} P` : '0 P'}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-neutral-400">
+                            번호 입력 후 포인트를 선택하세요
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
                     {/* Submit Button - Desktop */}
                     <Button
                       onClick={() => {
-                        if (phoneInput.length === 8) {
+                        if (step === 'phone' && phoneInput.length === 8) {
                           handlePhoneComplete(phoneInput);
+                        } else if (step === 'points' && currentPoints > 0) {
+                          setShowConfirmModal(true);
                         }
                       }}
-                      disabled={phoneInput.length !== 8 || isSearching}
+                      disabled={
+                        (step === 'phone' && phoneInput.length !== 8) ||
+                        (step === 'points' && currentPoints <= 0) ||
+                        isSearching
+                      }
                       className="w-full py-4 text-base font-semibold rounded-xl hidden lg:flex"
                       size="lg"
                     >
-                      다음
+                      {step === 'phone' ? '다음' : '적립하기'}
                     </Button>
                   </div>
 
@@ -580,227 +631,27 @@ export default function PointsPage() {
                 {/* Submit Button - Mobile */}
                 <Button
                   onClick={() => {
-                    if (phoneInput.length === 8) {
+                    if (step === 'phone' && phoneInput.length === 8) {
                       handlePhoneComplete(phoneInput);
+                    } else if (step === 'points' && currentPoints > 0) {
+                      setShowConfirmModal(true);
                     }
                   }}
-                  disabled={phoneInput.length !== 8 || isSearching}
+                  disabled={
+                    (step === 'phone' && phoneInput.length !== 8) ||
+                    (step === 'points' && currentPoints <= 0) ||
+                    isSearching
+                  }
                   className="w-full py-4 text-base font-semibold rounded-xl mt-4 lg:hidden"
                   size="lg"
                 >
-                  다음
+                  {step === 'phone' ? '다음' : '적립하기'}
                 </Button>
               </div>
             </Card>
           </div>
         </div>
       </div>
-
-      {/* Input Method Modal */}
-      <Modal
-        open={showInputMethodModal}
-        onOpenChange={(open) => {
-          setShowInputMethodModal(open);
-          if (!open) {
-            setInputMethod(null);
-            setPaymentInput('');
-          }
-        }}
-      >
-        <ModalContent className="max-w-md">
-          <ModalHeader>
-            <ModalTitle>포인트 적립</ModalTitle>
-          </ModalHeader>
-
-          <div className="py-4 space-y-4">
-            {/* Customer Info */}
-            <div className="bg-neutral-50 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-neutral-500">고객</span>
-                  <span className="font-medium text-neutral-900">
-                    {customer?.name || (isNewCustomer ? '신규 고객' : '알 수 없음')}
-                  </span>
-                  {customer?.isVip && <Badge variant="vip">VIP</Badge>}
-                  {isNewCustomer && <Badge variant="new">신규</Badge>}
-                </div>
-                <span className="text-sm text-neutral-500">
-                  010-{phoneInput.slice(0, 4)}-{phoneInput.slice(4)}
-                </span>
-              </div>
-              {customer && (
-                <p className="text-xs text-neutral-500 mt-1">
-                  보유 포인트: {formatNumber(customer.totalPoints)}P · 방문 {customer.visitCount}회
-                </p>
-              )}
-            </div>
-
-            {/* Input Method Selection */}
-            {!inputMethod && (
-              <div className="space-y-3">
-                <p className="text-sm text-neutral-600 font-medium">적립 방식을 선택하세요</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Payment Amount Option */}
-                  <button
-                    onClick={() => handleSelectInputMethod('payment')}
-                    disabled={!storeSettings.pointRateEnabled}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${
-                      storeSettings.pointRateEnabled
-                        ? 'border-neutral-200 hover:border-brand-800 hover:bg-brand-50'
-                        : 'border-neutral-100 bg-neutral-50 cursor-not-allowed'
-                    }`}
-                  >
-                    <Calculator className={`w-6 h-6 mb-2 ${storeSettings.pointRateEnabled ? 'text-brand-800' : 'text-neutral-400'}`} />
-                    <p className={`font-semibold ${storeSettings.pointRateEnabled ? 'text-neutral-900' : 'text-neutral-400'}`}>
-                      결제금액 입력
-                    </p>
-                    <p className={`text-xs mt-1 ${storeSettings.pointRateEnabled ? 'text-neutral-500' : 'text-neutral-400'}`}>
-                      {storeSettings.pointRateEnabled
-                        ? `${storeSettings.pointRatePercent}% 자동 계산`
-                        : '설정에서 활성화 필요'}
-                    </p>
-                  </button>
-
-                  {/* Direct Input Option */}
-                  <button
-                    onClick={() => handleSelectInputMethod('direct')}
-                    className="p-4 rounded-xl border-2 border-neutral-200 hover:border-brand-800 hover:bg-brand-50 text-left transition-all"
-                  >
-                    <Keyboard className="w-6 h-6 text-brand-800 mb-2" />
-                    <p className="font-semibold text-neutral-900">직접 입력</p>
-                    <p className="text-xs text-neutral-500 mt-1">포인트 직접 입력</p>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Payment Amount Input */}
-            {inputMethod === 'payment' && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm text-brand-800">
-                  <Calculator className="w-4 h-4" />
-                  <span>결제금액 입력 ({storeSettings.pointRatePercent}% 적립)</span>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-700">결제 금액</label>
-                  <Input
-                    ref={paymentInputRef}
-                    type="number"
-                    inputMode="numeric"
-                    value={paymentInput}
-                    onChange={(e) => setPaymentInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="결제 금액을 입력하세요"
-                    className="text-lg h-12"
-                  />
-                </div>
-
-                {/* Payment Presets */}
-                <div className="grid grid-cols-4 gap-2">
-                  {PAYMENT_PRESETS.map((preset) => (
-                    <button
-                      key={preset}
-                      onClick={() => setPaymentInput(preset.toString())}
-                      className={`py-2 rounded-lg text-sm font-medium transition-all ${
-                        parseInt(paymentInput) === preset
-                          ? 'bg-brand-800 text-white'
-                          : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                      }`}
-                    >
-                      {formatNumber(preset)}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Calculated Points Preview */}
-                <div className="bg-brand-50 rounded-xl p-4 text-center">
-                  <p className="text-sm text-brand-700">적립 예정 포인트</p>
-                  <p className="text-2xl font-bold text-brand-800 mt-1">
-                    {formatNumber(calculatePointsFromPayment(parseInt(paymentInput) || 0))} P
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => setInputMethod(null)}
-                  className="text-sm text-neutral-500 hover:text-neutral-700"
-                >
-                  ← 다른 방식 선택
-                </button>
-              </div>
-            )}
-
-            {/* Direct Points Input */}
-            {inputMethod === 'direct' && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm text-brand-800">
-                  <Keyboard className="w-4 h-4" />
-                  <span>직접 포인트 입력</span>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-700">적립 포인트</label>
-                  <Input
-                    ref={pointsInputRef}
-                    type="number"
-                    inputMode="numeric"
-                    value={pointsInput}
-                    onChange={(e) => setPointsInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="적립할 포인트를 입력하세요"
-                    className="text-lg h-12"
-                  />
-                </div>
-
-                {/* Point Presets */}
-                <div className="grid grid-cols-4 gap-2">
-                  {POINT_PRESETS.map((preset) => (
-                    <button
-                      key={preset}
-                      onClick={() => setPointsInput(preset.toString())}
-                      className={`py-2 rounded-lg text-sm font-medium transition-all ${
-                        parseInt(pointsInput) === preset
-                          ? 'bg-brand-800 text-white'
-                          : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                      }`}
-                    >
-                      {formatNumber(preset)}P
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => setInputMethod(null)}
-                  className="text-sm text-neutral-500 hover:text-neutral-700"
-                >
-                  ← 다른 방식 선택
-                </button>
-              </div>
-            )}
-          </div>
-
-          <ModalFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowInputMethodModal(false);
-                setInputMethod(null);
-              }}
-            >
-              취소
-            </Button>
-            {inputMethod && (
-              <Button
-                onClick={handleInputMethodConfirm}
-                disabled={
-                  (inputMethod === 'payment' && calculatePointsFromPayment(parseInt(paymentInput) || 0) <= 0) ||
-                  (inputMethod === 'direct' && (parseInt(pointsInput) || 0) <= 0)
-                }
-              >
-                적립하기
-              </Button>
-            )}
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
 
       {/* Confirmation Modal */}
       <Modal open={showConfirmModal} onOpenChange={setShowConfirmModal}>

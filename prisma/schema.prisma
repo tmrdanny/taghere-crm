@@ -29,9 +29,6 @@ model Store {
   // 고정 포인트 설정
   fixedPointEnabled      Boolean  @default(false) // 고정 포인트 활성화
   fixedPointAmount       Int      @default(100)   // 고정 포인트 금액
-  // 포인트 적립률 설정 (결제금액 기반)
-  pointRateEnabled       Boolean  @default(false) // 적립률 활성화
-  pointRatePercent       Int      @default(5)     // 적립률 (%)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 

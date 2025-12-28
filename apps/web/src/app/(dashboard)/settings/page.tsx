@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Store, User, LogOut, MessageSquare, Gift, Coins, Link2, Copy, Check, Download, Percent } from 'lucide-react';
+import { Store, User, LogOut, MessageSquare, Gift, Coins, Link2, QrCode, Copy, Check, Download } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
 interface UserInfo {
@@ -54,11 +54,6 @@ export default function SettingsPage() {
   const [fixedPointEnabled, setFixedPointEnabled] = useState(false);
   const [fixedPointAmount, setFixedPointAmount] = useState(100);
   const [isSavingFixedPoint, setIsSavingFixedPoint] = useState(false);
-
-  // Point rate settings (결제금액 기반 적립률)
-  const [pointRateEnabled, setPointRateEnabled] = useState(false);
-  const [pointRatePercent, setPointRatePercent] = useState(5);
-  const [isSavingPointRate, setIsSavingPointRate] = useState(false);
 
   // Fetch store info
   useEffect(() => {
@@ -163,25 +158,6 @@ export default function SettingsPage() {
       }
     };
 
-    const fetchPointRateSettings = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/settings/point-rate`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setPointRateEnabled(data.pointRateEnabled ?? false);
-          setPointRatePercent(data.pointRatePercent ?? 5);
-        }
-      } catch (error) {
-        console.error('Failed to fetch point rate settings:', error);
-      }
-    };
-
     const fetchWalletBalance = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -209,7 +185,6 @@ export default function SettingsPage() {
     fetchAlimtalkSettings();
     fetchRandomPointSettings();
     fetchFixedPointSettings();
-    fetchPointRateSettings();
     fetchWalletBalance();
   }, [apiUrl]);
 
@@ -367,41 +342,6 @@ export default function SettingsPage() {
       showToast('설정 저장 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsSavingFixedPoint(false);
-    }
-  };
-
-  const handleSavePointRate = async () => {
-    if (pointRatePercent < 0 || pointRatePercent > 100) {
-      showToast('적립률은 0~100% 사이여야 합니다.', 'error');
-      return;
-    }
-
-    setIsSavingPointRate(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/settings/point-rate`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          pointRateEnabled,
-          pointRatePercent,
-        }),
-      });
-
-      if (res.ok) {
-        showToast('포인트 적립률이 저장되었습니다.', 'success');
-      } else {
-        const error = await res.json();
-        showToast(error.error || '설정 저장 중 오류가 발생했습니다.', 'error');
-      }
-    } catch (error) {
-      console.error('Failed to save point rate settings:', error);
-      showToast('설정 저장 중 오류가 발생했습니다.', 'error');
-    } finally {
-      setIsSavingPointRate(false);
     }
   };
 
@@ -634,76 +574,6 @@ export default function SettingsPage() {
                 <p className="text-xs text-amber-600 mt-1">
                   현재 잔액: {walletBalance.toLocaleString()}원
                 </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Point Rate Settings Card */}
-        <Card>
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2">
-              <Percent className="w-5 h-5 text-neutral-600" />
-              <CardTitle className="text-lg">포인트 적립률</CardTitle>
-            </div>
-            <p className="text-sm text-neutral-500 mt-1">
-              결제 금액의 일정 비율을 포인트로 적립합니다.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* 활성화 토글 */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-neutral-900">
-                  적립률 기반 포인트 활성화
-                </p>
-                <p className="text-sm text-neutral-500 mt-1">
-                  결제 금액에 따라 포인트가 자동 계산됩니다.
-                </p>
-              </div>
-              <Switch
-                checked={pointRateEnabled}
-                onCheckedChange={setPointRateEnabled}
-              />
-            </div>
-
-            {/* 적립률 설정 */}
-            {pointRateEnabled && (
-              <div className="space-y-4 p-4 bg-neutral-50 rounded-lg">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-700">
-                    적립률 (%)
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={pointRatePercent}
-                      onChange={(e) => setPointRatePercent(parseInt(e.target.value) || 0)}
-                      placeholder="5"
-                      className="w-24"
-                    />
-                    <span className="text-neutral-500">%</span>
-                  </div>
-                </div>
-                <p className="text-xs text-neutral-500">
-                  💡 예: 5% 설정 시 10,000원 결제 → 500P 적립
-                </p>
-                <div className="flex justify-end">
-                  <Button onClick={handleSavePointRate} disabled={isSavingPointRate}>
-                    {isSavingPointRate ? '저장 중...' : '저장하기'}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {!pointRateEnabled && (
-              <div className="flex justify-end">
-                <Button onClick={handleSavePointRate} disabled={isSavingPointRate}>
-                  {isSavingPointRate ? '저장 중...' : '저장하기'}
-                </Button>
               </div>
             )}
           </CardContent>
