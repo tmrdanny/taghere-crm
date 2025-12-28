@@ -760,7 +760,7 @@ export default function MessagesPage() {
             disabled={
               !messageContent.trim() ||
               getCurrentTargetCount() === 0 ||
-              (estimate && !estimate.canSend)
+              (estimate !== null && !estimate.canSend)
             }
             onClick={() => setShowConfirmModal(true)}
             className="px-6 py-3.5 bg-[#2a2d62] text-white rounded-xl text-base font-semibold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

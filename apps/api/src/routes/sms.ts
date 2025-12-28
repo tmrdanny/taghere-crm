@@ -333,8 +333,8 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
         // 실패 사유 추출 (failedMessageList가 있는 경우)
         let failReason: string | null = null;
         if (result.failedMessageList && result.failedMessageList.length > 0) {
-          const firstFail = result.failedMessageList[0];
-          failReason = firstFail.reason || firstFail.statusMessage || 'Send failed';
+          const firstFail = result.failedMessageList[0] as any;
+          failReason = firstFail.reason || firstFail.statusMessage || firstFail.message || 'Send failed';
         }
 
         const success = successCount > 0 || (groupInfo?.count?.total > 0 && failCount === 0);
