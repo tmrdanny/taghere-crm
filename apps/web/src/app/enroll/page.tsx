@@ -428,8 +428,8 @@ function EnrollContent() {
           </div>
         </div>
 
-        {/* Bottom CTA */}
-        <div className="px-6 pb-6 pt-4">
+        {/* Bottom CTA - safe area 대응 */}
+        <div className="px-6 pt-4 pb-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 1.5rem))' }}>
           <button
             onClick={handleOpenGift}
             disabled={isOpening}
