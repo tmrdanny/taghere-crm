@@ -1,9 +1,11 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { formatNumber } from '@/lib/utils';
+
+const KAKAO_JS_KEY = process.env.NEXT_PUBLIC_KAKAO_JS_KEY || '';
 
 interface StoreInfo {
   id: string;
@@ -212,6 +214,7 @@ function EnrollContent() {
   const [error, setError] = useState<string | null>(null);
   const [showAlreadyParticipated, setShowAlreadyParticipated] = useState(false);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
+  const [kakaoReady, setKakaoReady] = useState(false);
 
   const storeId = searchParams.get('storeId');
   const orderId = searchParams.get('orderId');
@@ -223,6 +226,40 @@ function EnrollContent() {
   const successPoints = searchParams.get('points');
   const successStoreName = searchParams.get('successStoreName');
   const customerId = searchParams.get('customerId');
+
+  // 카카오 SDK 로드
+  useEffect(() => {
+    if (!KAKAO_JS_KEY) {
+      console.warn('Kakao JS Key is not set, using fallback login');
+      return;
+    }
+
+    // 이미 SDK가 로드되어 있는지 확인
+    if (window.Kakao && window.Kakao.isInitialized()) {
+      setKakaoReady(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js';
+    script.integrity = 'sha384-DKYJZ8NLiK8MN4/C5P2dtSmLQ4KwPaoqAfyA/DfmEc1VDxu4yyC7wy6K1Ber6ja8';
+    script.crossOrigin = 'anonymous';
+    script.async = true;
+    script.onload = () => {
+      if (window.Kakao && !window.Kakao.isInitialized()) {
+        window.Kakao.init(KAKAO_JS_KEY);
+        setKakaoReady(true);
+      }
+    };
+    script.onerror = () => {
+      console.error('Failed to load Kakao SDK');
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      // 컴포넌트 언마운트 시 스크립트 제거하지 않음 (다시 로드 방지)
+    };
+  }, []);
 
   useEffect(() => {
     // Check if redirected back with success data
@@ -266,19 +303,38 @@ function EnrollContent() {
     fetchStoreInfo();
   }, [storeId, urlError, successPoints, customerId, successStoreName, storeName]);
 
-  const handleOpenGift = () => {
+  const handleOpenGift = useCallback(() => {
     setIsOpening(true);
 
     setTimeout(() => {
-      const params = new URLSearchParams();
-      if (storeId) params.set('storeId', storeId);
-      if (orderId) params.set('orderId', orderId);
-      if (redirect) params.set('redirect', redirect);
-
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      window.location.href = `${apiUrl}/auth/kakao/start?${params.toString()}`;
+      const redirectUri = `${apiUrl}/auth/kakao/callback`;
+
+      // state 파라미터에 정보 인코딩 (백엔드와 동일한 형식)
+      const state = btoa(JSON.stringify({
+        storeId: storeId || '',
+        orderId: orderId || '',
+        redirect: redirect || '',
+      }));
+
+      // 카카오 SDK가 준비되어 있으면 간편로그인 사용 (카카오톡 앱 자동 실행)
+      if (kakaoReady && window.Kakao && window.Kakao.isInitialized()) {
+        window.Kakao.Auth.authorize({
+          redirectUri: redirectUri,
+          state: state,
+          scope: 'profile_nickname,account_email,phone_number,gender,birthday',
+          // throughTalk: true (기본값) - 카카오톡 앱이 설치되어 있으면 앱으로 로그인
+        });
+      } else {
+        // SDK 로드 실패 시 기존 방식 사용 (fallback)
+        const params = new URLSearchParams();
+        if (storeId) params.set('storeId', storeId);
+        if (orderId) params.set('orderId', orderId);
+        if (redirect) params.set('redirect', redirect);
+        window.location.href = `${apiUrl}/auth/kakao/start?${params.toString()}`;
+      }
     }, 500);
-  };
+  }, [storeId, orderId, redirect, kakaoReady]);
 
   const handleCloseSuccessPopup = () => {
     setSuccessData(null);
