@@ -8,7 +8,6 @@ import {
   Home,
   Users,
   Coins,
-  Star,
   CreditCard,
   Settings,
   Menu,
@@ -18,6 +17,15 @@ import {
   Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// 네이버 아이콘 컴포넌트 (동그라미 안에 N)
+function NaverIcon({ className }: { className?: string }) {
+  return (
+    <div className={cn('w-5 h-5 rounded-full bg-[#03C75A] flex items-center justify-center', className)}>
+      <span className="text-white text-xs font-bold leading-none">N</span>
+    </div>
+  );
+}
 
 // BeforeInstallPromptEvent 타입 정의
 interface BeforeInstallPromptEvent extends Event {
@@ -29,7 +37,7 @@ const navItems = [
   { href: '/home', label: '홈', icon: Home },
   { href: '/customers', label: '고객 리스트', icon: Users },
   { href: '/points', label: '포인트 적립', icon: Coins },
-  { href: '/naver-review', label: '네이버 리뷰 요청', icon: Star },
+  { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
   { href: '/billing', label: '충전 관리', icon: CreditCard },
   { href: '/settings', label: '설정', icon: Settings },
 ];
