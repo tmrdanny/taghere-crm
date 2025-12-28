@@ -24,6 +24,7 @@ import naverReviewRoutes from './routes/naver-review.js';
 import paymentsRoutes from './routes/payments.js';
 import storesRoutes from './routes/stores.js';
 import adminRoutes from './routes/admin.js';
+import smsRoutes from './routes/sms.js';
 import { startAlimTalkWorker } from './services/alimtalk-worker.js';
 
 const app = express();
@@ -48,6 +49,9 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+
+// Static file serving for uploads (MMS images)
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -113,6 +117,7 @@ app.use('/api/naver-review', naverReviewRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/stores', storesRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/sms', smsRoutes);
 
 // Kakao OAuth routes (without /api prefix)
 app.use('/auth/kakao', kakaoRoutes);

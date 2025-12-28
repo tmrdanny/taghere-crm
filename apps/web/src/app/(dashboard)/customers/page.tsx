@@ -13,8 +13,9 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatPhone, formatNumber, formatDate, getRelativeTime } from '@/lib/utils';
-import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface Customer {
   id: string;
@@ -72,6 +73,8 @@ function StarRating({ rating, onRatingChange, readonly = false }: { rating: numb
 }
 
 export default function CustomersPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast, ToastComponent } = useToast();
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -495,6 +498,21 @@ export default function CustomersPage() {
           </p>
         </div>
         <div className="flex gap-3">
+          {selectedCustomers.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                const selectedData = customers
+                  .filter(c => selectedCustomers.includes(c.id))
+                  .map(c => ({ id: c.id, name: c.name, phone: c.phone }));
+                const params = encodeURIComponent(JSON.stringify(selectedData));
+                router.push(`/messages?customers=${params}`);
+              }}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              선택 고객에게 메시지 발송 ({selectedCustomers.length}명)
+            </Button>
+          )}
           <Button onClick={() => setAddModal(true)}>
             <UserPlus className="w-4 h-4 mr-2" />
             고객 등록

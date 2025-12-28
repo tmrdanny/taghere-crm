@@ -47,6 +47,7 @@ model Store {
   cards                 Card[]
   paymentTransactions   PaymentTransaction[]
   alimTalkConfig        AlimTalkConfig?
+  smsCampaigns          SmsCampaign[]
 
   @@map("stores")
 }
@@ -392,6 +393,77 @@ enum AlimTalkStatus {
   SENT       // 발송 완료
   FAILED     // 발송 실패 (재시도 불가)
   RETRY      // 재시도 대기
+}
+
+// SMS 캠페인 (대량 문자 발송)
+model SmsCampaign {
+  id            String           @id @default(cuid())
+  storeId       String
+  title         String           // 캠페인 제목
+  content       String           @db.Text // 메시지 내용
+  targetType    SmsTargetType    // ALL, REVISIT, NEW, CUSTOM
+  targetCount   Int              // 발송 대상 수
+  sentCount     Int              @default(0) // 발송 완료 수
+  failedCount   Int              @default(0) // 실패 수
+  totalCost     Int              @default(0) // 총 비용
+  status        SmsCampaignStatus @default(PENDING)
+  scheduledAt   DateTime?        // 예약 발송 시간
+  completedAt   DateTime?        // 완료 시간
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  // Relations
+  store    Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  messages SmsMessage[]
+
+  @@index([storeId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("sms_campaigns")
+}
+
+// SMS 개별 메시지
+model SmsMessage {
+  id            String         @id @default(cuid())
+  campaignId    String
+  storeId       String
+  customerId    String?
+  phone         String         // 수신자 전화번호
+  content       String         @db.Text // 실제 발송 내용 ({고객명} 치환 후)
+  status        SmsMessageStatus @default(PENDING)
+  solapiMessageId String?      // SOLAPI 메시지 ID
+  failReason    String?
+  cost          Int            @default(0) // 발송 비용
+  sentAt        DateTime?
+  createdAt     DateTime       @default(now())
+
+  // Relations
+  campaign SmsCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([storeId])
+  @@index([status])
+  @@map("sms_messages")
+}
+
+enum SmsTargetType {
+  ALL      // 전체 고객
+  REVISIT  // 재방문 고객 (2회 이상)
+  NEW      // 신규 고객 (최근 30일)
+  CUSTOM   // 직접 선택
+}
+
+enum SmsCampaignStatus {
+  PENDING    // 대기
+  SENDING    // 발송 중
+  COMPLETED  // 완료
+  CANCELLED  // 취소
+}
+
+enum SmsMessageStatus {
+  PENDING    // 대기
+  SENT       // 발송 완료
+  FAILED     // 실패
 }
 
 // 네이버 리뷰 통계 기록 (일별)
