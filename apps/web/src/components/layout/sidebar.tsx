@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -15,8 +15,15 @@ import {
   X,
   PanelLeftClose,
   PanelLeft,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// BeforeInstallPromptEvent 타입 정의
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
 
 const navItems = [
   { href: '/home', label: '홈', icon: Home },
@@ -27,6 +34,51 @@ const navItems = [
   { href: '/settings', label: '설정', icon: Settings },
 ];
 
+// PWA 설치 프롬프트 훅
+function useInstallPrompt() {
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    // 이미 PWA로 설치되어 실행 중인지 확인
+    const checkStandalone = () => {
+      const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches
+        || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+      setIsStandalone(isInStandaloneMode);
+    };
+    checkStandalone();
+
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (installPrompt) {
+      // 브라우저 설치 프롬프트 사용
+      await installPrompt.prompt();
+      const result = await installPrompt.userChoice;
+      if (result.outcome === 'accepted') {
+        setInstallPrompt(null);
+      }
+    } else {
+      // 프롬프트가 없는 경우 (Safari 등) 안내 메시지
+      const userAgent = navigator.userAgent.toLowerCase();
+      if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
+        alert('Safari에서는 공유 버튼(□↑)을 누르고 "홈 화면에 추가"를 선택해주세요.');
+      } else {
+        alert('브라우저 메뉴에서 "앱 설치" 또는 "홈 화면에 추가"를 선택해주세요.');
+      }
+    }
+  };
+
+  // 이미 설치된 상태면 버튼 숨김, 아니면 항상 표시
+  return { canInstall: !isStandalone, handleInstall };
+}
+
 interface SidebarProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
@@ -34,6 +86,7 @@ interface SidebarProps {
 
 export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
+  const { canInstall, handleInstall } = useInstallPrompt();
 
   return (
     <aside
@@ -100,6 +153,23 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
         })}
       </nav>
 
+      {/* 앱 설치 버튼 */}
+      {canInstall && (
+        <div className="p-2 border-t border-neutral-200">
+          <button
+            onClick={handleInstall}
+            className={cn(
+              'flex items-center gap-3 w-full px-3 py-3 rounded-lg text-sm font-medium transition-colors',
+              'text-brand-700 hover:bg-brand-50',
+              isCollapsed && 'justify-center'
+            )}
+            title={isCollapsed ? '앱 설치' : undefined}
+          >
+            <Download className="w-5 h-5 flex-shrink-0" />
+            {!isCollapsed && <span>앱 설치</span>}
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
@@ -108,6 +178,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
 export function MobileHeader() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { canInstall, handleInstall } = useInstallPrompt();
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -200,6 +271,20 @@ export function MobileHeader() {
               </Link>
             );
           })}
+
+          {/* 앱 설치 버튼 */}
+          {canInstall && (
+            <button
+              onClick={() => {
+                handleInstall();
+                closeMobileMenu();
+              }}
+              className="flex items-center gap-3 mx-2 px-3 py-3 rounded-lg text-sm font-medium transition-colors text-brand-700 hover:bg-brand-50 mt-2 border-t border-neutral-100 pt-5"
+            >
+              <Download className="w-5 h-5" />
+              <span>앱 설치</span>
+            </button>
+          )}
         </nav>
       </div>
     </>
