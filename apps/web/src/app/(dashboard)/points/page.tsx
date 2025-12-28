@@ -185,16 +185,29 @@ export default function PointsPage() {
     if (step === 'phone') {
       setPhoneInput(phoneInput.slice(0, -1));
     } else {
-      setPointsInput(pointsInput.slice(0, -1));
+      // 포인트 단계에서 포인트가 비어있으면 전화번호 수정 모드로
+      if (pointsInput === '') {
+        setStep('phone');
+        setPhoneInput(phoneInput.slice(0, -1));
+        setCustomer(null);
+        setIsNewCustomer(false);
+      } else {
+        setPointsInput(pointsInput.slice(0, -1));
+      }
     }
   };
 
   const handleKeypadClear = () => {
-    if (step === 'phone') {
-      setPhoneInput('');
-    } else {
-      setPointsInput('');
-    }
+    // 전체 초기화 (전화번호, 포인트, 고객정보 모두)
+    setPhoneInput('');
+    setPointsInput('');
+    setStep('phone');
+    setCustomer(null);
+    setIsNewCustomer(false);
+    setError(null);
+    setTimeout(() => {
+      hiddenInputRef.current?.focus();
+    }, 100);
   };
 
   // Handle preset selection

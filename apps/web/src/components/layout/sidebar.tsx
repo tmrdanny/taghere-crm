@@ -13,8 +13,8 @@ import {
   Settings,
   Menu,
   X,
-  ChevronLeft,
-  ChevronRight,
+  PanelLeftClose,
+  PanelLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -43,21 +43,35 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
       )}
     >
       {/* Logo */}
-      <div className="flex items-center h-16 px-4 border-b border-neutral-200">
-        <Link href="/home" className="flex items-center gap-2 overflow-hidden">
-          <Image
-            src="/Taghere-logo.png"
-            alt="태그히어 CRM"
-            width={140}
-            height={40}
-            className="h-8 w-auto flex-shrink-0"
-          />
-          {!isCollapsed && (
+      <div className={cn(
+        "flex items-center h-16 px-4 border-b border-neutral-200",
+        isCollapsed ? "justify-center" : "justify-between"
+      )}>
+        {!isCollapsed && (
+          <Link href="/home" className="flex items-center gap-2 overflow-hidden">
+            <Image
+              src="/Taghere-logo.png"
+              alt="태그히어 CRM"
+              width={140}
+              height={40}
+              className="h-8 w-auto flex-shrink-0"
+            />
             <span className="text-lg font-semibold text-neutral-900 whitespace-nowrap">
               Taghere CRM
             </span>
+          </Link>
+        )}
+        <button
+          onClick={onToggleCollapse}
+          className="p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-md transition-colors"
+          title={isCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+        >
+          {isCollapsed ? (
+            <PanelLeft className="w-5 h-5" />
+          ) : (
+            <PanelLeftClose className="w-5 h-5" />
           )}
-        </Link>
+        </button>
       </div>
 
       {/* Navigation */}
@@ -86,23 +100,6 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
         })}
       </nav>
 
-      {/* Collapse Toggle Button */}
-      <div className="p-4 border-t border-neutral-200">
-        <button
-          onClick={onToggleCollapse}
-          className="flex items-center justify-center w-full py-2 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors"
-          title={isCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-        >
-          {isCollapsed ? (
-            <ChevronRight className="w-5 h-5" />
-          ) : (
-            <>
-              <ChevronLeft className="w-5 h-5" />
-              <span className="ml-2 text-sm">접기</span>
-            </>
-          )}
-        </button>
-      </div>
     </aside>
   );
 }
