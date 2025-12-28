@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import {
   Home,
   Users,
-  Gift,
+  Coins,
   Star,
   CreditCard,
   Settings,
@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { href: '/home', label: '홈', icon: Home },
   { href: '/customers', label: '고객 리스트', icon: Users },
-  { href: '/points', label: '포인트 적립', icon: Gift },
+  { href: '/points', label: '포인트 적립', icon: Coins },
   { href: '/naver-review', label: '네이버 리뷰 요청', icon: Star },
   { href: '/billing', label: '충전 관리', icon: CreditCard },
   { href: '/settings', label: '설정', icon: Settings },
