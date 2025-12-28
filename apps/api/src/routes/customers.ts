@@ -222,7 +222,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         birthYear: birthYear || null,  // YYYY 숫자
         memo: memo || null,
         totalPoints: initialPoints || 0,
-        visitCount: 0,
+        visitCount: 1,
         lastVisitAt: new Date(),
         feedbackRating: feedbackRating || null,
         feedbackText: feedbackText || null,
