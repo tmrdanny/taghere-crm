@@ -210,11 +210,49 @@ export async function fetchAndSaveNaverReviewStats(storeId: string): Promise<Nav
     // 매장 정보에서 네이버 플레이스 URL 가져오기
     const store = await prisma.store.findUnique({
       where: { id: storeId },
-      select: { naverPlaceUrl: true },
+      select: { naverPlaceUrl: true, slug: true },
     });
 
     if (!store?.naverPlaceUrl) {
       console.log('No Naver Place URL configured for store:', storeId);
+      return null;
+    }
+
+    // 데모 계정인 경우 스크래핑 건너뛰고 DB 데이터 반환
+    if (store.slug === 'taghere-dining' || store.naverPlaceUrl.includes('demo')) {
+      console.log('Demo account detected, returning existing DB data');
+      const today = getTodayDateKST();
+      const existingStats = await prisma.naverReviewStats.findUnique({
+        where: {
+          storeId_date: {
+            storeId,
+            date: today,
+          },
+        },
+      });
+
+      if (existingStats) {
+        return {
+          visitorReviews: existingStats.visitorReviews,
+          blogReviews: existingStats.blogReviews,
+          totalReviews: existingStats.totalReviews,
+        };
+      }
+
+      // 오늘 데이터가 없으면 가장 최근 데이터 반환
+      const latestStats = await prisma.naverReviewStats.findFirst({
+        where: { storeId },
+        orderBy: { date: 'desc' },
+      });
+
+      if (latestStats) {
+        return {
+          visitorReviews: latestStats.visitorReviews,
+          blogReviews: latestStats.blogReviews,
+          totalReviews: latestStats.totalReviews,
+        };
+      }
+
       return null;
     }
 
