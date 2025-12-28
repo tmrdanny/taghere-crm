@@ -154,16 +154,27 @@ export default function BillingPage() {
       isInitializingRef.current = true;
 
       try {
-        // DOM 컨테이너 정리
-        const paymentMethodsEl = document.getElementById('payment-methods');
-        const agreementEl = document.getElementById('agreement');
+        // DOM 요소가 존재할 때까지 대기 (최대 2초)
+        let paymentMethodsEl = document.getElementById('payment-methods');
+        let agreementEl = document.getElementById('agreement');
 
-        if (paymentMethodsEl) {
-          paymentMethodsEl.innerHTML = '';
+        let retries = 0;
+        while ((!paymentMethodsEl || !agreementEl) && retries < 20) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          paymentMethodsEl = document.getElementById('payment-methods');
+          agreementEl = document.getElementById('agreement');
+          retries++;
         }
-        if (agreementEl) {
-          agreementEl.innerHTML = '';
+
+        if (!paymentMethodsEl || !agreementEl) {
+          console.error('TossPayments: DOM elements not found after waiting');
+          isInitializingRef.current = false;
+          return;
         }
+
+        // DOM 컨테이너 정리
+        paymentMethodsEl.innerHTML = '';
+        agreementEl.innerHTML = '';
 
         // 잠시 대기하여 DOM이 정리될 시간 확보
         await new Promise(resolve => setTimeout(resolve, 100));

@@ -732,13 +732,9 @@ export default function CustomersPage() {
                         />
                       </td>
                       <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-neutral-900">
-                            {customer.name || '이름 없음'}
-                          </span>
-                          {customer.isVip && <Badge variant="vip">VIP</Badge>}
-                          {customer.isNew && <Badge variant="new">신규</Badge>}
-                        </div>
+                        <span className="font-medium text-neutral-900">
+                          {customer.name || '이름 없음'}
+                        </span>
                       </td>
                       <td className="p-4 text-neutral-600">
                         <div className="flex items-center gap-2">
@@ -871,14 +867,9 @@ export default function CustomersPage() {
               </label>
               <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
                 <span className="text-neutral-400">사용 대상</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-neutral-900">
-                    {selectedCustomer?.name}
-                  </span>
-                  {selectedCustomer?.isVip && (
-                    <Badge variant="vip">VIP</Badge>
-                  )}
-                </div>
+                <span className="font-medium text-neutral-900">
+                  {selectedCustomer?.name}
+                </span>
               </div>
             </div>
 
@@ -969,10 +960,7 @@ export default function CustomersPage() {
               <label className="text-sm font-medium text-neutral-600">적립 대상</label>
               <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
                 <span className="text-neutral-400">적립 대상</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-neutral-900">{selectedCustomer?.name}</span>
-                  {selectedCustomer?.isVip && <Badge variant="vip">VIP</Badge>}
-                </div>
+                <span className="font-medium text-neutral-900">{selectedCustomer?.name}</span>
               </div>
             </div>
 
@@ -1037,7 +1025,11 @@ export default function CustomersPage() {
       <Modal open={editModal} onOpenChange={setEditModal}>
         <ModalContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
           <ModalHeader className="flex-shrink-0">
-            <ModalTitle>고객 정보 수정</ModalTitle>
+            <div className="flex items-center gap-2">
+              <ModalTitle>고객 정보 수정</ModalTitle>
+              {editingCustomer?.isVip && <Badge variant="vip">VIP</Badge>}
+              {editingCustomer?.isNew && <Badge variant="new">신규</Badge>}
+            </div>
           </ModalHeader>
 
           <div className="space-y-4 py-4 overflow-y-auto flex-1 px-1">
