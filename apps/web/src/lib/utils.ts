@@ -26,12 +26,12 @@ export function formatPhone(phone: string): string {
   // 먼저 국제번호 정규화
   const normalized = normalizePhone(phone);
 
-  // 마스킹: 010-***3-1234 (가운데 3자리만 별표)
+  // 마스킹: 010-****-1234 (가운데 4자리 전체 별표)
   if (normalized.length >= 11) {
-    return `${normalized.slice(0, 3)}-***${normalized.slice(6, 7)}-${normalized.slice(-4)}`;
+    return `${normalized.slice(0, 3)}-****-${normalized.slice(-4)}`;
   }
   if (normalized.length === 8) {
-    return `010-***${normalized.slice(3, 4)}-${normalized.slice(-4)}`;
+    return `010-****-${normalized.slice(-4)}`;
   }
   return normalized;
 }

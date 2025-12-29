@@ -11,7 +11,7 @@ import {
   ModalTitle,
   ModalFooter,
 } from '@/components/ui/modal';
-import { formatNumber } from '@/lib/utils';
+import { formatNumber, formatPhone } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
 import {
   Send,
@@ -1076,7 +1076,7 @@ export default function MessagesPage() {
                             )}
                           </div>
                           <div className="text-sm text-[#64748b]">
-                            {customer.phone?.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3')}
+                            {customer.phone ? formatPhone(customer.phone) : ''}
                           </div>
                         </div>
                         <div className="text-right text-sm flex-shrink-0">
