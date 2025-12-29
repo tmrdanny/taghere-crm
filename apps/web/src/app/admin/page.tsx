@@ -23,6 +23,12 @@ interface TopupModalData {
   currentBalance: number;
 }
 
+interface DeleteCustomersModalData {
+  storeId: string;
+  storeName: string;
+  customerCount: number;
+}
+
 interface Stats {
   storeCount: number;
   customerCount: number;
@@ -40,6 +46,9 @@ export default function AdminDashboardPage() {
   const [topupAmount, setTopupAmount] = useState('');
   const [topupReason, setTopupReason] = useState('');
   const [isTopupLoading, setIsTopupLoading] = useState(false);
+  const [deleteCustomersModal, setDeleteCustomersModal] = useState<DeleteCustomersModalData | null>(null);
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -146,6 +155,69 @@ export default function AdminDashboardPage() {
     });
     setTopupAmount('');
     setTopupReason('');
+  };
+
+  const openDeleteCustomersModal = (store: Store) => {
+    setDeleteCustomersModal({
+      storeId: store.id,
+      storeName: store.name,
+      customerCount: store.customerCount,
+    });
+    setDeleteConfirmText('');
+  };
+
+  const handleDeleteCustomers = async () => {
+    if (!deleteCustomersModal) return;
+
+    if (deleteConfirmText !== '삭제') {
+      setToast({ message: '"삭제"를 입력해주세요.', type: 'error' });
+      return;
+    }
+
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsDeleteLoading(true);
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${deleteCustomersModal.storeId}/customers`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setToast({ message: data.message, type: 'success' });
+        setDeleteCustomersModal(null);
+        // Update local store data with 0 customers
+        setStores((prevStores) =>
+          prevStores.map((store) =>
+            store.id === deleteCustomersModal.storeId
+              ? { ...store, customerCount: 0 }
+              : store
+          )
+        );
+        // Update stats
+        if (stats) {
+          setStats({
+            ...stats,
+            customerCount: stats.customerCount - deleteCustomersModal.customerCount,
+          });
+        }
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      setToast({ message: error.message || '고객 삭제에 실패했습니다.', type: 'error' });
+    } finally {
+      setIsDeleteLoading(false);
+    }
   };
 
   const handleTopup = async () => {
@@ -346,7 +418,21 @@ export default function AdminDashboardPage() {
                     <span className="text-sm text-neutral-400">{store.ownerEmail || '-'}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-sm text-neutral-400">{formatNumber(store.customerCount)}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-neutral-400">{formatNumber(store.customerCount)}</span>
+                      {store.customerCount > 0 && (
+                        <button
+                          onClick={() => openDeleteCustomersModal(store)}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
+                          title="고객 전체 삭제"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          삭제
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -476,6 +562,66 @@ export default function AdminDashboardPage() {
                   </>
                 ) : (
                   '충전하기'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Customers Modal */}
+      {deleteCustomersModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-md mx-4 p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              고객 전체 삭제
+            </h3>
+            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg mb-4">
+              <p className="text-sm text-red-400 font-medium">
+                ⚠️ 이 작업은 되돌릴 수 없습니다!
+              </p>
+            </div>
+            <p className="text-sm text-neutral-400 mb-2">
+              <span className="text-white font-medium">{deleteCustomersModal.storeName}</span> 매장의 모든 고객을 삭제합니다.
+            </p>
+            <p className="text-sm text-neutral-400 mb-4">
+              삭제될 고객 수: <span className="text-red-400 font-semibold">{formatNumber(deleteCustomersModal.customerCount)}명</span>
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  확인을 위해 &quot;삭제&quot;를 입력하세요
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="삭제"
+                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setDeleteCustomersModal(null)}
+                className="flex-1 h-10 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-sm font-medium transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDeleteCustomers}
+                disabled={isDeleteLoading || deleteConfirmText !== '삭제'}
+                className="flex-1 h-10 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isDeleteLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    삭제 중...
+                  </>
+                ) : (
+                  '고객 전체 삭제'
                 )}
               </button>
             </div>

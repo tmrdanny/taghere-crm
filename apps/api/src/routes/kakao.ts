@@ -749,11 +749,10 @@ router.get('/taghere-callback', async (req, res) => {
       }
     }
 
-    // Redirect to success page
-    const successUrl = new URL(`${PUBLIC_APP_URL}/taghere-enroll/${stateData.slug || ''}`);
+    // Redirect to success page (별도 페이지로 이동)
+    const successUrl = new URL(`${PUBLIC_APP_URL}/taghere-enroll/success`);
     successUrl.searchParams.set('points', earnPoints.toString());
-    successUrl.searchParams.set('successStoreName', store.name);
-    successUrl.searchParams.set('customerId', customer.id);
+    successUrl.searchParams.set('storeName', store.name);
     successUrl.searchParams.set('resultPrice', resultPrice.toString());
 
     res.redirect(successUrl.toString());

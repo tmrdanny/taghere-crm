@@ -680,22 +680,13 @@ export default function CustomersPage() {
                   적립 포인트
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  성별
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-neutral-600">
                   생일
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  출생연도
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
                   메모
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
                   방문 횟수
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  마지막 방문일
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
                   액션
@@ -705,21 +696,21 @@ export default function CustomersPage() {
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={11} className="p-8 text-center text-neutral-500">
+                  <td colSpan={7} className="p-8 text-center text-neutral-500">
                     불러오는 중...
                   </td>
                 </tr>
               )}
               {!isLoading && error && (
                 <tr>
-                  <td colSpan={11} className="p-8 text-center text-error">
+                  <td colSpan={7} className="p-8 text-center text-error">
                     {error}
                   </td>
                 </tr>
               )}
               {!isLoading && !error && customers.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="p-8 text-center text-neutral-500">
+                  <td colSpan={7} className="p-8 text-center text-neutral-500">
                     결과가 없습니다.
                   </td>
                 </tr>
@@ -763,13 +754,7 @@ export default function CustomersPage() {
                         {formatNumber(customer.totalPoints)} p
                       </td>
                       <td className="p-4 text-neutral-600">
-                        {customer.gender === 'MALE' ? '남성' : customer.gender === 'FEMALE' ? '여성' : '-'}
-                      </td>
-                      <td className="p-4 text-neutral-600">
                         {customer.birthday || '-'}
-                      </td>
-                      <td className="p-4 text-neutral-600">
-                        {customer.birthYear || '-'}
                       </td>
                       <td className="p-4 max-w-[200px]">
                         <div className="flex items-center gap-2">
@@ -788,16 +773,6 @@ export default function CustomersPage() {
                           </span>
                           <p className="text-xs text-neutral-500">
                             {getVisitDescription(customer)}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div>
-                          <span className="text-neutral-900">
-                            {formatDate(customer.lastVisitAt)}
-                          </span>
-                          <p className="text-xs text-neutral-500">
-                            {getRelativeTime(customer.lastVisitAt)}
                           </p>
                         </div>
                       </td>

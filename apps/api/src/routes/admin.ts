@@ -283,4 +283,102 @@ router.post('/stores/:storeId/wallet/topup', adminAuthMiddleware, async (req: Ad
   }
 });
 
+// DELETE /api/admin/stores/:storeId/customers - 매장의 모든 고객 삭제
+router.delete('/stores/:storeId/customers', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { storeId } = req.params;
+
+    // 매장 확인
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      include: {
+        _count: {
+          select: { customers: true },
+        },
+      },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    const customerCount = store._count.customers;
+
+    if (customerCount === 0) {
+      return res.status(400).json({ error: '삭제할 고객이 없습니다.' });
+    }
+
+    // 트랜잭션으로 관련 데이터 모두 삭제
+    await prisma.$transaction(async (tx) => {
+      // 1. 고객의 포인트 원장 삭제
+      await tx.pointLedger.deleteMany({
+        where: {
+          customer: {
+            storeId,
+          },
+        },
+      });
+
+      // 2. 고객 피드백 삭제
+      await tx.customerFeedback.deleteMany({
+        where: {
+          customer: {
+            storeId,
+          },
+        },
+      });
+
+      // 3. 리뷰 요청 로그에서 고객 참조 null 처리 (customerId는 nullable)
+      await tx.reviewRequestLog.updateMany({
+        where: {
+          customer: {
+            storeId,
+          },
+        },
+        data: {
+          customerId: null,
+        },
+      });
+
+      // 4. 알림톡 아웃박스에서 고객 참조 null 처리 (customerId는 nullable)
+      await tx.alimTalkOutbox.updateMany({
+        where: {
+          customer: {
+            storeId,
+          },
+        },
+        data: {
+          customerId: null,
+        },
+      });
+
+      // 5. SMS 로그에서 고객 참조 null 처리 (customerId는 nullable)
+      await tx.smsLog.updateMany({
+        where: {
+          customer: {
+            storeId,
+          },
+        },
+        data: {
+          customerId: null,
+        },
+      });
+
+      // 6. 최종적으로 고객 삭제
+      await tx.customer.deleteMany({
+        where: { storeId },
+      });
+    });
+
+    res.json({
+      success: true,
+      message: `${store.name} 매장의 고객 ${customerCount}명이 삭제되었습니다.`,
+      deletedCount: customerCount,
+    });
+  } catch (error) {
+    console.error('Admin delete customers error:', error);
+    res.status(500).json({ error: '고객 삭제 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;
