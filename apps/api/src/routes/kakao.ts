@@ -371,6 +371,7 @@ router.get('/callback', async (req, res) => {
           customerId: customer.id,
           phone: phoneNumber,
           variables: {
+            storeName: store.name,
             benefitText: reviewSetting.benefitText || '',
           },
         }).catch((err) => {

@@ -135,6 +135,7 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
           customerId: customer.id,
           phone: phoneNumber,
           variables: {
+            storeName: store?.name || '매장',
             benefitText: reviewSetting.benefitText || '',
           },
         }).catch((err) => {

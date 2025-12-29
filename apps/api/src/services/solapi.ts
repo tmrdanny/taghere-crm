@@ -16,6 +16,7 @@ export interface PointsUsedVariables {
 }
 
 export interface NaverReviewRequestVariables {
+  storeName: string;
   benefitText: string;
 }
 
@@ -283,6 +284,7 @@ export async function enqueueNaverReviewAlimTalk(params: {
     messageType: 'NAVER_REVIEW_REQUEST',
     templateId,
     variables: {
+      '#{매장명}': params.variables.storeName,
       '#{리뷰내용}': params.variables.benefitText,
       '#{플레이스주소}': placeAddress,
     },

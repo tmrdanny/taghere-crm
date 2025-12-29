@@ -592,6 +592,156 @@ router.post('/upload-image', authMiddleware, upload.single('image'), async (req:
   }
 });
 
+// 테스트 발송 일일 제한
+const SMS_TEST_SEND_DAILY_LIMIT = 5;
+
+// GET /api/sms/test-count - 오늘 SMS 테스트 발송 횟수 조회
+router.get('/test-count', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+
+    // 오늘 날짜 범위 계산
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const count = await prisma.smsTestLog.count({
+      where: {
+        storeId,
+        createdAt: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+    });
+
+    res.json({
+      count,
+      limit: SMS_TEST_SEND_DAILY_LIMIT,
+      remaining: Math.max(0, SMS_TEST_SEND_DAILY_LIMIT - count),
+    });
+  } catch (error) {
+    console.error('SMS test count error:', error);
+    res.status(500).json({ error: '테스트 횟수 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/sms/test-send - SMS/MMS 테스트 발송 (하루 5회 제한)
+router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { phone, content, imageId } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ error: '전화번호를 입력해주세요.' });
+    }
+
+    if (!content || content.trim() === '') {
+      return res.status(400).json({ error: '메시지 내용을 입력해주세요.' });
+    }
+
+    // 오늘 테스트 발송 횟수 확인
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayTestCount = await prisma.smsTestLog.count({
+      where: {
+        storeId,
+        createdAt: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+    });
+
+    if (todayTestCount >= SMS_TEST_SEND_DAILY_LIMIT) {
+      return res.status(400).json({
+        error: `오늘 테스트 발송 횟수(${SMS_TEST_SEND_DAILY_LIMIT}회)를 모두 사용했습니다.`,
+      });
+    }
+
+    // SOLAPI 설정 확인
+    const apiKey = process.env.SOLAPI_API_KEY;
+    const apiSecret = process.env.SOLAPI_API_SECRET;
+
+    if (!apiKey || !apiSecret) {
+      return res.status(400).json({ error: 'SMS 발송 설정이 되어있지 않습니다.' });
+    }
+
+    // 메시지 유형 결정
+    const hasImage = !!imageId;
+    const byteLength = getByteLength(content);
+    const messageType = hasImage ? 'MMS' : (byteLength > 90 ? 'LMS' : 'SMS');
+
+    // SOLAPI 서비스 초기화
+    const messageService = new SolapiMessageService(apiKey, apiSecret);
+    const normalizedPhone = normalizePhoneNumber(phone);
+
+    // 발송 옵션
+    const sendOptions: any = {
+      to: normalizedPhone,
+      from: '07041380263', // 발신번호 고정
+      text: content,
+      type: messageType,
+    };
+
+    // MMS인 경우 이미지 추가
+    if (hasImage && imageId) {
+      sendOptions.imageId = imageId;
+    }
+
+    console.log('[SMS Test] Sending test message:', { phone: normalizedPhone, messageType, hasImage });
+
+    const result = await messageService.send(sendOptions);
+
+    // SOLAPI 응답 분석
+    const groupInfo = result.groupInfo;
+    const successCount = groupInfo?.count?.sentSuccess || groupInfo?.count?.registeredSuccess || 0;
+    const failCount = groupInfo?.count?.sentFailed || groupInfo?.count?.registeredFailed || 0;
+
+    let failReason: string | null = null;
+    if (result.failedMessageList && result.failedMessageList.length > 0) {
+      const firstFail = result.failedMessageList[0] as any;
+      failReason = firstFail.reason || firstFail.statusMessage || firstFail.message || 'Send failed';
+    }
+
+    const success = successCount > 0 || (groupInfo?.count?.total > 0 && failCount === 0);
+
+    console.log('[SMS Test] Result:', { success, groupId: groupInfo?.groupId, failReason });
+
+    if (!success) {
+      return res.status(400).json({
+        error: failReason || '테스트 발송에 실패했습니다.',
+        details: { groupInfo, failedMessageList: result.failedMessageList },
+      });
+    }
+
+    // 테스트 발송 로그 저장
+    await prisma.smsTestLog.create({
+      data: {
+        storeId,
+        phone: normalizedPhone,
+        content,
+        type: messageType,
+        hasImage: hasImage,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: '테스트 발송이 완료되었습니다.',
+      messageType,
+      groupId: groupInfo?.groupId,
+    });
+  } catch (error: any) {
+    console.error('SMS test send error:', error);
+    res.status(500).json({ error: error.message || '테스트 발송 중 오류가 발생했습니다.' });
+  }
+});
+
 // DELETE /api/sms/delete-image - 업로드된 이미지 삭제
 router.delete('/delete-image', authMiddleware, async (req: AuthRequest, res) => {
   try {

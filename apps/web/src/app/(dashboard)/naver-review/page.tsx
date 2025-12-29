@@ -36,6 +36,7 @@ interface Settings {
   benefitText: string;
   naverReviewUrl: string | null;
   balance: number;
+  storeName: string;
 }
 
 // 최소 충전금 (5원 미만이면 자동 발송 불가)
@@ -68,6 +69,7 @@ export default function NaverReviewPage() {
     benefitText: '',
     naverReviewUrl: null,
     balance: 0,
+    storeName: '',
   });
 
   // Local input states (for unsaved changes)
@@ -90,7 +92,7 @@ export default function NaverReviewPage() {
   const [showTestModal, setShowTestModal] = useState(false);
   const [testPhone, setTestPhone] = useState('');
   const [isTestSending, setIsTestSending] = useState(false);
-  const [testCount, setTestCount] = useState({ usedCount: 0, remainingCount: 5, maxCount: 5 });
+  const [testCount, setTestCount] = useState({ count: 0, limit: 5, remaining: 5 });
 
   // Get auth token
   const getAuthToken = () => {
@@ -259,11 +261,6 @@ export default function NaverReviewPage() {
 
   // Test send
   const handleTestSend = async () => {
-    if (testCount.remainingCount <= 0) {
-      setError('오늘의 테스트 발송 횟수(5회)를 모두 사용했습니다.');
-      return;
-    }
-
     setIsTestSending(true);
     setError(null);
 
@@ -285,13 +282,9 @@ export default function NaverReviewPage() {
 
       if (res.ok && data.success) {
         showToast(data.message || '테스트 발송이 완료되었습니다.', 'success');
-        setTestCount((prev) => ({
-          ...prev,
-          usedCount: prev.usedCount + 1,
-          remainingCount: data.remainingTests ?? prev.remainingCount - 1,
-        }));
         setShowTestModal(false);
         setTestPhone('');
+        fetchTestCount(); // 테스트 횟수 갱신
       } else {
         setError(data.error || '테스트 발송 실패');
       }
@@ -596,22 +589,34 @@ export default function NaverReviewPage() {
                             <div className="bg-[#FEE500] rounded-t-md px-2 py-1.5">
                               <span className="text-xs font-medium text-neutral-800">알림톡 도착</span>
                             </div>
-                            <div className="bg-white rounded-b-md p-3 shadow-sm">
-                              {/* Message body */}
-                              <p className="font-medium text-neutral-900 mb-2 text-xs">
-                                지금 리뷰를 작성해주세요!
-                              </p>
-                              <p className="text-xs text-neutral-700 mb-2 whitespace-pre-wrap">
-                                {benefitText || '혜택 내용을 입력해주세요'}
-                              </p>
-                              <p className="text-xs text-neutral-600 mb-3">
-                                영수증이 필요하실 경우 매장 직원을 불러주세요.
-                              </p>
+                            <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
+                              {/* Full width image */}
+                              <img
+                                src="/event-review.png"
+                                alt="리뷰 이벤트"
+                                className="w-full object-cover"
+                              />
 
-                              {/* CTA Button */}
-                              <button className="w-full py-2 border border-neutral-300 rounded-md text-xs font-medium text-neutral-800 bg-white hover:bg-neutral-50 transition-colors">
-                                리뷰 작성 하기
-                              </button>
+                              {/* Message body */}
+                              <div className="p-4">
+                                <p className="text-xs text-neutral-800 mb-3">
+                                  {settings.storeName || '#{매장명}'}에서 이벤트 참여를 요청했어요.
+                                </p>
+                                <p className="text-xs text-neutral-700 mb-1">
+                                  리뷰 작성하고 이벤트에 참여하세요!
+                                </p>
+                                <p className="text-xs text-neutral-700 mb-3 whitespace-pre-wrap">
+                                  {benefitText || '#{리뷰내용}'}
+                                </p>
+                                <p className="text-xs text-neutral-500 mb-4">
+                                  영수증이 필요하실 경우 매장 직원을 불러주세요.
+                                </p>
+
+                                {/* CTA Button */}
+                                <button className="w-full py-2.5 border border-neutral-300 rounded-md text-xs font-medium text-neutral-800 bg-white hover:bg-neutral-50 transition-colors">
+                                  리뷰 작성 하기
+                                </button>
+                              </div>
                             </div>
                           </div>
 
@@ -647,23 +652,16 @@ export default function NaverReviewPage() {
             <p className="text-sm text-blue-600">
               테스트 발송은 금액이 차감되지 않아요.
             </p>
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-700">
+                오늘 테스트 발송: {testCount.count}/{testCount.limit}회 (남은 횟수: {testCount.remaining}회)
+              </p>
+            </div>
             <Input
               value={testPhone}
               onChange={(e) => setTestPhone(e.target.value)}
               placeholder="01012345678"
             />
-            <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3">
-              <p className="text-sm text-neutral-600">
-                오늘 남은 테스트 발송: <span className="font-medium text-neutral-900">{testCount.remainingCount}/{testCount.maxCount}회</span>
-              </p>
-            </div>
-            {testCount.remainingCount <= 0 && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-600">
-                  오늘의 테스트 발송 횟수를 모두 사용했습니다.
-                </p>
-              </div>
-            )}
           </div>
 
           <ModalFooter>
@@ -676,7 +674,7 @@ export default function NaverReviewPage() {
             </Button>
             <Button
               onClick={handleTestSend}
-              disabled={isTestSending || !testPhone || testCount.remainingCount <= 0}
+              disabled={isTestSending || !testPhone || testCount.remaining <= 0}
             >
               {isTestSending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

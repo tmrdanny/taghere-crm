@@ -464,7 +464,7 @@ export default function HomePage() {
             ) : null}
             <div className="p-4 bg-neutral-50 rounded-lg text-sm text-neutral-600">
               <p>
-                네이버 리뷰 요청 알림톡 자동 발송을 통해 고객 리뷰가 꾸준히 증가하고 있어요.
+                네이버 리뷰 요청 알림톡 자동 발송을 통해 고객 리뷰 수를 늘려보세요.
               </p>
               <p className="mt-2">
                 더 많은 리뷰를 모으고 싶다면 리뷰 보상 혜택을 점검해 보세요.

@@ -48,6 +48,7 @@ model Store {
   paymentTransactions   PaymentTransaction[]
   alimTalkConfig        AlimTalkConfig?
   smsCampaigns          SmsCampaign[]
+  smsTestLogs           SmsTestLog[]
 
   @@map("stores")
 }
@@ -265,6 +266,24 @@ enum ReviewRequestStatus {
   PENDING
   SENT
   FAILED
+}
+
+// SMS/MMS 테스트 발송 로그
+model SmsTestLog {
+  id        String   @id @default(cuid())
+  storeId   String
+  phone     String
+  content   String   @db.Text
+  type      String   // SMS, LMS, MMS
+  hasImage  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([createdAt])
+  @@map("sms_test_logs")
 }
 
 // 매장 지갑 (리뷰 요청 충전금)

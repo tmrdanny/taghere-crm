@@ -133,6 +133,12 @@ export default function MessagesPage() {
   const [tempSelectedCustomers, setTempSelectedCustomers] = useState<SelectedCustomer[]>([]);
   const [customerTotalCount, setCustomerTotalCount] = useState(0);
 
+  // Test send modal states
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [testPhone, setTestPhone] = useState('');
+  const [isTestSending, setIsTestSending] = useState(false);
+  const [testCount, setTestCount] = useState({ count: 0, limit: 5, remaining: 5 });
+
   // Get auth token
   const getAuthToken = () => {
     if (typeof window === 'undefined') return 'dev-token';
@@ -222,10 +228,27 @@ export default function MessagesPage() {
     }
   }, [messageContent, selectedTarget, selectedCustomers, genderFilter, ageFilter, uploadedImage]);
 
+  // Fetch test count
+  const fetchTestCount = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/sms/test-count`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setTestCount(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch test count:', err);
+    }
+  }, []);
+
   // Initial load
   useEffect(() => {
     const init = async () => {
       setIsLoading(true);
+      await fetchTestCount();
       await fetchTargetCounts();
       setIsLoading(false);
     };
@@ -445,6 +468,50 @@ export default function MessagesPage() {
     }
   };
 
+  // Test send message
+  const handleTestSend = async () => {
+    if (!messageContent.trim()) {
+      showToast('메시지 내용을 입력해주세요.', 'error');
+      return;
+    }
+
+    if (!testPhone.trim()) {
+      showToast('전화번호를 입력해주세요.', 'error');
+      return;
+    }
+
+    setIsTestSending(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/sms/test-send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+        body: JSON.stringify({
+          phone: testPhone,
+          content: messageContent,
+          imageId: uploadedImage?.imageId || undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        showToast(`테스트 발송 완료 (${data.messageType})`, 'success');
+        setShowTestModal(false);
+        setTestPhone('');
+        fetchTestCount(); // 테스트 횟수 갱신
+      } else {
+        showToast(data.error || '테스트 발송 실패', 'error');
+      }
+    } catch (error) {
+      showToast('테스트 발송 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setIsTestSending(false);
+    }
+  };
+
   // Send messages
   const handleSend = async () => {
     if (!messageContent.trim()) {
@@ -508,19 +575,19 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="flex-1 flex p-6 gap-6 overflow-hidden max-w-[1200px] mx-auto w-full justify-center">
+    <div className="flex-1 flex flex-col lg:flex-row p-4 md:p-6 gap-6 overflow-hidden max-w-[1200px] mx-auto w-full lg:justify-center">
       {ToastComponent}
 
       {/* Left Panel - Settings */}
-      <div className="flex-1 max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-6 flex flex-col gap-6 overflow-y-auto">
+      <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6 overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between pb-5 border-b border-[#e5e7eb]">
-          <h1 className="text-xl font-bold text-[#1e293b]">캠페인 메시지 만들기</h1>
-          <div className="flex bg-[#f1f5f9] rounded-lg p-1">
-            <button className="px-4 py-2 text-sm font-semibold rounded-md bg-white shadow-sm text-[#1e293b]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e5e7eb]">
+          <h1 className="text-lg sm:text-xl font-bold text-[#1e293b]">캠페인 메시지 만들기</h1>
+          <div className="flex bg-[#f1f5f9] rounded-lg p-1 self-start sm:self-auto">
+            <button className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md bg-white shadow-sm text-[#1e293b]">
               문자 (SMS/LMS)
             </button>
-            <button className="px-4 py-2 text-sm font-medium rounded-md text-[#94a3b8] cursor-not-allowed">
+            <button className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md text-[#94a3b8] cursor-not-allowed">
               카카오톡 (알림톡)
             </button>
           </div>
@@ -529,7 +596,7 @@ export default function MessagesPage() {
         {/* Target Selection */}
         <div className="flex flex-col gap-3">
           <label className="text-sm font-semibold text-[#1e293b]">발송 대상 선택</label>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               onClick={() => {
                 setSelectedTarget('ALL');
@@ -625,38 +692,42 @@ export default function MessagesPage() {
           {/* Filters */}
           <div className="mt-4">
             <label className="text-sm font-semibold text-[#1e293b] mb-3 block">상세 필터</label>
-            <div className="flex flex-wrap gap-2">
-              {['all', 'FEMALE', 'MALE'].map((gender) => (
-                <button
-                  key={gender}
-                  onClick={() => setGenderFilter(gender as any)}
-                  className={cn(
-                    'px-4 py-2 rounded-full text-sm border transition-all',
-                    genderFilter === gender
-                      ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
-                      : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
-                  )}
-                >
-                  {gender === 'all' ? '전체 성별' : gender === 'FEMALE' ? '여성' : '남성'}
-                </button>
-              ))}
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
+                {['all', 'FEMALE', 'MALE'].map((gender) => (
+                  <button
+                    key={gender}
+                    onClick={() => setGenderFilter(gender as any)}
+                    className={cn(
+                      'px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm border transition-all',
+                      genderFilter === gender
+                        ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
+                        : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
+                    )}
+                  >
+                    {gender === 'all' ? '전체 성별' : gender === 'FEMALE' ? '여성' : '남성'}
+                  </button>
+                ))}
+              </div>
 
-              <div className="w-px bg-[#e5e7eb] mx-1" />
+              <div className="hidden sm:block w-px bg-[#e5e7eb] mx-1" />
 
-              {['all', '20-30', '40-50'].map((age) => (
-                <button
-                  key={age}
-                  onClick={() => setAgeFilter(age as any)}
-                  className={cn(
-                    'px-4 py-2 rounded-full text-sm border transition-all',
-                    ageFilter === age
-                      ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
-                      : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
-                  )}
-                >
-                  {age === 'all' ? '전체 연령' : age === '20-30' ? '20~30대' : '40~50대'}
-                </button>
-              ))}
+              <div className="flex flex-wrap gap-2">
+                {['all', '20-30', '40-50'].map((age) => (
+                  <button
+                    key={age}
+                    onClick={() => setAgeFilter(age as any)}
+                    className={cn(
+                      'px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm border transition-all',
+                      ageFilter === age
+                        ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
+                        : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
+                    )}
+                  >
+                    {age === 'all' ? '전체 연령' : age === '20-30' ? '20~30대' : '40~50대'}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -747,26 +818,35 @@ export default function MessagesPage() {
         </div>
 
         {/* Cost Summary */}
-        <div className="flex items-center justify-between p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
           <div className="flex flex-col gap-1">
-            <span className="text-sm text-[#64748b]">
+            <span className="text-xs sm:text-sm text-[#64748b]">
               발송 대상 {formatNumber(estimate?.targetCount || getCurrentTargetCount())}명 × {formatNumber(estimate?.costPerMessage || (uploadedImage ? 110 : 50))}원 ({uploadedImage ? 'MMS' : '문자'})
             </span>
-            <span className="text-xl font-bold text-[#1e293b]">
+            <span className="text-lg sm:text-xl font-bold text-[#1e293b]">
               총 {formatNumber(estimate?.totalCost || 0)}원
             </span>
           </div>
-          <button
-            disabled={
-              !messageContent.trim() ||
-              getCurrentTargetCount() === 0 ||
-              (estimate !== null && !estimate.canSend)
-            }
-            onClick={() => setShowConfirmModal(true)}
-            className="px-6 py-3.5 bg-[#2a2d62] text-white rounded-xl text-base font-semibold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            메시지 발송하기
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button
+              disabled={!messageContent.trim()}
+              onClick={() => setShowTestModal(true)}
+              className="w-full sm:w-auto px-4 py-3 sm:py-3.5 border border-[#3b82f6] text-[#3b82f6] bg-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#eff6ff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              테스트 발송
+            </button>
+            <button
+              disabled={
+                !messageContent.trim() ||
+                getCurrentTargetCount() === 0 ||
+                (estimate !== null && !estimate.canSend)
+              }
+              onClick={() => setShowConfirmModal(true)}
+              className="w-full sm:w-auto px-6 py-3 sm:py-3.5 bg-[#2a2d62] text-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              메시지 발송하기
+            </button>
+          </div>
         </div>
 
         {estimate && !estimate.canSend && (
@@ -776,8 +856,8 @@ export default function MessagesPage() {
         )}
       </div>
 
-      {/* Right Panel - Preview */}
-      <div className="flex-none w-[360px] bg-[#e2e8f0] rounded-3xl p-5 flex items-center justify-center">
+      {/* Right Panel - Preview (hidden on mobile) */}
+      <div className="hidden lg:flex flex-none w-[360px] bg-[#e2e8f0] rounded-3xl p-5 items-center justify-center">
         {/* Phone Mockup - Full height iPhone style */}
         <div className="w-full h-[680px] bg-white rounded-[44px] border-[10px] border-[#1e293b] overflow-hidden flex flex-col shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] relative">
           {/* Dynamic Island / Notch */}
@@ -1021,6 +1101,72 @@ export default function MessagesPage() {
             >
               <Users className="w-4 h-4 mr-2" />
               {tempSelectedCustomers.length}명 선택 완료
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Test Send Modal */}
+      <Modal open={showTestModal} onOpenChange={setShowTestModal}>
+        <ModalContent className="sm:max-w-md">
+          <ModalHeader>
+            <ModalTitle>테스트 발송</ModalTitle>
+          </ModalHeader>
+
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-[#64748b]">
+              테스트용 전화번호를 입력해주세요.
+            </p>
+            <p className="text-sm text-[#3b82f6]">
+              테스트 발송은 금액이 차감되지 않아요.
+            </p>
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-700">
+                오늘 테스트 발송: {testCount.count}/{testCount.limit}회 (남은 횟수: {testCount.remaining}회)
+              </p>
+            </div>
+
+            <input
+              type="tel"
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              placeholder="01012345678"
+              className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+            />
+
+            <div className="p-4 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
+              <p className="text-sm text-[#64748b]">
+                메시지 유형: <span className="font-medium text-[#1e293b]">{uploadedImage ? 'MMS (이미지 포함)' : getByteLength(messageContent) > 90 ? 'LMS (장문)' : 'SMS (단문)'}</span>
+              </p>
+              <p className="text-sm text-[#64748b] mt-1">
+                바이트: <span className="font-medium text-[#1e293b]">{getByteLength(messageContent)} bytes</span>
+              </p>
+            </div>
+          </div>
+
+          <ModalFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowTestModal(false)}
+              disabled={isTestSending}
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleTestSend}
+              disabled={isTestSending || !testPhone.trim() || !messageContent.trim() || testCount.remaining <= 0}
+            >
+              {isTestSending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  발송 중...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  테스트 발송
+                </>
+              )}
             </Button>
           </ModalFooter>
         </ModalContent>
