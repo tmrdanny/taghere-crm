@@ -50,13 +50,15 @@ function GiftBoxImage({ onClick, isOpening }: { onClick: () => void; isOpening: 
       className={`gift-box-wrapper ${isOpening ? 'opening' : ''}`}
       onClick={!isOpening ? onClick : undefined}
     >
-      <Image
-        src="/gift-box.avif"
-        alt="선물 상자"
+      <video
+        src="/pointcoin-3d.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
         width={180}
         height={180}
-        className="gift-box-image"
-        priority
+        className="gift-box-video"
       />
 
       <style jsx>{`
@@ -71,6 +73,12 @@ function GiftBoxImage({ onClick, isOpening }: { onClick: () => void; isOpening: 
 
         .gift-box-wrapper.opening {
           animation: boxOpen 0.6s ease-out forwards;
+        }
+
+        .gift-box-video {
+          width: 180px;
+          height: 180px;
+          object-fit: contain;
         }
 
         @keyframes gentleFloat {
@@ -383,10 +391,10 @@ function EnrollContent() {
           {/* Title */}
           <div className="text-center mb-6">
             <h1 className="text-xl font-bold text-neutral-900 mb-0.5">
-              포인트 최대
+              방금 전 주문으로 적립된
             </h1>
             <p className="text-xl font-bold">
-              <span className="text-blue-500">{formatNumber(maxPoints)}원</span>
+              <span className="text-blue-500">{formatNumber(maxPoints)}P</span>
               <span className="text-neutral-900"> 받아 가세요</span>
             </p>
           </div>
@@ -434,7 +442,7 @@ function EnrollContent() {
             disabled={isOpening}
             className="w-full py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-base rounded-[10px] transition-colors"
           >
-            {isOpening ? '상자 여는 중...' : '선물 상자 열기'}
+            {isOpening ? '적립 중...' : '포인트 적립하기'}
           </button>
         </div>
       </div>

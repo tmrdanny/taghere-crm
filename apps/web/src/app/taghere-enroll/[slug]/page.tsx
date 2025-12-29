@@ -228,7 +228,7 @@ function TaghereEnrollContent() {
             disabled={isOpening}
             className="w-full py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-base rounded-[10px] transition-colors"
           >
-            {isOpening ? '상자 여는 중...' : '선물 상자 열기'}
+            {isOpening ? '적립 중...' : '포인트 적립하기'}
           </button>
         </div>
       </div>

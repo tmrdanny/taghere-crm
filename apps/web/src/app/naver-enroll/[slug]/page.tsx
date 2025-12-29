@@ -146,7 +146,7 @@ function SuccessPopup({
           </p>
           <button
             onClick={onClose}
-            className="w-full py-3 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
+            className="w-full py-3 bg-[#03C75A] hover:bg-[#02b351] text-white font-semibold text-base rounded-xl transition-colors"
           >
             확인
           </button>
@@ -184,7 +184,7 @@ function SuccessPopup({
             value={feedbackText}
             onChange={(e) => setFeedbackText(e.target.value)}
             placeholder="의견을 남겨주세요 (선택)"
-            className="w-full h-20 px-3 py-2 border border-neutral-200 rounded-xl resize-none text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+            className="w-full h-20 px-3 py-2 border border-neutral-200 rounded-xl resize-none text-sm focus:outline-none focus:ring-2 focus:ring-[#03C75A] focus:border-transparent"
           />
 
           {/* Buttons */}
@@ -199,7 +199,7 @@ function SuccessPopup({
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex-1 py-3 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-sm rounded-xl transition-colors"
+              className="flex-1 py-3 bg-[#03C75A] hover:bg-[#02b351] disabled:bg-[#7ee0a8] text-white font-semibold text-sm rounded-xl transition-colors"
             >
               {isSubmitting ? '제출 중...' : '제출 할게요'}
             </button>
@@ -210,7 +210,7 @@ function SuccessPopup({
   );
 }
 
-function EnrollSlugContent() {
+function NaverEnrollSlugContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
@@ -287,7 +287,7 @@ function EnrollSlugContent() {
       if (redirect) params.set('redirect', redirect);
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      window.location.href = `${apiUrl}/auth/kakao/start?${params.toString()}`;
+      window.location.href = `${apiUrl}/auth/naver/start?${params.toString()}`;
     }, 500);
   };
 
@@ -305,7 +305,7 @@ function EnrollSlugContent() {
     return (
       <div className="min-h-screen bg-neutral-100 font-pretendard flex justify-center">
         <div className="w-full max-w-md h-screen flex items-center justify-center bg-white">
-          <div className="w-8 h-8 border-2 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-[#03C75A] border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     );
@@ -320,7 +320,7 @@ function EnrollSlugContent() {
           <p className="text-neutral-500 text-sm mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-5 py-2.5 bg-[#FFD541] text-neutral-900 font-semibold rounded-xl text-sm"
+            className="px-5 py-2.5 bg-[#03C75A] text-white font-semibold rounded-xl text-sm"
           >
             다시 시도
           </button>
@@ -342,7 +342,7 @@ function EnrollSlugContent() {
               방금 전 주문으로 적립된
             </h1>
             <p className="text-xl font-bold">
-              <span className="text-blue-500">{formatNumber(maxPoints)}P</span>
+              <span className="text-[#03C75A]">{formatNumber(maxPoints)}P</span>
               <span className="text-neutral-900"> 받아 가세요</span>
             </p>
           </div>
@@ -367,7 +367,7 @@ function EnrollSlugContent() {
               <div className="w-7 h-7 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-400 text-xs font-medium shrink-0">
                 2
               </div>
-              <p className="text-neutral-600 text-sm">카카오 로그인 후</p>
+              <p className="text-neutral-600 text-sm">네이버 로그인 후</p>
             </div>
 
             {/* Step 3 */}
@@ -376,7 +376,7 @@ function EnrollSlugContent() {
                 3
               </div>
               <p className="text-sm">
-                <span className="text-blue-500 font-medium">포인트</span>
+                <span className="text-[#03C75A] font-medium">포인트</span>
                 <span className="text-neutral-600">가 들어있는 상자를 받아요 🎉</span>
               </p>
             </div>
@@ -388,7 +388,7 @@ function EnrollSlugContent() {
           <button
             onClick={handleOpenGift}
             disabled={isOpening}
-            className="w-full py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-base rounded-[10px] transition-colors"
+            className="w-full py-3.5 bg-[#03C75A] hover:bg-[#02b351] disabled:bg-[#7ee0a8] text-white font-semibold text-base rounded-[10px] transition-colors"
           >
             {isOpening ? '적립 중...' : '포인트 적립하기'}
           </button>
@@ -408,7 +408,7 @@ function EnrollSlugContent() {
             </p>
             <button
               onClick={() => setShowAlreadyParticipated(false)}
-              className="w-full py-3 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
+              className="w-full py-3 bg-[#03C75A] hover:bg-[#02b351] text-white font-semibold text-base rounded-xl transition-colors"
             >
               확인
             </button>
@@ -435,16 +435,16 @@ function EnrollSlugContent() {
   );
 }
 
-export default function EnrollSlugPage() {
+export default function NaverEnrollSlugPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-neutral-100 flex justify-center">
         <div className="w-full max-w-md h-screen flex items-center justify-center bg-white">
-          <div className="w-8 h-8 border-2 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-[#03C75A] border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     }>
-      <EnrollSlugContent />
+      <NaverEnrollSlugContent />
     </Suspense>
   );
 }

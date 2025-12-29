@@ -196,24 +196,25 @@ router.get('/callback', async (req, res) => {
         },
       });
     } else {
-      // 기존 고객: 이 매장에서 오늘 이미 참여했는지 확인 (PointLedger 기준, KST 00:00 기준)
-      const todayEarnedInStore = await prisma.pointLedger.findFirst({
-        where: {
-          storeId: store.id,
-          customerId: customer.id,
-          type: 'EARN',
-          createdAt: { gte: kstTodayStart },
-        },
-      });
+      // TODO: 테스트 후 중복 체크 다시 활성화
+      // // 기존 고객: 이 매장에서 오늘 이미 참여했는지 확인 (PointLedger 기준, KST 00:00 기준)
+      // const todayEarnedInStore = await prisma.pointLedger.findFirst({
+      //   where: {
+      //     storeId: store.id,
+      //     customerId: customer.id,
+      //     type: 'EARN',
+      //     createdAt: { gte: kstTodayStart },
+      //   },
+      // });
 
-      if (todayEarnedInStore) {
-        // 이 매장에서 오늘 이미 참여함 - already_participated 에러로 리다이렉트
-        const alreadyUrl = new URL(`${PUBLIC_APP_URL}/enroll`);
-        alreadyUrl.searchParams.set('error', 'already_participated');
-        alreadyUrl.searchParams.set('storeName', store.name);
-        if (stateData.storeId) alreadyUrl.searchParams.set('storeId', stateData.storeId);
-        return res.redirect(alreadyUrl.toString());
-      }
+      // if (todayEarnedInStore) {
+      //   // 이 매장에서 오늘 이미 참여함 - already_participated 에러로 리다이렉트
+      //   const alreadyUrl = new URL(`${PUBLIC_APP_URL}/enroll`);
+      //   alreadyUrl.searchParams.set('error', 'already_participated');
+      //   alreadyUrl.searchParams.set('storeName', store.name);
+      //   if (stateData.storeId) alreadyUrl.searchParams.set('storeId', stateData.storeId);
+      //   return res.redirect(alreadyUrl.toString());
+      // }
 
       // 기존 고객 정보 업데이트 (kakaoId, 이름, 성별, 생일 등)
       customer = await prisma.customer.update({

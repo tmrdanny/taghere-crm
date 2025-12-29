@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { formatNumber } from '@/lib/utils';
 
 interface StoreInfo {
@@ -146,7 +146,7 @@ function SuccessPopup({
           </p>
           <button
             onClick={onClose}
-            className="w-full py-3 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
+            className="w-full py-3 bg-[#03C75A] hover:bg-[#02B350] text-white font-semibold text-base rounded-xl transition-colors"
           >
             확인
           </button>
@@ -160,7 +160,7 @@ function SuccessPopup({
       <div className="bg-white rounded-2xl w-full max-w-xs shadow-xl overflow-hidden">
         {/* Points Display */}
         <div className="pt-6 pb-4 text-center">
-          <p className="text-3xl font-extrabold text-[#131651]">
+          <p className="text-3xl font-extrabold text-[#03C75A]">
             +{formatNumber(successData.points)} P
           </p>
         </div>
@@ -184,7 +184,7 @@ function SuccessPopup({
             value={feedbackText}
             onChange={(e) => setFeedbackText(e.target.value)}
             placeholder="의견을 남겨주세요 (선택)"
-            className="w-full h-20 px-3 py-2 border border-neutral-200 rounded-xl resize-none text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+            className="w-full h-20 px-3 py-2 border border-neutral-200 rounded-xl resize-none text-sm focus:outline-none focus:ring-2 focus:ring-[#03C75A] focus:border-transparent"
           />
 
           {/* Buttons */}
@@ -199,7 +199,7 @@ function SuccessPopup({
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex-1 py-3 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-sm rounded-xl transition-colors"
+              className="flex-1 py-3 bg-[#03C75A] hover:bg-[#02B350] disabled:bg-[#7AD9A0] text-white font-semibold text-sm rounded-xl transition-colors"
             >
               {isSubmitting ? '제출 중...' : '제출 할게요'}
             </button>
@@ -210,8 +210,7 @@ function SuccessPopup({
   );
 }
 
-function EnrollSlugContent() {
-  const params = useParams();
+function NaverEnrollContent() {
   const searchParams = useSearchParams();
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -220,7 +219,7 @@ function EnrollSlugContent() {
   const [showAlreadyParticipated, setShowAlreadyParticipated] = useState(false);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
 
-  const slug = params.slug as string;
+  const storeId = searchParams.get('storeId');
   const orderId = searchParams.get('orderId');
   const redirect = searchParams.get('redirect');
   const urlError = searchParams.get('error');
@@ -245,6 +244,7 @@ function EnrollSlugContent() {
 
     if (urlError === 'already_participated') {
       setShowAlreadyParticipated(true);
+      // Don't set loading false here, continue to fetch store info
     } else if (urlError) {
       setError('로그인에 실패했습니다. 다시 시도해주세요.');
       setIsLoading(false);
@@ -254,42 +254,38 @@ function EnrollSlugContent() {
     const fetchStoreInfo = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const params = new URLSearchParams();
+        if (storeId) params.set('storeId', storeId);
 
-        // slug로 store 정보 조회
-        const res = await fetch(`${apiUrl}/api/stores/by-slug/${slug}`);
+        const res = await fetch(`${apiUrl}/auth/naver/store-info?${params.toString()}`);
         if (res.ok) {
           const data = await res.json();
           setStoreInfo(data);
-        } else if (res.status === 404) {
-          setError('존재하지 않는 매장입니다.');
         }
       } catch (e) {
         console.error('Failed to fetch store info:', e);
-        setError('매장 정보를 불러오는데 실패했습니다.');
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchStoreInfo();
-  }, [slug, urlError, successPoints, customerId, successStoreName, storeName]);
+  }, [storeId, urlError, successPoints, customerId, successStoreName, storeName]);
 
-  const handleOpenGift = () => {
-    if (!storeInfo) return;
-
+  const handleOpenGift = useCallback(() => {
     setIsOpening(true);
 
     setTimeout(() => {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+      // 네이버 로그인은 서버 기반 OAuth 사용 (SDK 대신)
       const params = new URLSearchParams();
-      params.set('storeId', storeInfo.id);
-      params.set('slug', slug); // slug도 전달하여 redirect 시 사용
+      if (storeId) params.set('storeId', storeId);
       if (orderId) params.set('orderId', orderId);
       if (redirect) params.set('redirect', redirect);
-
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      window.location.href = `${apiUrl}/auth/kakao/start?${params.toString()}`;
+      window.location.href = `${apiUrl}/auth/naver/start?${params.toString()}`;
     }, 500);
-  };
+  }, [storeId, orderId, redirect]);
 
   const handleCloseSuccessPopup = () => {
     setSuccessData(null);
@@ -305,7 +301,7 @@ function EnrollSlugContent() {
     return (
       <div className="min-h-screen bg-neutral-100 font-pretendard flex justify-center">
         <div className="w-full max-w-md h-screen flex items-center justify-center bg-white">
-          <div className="w-8 h-8 border-2 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-[#03C75A] border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     );
@@ -320,7 +316,7 @@ function EnrollSlugContent() {
           <p className="text-neutral-500 text-sm mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-5 py-2.5 bg-[#FFD541] text-neutral-900 font-semibold rounded-xl text-sm"
+            className="px-5 py-2.5 bg-[#03C75A] text-white font-semibold rounded-xl text-sm"
           >
             다시 시도
           </button>
@@ -342,7 +338,7 @@ function EnrollSlugContent() {
               방금 전 주문으로 적립된
             </h1>
             <p className="text-xl font-bold">
-              <span className="text-blue-500">{formatNumber(maxPoints)}P</span>
+              <span className="text-[#03C75A]">{formatNumber(maxPoints)}P</span>
               <span className="text-neutral-900"> 받아 가세요</span>
             </p>
           </div>
@@ -367,7 +363,7 @@ function EnrollSlugContent() {
               <div className="w-7 h-7 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-400 text-xs font-medium shrink-0">
                 2
               </div>
-              <p className="text-neutral-600 text-sm">카카오 로그인 후</p>
+              <p className="text-neutral-600 text-sm">네이버 로그인 후</p>
             </div>
 
             {/* Step 3 */}
@@ -376,19 +372,19 @@ function EnrollSlugContent() {
                 3
               </div>
               <p className="text-sm">
-                <span className="text-blue-500 font-medium">포인트</span>
+                <span className="text-[#03C75A] font-medium">포인트</span>
                 <span className="text-neutral-600">가 들어있는 상자를 받아요 🎉</span>
               </p>
             </div>
           </div>
         </div>
 
-        {/* Bottom CTA */}
-        <div className="px-6 pb-6 pt-4">
+        {/* Bottom CTA - safe area 대응 */}
+        <div className="px-6 pt-4 pb-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 1.5rem))' }}>
           <button
             onClick={handleOpenGift}
             disabled={isOpening}
-            className="w-full py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-base rounded-[10px] transition-colors"
+            className="w-full py-3.5 bg-[#03C75A] hover:bg-[#02B350] disabled:bg-[#7AD9A0] text-white font-semibold text-base rounded-[10px] transition-colors"
           >
             {isOpening ? '적립 중...' : '포인트 적립하기'}
           </button>
@@ -408,7 +404,7 @@ function EnrollSlugContent() {
             </p>
             <button
               onClick={() => setShowAlreadyParticipated(false)}
-              className="w-full py-3 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
+              className="w-full py-3 bg-[#03C75A] hover:bg-[#02B350] text-white font-semibold text-base rounded-xl transition-colors"
             >
               확인
             </button>
@@ -435,16 +431,16 @@ function EnrollSlugContent() {
   );
 }
 
-export default function EnrollSlugPage() {
+export default function NaverEnrollPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-neutral-100 flex justify-center">
         <div className="w-full max-w-md h-screen flex items-center justify-center bg-white">
-          <div className="w-8 h-8 border-2 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-[#03C75A] border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     }>
-      <EnrollSlugContent />
+      <NaverEnrollContent />
     </Suspense>
   );
 }

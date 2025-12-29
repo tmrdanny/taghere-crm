@@ -84,6 +84,8 @@ model Customer {
   id               String    @id @default(cuid())
   storeId          String
   kakaoId          String?   // 카카오 OAuth 고유 ID (매장별로 별도 고객)
+  naverId          String?   // 네이버 OAuth 고유 ID (매장별로 별도 고객)
+  naverNickname    String?   // 네이버 닉네임 (리뷰 매칭용)
   name             String?
   phone            String?   // 전화번호 (뒷자리만 저장 가능)
   phoneLastDigits  String?   // 전화번호 뒤 8자리 (검색용)
@@ -119,10 +121,12 @@ model Customer {
   feedbacks         CustomerFeedback[]
 
   @@unique([storeId, kakaoId])  // 매장별 카카오ID 유니크
+  @@unique([storeId, naverId])   // 매장별 네이버ID 유니크
   @@unique([storeId, phoneLastDigits])
   @@index([storeId])
   @@index([phoneLastDigits])
   @@index([kakaoId])
+  @@index([naverId])
   @@map("customers")
 }
 

@@ -18,6 +18,7 @@ import walletRoutes from './routes/wallet.js';
 import settingsRoutes from './routes/settings.js';
 import cardsRoutes from './routes/cards.js';
 import kakaoRoutes from './routes/kakao.js';
+import naverRoutes from './routes/naver.js';
 import taghereRoutes from './routes/taghere.js';
 import alimtalkRoutes from './routes/alimtalk.js';
 import naverReviewRoutes from './routes/naver-review.js';
@@ -119,8 +120,9 @@ app.use('/api/stores', storesRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/sms', smsRoutes);
 
-// Kakao OAuth routes (without /api prefix)
+// OAuth routes (without /api prefix)
 app.use('/auth/kakao', kakaoRoutes);
+app.use('/auth/naver', naverRoutes);
 
 // 404 handler
 app.use((req, res) => {
