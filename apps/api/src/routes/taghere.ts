@@ -4,6 +4,102 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
+const TAGHERE_API_URL = process.env.TAGHERE_API_URL || 'https://api.d.tag-here.com';
+const TAGHERE_API_TOKEN = process.env.TAGHERE_API_TOKEN_FOR_CRM || '';
+
+interface TaghereOrderData {
+  resultPrice?: number;
+  totalPrice?: number;
+  orderItems?: any[];
+  items?: any[];
+}
+
+// TagHere API에서 주문 정보 조회
+async function fetchOrdersheet(ordersheetId: string): Promise<TaghereOrderData> {
+  const response = await fetch(
+    `${TAGHERE_API_URL}/webhook/crm/ordersheet?ordersheetId=${ordersheetId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${TAGHERE_API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[TagHere] API error:', response.status, errorText);
+    throw new Error(`TagHere API error: ${response.status}`);
+  }
+
+  return response.json() as Promise<TaghereOrderData>;
+}
+
+// GET /api/taghere/ordersheet - 주문 정보 조회 및 적립 예정 포인트 계산 (공개 API)
+router.get('/ordersheet', async (req, res) => {
+  try {
+    const { ordersheetId, slug } = req.query;
+
+    if (!ordersheetId) {
+      return res.status(400).json({ error: 'ordersheetId is required' });
+    }
+
+    if (!slug) {
+      return res.status(400).json({ error: 'slug is required' });
+    }
+
+    // 매장 정보 조회
+    const store = await prisma.store.findFirst({
+      where: { slug: slug as string },
+      select: {
+        id: true,
+        name: true,
+        pointRatePercent: true,
+        pointRateEnabled: true,
+      },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: 'Store not found' });
+    }
+
+    // TagHere API 호출
+    const orderData = await fetchOrdersheet(ordersheetId as string);
+
+    console.log('[TagHere] Ordersheet data:', JSON.stringify(orderData, null, 2));
+
+    // resultPrice 추출
+    const resultPrice = orderData.resultPrice || orderData.totalPrice || 0;
+
+    // 적립률 계산 (기본 5%)
+    const ratePercent = store.pointRatePercent || 5;
+    const earnPoints = Math.floor(resultPrice * ratePercent / 100);
+
+    // 이미 적립된 ordersheetId인지 확인
+    const existingEarn = await prisma.pointLedger.findFirst({
+      where: {
+        storeId: store.id,
+        type: 'EARN',
+        reason: { contains: ordersheetId as string },
+      },
+    });
+
+    res.json({
+      storeId: store.id,
+      storeName: store.name,
+      ordersheetId,
+      resultPrice,
+      ratePercent,
+      earnPoints,
+      alreadyEarned: !!existingEarn,
+      orderItems: orderData.orderItems || orderData.items || [],
+    });
+  } catch (error: any) {
+    console.error('[TagHere] Ordersheet error:', error);
+    res.status(500).json({ error: error.message || '주문 정보 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 // POST /api/taghere/order-event - 주문 이벤트 (리뷰 자동요청 트리거)
 router.post('/order-event', authMiddleware, async (req: AuthRequest, res) => {
   try {
