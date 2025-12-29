@@ -455,14 +455,14 @@ export default function SettingsPage() {
                 </label>
                 <div className="flex gap-2">
                   <Input
-                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/enroll/${storeSlug}`}
+                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll/${storeSlug}?ordersheetId={ordersheetId}`}
                     readOnly
                     className="font-mono text-sm bg-neutral-50"
                   />
                   <Button
                     variant="outline"
                     onClick={() => {
-                      const link = `${window.location.origin}/enroll/${storeSlug}`;
+                      const link = `${window.location.origin}/taghere-enroll/${storeSlug}?ordersheetId={ordersheetId}`;
                       navigator.clipboard.writeText(link);
                       setCopiedLink(true);
                       setTimeout(() => setCopiedLink(false), 2000);
@@ -482,6 +482,9 @@ export default function SettingsPage() {
                     )}
                   </Button>
                 </div>
+                <p className="text-xs text-neutral-500">
+                  💡 태그히어 배너에 복사하여 사용하세요. ordersheetId는 자동으로 치환됩니다.
+                </p>
               </div>
 
               {/* QR Code */}
@@ -492,7 +495,7 @@ export default function SettingsPage() {
                 <div className="flex items-start gap-4">
                   <div className="p-3 bg-white border border-neutral-200 rounded-lg inline-block">
                     <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : ''}/enroll/${storeSlug}`)}`}
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll/${storeSlug}`)}`}
                       alt="QR Code"
                       width={150}
                       height={150}
@@ -507,7 +510,7 @@ export default function SettingsPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        const link = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`${window.location.origin}/enroll/${storeSlug}`)}`;
+                        const link = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`${window.location.origin}/taghere-enroll/${storeSlug}`)}`;
                         const a = document.createElement('a');
                         a.href = link;
                         a.download = `taghere-qr-${storeSlug}.png`;
