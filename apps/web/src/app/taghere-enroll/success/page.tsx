@@ -15,13 +15,6 @@ function SuccessContent() {
       <div className="w-full max-w-md h-screen flex flex-col bg-white overflow-hidden">
         {/* Main Content */}
         <div className="flex-1 flex flex-col items-center justify-center px-6">
-          {/* Success Icon */}
-          <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-6">
-            <svg className="w-10 h-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-
           {/* Title */}
           <h1 className="text-xl font-bold text-neutral-900 mb-2 text-center">
             포인트 적립이 완료되었어요!
@@ -33,7 +26,7 @@ function SuccessContent() {
           </p>
 
           {/* Points Display */}
-          <div className="bg-[#FFF9E5] rounded-2xl px-8 py-5 mb-6">
+          <div className="px-8 py-5 mb-6">
             <p className="text-3xl font-extrabold text-[#131651] text-center">
               +{formatNumber(points)} P
             </p>
