@@ -174,75 +174,6 @@ router.patch('/alimtalk', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// GET /api/settings/random-point - 랜덤 포인트 설정 조회
-router.get('/random-point', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const storeId = req.user!.storeId;
-
-    const store = await prisma.store.findUnique({
-      where: { id: storeId },
-      select: {
-        randomPointEnabled: true,
-        randomPointMin: true,
-        randomPointMax: true,
-      },
-    });
-
-    if (!store) {
-      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
-    }
-
-    res.json(store);
-  } catch (error) {
-    console.error('Random point settings get error:', error);
-    res.status(500).json({ error: '랜덤 포인트 설정 조회 중 오류가 발생했습니다.' });
-  }
-});
-
-// PATCH /api/settings/random-point - 랜덤 포인트 설정 수정
-router.patch('/random-point', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const storeId = req.user!.storeId;
-    const { randomPointEnabled, randomPointMin, randomPointMax } = req.body;
-
-    // 유효성 검사
-    if (randomPointMin !== undefined && randomPointMax !== undefined) {
-      if (randomPointMin < 0 || randomPointMax < 0) {
-        return res.status(400).json({ error: '포인트는 0 이상이어야 합니다.' });
-      }
-      if (randomPointMin > randomPointMax) {
-        return res.status(400).json({ error: '최소 포인트가 최대 포인트보다 클 수 없습니다.' });
-      }
-    }
-
-    // 랜덤 포인트가 활성화되면 고정 포인트 비활성화
-    const updateData: any = {
-      randomPointEnabled: randomPointEnabled === true,
-      randomPointMin: randomPointMin ?? undefined,
-      randomPointMax: randomPointMax ?? undefined,
-    };
-
-    if (randomPointEnabled === true) {
-      updateData.fixedPointEnabled = false;
-    }
-
-    const store = await prisma.store.update({
-      where: { id: storeId },
-      data: updateData,
-      select: {
-        randomPointEnabled: true,
-        randomPointMin: true,
-        randomPointMax: true,
-      },
-    });
-
-    res.json({ success: true, ...store });
-  } catch (error) {
-    console.error('Random point settings update error:', error);
-    res.status(500).json({ error: '랜덤 포인트 설정 저장 중 오류가 발생했습니다.' });
-  }
-});
-
 // GET /api/settings/fixed-point - 고정 포인트 설정 조회
 router.get('/fixed-point', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -278,19 +209,12 @@ router.patch('/fixed-point', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: '포인트는 0 이상이어야 합니다.' });
     }
 
-    // 고정 포인트가 활성화되면 랜덤 포인트 비활성화
-    const updateData: any = {
-      fixedPointEnabled: fixedPointEnabled === true,
-      fixedPointAmount: fixedPointAmount ?? undefined,
-    };
-
-    if (fixedPointEnabled === true) {
-      updateData.randomPointEnabled = false;
-    }
-
     const store = await prisma.store.update({
       where: { id: storeId },
-      data: updateData,
+      data: {
+        fixedPointEnabled: fixedPointEnabled === true,
+        fixedPointAmount: fixedPointAmount ?? undefined,
+      },
       select: {
         fixedPointEnabled: true,
         fixedPointAmount: true,

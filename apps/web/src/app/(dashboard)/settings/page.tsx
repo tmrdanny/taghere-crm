@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Store, User, LogOut, MessageSquare, Gift, Coins, Link2, Copy, Check, Download, Percent } from 'lucide-react';
+import { Store, User, LogOut, MessageSquare, Coins, Link2, Copy, Check, Download, Percent } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
 interface UserInfo {
@@ -43,12 +43,6 @@ export default function SettingsPage() {
   // 충전금이 5원 미만이면 알림톡을 켤 수 없음
   const MIN_BALANCE_FOR_ALIMTALK = 5;
   const canEnableAlimtalk = walletBalance >= MIN_BALANCE_FOR_ALIMTALK;
-
-  // Random point settings
-  const [randomPointEnabled, setRandomPointEnabled] = useState(false);
-  const [randomPointMin, setRandomPointMin] = useState(100);
-  const [randomPointMax, setRandomPointMax] = useState(1000);
-  const [isSavingRandomPoint, setIsSavingRandomPoint] = useState(false);
 
   // Fixed point settings
   const [fixedPointEnabled, setFixedPointEnabled] = useState(false);
@@ -124,26 +118,6 @@ export default function SettingsPage() {
       }
     };
 
-    const fetchRandomPointSettings = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/settings/random-point`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setRandomPointEnabled(data.randomPointEnabled ?? false);
-          setRandomPointMin(data.randomPointMin ?? 100);
-          setRandomPointMax(data.randomPointMax ?? 1000);
-        }
-      } catch (error) {
-        console.error('Failed to fetch random point settings:', error);
-      }
-    };
-
     const fetchFixedPointSettings = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -207,7 +181,6 @@ export default function SettingsPage() {
     fetchStoreInfo();
     fetchUserInfo();
     fetchAlimtalkSettings();
-    fetchRandomPointSettings();
     fetchFixedPointSettings();
     fetchPointRateSettings();
     fetchWalletBalance();
@@ -287,50 +260,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveRandomPoint = async () => {
-    if (randomPointMin < 0 || randomPointMax < 0) {
-      showToast('포인트는 0 이상이어야 합니다.', 'error');
-      return;
-    }
-    if (randomPointMin > randomPointMax) {
-      showToast('최소 포인트가 최대 포인트보다 클 수 없습니다.', 'error');
-      return;
-    }
-
-    setIsSavingRandomPoint(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/settings/random-point`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          randomPointEnabled,
-          randomPointMin,
-          randomPointMax,
-        }),
-      });
-
-      if (res.ok) {
-        // 랜덤 포인트 활성화 시 고정 포인트는 자동으로 비활성화됨
-        if (randomPointEnabled) {
-          setFixedPointEnabled(false);
-        }
-        showToast('랜덤 포인트 설정이 저장되었습니다.', 'success');
-      } else {
-        const error = await res.json();
-        showToast(error.error || '설정 저장 중 오류가 발생했습니다.', 'error');
-      }
-    } catch (error) {
-      console.error('Failed to save random point settings:', error);
-      showToast('설정 저장 중 오류가 발생했습니다.', 'error');
-    } finally {
-      setIsSavingRandomPoint(false);
-    }
-  };
-
   const handleSaveFixedPoint = async () => {
     if (fixedPointAmount < 0) {
       showToast('포인트는 0 이상이어야 합니다.', 'error');
@@ -353,10 +282,6 @@ export default function SettingsPage() {
       });
 
       if (res.ok) {
-        // 고정 포인트 활성화 시 랜덤 포인트는 자동으로 비활성화됨
-        if (fixedPointEnabled) {
-          setRandomPointEnabled(false);
-        }
         showToast('고정 포인트 설정이 저장되었습니다.', 'success');
       } else {
         const error = await res.json();
@@ -709,86 +634,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Random Point Settings Card */}
-        <Card>
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2">
-              <Gift className="w-5 h-5 text-neutral-600" />
-              <CardTitle className="text-lg">랜덤 포인트</CardTitle>
-            </div>
-            <p className="text-sm text-neutral-500 mt-1">
-              고객이 방문할 때마다 랜덤한 포인트를 적립받을 수 있습니다.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* 활성화 토글 */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-neutral-900">
-                  랜덤 포인트 활성화
-                </p>
-                <p className="text-sm text-neutral-500 mt-1">
-                  활성화하면 고정 포인트 대신 랜덤 포인트가 적립됩니다.
-                </p>
-              </div>
-              <Switch
-                checked={randomPointEnabled}
-                onCheckedChange={setRandomPointEnabled}
-              />
-            </div>
-
-            {/* 포인트 범위 설정 */}
-            {randomPointEnabled && (
-              <div className="space-y-4 p-4 bg-neutral-50 rounded-lg">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-700">
-                      최소 포인트
-                    </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="100"
-                      value={randomPointMin}
-                      onChange={(e) => setRandomPointMin(parseInt(e.target.value) || 0)}
-                      placeholder="100"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-700">
-                      최대 포인트
-                    </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="100"
-                      value={randomPointMax}
-                      onChange={(e) => setRandomPointMax(parseInt(e.target.value) || 0)}
-                      placeholder="1000"
-                    />
-                  </div>
-                </div>
-                <p className="text-xs text-neutral-500">
-                  💡 낮은 금액이 더 자주 나오고, 높은 금액은 드물게 나옵니다.
-                </p>
-                <div className="flex justify-end">
-                  <Button onClick={handleSaveRandomPoint} disabled={isSavingRandomPoint}>
-                    {isSavingRandomPoint ? '저장 중...' : '저장하기'}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {!randomPointEnabled && (
-              <div className="flex justify-end">
-                <Button onClick={handleSaveRandomPoint} disabled={isSavingRandomPoint}>
-                  {isSavingRandomPoint ? '저장 중...' : '저장하기'}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Fixed Point Settings Card */}
         <Card>
           <CardHeader className="pb-4">
@@ -808,7 +653,7 @@ export default function SettingsPage() {
                   고정 포인트 활성화
                 </p>
                 <p className="text-sm text-neutral-500 mt-1">
-                  활성화하면 랜덤 포인트 대신 고정 포인트가 적립됩니다.
+                  활성화하면 방문 시 고정 포인트가 적립됩니다.
                 </p>
               </div>
               <Switch

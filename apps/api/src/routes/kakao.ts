@@ -4,25 +4,6 @@ import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk } from '../serv
 
 const router = Router();
 
-/**
- * 가중치 기반 랜덤 포인트 생성
- * 낮은 금액일수록 높은 확률, 높은 금액일수록 낮은 확률
- * 역지수 분포 사용: 100~1000원은 자주, 1000~5000원은 드물게
- */
-function generateWeightedRandomPoints(min: number, max: number): number {
-  // 역지수 분포 사용 (skew factor: 3)
-  // Math.random()^3 을 사용하면 낮은 값이 훨씬 자주 나옴
-  const skewFactor = 3;
-  const random = Math.pow(Math.random(), skewFactor);
-
-  // 100원 단위로 반올림
-  const rawValue = min + random * (max - min);
-  const rounded = Math.round(rawValue / 100) * 100;
-
-  // min, max 범위 내로 클램핑
-  return Math.max(min, Math.min(max, rounded));
-}
-
 const KAKAO_CLIENT_ID = process.env.KAKAO_CLIENT_ID || '';
 const KAKAO_CLIENT_SECRET = process.env.KAKAO_CLIENT_SECRET || '';
 const KAKAO_REDIRECT_URI = process.env.KAKAO_REDIRECT_URI || 'http://localhost:4000/auth/kakao/callback';
@@ -137,9 +118,6 @@ router.get('/callback', async (req, res) => {
     const storeSelect = {
       id: true,
       name: true,
-      randomPointEnabled: true,
-      randomPointMin: true,
-      randomPointMax: true,
       fixedPointEnabled: true,
       fixedPointAmount: true,
       pointsAlimtalkEnabled: true,
@@ -255,35 +233,11 @@ router.get('/callback', async (req, res) => {
       });
     }
 
-    // Calculate points to earn
+    // Calculate points to earn (고정 포인트 사용)
     let earnPoints = 100; // Default
-    let isRandomPoint = false;
 
-    // 포인트 적립 방식 결정 (우선순위: 랜덤 > 고정 > 정책)
-    if (store.randomPointEnabled) {
-      // 랜덤 포인트 활성화
-      earnPoints = generateWeightedRandomPoints(
-        store.randomPointMin,
-        store.randomPointMax
-      );
-      isRandomPoint = true;
-    } else if (store.fixedPointEnabled) {
-      // 고정 포인트 활성화
+    if (store.fixedPointEnabled && store.fixedPointAmount > 0) {
       earnPoints = store.fixedPointAmount;
-    } else {
-      // 기존 포인트 정책 사용
-      const pointPolicy = await prisma.pointPolicy.findUnique({
-        where: { storeId: store.id },
-      });
-
-      if (pointPolicy) {
-        if (pointPolicy.type === 'FIXED') {
-          earnPoints = pointPolicy.value;
-        } else {
-          // For PERCENT, we'd need order amount, default to 100
-          earnPoints = 100;
-        }
-      }
     }
 
     // Earn points
@@ -389,9 +343,6 @@ router.get('/callback', async (req, res) => {
     successUrl.searchParams.set('customerId', customer.id);
     if (stateData.storeId) {
       successUrl.searchParams.set('storeId', stateData.storeId);
-    }
-    if (isRandomPoint) {
-      successUrl.searchParams.set('isRandom', 'true');
     }
 
     if (stateData.redirect) {
@@ -775,9 +726,8 @@ router.get('/store-info', async (req, res) => {
         select: {
           id: true,
           name: true,
-          randomPointEnabled: true,
-          randomPointMin: true,
-          randomPointMax: true,
+          fixedPointEnabled: true,
+          fixedPointAmount: true,
         },
       });
     }
@@ -788,9 +738,8 @@ router.get('/store-info', async (req, res) => {
         select: {
           id: true,
           name: true,
-          randomPointEnabled: true,
-          randomPointMin: true,
-          randomPointMax: true,
+          fixedPointEnabled: true,
+          fixedPointAmount: true,
         },
       });
     }

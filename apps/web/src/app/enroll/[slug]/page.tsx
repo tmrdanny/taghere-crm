@@ -8,9 +8,8 @@ import { formatNumber } from '@/lib/utils';
 interface StoreInfo {
   id: string;
   name: string;
-  randomPointEnabled: boolean;
-  randomPointMin: number;
-  randomPointMax: number;
+  fixedPointEnabled: boolean;
+  fixedPointAmount: number;
 }
 
 interface SuccessData {
@@ -323,7 +322,7 @@ function EnrollSlugContent() {
     );
   }
 
-  const maxPoints = storeInfo?.randomPointEnabled ? storeInfo.randomPointMax : 1000;
+  const maxPoints = storeInfo?.fixedPointEnabled ? storeInfo.fixedPointAmount : 100;
 
   return (
     <div className="min-h-screen bg-neutral-100 font-pretendard flex justify-center">
@@ -370,7 +369,7 @@ function EnrollSlugContent() {
                 3
               </div>
               <p className="text-sm">
-                <span className="text-blue-500 font-medium">랜덤 포인트</span>
+                <span className="text-blue-500 font-medium">포인트</span>
                 <span className="text-neutral-600">가 들어있는 상자를 받아요 🎉</span>
               </p>
             </div>
