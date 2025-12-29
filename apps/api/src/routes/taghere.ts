@@ -8,10 +8,15 @@ const TAGHERE_API_URL = process.env.TAGHERE_API_URL || 'https://api.d.tag-here.c
 const TAGHERE_API_TOKEN = process.env.TAGHERE_API_TOKEN_FOR_CRM || '';
 
 interface TaghereOrderData {
-  resultPrice?: number;
-  totalPrice?: number;
+  resultPrice?: number | string;
+  totalPrice?: number | string;
   orderItems?: any[];
   items?: any[];
+  content?: {
+    resultPrice?: number | string;
+    totalPrice?: number | string;
+    items?: any[];
+  };
 }
 
 // TagHere API에서 주문 정보 조회
@@ -68,8 +73,9 @@ router.get('/ordersheet', async (req, res) => {
 
     console.log('[TagHere] Ordersheet data:', JSON.stringify(orderData, null, 2));
 
-    // resultPrice 추출
-    const resultPrice = orderData.resultPrice || orderData.totalPrice || 0;
+    // resultPrice 추출 (content.resultPrice에 있음, 문자열일 수 있음)
+    const rawPrice = orderData.content?.resultPrice || orderData.resultPrice || orderData.content?.totalPrice || orderData.totalPrice || 0;
+    const resultPrice = typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : rawPrice;
 
     // 적립률 계산 (기본 5%)
     const ratePercent = store.pointRatePercent || 5;
@@ -92,7 +98,7 @@ router.get('/ordersheet', async (req, res) => {
       ratePercent,
       earnPoints,
       alreadyEarned: !!existingEarn,
-      orderItems: orderData.orderItems || orderData.items || [],
+      orderItems: orderData.content?.items || orderData.orderItems || orderData.items || [],
     });
   } catch (error: any) {
     console.error('[TagHere] Ordersheet error:', error);
