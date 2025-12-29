@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber, formatCurrency } from '@/lib/utils';
-import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Star } from 'lucide-react';
+import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw } from 'lucide-react';
 import {
   XAxis,
   YAxis,
@@ -26,19 +26,16 @@ interface DashboardStats {
   reviewGrowth: number;
 }
 
-interface NaverReviewStats {
-  dailyReviews: number;
-  reviewGrowth: number;
-  currentTotal: number;
-  visitorReviews: number;
-  blogReviews: number;
+interface VisitorChartData {
+  date: string;
+  visitors: number;
 }
 
-interface NaverChartData {
-  date: string;
-  visitorReviews: number;
-  blogReviews: number;
-  totalReviews: number;
+interface VisitorStats {
+  chartData: VisitorChartData[];
+  todayVisitors: number;
+  yesterdayVisitors: number;
+  growth: number;
 }
 
 type PeriodKey = '7일' | '30일' | '90일' | '전체';
@@ -47,15 +44,14 @@ export default function HomePage() {
   const router = useRouter();
   const [chartPeriod, setChartPeriod] = useState<PeriodKey>('7일');
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [chartData, setChartData] = useState<{ day: string; reviews: number }[]>([]);
+  const [visitorChartData, setVisitorChartData] = useState<{ day: string; visitors: number }[]>([]);
+  const [visitorStats, setVisitorStats] = useState<VisitorStats | null>(null);
   const [storeName, setStoreName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [naverReviewStats, setNaverReviewStats] = useState<NaverReviewStats | null>(null);
   const [isRefreshingChart, setIsRefreshingChart] = useState(false);
   const [isRefreshingStats, setIsRefreshingStats] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-  const [chartRefreshKey, setChartRefreshKey] = useState(0);
 
   // Fetch dashboard stats
   useEffect(() => {
@@ -97,44 +93,19 @@ export default function HomePage() {
       }
     };
 
-    // 홈 화면 로드 시 네이버 리뷰 새로고침 (크롤링)
-    const refreshNaverReviewOnLoad = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/naver-review/refresh`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.stats) {
-            setNaverReviewStats(data.stats);
-          }
-          // 새로고침 후 차트 데이터도 다시 불러오기
-          setChartRefreshKey(prev => prev + 1);
-        }
-      } catch (error) {
-        console.error('Failed to refresh naver review on load:', error);
-      }
-    };
-
     fetchStats();
     fetchStoreName();
-    refreshNaverReviewOnLoad();
   }, [apiUrl]);
 
-  // Fetch chart data based on period
+  // Fetch visitor chart data based on period
   useEffect(() => {
-    const fetchChartData = async () => {
+    const fetchVisitorChartData = async () => {
       try {
         const token = localStorage.getItem('token');
         const days = chartPeriod === '7일' ? 7 : chartPeriod === '30일' ? 30 : chartPeriod === '90일' ? 90 : 365;
 
-        // Fetch Naver review chart data
-        const res = await fetch(`${apiUrl}/api/naver-review/chart?days=${days}`, {
+        // Fetch visitor chart data
+        const res = await fetch(`${apiUrl}/api/dashboard/visitor-chart?days=${days}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -142,34 +113,37 @@ export default function HomePage() {
 
         if (res.ok) {
           const data = await res.json();
+          setVisitorStats(data);
           // Format the chart data
-          const formattedData = data.chartData.map((item: NaverChartData) => {
+          const formattedData = data.chartData.map((item: VisitorChartData) => {
             const date = new Date(item.date);
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
             return {
               day: `${month}/${day}`,
-              reviews: item.totalReviews,
+              visitors: item.visitors,
             };
           });
-          setChartData(formattedData);
+          setVisitorChartData(formattedData);
         }
       } catch (error) {
-        console.error('Failed to fetch chart data:', error);
+        console.error('Failed to fetch visitor chart data:', error);
       }
     };
 
-    fetchChartData();
-  }, [apiUrl, chartPeriod, chartRefreshKey]);
+    fetchVisitorChartData();
+  }, [apiUrl, chartPeriod]);
 
-  // Refresh Naver review data
-  const handleRefreshNaverReview = async () => {
+  // Refresh visitor chart data
+  const handleRefreshVisitorChart = async () => {
     setIsRefreshingChart(true);
     setIsRefreshingStats(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/naver-review/refresh`, {
-        method: 'POST',
+      const days = chartPeriod === '7일' ? 7 : chartPeriod === '30일' ? 30 : chartPeriod === '90일' ? 90 : 365;
+
+      // Refetch visitor chart data
+      const res = await fetch(`${apiUrl}/api/dashboard/visitor-chart?days=${days}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -177,32 +151,20 @@ export default function HomePage() {
 
       if (res.ok) {
         const data = await res.json();
-        if (data.stats) {
-          setNaverReviewStats(data.stats);
-        }
-        // Refetch chart data
-        const days = chartPeriod === '7일' ? 7 : chartPeriod === '30일' ? 30 : chartPeriod === '90일' ? 90 : 365;
-        const chartRes = await fetch(`${apiUrl}/api/naver-review/chart?days=${days}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        setVisitorStats(data);
+        const formattedData = data.chartData.map((item: VisitorChartData) => {
+          const date = new Date(item.date);
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return {
+            day: `${month}/${day}`,
+            visitors: item.visitors,
+          };
         });
-        if (chartRes.ok) {
-          const chartData = await chartRes.json();
-          const formattedData = chartData.chartData.map((item: NaverChartData) => {
-            const date = new Date(item.date);
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return {
-              day: `${month}/${day}`,
-              reviews: item.totalReviews,
-            };
-          });
-          setChartData(formattedData);
-        }
+        setVisitorChartData(formattedData);
       }
     } catch (error) {
-      console.error('Failed to refresh naver review:', error);
+      console.error('Failed to refresh visitor chart:', error);
     } finally {
       setIsRefreshingChart(false);
       setIsRefreshingStats(false);
@@ -236,12 +198,12 @@ export default function HomePage() {
           반갑습니다, {storeName || '사장'}님! <span className="text-2xl">👋</span>
         </h1>
         <p className="text-neutral-500 mt-1">
-          오늘의 매장 현황과 네이버 리뷰 성과를 한눈에 확인하세요.
+          오늘의 매장 현황과 방문자 추이를 한눈에 확인하세요.
         </p>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {/* Total Customers */}
         <Card>
           <CardContent className="p-6">
@@ -273,26 +235,6 @@ export default function HomePage() {
               </div>
               <div className="p-3 bg-blue-50 rounded-lg">
                 <UserPlus className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Total Naver Reviews */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-neutral-500 mb-1">네이버 총 리뷰</p>
-                <p className="text-3xl font-bold text-neutral-900">
-                  {formatNumber(naverReviewStats?.currentTotal ?? 0)}건
-                </p>
-                <p className="text-sm text-neutral-500 mt-2">
-                  방문자 {formatNumber(naverReviewStats?.visitorReviews ?? 0)} · 블로그 {formatNumber(naverReviewStats?.blogReviews ?? 0)}
-                </p>
-              </div>
-              <div className="p-3 bg-yellow-50 rounded-lg">
-                <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
               </div>
             </div>
           </CardContent>
@@ -332,26 +274,21 @@ export default function HomePage() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Review Chart */}
+        {/* Visitor Chart */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-2">
               <CardTitle className="text-lg font-semibold">
-                네이버 리뷰 일자별 추이
+                일자별 방문자 수 추이
               </CardTitle>
               <button
-                onClick={handleRefreshNaverReview}
+                onClick={handleRefreshVisitorChart}
                 disabled={isRefreshingChart}
                 className="p-1.5 rounded-md hover:bg-neutral-100 transition-colors disabled:opacity-50"
                 title="새로고침"
               >
                 <RefreshCw className={`w-4 h-4 text-neutral-500 ${isRefreshingChart ? 'animate-spin' : ''}`} />
               </button>
-              {naverReviewStats && (
-                <span className="text-sm text-neutral-500">
-                  (방문자 {formatNumber(naverReviewStats.visitorReviews)} · 블로그 {formatNumber(naverReviewStats.blogReviews)})
-                </span>
-              )}
             </div>
             <div className="flex gap-1 p-1 bg-neutral-100 rounded-lg">
               {(['7일', '30일', '90일', '전체'] as PeriodKey[]).map((period) => (
@@ -372,9 +309,9 @@ export default function HomePage() {
           <CardContent>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
+                <AreaChart data={visitorChartData}>
                   <defs>
-                    <linearGradient id="colorReviews" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorVisitors" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#1E3A5F" stopOpacity={0.2} />
                       <stop offset="95%" stopColor="#1E3A5F" stopOpacity={0} />
                     </linearGradient>
@@ -399,34 +336,34 @@ export default function HomePage() {
                       borderRadius: '8px',
                       padding: '8px 12px',
                     }}
-                    formatter={(value: number) => [formatNumber(value), '누적 리뷰 수']}
+                    formatter={(value: number) => [formatNumber(value), '방문자 수']}
                   />
                   <Area
                     type="monotone"
-                    dataKey="reviews"
+                    dataKey="visitors"
                     stroke="#1E3A5F"
                     strokeWidth={2}
-                    fill="url(#colorReviews)"
+                    fill="url(#colorVisitors)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
             <div className="flex items-center justify-center gap-2 mt-4 text-sm text-neutral-500">
               <div className="w-3 h-3 rounded-full bg-brand-800" />
-              누적 네이버 리뷰 수
+              일자별 방문자 수
             </div>
           </CardContent>
         </Card>
 
-        {/* Daily Reviews */}
+        {/* Today Visitors */}
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-medium text-neutral-900">
-                오늘 늘어난 네이버 리뷰 수
+                오늘 방문자 수
               </span>
               <button
-                onClick={handleRefreshNaverReview}
+                onClick={handleRefreshVisitorChart}
                 disabled={isRefreshingStats}
                 className="p-1.5 rounded-md hover:bg-neutral-100 transition-colors disabled:opacity-50"
                 title="새로고침"
@@ -435,39 +372,34 @@ export default function HomePage() {
               </button>
             </div>
             <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm mb-4 ${
-              (naverReviewStats?.dailyReviews ?? 0) >= 0
+              (visitorStats?.growth ?? 0) >= 0
                 ? 'bg-green-50 text-green-700'
                 : 'bg-red-50 text-red-700'
             }`}>
-              {(naverReviewStats?.dailyReviews ?? 0) >= 0 ? (
+              {(visitorStats?.growth ?? 0) >= 0 ? (
                 <TrendingUp className="w-4 h-4" />
               ) : (
                 <TrendingDown className="w-4 h-4" />
               )}
-              어제 대비 {(naverReviewStats?.dailyReviews ?? 0) >= 0 ? '+' : ''}{naverReviewStats?.dailyReviews ?? 0}건
+              어제 대비 {(visitorStats?.growth ?? 0) >= 0 ? '+' : ''}{visitorStats?.growth ?? 0}%
             </div>
             <p className="text-4xl font-bold text-neutral-900 mb-2">
-              {formatNumber(naverReviewStats?.dailyReviews ?? 0)}건
+              {formatNumber(visitorStats?.todayVisitors ?? 0)}명
             </p>
             <p className="text-sm text-neutral-500 mb-4">
-              오늘 신규로 쌓인 네이버 리뷰 수
+              오늘 포인트 적립 또는 신규 등록된 고객 수
             </p>
-            {naverReviewStats?.currentTotal ? (
-              <div className="p-4 bg-brand-50 rounded-lg text-sm text-neutral-700 mb-4">
-                <p className="font-medium">
-                  현재 총 리뷰: {formatNumber(naverReviewStats.currentTotal)}건
-                </p>
-                <p className="text-neutral-500 mt-1">
-                  방문자 {formatNumber(naverReviewStats.visitorReviews)} · 블로그 {formatNumber(naverReviewStats.blogReviews)}
-                </p>
-              </div>
-            ) : null}
+            <div className="p-4 bg-brand-50 rounded-lg text-sm text-neutral-700 mb-4">
+              <p className="font-medium">
+                어제 방문자: {formatNumber(visitorStats?.yesterdayVisitors ?? 0)}명
+              </p>
+            </div>
             <div className="p-4 bg-neutral-50 rounded-lg text-sm text-neutral-600">
               <p>
-                네이버 리뷰 요청 알림톡 자동 발송을 통해 고객 리뷰 수를 늘려보세요.
+                포인트 적립 및 신규 고객 등록이 방문자 수로 집계됩니다.
               </p>
               <p className="mt-2">
-                더 많은 리뷰를 모으고 싶다면 리뷰 보상 혜택을 점검해 보세요.
+                같은 날 여러 번 방문한 고객은 1명으로 계산됩니다.
               </p>
             </div>
           </CardContent>

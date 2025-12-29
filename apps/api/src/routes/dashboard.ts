@@ -163,4 +163,104 @@ router.get('/review-chart', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/dashboard/visitor-chart - 일자별 방문자 수 차트
+router.get('/visitor-chart', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { days = '7' } = req.query;
+
+    const daysNum = parseInt(days as string);
+    const startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(startDate.getDate() - daysNum + 1);
+
+    // 날짜별 데이터 초기화
+    const dailyData: { [key: string]: number } = {};
+    for (let i = 0; i < daysNum; i++) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      const key = date.toISOString().split('T')[0];
+      dailyData[key] = 0;
+    }
+
+    // 포인트 적립 (EARN) 기록으로 방문 수 계산
+    // visitCount가 증가하거나, 포인트가 적립된 날짜 기준
+    const pointLedgers = await prisma.pointLedger.findMany({
+      where: {
+        storeId,
+        type: 'EARN',
+        createdAt: { gte: startDate },
+      },
+      select: {
+        createdAt: true,
+        customerId: true,
+      },
+    });
+
+    // 날짜별로 유니크한 고객 수 계산 (같은 날 같은 고객은 1회로)
+    const dailyVisitors: { [key: string]: Set<string> } = {};
+    for (const key of Object.keys(dailyData)) {
+      dailyVisitors[key] = new Set();
+    }
+
+    pointLedgers.forEach((ledger) => {
+      const key = ledger.createdAt.toISOString().split('T')[0];
+      if (dailyVisitors[key]) {
+        dailyVisitors[key].add(ledger.customerId);
+      }
+    });
+
+    // 신규 고객 등록도 방문으로 카운트 (포인트 적립과 별개로)
+    const newCustomers = await prisma.customer.findMany({
+      where: {
+        storeId,
+        createdAt: { gte: startDate },
+      },
+      select: {
+        id: true,
+        createdAt: true,
+      },
+    });
+
+    newCustomers.forEach((customer) => {
+      const key = customer.createdAt.toISOString().split('T')[0];
+      if (dailyVisitors[key]) {
+        dailyVisitors[key].add(customer.id);
+      }
+    });
+
+    // Set을 숫자로 변환
+    for (const key of Object.keys(dailyData)) {
+      dailyData[key] = dailyVisitors[key].size;
+    }
+
+    const chartData = Object.entries(dailyData).map(([date, visitors]) => ({
+      date,
+      visitors,
+    }));
+
+    // 오늘 방문자 수
+    const todayKey = new Date().toISOString().split('T')[0];
+    const todayVisitors = dailyData[todayKey] || 0;
+
+    // 어제 방문자 수
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = yesterday.toISOString().split('T')[0];
+    const yesterdayVisitors = dailyData[yesterdayKey] || 0;
+
+    res.json({
+      chartData,
+      todayVisitors,
+      yesterdayVisitors,
+      growth: yesterdayVisitors > 0
+        ? Math.round(((todayVisitors - yesterdayVisitors) / yesterdayVisitors) * 100)
+        : (todayVisitors > 0 ? 100 : 0),
+    });
+  } catch (error) {
+    console.error('Visitor chart error:', error);
+    res.status(500).json({ error: '방문자 차트 데이터 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;
