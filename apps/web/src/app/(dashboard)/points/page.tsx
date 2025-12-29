@@ -607,7 +607,7 @@ export default function PointsPage() {
           }
         }}
       >
-        <ModalContent className="max-w-md">
+        <ModalContent className="max-w-2xl">
           <ModalHeader>
             <ModalTitle>포인트 적립</ModalTitle>
           </ModalHeader>
@@ -676,103 +676,221 @@ export default function PointsPage() {
 
             {/* Payment Amount Input */}
             {inputMethod === 'payment' && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm text-brand-800">
-                  <Calculator className="w-4 h-4" />
-                  <span>결제금액 입력 ({storeSettings.pointRatePercent}% 적립)</span>
-                </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Left - Input and Preview */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm text-brand-800">
+                    <Calculator className="w-4 h-4" />
+                    <span>결제금액 입력 ({storeSettings.pointRatePercent}% 적립)</span>
+                  </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-700">결제 금액</label>
-                  <Input
-                    ref={paymentInputRef}
-                    type="number"
-                    inputMode="numeric"
-                    value={paymentInput}
-                    onChange={(e) => setPaymentInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="결제 금액을 입력하세요"
-                    className="text-lg h-12"
-                  />
-                </div>
-
-                {/* Payment Presets */}
-                <div className="grid grid-cols-4 gap-2">
-                  {PAYMENT_PRESETS.map((preset) => (
-                    <button
-                      key={preset}
-                      onClick={() => setPaymentInput(preset.toString())}
-                      className={`py-2 rounded-lg text-sm font-medium transition-all ${
-                        parseInt(paymentInput) === preset
-                          ? 'bg-brand-800 text-white'
-                          : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                      }`}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-neutral-700">결제 금액</label>
+                    <div
+                      className="flex items-center justify-between px-4 py-3 border-2 rounded-xl bg-white border-brand-800 ring-2 ring-brand-100 cursor-text"
+                      onClick={() => paymentInputRef.current?.focus()}
                     >
-                      {formatNumber(preset)}
+                      <span className="text-2xl font-bold text-neutral-900">
+                        {paymentInput ? formatNumber(parseInt(paymentInput)) : '0'}
+                      </span>
+                      <span className="text-lg text-neutral-500">원</span>
+                    </div>
+                    <input
+                      ref={paymentInputRef}
+                      type="text"
+                      inputMode="numeric"
+                      value={paymentInput}
+                      onChange={(e) => setPaymentInput(e.target.value.replace(/\D/g, ''))}
+                      className="absolute opacity-0 pointer-events-none"
+                    />
+                  </div>
+
+                  {/* Payment Presets */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {PAYMENT_PRESETS.map((preset) => (
+                      <button
+                        key={preset}
+                        onClick={() => setPaymentInput(preset.toString())}
+                        className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                          parseInt(paymentInput) === preset
+                            ? 'bg-brand-800 text-white'
+                            : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                        }`}
+                      >
+                        {formatNumber(preset)}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Calculated Points Preview */}
+                  <div className="bg-brand-50 rounded-xl p-4 text-center">
+                    <p className="text-sm text-brand-700">적립 예정 포인트</p>
+                    <p className="text-2xl font-bold text-brand-800 mt-1">
+                      {formatNumber(calculatePointsFromPayment(parseInt(paymentInput) || 0))} P
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => setInputMethod(null)}
+                    className="text-sm text-neutral-500 hover:text-neutral-700"
+                  >
+                    ← 다른 방식 선택
+                  </button>
+                </div>
+
+                {/* Right - Keypad */}
+                <div className="bg-neutral-50 rounded-2xl p-4">
+                  <div className="grid grid-cols-3 gap-2">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                      <button
+                        key={num}
+                        onClick={() => setPaymentInput(prev => prev + num.toString())}
+                        className="aspect-square flex items-center justify-center text-2xl font-semibold text-neutral-900 bg-white rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
+                      >
+                        {num}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setPaymentInput('')}
+                      className="aspect-square flex items-center justify-center text-sm font-semibold text-neutral-600 bg-red-50 rounded-xl hover:bg-red-100 active:bg-red-200 transition-colors"
+                    >
+                      초기화
                     </button>
-                  ))}
+                    <button
+                      onClick={() => setPaymentInput(prev => prev + '0')}
+                      className="aspect-square flex items-center justify-center text-2xl font-semibold text-neutral-900 bg-white rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
+                    >
+                      0
+                    </button>
+                    <button
+                      onClick={() => setPaymentInput(prev => prev.slice(0, -1))}
+                      className="aspect-square flex items-center justify-center text-neutral-600 bg-neutral-200 rounded-xl hover:bg-neutral-300 active:bg-neutral-400 transition-colors"
+                    >
+                      <Delete className="w-6 h-6" />
+                    </button>
+                  </div>
+                  {/* Quick add buttons */}
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <button
+                      onClick={() => setPaymentInput(prev => (parseInt(prev || '0') + 10000).toString())}
+                      className="py-3 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                    >
+                      +1만
+                    </button>
+                    <button
+                      onClick={() => setPaymentInput(prev => (parseInt(prev || '0') + 50000).toString())}
+                      className="py-3 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                    >
+                      +5만
+                    </button>
+                  </div>
                 </div>
-
-                {/* Calculated Points Preview */}
-                <div className="bg-brand-50 rounded-xl p-4 text-center">
-                  <p className="text-sm text-brand-700">적립 예정 포인트</p>
-                  <p className="text-2xl font-bold text-brand-800 mt-1">
-                    {formatNumber(calculatePointsFromPayment(parseInt(paymentInput) || 0))} P
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => setInputMethod(null)}
-                  className="text-sm text-neutral-500 hover:text-neutral-700"
-                >
-                  ← 다른 방식 선택
-                </button>
               </div>
             )}
 
             {/* Direct Points Input */}
             {inputMethod === 'direct' && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm text-brand-800">
-                  <Keyboard className="w-4 h-4" />
-                  <span>직접 포인트 입력</span>
-                </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Left - Input and Preview */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm text-brand-800">
+                    <Keyboard className="w-4 h-4" />
+                    <span>직접 포인트 입력</span>
+                  </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-700">적립 포인트</label>
-                  <Input
-                    ref={pointsInputRef}
-                    type="number"
-                    inputMode="numeric"
-                    value={pointsInput}
-                    onChange={(e) => setPointsInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="적립할 포인트를 입력하세요"
-                    className="text-lg h-12"
-                  />
-                </div>
-
-                {/* Point Presets */}
-                <div className="grid grid-cols-4 gap-2">
-                  {POINT_PRESETS.map((preset) => (
-                    <button
-                      key={preset}
-                      onClick={() => setPointsInput(preset.toString())}
-                      className={`py-2 rounded-lg text-sm font-medium transition-all ${
-                        parseInt(pointsInput) === preset
-                          ? 'bg-brand-800 text-white'
-                          : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                      }`}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-neutral-700">적립 포인트</label>
+                    <div
+                      className="flex items-center justify-between px-4 py-3 border-2 rounded-xl bg-white border-brand-800 ring-2 ring-brand-100 cursor-text"
+                      onClick={() => pointsInputRef.current?.focus()}
                     >
-                      {formatNumber(preset)}P
-                    </button>
-                  ))}
+                      <span className="text-2xl font-bold text-neutral-900">
+                        {pointsInput ? formatNumber(parseInt(pointsInput)) : '0'}
+                      </span>
+                      <span className="text-lg text-neutral-500">P</span>
+                    </div>
+                    <input
+                      ref={pointsInputRef}
+                      type="text"
+                      inputMode="numeric"
+                      value={pointsInput}
+                      onChange={(e) => setPointsInput(e.target.value.replace(/\D/g, ''))}
+                      className="absolute opacity-0 pointer-events-none"
+                    />
+                  </div>
+
+                  {/* Point Presets */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {POINT_PRESETS.map((preset) => (
+                      <button
+                        key={preset}
+                        onClick={() => setPointsInput(preset.toString())}
+                        className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                          parseInt(pointsInput) === preset
+                            ? 'bg-brand-800 text-white'
+                            : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                        }`}
+                      >
+                        {formatNumber(preset)}P
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setInputMethod(null)}
+                    className="text-sm text-neutral-500 hover:text-neutral-700"
+                  >
+                    ← 다른 방식 선택
+                  </button>
                 </div>
 
-                <button
-                  onClick={() => setInputMethod(null)}
-                  className="text-sm text-neutral-500 hover:text-neutral-700"
-                >
-                  ← 다른 방식 선택
-                </button>
+                {/* Right - Keypad */}
+                <div className="bg-neutral-50 rounded-2xl p-4">
+                  <div className="grid grid-cols-3 gap-2">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                      <button
+                        key={num}
+                        onClick={() => setPointsInput(prev => prev + num.toString())}
+                        className="aspect-square flex items-center justify-center text-2xl font-semibold text-neutral-900 bg-white rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
+                      >
+                        {num}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setPointsInput('')}
+                      className="aspect-square flex items-center justify-center text-sm font-semibold text-neutral-600 bg-red-50 rounded-xl hover:bg-red-100 active:bg-red-200 transition-colors"
+                    >
+                      초기화
+                    </button>
+                    <button
+                      onClick={() => setPointsInput(prev => prev + '0')}
+                      className="aspect-square flex items-center justify-center text-2xl font-semibold text-neutral-900 bg-white rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
+                    >
+                      0
+                    </button>
+                    <button
+                      onClick={() => setPointsInput(prev => prev.slice(0, -1))}
+                      className="aspect-square flex items-center justify-center text-neutral-600 bg-neutral-200 rounded-xl hover:bg-neutral-300 active:bg-neutral-400 transition-colors"
+                    >
+                      <Delete className="w-6 h-6" />
+                    </button>
+                  </div>
+                  {/* Quick add buttons */}
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <button
+                      onClick={() => setPointsInput(prev => (parseInt(prev || '0') + 500).toString())}
+                      className="py-3 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                    >
+                      +500P
+                    </button>
+                    <button
+                      onClick={() => setPointsInput(prev => (parseInt(prev || '0') + 1000).toString())}
+                      className="py-3 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                    >
+                      +1000P
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
