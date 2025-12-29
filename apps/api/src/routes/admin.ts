@@ -310,30 +310,31 @@ router.delete('/stores/:storeId/customers', adminAuthMiddleware, async (req: Adm
 
     // 트랜잭션으로 관련 데이터 모두 삭제
     await prisma.$transaction(async (tx) => {
+      // 먼저 해당 매장의 모든 고객 ID를 조회
+      const customers = await tx.customer.findMany({
+        where: { storeId },
+        select: { id: true },
+      });
+      const customerIds = customers.map(c => c.id);
+
       // 1. 고객의 포인트 원장 삭제
       await tx.pointLedger.deleteMany({
         where: {
-          customer: {
-            storeId,
-          },
+          customerId: { in: customerIds },
         },
       });
 
       // 2. 고객 피드백 삭제
       await tx.customerFeedback.deleteMany({
         where: {
-          customer: {
-            storeId,
-          },
+          customerId: { in: customerIds },
         },
       });
 
       // 3. 리뷰 요청 로그에서 고객 참조 null 처리 (customerId는 nullable)
       await tx.reviewRequestLog.updateMany({
         where: {
-          customer: {
-            storeId,
-          },
+          customerId: { in: customerIds },
         },
         data: {
           customerId: null,
@@ -343,21 +344,17 @@ router.delete('/stores/:storeId/customers', adminAuthMiddleware, async (req: Adm
       // 4. 알림톡 아웃박스에서 고객 참조 null 처리 (customerId는 nullable)
       await tx.alimTalkOutbox.updateMany({
         where: {
-          customer: {
-            storeId,
-          },
+          customerId: { in: customerIds },
         },
         data: {
           customerId: null,
         },
       });
 
-      // 5. SMS 로그에서 고객 참조 null 처리 (customerId는 nullable)
-      await tx.smsLog.updateMany({
+      // 5. SMS 메시지에서 고객 참조 null 처리 (customerId는 nullable)
+      await tx.smsMessage.updateMany({
         where: {
-          customer: {
-            storeId,
-          },
+          customerId: { in: customerIds },
         },
         data: {
           customerId: null,
