@@ -577,12 +577,15 @@ router.get('/taghere-callback', async (req, res) => {
 
     // TagHere API에서 주문 정보 조회
     let resultPrice = 0;
+    let orderItems: any[] = [];
     if (stateData.ordersheetId) {
       const orderData = await fetchOrdersheetForCallback(stateData.ordersheetId);
       if (orderData) {
         // resultPrice는 content.resultPrice에 있고, 문자열일 수 있음
         const rawPrice = orderData.content?.resultPrice || orderData.resultPrice || orderData.content?.totalPrice || orderData.totalPrice || 0;
         resultPrice = typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : rawPrice;
+        // 주문 아이템 정보
+        orderItems = orderData.content?.items || orderData.orderItems || orderData.items || [];
       }
     }
 
@@ -651,7 +654,18 @@ router.get('/taghere-callback', async (req, res) => {
           reason: stateData.ordersheetId
             ? `TagHere 주문 적립 (ordersheetId: ${stateData.ordersheetId})`
             : 'TagHere 적립',
-          orderId: null,
+          orderId: stateData.ordersheetId || null,
+        },
+      }),
+      // 주문 정보를 VisitOrOrder 테이블에 저장
+      prisma.visitOrOrder.create({
+        data: {
+          storeId: store.id,
+          customerId: customer.id,
+          orderId: stateData.ordersheetId || null,
+          visitedAt: new Date(),
+          totalAmount: resultPrice > 0 ? resultPrice : null,
+          items: orderItems.length > 0 ? orderItems : undefined,
         },
       }),
     ]);
