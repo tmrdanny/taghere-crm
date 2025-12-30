@@ -120,8 +120,8 @@ model Customer {
   reviewRequestLogs ReviewRequestLog[]
   feedbacks         CustomerFeedback[]
 
-  @@unique([storeId, kakaoId])  // 매장별 카카오ID 유니크
-  @@unique([storeId, naverId])   // 매장별 네이버ID 유니크
+  @@unique([storeId, kakaoId])  // 매장별 카카오ID 유니크 (null 허용)
+  // naverId 유니크 제약조건 제거 - null인 경우가 많아 부분 인덱스로 처리
   @@unique([storeId, phoneLastDigits])
   @@index([storeId])
   @@index([phoneLastDigits])

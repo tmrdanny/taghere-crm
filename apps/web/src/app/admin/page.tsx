@@ -377,6 +377,9 @@ export default function AdminDashboardPage() {
                 <th className="text-left text-xs font-medium text-neutral-500 uppercase tracking-wider px-4 py-3">
                   가입일
                 </th>
+                <th className="text-left text-xs font-medium text-neutral-500 uppercase tracking-wider px-4 py-3">
+                  고객등록 링크
+                </th>
                 <th className="text-right text-xs font-medium text-neutral-500 uppercase tracking-wider px-4 py-3">
                   액션
                 </th>
@@ -455,6 +458,34 @@ export default function AdminDashboardPage() {
                       {new Date(store.createdAt).toLocaleDateString('ko-KR')}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    {store.slug ? (
+                      <button
+                        onClick={() => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll/${store.slug}?ordersheetId={ordersheetId}`)}
+                        className="group flex items-center gap-1.5"
+                        title="클릭하여 복사"
+                      >
+                        <code className="text-xs text-blue-400 bg-neutral-800 px-2 py-1 rounded font-mono max-w-[200px] truncate">
+                          /taghere-enroll/{store.slug}?ordersheetId=...
+                        </code>
+                        <svg
+                          className="w-3.5 h-3.5 text-neutral-600 group-hover:text-neutral-400 transition-colors flex-shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </button>
+                    ) : (
+                      <span className="text-xs text-neutral-600">slug 없음</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right">
                     <button
                       onClick={() => handleResetPassword(store.id, store.name)}
@@ -485,7 +516,7 @@ export default function AdminDashboardPage() {
               ))}
               {filteredStores.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-neutral-500">
+                  <td colSpan={8} className="px-4 py-12 text-center text-neutral-500">
                     {searchQuery ? '검색 결과가 없습니다.' : '등록된 매장이 없습니다.'}
                   </td>
                 </tr>
