@@ -45,36 +45,33 @@ function StarRating({ rating, onRatingChange }: { rating: number; onRatingChange
   );
 }
 
-function CoinVideo({ onClick, isOpening }: { onClick: () => void; isOpening: boolean }) {
+function CoinImage({ onClick, isOpening }: { onClick: () => void; isOpening: boolean }) {
   return (
     <div
-      className={`coin-video-wrapper ${isOpening ? 'opening' : ''}`}
+      className={`coin-image-wrapper ${isOpening ? 'opening' : ''}`}
       onClick={!isOpening ? onClick : undefined}
     >
-      <video
-        src="/pointcoin-3d.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="coin-video"
+      <img
+        src="/pointcoin-3d-white.webp"
+        alt="포인트 코인"
+        className="coin-image"
       />
 
       <style jsx>{`
-        .coin-video-wrapper {
+        .coin-image-wrapper {
           cursor: pointer;
           animation: gentleFloat 3s ease-in-out infinite;
         }
 
-        .coin-video-wrapper:hover {
+        .coin-image-wrapper:hover {
           animation: gentleFloat 2s ease-in-out infinite;
         }
 
-        .coin-video-wrapper.opening {
+        .coin-image-wrapper.opening {
           animation: boxOpen 0.6s ease-out forwards;
         }
 
-        .coin-video {
+        .coin-image {
           width: 200px;
           height: 200px;
           object-fit: contain;
@@ -367,9 +364,9 @@ function TaghereEnrollContent() {
             )}
           </div>
 
-          {/* Coin Video */}
+          {/* Coin Image */}
           <div className="my-6">
-            <CoinVideo onClick={handleOpenGift} isOpening={isOpening} />
+            <CoinImage onClick={handleOpenGift} isOpening={isOpening} />
           </div>
 
           {/* Info Text */}
