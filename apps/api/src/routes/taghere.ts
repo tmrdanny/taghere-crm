@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 
@@ -6,6 +6,46 @@ const router = Router();
 
 const TAGHERE_API_URL = process.env.TAGHERE_API_URL || 'https://api.tag-here.com';
 const TAGHERE_API_TOKEN = process.env.TAGHERE_API_TOKEN_FOR_CRM || '';
+const TAGHERE_WEBHOOK_TOKEN = process.env.TAGHERE_WEBHOOK_TOKEN || '';
+
+// 웹훅 인증 미들웨어
+interface WebhookRequest extends Request {
+  webhookVerified?: boolean;
+}
+
+const webhookAuthMiddleware = (req: WebhookRequest, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({
+      success: false,
+      error: 'Authorization header required',
+      message: 'Bearer 토큰이 필요합니다.'
+    });
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  if (!TAGHERE_WEBHOOK_TOKEN) {
+    console.error('[Webhook] TAGHERE_WEBHOOK_TOKEN is not configured');
+    return res.status(500).json({
+      success: false,
+      error: 'Webhook not configured',
+      message: '웹훅 토큰이 서버에 설정되지 않았습니다.'
+    });
+  }
+
+  if (token !== TAGHERE_WEBHOOK_TOKEN) {
+    return res.status(403).json({
+      success: false,
+      error: 'Invalid token',
+      message: '유효하지 않은 토큰입니다.'
+    });
+  }
+
+  req.webhookVerified = true;
+  next();
+};
 
 interface TaghereOrderData {
   resultPrice?: number | string;
@@ -278,6 +318,214 @@ router.post('/order-event', authMiddleware, async (req: AuthRequest, res) => {
     console.error('Order event error:', error);
     res.status(500).json({ error: '주문 이벤트 처리 중 오류가 발생했습니다.' });
   }
+});
+
+// ============================================================
+// 웹훅 API: 주문 취소/환불 시 포인트 차감
+// ============================================================
+
+/**
+ * POST /api/taghere/webhook/order-cancel
+ *
+ * 태그히어 모바일오더에서 주문이 취소/환불되었을 때 호출하는 웹훅
+ * - 해당 ordersheetId로 적립된 포인트를 찾아서 차감
+ * - 관련 주문 내역도 삭제
+ *
+ * Request Body:
+ * {
+ *   "ordersheetId": "6666",           // 필수: 취소된 주문 ID
+ *   "reason": "고객 요청 환불",        // 선택: 취소/환불 사유
+ *   "cancelType": "CANCEL" | "REFUND" // 선택: 취소 유형 (기본값: CANCEL)
+ * }
+ */
+router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
+  const startTime = Date.now();
+
+  try {
+    const { ordersheetId, reason, cancelType = 'CANCEL' } = req.body;
+
+    // 1. 필수 파라미터 검증
+    if (!ordersheetId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required field',
+        message: 'ordersheetId는 필수입니다.'
+      });
+    }
+
+    console.log(`[Webhook] Order cancel request - ordersheetId: ${ordersheetId}, type: ${cancelType}, reason: ${reason || 'N/A'}`);
+
+    // 2. 해당 ordersheetId로 적립된 포인트 내역 조회
+    const earnRecord = await prisma.pointLedger.findFirst({
+      where: {
+        type: 'EARN',
+        OR: [
+          { orderId: ordersheetId },
+          { reason: { contains: ordersheetId } }
+        ]
+      },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            totalPoints: true
+          }
+        },
+        store: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    // 3. 적립 내역이 없는 경우
+    if (!earnRecord) {
+      console.log(`[Webhook] No earn record found for ordersheetId: ${ordersheetId}`);
+      return res.status(404).json({
+        success: false,
+        error: 'Earn record not found',
+        message: `ordersheetId(${ordersheetId})에 해당하는 포인트 적립 내역을 찾을 수 없습니다.`,
+        ordersheetId
+      });
+    }
+
+    const { customer, store } = earnRecord;
+    const pointsToDeduct = earnRecord.delta; // 적립된 포인트 금액
+
+    // 4. 이미 차감되었는지 확인 (중복 처리 방지)
+    const existingDeduction = await prisma.pointLedger.findFirst({
+      where: {
+        customerId: customer.id,
+        storeId: store.id,
+        type: 'ADJUST',
+        reason: { contains: `주문취소: ${ordersheetId}` }
+      }
+    });
+
+    if (existingDeduction) {
+      console.log(`[Webhook] Already processed - ordersheetId: ${ordersheetId}`);
+      return res.status(409).json({
+        success: false,
+        error: 'Already processed',
+        message: `ordersheetId(${ordersheetId})는 이미 취소 처리되었습니다.`,
+        ordersheetId,
+        previousDeductionId: existingDeduction.id,
+        deductedAt: existingDeduction.createdAt
+      });
+    }
+
+    // 5. 트랜잭션으로 포인트 차감 + 고객 포인트 업데이트 + 주문 내역 삭제
+    const deductionReason = reason
+      ? `주문취소: ${ordersheetId} (${cancelType === 'REFUND' ? '환불' : '취소'} - ${reason})`
+      : `주문취소: ${ordersheetId} (${cancelType === 'REFUND' ? '환불' : '취소'})`;
+
+    const newBalance = Math.max(0, customer.totalPoints - pointsToDeduct);
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 5-1. 포인트 차감 내역 생성
+      const deductionRecord = await tx.pointLedger.create({
+        data: {
+          storeId: store.id,
+          customerId: customer.id,
+          delta: -pointsToDeduct, // 음수로 차감
+          balance: newBalance,
+          type: 'ADJUST',
+          reason: deductionReason,
+          orderId: ordersheetId
+        }
+      });
+
+      // 5-2. 고객 총 포인트 업데이트
+      const updatedCustomer = await tx.customer.update({
+        where: { id: customer.id },
+        data: { totalPoints: newBalance }
+      });
+
+      // 5-3. 관련 주문 내역 삭제 (있는 경우)
+      const deletedVisit = await tx.visitOrOrder.deleteMany({
+        where: {
+          storeId: store.id,
+          customerId: customer.id,
+          orderId: ordersheetId
+        }
+      });
+
+      return { deductionRecord, updatedCustomer, deletedVisitCount: deletedVisit.count };
+    });
+
+    const processingTime = Date.now() - startTime;
+
+    console.log(`[Webhook] Order cancel completed - ordersheetId: ${ordersheetId}, deducted: ${pointsToDeduct}P, newBalance: ${newBalance}P, time: ${processingTime}ms`);
+
+    // 6. 성공 응답
+    res.json({
+      success: true,
+      message: '주문 취소 처리가 완료되었습니다.',
+      data: {
+        ordersheetId,
+        cancelType,
+        store: {
+          id: store.id,
+          name: store.name
+        },
+        customer: {
+          id: customer.id,
+          name: customer.name,
+          phone: customer.phone ? `${customer.phone.slice(0, 3)}****${customer.phone.slice(-4)}` : null
+        },
+        points: {
+          deducted: pointsToDeduct,
+          previousBalance: customer.totalPoints,
+          newBalance: result.updatedCustomer.totalPoints
+        },
+        deductionId: result.deductionRecord.id,
+        deletedOrderCount: result.deletedVisitCount,
+        processedAt: new Date().toISOString(),
+        processingTimeMs: processingTime
+      }
+    });
+
+  } catch (error: any) {
+    const processingTime = Date.now() - startTime;
+    console.error(`[Webhook] Order cancel error - time: ${processingTime}ms`, error);
+
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: '주문 취소 처리 중 오류가 발생했습니다.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/**
+ * GET /api/taghere/webhook/health
+ * 웹훅 서버 상태 확인 (인증 불필요)
+ */
+router.get('/webhook/health', (req, res) => {
+  res.json({
+    success: true,
+    status: 'ok',
+    service: 'TagHere CRM Webhook',
+    timestamp: new Date().toISOString()
+  });
+});
+
+/**
+ * POST /api/taghere/webhook/verify
+ * 웹훅 토큰 검증 테스트
+ */
+router.post('/webhook/verify', webhookAuthMiddleware, (req: WebhookRequest, res) => {
+  res.json({
+    success: true,
+    message: '토큰이 유효합니다.',
+    verified: true,
+    timestamp: new Date().toISOString()
+  });
 });
 
 export default router;
