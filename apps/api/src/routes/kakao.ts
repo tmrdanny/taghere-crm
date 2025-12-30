@@ -361,7 +361,7 @@ router.get('/callback', async (req, res) => {
 // TagHere 전용 콜백 (결제 금액 기반 적립률 포인트 적립)
 // ============================================================
 
-const TAGHERE_API_URL = process.env.TAGHERE_API_URL || 'https://api.d.tag-here.com';
+const TAGHERE_API_URL = process.env.TAGHERE_API_URL || 'https://api.tag-here.com';
 const TAGHERE_API_TOKEN = process.env.TAGHERE_API_TOKEN_FOR_CRM || '';
 
 interface TaghereOrderData {
