@@ -81,7 +81,7 @@ export default function AdminLayout({
       <header className="border-b border-neutral-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-6">
               <Link href="/admin" className="flex items-center gap-2">
                 <Image
                   src="/Taghere-logo.png"
@@ -92,6 +92,28 @@ export default function AdminLayout({
                 />
                 <span className="font-semibold text-white">Admin</span>
               </Link>
+              <nav className="flex items-center gap-4">
+                <Link
+                  href="/admin"
+                  className={`text-sm transition-colors ${
+                    pathname === '/admin'
+                      ? 'text-white font-medium'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  매장 관리
+                </Link>
+                <Link
+                  href="/admin/announcements"
+                  className={`text-sm transition-colors ${
+                    pathname === '/admin/announcements'
+                      ? 'text-white font-medium'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  공지사항
+                </Link>
+              </nav>
             </div>
 
             <div className="flex items-center gap-4">

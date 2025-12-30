@@ -505,3 +505,20 @@ model NaverReviewStats {
   @@index([date])
   @@map("naver_review_stats")
 }
+
+// 공지사항 (전체 매장 대상, 어드민 전용)
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String   // 공지 제목
+  content   String   @db.Text // 공지 내용
+  isActive  Boolean  @default(true) // 활성화 여부
+  priority  Int      @default(0) // 우선순위 (높을수록 상단)
+  startAt   DateTime? // 노출 시작일 (null = 즉시)
+  endAt     DateTime? // 노출 종료일 (null = 무기한)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, priority])
+  @@index([startAt, endAt])
+  @@map("announcements")
+}

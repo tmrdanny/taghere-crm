@@ -263,4 +263,45 @@ router.get('/visitor-chart', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/dashboard/announcements - 활성화된 공지사항 조회 (매장 사용자용)
+router.get('/announcements', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const now = new Date();
+
+    const announcements = await prisma.announcement.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { startAt: null },
+          { startAt: { lte: now } },
+        ],
+        AND: [
+          {
+            OR: [
+              { endAt: null },
+              { endAt: { gte: now } },
+            ],
+          },
+        ],
+      },
+      orderBy: [
+        { priority: 'desc' },
+        { createdAt: 'desc' },
+      ],
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        priority: true,
+        createdAt: true,
+      },
+    });
+
+    res.json(announcements);
+  } catch (error) {
+    console.error('Announcements error:', error);
+    res.status(500).json({ error: '공지사항 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;
