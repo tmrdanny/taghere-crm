@@ -35,6 +35,8 @@ coverage
 
 # Prisma
 prisma/migrations/**/migration_lock.toml
+prisma/*.db
+prisma/*.db-journal
 
 # Misc
 *.tsbuildinfo
