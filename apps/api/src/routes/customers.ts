@@ -139,9 +139,9 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
       let normalizedItems: any[] = [];
       if (visit.items && Array.isArray(visit.items)) {
         normalizedItems = (visit.items as any[]).map((item: any) => ({
-          name: item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
-          quantity: item.quantity || item.count || item.qty || item.amount || 1,
-          price: item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0,
+          name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
+          quantity: item.count || item.quantity || item.qty || item.amount || 1,
+          price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
         }));
       }
       return {

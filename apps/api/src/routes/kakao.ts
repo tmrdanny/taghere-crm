@@ -588,11 +588,11 @@ router.get('/taghere-callback', async (req, res) => {
         const rawItems = orderData.content?.items || orderData.orderItems || orderData.items || [];
         // items 구조 로깅 (디버깅용)
         console.log('[TagHere Kakao] Raw items structure:', JSON.stringify(rawItems, null, 2));
-        // 아이템 정규화 - 다양한 필드명 지원
+        // 아이템 정규화 - 다양한 필드명 지원 (TagHere API는 label 필드 사용)
         orderItems = rawItems.map((item: any) => ({
-          name: item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
-          quantity: item.quantity || item.count || item.qty || item.amount || 1,
-          price: item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0,
+          name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
+          quantity: item.count || item.quantity || item.qty || item.amount || 1,
+          price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
         }));
         console.log('[TagHere Kakao] Normalized items:', JSON.stringify(orderItems, null, 2));
       }

@@ -52,6 +52,7 @@ interface CustomerFeedbackEntry {
 }
 
 interface OrderItem {
+  label?: string;  // TagHere API uses 'label' for menu name
   name?: string;
   menuName?: string;
   productName?: string;
@@ -1249,9 +1250,9 @@ export default function CustomersPage() {
                             {order.items && Array.isArray(order.items) && order.items.length > 0 ? (
                               <div className="space-y-1.5 pt-1 border-t border-neutral-200 mt-2">
                                 {order.items.map((item: OrderItem, idx: number) => {
-                                  const menuName = item.name || item.menuName || item.productName || item.title || '(메뉴명 없음)';
-                                  const qty = item.quantity || item.count || item.qty || 1;
-                                  const itemPrice = item.price || item.amount || item.totalPrice || 0;
+                                  const menuName = item.label || item.name || item.menuName || item.productName || item.title || '(메뉴명 없음)';
+                                  const qty = item.count || item.quantity || item.qty || 1;
+                                  const itemPrice = typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.amount || item.totalPrice || 0);
 
                                   return (
                                     <div key={idx} className="flex items-center justify-between text-sm py-0.5">
