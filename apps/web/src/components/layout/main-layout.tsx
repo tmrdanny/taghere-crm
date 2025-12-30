@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Sidebar, MobileHeader } from './sidebar';
-import { Megaphone, ChevronDown } from 'lucide-react';
+import { Megaphone, ChevronRight } from 'lucide-react';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -76,34 +76,48 @@ export function MainLayout({ children }: MainLayoutProps) {
         <main className="flex-1 min-h-screen lg:min-h-[calc(100vh)] overflow-x-hidden">
           {/* Global Announcements */}
           {announcements.length > 0 && (
-            <div className="bg-brand-800 text-white">
-              {announcements.map((announcement) => (
-                <div key={announcement.id} className="border-b border-brand-700 last:border-b-0">
-                  <button
-                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-brand-700/50 transition-colors"
-                    onClick={() => setExpandedAnnouncement(
-                      expandedAnnouncement === announcement.id ? null : announcement.id
-                    )}
+            <div className="p-4 lg:p-6 pb-0 lg:pb-0">
+              <div className="max-w-7xl mx-auto space-y-3">
+                {announcements.map((announcement) => (
+                  <div
+                    key={announcement.id}
+                    className="bg-brand-50 border border-brand-200 rounded-xl overflow-hidden"
                   >
-                    <Megaphone className="w-4 h-4 flex-shrink-0" />
-                    <span className="flex-1 text-left text-sm font-medium truncate">
-                      {announcement.title}
-                    </span>
-                    <ChevronDown
-                      className={`w-4 h-4 flex-shrink-0 transition-transform ${
-                        expandedAnnouncement === announcement.id ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </button>
-                  {expandedAnnouncement === announcement.id && (
-                    <div className="px-4 pb-3 pt-0">
-                      <div className="pl-7 text-sm text-brand-100 whitespace-pre-wrap">
-                        {announcement.content}
+                    <div
+                      className="flex items-center gap-3 p-4 cursor-pointer hover:bg-brand-100/50 transition-colors"
+                      onClick={() => setExpandedAnnouncement(
+                        expandedAnnouncement === announcement.id ? null : announcement.id
+                      )}
+                    >
+                      <div className="flex-shrink-0 p-2 bg-brand-100 rounded-lg">
+                        <Megaphone className="w-5 h-5 text-brand-800" />
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                            공지
+                          </span>
+                          <span className="font-medium text-neutral-900 truncate">
+                            {announcement.title}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight
+                        className={`w-5 h-5 text-neutral-400 transition-transform flex-shrink-0 ${
+                          expandedAnnouncement === announcement.id ? 'rotate-90' : ''
+                        }`}
+                      />
                     </div>
-                  )}
-                </div>
-              ))}
+                    {expandedAnnouncement === announcement.id && (
+                      <div className="px-4 pb-4 pt-0">
+                        <div className="pl-11 text-sm text-neutral-700 whitespace-pre-wrap">
+                          {announcement.content}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           {children}
