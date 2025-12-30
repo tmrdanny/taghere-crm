@@ -575,7 +575,7 @@ export default function SettingsPage() {
               <CardTitle className="text-lg">포인트 적립률</CardTitle>
             </div>
             <p className="text-sm text-neutral-500 mt-1">
-              결제 금액의 일정 비율을 포인트로 적립합니다.
+              주문/결제 금액의 일정 비율을 포인트로 적립합니다.
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -637,7 +637,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Fixed Point Settings Card */}
+{/* Fixed Point Settings Card - 임시 숨김
         <Card>
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
@@ -649,7 +649,6 @@ export default function SettingsPage() {
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* 활성화 토글 */}
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-neutral-900">
@@ -665,7 +664,6 @@ export default function SettingsPage() {
               />
             </div>
 
-            {/* 포인트 금액 설정 */}
             {fixedPointEnabled && (
               <div className="space-y-4 p-4 bg-neutral-50 rounded-lg">
                 <div className="space-y-2">
@@ -701,6 +699,7 @@ export default function SettingsPage() {
             )}
           </CardContent>
         </Card>
+        */}
 
         {/* Account Card */}
         <Card>
