@@ -32,7 +32,7 @@ function SuccessContent() {
             </p>
             {resultPrice > 0 && (
               <p className="text-sm text-neutral-500 text-center mt-1">
-                결제금액 {formatNumber(resultPrice)}원 적립
+                주문금액 {formatNumber(resultPrice)}원 적립
               </p>
             )}
           </div>

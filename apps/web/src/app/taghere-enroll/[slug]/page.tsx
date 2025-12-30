@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import Image from 'next/image';
 import { formatNumber } from '@/lib/utils';
 
 interface OrderInfo {
@@ -15,19 +14,52 @@ interface OrderInfo {
   alreadyEarned: boolean;
 }
 
+interface SuccessData {
+  points: number;
+  storeName: string;
+  customerId: string;
+  resultPrice: number;
+}
+
+function StarRating({ rating, onRatingChange }: { rating: number; onRatingChange: (rating: number) => void }) {
+  return (
+    <div className="flex gap-2 justify-center">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => onRatingChange(star)}
+          className="cursor-pointer hover:scale-110 transition-transform"
+        >
+          <svg
+            className={`w-7 h-7 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'fill-none text-neutral-300'}`}
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.5}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+          </svg>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function GiftBoxImage({ onClick, isOpening }: { onClick: () => void; isOpening: boolean }) {
   return (
     <div
       className={`gift-box-wrapper ${isOpening ? 'opening' : ''}`}
       onClick={!isOpening ? onClick : undefined}
     >
-      <Image
-        src="/gift-box.avif"
-        alt="선물 상자"
+      <video
+        src="/pointcoin-3d.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
         width={180}
         height={180}
-        className="gift-box-image"
-        priority
+        className="gift-box-video"
       />
 
       <style jsx>{`
@@ -42,6 +74,12 @@ function GiftBoxImage({ onClick, isOpening }: { onClick: () => void; isOpening: 
 
         .gift-box-wrapper.opening {
           animation: boxOpen 0.6s ease-out forwards;
+        }
+
+        .gift-box-video {
+          width: 180px;
+          height: 180px;
+          object-fit: contain;
         }
 
         @keyframes gentleFloat {
@@ -59,6 +97,128 @@ function GiftBoxImage({ onClick, isOpening }: { onClick: () => void; isOpening: 
   );
 }
 
+function SuccessPopup({
+  successData,
+  onClose
+}: {
+  successData: SuccessData;
+  onClose: () => void;
+}) {
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!successData.customerId) {
+      onClose();
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/customers/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerId: successData.customerId,
+          feedbackRating: feedbackRating || null,
+          feedbackText: feedbackText.trim() || null,
+        }),
+      });
+      setIsSubmitted(true);
+    } catch (error) {
+      console.error('Feedback submission error:', error);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 제출 완료 화면
+  if (isSubmitted) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+        <div className="bg-white rounded-2xl w-full max-w-xs shadow-xl overflow-hidden p-6 text-center">
+          <h2 className="text-lg font-bold text-neutral-900 mb-2">
+            제출이 완료되었어요!
+          </h2>
+          <p className="text-sm text-neutral-500 mb-5">
+            소중한 의견 감사합니다
+          </p>
+          <button
+            onClick={onClose}
+            className="w-full py-3 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
+          >
+            확인
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+      <div className="bg-white rounded-2xl w-full max-w-xs shadow-xl overflow-hidden">
+        {/* Points Display */}
+        <div className="pt-6 pb-4 text-center">
+          <p className="text-3xl font-extrabold text-[#131651]">
+            +{formatNumber(successData.points)} P
+          </p>
+          {successData.resultPrice > 0 && (
+            <p className="text-sm text-neutral-500 mt-1">
+              주문금액 {formatNumber(successData.resultPrice)}원 적립
+            </p>
+          )}
+        </div>
+
+        {/* Feedback Form */}
+        <div className="px-5 pb-5">
+          <h2 className="text-base font-bold text-neutral-900 text-center mb-1">
+            매장 경험을 남겨주세요
+          </h2>
+          <p className="text-xs text-neutral-500 text-center mb-4">
+            소중한 의견은 큰 도움이 돼요
+          </p>
+
+          {/* Star Rating */}
+          <div className="mb-3">
+            <StarRating rating={feedbackRating} onRatingChange={setFeedbackRating} />
+          </div>
+
+          {/* Feedback Text */}
+          <textarea
+            value={feedbackText}
+            onChange={(e) => setFeedbackText(e.target.value)}
+            placeholder="의견을 남겨주세요 (선택)"
+            className="w-full h-20 px-3 py-2 border border-neutral-200 rounded-xl resize-none text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+          />
+
+          {/* Buttons */}
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="flex-1 py-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold text-sm rounded-xl transition-colors"
+            >
+              다음에 쓸게요
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="flex-1 py-3 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-sm rounded-xl transition-colors"
+            >
+              {isSubmitting ? '제출 중...' : '제출 할게요'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TaghereEnrollContent() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -67,12 +227,31 @@ function TaghereEnrollContent() {
   const [isOpening, setIsOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAlreadyParticipated, setShowAlreadyParticipated] = useState(false);
+  const [successData, setSuccessData] = useState<SuccessData | null>(null);
 
   const slug = params.slug as string;
   const ordersheetId = searchParams.get('ordersheetId');
   const urlError = searchParams.get('error');
 
+  // Success params from redirect
+  const successPoints = searchParams.get('points');
+  const successStoreName = searchParams.get('successStoreName');
+  const customerId = searchParams.get('customerId');
+  const successResultPrice = searchParams.get('resultPrice');
+
   useEffect(() => {
+    // Check if redirected back with success data
+    if (successPoints && customerId) {
+      setSuccessData({
+        points: parseInt(successPoints),
+        storeName: successStoreName || '태그히어',
+        customerId,
+        resultPrice: parseInt(successResultPrice || '0'),
+      });
+      setIsLoading(false);
+      return;
+    }
+
     if (urlError === 'already_participated') {
       setShowAlreadyParticipated(true);
       setIsLoading(false);
@@ -118,7 +297,7 @@ function TaghereEnrollContent() {
     };
 
     fetchOrderInfo();
-  }, [slug, ordersheetId, urlError]);
+  }, [slug, ordersheetId, urlError, successPoints, customerId, successStoreName, successResultPrice]);
 
   const handleOpenGift = () => {
     if (!orderInfo) return;
@@ -134,6 +313,16 @@ function TaghereEnrollContent() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
     }, 500);
+  };
+
+  const handleCloseSuccessPopup = () => {
+    setSuccessData(null);
+    // Redirect to success page
+    const url = new URL(window.location.origin + '/taghere-enroll/success');
+    url.searchParams.set('points', successPoints || '0');
+    url.searchParams.set('storeName', successStoreName || '태그히어');
+    url.searchParams.set('resultPrice', successResultPrice || '0');
+    window.location.href = url.toString();
   };
 
   if (isLoading) {
@@ -172,15 +361,15 @@ function TaghereEnrollContent() {
           {/* Title */}
           <div className="text-center mb-6">
             <h1 className="text-xl font-bold text-neutral-900 mb-0.5">
-              포인트
+              방금 전 주문으로 적립된
             </h1>
             <p className="text-xl font-bold">
-              <span className="text-blue-500">{formatNumber(orderInfo?.earnPoints || 0)}원</span>
+              <span className="text-blue-500">{formatNumber(orderInfo?.earnPoints || 0)}P</span>
               <span className="text-neutral-900"> 받아 가세요</span>
             </p>
             {orderInfo && orderInfo.resultPrice > 0 && (
               <p className="text-sm text-neutral-500 mt-2">
-                결제금액 {formatNumber(orderInfo.resultPrice)}원 × {orderInfo.ratePercent}% 적립
+                주문금액 {formatNumber(orderInfo.resultPrice)}원 × {orderInfo.ratePercent}% 적립
               </p>
             )}
           </div>
@@ -214,7 +403,7 @@ function TaghereEnrollContent() {
                 3
               </div>
               <p className="text-sm">
-                <span className="text-blue-500 font-medium">결제 금액 {orderInfo?.ratePercent || 5}%</span>
+                <span className="text-blue-500 font-medium">주문 금액 {orderInfo?.ratePercent || 5}%</span>
                 <span className="text-neutral-600"> 포인트가 적립돼요 🎉</span>
               </p>
             </div>
@@ -252,6 +441,14 @@ function TaghereEnrollContent() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Success Popup with Feedback */}
+      {successData && (
+        <SuccessPopup
+          successData={successData}
+          onClose={handleCloseSuccessPopup}
+        />
       )}
 
       <style jsx global>{`
