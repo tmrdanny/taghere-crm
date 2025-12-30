@@ -134,8 +134,25 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
     }
 
+    // visitsOrOrders의 items 정규화 (다양한 API 응답 구조 지원)
+    const normalizedVisitsOrOrders = customer.visitsOrOrders.map((visit) => {
+      let normalizedItems: any[] = [];
+      if (visit.items && Array.isArray(visit.items)) {
+        normalizedItems = (visit.items as any[]).map((item: any) => ({
+          name: item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
+          quantity: item.quantity || item.count || item.qty || item.amount || 1,
+          price: item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0,
+        }));
+      }
+      return {
+        ...visit,
+        items: normalizedItems,
+      };
+    });
+
     res.json({
       ...customer,
+      visitsOrOrders: normalizedVisitsOrOrders,
       isVip: customer.visitCount >= 20 || customer.totalPoints >= 5000,
       isNew: customer.visitCount <= 1,
     });
