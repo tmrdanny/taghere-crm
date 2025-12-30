@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -181,58 +181,116 @@ export default function CustomersPage() {
     return () => clearTimeout(id);
   }, [searchInput]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    const fetchCustomers = async () => {
+  // Ref to track if component is mounted
+  const isMountedRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Fetch customers function (extracted for reuse)
+  const fetchCustomers = useCallback(async (showLoading = true) => {
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    if (showLoading) {
       setIsLoading(true);
-      setError(null);
-      try {
-        const params = new URLSearchParams();
-        params.set('page', page.toString());
-        params.set('limit', pageSize.toString());
-        if (searchQuery) params.set('search', searchQuery);
-        if (genderFilter !== 'all') params.set('gender', genderFilter);
-        if (visitFilter !== 'all') {
-          // 1회, 2회는 정확히 해당 횟수만 필터
-          if (visitFilter === '1' || visitFilter === '2') {
-            params.set('visitCountExact', visitFilter);
-          } else {
-            // 5회 이상, 10회 이상, 20회 이상
-            params.set('visitCountMin', visitFilter);
-          }
+    }
+    setError(null);
+
+    try {
+      const params = new URLSearchParams();
+      params.set('page', page.toString());
+      params.set('limit', pageSize.toString());
+      if (searchQuery) params.set('search', searchQuery);
+      if (genderFilter !== 'all') params.set('gender', genderFilter);
+      if (visitFilter !== 'all') {
+        // 1회, 2회는 정확히 해당 횟수만 필터
+        if (visitFilter === '1' || visitFilter === '2') {
+          params.set('visitCountExact', visitFilter);
+        } else {
+          // 5회 이상, 10회 이상, 20회 이상
+          params.set('visitCountMin', visitFilter);
         }
-        if (lastVisitFilter !== 'all') params.set('lastVisitDays', lastVisitFilter);
+      }
+      if (lastVisitFilter !== 'all') params.set('lastVisitDays', lastVisitFilter);
 
-        const res = await fetch(`${apiUrl}/api/customers?${params.toString()}`, {
-          headers: {
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
-          signal: controller.signal,
-        });
+      const res = await fetch(`${apiUrl}/api/customers?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+        signal: abortControllerRef.current.signal,
+      });
 
-        if (!res.ok) {
-          throw new Error('고객 목록 조회 중 오류가 발생했습니다.');
-        }
+      if (!res.ok) {
+        throw new Error('고객 목록 조회 중 오류가 발생했습니다.');
+      }
 
-        const data = await res.json();
+      const data = await res.json();
+      if (isMountedRef.current) {
         setCustomers(data.customers || []);
         setPagination({
           total: data.pagination?.total || 0,
           totalPages: data.pagination?.totalPages || 1,
         });
         setSelectedCustomers([]);
-      } catch (err: any) {
-        if (err.name === 'AbortError') return;
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
+      if (isMountedRef.current) {
         setError(err.message || '조회 중 오류가 발생했습니다.');
         setCustomers([]);
-      } finally {
+      }
+    } finally {
+      if (isMountedRef.current && showLoading) {
         setIsLoading(false);
+      }
+    }
+  }, [apiUrl, searchQuery, genderFilter, visitFilter, lastVisitFilter, page, pageSize]);
+
+  // Initial fetch and when filters change
+  useEffect(() => {
+    fetchCustomers(true);
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [fetchCustomers, refreshKey]);
+
+  // Auto-refresh polling (every 30 seconds when page is visible)
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    let intervalId: NodeJS.Timeout | null = null;
+
+    const startPolling = () => {
+      // Poll every 30 seconds for new data (silent refresh without loading indicator)
+      intervalId = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          fetchCustomers(false); // false = don't show loading indicator
+        }
+      }, 30000);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Refresh immediately when tab becomes visible
+        fetchCustomers(false);
       }
     };
 
-    fetchCustomers();
-    return () => controller.abort();
-  }, [apiUrl, searchQuery, genderFilter, visitFilter, lastVisitFilter, page, pageSize, refreshKey]);
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      isMountedRef.current = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchCustomers]);
 
   const handleUsePoints = async () => {
     if (!selectedCustomer || !useAmount) return;
