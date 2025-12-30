@@ -22,7 +22,7 @@ Authorization: Bearer Lgc1y2HutUDpsxNpdPEkT6PjNrmTY2tdeOCMc5Nlmlo=
 ## API 엔드포인트
 
 ### Base URL
-- **Production**: `https://api.taghere-crm.com`
+- **Production**: `https://taghere-crm-api-g96p.onrender.com`
 - **Development**: `http://localhost:4000`
 
 ---
@@ -201,7 +201,7 @@ Authorization: Bearer Lgc1y2HutUDpsxNpdPEkT6PjNrmTY2tdeOCMc5Nlmlo=
 ### cURL
 ```bash
 # 주문 취소 요청
-curl -X POST "https://api.taghere-crm.com/api/taghere/webhook/order-cancel" \
+curl -X POST "https://taghere-crm-api-g96p.onrender.com/api/taghere/webhook/order-cancel" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer Lgc1y2HutUDpsxNpdPEkT6PjNrmTY2tdeOCMc5Nlmlo=" \
   -d '{
@@ -211,16 +211,16 @@ curl -X POST "https://api.taghere-crm.com/api/taghere/webhook/order-cancel" \
   }'
 
 # 서버 상태 확인
-curl "https://api.taghere-crm.com/api/taghere/webhook/health"
+curl "https://taghere-crm-api-g96p.onrender.com/api/taghere/webhook/health"
 
 # 토큰 검증
-curl -X POST "https://api.taghere-crm.com/api/taghere/webhook/verify" \
+curl -X POST "https://taghere-crm-api-g96p.onrender.com/api/taghere/webhook/verify" \
   -H "Authorization: Bearer Lgc1y2HutUDpsxNpdPEkT6PjNrmTY2tdeOCMc5Nlmlo="
 ```
 
 ### JavaScript/Node.js
 ```javascript
-const WEBHOOK_URL = 'https://api.taghere-crm.com/api/taghere/webhook/order-cancel';
+const WEBHOOK_URL = 'https://taghere-crm-api-g96p.onrender.com/api/taghere/webhook/order-cancel';
 const WEBHOOK_TOKEN = 'Lgc1y2HutUDpsxNpdPEkT6PjNrmTY2tdeOCMc5Nlmlo=';
 
 async function cancelOrder(ordersheetId, reason, cancelType = 'CANCEL') {
@@ -259,7 +259,7 @@ try {
 ```python
 import requests
 
-WEBHOOK_URL = 'https://api.taghere-crm.com/api/taghere/webhook/order-cancel'
+WEBHOOK_URL = 'https://taghere-crm-api-g96p.onrender.com/api/taghere/webhook/order-cancel'
 WEBHOOK_TOKEN = 'Lgc1y2HutUDpsxNpdPEkT6PjNrmTY2tdeOCMc5Nlmlo='
 
 def cancel_order(ordersheet_id, reason=None, cancel_type='CANCEL'):
