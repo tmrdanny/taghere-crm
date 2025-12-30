@@ -23,7 +23,7 @@ interface SuccessData {
 
 function StarRating({ rating, onRatingChange }: { rating: number; onRatingChange: (rating: number) => void }) {
   return (
-    <div className="flex gap-2 justify-center">
+    <div className="flex gap-3 justify-center">
       {[1, 2, 3, 4, 5].map((star) => (
         <button
           key={star}
@@ -32,7 +32,7 @@ function StarRating({ rating, onRatingChange }: { rating: number; onRatingChange
           className="cursor-pointer hover:scale-110 transition-transform"
         >
           <svg
-            className={`w-7 h-7 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'fill-none text-neutral-300'}`}
+            className={`w-10 h-10 ${star <= rating ? 'fill-[#FFD541] text-[#FFD541]' : 'fill-none text-neutral-300'}`}
             viewBox="0 0 24 24"
             stroke="currentColor"
             strokeWidth={1.5}
@@ -45,10 +45,10 @@ function StarRating({ rating, onRatingChange }: { rating: number; onRatingChange
   );
 }
 
-function GiftBoxImage({ onClick, isOpening }: { onClick: () => void; isOpening: boolean }) {
+function CoinVideo({ onClick, isOpening }: { onClick: () => void; isOpening: boolean }) {
   return (
     <div
-      className={`gift-box-wrapper ${isOpening ? 'opening' : ''}`}
+      className={`coin-video-wrapper ${isOpening ? 'opening' : ''}`}
       onClick={!isOpening ? onClick : undefined}
     >
       <video
@@ -57,28 +57,26 @@ function GiftBoxImage({ onClick, isOpening }: { onClick: () => void; isOpening: 
         loop
         muted
         playsInline
-        width={180}
-        height={180}
-        className="gift-box-video"
+        className="coin-video"
       />
 
       <style jsx>{`
-        .gift-box-wrapper {
+        .coin-video-wrapper {
           cursor: pointer;
           animation: gentleFloat 3s ease-in-out infinite;
         }
 
-        .gift-box-wrapper:hover {
+        .coin-video-wrapper:hover {
           animation: gentleFloat 2s ease-in-out infinite;
         }
 
-        .gift-box-wrapper.opening {
+        .coin-video-wrapper.opening {
           animation: boxOpen 0.6s ease-out forwards;
         }
 
-        .gift-box-video {
-          width: 180px;
-          height: 180px;
+        .coin-video {
+          width: 200px;
+          height: 200px;
           object-fit: contain;
         }
 
@@ -140,8 +138,8 @@ function SuccessPopup({
   // 제출 완료 화면
   if (isSubmitted) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
-        <div className="bg-white rounded-2xl w-full max-w-xs shadow-xl overflow-hidden p-6 text-center">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-[30px]">
+        <div className="bg-white rounded-2xl w-full max-w-[315px] shadow-xl overflow-hidden p-6 text-center">
           <h2 className="text-lg font-bold text-neutral-900 mb-2">
             제출이 완료되었어요!
           </h2>
@@ -150,7 +148,7 @@ function SuccessPopup({
           </p>
           <button
             onClick={onClose}
-            className="w-full py-3 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
+            className="w-full py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
           >
             확인
           </button>
@@ -160,31 +158,26 @@ function SuccessPopup({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
-      <div className="bg-white rounded-2xl w-full max-w-xs shadow-xl overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-[30px]">
+      <div className="bg-white rounded-2xl w-full max-w-[315px] shadow-xl overflow-hidden">
         {/* Points Display */}
-        <div className="pt-6 pb-4 text-center">
-          <p className="text-3xl font-extrabold text-[#131651]">
-            +{formatNumber(successData.points)} P
+        <div className="pt-8 pb-2 text-center">
+          <p className="text-[32px] font-bold text-[#61EB49]">
+            +{formatNumber(successData.points)}P
           </p>
-          {successData.resultPrice > 0 && (
-            <p className="text-sm text-neutral-500 mt-1">
-              주문금액 {formatNumber(successData.resultPrice)}원 적립
-            </p>
-          )}
         </div>
 
         {/* Feedback Form */}
-        <div className="px-5 pb-5">
-          <h2 className="text-base font-bold text-neutral-900 text-center mb-1">
-            매장 경험을 남겨주세요
+        <div className="px-5 pb-6">
+          <h2 className="text-lg font-bold text-neutral-900 text-center mb-1">
+            주머니에 쏙 넣어드렸어요!
           </h2>
-          <p className="text-xs text-neutral-500 text-center mb-4">
+          <p className="text-sm text-neutral-400 text-center mb-6">
             소중한 의견은 큰 도움이 돼요
           </p>
 
           {/* Star Rating */}
-          <div className="mb-3">
+          <div className="mb-4">
             <StarRating rating={feedbackRating} onRatingChange={setFeedbackRating} />
           </div>
 
@@ -193,22 +186,22 @@ function SuccessPopup({
             value={feedbackText}
             onChange={(e) => setFeedbackText(e.target.value)}
             placeholder="의견을 남겨주세요 (선택)"
-            className="w-full h-20 px-3 py-2 border border-neutral-200 rounded-xl resize-none text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+            className="w-full h-[100px] px-4 py-3 bg-neutral-100 border-0 rounded-xl resize-none text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]"
           />
 
           {/* Buttons */}
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2.5 mt-5">
             <button
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1 py-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold text-sm rounded-xl transition-colors"
+              className="flex-1 py-3.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-600 font-semibold text-sm rounded-xl transition-colors"
             >
               다음에 쓸게요
             </button>
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex-1 py-3 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-sm rounded-xl transition-colors"
+              className="flex-1 py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-sm rounded-xl transition-colors"
             >
               {isSubmitting ? '제출 중...' : '제출 할게요'}
             </button>
@@ -355,67 +348,42 @@ function TaghereEnrollContent() {
 
   return (
     <div className="min-h-screen bg-neutral-100 font-pretendard flex justify-center">
-      <div className="w-full max-w-md h-screen flex flex-col bg-white overflow-hidden">
+      <div className="w-full max-w-md min-h-screen flex flex-col bg-white overflow-hidden">
         {/* Main Content - 중앙 정렬 */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6">
+        <div className="flex-1 flex flex-col items-center justify-center px-[30px]">
           {/* Title */}
-          <div className="text-center mb-6">
-            <h1 className="text-xl font-bold text-neutral-900 mb-0.5">
+          <div className="text-center mb-4">
+            <p className="text-lg text-neutral-900 mb-0.5">
               방금 전 주문으로 적립된
-            </h1>
-            <p className="text-xl font-bold">
-              <span className="text-blue-500">{formatNumber(orderInfo?.earnPoints || 0)}P</span>
-              <span className="text-neutral-900"> 받아 가세요</span>
+            </p>
+            <p className="text-[28px] font-bold">
+              <span className="text-[#61EB49]">{formatNumber(orderInfo?.earnPoints || 0)}P</span>
+              <span className="text-neutral-900"> 받아가세요</span>
             </p>
             {orderInfo && orderInfo.resultPrice > 0 && (
-              <p className="text-sm text-neutral-500 mt-2">
-                주문금액 {formatNumber(orderInfo.resultPrice)}원 × {orderInfo.ratePercent}% 적립
+              <p className="text-sm text-neutral-400 mt-2">
+                주문 금액 {formatNumber(orderInfo.resultPrice)}원 x {orderInfo.ratePercent}% 적립
               </p>
             )}
           </div>
 
-          {/* Gift Box Image */}
-          <div className="mb-6">
-            <GiftBoxImage onClick={handleOpenGift} isOpening={isOpening} />
+          {/* Coin Video */}
+          <div className="my-6">
+            <CoinVideo onClick={handleOpenGift} isOpening={isOpening} />
           </div>
 
-          {/* Steps - 컴팩트하게 */}
-          <div className="w-full max-w-xs">
-            {/* Step 1 */}
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-7 h-7 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-400 text-xs font-medium shrink-0">
-                1
-              </div>
-              <p className="text-neutral-600 text-sm">선물 상자를 클릭하면</p>
-            </div>
-
-            {/* Step 2 */}
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-7 h-7 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-400 text-xs font-medium shrink-0">
-                2
-              </div>
-              <p className="text-neutral-600 text-sm">카카오 로그인 후</p>
-            </div>
-
-            {/* Step 3 */}
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-400 text-xs font-medium shrink-0">
-                3
-              </div>
-              <p className="text-sm">
-                <span className="text-blue-500 font-medium">주문 금액 {orderInfo?.ratePercent || 5}%</span>
-                <span className="text-neutral-600"> 포인트가 적립돼요 🎉</span>
-              </p>
-            </div>
-          </div>
+          {/* Info Text */}
+          <p className="text-sm text-neutral-500 text-center">
+            카카오 로그인하면 <span className="text-[#61EB49] font-medium">포인트</span>를 받을 수 있어요
+          </p>
         </div>
 
         {/* Bottom CTA */}
-        <div className="px-6 pb-6 pt-4">
+        <div className="px-[30px] pb-10 pt-4">
           <button
             onClick={handleOpenGift}
             disabled={isOpening}
-            className="w-full py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-base rounded-[10px] transition-colors"
+            className="w-full py-4 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
           >
             {isOpening ? '적립 중...' : '포인트 적립하기'}
           </button>
