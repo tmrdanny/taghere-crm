@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber, formatCurrency } from '@/lib/utils';
-import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, ChevronRight, X } from 'lucide-react';
+import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw } from 'lucide-react';
 import {
   XAxis,
   YAxis,
@@ -38,14 +38,6 @@ interface VisitorStats {
   growth: number;
 }
 
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  priority: number;
-  createdAt: string;
-}
-
 type PeriodKey = '7일' | '30일' | '90일' | '전체';
 
 export default function HomePage() {
@@ -54,13 +46,8 @@ export default function HomePage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [visitorChartData, setVisitorChartData] = useState<{ day: string; visitors: number }[]>([]);
   const [visitorStats, setVisitorStats] = useState<VisitorStats | null>(null);
-  const [storeName, setStoreName] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshingChart, setIsRefreshingChart] = useState(false);
   const [isRefreshingStats, setIsRefreshingStats] = useState(false);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [expandedAnnouncement, setExpandedAnnouncement] = useState<string | null>(null);
-  const [dismissedAnnouncements, setDismissedAnnouncements] = useState<Set<string>>(new Set());
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -84,49 +71,7 @@ export default function HomePage() {
       }
     };
 
-    const fetchStoreName = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/settings/store`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setStoreName(data.name || '');
-        }
-      } catch (error) {
-        console.error('Failed to fetch store name:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchStats();
-    fetchStoreName();
-
-    // Fetch announcements
-    const fetchAnnouncements = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/dashboard/announcements`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setAnnouncements(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch announcements:', error);
-      }
-    };
-
-    fetchAnnouncements();
   }, [apiUrl]);
 
   // Fetch visitor chart data based on period
@@ -222,81 +167,8 @@ export default function HomePage() {
     }
   };
 
-  // Handle dismiss announcement
-  const handleDismissAnnouncement = (id: string) => {
-    setDismissedAnnouncements(prev => new Set([...prev, id]));
-  };
-
-  // Filter visible announcements
-  const visibleAnnouncements = announcements.filter(a => !dismissedAnnouncements.has(a.id));
-
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
-      {/* Announcements */}
-      {visibleAnnouncements.length > 0 && (
-        <div className="mb-6 space-y-3">
-          {visibleAnnouncements.map((announcement) => (
-            <div
-              key={announcement.id}
-              className="bg-brand-50 border border-brand-200 rounded-xl overflow-hidden"
-            >
-              <div
-                className="flex items-center gap-3 p-4 cursor-pointer hover:bg-brand-100/50 transition-colors"
-                onClick={() => setExpandedAnnouncement(
-                  expandedAnnouncement === announcement.id ? null : announcement.id
-                )}
-              >
-                <div className="flex-shrink-0 p-2 bg-brand-100 rounded-lg">
-                  <Megaphone className="w-5 h-5 text-brand-800" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="info" className="text-xs">공지</Badge>
-                    <span className="font-medium text-neutral-900 truncate">
-                      {announcement.title}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <ChevronRight
-                    className={`w-5 h-5 text-neutral-400 transition-transform ${
-                      expandedAnnouncement === announcement.id ? 'rotate-90' : ''
-                    }`}
-                  />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDismissAnnouncement(announcement.id);
-                    }}
-                    className="p-1 hover:bg-brand-200 rounded transition-colors"
-                    title="닫기"
-                  >
-                    <X className="w-4 h-4 text-neutral-500" />
-                  </button>
-                </div>
-              </div>
-              {expandedAnnouncement === announcement.id && (
-                <div className="px-4 pb-4 pt-0">
-                  <div className="pl-11 text-sm text-neutral-700 whitespace-pre-wrap">
-                    {announcement.content}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Welcome message */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-neutral-900 flex items-center gap-2">
-          반갑습니다, {storeName || '사장'}님! <span className="text-2xl">👋</span>
-        </h1>
-        <p className="text-neutral-500 mt-1">
-          오늘의 매장 현황과 방문자 추이를 한눈에 확인하세요.
-        </p>
-      </div>
-
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {/* Total Customers */}
