@@ -53,8 +53,15 @@ interface CustomerFeedbackEntry {
 
 interface OrderItem {
   name?: string;
+  menuName?: string;
+  productName?: string;
+  title?: string;
   quantity?: number;
+  count?: number;
+  qty?: number;
   price?: number;
+  amount?: number;
+  totalPrice?: number;
 }
 
 interface VisitOrOrderEntry {
@@ -1163,14 +1170,14 @@ export default function CustomersPage() {
                   <button
                     type="button"
                     onClick={() => setEditModalTab('orders')}
-                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                       editModalTab === 'orders'
                         ? 'border-brand-800 text-brand-800'
                         : 'border-transparent text-neutral-500 hover:text-neutral-700'
                     }`}
                   >
-                    <ShoppingBag className="w-4 h-4" />
-                    주문내역
+                    <ShoppingBag className="w-4 h-4 flex-shrink-0" />
+                    <span>주문내역</span>
                     {orderHistory.length > 0 && (
                       <span className="ml-1 text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
                         {orderHistory.length}
@@ -1180,14 +1187,14 @@ export default function CustomersPage() {
                   <button
                     type="button"
                     onClick={() => setEditModalTab('feedback')}
-                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                       editModalTab === 'feedback'
                         ? 'border-brand-800 text-brand-800'
                         : 'border-transparent text-neutral-500 hover:text-neutral-700'
                     }`}
                   >
-                    <MessageSquare className="w-4 h-4" />
-                    피드백
+                    <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                    <span>피드백</span>
                     {feedbackHistory.length > 0 && (
                       <span className="ml-1 text-yellow-500">★{feedbackHistory.length}</span>
                     )}
@@ -1195,14 +1202,14 @@ export default function CustomersPage() {
                   <button
                     type="button"
                     onClick={() => setEditModalTab('history')}
-                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                       editModalTab === 'history'
                         ? 'border-brand-800 text-brand-800'
                         : 'border-transparent text-neutral-500 hover:text-neutral-700'
                     }`}
                   >
-                    <History className="w-4 h-4" />
-                    포인트
+                    <History className="w-4 h-4 flex-shrink-0" />
+                    <span>포인트</span>
                     {pointHistory.length > 0 && (
                       <span className="ml-1 text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full">
                         {pointHistory.length}
@@ -1240,20 +1247,26 @@ export default function CustomersPage() {
                               </span>
                             </div>
                             {order.items && Array.isArray(order.items) && order.items.length > 0 ? (
-                              <div className="space-y-1">
-                                {order.items.map((item: OrderItem, idx: number) => (
-                                  <div key={idx} className="flex items-center justify-between text-sm">
-                                    <span className="text-neutral-600">
-                                      {item.name || '메뉴'}
-                                      {item.quantity && item.quantity > 1 && (
-                                        <span className="text-neutral-400 ml-1">x{item.quantity}</span>
+                              <div className="space-y-1.5 pt-1 border-t border-neutral-200 mt-2">
+                                {order.items.map((item: OrderItem, idx: number) => {
+                                  const menuName = item.name || item.menuName || item.productName || item.title || '(메뉴명 없음)';
+                                  const qty = item.quantity || item.count || item.qty || 1;
+                                  const itemPrice = item.price || item.amount || item.totalPrice || 0;
+
+                                  return (
+                                    <div key={idx} className="flex items-center justify-between text-sm py-0.5">
+                                      <span className="text-neutral-700 flex-1 truncate pr-2">
+                                        {menuName}
+                                        {qty > 1 && (
+                                          <span className="text-neutral-400 ml-1">x{qty}</span>
+                                        )}
+                                      </span>
+                                      {itemPrice > 0 && (
+                                        <span className="text-neutral-500 flex-shrink-0">{formatNumber(itemPrice)}원</span>
                                       )}
-                                    </span>
-                                    {item.price && (
-                                      <span className="text-neutral-500">{formatNumber(item.price)}원</span>
-                                    )}
-                                  </div>
-                                ))}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             ) : (
                               <p className="text-xs text-neutral-400">메뉴 정보 없음</p>
