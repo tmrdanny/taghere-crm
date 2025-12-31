@@ -387,6 +387,13 @@ router.get('/callback', async (req, res) => {
 const TAGHERE_API_URL = process.env.TAGHERE_API_URL || 'https://api.tag-here.com';
 const TAGHERE_API_TOKEN = process.env.TAGHERE_API_TOKEN_FOR_CRM || '';
 
+// Dev API 설정
+const TAGHERE_DEV_API_URL = process.env.TAGHERE_DEV_API_URL || 'https://api.d.tag-here.com';
+const TAGHERE_DEV_API_TOKEN = process.env.TAGHERE_DEV_API_TOKEN || '';
+
+// Dev API를 사용할 매장 slug 목록
+const DEV_API_STORE_SLUGS = ['zeroclasslab', 'taghere-test'];
+
 interface TaghereOrderData {
   resultPrice?: number | string;
   totalPrice?: number | string;
@@ -399,13 +406,20 @@ interface TaghereOrderData {
   };
 }
 
-// TagHere API에서 주문 정보 조회
-async function fetchOrdersheetForCallback(ordersheetId: string): Promise<TaghereOrderData | null> {
+// TagHere API에서 주문 정보 조회 (slug 기반으로 Dev/Prod API 선택)
+async function fetchOrdersheetForCallback(ordersheetId: string, slug?: string): Promise<TaghereOrderData | null> {
+  // Dev API를 사용할 매장인지 확인
+  const useDevApi = slug && DEV_API_STORE_SLUGS.includes(slug) && TAGHERE_DEV_API_TOKEN;
+  const apiUrl = useDevApi ? TAGHERE_DEV_API_URL : TAGHERE_API_URL;
+  const apiToken = useDevApi ? TAGHERE_DEV_API_TOKEN : TAGHERE_API_TOKEN;
+
+  console.log(`[TagHere Kakao] Fetching ordersheet - slug: ${slug}, useDevApi: ${useDevApi}, apiUrl: ${apiUrl}`);
+
   const response = await fetch(
-    `${TAGHERE_API_URL}/webhook/crm/ordersheet?ordersheetId=${ordersheetId}`,
+    `${apiUrl}/webhook/crm/ordersheet?ordersheetId=${ordersheetId}`,
     {
       headers: {
-        Authorization: `Bearer ${TAGHERE_API_TOKEN}`,
+        Authorization: `Bearer ${apiToken}`,
         'Content-Type': 'application/json',
       },
     }
@@ -598,11 +612,11 @@ router.get('/taghere-callback', async (req, res) => {
       }
     }
 
-    // TagHere API에서 주문 정보 조회
+    // TagHere API에서 주문 정보 조회 (slug 기반으로 Dev/Prod API 선택)
     let resultPrice = 0;
     let orderItems: any[] = [];
     if (stateData.ordersheetId) {
-      const orderData = await fetchOrdersheetForCallback(stateData.ordersheetId);
+      const orderData = await fetchOrdersheetForCallback(stateData.ordersheetId, stateData.slug);
       if (orderData) {
         // resultPrice는 content.resultPrice에 있고, 문자열일 수 있음
         const rawPrice = orderData.content?.resultPrice || orderData.resultPrice || orderData.content?.totalPrice || orderData.totalPrice || 0;

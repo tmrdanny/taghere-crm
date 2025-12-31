@@ -8,6 +8,13 @@ const TAGHERE_API_URL = process.env.TAGHERE_API_URL || 'https://api.tag-here.com
 const TAGHERE_API_TOKEN = process.env.TAGHERE_API_TOKEN_FOR_CRM || '';
 const TAGHERE_WEBHOOK_TOKEN = process.env.TAGHERE_WEBHOOK_TOKEN || '';
 
+// Dev API 설정
+const TAGHERE_DEV_API_URL = process.env.TAGHERE_DEV_API_URL || 'https://api.d.tag-here.com';
+const TAGHERE_DEV_API_TOKEN = process.env.TAGHERE_DEV_API_TOKEN || '';
+
+// Dev API를 사용할 매장 slug 목록
+const DEV_API_STORE_SLUGS = ['zeroclasslab', 'taghere-test'];
+
 // 웹훅 인증 미들웨어
 interface WebhookRequest extends Request {
   webhookVerified?: boolean;
@@ -59,13 +66,20 @@ interface TaghereOrderData {
   };
 }
 
-// TagHere API에서 주문 정보 조회
-async function fetchOrdersheet(ordersheetId: string): Promise<TaghereOrderData> {
+// TagHere API에서 주문 정보 조회 (slug 기반으로 Dev/Prod API 선택)
+async function fetchOrdersheet(ordersheetId: string, slug?: string): Promise<TaghereOrderData> {
+  // Dev API를 사용할 매장인지 확인
+  const useDevApi = slug && DEV_API_STORE_SLUGS.includes(slug) && TAGHERE_DEV_API_TOKEN;
+  const apiUrl = useDevApi ? TAGHERE_DEV_API_URL : TAGHERE_API_URL;
+  const apiToken = useDevApi ? TAGHERE_DEV_API_TOKEN : TAGHERE_API_TOKEN;
+
+  console.log(`[TagHere] Fetching ordersheet - slug: ${slug}, useDevApi: ${useDevApi}, apiUrl: ${apiUrl}`);
+
   const response = await fetch(
-    `${TAGHERE_API_URL}/webhook/crm/ordersheet?ordersheetId=${ordersheetId}`,
+    `${apiUrl}/webhook/crm/ordersheet?ordersheetId=${ordersheetId}`,
     {
       headers: {
-        Authorization: `Bearer ${TAGHERE_API_TOKEN}`,
+        Authorization: `Bearer ${apiToken}`,
         'Content-Type': 'application/json',
       },
     }
@@ -108,8 +122,8 @@ router.get('/ordersheet', async (req, res) => {
       return res.status(404).json({ error: 'Store not found' });
     }
 
-    // TagHere API 호출
-    const orderData = await fetchOrdersheet(ordersheetId as string);
+    // TagHere API 호출 (slug 기반으로 Dev/Prod API 선택)
+    const orderData = await fetchOrdersheet(ordersheetId as string, slug as string);
 
     console.log('[TagHere] Ordersheet data:', JSON.stringify(orderData, null, 2));
 
