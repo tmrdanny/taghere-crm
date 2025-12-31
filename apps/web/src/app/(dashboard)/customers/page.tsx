@@ -1102,7 +1102,7 @@ export default function CustomersPage() {
 
       {/* Edit Customer Modal */}
       <Modal open={editModal} onOpenChange={setEditModal}>
-        <ModalContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
+        <ModalContent className="sm:max-w-4xl max-h-[85vh] flex flex-col overflow-x-hidden">
           <ModalHeader className="flex-shrink-0">
             <div className="flex items-center gap-2">
               <ModalTitle>고객 정보</ModalTitle>
@@ -1111,11 +1111,11 @@ export default function CustomersPage() {
             </div>
           </ModalHeader>
 
-          <div className="py-4 overflow-y-auto flex-1 px-1">
+          <div className="py-4 overflow-y-auto overflow-x-hidden flex-1 px-1">
             {/* 2-Column Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden">
               {/* Left Column - Customer Info Form */}
-              <div className="space-y-4">
+              <div className="space-y-4 min-w-0">
                 {/* Read-only info: Visit count, last visit, points, total order */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 bg-neutral-50 rounded-lg">
@@ -1223,7 +1223,7 @@ export default function CustomersPage() {
               </div>
 
               {/* Right Column - Tabs for Orders, Feedback, History */}
-              <div className="space-y-3">
+              <div className="space-y-3 min-w-0 overflow-hidden">
                 {/* Tab Headers */}
                 <div className="flex border-b border-neutral-200">
                   <button
