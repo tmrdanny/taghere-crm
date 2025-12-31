@@ -317,8 +317,8 @@ function TaghereEnrollContent() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-neutral-100 font-pretendard flex justify-center">
-        <div className="w-full max-w-md h-screen flex items-center justify-center bg-white">
+      <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
+        <div className="w-full max-w-md h-full flex items-center justify-center bg-white">
           <div className="w-8 h-8 border-2 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
@@ -327,8 +327,8 @@ function TaghereEnrollContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-neutral-100 font-pretendard flex justify-center">
-        <div className="w-full max-w-md h-screen flex flex-col items-center justify-center bg-white p-6">
+      <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
+        <div className="w-full max-w-md h-full flex flex-col items-center justify-center bg-white p-6">
           <div className="text-5xl mb-4">😢</div>
           <h1 className="text-lg font-semibold text-neutral-900 mb-2">오류가 발생했습니다</h1>
           <p className="text-neutral-500 text-sm mb-4">{error}</p>
@@ -344,10 +344,10 @@ function TaghereEnrollContent() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-100 font-pretendard flex justify-center">
-      <div className="w-full max-w-md min-h-screen flex flex-col bg-white overflow-hidden">
+    <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
+      <div className="w-full max-w-md h-full flex flex-col bg-white">
         {/* Main Content - 중앙 정렬 */}
-        <div className="flex-1 flex flex-col items-center justify-center px-[30px]">
+        <div className="flex-1 flex flex-col items-center justify-center px-[30px] min-h-0">
           {/* Title */}
           <div className="text-center mb-4">
             <p className="text-lg text-neutral-900 mb-0.5">
@@ -365,7 +365,7 @@ function TaghereEnrollContent() {
           </div>
 
           {/* Coin Image */}
-          <div className="my-6">
+          <div className="my-4">
             <CoinImage onClick={handleOpenGift} isOpening={isOpening} />
           </div>
 
@@ -375,8 +375,8 @@ function TaghereEnrollContent() {
           </p>
         </div>
 
-        {/* Bottom CTA */}
-        <div className="px-[30px] pb-10 pt-4">
+        {/* Bottom CTA - safe area 고려 */}
+        <div className="flex-shrink-0 px-[30px] pb-[max(16px,env(safe-area-inset-bottom))] pt-4">
           <button
             onClick={handleOpenGift}
             disabled={isOpening}
@@ -430,8 +430,8 @@ function TaghereEnrollContent() {
 export default function TaghereEnrollPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-neutral-100 flex justify-center">
-        <div className="w-full max-w-md h-screen flex items-center justify-center bg-white">
+      <div className="h-[100dvh] bg-neutral-100 flex justify-center overflow-hidden">
+        <div className="w-full max-w-md h-full flex items-center justify-center bg-white">
           <div className="w-8 h-8 border-2 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
