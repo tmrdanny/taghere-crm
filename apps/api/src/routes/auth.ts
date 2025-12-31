@@ -120,9 +120,9 @@ router.post('/register', async (req, res) => {
     const baseSlug = generateSlug(storeName);
     const slug = await getUniqueSlug(baseSlug);
 
-    // 트랜잭션으로 Store와 StaffUser 동시 생성
+    // 트랜잭션으로 Store, StaffUser, Wallet 동시 생성
     const result = await prisma.$transaction(async (tx) => {
-      // Store 생성
+      // Store 생성 (기본 포인트 적립률 5% 활성화)
       const store = await tx.store.create({
         data: {
           name: storeName,
@@ -131,6 +131,16 @@ router.post('/register', async (req, res) => {
           phone,
           businessRegNumber,
           naverPlaceUrl: naverPlaceUrl?.trim() || null,
+          pointRateEnabled: true,
+          pointRatePercent: 5,
+        },
+      });
+
+      // Wallet 생성 (초기 충전금 500원)
+      await tx.wallet.create({
+        data: {
+          storeId: store.id,
+          balance: 500,
         },
       });
 
