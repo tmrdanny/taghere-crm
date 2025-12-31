@@ -258,12 +258,35 @@ router.get('/callback', async (req, res) => {
     // Earn points
     const newBalance = customer.totalPoints + earnPoints;
 
+    // 오늘 날짜의 시작/끝 계산
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // 오늘 이미 방문(포인트 적립)한 적이 있는지 확인
+    const todayVisit = await prisma.pointLedger.findFirst({
+      where: {
+        customerId: customer.id,
+        storeId: store.id,
+        type: 'EARN',
+        createdAt: {
+          gte: todayStart,
+          lte: todayEnd,
+        },
+      },
+    });
+
+    const isFirstVisitToday = !todayVisit;
+
     await prisma.$transaction([
       prisma.customer.update({
         where: { id: customer.id },
         data: {
           totalPoints: newBalance,
-          visitCount: { increment: 1 },
+          // 오늘 첫 방문인 경우에만 visitCount 증가
+          ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
           lastVisitAt: new Date(),
         },
       }),
