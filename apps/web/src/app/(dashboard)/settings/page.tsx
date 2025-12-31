@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Store, User, LogOut, MessageSquare, Coins, Link2, Copy, Check, Download, Percent } from 'lucide-react';
+import { Store, User, LogOut, MessageSquare, Coins, Link2, Copy, Check, Download, Percent, FileText } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 
 interface UserInfo {
@@ -54,6 +55,10 @@ export default function SettingsPage() {
   const [pointRatePercent, setPointRatePercent] = useState(5);
   const [isSavingPointRate, setIsSavingPointRate] = useState(false);
 
+  // Point usage rule settings (포인트 사용 규칙)
+  const [pointUsageRule, setPointUsageRule] = useState('');
+  const [isSavingPointUsageRule, setIsSavingPointUsageRule] = useState(false);
+
   // Fetch store info
   useEffect(() => {
     const fetchStoreInfo = async () => {
@@ -74,6 +79,7 @@ export default function SettingsPage() {
           setStoreAddress(data.address || '');
           setNaverPlaceUrl(data.naverPlaceUrl || '');
           setStoreSlug(data.slug || null);
+          setPointUsageRule(data.pointUsageRule || '');
         }
       } catch (error) {
         console.error('Failed to fetch store info:', error);
@@ -327,6 +333,35 @@ export default function SettingsPage() {
       showToast('설정 저장 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsSavingPointRate(false);
+    }
+  };
+
+  const handleSavePointUsageRule = async () => {
+    setIsSavingPointUsageRule(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/api/settings/point-usage-rule`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          pointUsageRule,
+        }),
+      });
+
+      if (res.ok) {
+        showToast('포인트 사용 규칙이 저장되었습니다.', 'success');
+      } else {
+        const error = await res.json();
+        showToast(error.error || '설정 저장 중 오류가 발생했습니다.', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to save point usage rule:', error);
+      showToast('설정 저장 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setIsSavingPointUsageRule(false);
     }
   };
 
@@ -634,6 +669,38 @@ export default function SettingsPage() {
                 </Button>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Point Usage Rule Settings Card */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-neutral-600" />
+              <CardTitle className="text-lg">포인트 사용 규칙</CardTitle>
+            </div>
+            <p className="text-sm text-neutral-500 mt-1">
+              고객이 포인트를 어떤 기준으로 쓸 수 있는지 작성해주세요.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Textarea
+                value={pointUsageRule}
+                onChange={(e) => setPointUsageRule(e.target.value)}
+                placeholder="3,000원 이상부터 사용 가능, 다음 번 방문부터 사용 가능, (자유롭게 작성 하셔도 돼요)."
+                rows={3}
+                className="resize-none"
+              />
+              <p className="text-xs text-neutral-500">
+                💡 이 내용은 포인트 적립 알림톡에 포함되어 고객에게 발송됩니다.
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={handleSavePointUsageRule} disabled={isSavingPointUsageRule}>
+                {isSavingPointUsageRule ? '저장 중...' : '저장하기'}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

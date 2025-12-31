@@ -165,7 +165,7 @@ export async function enqueuePointsEarnedAlimTalk(params: {
   // 매장 알림톡 설정 및 지갑 잔액 확인
   const store = await prisma.store.findUnique({
     where: { id: params.storeId },
-    select: { pointsAlimtalkEnabled: true },
+    select: { pointsAlimtalkEnabled: true, pointUsageRule: true },
   });
 
   if (!store?.pointsAlimtalkEnabled) {
@@ -194,6 +194,9 @@ export async function enqueuePointsEarnedAlimTalk(params: {
   // 멱등성 키: storeId + customerId + pointLedgerId
   const idempotencyKey = `points_earned:${params.storeId}:${params.customerId}:${params.pointLedgerId}`;
 
+  // 포인트 사용 규칙 (없으면 기본 문구)
+  const usageRule = store.pointUsageRule || '다음 방문 시 사용 가능';
+
   return enqueueAlimTalk({
     storeId: params.storeId,
     customerId: params.customerId,
@@ -204,6 +207,7 @@ export async function enqueuePointsEarnedAlimTalk(params: {
       '#{매장명}': params.variables.storeName,
       '#{적립포인트}': String(params.variables.points),
       '#{잔여포인트}': String(params.variables.totalPoints),
+      '#{사용방법안내}': usageRule,
     },
     idempotencyKey,
   });

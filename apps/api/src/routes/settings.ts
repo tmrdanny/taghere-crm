@@ -282,4 +282,27 @@ router.patch('/point-rate', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// PATCH /api/settings/point-usage-rule - 포인트 사용 규칙 설정 수정
+router.patch('/point-usage-rule', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { pointUsageRule } = req.body;
+
+    const store = await prisma.store.update({
+      where: { id: storeId },
+      data: {
+        pointUsageRule: pointUsageRule?.trim() || null,
+      },
+      select: {
+        pointUsageRule: true,
+      },
+    });
+
+    res.json({ success: true, ...store });
+  } catch (error) {
+    console.error('Point usage rule settings update error:', error);
+    res.status(500).json({ error: '포인트 사용 규칙 설정 저장 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;

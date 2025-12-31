@@ -32,6 +32,8 @@ model Store {
   // 포인트 적립률 설정 (결제금액 기반)
   pointRateEnabled       Boolean  @default(false) // 적립률 활성화
   pointRatePercent       Int      @default(5)     // 적립률 (%)
+  // 포인트 사용 규칙
+  pointUsageRule         String?  @db.Text        // 포인트 사용 규칙 안내 문구
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
