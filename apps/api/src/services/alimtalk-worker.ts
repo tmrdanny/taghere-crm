@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma.js';
-import { SolapiService } from './solapi.js';
+import { SolapiService, sendLowBalanceAlimTalk } from './solapi.js';
 
 const BATCH_SIZE = 10;
 const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
@@ -64,6 +64,30 @@ async function processMessage(messageId: string): Promise<void> {
   if (!msg) return;
 
   try {
+    // 메시지 타입에 따른 비용 결정
+    const cost = ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST;
+
+    // 발송 전 잔액 확인 - 비용만큼 잔액이 있어야 발송
+    const wallet = await prisma.wallet.findUnique({
+      where: { storeId: msg.storeId },
+    });
+
+    if (!wallet || wallet.balance < cost) {
+      console.log(`[Worker] Insufficient balance for message ${messageId}, balance: ${wallet?.balance ?? 0}, required: ${cost}`);
+      // 충전금 부족 안내 알림톡 발송 (비동기, 결과 무시)
+      sendLowBalanceAlimTalk({ storeId: msg.storeId, reason: '알림톡 발송' }).catch(() => {});
+      // 메시지 상태를 FAILED로 변경
+      await prisma.alimTalkOutbox.update({
+        where: { id: messageId },
+        data: {
+          status: 'FAILED',
+          failReason: 'Insufficient wallet balance',
+          updatedAt: new Date(),
+        },
+      });
+      return;
+    }
+
     // 환경변수에서 pfId 읽기
     const pfId = process.env.SOLAPI_PF_ID;
 
@@ -86,9 +110,6 @@ async function processMessage(messageId: string): Promise<void> {
     });
 
     if (result.success) {
-      // 메시지 타입에 따른 비용 결정
-      const cost = ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST;
-
       // 발송 성공 - 트랜잭션으로 상태 업데이트 + 지갑 차감
       await prisma.$transaction(async (tx) => {
         // 1. 메시지 상태 업데이트
