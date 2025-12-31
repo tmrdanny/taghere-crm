@@ -180,6 +180,8 @@ export async function enqueuePointsEarnedAlimTalk(params: {
 
   if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
     console.log(`[AlimTalk] Insufficient balance for store: ${params.storeId}, balance: ${wallet?.balance ?? 0}`);
+    // 충전금 부족 안내 알림톡 발송 (비동기, 결과 무시)
+    sendLowBalanceAlimTalk({ storeId: params.storeId, reason: '포인트 적립 알림톡' }).catch(() => {});
     return { success: false, error: 'Insufficient wallet balance' };
   }
 
@@ -243,6 +245,8 @@ export async function enqueueNaverReviewAlimTalk(params: {
 
   if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
     console.log(`[AlimTalk] Insufficient balance for store: ${params.storeId}, balance: ${wallet?.balance ?? 0}`);
+    // 충전금 부족 안내 알림톡 발송 (비동기, 결과 무시)
+    sendLowBalanceAlimTalk({ storeId: params.storeId, reason: '네이버 리뷰 요청 알림톡' }).catch(() => {});
     return { success: false, error: 'Insufficient wallet balance' };
   }
 
@@ -325,6 +329,8 @@ export async function enqueuePointsUsedAlimTalk(params: {
 
   if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
     console.log(`[AlimTalk] Insufficient balance for store: ${params.storeId}, balance: ${wallet?.balance ?? 0}`);
+    // 충전금 부족 안내 알림톡 발송 (비동기, 결과 무시)
+    sendLowBalanceAlimTalk({ storeId: params.storeId, reason: '포인트 사용 알림톡' }).catch(() => {});
     return { success: false, error: 'Insufficient wallet balance' };
   }
 
@@ -349,6 +355,48 @@ export async function enqueuePointsUsedAlimTalk(params: {
       '#{매장명}': params.variables.storeName,
       '#{적립포인트}': String(params.variables.usedPoints),
       '#{잔여포인트}': String(params.variables.remainingPoints),
+    },
+    idempotencyKey,
+  });
+}
+
+// 충전금 부족 안내 알림톡 발송 요청 (매장 소유자에게)
+export async function sendLowBalanceAlimTalk(params: {
+  storeId: string;
+  reason: string; // 발송 실패 이유 (예: "포인트 적립 알림톡", "네이버 리뷰 요청 알림톡")
+}): Promise<{ success: boolean; error?: string }> {
+  // 환경변수에서 템플릿 ID 읽기
+  const templateId = process.env.SOLAPI_TEMPLATE_ID_LOW_BALANCE;
+
+  if (!templateId) {
+    console.log(`[AlimTalk] Low balance notification disabled: no template ID configured`);
+    return { success: false, error: 'AlimTalk template not configured' };
+  }
+
+  // 매장 정보 조회 (매장명, 전화번호)
+  const store = await prisma.store.findUnique({
+    where: { id: params.storeId },
+    select: { name: true, phone: true },
+  });
+
+  if (!store?.phone) {
+    console.log(`[AlimTalk] Low balance notification skipped: no store phone for store ${params.storeId}`);
+    return { success: false, error: 'Store phone not configured' };
+  }
+
+  // 하루에 한 번만 발송되도록 멱등성 키 설정 (storeId + 날짜)
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const idempotencyKey = `low_balance:${params.storeId}:${today}`;
+
+  console.log(`[AlimTalk] Sending low balance notification to store ${params.storeId}, phone: ${store.phone}`);
+
+  return enqueueAlimTalk({
+    storeId: params.storeId,
+    phone: store.phone,
+    messageType: 'POINTS_EARNED', // 타입 재사용 (별도 enum 추가 가능)
+    templateId,
+    variables: {
+      '#{매장명}': store.name,
     },
     idempotencyKey,
   });
