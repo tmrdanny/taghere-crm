@@ -13,7 +13,7 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatPhone, formatNumber, formatDate, getRelativeTime } from '@/lib/utils';
-import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -71,6 +71,14 @@ interface VisitOrOrderEntry {
   visitedAt: string;
   items: OrderItem[] | null;
   totalAmount: number | null;
+}
+
+interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  priority: number;
+  createdAt: string;
 }
 
 // 별점 컴포넌트
@@ -162,6 +170,9 @@ export default function CustomersPage() {
   // 고객 주문 총액 계산
   const customerTotalOrderAmount = orderHistory.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
 
+  // Announcements
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+
   const apiUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000', []);
   const userRole = 'OWNER';
 
@@ -180,6 +191,29 @@ export default function CustomersPage() {
     }, 300);
     return () => clearTimeout(id);
   }, [searchInput]);
+
+  // Fetch announcements
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      try {
+        const token = getAuthToken();
+        const res = await fetch(`${apiUrl}/api/dashboard/announcements`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setAnnouncements(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch announcements:', error);
+      }
+    };
+
+    fetchAnnouncements();
+  }, [apiUrl]);
 
   // Ref to track if component is mounted
   const isMountedRef = useRef(true);
@@ -575,6 +609,30 @@ export default function CustomersPage() {
   return (
     <div className="p-6 lg:p-8">
       {ToastComponent}
+
+      {/* Announcements */}
+      {announcements.length > 0 && (
+        <div className="mb-6 space-y-3">
+          {announcements.map((announcement) => (
+            <div
+              key={announcement.id}
+              className="flex items-start gap-3 p-4 bg-brand-50 border border-brand-200 rounded-lg"
+            >
+              <div className="flex-shrink-0 mt-0.5">
+                <Megaphone className="w-5 h-5 text-brand-700" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant="info" className="text-xs">공지</Badge>
+                  <span className="font-medium text-neutral-900">{announcement.title}</span>
+                </div>
+                <p className="text-sm text-neutral-700 whitespace-pre-wrap">{announcement.content}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>

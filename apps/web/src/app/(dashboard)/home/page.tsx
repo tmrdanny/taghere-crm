@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber, formatCurrency } from '@/lib/utils';
-import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone } from 'lucide-react';
 import {
   XAxis,
   YAxis,
@@ -38,6 +38,14 @@ interface VisitorStats {
   growth: number;
 }
 
+interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  priority: number;
+  createdAt: string;
+}
+
 type PeriodKey = '7일' | '30일' | '90일' | '전체';
 
 export default function HomePage() {
@@ -48,8 +56,32 @@ export default function HomePage() {
   const [visitorStats, setVisitorStats] = useState<VisitorStats | null>(null);
   const [isRefreshingChart, setIsRefreshingChart] = useState(false);
   const [isRefreshingStats, setIsRefreshingStats] = useState(false);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+  // Fetch announcements
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${apiUrl}/api/dashboard/announcements`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setAnnouncements(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch announcements:', error);
+      }
+    };
+
+    fetchAnnouncements();
+  }, [apiUrl]);
 
   // Fetch dashboard stats
   useEffect(() => {
@@ -169,6 +201,29 @@ export default function HomePage() {
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+      {/* Announcements */}
+      {announcements.length > 0 && (
+        <div className="mb-6 space-y-3">
+          {announcements.map((announcement) => (
+            <div
+              key={announcement.id}
+              className="flex items-start gap-3 p-4 bg-brand-50 border border-brand-200 rounded-lg"
+            >
+              <div className="flex-shrink-0 mt-0.5">
+                <Megaphone className="w-5 h-5 text-brand-700" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant="info" className="text-xs">공지</Badge>
+                  <span className="font-medium text-neutral-900">{announcement.title}</span>
+                </div>
+                <p className="text-sm text-neutral-700 whitespace-pre-wrap">{announcement.content}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {/* Total Customers */}
