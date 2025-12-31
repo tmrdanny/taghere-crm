@@ -4,6 +4,7 @@ import { SolapiService, sendLowBalanceAlimTalk } from './solapi.js';
 const BATCH_SIZE = 10;
 const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
 const MAX_RETRIES = 3;
+const LOW_BALANCE_THRESHOLD = 400; // 충전금 부족 알림 기준 (400원 미만)
 
 // 알림톡 건당 비용 (메시지 타입별)
 const ALIMTALK_COSTS: Record<string, number> = {
@@ -74,8 +75,6 @@ async function processMessage(messageId: string): Promise<void> {
 
     if (!wallet || wallet.balance < cost) {
       console.log(`[Worker] Insufficient balance for message ${messageId}, balance: ${wallet?.balance ?? 0}, required: ${cost}`);
-      // 충전금 부족 안내 알림톡 발송 (비동기, 결과 무시)
-      sendLowBalanceAlimTalk({ storeId: msg.storeId, reason: '알림톡 발송' }).catch(() => {});
       // 메시지 상태를 FAILED로 변경
       await prisma.alimTalkOutbox.update({
         where: { id: messageId },
@@ -85,6 +84,10 @@ async function processMessage(messageId: string): Promise<void> {
           updatedAt: new Date(),
         },
       });
+      // 잔액이 400원 미만이면 충전금 부족 안내 알림톡 발송
+      if (!wallet || wallet.balance < LOW_BALANCE_THRESHOLD) {
+        sendLowBalanceAlimTalk({ storeId: msg.storeId, reason: '알림톡 발송' }).catch(() => {});
+      }
       return;
     }
 
@@ -147,6 +150,15 @@ async function processMessage(messageId: string): Promise<void> {
       });
 
       console.log(`[Worker] Message ${messageId} (${msg.messageType}) sent successfully, SOLAPI ID: ${result.messageId}, cost: ${cost}원 차감`);
+
+      // 차감 후 잔액 확인 - 400원 미만이면 충전금 부족 알림톡 발송
+      const updatedWallet = await prisma.wallet.findUnique({
+        where: { storeId: msg.storeId },
+      });
+      if (updatedWallet && updatedWallet.balance < LOW_BALANCE_THRESHOLD) {
+        console.log(`[Worker] Low balance detected for store ${msg.storeId}: ${updatedWallet.balance}원`);
+        sendLowBalanceAlimTalk({ storeId: msg.storeId, reason: '알림톡 발송 후 잔액 부족' }).catch(() => {});
+      }
     } else {
       throw new Error(result.error || 'Send failed');
     }

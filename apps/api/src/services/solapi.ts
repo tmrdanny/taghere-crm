@@ -180,8 +180,6 @@ export async function enqueuePointsEarnedAlimTalk(params: {
 
   if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
     console.log(`[AlimTalk] Insufficient balance for store: ${params.storeId}, balance: ${wallet?.balance ?? 0}`);
-    // 충전금 부족 안내 알림톡 발송 (비동기, 결과 무시)
-    sendLowBalanceAlimTalk({ storeId: params.storeId, reason: '포인트 적립 알림톡' }).catch(() => {});
     return { success: false, error: 'Insufficient wallet balance' };
   }
 
@@ -245,8 +243,6 @@ export async function enqueueNaverReviewAlimTalk(params: {
 
   if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
     console.log(`[AlimTalk] Insufficient balance for store: ${params.storeId}, balance: ${wallet?.balance ?? 0}`);
-    // 충전금 부족 안내 알림톡 발송 (비동기, 결과 무시)
-    sendLowBalanceAlimTalk({ storeId: params.storeId, reason: '네이버 리뷰 요청 알림톡' }).catch(() => {});
     return { success: false, error: 'Insufficient wallet balance' };
   }
 
@@ -329,8 +325,6 @@ export async function enqueuePointsUsedAlimTalk(params: {
 
   if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
     console.log(`[AlimTalk] Insufficient balance for store: ${params.storeId}, balance: ${wallet?.balance ?? 0}`);
-    // 충전금 부족 안내 알림톡 발송 (비동기, 결과 무시)
-    sendLowBalanceAlimTalk({ storeId: params.storeId, reason: '포인트 사용 알림톡' }).catch(() => {});
     return { success: false, error: 'Insufficient wallet balance' };
   }
 
