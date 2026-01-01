@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Store, User, LogOut, MessageSquare, Coins, Link2, Copy, Check, Download, Percent, FileText } from 'lucide-react';
+import { Store, User, LogOut, MessageSquare, Percent, FileText } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 
@@ -28,10 +28,8 @@ export default function SettingsPage() {
   const [businessRegNumber, setBusinessRegNumber] = useState('');
   const [storeAddress, setStoreAddress] = useState('');
   const [naverPlaceUrl, setNaverPlaceUrl] = useState('');
-  const [storeSlug, setStoreSlug] = useState<string | null>(null);
   const [isLoadingStore, setIsLoadingStore] = useState(true);
   const [isSavingStore, setIsSavingStore] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
 
   // User info states
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -78,7 +76,6 @@ export default function SettingsPage() {
           setBusinessRegNumber(data.businessRegNumber || '');
           setStoreAddress(data.address || '');
           setNaverPlaceUrl(data.naverPlaceUrl || '');
-          setStoreSlug(data.slug || null);
           setPointUsageRule(data.pointUsageRule || '');
         }
       } catch (error) {
@@ -470,7 +467,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Customer Enroll Link Card */}
+        {/* Customer Enroll Link Card - admin으로 이동됨, 숨김 처리
         {storeSlug && (
           <Card>
             <CardHeader className="pb-4">
@@ -483,7 +480,6 @@ export default function SettingsPage() {
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Link Display */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-neutral-700">
                   매장 전용 링크
@@ -522,7 +518,6 @@ export default function SettingsPage() {
                 </p>
               </div>
 
-              {/* QR Code */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-neutral-700">
                   QR 코드
@@ -561,6 +556,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         )}
+        */}
 
         {/* Alimtalk Settings Card */}
         <Card>
