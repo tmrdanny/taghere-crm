@@ -221,6 +221,7 @@ function TaghereEnrollContent() {
 
   const slug = params.slug as string;
   const ordersheetId = searchParams.get('ordersheetId');
+  const storeId = searchParams.get('storeId');
   const urlError = searchParams.get('error');
 
   // Success params from redirect
@@ -307,7 +308,17 @@ function TaghereEnrollContent() {
 
   const handleCloseSuccessPopup = () => {
     setSuccessData(null);
-    // Redirect to success page
+
+    // taghere-test 매장일 경우 새로운 order-success 페이지로 리다이렉트
+    if (slug === 'taghere-test' && storeId && ordersheetId) {
+      const url = new URL(window.location.origin + '/taghere-enroll/order-success');
+      url.searchParams.set('storeId', storeId);
+      url.searchParams.set('ordersheetId', ordersheetId);
+      window.location.href = url.toString();
+      return;
+    }
+
+    // 기존 success 페이지로 리다이렉트
     const url = new URL(window.location.origin + '/taghere-enroll/success');
     url.searchParams.set('points', successPoints || '0');
     url.searchParams.set('storeName', successStoreName || '태그히어');

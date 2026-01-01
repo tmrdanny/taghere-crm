@@ -542,4 +542,73 @@ router.post('/webhook/verify', webhookAuthMiddleware, (req: WebhookRequest, res)
   });
 });
 
+// GET /api/taghere/order-details - 주문 상세 정보 조회 (태그히어 모바일오더 API 호출)
+// taghere-test 매장의 새로운 성공 페이지에서 사용
+router.get('/order-details', async (req, res) => {
+  try {
+    const { storeId, ordersheetId } = req.query;
+
+    if (!storeId || !ordersheetId) {
+      return res.status(400).json({ error: 'storeId와 ordersheetId가 필요합니다.' });
+    }
+
+    // Dev API 사용 (taghere-test 매장)
+    const apiUrl = TAGHERE_DEV_API_URL;
+    const apiToken = TAGHERE_DEV_API_TOKEN;
+
+    if (!apiToken) {
+      return res.status(500).json({ error: 'API 토큰이 설정되지 않았습니다.' });
+    }
+
+    console.log(`[TagHere] Fetching order details - storeId: ${storeId}, ordersheetId: ${ordersheetId}`);
+
+    // 태그히어 모바일오더 API 호출
+    const response = await fetch(
+      `${apiUrl}/webhook/crm/order-details?storeId=${storeId}&ordersheetId=${ordersheetId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[TagHere] Order details API error:', response.status, errorText);
+      return res.status(response.status).json({ error: '주문 정보를 불러오는데 실패했습니다.' });
+    }
+
+    const data = await response.json() as {
+      storeName?: string;
+      store?: { name?: string; logoUrl?: string };
+      storeLogoUrl?: string;
+      orderNumber?: string;
+      tableNumber?: string;
+      items?: any[];
+      orderItems?: any[];
+      totalPrice?: string | number;
+      resultPrice?: string | number;
+    };
+    console.log('[TagHere] Order details data:', JSON.stringify(data, null, 2));
+
+    // 응답 데이터 가공
+    const orderDetails = {
+      storeName: data.storeName || data.store?.name || '태그히어',
+      storeLogoUrl: data.storeLogoUrl || data.store?.logoUrl || null,
+      orderNumber: data.orderNumber || data.tableNumber || `T-${ordersheetId}`,
+      items: (data.items || data.orderItems || []).map((item: any) => ({
+        name: item.name || item.menuName || item.label || '상품',
+        quantity: item.quantity || item.count || 1,
+      })),
+      totalPrice: typeof data.totalPrice === 'string' ? parseInt(data.totalPrice, 10) : (data.totalPrice || data.resultPrice || 0),
+    };
+
+    res.json(orderDetails);
+  } catch (error: any) {
+    console.error('[TagHere] Order details error:', error);
+    res.status(500).json({ error: error.message || '주문 정보 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;
