@@ -35,8 +35,21 @@ function OrderSuccessContent() {
   const ordersheetId = searchParams.get('ordersheetId');
 
   useEffect(() => {
-    if (!storeId || !ordersheetId) {
+    // ordersheetId가 없으면 에러
+    if (!ordersheetId) {
       setError('주문 정보가 없습니다.');
+      setIsLoading(false);
+      return;
+    }
+
+    // storeId가 없으면 API 호출 없이 기본 UI만 표시
+    if (!storeId) {
+      setOrderDetails({
+        storeName: '',
+        orderNumber: `T-${ordersheetId}`,
+        items: [],
+        totalPrice: 0,
+      });
       setIsLoading(false);
       return;
     }
@@ -143,50 +156,56 @@ function OrderSuccessContent() {
 
           {/* Order Details Card */}
           <div className="rounded-[10px] border border-[#ebeced] overflow-hidden">
-            {/* Store Info */}
-            <div className="px-5 py-4 flex items-center gap-2.5 border-b border-[#ebeced]">
-              {orderDetails.storeLogoUrl ? (
-                <img
-                  src={orderDetails.storeLogoUrl}
-                  alt={orderDetails.storeName}
-                  className="w-[30px] h-[30px] rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-[30px] h-[30px] rounded-full bg-neutral-200 flex items-center justify-center text-xs">
-                  🏪
-                </div>
-              )}
-              <span className="text-sm font-semibold text-[#1d2022]">{orderDetails.storeName}</span>
-            </div>
+            {/* Store Info - storeId가 있고 상호명이 있을 때만 표시 */}
+            {storeId && orderDetails.storeName && (
+              <div className="px-5 py-4 flex items-center gap-2.5 border-b border-[#ebeced]">
+                {orderDetails.storeLogoUrl ? (
+                  <img
+                    src={orderDetails.storeLogoUrl}
+                    alt={orderDetails.storeName}
+                    className="w-[30px] h-[30px] rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-[30px] h-[30px] rounded-full bg-neutral-200 flex items-center justify-center text-xs">
+                    🏪
+                  </div>
+                )}
+                <span className="text-sm font-semibold text-[#1d2022]">{orderDetails.storeName}</span>
+              </div>
+            )}
 
-            {/* Order Items */}
-            <div className="px-5 py-4 border-b border-[#ebeced]">
-              {orderDetails.items.map((item, index) => (
-                <div key={index} className="text-sm font-medium text-[#55595e] leading-[1.3] mb-1.5 last:mb-0">
-                  {item.name} {item.quantity}개
-                </div>
-              ))}
-            </div>
+            {/* Order Items - items가 있을 때만 표시 */}
+            {orderDetails.items.length > 0 && (
+              <div className="px-5 py-4 border-b border-[#ebeced]">
+                {orderDetails.items.map((item, index) => (
+                  <div key={index} className="text-sm font-medium text-[#55595e] leading-[1.3] mb-1.5 last:mb-0">
+                    {item.name} {item.quantity}개
+                  </div>
+                ))}
+              </div>
+            )}
 
-            {/* Total Price */}
-            <div className="px-5 py-4 flex items-center justify-between">
-              <span className="text-base font-semibold text-[#1d2022]">총 주문금액</span>
-              <span className="text-base font-semibold text-[#1d2022]">{formatNumber(orderDetails.totalPrice)}원</span>
-            </div>
+            {/* Total Price - totalPrice가 있을 때만 표시 */}
+            {orderDetails.totalPrice > 0 && (
+              <div className="px-5 py-4 flex items-center justify-between border-b border-[#ebeced]">
+                <span className="text-base font-semibold text-[#1d2022]">총 주문금액</span>
+                <span className="text-base font-semibold text-[#1d2022]">{formatNumber(orderDetails.totalPrice)}원</span>
+              </div>
+            )}
 
-            {/* View Order History Button */}
-            <div className="px-5 pb-5">
-              <button
-                className="w-full h-10 rounded-[10px] border border-[#d1d3d6] bg-white text-sm font-medium text-[#55595e]"
-                onClick={() => {
-                  if (storeId) {
+            {/* View Order History Button - storeId가 있을 때만 표시 */}
+            {storeId && (
+              <div className="px-5 py-5">
+                <button
+                  className="w-full h-10 rounded-[10px] border border-[#d1d3d6] bg-white text-sm font-medium text-[#55595e]"
+                  onClick={() => {
                     window.location.href = `https://order.taghere.com/store/${storeId}/orders`;
-                  }
-                }}
-              >
-                주문내역 보기
-              </button>
-            </div>
+                  }}
+                >
+                  주문내역 보기
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

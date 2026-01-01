@@ -310,9 +310,9 @@ function TaghereEnrollContent() {
     setSuccessData(null);
 
     // taghere-test 매장일 경우 새로운 order-success 페이지로 리다이렉트
-    if (slug === 'taghere-test' && storeId && ordersheetId) {
+    if (slug === 'taghere-test' && ordersheetId) {
       const url = new URL(window.location.origin + '/taghere-enroll/order-success');
-      url.searchParams.set('storeId', storeId);
+      if (storeId) url.searchParams.set('storeId', storeId);
       url.searchParams.set('ordersheetId', ordersheetId);
       window.location.href = url.toString();
       return;
