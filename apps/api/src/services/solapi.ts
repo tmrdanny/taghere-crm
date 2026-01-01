@@ -387,7 +387,7 @@ export async function sendLowBalanceAlimTalk(params: {
   return enqueueAlimTalk({
     storeId: params.storeId,
     phone: store.phone,
-    messageType: 'POINTS_EARNED', // 타입 재사용 (별도 enum 추가 가능)
+    messageType: 'LOW_BALANCE',
     templateId,
     variables: {
       '#{상호명}': store.name,
