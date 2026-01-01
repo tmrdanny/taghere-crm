@@ -34,6 +34,9 @@ function OrderSuccessContent() {
   const storeId = searchParams.get('storeId');
   const ordersheetId = searchParams.get('ordersheetId');
 
+  // storeId가 유효한 MongoDB ObjectId 형식인지 확인 (24자 hex)
+  const isValidStoreId = storeId && /^[a-f0-9]{24}$/i.test(storeId);
+
   useEffect(() => {
     // ordersheetId가 없으면 에러
     if (!ordersheetId) {
@@ -42,11 +45,11 @@ function OrderSuccessContent() {
       return;
     }
 
-    // storeId가 없으면 API 호출 없이 기본 UI만 표시
-    if (!storeId) {
+    // storeId가 없거나 유효하지 않으면 API 호출 없이 기본 UI만 표시
+    if (!isValidStoreId) {
       setOrderDetails({
         storeName: '',
-        orderNumber: `T-${ordersheetId}`,
+        orderNumber: `T-${ordersheetId.slice(-4).toUpperCase()}`,
         items: [],
         totalPrice: 0,
       });
@@ -63,23 +66,35 @@ function OrderSuccessContent() {
           const data = await res.json();
           setOrderDetails(data);
         } else {
-          const errorData = await res.json();
-          setError(errorData.error || '주문 정보를 불러오는데 실패했습니다.');
+          // API 호출 실패해도 기본 UI 표시
+          console.error('Failed to fetch order details, showing default UI');
+          setOrderDetails({
+            storeName: '',
+            orderNumber: `T-${ordersheetId.slice(-4).toUpperCase()}`,
+            items: [],
+            totalPrice: 0,
+          });
         }
       } catch (e) {
         console.error('Failed to fetch order details:', e);
-        setError('주문 정보를 불러오는데 실패했습니다.');
+        // 에러 발생해도 기본 UI 표시
+        setOrderDetails({
+          storeName: '',
+          orderNumber: `T-${ordersheetId.slice(-4).toUpperCase()}`,
+          items: [],
+          totalPrice: 0,
+        });
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchOrderDetails();
-  }, [storeId, ordersheetId]);
+  }, [storeId, ordersheetId, isValidStoreId]);
 
   const handleGoBack = () => {
     // 태그히어 모바일오더 메뉴 페이지로 돌아가기
-    if (storeId) {
+    if (isValidStoreId) {
       window.location.href = `https://order.taghere.com/store/${storeId}`;
     } else {
       window.history.back();
@@ -156,8 +171,8 @@ function OrderSuccessContent() {
 
           {/* Order Details Card */}
           <div className="rounded-[10px] border border-[#ebeced] overflow-hidden">
-            {/* Store Info - storeId가 있고 상호명이 있을 때만 표시 */}
-            {storeId && orderDetails.storeName && (
+            {/* Store Info - 유효한 storeId가 있고 상호명이 있을 때만 표시 */}
+            {isValidStoreId && orderDetails.storeName && (
               <div className="px-5 py-4 flex items-center gap-2.5 border-b border-[#ebeced]">
                 {orderDetails.storeLogoUrl ? (
                   <img
@@ -193,8 +208,8 @@ function OrderSuccessContent() {
               </div>
             )}
 
-            {/* View Order History Button - storeId가 있을 때만 표시 */}
-            {storeId && (
+            {/* View Order History Button - 유효한 storeId가 있을 때만 표시 */}
+            {isValidStoreId && (
               <div className="px-5 py-5">
                 <button
                   className="w-full h-10 rounded-[10px] border border-[#d1d3d6] bg-white text-sm font-medium text-[#55595e]"
