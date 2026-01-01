@@ -390,7 +390,7 @@ export async function sendLowBalanceAlimTalk(params: {
     messageType: 'POINTS_EARNED', // 타입 재사용 (별도 enum 추가 가능)
     templateId,
     variables: {
-      '#{매장명}': store.name,
+      '#{상호명}': store.name,
     },
     idempotencyKey,
   });
