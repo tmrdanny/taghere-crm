@@ -824,7 +824,7 @@ export default function CustomersPage() {
                   적립 포인트
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  생일
+                  생년월일
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
                   메모
@@ -898,7 +898,11 @@ export default function CustomersPage() {
                         {formatNumber(customer.totalPoints)} p
                       </td>
                       <td className="p-4 text-neutral-600">
-                        {customer.birthday || '-'}
+                        {customer.birthYear && customer.birthday
+                          ? `${customer.birthYear}-${customer.birthday}`
+                          : customer.birthYear
+                          ? `${customer.birthYear}년`
+                          : customer.birthday || '-'}
                       </td>
                       <td className="p-4 max-w-[200px]">
                         <div className="flex items-center gap-2">
