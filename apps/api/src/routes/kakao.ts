@@ -32,7 +32,7 @@ router.get('/start', (req, res) => {
     })
   ).toString('base64');
 
-  const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_CLIENT_ID}&redirect_uri=${encodeURIComponent(KAKAO_REDIRECT_URI)}&response_type=code&state=${state}&scope=profile_nickname,account_email,phone_number,gender,birthday`;
+  const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_CLIENT_ID}&redirect_uri=${encodeURIComponent(KAKAO_REDIRECT_URI)}&response_type=code&state=${state}&scope=profile_nickname,account_email,phone_number,gender,birthday,birthyear`;
 
   res.redirect(kakaoAuthUrl);
 });
@@ -459,7 +459,7 @@ router.get('/taghere-start', (req, res) => {
   // TagHere 전용 콜백 URL
   const tagherRedirectUri = KAKAO_REDIRECT_URI.replace('/callback', '/taghere-callback');
 
-  const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_CLIENT_ID}&redirect_uri=${encodeURIComponent(tagherRedirectUri)}&response_type=code&state=${state}&scope=profile_nickname,account_email,phone_number,gender,birthday`;
+  const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_CLIENT_ID}&redirect_uri=${encodeURIComponent(tagherRedirectUri)}&response_type=code&state=${state}&scope=profile_nickname,account_email,phone_number,gender,birthday,birthyear`;
 
   res.redirect(kakaoAuthUrl);
 });
