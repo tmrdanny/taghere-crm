@@ -146,7 +146,7 @@ router.get('/ordersheet', async (req, res) => {
 
     res.json({
       storeId: store.id,
-      storeName: store.name,
+      storeName: (orderData as any).storeName || store.name,
       ordersheetId,
       resultPrice,
       ratePercent,
@@ -154,6 +154,7 @@ router.get('/ordersheet', async (req, res) => {
       alreadyEarned: !!existingEarn,
       orderItems: orderData.content?.items || orderData.orderItems || orderData.items || [],
       orderNumber: (orderData as any).displayOrderNumber || (orderData as any).orderNumber || null,
+      menuLink: (orderData as any).menuLink || null,
     });
   } catch (error: any) {
     console.error('[TagHere] Ordersheet error:', error);

@@ -9,6 +9,7 @@ interface OrderDetails {
   orderNumber?: string;
   items: { name: string; quantity: number }[];
   totalPrice: number;
+  menuLink?: string;
 }
 
 function CheckIcon() {
@@ -31,12 +32,8 @@ function OrderSuccessContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const storeId = searchParams.get('storeId');
   const ordersheetId = searchParams.get('ordersheetId');
   const slug = searchParams.get('slug') || 'taghere-test';
-
-  // storeId가 유효한 MongoDB ObjectId 형식인지 확인 (24자 hex)
-  const isValidStoreId = storeId && /^[a-f0-9]{24}$/i.test(storeId);
 
   // ordersheetId가 유효한 MongoDB ObjectId 형식인지 확인 (24자 hex)
   const isValidOrdersheetId = ordersheetId && /^[a-f0-9]{24}$/i.test(ordersheetId);
@@ -79,6 +76,7 @@ function OrderSuccessContent() {
               quantity: item.quantity || item.count || 1,
             })),
             totalPrice: data.resultPrice || 0,
+            menuLink: data.menuLink || undefined,
           });
         } else {
           // API 호출 실패해도 기본 UI 표시
@@ -108,9 +106,9 @@ function OrderSuccessContent() {
   }, [ordersheetId, isValidOrdersheetId, slug]);
 
   const handleGoBack = () => {
-    // 태그히어 모바일오더 메뉴 페이지로 돌아가기
-    if (isValidStoreId) {
-      window.location.href = `https://order.taghere.com/store/${storeId}`;
+    // menuLink가 있으면 해당 링크로, 없으면 뒤로가기
+    if (orderDetails?.menuLink) {
+      window.location.href = orderDetails.menuLink;
     } else {
       window.history.back();
     }
@@ -188,8 +186,8 @@ function OrderSuccessContent() {
 
           {/* Order Details Card */}
           <div className="rounded-[10px] border border-[#ebeced] overflow-hidden">
-            {/* Store Info - 유효한 storeId가 있고 상호명이 있을 때만 표시 */}
-            {isValidStoreId && orderDetails.storeName && (
+            {/* Store Info - storeName이 있을 때 표시 */}
+            {orderDetails.storeName && (
               <div className="px-5 py-4 flex items-center gap-2.5 border-b border-[#ebeced]">
                 {orderDetails.storeLogoUrl ? (
                   <img
@@ -227,19 +225,6 @@ function OrderSuccessContent() {
               </span>
             </div>
 
-            {/* View Order History Button - 유효한 storeId가 있을 때만 표시 */}
-            {isValidStoreId && (
-              <div className="px-5 py-5">
-                <button
-                  className="w-full h-10 rounded-[10px] border border-[#d1d3d6] bg-white text-sm font-medium text-[#55595e]"
-                  onClick={() => {
-                    window.location.href = `https://order.taghere.com/store/${storeId}/orders`;
-                  }}
-                >
-                  주문내역 보기
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
@@ -249,7 +234,7 @@ function OrderSuccessContent() {
             onClick={handleGoBack}
             className="w-full py-4 bg-[#FFD541] text-[#1d2022] font-semibold text-base rounded-[10px]"
           >
-            메뉴로 돌아가기
+            메뉴판 돌아가기
           </button>
         </div>
       </div>
