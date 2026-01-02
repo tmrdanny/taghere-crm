@@ -153,6 +153,7 @@ router.get('/ordersheet', async (req, res) => {
       earnPoints,
       alreadyEarned: !!existingEarn,
       orderItems: orderData.content?.items || orderData.orderItems || orderData.items || [],
+      orderNumber: (orderData as any).displayOrderNumber || (orderData as any).orderNumber || null,
     });
   } catch (error: any) {
     console.error('[TagHere] Ordersheet error:', error);

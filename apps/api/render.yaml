@@ -40,6 +40,16 @@ services:
         sync: false
       - key: SOLAPI_TEMPLATE_ID_REVIEW_REQUEST
         sync: false
+      - key: TAGHERE_API_URL
+        sync: false
+      - key: TAGHERE_API_TOKEN_FOR_CRM
+        sync: false
+      - key: TAGHERE_DEV_API_URL
+        sync: false
+      - key: TAGHERE_DEV_API_TOKEN
+        sync: false
+      - key: TAGHERE_WEBHOOK_TOKEN
+        sync: false
 
 databases:
   - name: taghere-db

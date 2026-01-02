@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 interface OrderDetails {
   storeName: string;
   storeLogoUrl?: string;
-  orderNumber: string;
+  orderNumber?: string;
   items: { name: string; quantity: number }[];
   totalPrice: number;
 }
@@ -33,9 +33,13 @@ function OrderSuccessContent() {
 
   const storeId = searchParams.get('storeId');
   const ordersheetId = searchParams.get('ordersheetId');
+  const slug = searchParams.get('slug') || 'taghere-test';
 
   // storeId가 유효한 MongoDB ObjectId 형식인지 확인 (24자 hex)
   const isValidStoreId = storeId && /^[a-f0-9]{24}$/i.test(storeId);
+
+  // ordersheetId가 유효한 MongoDB ObjectId 형식인지 확인 (24자 hex)
+  const isValidOrdersheetId = ordersheetId && /^[a-f0-9]{24}$/i.test(ordersheetId);
 
   useEffect(() => {
     // ordersheetId가 없으면 에러
@@ -45,11 +49,11 @@ function OrderSuccessContent() {
       return;
     }
 
-    // storeId가 없거나 유효하지 않으면 API 호출 없이 기본 UI만 표시
-    if (!isValidStoreId) {
+    // ordersheetId가 유효하지 않으면 기본 UI 표시 (주문번호 없이)
+    if (!isValidOrdersheetId) {
       setOrderDetails({
         storeName: '',
-        orderNumber: `T-${ordersheetId.slice(-4).toUpperCase()}`,
+        orderNumber: undefined,
         items: [],
         totalPrice: 0,
       });
@@ -60,17 +64,28 @@ function OrderSuccessContent() {
     const fetchOrderDetails = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-        const res = await fetch(`${apiUrl}/api/taghere/order-details?storeId=${storeId}&ordersheetId=${ordersheetId}`);
+        // ordersheetId로 주문 정보 조회
+        const res = await fetch(`${apiUrl}/api/taghere/ordersheet?ordersheetId=${ordersheetId}&slug=${slug}`);
 
         if (res.ok) {
           const data = await res.json();
-          setOrderDetails(data);
+          // ordersheet API 응답을 order-details 형식으로 변환
+          setOrderDetails({
+            storeName: data.storeName || '',
+            storeLogoUrl: undefined,
+            orderNumber: data.orderNumber || undefined,
+            items: (data.orderItems || []).map((item: any) => ({
+              name: item.name || item.menuName || item.label || '상품',
+              quantity: item.quantity || item.count || 1,
+            })),
+            totalPrice: data.resultPrice || 0,
+          });
         } else {
           // API 호출 실패해도 기본 UI 표시
           console.error('Failed to fetch order details, showing default UI');
           setOrderDetails({
             storeName: '',
-            orderNumber: `T-${ordersheetId.slice(-4).toUpperCase()}`,
+            orderNumber: undefined,
             items: [],
             totalPrice: 0,
           });
@@ -80,7 +95,7 @@ function OrderSuccessContent() {
         // 에러 발생해도 기본 UI 표시
         setOrderDetails({
           storeName: '',
-          orderNumber: `T-${ordersheetId.slice(-4).toUpperCase()}`,
+          orderNumber: undefined,
           items: [],
           totalPrice: 0,
         });
@@ -90,7 +105,7 @@ function OrderSuccessContent() {
     };
 
     fetchOrderDetails();
-  }, [storeId, ordersheetId, isValidStoreId]);
+  }, [ordersheetId, isValidOrdersheetId, slug]);
 
   const handleGoBack = () => {
     // 태그히어 모바일오더 메뉴 페이지로 돌아가기
@@ -147,27 +162,29 @@ function OrderSuccessContent() {
             </h1>
           </div>
 
-          {/* Order Number Card */}
-          <div
-            className="rounded-[10px] p-4 mb-4 flex items-center justify-between"
-            style={{
-              boxShadow: '0px 5px 10px rgba(18, 27, 76, 0.08)',
-              background: '#fff padding-box, linear-gradient(-86.27deg, #141dd5, #aa00ff) border-box',
-              border: '1px solid transparent',
-            }}
-          >
-            <span className="text-base font-semibold text-[#55595e]">주문번호</span>
-            <span
-              className="text-[28px] font-bold tracking-tight"
+          {/* Order Number Card - 주문번호가 있을 때만 표시 */}
+          {orderDetails.orderNumber && (
+            <div
+              className="rounded-[10px] p-4 mb-4 flex items-center justify-between"
               style={{
-                background: 'linear-gradient(91.01deg, #129efc, #7d0fe3)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                boxShadow: '0px 5px 10px rgba(18, 27, 76, 0.08)',
+                background: '#fff padding-box, linear-gradient(-86.27deg, #141dd5, #aa00ff) border-box',
+                border: '1px solid transparent',
               }}
             >
-              {orderDetails.orderNumber}
-            </span>
-          </div>
+              <span className="text-base font-semibold text-[#55595e]">주문번호</span>
+              <span
+                className="text-[28px] font-bold tracking-tight"
+                style={{
+                  background: 'linear-gradient(91.01deg, #129efc, #7d0fe3)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                {orderDetails.orderNumber}
+              </span>
+            </div>
+          )}
 
           {/* Order Details Card */}
           <div className="rounded-[10px] border border-[#ebeced] overflow-hidden">
@@ -189,24 +206,26 @@ function OrderSuccessContent() {
               </div>
             )}
 
-            {/* Order Items - items가 있을 때만 표시 */}
-            {orderDetails.items.length > 0 && (
-              <div className="px-5 py-4 border-b border-[#ebeced]">
-                {orderDetails.items.map((item, index) => (
+            {/* Order Items - 항상 표시 */}
+            <div className="px-5 py-4 border-b border-[#ebeced]">
+              {orderDetails.items.length > 0 ? (
+                orderDetails.items.map((item, index) => (
                   <div key={index} className="text-sm font-medium text-[#55595e] leading-[1.3] mb-1.5 last:mb-0">
                     {item.name} {item.quantity}개
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              ) : (
+                <div className="text-sm font-medium text-[#55595e]">-</div>
+              )}
+            </div>
 
-            {/* Total Price - totalPrice가 있을 때만 표시 */}
-            {orderDetails.totalPrice > 0 && (
-              <div className="px-5 py-4 flex items-center justify-between border-b border-[#ebeced]">
-                <span className="text-base font-semibold text-[#1d2022]">총 주문금액</span>
-                <span className="text-base font-semibold text-[#1d2022]">{formatNumber(orderDetails.totalPrice)}원</span>
-              </div>
-            )}
+            {/* Total Price - 항상 표시 */}
+            <div className="px-5 py-4 flex items-center justify-between border-b border-[#ebeced]">
+              <span className="text-base font-semibold text-[#1d2022]">총 주문금액</span>
+              <span className="text-base font-semibold text-[#1d2022]">
+                {orderDetails.totalPrice > 0 ? `${formatNumber(orderDetails.totalPrice)}원` : '-'}
+              </span>
+            </div>
 
             {/* View Order History Button - 유효한 storeId가 있을 때만 표시 */}
             {isValidStoreId && (

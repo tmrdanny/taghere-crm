@@ -224,6 +224,9 @@ function TaghereEnrollContent() {
   const storeId = searchParams.get('storeId');
   const urlError = searchParams.get('error');
 
+  // ordersheetId가 유효한 MongoDB ObjectId 형식인지 확인 (24자 hex)
+  const isValidOrdersheetId = ordersheetId && /^[a-f0-9]{24}$/i.test(ordersheetId);
+
   // Success params from redirect
   const successPoints = searchParams.get('points');
   const successStoreName = searchParams.get('successStoreName');
@@ -316,6 +319,7 @@ function TaghereEnrollContent() {
       const effectiveStoreId = storeId || orderInfo?.storeId;
       if (effectiveStoreId) url.searchParams.set('storeId', effectiveStoreId);
       url.searchParams.set('ordersheetId', ordersheetId);
+      url.searchParams.set('slug', slug);
       window.location.href = url.toString();
       return;
     }
