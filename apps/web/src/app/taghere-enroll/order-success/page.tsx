@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation';
 
 interface OrderDetails {
   storeName: string;
-  storeLogoUrl?: string;
   orderNumber?: string;
   items: { name: string; quantity: number }[];
   totalPrice: number;
@@ -69,7 +68,6 @@ function OrderSuccessContent() {
           // ordersheet API 응답을 order-details 형식으로 변환
           setOrderDetails({
             storeName: data.storeName || '',
-            storeLogoUrl: undefined,
             orderNumber: data.orderNumber || undefined,
             items: (data.orderItems || []).map((item: any) => ({
               name: item.name || item.menuName || item.label || '상품',
@@ -188,18 +186,7 @@ function OrderSuccessContent() {
           <div className="rounded-[10px] border border-[#ebeced] overflow-hidden">
             {/* Store Info - storeName이 있을 때 표시 */}
             {orderDetails.storeName && (
-              <div className="px-5 py-4 flex items-center gap-2.5 border-b border-[#ebeced]">
-                {orderDetails.storeLogoUrl ? (
-                  <img
-                    src={orderDetails.storeLogoUrl}
-                    alt={orderDetails.storeName}
-                    className="w-[30px] h-[30px] rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-[30px] h-[30px] rounded-full bg-neutral-200 flex items-center justify-center text-xs">
-                    🏪
-                  </div>
-                )}
+              <div className="px-5 py-4 border-b border-[#ebeced]">
                 <span className="text-sm font-semibold text-[#1d2022]">{orderDetails.storeName}</span>
               </div>
             )}
