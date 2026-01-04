@@ -324,37 +324,35 @@ function TaghereEnrollContent() {
   return (
     <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
       <div className="w-full max-w-[430px] h-full flex flex-col bg-white relative">
-        {/* Title - 상단 고정 위치 (top: 114px from figma) */}
-        <div className="text-center pt-[114px]">
-          <p className="text-[28px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
-            방금 전 주문으로 적립된
-            <br />
-            <span className="text-[#61EB49]">{formatNumber(orderInfo?.earnPoints || 0)}P</span>
-            <span> 받아가세요</span>
-          </p>
-          {orderInfo && orderInfo.resultPrice > 0 && (
-            <p className="text-[15px] font-medium text-[#b1b5b8] leading-[130%] mt-2">
-              주문 금액 {formatNumber(orderInfo.resultPrice)}원 x {orderInfo.ratePercent}% 적립
+        {/* Title - 상단 영역 (flex: 1) */}
+        <div className="flex-1 flex flex-col justify-end pb-4">
+          <div className="text-center">
+            <p className="text-[28px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
+              방금 전 주문으로 적립된
+              <br />
+              <span className="text-[#61EB49]">{formatNumber(orderInfo?.earnPoints || 0)}P</span>
+              <span> 받아가세요</span>
             </p>
-          )}
+            {orderInfo && orderInfo.resultPrice > 0 && (
+              <p className="text-[15px] font-medium text-[#b1b5b8] leading-[130%] mt-2">
+                주문 금액 {formatNumber(orderInfo.resultPrice)}원 x {orderInfo.ratePercent}% 적립
+              </p>
+            )}
+          </div>
         </div>
 
-        {/* Coin Image - 화면 중앙 */}
-        <div className="flex-1 flex items-center justify-center">
+        {/* Coin Image - 중앙 영역 (flex: 2) */}
+        <div className="flex-[2] flex items-center justify-center">
           <CoinImage onClick={handleOpenGift} isOpening={isOpening} />
         </div>
 
-        {/* Info Text Box - top: 593px from figma */}
-        <div className="px-5">
-          <div className="rounded-[12px] bg-[#f8f9fa] p-4 text-center">
+        {/* Info Text Box + CTA - 하단 영역 (flex: 1.5) */}
+        <div className="flex-[1.5] flex flex-col justify-end px-5 pb-8">
+          <div className="rounded-[12px] bg-[#f8f9fa] p-4 text-center mb-[10px]">
             <p className="text-[18px] font-medium text-[#55595e] leading-[130%]">
               카카오 로그인하면 <span className="text-[#61EB49]">포인트</span>를 받을 수 있어요
             </p>
           </div>
-        </div>
-
-        {/* Bottom CTA - padding: 10px 20px 32px from figma */}
-        <div className="flex-shrink-0 px-5 pt-[10px] pb-8">
           <button
             onClick={handleOpenGift}
             disabled={isOpening}
