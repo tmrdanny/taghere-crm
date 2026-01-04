@@ -72,8 +72,8 @@ function CoinImage({ onClick, isOpening }: { onClick: () => void; isOpening: boo
         }
 
         .coin-image {
-          width: 320px;
-          height: 320px;
+          width: 240px;
+          height: 240px;
           object-fit: contain;
         }
 
@@ -328,14 +328,14 @@ function TaghereEnrollContent() {
         {/* Title - 상단 영역 (flex: 1) */}
         <div className="flex-1 flex flex-col justify-end pb-4">
           <div className="text-center">
-            <p className="text-[28px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
+            <p className="text-[21px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
               방금 전 주문으로 적립된
               <br />
               <span className="text-[#61EB49]">{formatNumber(orderInfo?.earnPoints || 0)}P</span>
               <span> 받아가세요</span>
             </p>
             {orderInfo && orderInfo.resultPrice > 0 && (
-              <p className="text-[15px] font-medium text-[#b1b5b8] leading-[130%] mt-2">
+              <p className="text-[11px] font-medium text-[#b1b5b8] leading-[130%] mt-2">
                 주문 금액 {formatNumber(orderInfo.resultPrice)}원 x {orderInfo.ratePercent}% 적립
               </p>
             )}
@@ -349,8 +349,8 @@ function TaghereEnrollContent() {
 
         {/* Info Text Box - 코인 아래 */}
         <div className="px-5">
-          <div className="rounded-[12px] bg-[#f8f9fa] p-4 text-center">
-            <p className="text-[18px] font-medium text-[#55595e] leading-[130%]">
+          <div className="rounded-[12px] bg-[#f8f9fa] p-3 text-center">
+            <p className="text-[14px] font-medium text-[#55595e] leading-[130%]">
               카카오 로그인하면 <span className="text-[#61EB49]">포인트</span>를 받을 수 있어요
             </p>
           </div>
@@ -359,29 +359,29 @@ function TaghereEnrollContent() {
         {/* 하단 고정 영역 - 체크박스 + CTA */}
         <div className="flex-[1.2] flex flex-col justify-end px-5 pb-8">
           {/* 동의 체크박스 */}
-          <div className="flex items-center justify-between px-4 py-4 border border-[#e5e5e5] rounded-xl mb-3">
+          <div className="flex items-center justify-between px-3 py-3 border border-[#e5e5e5] rounded-[10px] mb-3">
             <button
               type="button"
               onClick={() => setIsAgreed(!isAgreed)}
-              className="flex items-center gap-3 flex-1"
+              className="flex items-center gap-2.5 flex-1"
             >
-              <div className={`w-[22px] h-[22px] border-2 rounded flex items-center justify-center transition-colors flex-shrink-0 ${
+              <div className={`w-[18px] h-[18px] border-2 rounded flex items-center justify-center transition-colors flex-shrink-0 ${
                 isAgreed ? 'bg-[#FFD541] border-[#FFD541]' : 'border-[#d1d5db] bg-white'
               }`}>
                 {isAgreed && (
-                  <svg className="w-3.5 h-3.5 text-[#1d2022]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 text-[#1d2022]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 )}
               </div>
-              <span className="text-[15px] text-[#1d2022] text-left">[필수] 매장 포인트 알림 및 혜택 수신 동의</span>
+              <span className="text-[11px] text-[#1d2022] text-left">[필수] 매장 포인트 알림 및 혜택 수신 동의</span>
             </button>
             <button
               type="button"
               onClick={() => window.open('https://tmr-founders.notion.site/2de2217234e3807bbfa0db51b12a5e77?source=copy_link', '_blank')}
               className="p-1 text-[#9ca3af] hover:text-[#6b7280] transition-colors flex-shrink-0"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
@@ -390,7 +390,7 @@ function TaghereEnrollContent() {
           <button
             onClick={handleOpenGift}
             disabled={isOpening || !isAgreed}
-            className={`w-full h-16 font-bold text-[18px] leading-[130%] rounded-xl transition-colors flex items-center justify-center ${
+            className={`w-full py-4 font-semibold text-base rounded-[10px] transition-colors ${
               isAgreed
                 ? 'bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022]'
                 : 'bg-[#e5e5e5] text-[#9ca3af] cursor-not-allowed'
