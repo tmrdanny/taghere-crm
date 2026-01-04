@@ -34,6 +34,18 @@ function formatNumber(num: number): string {
   return num.toLocaleString('ko-KR');
 }
 
+// 이미지 URL을 전체 경로로 변환
+function getFullImageUrl(imageUrl: string): string {
+  if (!imageUrl) return '';
+  // 이미 전체 URL이면 그대로 반환
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  // 상대 경로면 API URL 붙이기
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  return `${apiUrl}${imageUrl}`;
+}
+
 // 바텀 모달 컴포넌트
 function BottomModal({
   isOpen,
@@ -141,7 +153,7 @@ function BottomModal({
                       onClick={() => handleBannerClick(banner)}
                     >
                       <img
-                        src={banner.imageUrl}
+                        src={getFullImageUrl(banner.imageUrl)}
                         alt={banner.title}
                         className="w-full aspect-[2/1] object-cover rounded-[12px]"
                       />
@@ -282,9 +294,12 @@ function OrderSuccessContent() {
     fetchOrderDetails();
   }, [ordersheetId, isValidOrdersheetId, slug]);
 
-  // 배너 로드 및 바텀 모달 표시 (taghere-test만)
+  // 배너 로드 및 바텀 모달 즉시 표시 (taghere-test만)
   useEffect(() => {
-    if (!shouldShowModal || isLoading) return;
+    if (!shouldShowModal) return;
+
+    // 모달 먼저 표시 (배너 로드와 별개로)
+    setShowBottomModal(true);
 
     const fetchBanners = async () => {
       try {
@@ -293,19 +308,14 @@ function OrderSuccessContent() {
         if (res.ok) {
           const data = await res.json();
           setBanners(data);
-          // 배너가 있든 없든 모달 표시 (텍스트는 항상 보임)
-          setShowBottomModal(true);
         }
       } catch (e) {
         console.error('Failed to fetch banners:', e);
-        // 배너 로드 실패해도 모달은 표시
-        setShowBottomModal(true);
       }
     };
 
-    // 즉시 배너 로드 및 모달 표시
     fetchBanners();
-  }, [shouldShowModal, isLoading, slug]);
+  }, [shouldShowModal, slug]);
 
   const handleGoBack = () => {
     // menuLink가 있으면 해당 링크로, 없으면 뒤로가기
