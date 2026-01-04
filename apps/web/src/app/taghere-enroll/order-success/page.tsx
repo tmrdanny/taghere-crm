@@ -57,8 +57,8 @@ function BottomModal({
   banners: Banner[];
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [touchStart, setTouchStart] = useState(0);
-  const [touchEnd, setTouchEnd] = useState(0);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchEndX, setTouchEndX] = useState<number | null>(null);
 
   // 자동 슬라이드
   useEffect(() => {
@@ -75,28 +75,32 @@ function BottomModal({
   }, [isOpen, banners, currentIndex]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.touches[0].clientX);
+    setTouchEndX(null);
+    setTouchStartX(e.touches[0].clientX);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.touches[0].clientX);
+    setTouchEndX(e.touches[0].clientX);
   };
 
   const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const minSwipeDistance = 50;
+    if (touchStartX === null || touchEndX === null) return;
+
+    const distance = touchStartX - touchEndX;
+    const minSwipeDistance = 30; // 더 민감하게
 
     if (Math.abs(distance) > minSwipeDistance) {
-      if (distance > 0 && currentIndex < banners.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-      } else if (distance < 0 && currentIndex > 0) {
-        setCurrentIndex(currentIndex - 1);
+      if (distance > 0) {
+        // 왼쪽으로 스와이프 -> 다음
+        setCurrentIndex((prev) => (prev + 1) % banners.length);
+      } else {
+        // 오른쪽으로 스와이프 -> 이전
+        setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length);
       }
     }
 
-    setTouchStart(0);
-    setTouchEnd(0);
+    setTouchStartX(null);
+    setTouchEndX(null);
   };
 
   const handleBannerClick = (banner: Banner) => {

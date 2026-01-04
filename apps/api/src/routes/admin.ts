@@ -642,12 +642,45 @@ router.get('/banners/active', async (req: Request, res: Response) => {
       orderBy: { order: 'asc' },
     });
 
-    res.json(banners);
+    // 같은 order 값을 가진 배너들끼리 랜덤하게 섞기
+    const shuffledBanners = shuffleSameOrder(banners);
+
+    res.json(shuffledBanners);
   } catch (error) {
     console.error('Active banners error:', error);
     res.status(500).json({ error: '배너 조회 중 오류가 발생했습니다.' });
   }
 });
+
+// 같은 order 값을 가진 항목들을 랜덤하게 섞는 함수
+function shuffleSameOrder<T extends { order: number }>(items: T[]): T[] {
+  if (items.length <= 1) return items;
+
+  // order 값으로 그룹화
+  const groups = new Map<number, T[]>();
+  for (const item of items) {
+    const group = groups.get(item.order) || [];
+    group.push(item);
+    groups.set(item.order, group);
+  }
+
+  // 각 그룹 내에서 랜덤하게 섞기 (Fisher-Yates)
+  for (const group of groups.values()) {
+    for (let i = group.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [group[i], group[j]] = [group[j], group[i]];
+    }
+  }
+
+  // order 순서대로 결과 배열 생성
+  const sortedOrders = Array.from(groups.keys()).sort((a, b) => a - b);
+  const result: T[] = [];
+  for (const order of sortedOrders) {
+    result.push(...(groups.get(order) || []));
+  }
+
+  return result;
+}
 
 // POST /api/admin/banners/upload - 배너 이미지 업로드
 router.post('/banners/upload', adminAuthMiddleware, bannerUpload.single('image'), async (req: AdminRequest, res: Response) => {
