@@ -72,8 +72,8 @@ function CoinImage({ onClick, isOpening }: { onClick: () => void; isOpening: boo
         }
 
         .coin-image {
-          width: 200px;
-          height: 200px;
+          width: 320px;
+          height: 320px;
           object-fit: contain;
         }
 
@@ -323,42 +323,43 @@ function TaghereEnrollContent() {
 
   return (
     <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
-      <div className="w-full max-w-md h-full flex flex-col bg-white">
-        {/* Main Content - 중앙 정렬 */}
-        <div className="flex-1 flex flex-col items-center justify-center px-[30px] min-h-0">
-          {/* Title */}
-          <div className="text-center mb-4">
-            <p className="text-lg text-neutral-900 mb-0.5">
-              방금 전 주문으로 적립된
-            </p>
-            <p className="text-[28px] font-bold">
-              <span className="text-[#61EB49]">{formatNumber(orderInfo?.earnPoints || 0)}P</span>
-              <span className="text-neutral-900"> 받아가세요</span>
-            </p>
-            {orderInfo && orderInfo.resultPrice > 0 && (
-              <p className="text-sm text-neutral-400 mt-2">
-                주문 금액 {formatNumber(orderInfo.resultPrice)}원 x {orderInfo.ratePercent}% 적립
-              </p>
-            )}
-          </div>
-
-          {/* Coin Image */}
-          <div className="my-4">
-            <CoinImage onClick={handleOpenGift} isOpening={isOpening} />
-          </div>
-
-          {/* Info Text */}
-          <p className="text-sm text-neutral-500 text-center">
-            카카오 로그인하면 <span className="text-[#61EB49] font-medium">포인트</span>를 받을 수 있어요
+      <div className="w-full max-w-[430px] h-full flex flex-col bg-white relative">
+        {/* Title - 상단 고정 위치 */}
+        <div className="text-center pt-[60px]">
+          <p className="text-[28px] font-bold text-[#1d2022] leading-[1.3] tracking-[-0.6px]">
+            방금 전 주문으로 적립된
           </p>
+          <p className="text-[28px] font-bold leading-[1.3] tracking-[-0.6px]">
+            <span className="text-[#61EB49]">{formatNumber(orderInfo?.earnPoints || 0)}P</span>
+            <span className="text-[#1d2022]"> 받아가세요</span>
+          </p>
+          {orderInfo && orderInfo.resultPrice > 0 && (
+            <p className="text-[15px] font-medium text-[#b1b5b8] mt-3 leading-[1.3]">
+              주문 금액 {formatNumber(orderInfo.resultPrice)}원 x {orderInfo.ratePercent}% 적립
+            </p>
+          )}
+        </div>
+
+        {/* Coin Image - 화면 중앙 */}
+        <div className="flex-1 flex items-center justify-center">
+          <CoinImage onClick={handleOpenGift} isOpening={isOpening} />
+        </div>
+
+        {/* Info Text Box - 하단 영역 */}
+        <div className="px-5">
+          <div className="bg-[#f8f9fa] rounded-[12px] p-4 text-center">
+            <p className="text-[18px] font-medium text-[#55595e] leading-[1.3]">
+              카카오 로그인하면 <span className="text-[#61EB49]">포인트</span>를 받을 수 있어요
+            </p>
+          </div>
         </div>
 
         {/* Bottom CTA - safe area 고려 */}
-        <div className="flex-shrink-0 px-[30px] pb-[max(16px,env(safe-area-inset-bottom))] pt-4">
+        <div className="flex-shrink-0 px-5 pb-8 pt-[10px]">
           <button
             onClick={handleOpenGift}
             disabled={isOpening}
-            className="w-full py-4 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
+            className="w-full h-16 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-[#1d2022] font-bold text-[18px] rounded-lg transition-colors leading-[1.3]"
           >
             {isOpening ? '적립 중...' : '포인트 적립하기'}
           </button>
