@@ -354,7 +354,7 @@ function TaghereEnrollContent() {
           }} isOpening={isOpening} />
         </div>
 
-        Info Text Box - 코인 아래
+        {/* Info Text Box - 코인 아래 */}
         <div className="px-5">
           <div className="rounded-[12px] bg-[#f8f9fa] p-3 text-center">
             <p className="text-[14px] font-medium text-[#55595e] leading-[130%]">
