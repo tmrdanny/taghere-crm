@@ -102,7 +102,6 @@ function SuccessPopup({
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackText, setFeedbackText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleSubmit = async () => {
     if (!successData.customerId) {
@@ -123,7 +122,8 @@ function SuccessPopup({
           feedbackText: feedbackText.trim() || null,
         }),
       });
-      setIsSubmitted(true);
+      // 제출 완료 후 팝업 없이 바로 order-success로 이동
+      onClose();
     } catch (error) {
       console.error('Feedback submission error:', error);
       onClose();
@@ -131,28 +131,6 @@ function SuccessPopup({
       setIsSubmitting(false);
     }
   };
-
-  // 제출 완료 화면
-  if (isSubmitted) {
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-[30px]">
-        <div className="bg-white rounded-2xl w-full max-w-[315px] shadow-xl overflow-hidden p-6 text-center">
-          <h2 className="text-lg font-bold text-neutral-900 mb-2">
-            제출이 완료되었어요!
-          </h2>
-          <p className="text-sm text-neutral-500 mb-5">
-            소중한 의견 감사합니다
-          </p>
-          <button
-            onClick={onClose}
-            className="w-full py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
-          >
-            확인
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-[30px]">

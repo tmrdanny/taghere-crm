@@ -121,9 +121,6 @@ function BottomModal({
             </p>
           </div>
 
-          {/* Divider */}
-          <div className="h-[10px] bg-[#eaeced]" />
-
           {/* Banner Carousel */}
           {banners.length > 0 && (
             <div className="px-5 pt-5">
@@ -306,9 +303,8 @@ function OrderSuccessContent() {
       }
     };
 
-    // 약간의 딜레이 후 모달 표시
-    const timer = setTimeout(fetchBanners, 500);
-    return () => clearTimeout(timer);
+    // 즉시 배너 로드 및 모달 표시
+    fetchBanners();
   }, [shouldShowModal, isLoading, slug]);
 
   const handleGoBack = () => {
