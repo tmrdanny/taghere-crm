@@ -483,4 +483,136 @@ router.delete('/stores/:storeId/customers', adminAuthMiddleware, async (req: Adm
   }
 });
 
+// ========================================
+// 주문완료 배너 관리 API
+// ========================================
+
+// GET /api/admin/banners - 배너 목록 조회
+router.get('/banners', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const banners = await prisma.orderCompleteBanner.findMany({
+      orderBy: [
+        { order: 'asc' },
+        { createdAt: 'desc' },
+      ],
+    });
+
+    res.json(banners);
+  } catch (error) {
+    console.error('Admin banners error:', error);
+    res.status(500).json({ error: '배너 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/banners - 배너 생성
+router.post('/banners', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { title, imageUrl, linkUrl, isActive, order, autoSlide, slideInterval, targetSlugs } = req.body;
+
+    if (!title || !imageUrl) {
+      return res.status(400).json({ error: '제목과 이미지 URL을 입력해주세요.' });
+    }
+
+    const banner = await prisma.orderCompleteBanner.create({
+      data: {
+        title,
+        imageUrl,
+        linkUrl: linkUrl || null,
+        isActive: isActive ?? true,
+        order: order ?? 0,
+        autoSlide: autoSlide ?? true,
+        slideInterval: slideInterval ?? 3000,
+        targetSlugs: targetSlugs || [],
+      },
+    });
+
+    res.status(201).json(banner);
+  } catch (error) {
+    console.error('Admin create banner error:', error);
+    res.status(500).json({ error: '배너 생성 중 오류가 발생했습니다.' });
+  }
+});
+
+// PUT /api/admin/banners/:id - 배너 수정
+router.put('/banners/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { title, imageUrl, linkUrl, isActive, order, autoSlide, slideInterval, targetSlugs } = req.body;
+
+    const existing = await prisma.orderCompleteBanner.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: '배너를 찾을 수 없습니다.' });
+    }
+
+    const banner = await prisma.orderCompleteBanner.update({
+      where: { id },
+      data: {
+        title: title ?? existing.title,
+        imageUrl: imageUrl ?? existing.imageUrl,
+        linkUrl: linkUrl !== undefined ? (linkUrl || null) : existing.linkUrl,
+        isActive: isActive ?? existing.isActive,
+        order: order ?? existing.order,
+        autoSlide: autoSlide ?? existing.autoSlide,
+        slideInterval: slideInterval ?? existing.slideInterval,
+        targetSlugs: targetSlugs ?? existing.targetSlugs,
+      },
+    });
+
+    res.json(banner);
+  } catch (error) {
+    console.error('Admin update banner error:', error);
+    res.status(500).json({ error: '배너 수정 중 오류가 발생했습니다.' });
+  }
+});
+
+// DELETE /api/admin/banners/:id - 배너 삭제
+router.delete('/banners/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.orderCompleteBanner.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: '배너를 찾을 수 없습니다.' });
+    }
+
+    await prisma.orderCompleteBanner.delete({
+      where: { id },
+    });
+
+    res.json({ success: true, message: '배너가 삭제되었습니다.' });
+  } catch (error) {
+    console.error('Admin delete banner error:', error);
+    res.status(500).json({ error: '배너 삭제 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/admin/banners/active - 특정 slug에 대한 활성 배너 조회 (공개 API)
+router.get('/banners/active', async (req: Request, res: Response) => {
+  try {
+    const { slug } = req.query;
+
+    const banners = await prisma.orderCompleteBanner.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { targetSlugs: { isEmpty: true } }, // 전체 대상
+          { targetSlugs: { has: slug as string } }, // 특정 slug 대상
+        ],
+      },
+      orderBy: { order: 'asc' },
+    });
+
+    res.json(banners);
+  } catch (error) {
+    console.error('Active banners error:', error);
+    res.status(500).json({ error: '배너 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;

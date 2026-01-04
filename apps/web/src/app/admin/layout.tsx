@@ -113,6 +113,16 @@ export default function AdminLayout({
                 >
                   공지사항
                 </Link>
+                <Link
+                  href="/admin/banners"
+                  className={`text-sm transition-colors ${
+                    pathname === '/admin/banners'
+                      ? 'text-white font-medium'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  배너 관리
+                </Link>
               </nav>
             </div>
 

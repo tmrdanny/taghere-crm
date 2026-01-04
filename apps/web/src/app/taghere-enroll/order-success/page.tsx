@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 interface OrderDetails {
@@ -9,6 +9,15 @@ interface OrderDetails {
   items: { name: string; quantity: number }[];
   totalPrice: number;
   menuLink?: string;
+}
+
+interface Banner {
+  id: string;
+  title: string;
+  imageUrl: string;
+  linkUrl: string | null;
+  autoSlide: boolean;
+  slideInterval: number;
 }
 
 function CheckIcon() {
@@ -25,14 +34,187 @@ function formatNumber(num: number): string {
   return num.toLocaleString('ko-KR');
 }
 
+// 바텀 모달 컴포넌트
+function BottomModal({
+  isOpen,
+  onClose,
+  banners,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  banners: Banner[];
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+
+  // 자동 슬라이드
+  useEffect(() => {
+    if (!isOpen || banners.length <= 1) return;
+
+    const currentBanner = banners[currentIndex];
+    if (!currentBanner?.autoSlide) return;
+
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % banners.length);
+    }, currentBanner.slideInterval || 3000);
+
+    return () => clearInterval(interval);
+  }, [isOpen, banners, currentIndex]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const minSwipeDistance = 50;
+
+    if (Math.abs(distance) > minSwipeDistance) {
+      if (distance > 0 && currentIndex < banners.length - 1) {
+        setCurrentIndex(currentIndex + 1);
+      } else if (distance < 0 && currentIndex > 0) {
+        setCurrentIndex(currentIndex - 1);
+      }
+    }
+
+    setTouchStart(0);
+    setTouchEnd(0);
+  };
+
+  const handleBannerClick = (banner: Banner) => {
+    if (banner.linkUrl) {
+      window.open(banner.linkUrl, '_blank');
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center">
+        <div className="w-full max-w-md bg-white rounded-t-[10px] overflow-hidden animate-slide-up">
+          {/* Handle */}
+          <div className="flex justify-center pt-2 pb-4">
+            <div className="w-10 h-1 bg-[#f2f3f4] rounded-full" />
+          </div>
+
+          {/* Content */}
+          <div className="px-5 pb-4 text-center">
+            <h2 className="text-xl font-bold text-black leading-[1.3] tracking-[-0.08px]">
+              결제는 카운터에서
+            </h2>
+            <p className="text-base text-[#91949a] mt-2 leading-[1.5]">
+              식사 후에 결제는 카운터에서 해야돼요
+            </p>
+          </div>
+
+          {/* Divider */}
+          <div className="h-[10px] bg-[#eaeced]" />
+
+          {/* Banner Carousel */}
+          {banners.length > 0 && (
+            <div className="px-5 pt-5">
+              <div
+                className="relative overflow-hidden rounded-[12px]"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              >
+                <div
+                  className="flex transition-transform duration-300 ease-out"
+                  style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+                >
+                  {banners.map((banner) => (
+                    <div
+                      key={banner.id}
+                      className="w-full flex-shrink-0 cursor-pointer"
+                      onClick={() => handleBannerClick(banner)}
+                    >
+                      <img
+                        src={banner.imageUrl}
+                        alt={banner.title}
+                        className="w-full aspect-[2/1] object-cover rounded-[12px]"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Indicators */}
+                {banners.length > 1 && (
+                  <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-1.5">
+                    {banners.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentIndex(index);
+                        }}
+                        className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                          index === currentIndex ? 'bg-white' : 'bg-white/50'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Button */}
+          <div className="px-5 pt-4 pb-[max(30px,env(safe-area-inset-bottom))]">
+            <button
+              onClick={onClose}
+              className="w-full py-4 bg-[#ffd541] text-[#030404] font-semibold text-base rounded-[10px] leading-[1.3]"
+            >
+              확인했어요
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <style jsx>{`
+        @keyframes slide-up {
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out;
+        }
+      `}</style>
+    </>
+  );
+}
+
 function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showBottomModal, setShowBottomModal] = useState(false);
+  const [banners, setBanners] = useState<Banner[]>([]);
 
   const ordersheetId = searchParams.get('ordersheetId');
   const slug = searchParams.get('slug') || 'taghere-test';
+
+  // taghere-test slug일 때만 배너 로드 및 바텀 모달 표시
+  const shouldShowModal = slug === 'taghere-test';
 
   // ordersheetId가 유효한 MongoDB ObjectId 형식인지 확인 (24자 hex)
   const isValidOrdersheetId = ordersheetId && /^[a-f0-9]{24}$/i.test(ordersheetId);
@@ -102,6 +284,32 @@ function OrderSuccessContent() {
 
     fetchOrderDetails();
   }, [ordersheetId, isValidOrdersheetId, slug]);
+
+  // 배너 로드 및 바텀 모달 표시 (taghere-test만)
+  useEffect(() => {
+    if (!shouldShowModal || isLoading) return;
+
+    const fetchBanners = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${apiUrl}/api/admin/banners/active?slug=${slug}`);
+        if (res.ok) {
+          const data = await res.json();
+          setBanners(data);
+          // 배너가 있든 없든 모달 표시 (텍스트는 항상 보임)
+          setShowBottomModal(true);
+        }
+      } catch (e) {
+        console.error('Failed to fetch banners:', e);
+        // 배너 로드 실패해도 모달은 표시
+        setShowBottomModal(true);
+      }
+    };
+
+    // 약간의 딜레이 후 모달 표시
+    const timer = setTimeout(fetchBanners, 500);
+    return () => clearTimeout(timer);
+  }, [shouldShowModal, isLoading, slug]);
 
   const handleGoBack = () => {
     // menuLink가 있으면 해당 링크로, 없으면 뒤로가기
@@ -233,6 +441,13 @@ function OrderSuccessContent() {
           font-family: 'Pretendard JP Variable', 'Pretendard JP', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
         }
       `}</style>
+
+      {/* 바텀 모달 (taghere-test만) */}
+      <BottomModal
+        isOpen={showBottomModal}
+        onClose={() => setShowBottomModal(false)}
+        banners={banners}
+      />
     </div>
   );
 }
