@@ -345,8 +345,8 @@ function TaghereEnrollContent() {
           <CoinImage onClick={handleOpenGift} isOpening={isOpening} />
         </div>
 
-        {/* Info Text Box - 하단 영역 */}
-        <div className="px-5">
+        {/* Info Text Box - 코인 이미지 아래 */}
+        <div className="px-5 mb-auto">
           <div className="bg-neutral-100 rounded-xl p-4 text-center">
             <p className="text-base text-neutral-600">
               카카오 로그인하면 <span className="text-[#61EB49] font-medium">포인트</span>를 받을 수 있어요
@@ -355,7 +355,7 @@ function TaghereEnrollContent() {
         </div>
 
         {/* Bottom CTA - safe area 고려 */}
-        <div className="flex-shrink-0 px-5 pb-8 pt-4">
+        <div className="flex-shrink-0 px-5 pb-8 pt-6">
           <button
             onClick={handleOpenGift}
             disabled={isOpening}
