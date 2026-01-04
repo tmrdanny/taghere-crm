@@ -197,6 +197,7 @@ function TaghereEnrollContent() {
   const [showAlreadyParticipated, setShowAlreadyParticipated] = useState(false);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const [isAgreed, setIsAgreed] = useState(false);
+  const [showAgreementWarning, setShowAgreementWarning] = useState(false);
 
   const slug = params.slug as string;
   const ordersheetId = searchParams.get('ordersheetId');
@@ -350,7 +351,7 @@ function TaghereEnrollContent() {
         {/* Info Text Box - 코인 아래 */}
         <div className="px-5">
           <div className="rounded-[12px] bg-[#f8f9fa] p-3 text-center">
-            <p className="text-[14px] font-medium text-[#55595e] leading-[130%]">
+            <p className="text-[15px] font-medium text-[#55595e] leading-[130%]">
               카카오 로그인하면 <span className="text-[#61EB49]">포인트</span>를 받을 수 있어요
             </p>
           </div>
@@ -359,14 +360,19 @@ function TaghereEnrollContent() {
         {/* 하단 고정 영역 - 체크박스 + CTA */}
         <div className="flex-[1.2] flex flex-col justify-end px-5 pb-8">
           {/* 동의 체크박스 */}
-          <div className="flex items-center justify-between px-3 py-3 border border-[#e5e5e5] rounded-[10px] mb-3">
+          <div className={`flex items-center justify-between px-3 py-3 border rounded-[10px] mb-3 transition-colors ${
+            showAgreementWarning && !isAgreed ? 'border-red-400 bg-red-50' : 'border-[#e5e5e5]'
+          }`}>
             <button
               type="button"
-              onClick={() => setIsAgreed(!isAgreed)}
+              onClick={() => {
+                setIsAgreed(!isAgreed);
+                setShowAgreementWarning(false);
+              }}
               className="flex items-center gap-2.5 flex-1"
             >
-              <div className={`w-[18px] h-[18px] border-2 rounded flex items-center justify-center transition-colors flex-shrink-0 ${
-                isAgreed ? 'bg-[#FFD541] border-[#FFD541]' : 'border-[#d1d5db] bg-white'
+              <div className={`w-[20px] h-[20px] border-2 rounded flex items-center justify-center transition-colors flex-shrink-0 ${
+                isAgreed ? 'bg-[#FFD541] border-[#FFD541]' : showAgreementWarning ? 'border-red-400 bg-white' : 'border-[#d1d5db] bg-white'
               }`}>
                 {isAgreed && (
                   <svg className="w-3 h-3 text-[#1d2022]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -374,7 +380,7 @@ function TaghereEnrollContent() {
                   </svg>
                 )}
               </div>
-              <span className="text-[11px] text-[#1d2022] text-left">[필수] 매장 포인트 알림 및 혜택 수신 동의</span>
+              <span className={`text-[12px] text-left ${showAgreementWarning && !isAgreed ? 'text-red-500' : 'text-[#1d2022]'}`}>[필수] 매장 포인트 알림 및 혜택 수신 동의</span>
             </button>
             <button
               type="button"
@@ -388,13 +394,15 @@ function TaghereEnrollContent() {
           </div>
 
           <button
-            onClick={handleOpenGift}
-            disabled={isOpening || !isAgreed}
-            className={`w-full py-4 font-semibold text-base rounded-[10px] transition-colors ${
-              isAgreed
-                ? 'bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022]'
-                : 'bg-[#e5e5e5] text-[#9ca3af] cursor-not-allowed'
-            }`}
+            onClick={() => {
+              if (!isAgreed) {
+                setShowAgreementWarning(true);
+                return;
+              }
+              handleOpenGift();
+            }}
+            disabled={isOpening}
+            className="w-full py-4 font-semibold text-base rounded-[10px] transition-colors bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022]"
           >
             {isOpening ? '적립 중...' : '포인트 적립하기'}
           </button>
