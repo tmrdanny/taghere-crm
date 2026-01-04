@@ -329,14 +329,14 @@ function TaghereEnrollContent() {
         {/* Title - 상단 영역 (flex: 1) */}
         <div className="flex-1 flex flex-col justify-end pb-4">
           <div className="text-center">
-            <p className="text-[23px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
+            <p className="text-[26px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
               방금 전 주문으로 적립된
               <br />
               <span className="text-[#61EB49]">{formatNumber(orderInfo?.earnPoints || 0)}P</span>
               <span> 받아가세요</span>
             </p>
             {orderInfo && orderInfo.resultPrice > 0 && (
-              <p className="text-[12px] font-medium text-[#b1b5b8] leading-[130%] mt-2">
+              <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">
                 주문 금액 {formatNumber(orderInfo.resultPrice)}원 x {orderInfo.ratePercent}% 적립
               </p>
             )}
@@ -386,7 +386,7 @@ function TaghereEnrollContent() {
                   </svg>
                 )}
               </div>
-              <span className={`text-[12px] text-left ${showAgreementWarning && !isAgreed ? 'text-red-500' : 'text-[#1d2022]'}`}>[필수] 매장 포인트 알림 및 혜택 수신 동의</span>
+              <span className={`text-[12px] text-left ${showAgreementWarning && !isAgreed ? 'text-red-500' : 'text-[#1d2022]'}`}>[필수] 포인트 적립 알림 및 매장 혜택 수신 동의</span>
             </button>
             <button
               type="button"
