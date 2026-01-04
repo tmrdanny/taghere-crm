@@ -1,9 +1,43 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
 
 const router = Router();
+
+// 배너 이미지 업로드 디렉토리 설정
+const bannerUploadDir = path.join(process.cwd(), 'uploads', 'banners');
+if (!fs.existsSync(bannerUploadDir)) {
+  fs.mkdirSync(bannerUploadDir, { recursive: true });
+}
+
+// Multer 설정 - 배너 이미지용
+const bannerStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, bannerUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `banner-${uniqueSuffix}${ext}`);
+  },
+});
+
+const bannerUpload = multer({
+  storage: bannerStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      cb(new Error('JPG, PNG, GIF, WebP 파일만 업로드 가능합니다.'));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 // 하드코딩된 어드민 계정 (환경변수로 관리 권장)
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'taghere';
@@ -612,6 +646,27 @@ router.get('/banners/active', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Active banners error:', error);
     res.status(500).json({ error: '배너 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/banners/upload - 배너 이미지 업로드
+router.post('/banners/upload', adminAuthMiddleware, bannerUpload.single('image'), async (req: AdminRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '이미지 파일을 선택해주세요.' });
+    }
+
+    // 업로드된 파일의 URL 생성
+    const imageUrl = `/uploads/banners/${req.file.filename}`;
+
+    res.json({
+      success: true,
+      imageUrl,
+      filename: req.file.filename,
+    });
+  } catch (error: any) {
+    console.error('Banner upload error:', error);
+    res.status(500).json({ error: error.message || '이미지 업로드 중 오류가 발생했습니다.' });
   }
 });
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 interface Banner {
   id: string;
@@ -36,6 +36,8 @@ export default function AdminBannersPage() {
   const [formSlideInterval, setFormSlideInterval] = useState(3000);
   const [formTargetSlugs, setFormTargetSlugs] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchBanners();
@@ -172,6 +174,51 @@ export default function AdminBannersPage() {
       }
     } catch (error: any) {
       setToast({ message: error.message || '삭제 중 오류가 발생했습니다.', type: 'error' });
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/banners/upload`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        // API URL을 포함한 전체 URL로 설정
+        const fullImageUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${data.imageUrl}`;
+        setFormImageUrl(fullImageUrl);
+        setToast({ message: '이미지가 업로드되었습니다.', type: 'success' });
+      } else {
+        const data = await res.json();
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      setToast({ message: error.message || '이미지 업로드 중 오류가 발생했습니다.', type: 'error' });
+    } finally {
+      setIsUploading(false);
+      // 파일 인풋 초기화
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -339,25 +386,71 @@ export default function AdminBannersPage() {
 
               <div>
                 <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  이미지 URL <span className="text-red-400">*</span>
+                  배너 이미지 <span className="text-red-400">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={formImageUrl}
-                  onChange={(e) => setFormImageUrl(e.target.value)}
-                  placeholder="https://example.com/banner.jpg"
-                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
-                />
-                {formImageUrl && (
-                  <div className="mt-2 rounded-lg overflow-hidden bg-neutral-800">
+
+                {/* 파일 업로드 버튼 */}
+                <div className="flex gap-2 mb-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="banner-image-upload"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="flex-1 h-10 px-3 bg-neutral-800 border border-neutral-700 border-dashed rounded-lg text-sm text-neutral-400 hover:text-white hover:border-neutral-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isUploading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+                        업로드 중...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        이미지 업로드
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* 이미지 미리보기 */}
+                {formImageUrl ? (
+                  <div className="relative rounded-lg overflow-hidden bg-neutral-800">
                     <img
                       src={formImageUrl}
                       alt="Preview"
-                      className="w-full h-32 object-cover"
+                      className="w-full h-40 object-cover"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><rect fill="%23333" width="100" height="50"/><text fill="%23666" x="50" y="28" text-anchor="middle" font-size="8">이미지 로드 실패</text></svg>';
                       }}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setFormImageUrl('')}
+                      className="absolute top-2 right-2 w-6 h-6 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="h-40 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center">
+                    <div className="text-center text-neutral-500">
+                      <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-xs">이미지를 업로드해주세요</p>
+                      <p className="text-xs mt-1">JPG, PNG, GIF, WebP (최대 5MB)</p>
+                    </div>
                   </div>
                 )}
               </div>
