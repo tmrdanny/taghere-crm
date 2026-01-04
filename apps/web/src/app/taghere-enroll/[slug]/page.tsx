@@ -354,14 +354,14 @@ function TaghereEnrollContent() {
           }} isOpening={isOpening} />
         </div>
 
-        {/* Info Text Box - 코인 아래
+        Info Text Box - 코인 아래
         <div className="px-5">
           <div className="rounded-[12px] bg-[#f8f9fa] p-3 text-center">
-            <p className="text-[15px] font-medium text-[#55595e] leading-[130%]">
+            <p className="text-[14px] font-medium text-[#55595e] leading-[130%]">
               카카오 로그인하면 <span className="text-[#61EB49]">포인트</span>를 받을 수 있어요
             </p>
           </div>
-        </div> */}
+        </div>
 
         {/* 하단 고정 영역 - 체크박스 + CTA */}
         <div className="flex-[1.2] flex flex-col justify-end px-5 pb-8">
