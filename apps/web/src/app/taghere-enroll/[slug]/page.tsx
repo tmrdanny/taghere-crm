@@ -87,6 +87,16 @@ function CoinImage({ onClick, isOpening }: { onClick: () => void; isOpening: boo
           50% { transform: scale(1.1); opacity: 1; }
           100% { transform: scale(0.8); opacity: 0; }
         }
+
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+          20%, 40%, 60%, 80% { transform: translateX(4px); }
+        }
+
+        .shake-animation {
+          animation: shake 0.5s ease-in-out;
+        }
       `}</style>
     </div>
   );
@@ -366,16 +376,30 @@ function TaghereEnrollContent() {
         {/* 하단 고정 영역 - 체크박스 + CTA */}
         <div className="flex-[1.2] flex flex-col justify-end px-5 pb-8">
           {/* 동의 안내 영역 */}
-          <div className={`rounded-[12px] mb-4 p-4 transition-colors ${
-            showAgreementWarning && !isAgreed ? 'bg-red-50 border border-red-200' : 'bg-[#f8f9fa]'
-          }`}>
-            <div className="flex items-start gap-1 mb-3">
-              <p className={`text-[14px] font-semibold leading-[140%] ${
-                showAgreementWarning && !isAgreed ? 'text-red-600' : 'text-[#1d2022]'
-              }`}>
-                매장의 혜택과 포인트를 받기 위해 수신 동의가 필요해요
-              </p>
-              <span className="text-red-500 text-[14px]">*</span>
+          <div
+            className={`rounded-[12px] mb-4 p-4 bg-[#f8f9fa] ${
+              showAgreementWarning && !isAgreed ? 'shake-animation' : ''
+            }`}
+            onAnimationEnd={() => setShowAgreementWarning(false)}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-start gap-1">
+                <p className="text-[14px] font-semibold leading-[140%] text-[#1d2022]">
+                  매장의 혜택과 포인트를 받기 위해 수신 동의가 필요해요
+                </p>
+                <span className="text-red-500 text-[14px]">*</span>
+              </div>
+              <a
+                href="https://tmr-founders.notion.site/2492217234e380e1abbbe6867fc96aea?source=copy_link"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-shrink-0 p-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <svg className="w-5 h-5 text-[#b1b5b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </a>
             </div>
             <button
               type="button"
@@ -386,7 +410,7 @@ function TaghereEnrollContent() {
               className="flex items-center gap-2.5"
             >
               <div className={`w-[20px] h-[20px] border-2 rounded flex items-center justify-center transition-colors flex-shrink-0 ${
-                isAgreed ? 'bg-[#FFD541] border-[#FFD541]' : showAgreementWarning ? 'border-red-400 bg-white' : 'border-[#d1d5db] bg-white'
+                isAgreed ? 'bg-[#FFD541] border-[#FFD541]' : 'border-[#d1d5db] bg-white'
               }`}>
                 {isAgreed && (
                   <svg className="w-3 h-3 text-[#1d2022]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -394,7 +418,7 @@ function TaghereEnrollContent() {
                   </svg>
                 )}
               </div>
-              <span className={`text-[14px] ${showAgreementWarning && !isAgreed ? 'text-red-500' : 'text-[#55595e]'}`}>
+              <span className="text-[14px] text-[#55595e]">
                 네, 동의합니다
               </span>
             </button>

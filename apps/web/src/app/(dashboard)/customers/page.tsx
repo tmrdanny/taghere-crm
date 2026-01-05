@@ -1208,15 +1208,9 @@ export default function CustomersPage() {
                 {/* Nickname */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-neutral-600">닉네임</label>
-                  <Input
-                    type="text"
-                    placeholder="닉네임을 입력하세요"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                  />
-                  {editName && (
-                    <p className="text-xs text-neutral-500">표시: {maskNickname(editName)}</p>
-                  )}
+                  <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-700">
+                    {maskNickname(editName)}
+                  </div>
                 </div>
 
                 {/* Gender */}
@@ -1248,34 +1242,19 @@ export default function CustomersPage() {
                   </div>
                 </div>
 
-                {/* Birthday and Birth Year */}
+                {/* Birthday and Age Group */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-600">생일 (MM-DD)</label>
-                    <Input
-                      type="text"
-                      placeholder="01-15"
-                      value={editBirthday}
-                      onChange={(e) => setEditBirthday(e.target.value)}
-                      maxLength={5}
-                    />
-                    {editBirthday && (
-                      <p className="text-xs text-neutral-500">표시: {formatBirthdayMonth(editBirthday)}</p>
-                    )}
+                    <label className="text-sm font-medium text-neutral-600">생일</label>
+                    <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-700">
+                      {editBirthday ? formatBirthdayMonth(editBirthday).replace(' 생일', '') : '-'}
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-600">출생연도</label>
-                    <Input
-                      type="number"
-                      placeholder="1990"
-                      value={editBirthYear}
-                      onChange={(e) => setEditBirthYear(e.target.value)}
-                      min={1900}
-                      max={new Date().getFullYear()}
-                    />
-                    {editBirthYear && (
-                      <p className="text-xs text-neutral-500">표시: {getAgeGroup(parseInt(editBirthYear, 10))}</p>
-                    )}
+                    <label className="text-sm font-medium text-neutral-600">연령대</label>
+                    <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-700">
+                      {editBirthYear ? getAgeGroup(parseInt(editBirthYear, 10)) : '-'}
+                    </div>
                   </div>
                 </div>
 
