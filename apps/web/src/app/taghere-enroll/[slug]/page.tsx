@@ -442,7 +442,13 @@ function TaghereEnrollContent() {
               이 주문에 대한 포인트가 이미 적립되었습니다.
             </p>
             <button
-              onClick={() => setShowAlreadyParticipated(false)}
+              onClick={() => {
+                // order-success 페이지로 이동
+                const url = new URL(window.location.origin + '/taghere-enroll/order-success');
+                if (ordersheetId) url.searchParams.set('ordersheetId', ordersheetId);
+                url.searchParams.set('slug', slug);
+                window.location.href = url.toString();
+              }}
               className="w-full py-3 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
             >
               확인

@@ -234,10 +234,10 @@ function BottomModal({
           {/* Content */}
           <div className="px-5 pb-4 text-center">
             <h2 className="text-xl font-bold text-black leading-[1.3] tracking-[-0.08px]">
-              결제는 카운터에서
+              태그히어 손님 전용 쿠폰이 도착했어요!
             </h2>
             <p className="text-base text-[#91949a] mt-2 leading-[1.5]">
-              식사 후에 결제는 카운터에서 해야돼요
+              주문을 기다리시며 쿠폰을 다운받으세요.
             </p>
           </div>
 
