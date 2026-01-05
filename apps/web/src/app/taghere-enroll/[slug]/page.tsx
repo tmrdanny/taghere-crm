@@ -87,6 +87,16 @@ function CoinImage({ onClick, isOpening }: { onClick: () => void; isOpening: boo
           50% { transform: scale(1.1); opacity: 1; }
           100% { transform: scale(0.8); opacity: 0; }
         }
+
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+          20%, 40%, 60%, 80% { transform: translateX(4px); }
+        }
+
+        .shake-animation {
+          animation: shake 0.5s ease-in-out;
+        }
       `}</style>
     </div>
   );
@@ -354,15 +364,6 @@ function TaghereEnrollContent() {
           }} isOpening={isOpening} />
         </div>
 
-        {/* Info Text Box - 코인 아래 */}
-        <div className="px-5">
-          <div className="rounded-[12px] bg-[#f8f9fa] p-3 text-center">
-            <p className="text-[14px] font-medium text-[#55595e] leading-[130%]">
-              카카오 로그인하면 <span className="text-[#61EB49]">포인트</span>를 받을 수 있어요
-            </p>
-          </div>
-        </div>
-
         {/* 하단 고정 영역 - 체크박스 + CTA */}
         <div className="flex-[1.2] flex flex-col justify-end px-5 pb-8">
           {/* 동의 안내 영역 */}
@@ -374,7 +375,7 @@ function TaghereEnrollContent() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-start gap-1">
                 <p className="text-[14px] font-medium leading-[140%] text-[#55595e]">
-                  매장의 혜택과 포인트를 받기 위해 수신 동의가 필요해요
+                  포인트 적립 및 혜택 수신을 위한 동의가 필요해요
                 </p>
                 <span className="text-[#ff6b6b] text-[14px]">*</span>
               </div>
@@ -398,11 +399,11 @@ function TaghereEnrollContent() {
               }}
               className="flex items-center gap-2.5"
             >
-              <div className={`w-[20px] h-[20px] border-2 rounded-md flex items-center justify-center transition-colors flex-shrink-0 ${
-                isAgreed ? 'bg-[#1d2022] border-[#1d2022]' : showAgreementWarning && !isAgreed ? 'border-[#ffb3c1] bg-white' : 'border-[#d1d5db] bg-white'
+              <div className={`w-[20px] h-[20px] border-2 rounded flex items-center justify-center transition-colors flex-shrink-0 ${
+                isAgreed ? 'bg-[#FFD541] border-[#FFD541]' : showAgreementWarning && !isAgreed ? 'border-[#ffb3c1] bg-white' : 'border-[#d1d5db] bg-white'
               }`}>
                 {isAgreed && (
-                  <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 text-[#1d2022]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 )}
