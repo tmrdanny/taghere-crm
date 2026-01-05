@@ -46,6 +46,110 @@ function getFullImageUrl(imageUrl: string): string {
   return `${apiUrl}${imageUrl}`;
 }
 
+// 인라인 배너 캐러셀 컴포넌트
+function InlineBannerCarousel({ banners }: { banners: Banner[] }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchEndX, setTouchEndX] = useState<number | null>(null);
+
+  // 자동 슬라이드
+  useEffect(() => {
+    if (banners.length <= 1) return;
+
+    const currentBanner = banners[currentIndex];
+    if (!currentBanner?.autoSlide) return;
+
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % banners.length);
+    }, currentBanner.slideInterval || 3000);
+
+    return () => clearInterval(interval);
+  }, [banners, currentIndex]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEndX(null);
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEndX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartX === null || touchEndX === null) return;
+
+    const distance = touchStartX - touchEndX;
+    const minSwipeDistance = 30;
+
+    if (Math.abs(distance) > minSwipeDistance) {
+      if (distance > 0) {
+        setCurrentIndex((prev) => (prev + 1) % banners.length);
+      } else {
+        setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length);
+      }
+    }
+
+    setTouchStartX(null);
+    setTouchEndX(null);
+  };
+
+  const handleBannerClick = (banner: Banner) => {
+    if (banner.linkUrl) {
+      window.open(banner.linkUrl, '_blank');
+    }
+  };
+
+  if (banners.length === 0) return null;
+
+  return (
+    <div className="mt-4">
+      <div
+        className="relative overflow-hidden rounded-[12px]"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div
+          className="flex transition-transform duration-300 ease-out"
+          style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+        >
+          {banners.map((banner) => (
+            <div
+              key={banner.id}
+              className="w-full flex-shrink-0 cursor-pointer"
+              onClick={() => handleBannerClick(banner)}
+            >
+              <img
+                src={getFullImageUrl(banner.imageUrl)}
+                alt={banner.title}
+                className="w-full aspect-[2/1] object-cover rounded-[12px]"
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Indicators */}
+        {banners.length > 1 && (
+          <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-1.5">
+            {banners.map((_, index) => (
+              <button
+                key={index}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentIndex(index);
+                }}
+                className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                  index === currentIndex ? 'bg-white' : 'bg-white/50'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // 바텀 모달 컴포넌트
 function BottomModal({
   isOpen,
@@ -226,7 +330,7 @@ function OrderSuccessContent() {
   const ordersheetId = searchParams.get('ordersheetId');
   const slug = searchParams.get('slug') || 'taghere-test';
 
-  // taghere-test slug일 때만 배너 로드 및 바텀 모달 표시
+  // taghere-test slug일 때만 바텀 모달 표시
   const shouldShowModal = slug === 'taghere-test';
 
   // ordersheetId가 유효한 MongoDB ObjectId 형식인지 확인 (24자 hex)
@@ -298,13 +402,8 @@ function OrderSuccessContent() {
     fetchOrderDetails();
   }, [ordersheetId, isValidOrdersheetId, slug]);
 
-  // 배너 로드 및 바텀 모달 즉시 표시 (taghere-test만)
+  // 배너 로드 (모든 매장)
   useEffect(() => {
-    if (!shouldShowModal) return;
-
-    // 모달 먼저 표시 (배너 로드와 별개로)
-    setShowBottomModal(true);
-
     const fetchBanners = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -319,7 +418,14 @@ function OrderSuccessContent() {
     };
 
     fetchBanners();
-  }, [shouldShowModal, slug]);
+  }, [slug]);
+
+  // 바텀 모달 표시 (taghere-test만)
+  useEffect(() => {
+    if (shouldShowModal) {
+      setShowBottomModal(true);
+    }
+  }, [shouldShowModal]);
 
   const handleGoBack = () => {
     // menuLink가 있으면 해당 링크로, 없으면 뒤로가기
@@ -423,7 +529,7 @@ function OrderSuccessContent() {
             </div>
 
             {/* Total Price - 항상 표시 */}
-            <div className="px-5 py-4 flex items-center justify-between border-b border-[#ebeced]">
+            <div className="px-5 py-4 flex items-center justify-between">
               <span className="text-base font-semibold text-[#1d2022]">총 주문금액</span>
               <span className="text-base font-semibold text-[#1d2022]">
                 {orderDetails.totalPrice > 0 ? `${formatNumber(orderDetails.totalPrice)}원` : '-'}
@@ -431,6 +537,9 @@ function OrderSuccessContent() {
             </div>
 
           </div>
+
+          {/* 배너 캐러셀 */}
+          <InlineBannerCarousel banners={banners} />
         </div>
 
         {/* Bottom CTA - Fixed */}
