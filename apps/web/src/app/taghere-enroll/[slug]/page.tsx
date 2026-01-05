@@ -398,11 +398,11 @@ function TaghereEnrollContent() {
               }}
               className="flex items-center gap-2.5"
             >
-              <div className={`w-[20px] h-[20px] border-2 rounded flex items-center justify-center transition-colors flex-shrink-0 ${
-                isAgreed ? 'bg-[#FFD541] border-[#FFD541]' : showAgreementWarning && !isAgreed ? 'border-[#ffb3c1] bg-white' : 'border-[#d1d5db] bg-white'
+              <div className={`w-[20px] h-[20px] border-2 rounded-md flex items-center justify-center transition-colors flex-shrink-0 ${
+                isAgreed ? 'bg-[#1d2022] border-[#1d2022]' : showAgreementWarning && !isAgreed ? 'border-[#ffb3c1] bg-white' : 'border-[#d1d5db] bg-white'
               }`}>
                 {isAgreed && (
-                  <svg className="w-3 h-3 text-[#1d2022]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 )}
