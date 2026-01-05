@@ -12,7 +12,7 @@ import {
   ModalTitle,
   ModalFooter,
 } from '@/components/ui/modal';
-import { formatPhone, formatNumber, formatDate, getRelativeTime } from '@/lib/utils';
+import { formatPhone, formatNumber, formatDate, getRelativeTime, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
 import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -815,7 +815,7 @@ export default function CustomersPage() {
                   />
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  이름
+                  닉네임
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
                   전화번호
@@ -824,7 +824,7 @@ export default function CustomersPage() {
                   적립 포인트
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  생년월일
+                  생일 / 연령대
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
                   메모
@@ -886,7 +886,7 @@ export default function CustomersPage() {
                       </td>
                       <td className="p-4">
                         <span className="font-medium text-neutral-900">
-                          {customer.name || '이름 없음'}
+                          {maskNickname(customer.name)}
                         </span>
                       </td>
                       <td className="p-4 text-neutral-600">
@@ -898,11 +898,10 @@ export default function CustomersPage() {
                         {formatNumber(customer.totalPoints)} p
                       </td>
                       <td className="p-4 text-neutral-600">
-                        {customer.birthYear && customer.birthday
-                          ? `${customer.birthYear}-${customer.birthday}`
-                          : customer.birthYear
-                          ? `${customer.birthYear}년`
-                          : customer.birthday || '-'}
+                        <div className="flex flex-col gap-0.5">
+                          <span>{formatBirthdayMonth(customer.birthday)}</span>
+                          <span className="text-xs text-neutral-500">{getAgeGroup(customer.birthYear)}</span>
+                        </div>
                       </td>
                       <td className="p-4 max-w-[200px]">
                         <div className="flex items-center gap-2">
@@ -1009,7 +1008,7 @@ export default function CustomersPage() {
               <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
                 <span className="text-neutral-400">사용 대상</span>
                 <span className="font-medium text-neutral-900">
-                  {selectedCustomer?.name}
+                  {maskNickname(selectedCustomer?.name)}
                 </span>
               </div>
             </div>
@@ -1101,7 +1100,7 @@ export default function CustomersPage() {
               <label className="text-sm font-medium text-neutral-600">적립 대상</label>
               <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
                 <span className="text-neutral-400">적립 대상</span>
-                <span className="font-medium text-neutral-900">{selectedCustomer?.name}</span>
+                <span className="font-medium text-neutral-900">{maskNickname(selectedCustomer?.name)}</span>
               </div>
             </div>
 
@@ -1206,15 +1205,18 @@ export default function CustomersPage() {
                   </div>
                 </div>
 
-                {/* Name */}
+                {/* Nickname */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-600">이름</label>
+                  <label className="text-sm font-medium text-neutral-600">닉네임</label>
                   <Input
                     type="text"
-                    placeholder="이름을 입력하세요"
+                    placeholder="닉네임을 입력하세요"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                   />
+                  {editName && (
+                    <p className="text-xs text-neutral-500">표시: {maskNickname(editName)}</p>
+                  )}
                 </div>
 
                 {/* Gender */}
@@ -1257,6 +1259,9 @@ export default function CustomersPage() {
                       onChange={(e) => setEditBirthday(e.target.value)}
                       maxLength={5}
                     />
+                    {editBirthday && (
+                      <p className="text-xs text-neutral-500">표시: {formatBirthdayMonth(editBirthday)}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-neutral-600">출생연도</label>
@@ -1268,6 +1273,9 @@ export default function CustomersPage() {
                       min={1900}
                       max={new Date().getFullYear()}
                     />
+                    {editBirthYear && (
+                      <p className="text-xs text-neutral-500">표시: {getAgeGroup(parseInt(editBirthYear, 10))}</p>
+                    )}
                   </div>
                 </div>
 
@@ -1542,15 +1550,18 @@ export default function CustomersPage() {
               </p>
             </div>
 
-            {/* Name */}
+            {/* Nickname */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">이름</label>
+              <label className="text-sm font-medium text-neutral-600">닉네임</label>
               <Input
                 type="text"
-                placeholder="이름을 입력하세요"
+                placeholder="닉네임을 입력하세요"
                 value={addName}
                 onChange={(e) => setAddName(e.target.value)}
               />
+              {addName && (
+                <p className="text-xs text-neutral-500">표시: {maskNickname(addName)}</p>
+              )}
             </div>
 
             {/* Gender */}

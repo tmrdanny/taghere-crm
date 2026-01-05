@@ -11,7 +11,7 @@ import {
   ModalTitle,
   ModalFooter,
 } from '@/components/ui/modal';
-import { formatNumber, formatPhone } from '@/lib/utils';
+import { formatNumber, formatPhone, maskNickname } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
 import {
   Send,
@@ -1067,7 +1067,7 @@ export default function MessagesPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-[#1e293b]">
-                              {customer.name || '이름 없음'}
+                              {maskNickname(customer.name)}
                             </span>
                             {customer.gender && (
                               <Badge variant="secondary" className="text-xs">
