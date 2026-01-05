@@ -330,8 +330,8 @@ function OrderSuccessContent() {
   const ordersheetId = searchParams.get('ordersheetId');
   const slug = searchParams.get('slug') || 'taghere-test';
 
-  // taghere-test slug일 때만 바텀 모달 표시
-  const shouldShowModal = slug === 'taghere-test';
+  // 모든 매장에서 바텀 모달 표시
+  const shouldShowModal = true;
 
   // ordersheetId가 유효한 MongoDB ObjectId 형식인지 확인 (24자 hex)
   const isValidOrdersheetId = ordersheetId && /^[a-f0-9]{24}$/i.test(ordersheetId);
