@@ -63,10 +63,10 @@ interface TaghereOrderData {
   };
 }
 
-// TagHere API에서 주문 정보 조회 (Dev API 사용)
+// TagHere API에서 주문 정보 조회 (운영 API 사용)
 async function fetchOrdersheet(ordersheetId: string): Promise<TaghereOrderData> {
-  const apiUrl = TAGHERE_DEV_API_URL;
-  const apiToken = TAGHERE_DEV_API_TOKEN;
+  const apiUrl = TAGHERE_API_URL;
+  const apiToken = TAGHERE_API_TOKEN;
 
   console.log(`[TagHere] Fetching ordersheet - ordersheetId: ${ordersheetId}, apiUrl: ${apiUrl}`);
 
@@ -540,7 +540,7 @@ router.post('/webhook/verify', webhookAuthMiddleware, (req: WebhookRequest, res)
 });
 
 // GET /api/taghere/order-details - 주문 상세 정보 조회 (태그히어 모바일오더 API 호출)
-// taghere-test 매장의 새로운 성공 페이지에서 사용
+// 모든 매장의 성공 페이지에서 사용
 router.get('/order-details', async (req, res) => {
   try {
     const { storeId, ordersheetId } = req.query;
@@ -549,9 +549,9 @@ router.get('/order-details', async (req, res) => {
       return res.status(400).json({ error: 'storeId와 ordersheetId가 필요합니다.' });
     }
 
-    // Dev API 사용 (taghere-test 매장)
-    const apiUrl = TAGHERE_DEV_API_URL;
-    const apiToken = TAGHERE_DEV_API_TOKEN;
+    // 운영 API 사용
+    const apiUrl = TAGHERE_API_URL;
+    const apiToken = TAGHERE_API_TOKEN;
 
     if (!apiToken) {
       return res.status(500).json({ error: 'API 토큰이 설정되지 않았습니다.' });
