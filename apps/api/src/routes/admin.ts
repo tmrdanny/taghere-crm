@@ -240,7 +240,7 @@ router.get('/stats', adminAuthMiddleware, async (req: AdminRequest, res: Respons
 // GET /api/admin/payment-stats - 실 결제 금액 통계 (admin 충전 제외)
 router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    // TossPayments를 통한 실 결제 금액만 집계 (paymentMethod가 ADMIN이 아닌 것)
+    // TossPayments를 통한 실 결제 금액만 집계 (source가 'tosspayments'인 것)
     const realPayments = await prisma.paymentTransaction.aggregate({
       _sum: {
         amount: true,
@@ -248,11 +248,9 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
       where: {
         type: 'TOPUP',
         status: 'SUCCESS',
-        NOT: {
-          meta: {
-            path: ['paymentMethod'],
-            equals: 'ADMIN',
-          },
+        meta: {
+          path: ['source'],
+          equals: 'tosspayments',
         },
       },
     });
@@ -270,11 +268,9 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
         createdAt: {
           gte: startOfMonth,
         },
-        NOT: {
-          meta: {
-            path: ['paymentMethod'],
-            equals: 'ADMIN',
-          },
+        meta: {
+          path: ['source'],
+          equals: 'tosspayments',
         },
       },
     });
@@ -284,11 +280,9 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
       where: {
         type: 'TOPUP',
         status: 'SUCCESS',
-        NOT: {
-          meta: {
-            path: ['paymentMethod'],
-            equals: 'ADMIN',
-          },
+        meta: {
+          path: ['source'],
+          equals: 'tosspayments',
         },
       },
     });

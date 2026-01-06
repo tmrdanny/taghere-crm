@@ -152,36 +152,6 @@ export default function AdminLayout({
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Bar */}
-        <header className="h-14 border-b border-[#EAEAEA] flex items-center justify-between px-6 flex-shrink-0">
-          {/* Left: Hamburger + Title */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
-            >
-              <HamburgerIcon className="w-5 h-5 text-neutral-600" />
-            </button>
-            <h1 className="text-[16px] font-semibold text-neutral-900">{getPageTitle()}</h1>
-          </div>
-
-          {/* Center: Logo */}
-          <div className="absolute left-1/2 -translate-x-1/2">
-            <Image
-              src="/Taghere-logo.png"
-              alt="태그히어"
-              width={28}
-              height={28}
-              className="rounded"
-            />
-          </div>
-
-          {/* Right: User */}
-          <div className="flex items-center">
-            <span className="text-[14px] text-neutral-500">taghere</span>
-          </div>
-        </header>
-
         {/* Page Content */}
         <main className="flex-1 overflow-auto bg-[#FAFAFA]">
           <div className="max-w-7xl mx-auto px-6 py-8">
