@@ -317,6 +317,71 @@ router.post('/stores/:storeId/wallet/topup', adminAuthMiddleware, async (req: Ad
   }
 });
 
+// POST /api/admin/stores/:storeId/wallet/deduct - 매장 충전금 차감 (삭제)
+router.post('/stores/:storeId/wallet/deduct', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { storeId } = req.params;
+    const { amount, reason } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: '유효한 차감 금액을 입력해주세요.' });
+    }
+
+    // 매장 확인
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    // 현재 지갑 잔액 확인
+    const currentWallet = await prisma.wallet.findUnique({
+      where: { storeId },
+    });
+
+    if (!currentWallet) {
+      return res.status(400).json({ error: '지갑이 존재하지 않습니다.' });
+    }
+
+    if (currentWallet.balance < amount) {
+      return res.status(400).json({ error: '잔액이 부족합니다.' });
+    }
+
+    // 잔액 차감
+    const wallet = await prisma.wallet.update({
+      where: { storeId },
+      data: {
+        balance: { decrement: amount },
+      },
+    });
+
+    // 결제 트랜잭션 기록 (차감)
+    await prisma.paymentTransaction.create({
+      data: {
+        storeId,
+        amount: -amount,
+        type: 'DEDUCT',
+        status: 'SUCCESS',
+        meta: {
+          paymentMethod: 'ADMIN',
+          description: reason || '관리자 차감',
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `${store.name} 매장에서 ${amount.toLocaleString()}원이 차감되었습니다.`,
+      newBalance: wallet.balance,
+    });
+  } catch (error) {
+    console.error('Admin wallet deduct error:', error);
+    res.status(500).json({ error: '차감 중 오류가 발생했습니다.' });
+  }
+});
+
 // ========================================
 // 공지사항 관리 API
 // ========================================

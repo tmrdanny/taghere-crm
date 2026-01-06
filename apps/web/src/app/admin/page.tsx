@@ -23,6 +23,12 @@ interface TopupModalData {
   currentBalance: number;
 }
 
+interface DeductModalData {
+  storeId: string;
+  storeName: string;
+  currentBalance: number;
+}
+
 interface DeleteCustomersModalData {
   storeId: string;
   storeName: string;
@@ -45,7 +51,13 @@ export default function AdminDashboardPage() {
   const [topupModal, setTopupModal] = useState<TopupModalData | null>(null);
   const [topupAmount, setTopupAmount] = useState('');
   const [topupReason, setTopupReason] = useState('');
+  const [topupPassword, setTopupPassword] = useState('');
   const [isTopupLoading, setIsTopupLoading] = useState(false);
+  const [deductModal, setDeductModal] = useState<DeductModalData | null>(null);
+  const [deductAmount, setDeductAmount] = useState('');
+  const [deductReason, setDeductReason] = useState('');
+  const [deductPassword, setDeductPassword] = useState('');
+  const [isDeductLoading, setIsDeductLoading] = useState(false);
   const [deleteCustomersModal, setDeleteCustomersModal] = useState<DeleteCustomersModalData | null>(null);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -155,6 +167,18 @@ export default function AdminDashboardPage() {
     });
     setTopupAmount('');
     setTopupReason('');
+    setTopupPassword('');
+  };
+
+  const openDeductModal = (store: Store) => {
+    setDeductModal({
+      storeId: store.id,
+      storeName: store.name,
+      currentBalance: store.walletBalance || 0,
+    });
+    setDeductAmount('');
+    setDeductReason('');
+    setDeductPassword('');
   };
 
   const openDeleteCustomersModal = (store: Store) => {
@@ -220,8 +244,15 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const ADMIN_ACTION_PASSWORD = '0614';
+
   const handleTopup = async () => {
     if (!topupModal) return;
+
+    if (topupPassword !== ADMIN_ACTION_PASSWORD) {
+      setToast({ message: '비밀번호가 올바르지 않습니다.', type: 'error' });
+      return;
+    }
 
     const amount = parseInt(topupAmount);
     if (!amount || amount <= 0) {
@@ -267,6 +298,66 @@ export default function AdminDashboardPage() {
       setToast({ message: error.message || '충전에 실패했습니다.', type: 'error' });
     } finally {
       setIsTopupLoading(false);
+    }
+  };
+
+  const handleDeduct = async () => {
+    if (!deductModal) return;
+
+    if (deductPassword !== ADMIN_ACTION_PASSWORD) {
+      setToast({ message: '비밀번호가 올바르지 않습니다.', type: 'error' });
+      return;
+    }
+
+    const amount = parseInt(deductAmount);
+    if (!amount || amount <= 0) {
+      setToast({ message: '유효한 차감 금액을 입력해주세요.', type: 'error' });
+      return;
+    }
+
+    if (amount > deductModal.currentBalance) {
+      setToast({ message: '잔액보다 큰 금액을 차감할 수 없습니다.', type: 'error' });
+      return;
+    }
+
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsDeductLoading(true);
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${deductModal.storeId}/wallet/deduct`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ amount, reason: deductReason }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setToast({ message: data.message, type: 'success' });
+        setDeductModal(null);
+        // Update local store data with new balance
+        setStores((prevStores) =>
+          prevStores.map((store) =>
+            store.id === deductModal.storeId
+              ? { ...store, walletBalance: data.newBalance }
+              : store
+          )
+        );
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      setToast({ message: error.message || '차감에 실패했습니다.', type: 'error' });
+    } finally {
+      setIsDeductLoading(false);
     }
   };
 
@@ -451,6 +542,17 @@ export default function AdminDashboardPage() {
                         </svg>
                         충전
                       </button>
+                      {(store.walletBalance || 0) > 0 && (
+                        <button
+                          onClick={() => openDeductModal(store)}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                          </svg>
+                          삭제
+                        </button>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -572,6 +674,19 @@ export default function AdminDashboardPage() {
                   className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  비밀번호 <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={topupPassword}
+                  onChange={(e) => setTopupPassword(e.target.value)}
+                  placeholder="비밀번호를 입력하세요"
+                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                />
+              </div>
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -583,7 +698,7 @@ export default function AdminDashboardPage() {
               </button>
               <button
                 onClick={handleTopup}
-                disabled={isTopupLoading || !topupAmount}
+                disabled={isTopupLoading || !topupAmount || !topupPassword}
                 className="flex-1 h-10 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isTopupLoading ? (
@@ -593,6 +708,94 @@ export default function AdminDashboardPage() {
                   </>
                 ) : (
                   '충전하기'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deduct Modal */}
+      {deductModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-md mx-4 p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              충전금 삭제 (차감)
+            </h3>
+            <p className="text-sm text-neutral-400 mb-4">
+              <span className="text-white font-medium">{deductModal.storeName}</span> 매장의 충전금을 차감합니다.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  현재 잔액
+                </label>
+                <p className="text-lg font-semibold text-white">
+                  {formatNumber(deductModal.currentBalance)}원
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  차감 금액 <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={deductAmount}
+                  onChange={(e) => setDeductAmount(e.target.value)}
+                  placeholder="차감할 금액을 입력하세요"
+                  max={deductModal.currentBalance}
+                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  차감 사유 (선택)
+                </label>
+                <input
+                  type="text"
+                  value={deductReason}
+                  onChange={(e) => setDeductReason(e.target.value)}
+                  placeholder="예: 오충전 정정, 환불 처리 등"
+                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  비밀번호 <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={deductPassword}
+                  onChange={(e) => setDeductPassword(e.target.value)}
+                  placeholder="비밀번호를 입력하세요"
+                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setDeductModal(null)}
+                className="flex-1 h-10 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-sm font-medium transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDeduct}
+                disabled={isDeductLoading || !deductAmount || !deductPassword}
+                className="flex-1 h-10 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isDeductLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    차감 중...
+                  </>
+                ) : (
+                  '차감하기'
                 )}
               </button>
             </div>
