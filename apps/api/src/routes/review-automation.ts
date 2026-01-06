@@ -19,6 +19,7 @@ router.get('/settings', authMiddleware, async (req: AuthRequest, res) => {
         data: {
           storeId,
           enabled: false,
+          sendFrequency: 'every', // 기본값: 매 주문 발송
           benefitText: '',
           costPerSend: 50,
           autoTopupEnabled: false,
@@ -53,6 +54,7 @@ router.post('/settings', authMiddleware, async (req: AuthRequest, res) => {
     const storeId = req.user!.storeId;
     const {
       enabled,
+      sendFrequency,
       benefitText,
       autoTopupEnabled,
       autoTopupThreshold,
@@ -64,6 +66,7 @@ router.post('/settings', authMiddleware, async (req: AuthRequest, res) => {
       where: { storeId },
       update: {
         enabled: enabled !== undefined ? enabled : undefined,
+        sendFrequency: sendFrequency !== undefined ? sendFrequency : undefined,
         benefitText: benefitText !== undefined ? benefitText : undefined,
         autoTopupEnabled: autoTopupEnabled !== undefined ? autoTopupEnabled : undefined,
         autoTopupThreshold: autoTopupThreshold !== undefined ? autoTopupThreshold : undefined,
@@ -73,6 +76,7 @@ router.post('/settings', authMiddleware, async (req: AuthRequest, res) => {
       create: {
         storeId,
         enabled: enabled || false,
+        sendFrequency: sendFrequency || 'every',
         benefitText: benefitText || '',
         autoTopupEnabled: autoTopupEnabled || false,
         autoTopupThreshold: autoTopupThreshold || 10000,

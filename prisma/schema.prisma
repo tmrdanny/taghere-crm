@@ -230,6 +230,7 @@ model ReviewAutomationSetting {
   id                  String   @id @default(cuid())
   storeId             String   @unique
   enabled             Boolean  @default(false) // 자동 발송 ON/OFF
+  sendFrequency       String   @default("every") // 발송 빈도: "every" (매 주문), "first_only" (첫 주문 1회만)
   benefitText         String?  @db.Text // 혜택 내용 문구
   costPerSend         Int      @default(50) // 건당 비용 (원)
   autoTopupEnabled    Boolean  @default(false) // 자동 충전 ON/OFF

@@ -33,6 +33,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 interface Settings {
   enabled: boolean;
+  sendFrequency: 'every' | 'first_only';
   benefitText: string;
   naverReviewUrl: string | null;
   balance: number;
@@ -66,6 +67,7 @@ export default function NaverReviewPage() {
   // Settings state
   const [settings, setSettings] = useState<Settings>({
     enabled: false,
+    sendFrequency: 'every',
     benefitText: '',
     naverReviewUrl: null,
     balance: 0,
@@ -204,6 +206,7 @@ export default function NaverReviewPage() {
         },
         body: JSON.stringify({
           enabled: settings.enabled,
+          sendFrequency: settings.sendFrequency,
           benefitText,
           naverReviewUrl: naverPlaceUrl,
         }),
@@ -373,6 +376,50 @@ export default function NaverReviewPage() {
                     알림톡 1건 발송 시 50원이 차감됩니다.
                   </p>
                 </div>
+              </div>
+            </Card>
+
+            {/* Send Frequency Setting */}
+            <Card className="p-6">
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-neutral-700 block">
+                  발송 빈도 설정
+                </label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSettings((prev) => ({ ...prev, sendFrequency: 'every' }))}
+                    className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
+                      settings.sendFrequency === 'every'
+                        ? 'border-brand-500 bg-brand-50 text-brand-800'
+                        : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'
+                    }`}
+                  >
+                    <div className="font-medium mb-1">매 주문 발송</div>
+                    <p className="text-xs text-neutral-500">
+                      포인트 적립할 때마다 리뷰 요청 발송
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSettings((prev) => ({ ...prev, sendFrequency: 'first_only' }))}
+                    className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
+                      settings.sendFrequency === 'first_only'
+                        ? 'border-brand-500 bg-brand-50 text-brand-800'
+                        : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'
+                    }`}
+                  >
+                    <div className="font-medium mb-1">첫 주문 1회만 발송</div>
+                    <p className="text-xs text-neutral-500">
+                      오늘 첫 포인트 적립 시에만 리뷰 요청 발송
+                    </p>
+                  </button>
+                </div>
+                <p className="text-xs text-neutral-400">
+                  {settings.sendFrequency === 'every'
+                    ? '고객이 포인트를 적립할 때마다 리뷰 요청 알림톡이 발송됩니다.'
+                    : '고객이 오늘 처음 포인트를 적립할 때만 리뷰 요청 알림톡이 발송됩니다. 같은 날 추가 주문 시에는 발송되지 않습니다.'}
+                </p>
               </div>
             </Card>
 

@@ -356,17 +356,28 @@ router.post('/auto-earn', async (req, res) => {
       });
 
       if (reviewSetting?.enabled && reviewSetting?.naverReviewUrl) {
-        enqueueNaverReviewAlimTalk({
-          storeId: store.id,
-          customerId: customer.id,
-          phone: phoneNumber,
-          variables: {
-            storeName: store.name,
-            benefitText: reviewSetting.benefitText || '',
-          },
-        }).catch((err) => {
-          console.error('[TagHere Auto-Earn] Review AlimTalk enqueue failed:', err);
-        });
+        // sendFrequency가 'first_only'인 경우, 오늘 첫 방문일 때만 발송
+        let shouldSendReview = true;
+        if (reviewSetting.sendFrequency === 'first_only') {
+          shouldSendReview = isFirstVisitToday;
+          console.log('[TagHere Auto-Earn] first_only mode - isFirstVisitToday:', isFirstVisitToday);
+        }
+
+        if (shouldSendReview) {
+          enqueueNaverReviewAlimTalk({
+            storeId: store.id,
+            customerId: customer.id,
+            phone: phoneNumber,
+            variables: {
+              storeName: store.name,
+              benefitText: reviewSetting.benefitText || '',
+            },
+          }).catch((err) => {
+            console.error('[TagHere Auto-Earn] Review AlimTalk enqueue failed:', err);
+          });
+        } else {
+          console.log('[TagHere Auto-Earn] Skipping Naver review alimtalk - first_only mode and not first visit today');
+        }
       }
     }
 
