@@ -240,56 +240,41 @@ router.get('/stats', adminAuthMiddleware, async (req: AdminRequest, res: Respons
 // GET /api/admin/payment-stats - 실 결제 금액 통계 (admin 충전 제외)
 router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    // TossPayments를 통한 실 결제 금액만 집계 (source가 'tosspayments'인 것)
-    const realPayments = await prisma.paymentTransaction.aggregate({
-      _sum: {
-        amount: true,
-      },
+    // 먼저 모든 TOPUP 트랜잭션을 가져와서 admin 충전 제외
+    const allTopups = await prisma.paymentTransaction.findMany({
       where: {
         type: 'TOPUP',
         status: 'SUCCESS',
-        meta: {
-          path: ['source'],
-          equals: 'tosspayments',
-        },
+      },
+      select: {
+        amount: true,
+        createdAt: true,
+        meta: true,
       },
     });
+
+    // Admin 충전 제외 (meta.paymentMethod === 'ADMIN'인 것 제외)
+    const realPaymentTransactions = allTopups.filter((tx) => {
+      const meta = tx.meta as Record<string, unknown> | null;
+      return !meta || meta.paymentMethod !== 'ADMIN';
+    });
+
+    // 누적 실 결제 금액
+    const totalRealPayments = realPaymentTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
     // 이번 달 실 결제 금액
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthlyPayments = await prisma.paymentTransaction.aggregate({
-      _sum: {
-        amount: true,
-      },
-      where: {
-        type: 'TOPUP',
-        status: 'SUCCESS',
-        createdAt: {
-          gte: startOfMonth,
-        },
-        meta: {
-          path: ['source'],
-          equals: 'tosspayments',
-        },
-      },
-    });
+    const monthlyRealPayments = realPaymentTransactions
+      .filter((tx) => tx.createdAt >= startOfMonth)
+      .reduce((sum, tx) => sum + tx.amount, 0);
 
     // 총 결제 건수
-    const totalTransactions = await prisma.paymentTransaction.count({
-      where: {
-        type: 'TOPUP',
-        status: 'SUCCESS',
-        meta: {
-          path: ['source'],
-          equals: 'tosspayments',
-        },
-      },
-    });
+    const totalTransactions = realPaymentTransactions.length;
 
     res.json({
-      totalRealPayments: realPayments._sum.amount || 0,
-      monthlyRealPayments: monthlyPayments._sum.amount || 0,
+      totalRealPayments,
+      monthlyRealPayments,
       totalTransactions,
     });
   } catch (error) {
