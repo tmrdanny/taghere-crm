@@ -329,9 +329,20 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
     });
 
     // TossPayments 트랜잭션만 필터링 (source === 'tosspayments')
+    // REFUND는 웹훅으로 생성된 것만 포함 (webhookTransmissionId가 있는 경우)
     const tossTransactions = allTransactions.filter((tx) => {
       const meta = tx.meta as Record<string, unknown> | null;
-      return meta && meta.source === 'tosspayments';
+      if (!meta || meta.source !== 'tosspayments') return false;
+
+      // TOPUP은 모두 포함
+      if (tx.type === 'TOPUP') return true;
+
+      // REFUND는 웹훅으로 생성된 것만 포함 (webhookTransmissionId가 있어야 함)
+      if (tx.type === 'REFUND') {
+        return !!meta.webhookTransmissionId;
+      }
+
+      return false;
     });
 
     // TOPUP과 REFUND 합산 (REFUND는 음수 금액으로 저장됨)
