@@ -319,11 +319,23 @@ function TaghereEnrollContent() {
   };
 
   useEffect(() => {
+    // 디버그: URL 파라미터 확인
+    console.log('[TagHere Enroll] URL params:', {
+      successPoints,
+      customerId,
+      urlKakaoId,
+      urlError,
+      ordersheetId,
+    });
+
     // Check if redirected back with success data
     if (successPoints && customerId) {
       // 카카오 로그인 성공 후 리다이렉트 → kakaoId 저장
       if (urlKakaoId) {
+        console.log('[TagHere Enroll] Saving kakaoId to localStorage:', urlKakaoId);
         saveKakaoId(urlKakaoId);
+      } else {
+        console.log('[TagHere Enroll] No kakaoId in URL params');
       }
 
       setSuccessData({
