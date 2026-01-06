@@ -253,11 +253,17 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
       },
     });
 
+    console.log('All TOPUP transactions count:', allTopups.length);
+    console.log('Sample transactions:', allTopups.slice(0, 3).map(tx => ({ amount: tx.amount, meta: tx.meta })));
+
     // Admin 충전 제외 (meta.paymentMethod === 'ADMIN'인 것 제외)
     const realPaymentTransactions = allTopups.filter((tx) => {
       const meta = tx.meta as Record<string, unknown> | null;
-      return !meta || meta.paymentMethod !== 'ADMIN';
+      const isAdmin = meta && meta.paymentMethod === 'ADMIN';
+      return !isAdmin;
     });
+
+    console.log('Real payment transactions count:', realPaymentTransactions.length);
 
     // 누적 실 결제 금액
     const totalRealPayments = realPaymentTransactions.reduce((sum, tx) => sum + tx.amount, 0);
@@ -271,6 +277,8 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
 
     // 총 결제 건수
     const totalTransactions = realPaymentTransactions.length;
+
+    console.log('Stats:', { totalRealPayments, monthlyRealPayments, totalTransactions });
 
     res.json({
       totalRealPayments,
