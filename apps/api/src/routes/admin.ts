@@ -314,75 +314,43 @@ router.get('/customer-trend', adminAuthMiddleware, async (req: AdminRequest, res
 // GET /api/admin/payment-stats - 실 결제 금액 통계 (admin 충전 제외)
 router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    // 먼저 모든 TOPUP 트랜잭션을 가져와서 admin 충전 제외
-    const allTopups = await prisma.paymentTransaction.findMany({
+    // 토스페이먼츠 결제(TOPUP)와 환불(REFUND) 모두 조회
+    const allTransactions = await prisma.paymentTransaction.findMany({
       where: {
-        type: 'TOPUP',
+        type: { in: ['TOPUP', 'REFUND'] },
         status: 'SUCCESS',
       },
       select: {
         amount: true,
+        type: true,
         createdAt: true,
         meta: true,
       },
     });
 
-    console.log('All TOPUP transactions count:', allTopups.length);
-
-    // TossPayments 결제만 필터링 (source === 'tosspayments'인 것만)
-    const tossPayments = allTopups.filter((tx) => {
+    // TossPayments 트랜잭션만 필터링 (source === 'tosspayments')
+    const tossTransactions = allTransactions.filter((tx) => {
       const meta = tx.meta as Record<string, unknown> | null;
       return meta && meta.source === 'tosspayments';
     });
 
-    // 토스페이먼츠에서 취소된 orderId 목록 (수동 관리)
-    // TODO: 향후 취소 웹훅 구현 시 DB에서 관리하도록 변경
-    const cancelledOrderIds = new Set([
-      'TH1766880557965cgisd4td60b9l',
-      'TH1766847377539026mphq9nt0r',
-      'order_1766670545082_4rsfeyp4j',
-    ]);
+    // TOPUP과 REFUND 합산 (REFUND는 음수 금액으로 저장됨)
+    const totalRealPayments = tossTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
-    // 취소된 orderId 제외
-    const realPaymentTransactions = tossPayments.filter((tx) => {
-      const meta = tx.meta as Record<string, unknown>;
-      const orderId = meta.orderId as string;
-      return orderId && !cancelledOrderIds.has(orderId);
-    });
-
-    console.log('TossPayments transactions:', tossPayments.length);
-    console.log('After removing cancelled:', realPaymentTransactions.length);
-    console.log('Cancelled count:', tossPayments.length - realPaymentTransactions.length);
-
-    // 누적 실 결제 금액
-    const totalRealPayments = realPaymentTransactions.reduce((sum, tx) => sum + tx.amount, 0);
-
-    // 이번 달 실 결제 금액
+    // 이번 달 결제 금액 계산
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthlyRealPayments = realPaymentTransactions
+    const monthlyRealPayments = tossTransactions
       .filter((tx) => tx.createdAt >= startOfMonth)
       .reduce((sum, tx) => sum + tx.amount, 0);
 
-    // 총 결제 건수
-    const totalTransactions = realPaymentTransactions.length;
-
-    console.log('Stats:', { totalRealPayments, monthlyRealPayments, totalTransactions });
-
-    // 디버그: 각 트랜잭션 상세 정보
-    const debugTransactions = realPaymentTransactions.map(tx => ({
-      amount: tx.amount,
-      createdAt: tx.createdAt,
-      meta: tx.meta,
-    }));
-    console.log('Debug transactions:', JSON.stringify(debugTransactions, null, 2));
+    // 총 결제 건수 (TOPUP만 카운트, REFUND 제외)
+    const totalTransactions = tossTransactions.filter((tx) => tx.type === 'TOPUP').length;
 
     res.json({
       totalRealPayments,
       monthlyRealPayments,
       totalTransactions,
-      // 임시 디버그 정보
-      debug: debugTransactions,
     });
   } catch (error) {
     console.error('Admin payment stats error:', error);

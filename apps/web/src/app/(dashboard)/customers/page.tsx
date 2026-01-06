@@ -1174,7 +1174,7 @@ export default function CustomersPage() {
 
           <div className="py-4 overflow-y-auto overflow-x-hidden flex-1 px-1">
             {/* 2-Column Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden h-full min-h-[400px]">
               {/* Left Column - Customer Info Form */}
               <div className="space-y-4 min-w-0">
                 {/* Read-only info: Visit count, last visit, points, total order */}
@@ -1272,9 +1272,9 @@ export default function CustomersPage() {
               </div>
 
               {/* Right Column - Tabs for Orders, Feedback, History */}
-              <div className="space-y-3 min-w-0 overflow-hidden">
+              <div className="flex flex-col min-w-0 overflow-hidden h-full">
                 {/* Tab Headers */}
-                <div className="flex border-b border-neutral-200">
+                <div className="flex border-b border-neutral-200 flex-shrink-0">
                   <button
                     type="button"
                     onClick={() => setEditModalTab('orders')}
@@ -1328,7 +1328,7 @@ export default function CustomersPage() {
 
                 {/* Orders Tab */}
                 {editModalTab === 'orders' && (
-                  <div className="space-y-2">
+                  <div className="flex-1 overflow-hidden flex flex-col mt-3">
                     {loadingHistory && (
                       <div className="text-center py-4 text-neutral-500 text-sm">
                         불러오는 중...
@@ -1340,47 +1340,51 @@ export default function CustomersPage() {
                       </div>
                     )}
                     {!loadingHistory && orderHistory.length > 0 && (
-                      <div className="max-h-64 overflow-y-auto space-y-3">
-                        {orderHistory.map((order) => (
-                          <div
-                            key={order.id}
-                            className="p-3 bg-neutral-50 rounded-lg border border-neutral-100"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-medium text-neutral-900">
-                                {order.totalAmount ? `${formatNumber(order.totalAmount)}원` : '금액 미입력'}
-                              </span>
-                              <span className="text-xs text-neutral-400">
-                                {formatDate(order.visitedAt)}
-                              </span>
-                            </div>
-                            {order.items && Array.isArray(order.items) && order.items.length > 0 ? (
-                              <div className="space-y-1.5 pt-1 border-t border-neutral-200 mt-2">
-                                {order.items.map((item: OrderItem, idx: number) => {
-                                  const menuName = item.label || item.name || item.menuName || item.productName || item.title || '(메뉴명 없음)';
-                                  const qty = item.count || item.quantity || item.qty || 1;
-                                  const itemPrice = typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.amount || item.totalPrice || 0);
-
-                                  return (
-                                    <div key={idx} className="flex items-center justify-between text-sm py-0.5">
-                                      <span className="text-neutral-700 flex-1 truncate pr-2">
-                                        {menuName}
-                                        {qty > 1 && (
-                                          <span className="text-neutral-400 ml-1">x{qty}</span>
-                                        )}
-                                      </span>
-                                      {itemPrice > 0 && (
-                                        <span className="text-neutral-500 flex-shrink-0">{formatNumber(itemPrice)}원</span>
-                                      )}
-                                    </div>
-                                  );
-                                })}
+                      <div className="flex-1 overflow-hidden relative">
+                        <div className="h-full overflow-y-auto space-y-3 pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}>
+                          {orderHistory.map((order) => (
+                            <div
+                              key={order.id}
+                              className="p-3 bg-neutral-50 rounded-lg border border-neutral-100"
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-neutral-900">
+                                  {order.totalAmount ? `${formatNumber(order.totalAmount)}원` : '금액 미입력'}
+                                </span>
+                                <span className="text-xs text-neutral-400">
+                                  {formatDate(order.visitedAt)} {new Date(order.visitedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                </span>
                               </div>
-                            ) : (
-                              <p className="text-xs text-neutral-400">메뉴 정보 없음</p>
-                            )}
-                          </div>
-                        ))}
+                              {order.items && Array.isArray(order.items) && order.items.length > 0 ? (
+                                <div className="space-y-1.5 pt-1 border-t border-neutral-200 mt-2">
+                                  {order.items.map((item: OrderItem, idx: number) => {
+                                    const menuName = item.label || item.name || item.menuName || item.productName || item.title || '(메뉴명 없음)';
+                                    const qty = item.count || item.quantity || item.qty || 1;
+                                    const itemPrice = typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.amount || item.totalPrice || 0);
+
+                                    return (
+                                      <div key={idx} className="flex items-center justify-between text-sm py-0.5">
+                                        <span className="text-neutral-700 flex-1 truncate pr-2">
+                                          {menuName}
+                                          {qty > 1 && (
+                                            <span className="text-neutral-400 ml-1">x{qty}</span>
+                                          )}
+                                        </span>
+                                        {itemPrice > 0 && (
+                                          <span className="text-neutral-500 flex-shrink-0">{formatNumber(itemPrice)}원</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-neutral-400">메뉴 정보 없음</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {/* Scroll indicator gradient */}
+                        <div className="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
                       </div>
                     )}
                   </div>
@@ -1388,7 +1392,7 @@ export default function CustomersPage() {
 
                 {/* Feedback Tab */}
                 {editModalTab === 'feedback' && (
-                  <div className="space-y-2">
+                  <div className="flex-1 overflow-hidden flex flex-col mt-3">
                     {loadingHistory && (
                       <div className="text-center py-4 text-neutral-500 text-sm">
                         불러오는 중...
@@ -1400,23 +1404,27 @@ export default function CustomersPage() {
                       </div>
                     )}
                     {!loadingHistory && feedbackHistory.length > 0 && (
-                      <div className="max-h-64 overflow-y-auto space-y-3">
-                        {feedbackHistory.map((feedback) => (
-                          <div
-                            key={feedback.id}
-                            className="p-3 bg-neutral-50 rounded-lg border border-neutral-100"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <StarRating rating={feedback.rating} readonly />
-                              <span className="text-xs text-neutral-400">
-                                {formatDate(feedback.createdAt)}
-                              </span>
+                      <div className="flex-1 overflow-hidden relative">
+                        <div className="h-full overflow-y-auto space-y-3 pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}>
+                          {feedbackHistory.map((feedback) => (
+                            <div
+                              key={feedback.id}
+                              className="p-3 bg-neutral-50 rounded-lg border border-neutral-100"
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <StarRating rating={feedback.rating} readonly />
+                                <span className="text-xs text-neutral-400">
+                                  {formatDate(feedback.createdAt)}
+                                </span>
+                              </div>
+                              {feedback.text && (
+                                <p className="text-sm text-neutral-700">{feedback.text}</p>
+                              )}
                             </div>
-                            {feedback.text && (
-                              <p className="text-sm text-neutral-700">{feedback.text}</p>
-                            )}
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+                        {/* Scroll indicator gradient */}
+                        <div className="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
                       </div>
                     )}
                   </div>
@@ -1424,7 +1432,7 @@ export default function CustomersPage() {
 
                 {/* Point History Tab */}
                 {editModalTab === 'history' && (
-                  <div className="space-y-2">
+                  <div className="flex-1 overflow-hidden flex flex-col mt-3">
                     {loadingHistory && (
                       <div className="text-center py-4 text-neutral-500 text-sm">
                         불러오는 중...
@@ -1436,48 +1444,52 @@ export default function CustomersPage() {
                       </div>
                     )}
                     {!loadingHistory && pointHistory.length > 0 && (
-                      <div className="max-h-64 overflow-y-auto space-y-2">
-                        {pointHistory.map((entry) => {
-                          // ordersheetId가 포함된 reason을 필터링하여 표시
-                          let displayReason = entry.reason;
-                          if (displayReason && displayReason.includes('ordersheetId')) {
-                            // "TagHere 주문 적립 (ordersheetId: xxx)" -> "TagHere 주문 적립"
-                            displayReason = displayReason.replace(/\s*\(ordersheetId:.*?\)/gi, '').trim();
-                          }
-                          if (!displayReason) {
-                            displayReason = entry.type === 'EARN' ? '포인트 적립' : entry.type === 'USE' ? '포인트 사용' : entry.type;
-                          }
+                      <div className="flex-1 overflow-hidden relative">
+                        <div className="h-full overflow-y-auto space-y-2 pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}>
+                          {pointHistory.map((entry) => {
+                            // ordersheetId가 포함된 reason을 필터링하여 표시
+                            let displayReason = entry.reason;
+                            if (displayReason && displayReason.includes('ordersheetId')) {
+                              // "TagHere 주문 적립 (ordersheetId: xxx)" -> "TagHere 주문 적립"
+                              displayReason = displayReason.replace(/\s*\(ordersheetId:.*?\)/gi, '').trim();
+                            }
+                            if (!displayReason) {
+                              displayReason = entry.type === 'EARN' ? '포인트 적립' : entry.type === 'USE' ? '포인트 사용' : entry.type;
+                            }
 
-                          return (
-                            <div
-                              key={entry.id}
-                              className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg"
-                            >
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <span
-                                    className={`text-sm font-semibold ${
-                                      entry.delta > 0 ? 'text-green-600' : 'text-red-600'
-                                    }`}
-                                  >
-                                    {entry.delta > 0 ? '+' : ''}{formatNumber(entry.delta)} P
-                                  </span>
-                                  <span className="text-xs text-neutral-400">
-                                    잔액 {formatNumber(entry.balance)} P
-                                  </span>
+                            return (
+                              <div
+                                key={entry.id}
+                                className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg"
+                              >
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={`text-sm font-semibold ${
+                                        entry.delta > 0 ? 'text-green-600' : 'text-red-600'
+                                      }`}
+                                    >
+                                      {entry.delta > 0 ? '+' : ''}{formatNumber(entry.delta)} P
+                                    </span>
+                                    <span className="text-xs text-neutral-400">
+                                      잔액 {formatNumber(entry.balance)} P
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-neutral-500 mt-0.5">
+                                    {displayReason}
+                                  </p>
                                 </div>
-                                <p className="text-xs text-neutral-500 mt-0.5">
-                                  {displayReason}
-                                </p>
+                                <div className="text-right">
+                                  <p className="text-xs text-neutral-400">
+                                    {formatDate(entry.createdAt)}
+                                  </p>
+                                </div>
                               </div>
-                              <div className="text-right">
-                                <p className="text-xs text-neutral-400">
-                                  {formatDate(entry.createdAt)}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
+                        {/* Scroll indicator gradient */}
+                        <div className="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
                       </div>
                     )}
                   </div>
