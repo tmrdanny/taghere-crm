@@ -237,6 +237,80 @@ router.get('/stats', adminAuthMiddleware, async (req: AdminRequest, res: Respons
   }
 });
 
+// GET /api/admin/customer-trend - 고객 증감 추이
+router.get('/customer-trend', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { days = '30' } = req.query;
+    const daysNum = days === 'all' ? 365 : parseInt(days as string);
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - daysNum);
+    startDate.setHours(0, 0, 0, 0);
+
+    // 기간 내 일별 고객 등록 수
+    const customers = await prisma.customer.findMany({
+      where: {
+        createdAt: {
+          gte: startDate,
+        },
+      },
+      select: {
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    // 시작일 이전 총 고객 수
+    const baseCount = await prisma.customer.count({
+      where: {
+        createdAt: {
+          lt: startDate,
+        },
+      },
+    });
+
+    // 일별 데이터 집계
+    const dailyData: { date: string; count: number; cumulative: number }[] = [];
+    const dateMap = new Map<string, number>();
+
+    customers.forEach((customer) => {
+      const dateStr = customer.createdAt.toISOString().split('T')[0];
+      dateMap.set(dateStr, (dateMap.get(dateStr) || 0) + 1);
+    });
+
+    // 기간 내 모든 날짜 생성
+    let cumulative = baseCount;
+    const currentDate = new Date(startDate);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    while (currentDate <= today) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const count = dateMap.get(dateStr) || 0;
+      cumulative += count;
+
+      dailyData.push({
+        date: dateStr,
+        count,
+        cumulative,
+      });
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    res.json({
+      trend: dailyData,
+      totalCustomers: cumulative,
+      periodNew: customers.length,
+    });
+  } catch (error) {
+    console.error('Admin customer trend error:', error);
+    res.status(500).json({ error: '고객 추이 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 // GET /api/admin/payment-stats - 실 결제 금액 통계 (admin 충전 제외)
 router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {

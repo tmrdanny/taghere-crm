@@ -15,14 +15,35 @@ interface PaymentStats {
   totalTransactions: number;
 }
 
+interface TrendData {
+  date: string;
+  count: number;
+  cumulative: number;
+}
+
+interface CustomerTrend {
+  trend: TrendData[];
+  totalCustomers: number;
+  periodNew: number;
+}
+
+type PeriodType = '1' | '7' | '30' | '90' | 'all';
+
 export default function AdminHomePage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [paymentStats, setPaymentStats] = useState<PaymentStats | null>(null);
+  const [customerTrend, setCustomerTrend] = useState<CustomerTrend | null>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('30');
   const [isLoading, setIsLoading] = useState(true);
+  const [isTrendLoading, setIsTrendLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchCustomerTrend(selectedPeriod);
+  }, [selectedPeriod]);
 
   const fetchData = async () => {
     const token = localStorage.getItem('adminToken');
@@ -54,6 +75,27 @@ export default function AdminHomePage() {
     }
   };
 
+  const fetchCustomerTrend = async (period: PeriodType) => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsTrendLoading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/customer-trend?days=${period}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setCustomerTrend(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch customer trend:', error);
+    } finally {
+      setIsTrendLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -73,11 +115,11 @@ export default function AdminHomePage() {
           <p className="text-[14px] text-neutral-500 mt-0.5">{currentMonth} 기준</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Total Real Payments */}
           <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-[14px] text-neutral-500">누적 결제 금액</p>
+              <p className="text-[14px] text-neutral-500">누적 CRM 매출액</p>
               <span className="text-[12px] text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded">TossPayments</span>
             </div>
             <p className="text-[28px] font-semibold text-neutral-900">
@@ -89,24 +131,67 @@ export default function AdminHomePage() {
           {/* Monthly Payments */}
           <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-[14px] text-neutral-500">이번 달 결제</p>
+              <p className="text-[14px] text-neutral-500">이번 달 CRM 매출</p>
             </div>
             <p className="text-[28px] font-semibold text-neutral-900">
               {formatNumber(paymentStats?.monthlyRealPayments || 0)}
               <span className="text-[16px] font-normal text-neutral-500 ml-1">원</span>
             </p>
           </div>
+        </div>
+      </section>
 
-          {/* Total Transactions */}
-          <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-[14px] text-neutral-500">총 결제 건수</p>
-            </div>
-            <p className="text-[28px] font-semibold text-neutral-900">
-              {formatNumber(paymentStats?.totalTransactions || 0)}
-              <span className="text-[16px] font-normal text-neutral-500 ml-1">건</span>
-            </p>
+      {/* Customer Trend Chart */}
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-[18px] font-semibold text-neutral-900">전체 고객 증감 추이</h2>
+          <div className="flex gap-1">
+            {(['1', '7', '30', '90', 'all'] as PeriodType[]).map((period) => (
+              <button
+                key={period}
+                onClick={() => setSelectedPeriod(period)}
+                className={`px-3 py-1.5 text-[13px] rounded-lg transition-colors ${
+                  selectedPeriod === period
+                    ? 'bg-neutral-900 text-white'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                }`}
+              >
+                {period === 'all' ? 'All' : `${period}일`}
+              </button>
+            ))}
           </div>
+        </div>
+
+        <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+          {isTrendLoading ? (
+            <div className="h-64 flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : customerTrend && customerTrend.trend.length > 0 ? (
+            <div>
+              <div className="flex items-center gap-6 mb-4">
+                <div>
+                  <p className="text-[13px] text-neutral-500">현재 총 고객</p>
+                  <p className="text-[24px] font-semibold text-neutral-900">
+                    {formatNumber(customerTrend.totalCustomers)}명
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[13px] text-neutral-500">기간 내 신규</p>
+                  <p className="text-[24px] font-semibold text-green-600">
+                    +{formatNumber(customerTrend.periodNew)}명
+                  </p>
+                </div>
+              </div>
+              <div className="h-48 relative">
+                <CustomerTrendChart data={customerTrend.trend} />
+              </div>
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-neutral-400">
+              데이터가 없습니다
+            </div>
+          )}
         </div>
       </section>
 
@@ -203,6 +288,98 @@ export default function AdminHomePage() {
           </div>
         </div>
       </section>
+    </div>
+  );
+}
+
+// Simple line chart component using SVG
+function CustomerTrendChart({ data }: { data: TrendData[] }) {
+  if (data.length === 0) return null;
+
+  const padding = { top: 10, right: 10, bottom: 30, left: 50 };
+  const width = 100; // percentage
+  const height = 192; // h-48 = 12rem = 192px
+
+  const maxValue = Math.max(...data.map((d) => d.cumulative));
+  const minValue = Math.min(...data.map((d) => d.cumulative));
+  const valueRange = maxValue - minValue || 1;
+
+  // Generate path
+  const points = data.map((d, i) => {
+    const x = (i / (data.length - 1 || 1)) * 100;
+    const y = 100 - ((d.cumulative - minValue) / valueRange) * 100;
+    return { x, y, data: d };
+  });
+
+  const pathD = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+    .join(' ');
+
+  // Area fill path
+  const areaD = `${pathD} L 100 100 L 0 100 Z`;
+
+  // Y-axis labels
+  const yLabels = [maxValue, Math.round((maxValue + minValue) / 2), minValue];
+
+  // X-axis labels (show first, middle, last dates)
+  const xLabels =
+    data.length > 2
+      ? [
+          data[0].date.slice(5),
+          data[Math.floor(data.length / 2)].date.slice(5),
+          data[data.length - 1].date.slice(5),
+        ]
+      : data.map((d) => d.date.slice(5));
+
+  return (
+    <div className="w-full h-full relative">
+      {/* Y-axis labels */}
+      <div className="absolute left-0 top-0 bottom-6 w-10 flex flex-col justify-between text-[11px] text-neutral-400">
+        {yLabels.map((label, i) => (
+          <span key={i}>{label.toLocaleString()}</span>
+        ))}
+      </div>
+
+      {/* Chart area */}
+      <div className="absolute left-12 right-0 top-0 bottom-6">
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          className="w-full h-full"
+        >
+          {/* Grid lines */}
+          <line x1="0" y1="0" x2="100" y2="0" stroke="#E5E5E5" strokeWidth="0.5" />
+          <line x1="0" y1="50" x2="100" y2="50" stroke="#E5E5E5" strokeWidth="0.5" />
+          <line x1="0" y1="100" x2="100" y2="100" stroke="#E5E5E5" strokeWidth="0.5" />
+
+          {/* Area fill */}
+          <path d={areaD} fill="url(#gradient)" opacity="0.3" />
+
+          {/* Line */}
+          <path
+            d={pathD}
+            fill="none"
+            stroke="#FFD541"
+            strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
+          />
+
+          {/* Gradient definition */}
+          <defs>
+            <linearGradient id="gradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#FFD541" />
+              <stop offset="100%" stopColor="#FFD541" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+
+      {/* X-axis labels */}
+      <div className="absolute left-12 right-0 bottom-0 h-6 flex justify-between text-[11px] text-neutral-400">
+        {xLabels.map((label, i) => (
+          <span key={i}>{label}</span>
+        ))}
+      </div>
     </div>
   );
 }
