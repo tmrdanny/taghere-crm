@@ -71,6 +71,7 @@ interface VisitOrOrderEntry {
   visitedAt: string;
   items: OrderItem[] | null;
   totalAmount: number | null;
+  tableNumber: string | null;
 }
 
 interface Announcement {
@@ -1348,9 +1349,16 @@ export default function CustomersPage() {
                               className="p-3 bg-neutral-50 rounded-lg border border-neutral-100"
                             >
                               <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-neutral-900">
-                                  {order.totalAmount ? `${formatNumber(order.totalAmount)}원` : '금액 미입력'}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-neutral-900">
+                                    {order.totalAmount ? `${formatNumber(order.totalAmount)}원` : '금액 미입력'}
+                                  </span>
+                                  {order.tableNumber && (
+                                    <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                      {order.tableNumber}번 테이블
+                                    </span>
+                                  )}
+                                </div>
                                 <span className="text-xs text-neutral-400">
                                   {formatDate(order.visitedAt)} {new Date(order.visitedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
                                 </span>

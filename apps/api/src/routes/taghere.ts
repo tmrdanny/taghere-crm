@@ -593,7 +593,8 @@ router.get('/order-details', async (req, res) => {
     const orderDetails = {
       storeName: data.storeName || data.store?.name || '태그히어',
       storeLogoUrl: data.storeLogoUrl || data.store?.logoUrl || null,
-      orderNumber: data.orderNumber || data.tableNumber || `T-${ordersheetId}`,
+      orderNumber: data.orderNumber || `T-${ordersheetId}`,
+      tableNumber: data.tableNumber || null,
       items: (data.items || data.orderItems || []).map((item: any) => ({
         name: item.name || item.menuName || item.label || '상품',
         quantity: item.quantity || item.count || 1,

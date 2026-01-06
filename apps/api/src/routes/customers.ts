@@ -137,16 +137,35 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
     // visitsOrOrders의 items 정규화 (다양한 API 응답 구조 지원)
     const normalizedVisitsOrOrders = customer.visitsOrOrders.map((visit) => {
       let normalizedItems: any[] = [];
-      if (visit.items && Array.isArray(visit.items)) {
-        normalizedItems = (visit.items as any[]).map((item: any) => ({
-          name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
-          quantity: item.count || item.quantity || item.qty || item.amount || 1,
-          price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
-        }));
+      let tableNumber: string | null = null;
+
+      // items 필드의 구조에 따라 처리
+      // 새로운 형식: { items: [], tableNumber: string }
+      // 기존 형식: [] (배열 직접)
+      const itemsData = visit.items as any;
+      if (itemsData) {
+        if (Array.isArray(itemsData)) {
+          // 기존 형식: 배열 직접
+          normalizedItems = itemsData.map((item: any) => ({
+            name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
+            quantity: item.count || item.quantity || item.qty || item.amount || 1,
+            price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+          }));
+        } else if (typeof itemsData === 'object') {
+          // 새로운 형식: { items: [], tableNumber: string }
+          tableNumber = itemsData.tableNumber || null;
+          const rawItems = itemsData.items || [];
+          normalizedItems = rawItems.map((item: any) => ({
+            name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
+            quantity: item.count || item.quantity || item.qty || item.amount || 1,
+            price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+          }));
+        }
       }
       return {
         ...visit,
         items: normalizedItems,
+        tableNumber,
       };
     });
 
