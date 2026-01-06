@@ -1461,38 +1461,36 @@ export default function CustomersPage() {
 
                     {/* Date Filter - Conditional */}
                     {showDateFilter && (
-                      <div className="flex items-center gap-2 mb-3 flex-shrink-0 p-3 bg-neutral-50 rounded-lg border border-neutral-200">
-                        <div className="flex items-center gap-1 flex-1">
+                      <div className="mb-3 flex-shrink-0 p-3 bg-neutral-50 rounded-lg border border-neutral-200 space-y-2">
+                        <div className="flex items-center gap-2">
                           <input
                             type="date"
                             value={orderStartDate}
                             onChange={(e) => setOrderStartDate(e.target.value)}
-                            className="px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 w-full"
-                            placeholder="시작일"
+                            className="px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 flex-1 min-w-0"
                           />
-                          <span className="text-neutral-400 text-sm px-1">~</span>
+                          <span className="text-neutral-400 text-sm">~</span>
                           <input
                             type="date"
                             value={orderEndDate}
                             onChange={(e) => setOrderEndDate(e.target.value)}
-                            className="px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 w-full"
-                            placeholder="종료일"
+                            className="px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 flex-1 min-w-0"
                           />
                         </div>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => {
-                            if (editingCustomer) {
-                              fetchFilteredOrders(editingCustomer.id, orderStartDate, orderEndDate);
-                            }
-                          }}
-                          disabled={loadingHistory}
-                          className="text-sm px-3 py-1.5 h-auto"
-                        >
-                          조회
-                        </Button>
-                        {(orderStartDate || orderEndDate) && (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => {
+                              if (editingCustomer) {
+                                fetchFilteredOrders(editingCustomer.id, orderStartDate, orderEndDate);
+                              }
+                            }}
+                            disabled={loadingHistory}
+                            className="text-sm px-4 py-1.5 h-auto flex-1"
+                          >
+                            조회
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1503,11 +1501,11 @@ export default function CustomersPage() {
                                 fetchFilteredOrders(editingCustomer.id, '', '');
                               }
                             }}
-                            className="text-sm px-3 py-1.5 h-auto text-neutral-500"
+                            className="text-sm px-4 py-1.5 h-auto flex-1 text-neutral-500"
                           >
                             초기화
                           </Button>
-                        )}
+                        </div>
                       </div>
                     )}
 
