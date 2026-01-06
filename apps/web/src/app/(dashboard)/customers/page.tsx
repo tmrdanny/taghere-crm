@@ -13,7 +13,7 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatPhone, formatNumber, formatDate, getRelativeTime, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
-import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -63,6 +63,8 @@ interface OrderItem {
   price?: number;
   amount?: number;
   totalPrice?: number;
+  cancelled?: boolean;
+  cancelledAt?: string;
 }
 
 interface VisitOrOrderEntry {
@@ -167,6 +169,13 @@ export default function CustomersPage() {
   const [feedbackHistory, setFeedbackHistory] = useState<CustomerFeedbackEntry[]>([]);
   const [orderHistory, setOrderHistory] = useState<VisitOrOrderEntry[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Order date filter states
+  const [orderStartDate, setOrderStartDate] = useState('');
+  const [orderEndDate, setOrderEndDate] = useState('');
+  const [cancellingItem, setCancellingItem] = useState<{ orderId: string; itemIndex: number } | null>(null);
+  const [cancelConfirmModal, setCancelConfirmModal] = useState(false);
+  const [cancellingItemInfo, setCancellingItemInfo] = useState<{ name: string; price: number } | null>(null);
 
   // 고객 주문 총액 계산
   const customerTotalOrderAmount = orderHistory.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
@@ -417,6 +426,8 @@ export default function CustomersPage() {
     setPointHistory([]);
     setFeedbackHistory([]);
     setOrderHistory([]);
+    setOrderStartDate('');
+    setOrderEndDate('');
     setEditModal(true);
 
     // Fetch customer details including point history, feedback history, and order history
@@ -438,6 +449,96 @@ export default function CustomersPage() {
     } finally {
       setLoadingHistory(false);
     }
+  };
+
+  // Fetch orders with date filtering
+  const fetchFilteredOrders = async (customerId: string, startDate?: string, endDate?: string) => {
+    setLoadingHistory(true);
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      params.set('limit', '50');
+
+      const res = await fetch(`${apiUrl}/api/customers/${customerId}/orders?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOrderHistory(data.orders || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch filtered orders:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Handle cancel order item
+  const handleCancelOrderItem = async () => {
+    if (!editingCustomer || !cancellingItem) return;
+
+    try {
+      const res = await fetch(`${apiUrl}/api/customers/${editingCustomer.id}/cancel-order-item`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+        body: JSON.stringify({
+          visitOrOrderId: cancellingItem.orderId,
+          itemIndex: cancellingItem.itemIndex,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || '주문 취소 중 오류가 발생했습니다.');
+      }
+
+      const result = await res.json();
+
+      // Refresh order history
+      if (orderStartDate || orderEndDate) {
+        await fetchFilteredOrders(editingCustomer.id, orderStartDate, orderEndDate);
+      } else {
+        // Fetch fresh customer data
+        const customerRes = await fetch(`${apiUrl}/api/customers/${editingCustomer.id}`, {
+          headers: {
+            Authorization: `Bearer ${getAuthToken()}`,
+          },
+        });
+        if (customerRes.ok) {
+          const data = await customerRes.json();
+          setPointHistory(data.pointLedger || []);
+          setOrderHistory(data.visitsOrOrders || []);
+          // Update editing customer's total points
+          setEditingCustomer(prev => prev ? { ...prev, totalPoints: data.totalPoints } : null);
+        }
+      }
+
+      // Refresh customer list to reflect updated points
+      setRefreshKey((key) => key + 1);
+
+      const deductMsg = result.pointsDeducted > 0
+        ? ` (${formatNumber(result.pointsDeducted)}P 차감)`
+        : '';
+      showToast(`${result.message}${deductMsg}`, 'success');
+    } catch (err: any) {
+      showToast(err.message || '주문 취소 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setCancelConfirmModal(false);
+      setCancellingItem(null);
+      setCancellingItemInfo(null);
+    }
+  };
+
+  const openCancelConfirm = (orderId: string, itemIndex: number, itemName: string, itemPrice: number) => {
+    setCancellingItem({ orderId, itemIndex });
+    setCancellingItemInfo({ name: itemName, price: itemPrice });
+    setCancelConfirmModal(true);
   };
 
   const handleEditCustomer = async () => {
@@ -1330,6 +1431,57 @@ export default function CustomersPage() {
                 {/* Orders Tab */}
                 {editModalTab === 'orders' && (
                   <div className="flex-1 overflow-hidden flex flex-col mt-3">
+                    {/* Date Filter */}
+                    <div className="flex items-center gap-2 mb-3 flex-shrink-0">
+                      <div className="flex items-center gap-1 flex-1">
+                        <Calendar className="w-4 h-4 text-neutral-400 flex-shrink-0" />
+                        <input
+                          type="date"
+                          value={orderStartDate}
+                          onChange={(e) => setOrderStartDate(e.target.value)}
+                          className="px-2 py-1 text-xs border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 w-full"
+                          placeholder="시작일"
+                        />
+                        <span className="text-neutral-400 text-xs">~</span>
+                        <input
+                          type="date"
+                          value={orderEndDate}
+                          onChange={(e) => setOrderEndDate(e.target.value)}
+                          className="px-2 py-1 text-xs border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 w-full"
+                          placeholder="종료일"
+                        />
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          if (editingCustomer) {
+                            fetchFilteredOrders(editingCustomer.id, orderStartDate, orderEndDate);
+                          }
+                        }}
+                        disabled={loadingHistory}
+                        className="text-xs px-2 py-1 h-auto"
+                      >
+                        조회
+                      </Button>
+                      {(orderStartDate || orderEndDate) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setOrderStartDate('');
+                            setOrderEndDate('');
+                            if (editingCustomer) {
+                              fetchFilteredOrders(editingCustomer.id, '', '');
+                            }
+                          }}
+                          className="text-xs px-2 py-1 h-auto text-neutral-500"
+                        >
+                          초기화
+                        </Button>
+                      )}
+                    </div>
+
                     {loadingHistory && (
                       <div className="text-center py-4 text-neutral-500 text-sm">
                         불러오는 중...
@@ -1369,18 +1521,39 @@ export default function CustomersPage() {
                                     const menuName = item.label || item.name || item.menuName || item.productName || item.title || '(메뉴명 없음)';
                                     const qty = item.count || item.quantity || item.qty || 1;
                                     const itemPrice = typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.amount || item.totalPrice || 0);
+                                    const isCancelled = item.cancelled === true;
 
                                     return (
-                                      <div key={idx} className="flex items-center justify-between text-sm py-0.5">
-                                        <span className="text-neutral-700 flex-1 truncate pr-2">
+                                      <div key={idx} className={`flex items-center justify-between text-sm py-0.5 group ${isCancelled ? 'opacity-50' : ''}`}>
+                                        <span className={`flex-1 truncate pr-2 ${isCancelled ? 'text-neutral-400 line-through' : 'text-neutral-700'}`}>
                                           {menuName}
                                           {qty > 1 && (
                                             <span className="text-neutral-400 ml-1">x{qty}</span>
                                           )}
+                                          {isCancelled && (
+                                            <span className="ml-2 text-xs text-red-500">(취소됨)</span>
+                                          )}
                                         </span>
-                                        {itemPrice > 0 && (
-                                          <span className="text-neutral-500 flex-shrink-0">{formatNumber(itemPrice)}원</span>
-                                        )}
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                          {itemPrice > 0 && (
+                                            <span className={`${isCancelled ? 'text-neutral-400 line-through' : 'text-neutral-500'}`}>
+                                              {formatNumber(itemPrice)}원
+                                            </span>
+                                          )}
+                                          {!isCancelled && (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                openCancelConfirm(order.id, idx, menuName, itemPrice * qty);
+                                              }}
+                                              className="p-1 rounded hover:bg-red-50 text-neutral-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                              title="주문 취소"
+                                            >
+                                              <X className="w-3.5 h-3.5" />
+                                            </button>
+                                          )}
+                                        </div>
                                       </div>
                                     );
                                   })}
@@ -1662,6 +1835,53 @@ export default function CustomersPage() {
               className="flex-1"
             >
               {submittingAdd ? '등록 중...' : '등록하기'}
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Cancel Order Item Confirm Modal */}
+      <Modal open={cancelConfirmModal} onOpenChange={setCancelConfirmModal}>
+        <ModalContent className="sm:max-w-md">
+          <ModalHeader>
+            <ModalTitle>주문 취소 확인</ModalTitle>
+          </ModalHeader>
+
+          <div className="py-4">
+            <p className="text-sm text-neutral-700 mb-4">
+              다음 메뉴의 주문을 취소하시겠습니까?
+            </p>
+            {cancellingItemInfo && (
+              <div className="p-3 bg-neutral-50 rounded-lg">
+                <p className="font-medium text-neutral-900">{cancellingItemInfo.name}</p>
+                <p className="text-sm text-neutral-500 mt-1">
+                  {formatNumber(cancellingItemInfo.price)}원
+                </p>
+              </div>
+            )}
+            <p className="text-xs text-red-500 mt-3">
+              ※ 해당 메뉴에 대한 적립 포인트가 자동으로 차감됩니다.
+            </p>
+          </div>
+
+          <ModalFooter>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setCancelConfirmModal(false);
+                setCancellingItem(null);
+                setCancellingItemInfo(null);
+              }}
+              className="flex-1"
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelOrderItem}
+              className="flex-1"
+            >
+              주문 취소
             </Button>
           </ModalFooter>
         </ModalContent>

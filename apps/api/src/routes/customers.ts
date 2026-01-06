@@ -389,4 +389,241 @@ router.post('/feedback', async (req, res) => {
   }
 });
 
+// POST /api/customers/:id/cancel-order-item - Cancel a specific item in an order
+router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const storeId = req.user!.storeId;
+    const { visitOrOrderId, itemIndex } = req.body;
+
+    if (!visitOrOrderId || itemIndex === undefined) {
+      return res.status(400).json({ error: '주문 ID와 아이템 인덱스가 필요합니다.' });
+    }
+
+    // Verify customer exists and belongs to the store
+    const customer = await prisma.customer.findFirst({
+      where: { id, storeId },
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
+    }
+
+    // Find the visit/order
+    const visitOrOrder = await prisma.visitOrOrder.findFirst({
+      where: { id: visitOrOrderId, storeId, customerId: id },
+    });
+
+    if (!visitOrOrder) {
+      return res.status(404).json({ error: '주문을 찾을 수 없습니다.' });
+    }
+
+    // Parse items
+    let items: any[] = [];
+    const itemsData = visitOrOrder.items as any;
+    if (itemsData) {
+      if (Array.isArray(itemsData)) {
+        items = itemsData;
+      } else if (typeof itemsData === 'object' && itemsData.items) {
+        items = itemsData.items;
+      }
+    }
+
+    if (itemIndex < 0 || itemIndex >= items.length) {
+      return res.status(400).json({ error: '유효하지 않은 아이템 인덱스입니다.' });
+    }
+
+    const cancelledItem = items[itemIndex];
+
+    // Check if already cancelled
+    if (cancelledItem.cancelled) {
+      return res.status(400).json({ error: '이미 취소된 아이템입니다.' });
+    }
+
+    // Calculate points to deduct
+    // Get the store's point policy
+    const pointPolicy = await prisma.pointPolicy.findUnique({
+      where: { storeId },
+    });
+
+    const itemPrice = typeof cancelledItem.price === 'string'
+      ? parseInt(cancelledItem.price, 10)
+      : (cancelledItem.price || cancelledItem.totalPrice || 0);
+    const itemQty = cancelledItem.count || cancelledItem.quantity || cancelledItem.qty || 1;
+    const itemTotalPrice = itemPrice * itemQty;
+
+    let pointsToDeduct = 0;
+    if (pointPolicy) {
+      if (pointPolicy.type === 'PERCENT') {
+        pointsToDeduct = Math.floor(itemTotalPrice * (pointPolicy.value / 100));
+      } else {
+        // FIXED: 고정 포인트는 주문당이므로, 아이템 개별 취소시에는 비율로 계산
+        // 전체 주문 금액 대비 해당 아이템 금액 비율로 포인트 차감
+        const totalAmount = visitOrOrder.totalAmount || 0;
+        if (totalAmount > 0) {
+          pointsToDeduct = Math.floor(pointPolicy.value * (itemTotalPrice / totalAmount));
+        }
+      }
+    }
+
+    // Mark item as cancelled
+    items[itemIndex] = { ...cancelledItem, cancelled: true, cancelledAt: new Date().toISOString() };
+
+    // Update the visit/order with cancelled item
+    const updatedItemsData = Array.isArray(itemsData)
+      ? items
+      : { ...itemsData, items };
+
+    await prisma.visitOrOrder.update({
+      where: { id: visitOrOrderId },
+      data: { items: updatedItemsData },
+    });
+
+    // Deduct points if applicable
+    if (pointsToDeduct > 0) {
+      // Get current customer points
+      const currentCustomer = await prisma.customer.findUnique({
+        where: { id },
+        select: { totalPoints: true },
+      });
+
+      const currentPoints = currentCustomer?.totalPoints || 0;
+      const newBalance = Math.max(0, currentPoints - pointsToDeduct);
+      const actualDeduction = currentPoints - newBalance;
+
+      if (actualDeduction > 0) {
+        // Create point ledger entry for deduction
+        await prisma.pointLedger.create({
+          data: {
+            storeId,
+            customerId: id,
+            delta: -actualDeduction,
+            balance: newBalance,
+            type: 'ADJUST',
+            reason: `주문 취소 차감 (${cancelledItem.label || cancelledItem.name || cancelledItem.menuName || '메뉴'})`,
+            orderId: visitOrOrder.orderId,
+          },
+        });
+
+        // Update customer's total points
+        await prisma.customer.update({
+          where: { id },
+          data: { totalPoints: newBalance },
+        });
+      }
+    }
+
+    // Get menu name for response
+    const menuName = cancelledItem.label || cancelledItem.name || cancelledItem.menuName || cancelledItem.productName || '메뉴';
+
+    res.json({
+      success: true,
+      message: `${menuName} 주문이 취소되었습니다.`,
+      pointsDeducted: pointsToDeduct,
+      cancelledItem: {
+        name: menuName,
+        price: itemTotalPrice,
+      },
+    });
+  } catch (error) {
+    console.error('Cancel order item error:', error);
+    res.status(500).json({ error: '주문 취소 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/customers/:id/orders - Get customer orders with date filtering
+router.get('/:id/orders', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const storeId = req.user!.storeId;
+    const { startDate, endDate, page = '1', limit = '20' } = req.query;
+
+    // Verify customer exists and belongs to the store
+    const customer = await prisma.customer.findFirst({
+      where: { id, storeId },
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
+    }
+
+    // Build where clause with date filtering
+    const where: any = { storeId, customerId: id };
+
+    if (startDate || endDate) {
+      where.visitedAt = {};
+      if (startDate) {
+        where.visitedAt.gte = new Date(startDate as string);
+      }
+      if (endDate) {
+        const end = new Date(endDate as string);
+        end.setHours(23, 59, 59, 999);
+        where.visitedAt.lte = end;
+      }
+    }
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    const [orders, total] = await Promise.all([
+      prisma.visitOrOrder.findMany({
+        where,
+        orderBy: { visitedAt: 'desc' },
+        skip,
+        take: limitNum,
+      }),
+      prisma.visitOrOrder.count({ where }),
+    ]);
+
+    // Normalize items for response
+    const normalizedOrders = orders.map((order) => {
+      let normalizedItems: any[] = [];
+      let tableNumber: string | null = null;
+
+      const itemsData = order.items as any;
+      if (itemsData) {
+        if (Array.isArray(itemsData)) {
+          normalizedItems = itemsData.map((item: any) => ({
+            name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
+            quantity: item.count || item.quantity || item.qty || item.amount || 1,
+            price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+            cancelled: item.cancelled || false,
+            cancelledAt: item.cancelledAt || null,
+          }));
+        } else if (typeof itemsData === 'object') {
+          tableNumber = itemsData.tableNumber || null;
+          const rawItems = itemsData.items || [];
+          normalizedItems = rawItems.map((item: any) => ({
+            name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
+            quantity: item.count || item.quantity || item.qty || item.amount || 1,
+            price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+            cancelled: item.cancelled || false,
+            cancelledAt: item.cancelledAt || null,
+          }));
+        }
+      }
+
+      return {
+        ...order,
+        items: normalizedItems,
+        tableNumber,
+      };
+    });
+
+    res.json({
+      orders: normalizedOrders,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error) {
+    console.error('Customer orders error:', error);
+    res.status(500).json({ error: '주문 내역 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;
