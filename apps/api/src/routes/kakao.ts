@@ -608,6 +608,7 @@ router.get('/taghere-callback', async (req, res) => {
         const alreadyUrl = new URL(`${PUBLIC_APP_URL}/taghere-enroll/${stateData.slug || ''}`);
         alreadyUrl.searchParams.set('error', 'already_participated');
         alreadyUrl.searchParams.set('storeName', store.name);
+        if (stateData.ordersheetId) alreadyUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
         return res.redirect(alreadyUrl.toString());
       }
     }
