@@ -1,8 +1,57 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { formatNumber } from '@/lib/utils';
+
+// ============================================
+// 로컬스토리지 헬퍼 함수 (kakaoId 저장용)
+// ============================================
+const KAKAO_STORAGE_KEY = 'taghere_kakao_id';
+const KAKAO_STORAGE_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000; // 90일
+
+interface StoredKakaoData {
+  kakaoId: string;
+  savedAt: number;
+}
+
+function getStoredKakaoId(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const stored = localStorage.getItem(KAKAO_STORAGE_KEY);
+    if (!stored) return null;
+
+    const data: StoredKakaoData = JSON.parse(stored);
+    const now = Date.now();
+
+    // 만료 체크 (90일)
+    if (now - data.savedAt > KAKAO_STORAGE_EXPIRY_MS) {
+      localStorage.removeItem(KAKAO_STORAGE_KEY);
+      return null;
+    }
+
+    return data.kakaoId;
+  } catch {
+    localStorage.removeItem(KAKAO_STORAGE_KEY);
+    return null;
+  }
+}
+
+function saveKakaoId(kakaoId: string): void {
+  if (typeof window === 'undefined') return;
+
+  const data: StoredKakaoData = {
+    kakaoId,
+    savedAt: Date.now(),
+  };
+  localStorage.setItem(KAKAO_STORAGE_KEY, JSON.stringify(data));
+}
+
+function removeStoredKakaoId(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(KAKAO_STORAGE_KEY);
+}
 
 interface OrderInfo {
   storeId: string;
@@ -208,6 +257,8 @@ function TaghereEnrollContent() {
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const [isAgreed, setIsAgreed] = useState(false);
   const [showAgreementWarning, setShowAgreementWarning] = useState(false);
+  const [isAutoEarning, setIsAutoEarning] = useState(false);
+  const autoEarnAttemptedRef = useRef(false);
 
   const slug = params.slug as string;
   const ordersheetId = searchParams.get('ordersheetId');
@@ -218,10 +269,63 @@ function TaghereEnrollContent() {
   const successStoreName = searchParams.get('successStoreName');
   const customerId = searchParams.get('customerId');
   const successResultPrice = searchParams.get('resultPrice');
+  const urlKakaoId = searchParams.get('kakaoId');
+
+  // 자동 적립 시도 함수
+  const attemptAutoEarn = async (kakaoId: string, orderData: OrderInfo) => {
+    setIsAutoEarning(true);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiUrl}/api/taghere/auto-earn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kakaoId,
+          ordersheetId: orderData.ordersheetId,
+          slug,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        // 자동 적립 성공 → 피드백 팝업 표시
+        setSuccessData({
+          points: data.points,
+          storeName: data.storeName,
+          customerId: data.customerId,
+          resultPrice: data.resultPrice,
+        });
+        setOrderInfo(null); // 기본 UI 숨김
+      } else {
+        // 에러 처리
+        if (data.error === 'invalid_kakao_id') {
+          // 유효하지 않은 kakaoId → 로컬스토리지 삭제, 기존 흐름으로
+          removeStoredKakaoId();
+        } else if (data.error === 'already_earned') {
+          // 이미 적립됨
+          setShowAlreadyParticipated(true);
+          setOrderInfo(null);
+        }
+        // 그 외 에러는 기존 흐름 유지 (수동 적립 가능)
+      }
+    } catch (e) {
+      console.error('Auto-earn failed:', e);
+      // 네트워크 오류 등 → 기존 흐름 유지
+    } finally {
+      setIsAutoEarning(false);
+    }
+  };
 
   useEffect(() => {
     // Check if redirected back with success data
     if (successPoints && customerId) {
+      // 카카오 로그인 성공 후 리다이렉트 → kakaoId 저장
+      if (urlKakaoId) {
+        saveKakaoId(urlKakaoId);
+      }
+
       setSuccessData({
         points: parseInt(successPoints),
         storeName: successStoreName || '태그히어',
@@ -261,6 +365,15 @@ function TaghereEnrollContent() {
             setShowAlreadyParticipated(true);
           } else {
             setOrderInfo(data);
+
+            // 자동 적립 시도: 로컬스토리지에 kakaoId가 있으면 자동 적립
+            if (!autoEarnAttemptedRef.current) {
+              autoEarnAttemptedRef.current = true;
+              const storedKakaoId = getStoredKakaoId();
+              if (storedKakaoId) {
+                attemptAutoEarn(storedKakaoId, data);
+              }
+            }
           }
         } else if (res.status === 404) {
           setError('존재하지 않는 매장입니다.');
@@ -277,7 +390,7 @@ function TaghereEnrollContent() {
     };
 
     fetchOrderInfo();
-  }, [slug, ordersheetId, urlError, successPoints, customerId, successStoreName, successResultPrice]);
+  }, [slug, ordersheetId, urlError, successPoints, customerId, successStoreName, successResultPrice, urlKakaoId]);
 
   const handleOpenGift = () => {
     if (!orderInfo) return;
@@ -305,11 +418,14 @@ function TaghereEnrollContent() {
     window.location.href = url.toString();
   };
 
-  if (isLoading) {
+  if (isLoading || isAutoEarning) {
     return (
       <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
-        <div className="w-full max-w-md h-full flex items-center justify-center bg-white">
+        <div className="w-full max-w-md h-full flex flex-col items-center justify-center bg-white gap-4">
           <div className="w-8 h-8 border-2 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
+          {isAutoEarning && (
+            <p className="text-sm text-neutral-500">자동으로 포인트 적립 중...</p>
+          )}
         </div>
       </div>
     );

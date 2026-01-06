@@ -800,6 +800,7 @@ router.get('/taghere-callback', async (req, res) => {
     successUrl.searchParams.set('successStoreName', store.name);
     successUrl.searchParams.set('customerId', customer.id);
     successUrl.searchParams.set('resultPrice', resultPrice.toString());
+    successUrl.searchParams.set('kakaoId', kakaoId);  // 자동 적립을 위해 kakaoId 전달
     if (stateData.ordersheetId) {
       successUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
     }
