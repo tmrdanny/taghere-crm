@@ -437,24 +437,33 @@ async function fetchOrdersheetForCallback(ordersheetId: string, slug?: string): 
 
 // GET /auth/kakao/taghere-start - TagHere 전용 카카오 로그인 시작
 router.get('/taghere-start', (req, res) => {
-  const { storeId, ordersheetId, slug } = req.query;
+  const { storeId, ordersheetId, slug, origin } = req.query;
+
+  // origin 검증: 허용된 도메인만 허용 (보안)
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'https://taghere-crm-web-dev.onrender.com',
+    'https://taghere-crm-web-g96p.onrender.com',
+  ];
+  const validOrigin = typeof origin === 'string' && allowedOrigins.includes(origin) ? origin : PUBLIC_APP_URL;
 
   if (!KAKAO_CLIENT_ID) {
     console.log('Kakao OAuth not configured, using dev mode');
-    const successUrl = new URL(`${PUBLIC_APP_URL}/taghere-enroll/success`);
+    const successUrl = new URL(`${validOrigin}/taghere-enroll/success`);
     successUrl.searchParams.set('points', '100');
     successUrl.searchParams.set('storeName', '태그히어 (개발모드)');
     successUrl.searchParams.set('devMode', 'true');
     return res.redirect(successUrl.toString());
   }
 
-  // Build state parameter with ordersheetId
+  // Build state parameter with ordersheetId and origin
   const state = Buffer.from(
     JSON.stringify({
       storeId: storeId || '',
       ordersheetId: ordersheetId || '',
       slug: slug || '',
       isTaghere: true,
+      origin: validOrigin,  // origin을 state에 포함
     })
   ).toString('base64');
 
@@ -481,12 +490,15 @@ router.get('/taghere-callback', async (req, res) => {
     }
 
     // Parse state
-    let stateData = { storeId: '', ordersheetId: '', slug: '', isTaghere: true };
+    let stateData = { storeId: '', ordersheetId: '', slug: '', isTaghere: true, origin: PUBLIC_APP_URL };
     try {
       stateData = JSON.parse(Buffer.from(state as string, 'base64').toString());
     } catch (e) {
       console.error('Failed to parse state:', e);
     }
+
+    // origin이 없으면 기본값 사용
+    const redirectOrigin = stateData.origin || PUBLIC_APP_URL;
 
     // TagHere 전용 콜백 URL
     const tagherRedirectUri = KAKAO_REDIRECT_URI.replace('/callback', '/taghere-callback');
@@ -513,7 +525,7 @@ router.get('/taghere-callback', async (req, res) => {
 
     if (tokenData.error) {
       console.error('Kakao token error:', tokenData);
-      return res.redirect(`${PUBLIC_APP_URL}/taghere-enroll?error=token_error`);
+      return res.redirect(`${redirectOrigin}/taghere-enroll?error=token_error`);
     }
 
     // Get user info
@@ -536,7 +548,7 @@ router.get('/taghere-callback', async (req, res) => {
 
     if (!userData.id) {
       console.error('Kakao user error:', userData);
-      return res.redirect(`${PUBLIC_APP_URL}/taghere-enroll?error=user_error`);
+      return res.redirect(`${redirectOrigin}/taghere-enroll?error=user_error`);
     }
 
     const kakaoId = userData.id.toString();
@@ -571,7 +583,7 @@ router.get('/taghere-callback', async (req, res) => {
     }
 
     if (!store) {
-      return res.redirect(`${PUBLIC_APP_URL}/taghere-enroll?error=store_not_found`);
+      return res.redirect(`${redirectOrigin}/taghere-enroll?error=store_not_found`);
     }
 
     // 전화번호 정규화
@@ -607,7 +619,7 @@ router.get('/taghere-callback', async (req, res) => {
       });
 
       if (existingEarn) {
-        const alreadyUrl = new URL(`${PUBLIC_APP_URL}/taghere-enroll/${stateData.slug || ''}`);
+        const alreadyUrl = new URL(`${redirectOrigin}/taghere-enroll/${stateData.slug || ''}`);
         alreadyUrl.searchParams.set('error', 'already_participated');
         alreadyUrl.searchParams.set('storeName', store.name);
         if (stateData.ordersheetId) alreadyUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
@@ -795,7 +807,7 @@ router.get('/taghere-callback', async (req, res) => {
     }
 
     // Redirect back to enroll page with success data (shows popup with feedback)
-    const successUrl = new URL(`${PUBLIC_APP_URL}/taghere-enroll/${stateData.slug || ''}`);
+    const successUrl = new URL(`${redirectOrigin}/taghere-enroll/${stateData.slug || ''}`);
     successUrl.searchParams.set('points', earnPoints.toString());
     successUrl.searchParams.set('successStoreName', store.name);
     successUrl.searchParams.set('customerId', customer.id);
@@ -808,6 +820,7 @@ router.get('/taghere-callback', async (req, res) => {
     res.redirect(successUrl.toString());
   } catch (error) {
     console.error('TagHere Kakao callback error:', error);
+    // catch 블록에서는 stateData 접근 불가하므로 기본 URL 사용
     res.redirect(`${PUBLIC_APP_URL}/taghere-enroll?error=callback_error`);
   }
 });

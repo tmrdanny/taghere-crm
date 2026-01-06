@@ -427,6 +427,8 @@ function TaghereEnrollContent() {
       params.set('storeId', orderInfo.storeId);
       params.set('slug', slug);
       if (ordersheetId) params.set('ordersheetId', ordersheetId);
+      // 현재 웹 서버의 origin을 전달하여 카카오 로그인 후 동일 환경으로 리다이렉트
+      params.set('origin', window.location.origin);
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
