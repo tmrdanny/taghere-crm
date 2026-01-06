@@ -363,28 +363,41 @@ function TaghereEnrollContent() {
 
           if (data.alreadyEarned) {
             setShowAlreadyParticipated(true);
+            setIsLoading(false);
           } else {
-            setOrderInfo(data);
-
             // 자동 적립 시도: 로컬스토리지에 kakaoId가 있으면 자동 적립
+            // isLoading이 false가 되기 전에 isAutoEarning을 true로 설정해서 동의 UI가 안 보이게 함
+            let shouldAutoEarn = false;
+            let storedKakaoId: string | null = null;
+
             if (!autoEarnAttemptedRef.current) {
               autoEarnAttemptedRef.current = true;
-              const storedKakaoId = getStoredKakaoId();
+              storedKakaoId = getStoredKakaoId();
               if (storedKakaoId) {
-                attemptAutoEarn(storedKakaoId, data);
+                shouldAutoEarn = true;
+                setIsAutoEarning(true); // 먼저 설정하여 로딩 상태 유지
               }
             }
+
+            setOrderInfo(data);
+            setIsLoading(false);
+
+            // 자동 적립 시도 (isLoading이 false가 된 후에도 isAutoEarning이 true라서 로딩 화면 유지)
+            if (shouldAutoEarn && storedKakaoId) {
+              attemptAutoEarn(storedKakaoId, data);
+            }
           }
+          return; // 성공 시 finally 건너뛰기 위해 여기서 처리 완료
         } else if (res.status === 404) {
           setError('존재하지 않는 매장입니다.');
         } else {
           const errorData = await res.json();
           setError(errorData.error || '주문 정보를 불러오는데 실패했습니다.');
         }
+        setIsLoading(false);
       } catch (e) {
         console.error('Failed to fetch order info:', e);
         setError('주문 정보를 불러오는데 실패했습니다.');
-      } finally {
         setIsLoading(false);
       }
     };
