@@ -177,6 +177,10 @@ export default function CustomersPage() {
   const [cancelConfirmModal, setCancelConfirmModal] = useState(false);
   const [cancellingItemInfo, setCancellingItemInfo] = useState<{ name: string; price: number } | null>(null);
 
+  // Tablet-friendly UI states
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [cancelMode, setCancelMode] = useState(false);
+
   // 고객 주문 총액 계산
   const customerTotalOrderAmount = orderHistory.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
 
@@ -567,6 +571,8 @@ export default function CustomersPage() {
 
       setEditModal(false);
       setEditingCustomer(null);
+      setShowDateFilter(false);
+      setCancelMode(false);
       setRefreshKey((key) => key + 1);
       showToast('고객 정보가 수정되었습니다.', 'success');
     } catch (err: any) {
@@ -1431,56 +1437,79 @@ export default function CustomersPage() {
                 {/* Orders Tab */}
                 {editModalTab === 'orders' && (
                   <div className="flex-1 overflow-hidden flex flex-col mt-3">
-                    {/* Date Filter */}
-                    <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-                      <div className="flex items-center gap-1 flex-1">
-                        <Calendar className="w-4 h-4 text-neutral-400 flex-shrink-0" />
-                        <input
-                          type="date"
-                          value={orderStartDate}
-                          onChange={(e) => setOrderStartDate(e.target.value)}
-                          className="px-2 py-1 text-xs border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 w-full"
-                          placeholder="시작일"
-                        />
-                        <span className="text-neutral-400 text-xs">~</span>
-                        <input
-                          type="date"
-                          value={orderEndDate}
-                          onChange={(e) => setOrderEndDate(e.target.value)}
-                          className="px-2 py-1 text-xs border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 w-full"
-                          placeholder="종료일"
-                        />
-                      </div>
+                    {/* Action Buttons - Tablet Friendly */}
+                    <div className="flex items-center justify-end gap-2 mb-3 flex-shrink-0">
                       <Button
-                        variant="secondary"
+                        variant={showDateFilter ? 'default' : 'secondary'}
                         size="sm"
-                        onClick={() => {
-                          if (editingCustomer) {
-                            fetchFilteredOrders(editingCustomer.id, orderStartDate, orderEndDate);
-                          }
-                        }}
-                        disabled={loadingHistory}
-                        className="text-xs px-2 py-1 h-auto"
+                        onClick={() => setShowDateFilter(!showDateFilter)}
+                        className="text-xs px-3 py-1.5 h-auto flex items-center gap-1.5"
                       >
-                        조회
+                        <Calendar className="w-3.5 h-3.5" />
+                        날짜 조회
                       </Button>
-                      {(orderStartDate || orderEndDate) && (
+                      <Button
+                        variant={cancelMode ? 'destructive' : 'secondary'}
+                        size="sm"
+                        onClick={() => setCancelMode(!cancelMode)}
+                        className="text-xs px-3 py-1.5 h-auto flex items-center gap-1.5"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        적립 취소
+                      </Button>
+                    </div>
+
+                    {/* Date Filter - Conditional */}
+                    {showDateFilter && (
+                      <div className="flex items-center gap-2 mb-3 flex-shrink-0 p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+                        <div className="flex items-center gap-1 flex-1">
+                          <input
+                            type="date"
+                            value={orderStartDate}
+                            onChange={(e) => setOrderStartDate(e.target.value)}
+                            className="px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 w-full"
+                            placeholder="시작일"
+                          />
+                          <span className="text-neutral-400 text-sm px-1">~</span>
+                          <input
+                            type="date"
+                            value={orderEndDate}
+                            onChange={(e) => setOrderEndDate(e.target.value)}
+                            className="px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 w-full"
+                            placeholder="종료일"
+                          />
+                        </div>
                         <Button
-                          variant="ghost"
+                          variant="default"
                           size="sm"
                           onClick={() => {
-                            setOrderStartDate('');
-                            setOrderEndDate('');
                             if (editingCustomer) {
-                              fetchFilteredOrders(editingCustomer.id, '', '');
+                              fetchFilteredOrders(editingCustomer.id, orderStartDate, orderEndDate);
                             }
                           }}
-                          className="text-xs px-2 py-1 h-auto text-neutral-500"
+                          disabled={loadingHistory}
+                          className="text-sm px-3 py-1.5 h-auto"
                         >
-                          초기화
+                          조회
                         </Button>
-                      )}
-                    </div>
+                        {(orderStartDate || orderEndDate) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setOrderStartDate('');
+                              setOrderEndDate('');
+                              if (editingCustomer) {
+                                fetchFilteredOrders(editingCustomer.id, '', '');
+                              }
+                            }}
+                            className="text-sm px-3 py-1.5 h-auto text-neutral-500"
+                          >
+                            초기화
+                          </Button>
+                        )}
+                      </div>
+                    )}
 
                     {loadingHistory && (
                       <div className="text-center py-4 text-neutral-500 text-sm">
@@ -1540,17 +1569,17 @@ export default function CustomersPage() {
                                               {formatNumber(itemPrice)}원
                                             </span>
                                           )}
-                                          {!isCancelled && (
+                                          {!isCancelled && cancelMode && (
                                             <button
                                               type="button"
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 openCancelConfirm(order.id, idx, menuName, itemPrice * qty);
                                               }}
-                                              className="p-1 rounded hover:bg-red-50 text-neutral-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                                              title="주문 취소"
+                                              className="p-1.5 rounded-full bg-red-100 text-red-500 hover:bg-red-200 transition-colors"
+                                              title="적립 취소"
                                             >
-                                              <X className="w-3.5 h-3.5" />
+                                              <X className="w-4 h-4" />
                                             </button>
                                           )}
                                         </div>
@@ -1682,7 +1711,11 @@ export default function CustomersPage() {
           <ModalFooter className="flex-shrink-0">
             <Button
               variant="secondary"
-              onClick={() => setEditModal(false)}
+              onClick={() => {
+                setEditModal(false);
+                setShowDateFilter(false);
+                setCancelMode(false);
+              }}
               className="flex-1"
             >
               취소
