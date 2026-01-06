@@ -350,6 +350,7 @@ model PaymentTransaction {
 
 enum PaymentTransactionType {
   TOPUP        // 충전
+  DEDUCT       // 차감
   SUBSCRIPTION // 구독료
   REFUND       // 환불
   ALIMTALK_SEND // 알림톡 발송
