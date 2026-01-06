@@ -40,3 +40,4 @@ prisma/*.db-journal
 
 # Misc
 *.tsbuildinfo
+taghere-crm-*.env
