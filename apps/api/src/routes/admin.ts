@@ -328,16 +328,31 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
     });
 
     console.log('All TOPUP transactions count:', allTopups.length);
-    console.log('Sample transactions:', allTopups.slice(0, 5).map(tx => ({ amount: tx.amount, meta: tx.meta })));
 
-    // TossPayments 결제만 집계 (source === 'tosspayments'인 것만)
-    const realPaymentTransactions = allTopups.filter((tx) => {
+    // TossPayments 결제만 필터링 (source === 'tosspayments'인 것만)
+    const tossPayments = allTopups.filter((tx) => {
       const meta = tx.meta as Record<string, unknown> | null;
       return meta && meta.source === 'tosspayments';
     });
 
-    console.log('Real payment transactions (tosspayments only):', realPaymentTransactions.length);
-    console.log('Real transactions:', realPaymentTransactions.map(tx => ({ amount: tx.amount, meta: tx.meta })));
+    // 토스페이먼츠에서 취소된 orderId 목록 (수동 관리)
+    // TODO: 향후 취소 웹훅 구현 시 DB에서 관리하도록 변경
+    const cancelledOrderIds = new Set([
+      'TH1766880557965cgisd4td60b9l',
+      'TH1766847377539026mphq9nt0r',
+      'order_1766670545082_4rsfeyp4j',
+    ]);
+
+    // 취소된 orderId 제외
+    const realPaymentTransactions = tossPayments.filter((tx) => {
+      const meta = tx.meta as Record<string, unknown>;
+      const orderId = meta.orderId as string;
+      return orderId && !cancelledOrderIds.has(orderId);
+    });
+
+    console.log('TossPayments transactions:', tossPayments.length);
+    console.log('After removing cancelled:', realPaymentTransactions.length);
+    console.log('Cancelled count:', tossPayments.length - realPaymentTransactions.length);
 
     // 누적 실 결제 금액
     const totalRealPayments = realPaymentTransactions.reduce((sum, tx) => sum + tx.amount, 0);
