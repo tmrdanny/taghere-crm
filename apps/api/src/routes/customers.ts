@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
 
 const router = Router();
 
@@ -400,9 +401,14 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
       return res.status(400).json({ error: '주문 ID와 아이템 인덱스가 필요합니다.' });
     }
 
-    // Verify customer exists and belongs to the store
+    // Verify customer exists and belongs to the store (with store name for AlimTalk)
     const customer = await prisma.customer.findFirst({
       where: { id, storeId },
+      include: {
+        store: {
+          select: { name: true },
+        },
+      },
     });
 
     if (!customer) {
@@ -510,6 +516,32 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
           where: { id },
           data: { totalPoints: newBalance },
         });
+
+        // Send AlimTalk notification for point deduction (with negative points)
+        const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
+        if (phoneNumber) {
+          // Get the newly created point ledger entry
+          const pointLedger = await prisma.pointLedger.findFirst({
+            where: { customerId: id, type: 'ADJUST' },
+            orderBy: { createdAt: 'desc' },
+          });
+
+          if (pointLedger) {
+            enqueuePointsEarnedAlimTalk({
+              storeId,
+              customerId: id,
+              pointLedgerId: pointLedger.id,
+              phone: phoneNumber,
+              variables: {
+                storeName: customer.store.name,
+                points: -actualDeduction, // 음수로 전달 (예: -550)
+                totalPoints: newBalance,
+              },
+            }).catch((err) => {
+              console.error('[Cancel Order Item] AlimTalk enqueue failed:', err);
+            });
+          }
+        }
       }
     }
 
