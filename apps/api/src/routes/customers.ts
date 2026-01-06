@@ -151,6 +151,8 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
             name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
             quantity: item.count || item.quantity || item.qty || item.amount || 1,
             price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+            cancelled: item.cancelled || false,
+            cancelledAt: item.cancelledAt || null,
           }));
         } else if (typeof itemsData === 'object') {
           // 새로운 형식: { items: [], tableNumber: string }
@@ -160,6 +162,8 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
             name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
             quantity: item.count || item.quantity || item.qty || item.amount || 1,
             price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+            cancelled: item.cancelled || false,
+            cancelledAt: item.cancelledAt || null,
           }));
         }
       }
@@ -452,25 +456,38 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
       where: { storeId },
     });
 
+    // Debug: log the cancelled item structure
+    console.log('[Cancel Order Item] cancelledItem:', JSON.stringify(cancelledItem, null, 2));
+
     const itemPrice = typeof cancelledItem.price === 'string'
       ? parseInt(cancelledItem.price, 10)
       : (cancelledItem.price || cancelledItem.totalPrice || 0);
     const itemQty = cancelledItem.count || cancelledItem.quantity || cancelledItem.qty || 1;
     const itemTotalPrice = itemPrice * itemQty;
 
+    // Debug: log calculated values
+    console.log('[Cancel Order Item] itemPrice:', itemPrice, 'itemQty:', itemQty, 'itemTotalPrice:', itemTotalPrice);
+    console.log('[Cancel Order Item] pointPolicy:', pointPolicy);
+
     let pointsToDeduct = 0;
     if (pointPolicy) {
       if (pointPolicy.type === 'PERCENT') {
         pointsToDeduct = Math.floor(itemTotalPrice * (pointPolicy.value / 100));
+        console.log('[Cancel Order Item] PERCENT calculation:', itemTotalPrice, '*', pointPolicy.value / 100, '=', pointsToDeduct);
       } else {
         // FIXED: 고정 포인트는 주문당이므로, 아이템 개별 취소시에는 비율로 계산
         // 전체 주문 금액 대비 해당 아이템 금액 비율로 포인트 차감
         const totalAmount = visitOrOrder.totalAmount || 0;
+        console.log('[Cancel Order Item] FIXED calculation: totalAmount =', totalAmount);
         if (totalAmount > 0) {
           pointsToDeduct = Math.floor(pointPolicy.value * (itemTotalPrice / totalAmount));
+          console.log('[Cancel Order Item] FIXED pointsToDeduct:', pointsToDeduct);
         }
       }
+    } else {
+      console.log('[Cancel Order Item] No point policy found for store:', storeId);
     }
+    console.log('[Cancel Order Item] Final pointsToDeduct:', pointsToDeduct);
 
     // Mark item as cancelled
     items[itemIndex] = { ...cancelledItem, cancelled: true, cancelledAt: new Date().toISOString() };
