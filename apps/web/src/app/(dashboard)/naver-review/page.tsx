@@ -420,6 +420,37 @@ export default function NaverReviewPage() {
                     ? '고객이 포인트를 적립할 때마다 리뷰 요청 알림톡이 발송됩니다.'
                     : '고객이 오늘 처음 포인트를 적립할 때만 리뷰 요청 알림톡이 발송됩니다. 같은 날 추가 주문 시에는 발송되지 않습니다.'}
                 </p>
+
+                {/* Save Frequency Button */}
+                <div className="pt-4 border-t border-neutral-100">
+                  <Button
+                    onClick={async () => {
+                      setIsSaving(true);
+                      try {
+                        const token = getAuthToken();
+                        const res = await fetch(`${API_BASE}/api/review-automation/settings`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                          },
+                          body: JSON.stringify({ sendFrequency: settings.sendFrequency }),
+                        });
+                        if (!res.ok) throw new Error('저장 실패');
+                        showToast('발송 빈도 설정이 저장되었습니다.', 'success');
+                      } catch (err) {
+                        setError('발송 빈도 저장에 실패했습니다.');
+                      } finally {
+                        setIsSaving(false);
+                      }
+                    }}
+                    disabled={isSaving}
+                    className="w-full"
+                  >
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    저장하기
+                  </Button>
+                </div>
               </div>
             </Card>
 
