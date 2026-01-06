@@ -354,10 +354,20 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
 
     console.log('Stats:', { totalRealPayments, monthlyRealPayments, totalTransactions });
 
+    // 디버그: 각 트랜잭션 상세 정보
+    const debugTransactions = realPaymentTransactions.map(tx => ({
+      amount: tx.amount,
+      createdAt: tx.createdAt,
+      meta: tx.meta,
+    }));
+    console.log('Debug transactions:', JSON.stringify(debugTransactions, null, 2));
+
     res.json({
       totalRealPayments,
       monthlyRealPayments,
       totalTransactions,
+      // 임시 디버그 정보
+      debug: debugTransactions,
     });
   } catch (error) {
     console.error('Admin payment stats error:', error);
