@@ -11,7 +11,7 @@ import {
   ModalTitle,
   ModalFooter,
 } from '@/components/ui/modal';
-import { formatNumber, formatPhone, getRelativeTime } from '@/lib/utils';
+import { formatNumber, formatPhone, getRelativeTime, maskNickname } from '@/lib/utils';
 import { Delete, Loader2, UserPlus, RefreshCw, AlertCircle, CheckCircle2, Calculator, Keyboard } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
@@ -436,7 +436,7 @@ export default function PointsPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-neutral-900 truncate">
-                              {tx.customerName || (tx.phone ? formatPhone(tx.phone) : '알 수 없음')}
+                              {tx.customerName ? maskNickname(tx.customerName) : (tx.phone ? formatPhone(tx.phone) : '알 수 없음')}
                             </span>
                             {tx.isVip && <Badge variant="vip">VIP</Badge>}
                             {tx.isNew && <Badge variant="new">신규</Badge>}
