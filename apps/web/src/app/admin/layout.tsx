@@ -14,6 +14,7 @@ export default function AdminLayout({
   const pathname = usePathname();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   useEffect(() => {
     // 로그인 페이지는 인증 체크 건너뛰기
@@ -65,8 +66,8 @@ export default function AdminLayout({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-neutral-900 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -75,74 +76,168 @@ export default function AdminLayout({
     return null;
   }
 
-  return (
-    <div className="min-h-screen bg-neutral-950">
-      {/* Header */}
-      <header className="border-b border-neutral-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-6">
-              <Link href="/admin" className="flex items-center gap-2">
-                <Image
-                  src="/Taghere-logo.png"
-                  alt="태그히어"
-                  width={28}
-                  height={28}
-                  className="rounded"
-                />
-                <span className="font-semibold text-white">Admin</span>
-              </Link>
-              <nav className="flex items-center gap-4">
-                <Link
-                  href="/admin"
-                  className={`text-sm transition-colors ${
-                    pathname === '/admin'
-                      ? 'text-white font-medium'
-                      : 'text-neutral-400 hover:text-white'
-                  }`}
-                >
-                  매장 관리
-                </Link>
-                <Link
-                  href="/admin/announcements"
-                  className={`text-sm transition-colors ${
-                    pathname === '/admin/announcements'
-                      ? 'text-white font-medium'
-                      : 'text-neutral-400 hover:text-white'
-                  }`}
-                >
-                  공지사항
-                </Link>
-                <Link
-                  href="/admin/banners"
-                  className={`text-sm transition-colors ${
-                    pathname === '/admin/banners'
-                      ? 'text-white font-medium'
-                      : 'text-neutral-400 hover:text-white'
-                  }`}
-                >
-                  배너 관리
-                </Link>
-              </nav>
-            </div>
+  const getPageTitle = () => {
+    if (pathname === '/admin') return '홈';
+    if (pathname === '/admin/stores') return '매장 관리';
+    if (pathname === '/admin/announcements') return '공지사항';
+    if (pathname === '/admin/banners') return '배너 관리';
+    return 'Admin';
+  };
 
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-neutral-500">taghere</span>
-              <button
-                onClick={handleLogout}
-                className="text-sm text-neutral-400 hover:text-white transition-colors"
-              >
-                로그아웃
-              </button>
-            </div>
+  const menuItems = [
+    { href: '/admin', label: '홈', icon: HomeIcon },
+    { href: '/admin/stores', label: '매장 관리', icon: StoreIcon },
+    { href: '/admin/announcements', label: '공지사항', icon: AnnouncementIcon },
+    { href: '/admin/banners', label: '배너 관리', icon: BannerIcon },
+  ];
+
+  return (
+    <div className="min-h-screen bg-white flex">
+      {/* Sidebar */}
+      <aside
+        className={`${
+          isSidebarOpen ? 'w-60' : 'w-0'
+        } border-r border-[#EAEAEA] flex-shrink-0 transition-all duration-300 overflow-hidden`}
+      >
+        <div className="h-full flex flex-col w-60">
+          {/* Sidebar Header */}
+          <div className="h-14 flex items-center px-5 border-b border-[#EAEAEA]">
+            <Image
+              src="/Taghere-logo.png"
+              alt="태그히어"
+              width={32}
+              height={32}
+              className="rounded"
+            />
+            <span className="ml-2 font-semibold text-neutral-900 text-[15px]">TagHere Admin</span>
+          </div>
+
+          {/* Menu */}
+          <nav className="flex-1 py-4">
+            {menuItems.map((item) => {
+              const isActive = pathname === item.href;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 px-5 py-2.5 text-[14px] transition-colors relative ${
+                    isActive
+                      ? 'text-neutral-900 font-medium bg-neutral-100'
+                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
+                  }`}
+                >
+                  {isActive && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-[#FFD541] rounded-r" />
+                  )}
+                  <Icon className="w-5 h-5" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Logout */}
+          <div className="border-t border-[#EAEAEA] p-4">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-[14px] text-neutral-500 hover:text-neutral-900 transition-colors"
+            >
+              <LogoutIcon className="w-5 h-5" />
+              로그아웃
+            </button>
           </div>
         </div>
-      </header>
+      </aside>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Bar */}
+        <header className="h-14 border-b border-[#EAEAEA] flex items-center justify-between px-6 flex-shrink-0">
+          {/* Left: Hamburger + Title */}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
+            >
+              <HamburgerIcon className="w-5 h-5 text-neutral-600" />
+            </button>
+            <h1 className="text-[16px] font-semibold text-neutral-900">{getPageTitle()}</h1>
+          </div>
+
+          {/* Center: Logo */}
+          <div className="absolute left-1/2 -translate-x-1/2">
+            <Image
+              src="/Taghere-logo.png"
+              alt="태그히어"
+              width={28}
+              height={28}
+              className="rounded"
+            />
+          </div>
+
+          {/* Right: User */}
+          <div className="flex items-center">
+            <span className="text-[14px] text-neutral-500">taghere</span>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main className="flex-1 overflow-auto bg-[#FAFAFA]">
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
+  );
+}
+
+// Icons
+function HomeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+    </svg>
+  );
+}
+
+function StoreIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
+    </svg>
+  );
+}
+
+function AnnouncementIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535m0 0A23.74 23.74 0 0018.795 3m.38 1.125a23.91 23.91 0 011.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 001.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 010 3.46" />
+    </svg>
+  );
+}
+
+function BannerIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+    </svg>
+  );
+}
+
+function HamburgerIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+    </svg>
+  );
+}
+
+function LogoutIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+    </svg>
   );
 }

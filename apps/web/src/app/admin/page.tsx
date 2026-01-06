@@ -3,116 +3,49 @@
 import { useEffect, useState } from 'react';
 import { formatNumber } from '@/lib/utils';
 
-interface Store {
-  id: string;
-  name: string;
-  slug: string | null;
-  ownerName: string | null;
-  phone: string | null;
-  businessRegNumber: string | null;
-  createdAt: string;
-  ownerEmail: string | null;
-  ownerId: string | null;
-  customerCount: number;
-  walletBalance?: number;
-}
-
-interface TopupModalData {
-  storeId: string;
-  storeName: string;
-  currentBalance: number;
-}
-
-interface DeductModalData {
-  storeId: string;
-  storeName: string;
-  currentBalance: number;
-}
-
-interface DeleteCustomersModalData {
-  storeId: string;
-  storeName: string;
-  customerCount: number;
-}
-
 interface Stats {
   storeCount: number;
   customerCount: number;
   userCount: number;
 }
 
-export default function AdminDashboardPage() {
-  const [stores, setStores] = useState<Store[]>([]);
+interface PaymentStats {
+  totalRealPayments: number;
+  monthlyRealPayments: number;
+  totalTransactions: number;
+}
+
+export default function AdminHomePage() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [paymentStats, setPaymentStats] = useState<PaymentStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [resettingStoreId, setResettingStoreId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [topupModal, setTopupModal] = useState<TopupModalData | null>(null);
-  const [topupAmount, setTopupAmount] = useState('');
-  const [topupReason, setTopupReason] = useState('');
-  const [topupPassword, setTopupPassword] = useState('');
-  const [isTopupLoading, setIsTopupLoading] = useState(false);
-  const [deductModal, setDeductModal] = useState<DeductModalData | null>(null);
-  const [deductAmount, setDeductAmount] = useState('');
-  const [deductReason, setDeductReason] = useState('');
-  const [deductPassword, setDeductPassword] = useState('');
-  const [isDeductLoading, setIsDeductLoading] = useState(false);
-  const [deleteCustomersModal, setDeleteCustomersModal] = useState<DeleteCustomersModalData | null>(null);
-  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   useEffect(() => {
     fetchData();
   }, []);
-
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
 
   const fetchData = async () => {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
 
     try {
-      const [storesRes, statsRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores`, {
+      const [statsRes, paymentStatsRes] = await Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stats`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stats`, {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/payment-stats`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
 
-      if (storesRes.ok) {
-        const storesData = await storesRes.json();
-        // Fetch wallet balance for each store
-        const storesWithWallet = await Promise.all(
-          storesData.map(async (store: Store) => {
-            try {
-              const walletRes = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${store.id}/wallet`,
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
-              if (walletRes.ok) {
-                const walletData = await walletRes.json();
-                return { ...store, walletBalance: walletData.balance };
-              }
-            } catch (e) {
-              console.error('Failed to fetch wallet for store:', store.id);
-            }
-            return { ...store, walletBalance: 0 };
-          })
-        );
-        setStores(storesWithWallet);
-      }
-
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setStats(statsData);
+      }
+
+      if (paymentStatsRes.ok) {
+        const paymentData = await paymentStatsRes.json();
+        setPaymentStats(paymentData);
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -121,747 +54,155 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleResetPassword = async (storeId: string, storeName: string) => {
-    if (!confirm(`${storeName} 매장의 비밀번호를 초기화하시겠습니까?\n\n새 비밀번호: 123456789a`)) {
-      return;
-    }
-
-    const token = localStorage.getItem('adminToken');
-    if (!token) return;
-
-    setResettingStoreId(storeId);
-
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${storeId}/reset-password`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setToast({ message: `${storeName} 비밀번호가 초기화되었습니다.`, type: 'success' });
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error: any) {
-      setToast({ message: error.message || '비밀번호 초기화에 실패했습니다.', type: 'error' });
-    } finally {
-      setResettingStoreId(null);
-    }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setToast({ message: '클립보드에 복사되었습니다.', type: 'success' });
-  };
-
-  const openTopupModal = (store: Store) => {
-    setTopupModal({
-      storeId: store.id,
-      storeName: store.name,
-      currentBalance: store.walletBalance || 0,
-    });
-    setTopupAmount('');
-    setTopupReason('');
-    setTopupPassword('');
-  };
-
-  const openDeductModal = (store: Store) => {
-    setDeductModal({
-      storeId: store.id,
-      storeName: store.name,
-      currentBalance: store.walletBalance || 0,
-    });
-    setDeductAmount('');
-    setDeductReason('');
-    setDeductPassword('');
-  };
-
-  const openDeleteCustomersModal = (store: Store) => {
-    setDeleteCustomersModal({
-      storeId: store.id,
-      storeName: store.name,
-      customerCount: store.customerCount,
-    });
-    setDeleteConfirmText('');
-  };
-
-  const handleDeleteCustomers = async () => {
-    if (!deleteCustomersModal) return;
-
-    if (deleteConfirmText !== '삭제') {
-      setToast({ message: '"삭제"를 입력해주세요.', type: 'error' });
-      return;
-    }
-
-    const token = localStorage.getItem('adminToken');
-    if (!token) return;
-
-    setIsDeleteLoading(true);
-
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${deleteCustomersModal.storeId}/customers`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setToast({ message: data.message, type: 'success' });
-        setDeleteCustomersModal(null);
-        // Update local store data with 0 customers
-        setStores((prevStores) =>
-          prevStores.map((store) =>
-            store.id === deleteCustomersModal.storeId
-              ? { ...store, customerCount: 0 }
-              : store
-          )
-        );
-        // Update stats
-        if (stats) {
-          setStats({
-            ...stats,
-            customerCount: stats.customerCount - deleteCustomersModal.customerCount,
-          });
-        }
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error: any) {
-      setToast({ message: error.message || '고객 삭제에 실패했습니다.', type: 'error' });
-    } finally {
-      setIsDeleteLoading(false);
-    }
-  };
-
-  const ADMIN_ACTION_PASSWORD = '0614';
-
-  const handleTopup = async () => {
-    if (!topupModal) return;
-
-    if (topupPassword !== ADMIN_ACTION_PASSWORD) {
-      setToast({ message: '비밀번호가 올바르지 않습니다.', type: 'error' });
-      return;
-    }
-
-    const amount = parseInt(topupAmount);
-    if (!amount || amount <= 0) {
-      setToast({ message: '유효한 충전 금액을 입력해주세요.', type: 'error' });
-      return;
-    }
-
-    const token = localStorage.getItem('adminToken');
-    if (!token) return;
-
-    setIsTopupLoading(true);
-
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${topupModal.storeId}/wallet/topup`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ amount, reason: topupReason }),
-        }
-      );
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setToast({ message: data.message, type: 'success' });
-        setTopupModal(null);
-        // Update local store data with new balance
-        setStores((prevStores) =>
-          prevStores.map((store) =>
-            store.id === topupModal.storeId
-              ? { ...store, walletBalance: data.newBalance }
-              : store
-          )
-        );
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error: any) {
-      setToast({ message: error.message || '충전에 실패했습니다.', type: 'error' });
-    } finally {
-      setIsTopupLoading(false);
-    }
-  };
-
-  const handleDeduct = async () => {
-    if (!deductModal) return;
-
-    if (deductPassword !== ADMIN_ACTION_PASSWORD) {
-      setToast({ message: '비밀번호가 올바르지 않습니다.', type: 'error' });
-      return;
-    }
-
-    const amount = parseInt(deductAmount);
-    if (!amount || amount <= 0) {
-      setToast({ message: '유효한 차감 금액을 입력해주세요.', type: 'error' });
-      return;
-    }
-
-    if (amount > deductModal.currentBalance) {
-      setToast({ message: '잔액보다 큰 금액을 차감할 수 없습니다.', type: 'error' });
-      return;
-    }
-
-    const token = localStorage.getItem('adminToken');
-    if (!token) return;
-
-    setIsDeductLoading(true);
-
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${deductModal.storeId}/wallet/deduct`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ amount, reason: deductReason }),
-        }
-      );
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setToast({ message: data.message, type: 'success' });
-        setDeductModal(null);
-        // Update local store data with new balance
-        setStores((prevStores) =>
-          prevStores.map((store) =>
-            store.id === deductModal.storeId
-              ? { ...store, walletBalance: data.newBalance }
-              : store
-          )
-        );
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error: any) {
-      setToast({ message: error.message || '차감에 실패했습니다.', type: 'error' });
-    } finally {
-      setIsDeductLoading(false);
-    }
-  };
-
-  const filteredStores = stores.filter((store) => {
-    const query = searchQuery.toLowerCase();
-    return (
-      store.name.toLowerCase().includes(query) ||
-      store.id.toLowerCase().includes(query) ||
-      store.ownerEmail?.toLowerCase().includes(query) ||
-      store.businessRegNumber?.includes(query)
-    );
-  });
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
+  const currentMonth = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' });
+
   return (
     <div className="space-y-8">
-      {/* Toast */}
-      {toast && (
-        <div
-          className={`fixed top-4 right-4 px-4 py-3 rounded-lg text-sm font-medium z-50 ${
-            toast.type === 'success'
-              ? 'bg-green-500/10 border border-green-500/20 text-green-400'
-              : 'bg-red-500/10 border border-red-500/20 text-red-400'
-          }`}
-        >
-          {toast.message}
-        </div>
-      )}
-
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
-        <p className="text-neutral-500 mt-1">TagHere 전체 매장 관리</p>
-      </div>
-
-      {/* Stats Cards */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
-            <p className="text-sm text-neutral-500">전체 매장</p>
-            <p className="text-3xl font-semibold text-white mt-1">{formatNumber(stats.storeCount)}</p>
-          </div>
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
-            <p className="text-sm text-neutral-500">전체 고객</p>
-            <p className="text-3xl font-semibold text-white mt-1">{formatNumber(stats.customerCount)}</p>
-          </div>
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
-            <p className="text-sm text-neutral-500">전체 사용자</p>
-            <p className="text-3xl font-semibold text-white mt-1">{formatNumber(stats.userCount)}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Stores Table */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-lg font-medium text-white">매장 목록</h2>
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="매장명, ID, 이메일 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-64 h-9 pl-9 pr-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
-            />
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </div>
+      {/* Key Metrics - Payment Stats */}
+      <section>
+        <div className="mb-4">
+          <h2 className="text-[18px] font-semibold text-neutral-900">Key Metrics</h2>
+          <p className="text-[14px] text-neutral-500 mt-0.5">{currentMonth} 기준</p>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-neutral-800">
-                <th className="text-left text-xs font-medium text-neutral-500 uppercase tracking-wider px-4 py-3">
-                  매장
-                </th>
-                <th className="text-left text-xs font-medium text-neutral-500 uppercase tracking-wider px-4 py-3">
-                  ID
-                </th>
-                <th className="text-left text-xs font-medium text-neutral-500 uppercase tracking-wider px-4 py-3">
-                  점주 이메일
-                </th>
-                <th className="text-left text-xs font-medium text-neutral-500 uppercase tracking-wider px-4 py-3">
-                  고객 수
-                </th>
-                <th className="text-right text-xs font-medium text-neutral-500 uppercase tracking-wider px-4 py-3">
-                  충전금
-                </th>
-                <th className="text-left text-xs font-medium text-neutral-500 uppercase tracking-wider px-4 py-3">
-                  가입일
-                </th>
-                <th className="text-left text-xs font-medium text-neutral-500 uppercase tracking-wider px-4 py-3">
-                  고객등록 링크
-                </th>
-                <th className="text-right text-xs font-medium text-neutral-500 uppercase tracking-wider px-4 py-3">
-                  액션
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800">
-              {filteredStores.map((store) => (
-                <tr key={store.id} className="hover:bg-neutral-800/50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div>
-                      <p className="text-sm font-medium text-white">{store.name}</p>
-                      <p className="text-xs text-neutral-500">{store.ownerName || '-'}</p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => copyToClipboard(store.id)}
-                      className="group flex items-center gap-1.5"
-                    >
-                      <code className="text-xs text-neutral-400 bg-neutral-800 px-2 py-1 rounded font-mono">
-                        {store.id.slice(0, 12)}...
-                      </code>
-                      <svg
-                        className="w-3.5 h-3.5 text-neutral-600 group-hover:text-neutral-400 transition-colors"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
-                      </svg>
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-neutral-400">{store.ownerEmail || '-'}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-neutral-400">{formatNumber(store.customerCount)}</span>
-                      {store.customerCount > 0 && (
-                        <button
-                          onClick={() => openDeleteCustomersModal(store)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
-                          title="고객 전체 삭제"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                          삭제
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <span className="text-sm font-medium text-white">
-                        {formatNumber(store.walletBalance || 0)}원
-                      </span>
-                      <button
-                        onClick={() => openTopupModal(store)}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-400 hover:text-green-300 hover:bg-green-500/10 rounded transition-colors"
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        충전
-                      </button>
-                      {(store.walletBalance || 0) > 0 && (
-                        <button
-                          onClick={() => openDeductModal(store)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                          </svg>
-                          삭제
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-neutral-500">
-                      {new Date(store.createdAt).toLocaleDateString('ko-KR')}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {store.slug ? (
-                      <button
-                        onClick={() => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll/${store.slug}?ordersheetId={ordersheetId}`)}
-                        className="group flex items-center gap-1.5"
-                        title="클릭하여 복사"
-                      >
-                        <code className="text-xs text-blue-400 bg-neutral-800 px-2 py-1 rounded font-mono max-w-[200px] truncate">
-                          /taghere-enroll/{store.slug}?ordersheetId=...
-                        </code>
-                        <svg
-                          className="w-3.5 h-3.5 text-neutral-600 group-hover:text-neutral-400 transition-colors flex-shrink-0"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                          />
-                        </svg>
-                      </button>
-                    ) : (
-                      <span className="text-xs text-neutral-600">slug 없음</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleResetPassword(store.id, store.name)}
-                      disabled={resettingStoreId === store.id}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-md transition-colors disabled:opacity-50"
-                    >
-                      {resettingStoreId === store.id ? (
-                        <>
-                          <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
-                          초기화 중...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                            />
-                          </svg>
-                          비밀번호 초기화
-                        </>
-                      )}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filteredStores.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-neutral-500">
-                    {searchQuery ? '검색 결과가 없습니다.' : '등록된 매장이 없습니다.'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Topup Modal */}
-      {topupModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-md mx-4 p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              충전금 충전
-            </h3>
-            <p className="text-sm text-neutral-400 mb-4">
-              <span className="text-white font-medium">{topupModal.storeName}</span> 매장에 충전금을 충전합니다.
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Total Real Payments */}
+          <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[14px] text-neutral-500">누적 결제 금액</p>
+              <span className="text-[12px] text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded">TossPayments</span>
+            </div>
+            <p className="text-[28px] font-semibold text-neutral-900">
+              {formatNumber(paymentStats?.totalRealPayments || 0)}
+              <span className="text-[16px] font-normal text-neutral-500 ml-1">원</span>
             </p>
+          </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  현재 잔액
-                </label>
-                <p className="text-lg font-semibold text-white">
-                  {formatNumber(topupModal.currentBalance)}원
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  충전 금액 <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={topupAmount}
-                  onChange={(e) => setTopupAmount(e.target.value)}
-                  placeholder="충전할 금액을 입력하세요"
-                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  충전 사유 (선택)
-                </label>
-                <input
-                  type="text"
-                  value={topupReason}
-                  onChange={(e) => setTopupReason(e.target.value)}
-                  placeholder="예: 프로모션 지급, 보상 처리 등"
-                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  비밀번호 <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={topupPassword}
-                  onChange={(e) => setTopupPassword(e.target.value)}
-                  placeholder="비밀번호를 입력하세요"
-                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
-                />
-              </div>
+          {/* Monthly Payments */}
+          <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[14px] text-neutral-500">이번 달 결제</p>
             </div>
+            <p className="text-[28px] font-semibold text-neutral-900">
+              {formatNumber(paymentStats?.monthlyRealPayments || 0)}
+              <span className="text-[16px] font-normal text-neutral-500 ml-1">원</span>
+            </p>
+          </div>
 
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setTopupModal(null)}
-                className="flex-1 h-10 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-sm font-medium transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleTopup}
-                disabled={isTopupLoading || !topupAmount || !topupPassword}
-                className="flex-1 h-10 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isTopupLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    충전 중...
-                  </>
-                ) : (
-                  '충전하기'
-                )}
-              </button>
+          {/* Total Transactions */}
+          <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[14px] text-neutral-500">총 결제 건수</p>
             </div>
+            <p className="text-[28px] font-semibold text-neutral-900">
+              {formatNumber(paymentStats?.totalTransactions || 0)}
+              <span className="text-[16px] font-normal text-neutral-500 ml-1">건</span>
+            </p>
           </div>
         </div>
-      )}
+      </section>
 
-      {/* Deduct Modal */}
-      {deductModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-md mx-4 p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              충전금 삭제 (차감)
-            </h3>
-            <p className="text-sm text-neutral-400 mb-4">
-              <span className="text-white font-medium">{deductModal.storeName}</span> 매장의 충전금을 차감합니다.
+      {/* Platform Stats */}
+      <section>
+        <div className="mb-4">
+          <h2 className="text-[18px] font-semibold text-neutral-900">플랫폼 현황</h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Store Count */}
+          <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+            <p className="text-[14px] text-neutral-500 mb-4">전체 매장</p>
+            <p className="text-[28px] font-semibold text-neutral-900">
+              {formatNumber(stats?.storeCount || 0)}
+              <span className="text-[16px] font-normal text-neutral-500 ml-1">개</span>
             </p>
+          </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  현재 잔액
-                </label>
-                <p className="text-lg font-semibold text-white">
-                  {formatNumber(deductModal.currentBalance)}원
-                </p>
-              </div>
+          {/* Customer Count */}
+          <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+            <p className="text-[14px] text-neutral-500 mb-4">전체 고객</p>
+            <p className="text-[28px] font-semibold text-neutral-900">
+              {formatNumber(stats?.customerCount || 0)}
+              <span className="text-[16px] font-normal text-neutral-500 ml-1">명</span>
+            </p>
+          </div>
 
-              <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  차감 금액 <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={deductAmount}
-                  onChange={(e) => setDeductAmount(e.target.value)}
-                  placeholder="차감할 금액을 입력하세요"
-                  max={deductModal.currentBalance}
-                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  차감 사유 (선택)
-                </label>
-                <input
-                  type="text"
-                  value={deductReason}
-                  onChange={(e) => setDeductReason(e.target.value)}
-                  placeholder="예: 오충전 정정, 환불 처리 등"
-                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  비밀번호 <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={deductPassword}
-                  onChange={(e) => setDeductPassword(e.target.value)}
-                  placeholder="비밀번호를 입력하세요"
-                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setDeductModal(null)}
-                className="flex-1 h-10 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-sm font-medium transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleDeduct}
-                disabled={isDeductLoading || !deductAmount || !deductPassword}
-                className="flex-1 h-10 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isDeductLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    차감 중...
-                  </>
-                ) : (
-                  '차감하기'
-                )}
-              </button>
-            </div>
+          {/* User Count */}
+          <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+            <p className="text-[14px] text-neutral-500 mb-4">전체 사용자</p>
+            <p className="text-[28px] font-semibold text-neutral-900">
+              {formatNumber(stats?.userCount || 0)}
+              <span className="text-[16px] font-normal text-neutral-500 ml-1">명</span>
+            </p>
           </div>
         </div>
-      )}
+      </section>
 
-      {/* Delete Customers Modal */}
-      {deleteCustomersModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-md mx-4 p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              고객 전체 삭제
-            </h3>
-            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg mb-4">
-              <p className="text-sm text-red-400 font-medium">
-                ⚠️ 이 작업은 되돌릴 수 없습니다!
-              </p>
-            </div>
-            <p className="text-sm text-neutral-400 mb-2">
-              <span className="text-white font-medium">{deleteCustomersModal.storeName}</span> 매장의 모든 고객을 삭제합니다.
-            </p>
-            <p className="text-sm text-neutral-400 mb-4">
-              삭제될 고객 수: <span className="text-red-400 font-semibold">{formatNumber(deleteCustomersModal.customerCount)}명</span>
-            </p>
+      {/* Quick Actions */}
+      <section>
+        <div className="mb-4">
+          <h2 className="text-[18px] font-semibold text-neutral-900">바로가기</h2>
+        </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  확인을 위해 &quot;삭제&quot;를 입력하세요
-                </label>
-                <input
-                  type="text"
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  placeholder="삭제"
-                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
-                />
-              </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <a
+            href="/admin/stores"
+            className="bg-white border border-[#EAEAEA] rounded-xl p-5 hover:border-[#FFD541] hover:shadow-sm transition-all group"
+          >
+            <div className="w-10 h-10 bg-[#FFF8E1] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#FFD541] transition-colors">
+              <svg className="w-5 h-5 text-[#F9A825] group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
+              </svg>
             </div>
+            <p className="text-[14px] font-medium text-neutral-900">매장 관리</p>
+            <p className="text-[12px] text-neutral-500 mt-0.5">매장 목록 및 설정</p>
+          </a>
 
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setDeleteCustomersModal(null)}
-                className="flex-1 h-10 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-sm font-medium transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleDeleteCustomers}
-                disabled={isDeleteLoading || deleteConfirmText !== '삭제'}
-                className="flex-1 h-10 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isDeleteLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    삭제 중...
-                  </>
-                ) : (
-                  '고객 전체 삭제'
-                )}
-              </button>
+          <a
+            href="/admin/announcements"
+            className="bg-white border border-[#EAEAEA] rounded-xl p-5 hover:border-[#FFD541] hover:shadow-sm transition-all group"
+          >
+            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center mb-3 group-hover:bg-blue-500 transition-colors">
+              <svg className="w-5 h-5 text-blue-500 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535m0 0A23.74 23.74 0 0018.795 3m.38 1.125a23.91 23.91 0 011.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 001.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 010 3.46" />
+              </svg>
             </div>
+            <p className="text-[14px] font-medium text-neutral-900">공지사항</p>
+            <p className="text-[12px] text-neutral-500 mt-0.5">공지 관리</p>
+          </a>
+
+          <a
+            href="/admin/banners"
+            className="bg-white border border-[#EAEAEA] rounded-xl p-5 hover:border-[#FFD541] hover:shadow-sm transition-all group"
+          >
+            <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center mb-3 group-hover:bg-purple-500 transition-colors">
+              <svg className="w-5 h-5 text-purple-500 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+              </svg>
+            </div>
+            <p className="text-[14px] font-medium text-neutral-900">배너 관리</p>
+            <p className="text-[12px] text-neutral-500 mt-0.5">주문완료 배너</p>
+          </a>
+
+          <div className="bg-white border border-[#EAEAEA] rounded-xl p-5 opacity-50 cursor-not-allowed">
+            <div className="w-10 h-10 bg-neutral-100 rounded-lg flex items-center justify-center mb-3">
+              <svg className="w-5 h-5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+              </svg>
+            </div>
+            <p className="text-[14px] font-medium text-neutral-400">통계 분석</p>
+            <p className="text-[12px] text-neutral-400 mt-0.5">준비 중</p>
           </div>
         </div>
-      )}
+      </section>
     </div>
   );
 }
