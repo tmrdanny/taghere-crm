@@ -405,12 +405,12 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
       return res.status(400).json({ error: '주문 ID와 아이템 인덱스가 필요합니다.' });
     }
 
-    // Verify customer exists and belongs to the store (with store name for AlimTalk)
+    // Verify customer exists and belongs to the store (with store name and point rate for AlimTalk)
     const customer = await prisma.customer.findFirst({
       where: { id, storeId },
       include: {
         store: {
-          select: { name: true },
+          select: { name: true, pointRatePercent: true },
         },
       },
     });
@@ -450,11 +450,8 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
       return res.status(400).json({ error: '이미 취소된 아이템입니다.' });
     }
 
-    // Calculate points to deduct
-    // Get the store's point policy
-    const pointPolicy = await prisma.pointPolicy.findUnique({
-      where: { storeId },
-    });
+    // Calculate points to deduct using store's pointRatePercent (same as earn logic)
+    const pointRatePercent = customer.store.pointRatePercent || 5; // 기본값 5%
 
     // Debug: log the cancelled item structure
     console.log('[Cancel Order Item] cancelledItem:', JSON.stringify(cancelledItem, null, 2));
@@ -467,27 +464,11 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
 
     // Debug: log calculated values
     console.log('[Cancel Order Item] itemPrice:', itemPrice, 'itemQty:', itemQty, 'itemTotalPrice:', itemTotalPrice);
-    console.log('[Cancel Order Item] pointPolicy:', pointPolicy);
+    console.log('[Cancel Order Item] pointRatePercent:', pointRatePercent);
 
-    let pointsToDeduct = 0;
-    if (pointPolicy) {
-      if (pointPolicy.type === 'PERCENT') {
-        pointsToDeduct = Math.floor(itemTotalPrice * (pointPolicy.value / 100));
-        console.log('[Cancel Order Item] PERCENT calculation:', itemTotalPrice, '*', pointPolicy.value / 100, '=', pointsToDeduct);
-      } else {
-        // FIXED: 고정 포인트는 주문당이므로, 아이템 개별 취소시에는 비율로 계산
-        // 전체 주문 금액 대비 해당 아이템 금액 비율로 포인트 차감
-        const totalAmount = visitOrOrder.totalAmount || 0;
-        console.log('[Cancel Order Item] FIXED calculation: totalAmount =', totalAmount);
-        if (totalAmount > 0) {
-          pointsToDeduct = Math.floor(pointPolicy.value * (itemTotalPrice / totalAmount));
-          console.log('[Cancel Order Item] FIXED pointsToDeduct:', pointsToDeduct);
-        }
-      }
-    } else {
-      console.log('[Cancel Order Item] No point policy found for store:', storeId);
-    }
-    console.log('[Cancel Order Item] Final pointsToDeduct:', pointsToDeduct);
+    // 적립과 동일한 방식으로 포인트 계산 (퍼센트 기반)
+    const pointsToDeduct = Math.floor(itemTotalPrice * (pointRatePercent / 100));
+    console.log('[Cancel Order Item] pointsToDeduct:', itemTotalPrice, '*', pointRatePercent / 100, '=', pointsToDeduct);
 
     // Mark item as cancelled
     items[itemIndex] = { ...cancelledItem, cancelled: true, cancelledAt: new Date().toISOString() };
