@@ -569,7 +569,6 @@ router.get('/taghere-callback', async (req, res) => {
       id: true,
       name: true,
       pointRatePercent: true,
-      pointRateEnabled: true,
       pointsAlimtalkEnabled: true,
       naverPlaceUrl: true,
     };
