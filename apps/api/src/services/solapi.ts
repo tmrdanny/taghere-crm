@@ -58,7 +58,7 @@ export class SolapiService {
     pfId: string;
     templateId: string;
     variables: Record<string, string>;
-  }): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  }): Promise<{ success: boolean; messageId?: string; groupId?: string; error?: string }> {
     if (!this.messageService) {
       return { success: false, error: 'SOLAPI not configured' };
     }
@@ -85,11 +85,12 @@ export class SolapiService {
 
       console.log('[SOLAPI] Send result:', JSON.stringify(result, null, 2));
 
-      // SOLAPI 응답 처리
+      // SOLAPI 응답 처리 - 접수 성공만 확인 (실제 발송 결과는 나중에 조회)
       if (result.groupInfo?.count?.total > 0) {
         return {
           success: true,
           messageId: result.groupInfo?.groupId,
+          groupId: result.groupInfo?.groupId,
         };
       }
 
@@ -103,6 +104,52 @@ export class SolapiService {
         success: false,
         error: error.message || 'Unknown error',
       };
+    }
+  }
+
+  // 메시지 그룹 상태 조회
+  async getMessageStatus(groupId: string): Promise<{
+    success: boolean;
+    status?: 'PENDING' | 'SENT' | 'FAILED';
+    failReason?: string;
+    error?: string;
+  }> {
+    if (!this.messageService) {
+      return { success: false, error: 'SOLAPI not configured' };
+    }
+
+    try {
+      // SOLAPI getMessages로 그룹 내 메시지 조회
+      const result = await this.messageService.getMessages({ groupId });
+
+      console.log('[SOLAPI] Message status result:', JSON.stringify(result, null, 2));
+
+      if (result.messageList && Object.keys(result.messageList).length > 0) {
+        // 첫 번째 메시지 상태 확인
+        const firstMessage = Object.values(result.messageList)[0] as any;
+        const statusCode = firstMessage?.statusCode;
+        const statusMessage = firstMessage?.statusMessage;
+
+        // SOLAPI 상태 코드 매핑
+        // 2xxx: 발송 대기/처리중
+        // 3xxx: 발송 실패
+        // 4xxx: 발송 성공
+        if (statusCode?.startsWith('4')) {
+          return { success: true, status: 'SENT' };
+        } else if (statusCode?.startsWith('3')) {
+          return { success: true, status: 'FAILED', failReason: statusMessage || `Failed (${statusCode})` };
+        } else if (statusCode?.startsWith('2')) {
+          return { success: true, status: 'PENDING' };
+        }
+
+        // 알 수 없는 상태코드
+        return { success: true, status: 'PENDING' };
+      }
+
+      return { success: false, error: 'No messages found in group' };
+    } catch (error: any) {
+      console.error('[SOLAPI] Get message status error:', error);
+      return { success: false, error: error.message || 'Unknown error' };
     }
   }
 }

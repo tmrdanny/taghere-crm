@@ -1639,20 +1639,9 @@ export default function CustomersPage() {
                         </span>
                       )}
                     </button>
-                    {/* Empty cell for grid alignment */}
+                    {/* Empty cells for grid alignment */}
                     <div></div>
-                    <button
-                      type="button"
-                      onClick={() => setEditModalTab('memo')}
-                      className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                        editModalTab === 'memo'
-                          ? 'border-brand-800 text-brand-800 bg-brand-50'
-                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
-                      }`}
-                    >
-                      <Edit2 className="w-4 h-4 flex-shrink-0" />
-                      <span>메모</span>
-                    </button>
+                    <div></div>
                   </div>
                 </div>
 

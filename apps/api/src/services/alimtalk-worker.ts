@@ -119,24 +119,35 @@ async function processMessage(messageId: string): Promise<void> {
       variables: msg.variables as Record<string, string>,
     });
 
-    if (result.success) {
-      if (isLowBalanceMessage) {
-        // LOW_BALANCE 메시지는 무료 - 상태만 업데이트
+    if (result.success && result.groupId) {
+      // 발송 접수 성공 - 2초 대기 후 실제 발송 결과 확인
+      console.log(`[Worker] Message ${messageId} queued, waiting for delivery status...`);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // 실제 발송 결과 조회
+      const statusResult = await solapiService.getMessageStatus(result.groupId);
+      console.log(`[Worker] Message ${messageId} delivery status:`, statusResult);
+
+      const finalStatus = statusResult.success ? statusResult.status : 'PENDING';
+      const failReason = statusResult.failReason || null;
+
+      if (finalStatus === 'FAILED') {
+        // 발송 실패 - 비용 차감 없이 실패 처리
         await prisma.alimTalkOutbox.update({
           where: { id: messageId },
           data: {
-            status: 'SENT',
+            status: 'FAILED',
             solapiMessageId: result.messageId,
-            sentAt: new Date(),
+            failReason: failReason,
             updatedAt: new Date(),
           },
         });
-        console.log(`[Worker] Low balance notification ${messageId} sent successfully (free), SOLAPI ID: ${result.messageId}`);
-      } else {
-        // 일반 메시지 - 트랜잭션으로 상태 업데이트 + 지갑 차감
-        await prisma.$transaction(async (tx) => {
-          // 1. 메시지 상태 업데이트
-          await tx.alimTalkOutbox.update({
+        console.log(`[Worker] Message ${messageId} delivery FAILED: ${failReason}`);
+      } else if (finalStatus === 'SENT') {
+        // 발송 성공
+        if (isLowBalanceMessage) {
+          // LOW_BALANCE 메시지는 무료 - 상태만 업데이트
+          await prisma.alimTalkOutbox.update({
             where: { id: messageId },
             data: {
               status: 'SENT',
@@ -145,42 +156,70 @@ async function processMessage(messageId: string): Promise<void> {
               updatedAt: new Date(),
             },
           });
-
-          // 2. 지갑 잔액 차감
-          await tx.wallet.update({
-            where: { storeId: msg.storeId },
-            data: { balance: { decrement: cost } },
-          });
-
-          // 3. 결제 트랜잭션 로그 생성
-          await tx.paymentTransaction.create({
-            data: {
-              storeId: msg.storeId,
-              amount: -cost,
-              type: 'ALIMTALK_SEND',
-              status: 'SUCCESS',
-              meta: {
-                messageId: messageId,
-                messageType: msg.messageType,
-                phone: msg.phone,
-                unitCost: cost,
+          console.log(`[Worker] Low balance notification ${messageId} sent successfully (free), SOLAPI ID: ${result.messageId}`);
+        } else {
+          // 일반 메시지 - 트랜잭션으로 상태 업데이트 + 지갑 차감
+          await prisma.$transaction(async (tx) => {
+            // 1. 메시지 상태 업데이트
+            await tx.alimTalkOutbox.update({
+              where: { id: messageId },
+              data: {
+                status: 'SENT',
+                solapiMessageId: result.messageId,
+                sentAt: new Date(),
+                updatedAt: new Date(),
               },
-            },
-          });
-        });
+            });
 
-        console.log(`[Worker] Message ${messageId} (${msg.messageType}) sent successfully, SOLAPI ID: ${result.messageId}, cost: ${cost}원 차감`);
+            // 2. 지갑 잔액 차감
+            await tx.wallet.update({
+              where: { storeId: msg.storeId },
+              data: { balance: { decrement: cost } },
+            });
 
-        // 차감 후 잔액 확인 - 400원 미만이면 충전금 부족 알림톡 발송
-        const updatedWallet = await prisma.wallet.findUnique({
-          where: { storeId: msg.storeId },
-        });
-        if (updatedWallet && updatedWallet.balance < LOW_BALANCE_THRESHOLD) {
-          console.log(`[Worker] Low balance detected for store ${msg.storeId}: ${updatedWallet.balance}원`);
-          sendLowBalanceAlimTalk({ storeId: msg.storeId, reason: '알림톡 발송 후 잔액 부족' }).catch((err) => {
-            console.error(`[Worker] Failed to send low balance notification:`, err);
+            // 3. 결제 트랜잭션 로그 생성
+            await tx.paymentTransaction.create({
+              data: {
+                storeId: msg.storeId,
+                amount: -cost,
+                type: 'ALIMTALK_SEND',
+                status: 'SUCCESS',
+                meta: {
+                  messageId: messageId,
+                  messageType: msg.messageType,
+                  phone: msg.phone,
+                  unitCost: cost,
+                },
+              },
+            });
           });
+
+          console.log(`[Worker] Message ${messageId} (${msg.messageType}) sent successfully, SOLAPI ID: ${result.messageId}, cost: ${cost}원 차감`);
+
+          // 차감 후 잔액 확인 - 400원 미만이면 충전금 부족 알림톡 발송
+          const updatedWallet = await prisma.wallet.findUnique({
+            where: { storeId: msg.storeId },
+          });
+          if (updatedWallet && updatedWallet.balance < LOW_BALANCE_THRESHOLD) {
+            console.log(`[Worker] Low balance detected for store ${msg.storeId}: ${updatedWallet.balance}원`);
+            sendLowBalanceAlimTalk({ storeId: msg.storeId, reason: '알림톡 발송 후 잔액 부족' }).catch((err) => {
+              console.error(`[Worker] Failed to send low balance notification:`, err);
+            });
+          }
         }
+      } else {
+        // PENDING 상태 - 아직 결과가 안 나옴, 재시도 대기열에 넣기
+        await prisma.alimTalkOutbox.update({
+          where: { id: messageId },
+          data: {
+            status: 'RETRY',
+            solapiMessageId: result.messageId,
+            retryCount: msg.retryCount + 1,
+            failReason: 'Delivery status pending, will retry',
+            updatedAt: new Date(),
+          },
+        });
+        console.log(`[Worker] Message ${messageId} delivery status pending, will retry`);
       }
     } else {
       throw new Error(result.error || 'Send failed');
