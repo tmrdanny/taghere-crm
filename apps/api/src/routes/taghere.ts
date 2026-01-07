@@ -227,16 +227,56 @@ router.post('/auto-earn', async (req, res) => {
 
     let isNewCustomer = false;
 
-    // 5. 고객 없으면 신규 고객 자동 생성 (kakaoId만으로, 최소 정보)
+    // 5. 고객 없으면 다른 매장에서 같은 kakaoId 고객 정보 찾아서 복사
     if (!customer) {
       isNewCustomer = true;
+
+      // 다른 매장에서 같은 kakaoId를 가진 고객 조회
+      const existingCustomer = await prisma.customer.findFirst({
+        where: {
+          kakaoId,
+          storeId: { not: store.id },
+        },
+        select: {
+          name: true,
+          phone: true,
+          phoneLastDigits: true,
+          gender: true,
+          ageRange: true,
+          birthday: true,
+        },
+      });
+
+      // phoneLastDigits 중복 체크 (이미 해당 매장에 같은 전화번호 고객이 있으면 전화번호는 복사하지 않음)
+      let phoneToUse = existingCustomer?.phone ?? null;
+      let phoneLastDigitsToUse = existingCustomer?.phoneLastDigits ?? null;
+
+      if (phoneLastDigitsToUse) {
+        const existingPhone = await prisma.customer.findFirst({
+          where: {
+            storeId: store.id,
+            phoneLastDigits: phoneLastDigitsToUse,
+          },
+        });
+        if (existingPhone) {
+          phoneToUse = null;
+          phoneLastDigitsToUse = null;
+          console.log(`[TagHere Auto-Earn] Phone already exists in store, skipping phone copy - storeId: ${store.id}`);
+        }
+      }
+
       customer = await prisma.customer.create({
         data: {
           storeId: store.id,
           kakaoId,
-          name: null,
-          phone: null,
-          phoneLastDigits: null,
+          // 다른 매장 고객 정보 복사 (있으면)
+          name: existingCustomer?.name ?? null,
+          phone: phoneToUse,
+          phoneLastDigits: phoneLastDigitsToUse,
+          gender: existingCustomer?.gender ?? null,
+          ageRange: existingCustomer?.ageRange ?? null,
+          birthday: existingCustomer?.birthday ?? null,
+          // 매장별 독립 데이터는 초기값
           totalPoints: 0,
           visitCount: 0,
           consentMarketing: true,
@@ -244,7 +284,12 @@ router.post('/auto-earn', async (req, res) => {
           consentAt: new Date(),
         },
       });
-      console.log(`[TagHere Auto-Earn] New customer created - customerId: ${customer.id}, storeId: ${store.id}`);
+
+      if (existingCustomer) {
+        console.log(`[TagHere Auto-Earn] New customer created with copied data - customerId: ${customer.id}, storeId: ${store.id}, copiedFrom: other store`);
+      } else {
+        console.log(`[TagHere Auto-Earn] New customer created - customerId: ${customer.id}, storeId: ${store.id}`);
+      }
     }
 
     // 6. TagHere API에서 주문 금액 조회
