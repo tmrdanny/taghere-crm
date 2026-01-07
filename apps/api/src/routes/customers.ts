@@ -171,6 +171,7 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
             name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
             quantity: item.count || item.quantity || item.qty || item.amount || 1,
             price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+            option: item.option || null,
             cancelled: item.cancelled || false,
             cancelledAt: item.cancelledAt || null,
           }));
@@ -182,6 +183,7 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
             name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
             quantity: item.count || item.quantity || item.qty || item.amount || 1,
             price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+            option: item.option || null,
             cancelled: item.cancelled || false,
             cancelledAt: item.cancelledAt || null,
           }));
@@ -638,6 +640,7 @@ router.get('/:id/orders', authMiddleware, async (req: AuthRequest, res) => {
             name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
             quantity: item.count || item.quantity || item.qty || item.amount || 1,
             price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+            option: item.option || null,
             cancelled: item.cancelled || false,
             cancelledAt: item.cancelledAt || null,
           }));
@@ -648,6 +651,7 @@ router.get('/:id/orders', authMiddleware, async (req: AuthRequest, res) => {
             name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
             quantity: item.count || item.quantity || item.qty || item.amount || 1,
             price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+            option: item.option || null,
             cancelled: item.cancelled || false,
             cancelledAt: item.cancelledAt || null,
           }));
