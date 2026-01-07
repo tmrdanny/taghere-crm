@@ -219,6 +219,7 @@ export async function enqueueNaverReviewAlimTalk(params: {
   customerId: string;
   phone: string;
   variables: NaverReviewRequestVariables;
+  scheduledAt?: Date;
 }): Promise<{ success: boolean; error?: string }> {
   console.log(`[AlimTalk] enqueueNaverReviewAlimTalk called:`, {
     storeId: params.storeId,
@@ -293,6 +294,7 @@ export async function enqueueNaverReviewAlimTalk(params: {
       '#{플레이스주소}': placeAddress,
     },
     idempotencyKey,
+    scheduledAt: params.scheduledAt,
   });
 
   console.log(`[AlimTalk] Naver review enqueue result:`, result);

@@ -141,6 +141,7 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
       });
 
       // 2. 네이버 리뷰 요청 알림톡 (자동 발송 설정이 활성화된 경우)
+      // 포인트 적립 알림톡 이후에 발송되도록 5초 지연
       const reviewSetting = await prisma.reviewAutomationSetting.findUnique({
         where: { storeId },
       });
@@ -152,7 +153,8 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
       });
 
       if (reviewSetting?.enabled && reviewSetting?.naverReviewUrl) {
-        console.log('[Points] Sending Naver review alimtalk...');
+        console.log('[Points] Sending Naver review alimtalk with 5s delay...');
+        const delayedScheduleAt = new Date(Date.now() + 5000); // 5초 후 발송
         enqueueNaverReviewAlimTalk({
           storeId,
           customerId: customer.id,
@@ -161,6 +163,7 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
             storeName: store?.name || '매장',
             benefitText: reviewSetting.benefitText || '',
           },
+          scheduledAt: delayedScheduleAt,
         }).catch((err) => {
           console.error('[Points] Review AlimTalk enqueue failed:', err);
         });
