@@ -38,6 +38,60 @@ interface Summary {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+// SOLAPI 에러 코드 → 한글 변환 (기존 데이터 호환)
+const getFailReasonKorean = (failReason: string | null): string | null => {
+  if (!failReason) return null;
+
+  // 이미 한글 메시지인 경우 그대로 반환
+  if (!failReason.match(/Failed \(\d+\)/)) {
+    return failReason;
+  }
+
+  // "Failed (XXXX)" 형식에서 코드 추출
+  const match = failReason.match(/Failed \((\d+)\)/);
+  if (!match) return failReason;
+
+  const code = match[1];
+  const errorMessages: Record<string, string> = {
+    '3000': '전송경로 없음',
+    '3001': '알 수 없는 오류',
+    '3002': '전송 형식 오류',
+    '3003': '전송 타입 오류',
+    '3008': '중복 수신거부',
+    '3014': '유효하지 않은 수신번호',
+    '3022': '카카오톡 미사용자',
+    '3024': '템플릿 형식 불일치',
+    '3025': '템플릿 변수 불일치',
+    '3026': '카카오톡 발송 실패',
+    '3027': '카카오 블록된 사용자',
+    '3058': '발신번호 사전등록 필요',
+    '3059': '발신번호 미등록',
+    '3103': '센더키 오류',
+    '3104': '카카오톡 미사용자',
+    '3105': '발송 제한',
+    '3106': '전화번호 오류',
+    '3107': '잔액 부족',
+    '3110': '발신프로필 오류',
+    '3111': '템플릿 오류',
+    '3112': '변수 오류',
+    '3113': '메시지 길이 초과',
+    '3114': '전화번호 차단',
+    '3115': '발송 차단',
+    '3116': '스팸 감지',
+    '3117': '발송 제한',
+    '3118': '발송 차단 중',
+    '3130': '080 수신거부',
+    '3131': '수신거부 목록',
+    '3132': '메시지 발송 거부',
+    '3133': '일일 발송 제한 초과',
+    '3501': '카카오 서버 오류',
+    '3502': '카카오 전송 실패',
+    '3503': '카카오 타임아웃',
+  };
+
+  return errorMessages[code] || `발송 실패 (코드: ${code})`;
+};
+
 export default function MessageHistoryPage() {
   const { showToast, ToastComponent } = useToast();
   const [messages, setMessages] = useState<MessageHistoryItem[]>([]);
@@ -383,9 +437,9 @@ export default function MessageHistoryPage() {
                       {msg.failReason && (
                         <div
                           className="text-xs text-red-500 mt-1 max-w-[200px]"
-                          title={msg.failReason}
+                          title={getFailReasonKorean(msg.failReason) || msg.failReason}
                         >
-                          {msg.failReason}
+                          {getFailReasonKorean(msg.failReason)}
                         </div>
                       )}
                     </td>
