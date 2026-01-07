@@ -22,9 +22,12 @@ export function normalizePhone(phone: string): string {
   return cleaned;
 }
 
-export function formatPhone(phone: string): string {
+export function formatPhone(phone: string | null | undefined): string {
+  if (!phone) return '-';
+
   // 먼저 국제번호 정규화
   const normalized = normalizePhone(phone);
+  if (!normalized) return '-';
 
   // 마스킹: 010-****-1234 (가운데 4자리 전체 별표)
   if (normalized.length >= 11) {
