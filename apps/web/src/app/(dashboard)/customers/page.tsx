@@ -251,6 +251,9 @@ export default function CustomersPage() {
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Refs for dropdown containers (to detect outside clicks)
+  const dateRangeDropdownRef = useRef<HTMLDivElement>(null);
+
   // Fetch customers function (extracted for reuse)
   const fetchCustomers = useCallback(async (showLoading = true) => {
     // Cancel previous request
@@ -710,7 +713,13 @@ export default function CustomersPage() {
 
   // Close dropdowns when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => closeAllDropdowns();
+    const handleClickOutside = (event: MouseEvent) => {
+      // Don't close dateRangeDropdown if click is inside it
+      if (dateRangeDropdownOpen && dateRangeDropdownRef.current?.contains(event.target as Node)) {
+        return;
+      }
+      closeAllDropdowns();
+    };
     if (genderDropdownOpen || visitDropdownOpen || lastVisitDropdownOpen || dateRangeDropdownOpen) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
@@ -926,7 +935,7 @@ export default function CustomersPage() {
             </div>
 
             {/* Date Range Filter Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={dateRangeDropdownRef}>
               <Button
                 variant={(startDate || endDate) ? 'secondary' : 'outline'}
                 size="sm"
@@ -979,13 +988,15 @@ export default function CustomersPage() {
                   </div>
 
                   {/* Date inputs */}
-                  <div className="space-y-2 mb-3">
+                  <div className="space-y-2 mb-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-neutral-500 w-12">시작일</span>
                       <input
                         type="date"
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
                         className="flex-1 px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800"
                       />
                     </div>
@@ -995,17 +1006,20 @@ export default function CustomersPage() {
                         type="date"
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
                         className="flex-1 px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800"
                       />
                     </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setStartDate('');
                         setEndDate('');
                         setDateFilterType('lastVisit');
@@ -1017,7 +1031,8 @@ export default function CustomersPage() {
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setDateRangeDropdownOpen(false);
                         setPage(1);
                       }}
