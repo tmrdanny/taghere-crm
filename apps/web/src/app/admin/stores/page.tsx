@@ -77,6 +77,20 @@ export default function AdminStoresPage() {
     }
   }, [toast]);
 
+  // ESC 키로 모달 닫기
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (selectedStore) {
+          setSelectedStore(null);
+          setIsEditMode(false);
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedStore]);
+
   const fetchData = async () => {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
@@ -544,10 +558,19 @@ export default function AdminStoresPage() {
 
       {/* Store Detail Modal */}
       {selectedStore && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setSelectedStore(null);
+            setIsEditMode(false);
+          }}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
-            <div className="sticky top-0 bg-white border-b border-[#EAEAEA] px-6 py-4 flex items-center justify-between z-10">
+            <div className="sticky top-0 bg-white border-b border-[#EAEAEA] px-6 py-4 flex items-center justify-between z-10 rounded-t-xl">
               <div>
                 <h3 className="text-[18px] font-semibold text-neutral-900">
                   {isEditMode ? '매장 정보 수정' : '매장 상세 정보'}
@@ -608,7 +631,7 @@ export default function AdminStoresPage() {
                 </div>
 
                 {/* 매장명 */}
-                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-blue-50 border-2 border-blue-200' : 'bg-neutral-50'}`}>
+                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
                   <label className="block text-[12px] text-neutral-500 mb-1">매장명</label>
                   {isEditMode ? (
                     <input
@@ -624,7 +647,7 @@ export default function AdminStoresPage() {
 
                 {/* 2-column: 연락처 & 사업자등록번호 */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-blue-50 border-2 border-blue-200' : 'bg-neutral-50'}`}>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
                     <label className="block text-[12px] text-neutral-500 mb-1">연락처</label>
                     {isEditMode ? (
                       <input
@@ -638,7 +661,7 @@ export default function AdminStoresPage() {
                       <p className="text-[16px] font-medium text-neutral-900">{selectedStore.phone || '-'}</p>
                     )}
                   </div>
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-blue-50 border-2 border-blue-200' : 'bg-neutral-50'}`}>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
                     <label className="block text-[12px] text-neutral-500 mb-1">사업자등록번호</label>
                     {isEditMode ? (
                       <input
@@ -656,7 +679,7 @@ export default function AdminStoresPage() {
 
                 {/* 2-column: 대표자명 & 점주 이메일 */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-blue-50 border-2 border-blue-200' : 'bg-neutral-50'}`}>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
                     <label className="block text-[12px] text-neutral-500 mb-1">대표자명</label>
                     {isEditMode ? (
                       <input
@@ -678,7 +701,7 @@ export default function AdminStoresPage() {
 
                 {/* 2-column: Slug & 가입일 */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-blue-50 border-2 border-blue-200' : 'bg-neutral-50'}`}>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
                     <label className="block text-[12px] text-neutral-500 mb-1">Slug (URL)</label>
                     {isEditMode ? (
                       <input
@@ -701,7 +724,7 @@ export default function AdminStoresPage() {
                 </div>
 
                 {/* 주소 */}
-                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-blue-50 border-2 border-blue-200' : 'bg-neutral-50'}`}>
+                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
                   <label className="block text-[12px] text-neutral-500 mb-1">주소</label>
                   {isEditMode ? (
                     <input
@@ -798,7 +821,7 @@ export default function AdminStoresPage() {
 
                 {/* 2-column: 적립률 & 알림톡 */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-blue-50 border-2 border-blue-200' : 'bg-neutral-50'}`}>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
                     <label className="block text-[12px] text-neutral-500 mb-1">적립률</label>
                     {isEditMode ? (
                       <div className="flex items-center gap-1">
@@ -814,14 +837,14 @@ export default function AdminStoresPage() {
                       <p className="text-[20px] font-bold text-neutral-900">{selectedStore.pointRatePercent ?? 5}%</p>
                     )}
                   </div>
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-blue-50 border-2 border-blue-200' : 'bg-neutral-50'}`}>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
                     <label className="block text-[12px] text-neutral-500 mb-2">포인트 알림톡</label>
                     {isEditMode ? (
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => setEditForm({ ...editForm, pointsAlimtalkEnabled: true })}
-                          className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-lg border-2 transition-all ${
+                          className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-lg border transition-all ${
                             editForm.pointsAlimtalkEnabled !== false
                               ? 'bg-blue-500 text-white border-blue-500'
                               : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
@@ -832,7 +855,7 @@ export default function AdminStoresPage() {
                         <button
                           type="button"
                           onClick={() => setEditForm({ ...editForm, pointsAlimtalkEnabled: false })}
-                          className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-lg border-2 transition-all ${
+                          className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-lg border transition-all ${
                             editForm.pointsAlimtalkEnabled === false
                               ? 'bg-neutral-700 text-white border-neutral-700'
                               : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
@@ -854,7 +877,7 @@ export default function AdminStoresPage() {
                 </div>
 
                 {/* 포인트 사용 규칙 */}
-                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-blue-50 border-2 border-blue-200' : 'bg-neutral-50'}`}>
+                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
                   <label className="block text-[12px] text-neutral-500 mb-1">포인트 사용 규칙 안내</label>
                   {isEditMode ? (
                     <textarea
