@@ -191,7 +191,7 @@ export default function CustomersPage() {
   const [submittingAdd, setSubmittingAdd] = useState(false);
 
   // Edit modal tab and feedback states
-  const [editModalTab, setEditModalTab] = useState<'memo' | 'feedback' | 'history' | 'orders' | 'messages'>('orders');
+  const [editModalTab, setEditModalTab] = useState<'feedback' | 'history' | 'orders' | 'messages'>('orders');
   const [editFeedbackRating, setEditFeedbackRating] = useState(0);
   const [editFeedbackText, setEditFeedbackText] = useState('');
   const [pointHistory, setPointHistory] = useState<PointLedgerEntry[]>([]);
