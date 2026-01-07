@@ -750,55 +750,67 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
 
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
-    const skip = (pageNum - 1) * limitNum;
 
-    // Build where clause
-    const where: any = { storeId };
+    // Build where clause for SMS
+    const smsWhere: any = { storeId };
+    // Build where clause for AlimTalk
+    const alimtalkWhere: any = { storeId };
 
     // Filter by status
     if (status && status !== 'all') {
-      where.status = status;
+      smsWhere.status = status;
+      alimtalkWhere.status = status;
     }
 
     // Filter by date range
     if (startDate || endDate) {
-      where.createdAt = {};
+      smsWhere.createdAt = {};
+      alimtalkWhere.createdAt = {};
       if (startDate) {
-        where.createdAt.gte = new Date(startDate as string);
+        smsWhere.createdAt.gte = new Date(startDate as string);
+        alimtalkWhere.createdAt.gte = new Date(startDate as string);
       }
       if (endDate) {
         const end = new Date(endDate as string);
         end.setHours(23, 59, 59, 999);
-        where.createdAt.lte = end;
+        smsWhere.createdAt.lte = end;
+        alimtalkWhere.createdAt.lte = end;
       }
     }
 
-    // Search by phone or content
+    // Search by phone or content (SMS only has content, AlimTalk has phone)
     if (search) {
-      where.OR = [
+      smsWhere.OR = [
         { phone: { contains: search as string } },
         { content: { contains: search as string } },
       ];
+      alimtalkWhere.phone = { contains: search as string };
     }
 
-    const [messages, total] = await Promise.all([
+    // Fetch both SMS messages and AlimTalk logs
+    const [smsMessages, alimtalkMessages, smsTotal, alimtalkTotal] = await Promise.all([
       prisma.smsMessage.findMany({
-        where,
+        where: smsWhere,
         orderBy: { createdAt: 'desc' },
-        skip,
-        take: limitNum,
       }),
-      prisma.smsMessage.count({ where }),
+      prisma.alimTalkOutbox.findMany({
+        where: alimtalkWhere,
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.smsMessage.count({ where: smsWhere }),
+      prisma.alimTalkOutbox.count({ where: alimtalkWhere }),
     ]);
 
-    // Get customer and campaign info separately
-    const customerIds = [...new Set(messages.filter((m) => m.customerId).map((m) => m.customerId!))] as string[];
-    const campaignIds = [...new Set(messages.map((m) => m.campaignId))];
+    // Get customer info for both
+    const smsCustomerIds = [...new Set(smsMessages.filter((m) => m.customerId).map((m) => m.customerId!))] as string[];
+    const alimtalkCustomerIds = [...new Set(alimtalkMessages.filter((m) => m.customerId).map((m) => m.customerId!))] as string[];
+    const allCustomerIds = [...new Set([...smsCustomerIds, ...alimtalkCustomerIds])];
+    const campaignIds = [...new Set(smsMessages.map((m) => m.campaignId))];
 
     const [customers, campaigns] = await Promise.all([
-      customerIds.length > 0
+      allCustomerIds.length > 0
         ? prisma.customer.findMany({
-            where: { id: { in: customerIds } },
+            where: { id: { in: allCustomerIds } },
             select: { id: true, name: true, phone: true },
           })
         : [],
@@ -811,33 +823,79 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
     const customerMap = new Map(customers.map((c) => [c.id, c]));
     const campaignMap = new Map(campaigns.map((c) => [c.id, c]));
 
-    // Get summary counts
-    const statusCounts = await prisma.smsMessage.groupBy({
-      by: ['status'],
-      where: { storeId },
-      _count: { id: true },
-    });
+    // AlimTalk type to Korean label
+    const alimtalkTypeLabel: Record<string, string> = {
+      POINTS_EARNED: '포인트 적립',
+      NAVER_REVIEW_REQUEST: '네이버 리뷰 요청',
+      LOW_BALANCE: '충전금 부족 안내',
+      POINTS_USED: '포인트 사용',
+    };
+
+    // Normalize SMS messages
+    const normalizedSms = smsMessages.map((m) => ({
+      id: m.id,
+      phone: m.phone,
+      content: m.content,
+      status: m.status,
+      cost: m.cost,
+      failReason: m.failReason,
+      sentAt: m.sentAt,
+      createdAt: m.createdAt,
+      customer: m.customerId ? customerMap.get(m.customerId) || null : null,
+      campaign: campaignMap.get(m.campaignId) || null,
+      type: 'SMS' as const,
+    }));
+
+    // Normalize AlimTalk messages
+    const normalizedAlimtalk = alimtalkMessages.map((m) => ({
+      id: m.id,
+      phone: m.phone,
+      content: alimtalkTypeLabel[m.messageType] || m.messageType,
+      status: m.status,
+      cost: 0, // AlimTalk cost is handled differently
+      failReason: m.failReason,
+      sentAt: m.sentAt,
+      createdAt: m.createdAt,
+      customer: m.customerId ? customerMap.get(m.customerId) || null : null,
+      campaign: { id: m.id, title: alimtalkTypeLabel[m.messageType] || '알림톡' },
+      type: 'ALIMTALK' as const,
+    }));
+
+    // Merge and sort by createdAt desc
+    const allMessages = [...normalizedSms, ...normalizedAlimtalk]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // Apply pagination to merged results
+    const total = smsTotal + alimtalkTotal;
+    const skip = (pageNum - 1) * limitNum;
+    const paginatedMessages = allMessages.slice(skip, skip + limitNum);
+
+    // Get summary counts (SMS + AlimTalk)
+    const [smsStatusCounts, alimtalkStatusCounts] = await Promise.all([
+      prisma.smsMessage.groupBy({
+        by: ['status'],
+        where: { storeId },
+        _count: { id: true },
+      }),
+      prisma.alimTalkOutbox.groupBy({
+        by: ['status'],
+        where: { storeId },
+        _count: { id: true },
+      }),
+    ]);
+
+    const getSmsCount = (s: string) => smsStatusCounts.find((x) => x.status === s)?._count.id || 0;
+    const getAlimtalkCount = (s: string) => alimtalkStatusCounts.find((x) => x.status === s)?._count.id || 0;
 
     const summary = {
-      total: statusCounts.reduce((sum, s) => sum + s._count.id, 0),
-      sent: statusCounts.find((s) => s.status === 'SENT')?._count.id || 0,
-      failed: statusCounts.find((s) => s.status === 'FAILED')?._count.id || 0,
-      pending: statusCounts.find((s) => s.status === 'PENDING')?._count.id || 0,
+      total: smsStatusCounts.reduce((sum, s) => sum + s._count.id, 0) + alimtalkStatusCounts.reduce((sum, s) => sum + s._count.id, 0),
+      sent: getSmsCount('SENT') + getAlimtalkCount('SENT'),
+      failed: getSmsCount('FAILED') + getAlimtalkCount('FAILED'),
+      pending: getSmsCount('PENDING') + getAlimtalkCount('PENDING') + getAlimtalkCount('RETRY') + getAlimtalkCount('PROCESSING'),
     };
 
     res.json({
-      messages: messages.map((m) => ({
-        id: m.id,
-        phone: m.phone,
-        content: m.content,
-        status: m.status,
-        cost: m.cost,
-        failReason: m.failReason,
-        sentAt: m.sentAt,
-        createdAt: m.createdAt,
-        customer: m.customerId ? customerMap.get(m.customerId) || null : null,
-        campaign: campaignMap.get(m.campaignId) || null,
-      })),
+      messages: paginatedMessages,
       summary,
       pagination: {
         page: pageNum,
