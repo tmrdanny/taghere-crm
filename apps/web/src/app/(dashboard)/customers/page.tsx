@@ -76,6 +76,17 @@ interface VisitOrOrderEntry {
   tableNumber: string | null;
 }
 
+// 주문 아이템 배열을 안전하게 가져오는 헬퍼 함수
+function getOrderItems(items: unknown): OrderItem[] {
+  if (!items) return [];
+  if (Array.isArray(items)) return items;
+  // items가 객체이고 내부에 items 배열이 있는 경우 (예: { items: [], tableNumber: '' })
+  if (typeof items === 'object' && 'items' in items && Array.isArray((items as any).items)) {
+    return (items as any).items;
+  }
+  return [];
+}
+
 interface Announcement {
   id: string;
   title: string;
@@ -219,7 +230,7 @@ export default function CustomersPage() {
 
         if (res.ok) {
           const data = await res.json();
-          setAnnouncements(data);
+          setAnnouncements(Array.isArray(data) ? data : []);
         }
       } catch (error) {
         console.error('Failed to fetch announcements:', error);
@@ -276,7 +287,7 @@ export default function CustomersPage() {
 
       const data = await res.json();
       if (isMountedRef.current) {
-        setCustomers(data.customers || []);
+        setCustomers(Array.isArray(data.customers) ? data.customers : []);
         setPagination({
           total: data.pagination?.total || 0,
           totalPages: data.pagination?.totalPages || 1,
@@ -444,9 +455,9 @@ export default function CustomersPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setPointHistory(data.pointLedger || []);
-        setFeedbackHistory(data.feedbacks || []);
-        setOrderHistory(data.visitsOrOrders || []);
+        setPointHistory(Array.isArray(data.pointLedger) ? data.pointLedger : []);
+        setFeedbackHistory(Array.isArray(data.feedbacks) ? data.feedbacks : []);
+        setOrderHistory(Array.isArray(data.visitsOrOrders) ? data.visitsOrOrders : []);
       }
     } catch (err) {
       console.error('Failed to fetch customer details:', err);
@@ -471,7 +482,7 @@ export default function CustomersPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setOrderHistory(data.orders || []);
+        setOrderHistory(Array.isArray(data.orders) ? data.orders : []);
       }
     } catch (err) {
       console.error('Failed to fetch filtered orders:', err);
@@ -516,8 +527,8 @@ export default function CustomersPage() {
         });
         if (customerRes.ok) {
           const data = await customerRes.json();
-          setPointHistory(data.pointLedger || []);
-          setOrderHistory(data.visitsOrOrders || []);
+          setPointHistory(Array.isArray(data.pointLedger) ? data.pointLedger : []);
+          setOrderHistory(Array.isArray(data.visitsOrOrders) ? data.visitsOrOrders : []);
           // Update editing customer's total points
           setEditingCustomer(prev => prev ? { ...prev, totalPoints: data.totalPoints } : null);
         }
@@ -1542,9 +1553,9 @@ export default function CustomersPage() {
                                   {formatDate(order.visitedAt)} {new Date(order.visitedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
                                 </span>
                               </div>
-                              {order.items && Array.isArray(order.items) && order.items.length > 0 ? (
+                              {getOrderItems(order.items).length > 0 ? (
                                 <div className="space-y-1.5 pt-1 border-t border-neutral-200 mt-2">
-                                  {order.items.map((item: OrderItem, idx: number) => {
+                                  {getOrderItems(order.items).map((item: OrderItem, idx: number) => {
                                     const menuName = item.label || item.name || item.menuName || item.productName || item.title || '(메뉴명 없음)';
                                     const qty = item.count || item.quantity || item.qty || 1;
                                     const itemPrice = typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.amount || item.totalPrice || 0);
