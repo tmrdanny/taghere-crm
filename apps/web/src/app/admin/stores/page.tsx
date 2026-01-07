@@ -3,9 +3,48 @@
 import { useEffect, useState } from 'react';
 import { formatNumber } from '@/lib/utils';
 
+// 업종 분류
+const STORE_CATEGORIES = {
+  // 음식점
+  KOREAN: '한식',
+  CHINESE: '중식',
+  JAPANESE: '일식',
+  WESTERN: '양식',
+  ASIAN: '아시안 (베트남, 태국 등)',
+  BUNSIK: '분식',
+  FASTFOOD: '패스트푸드',
+  MEAT: '고기/구이',
+  SEAFOOD: '해산물',
+  BUFFET: '뷔페',
+  BRUNCH: '브런치',
+  // 카페/디저트
+  CAFE: '카페',
+  BAKERY: '베이커리',
+  DESSERT: '디저트',
+  ICECREAM: '아이스크림',
+  // 주점
+  BEER: '호프/맥주',
+  IZAKAYA: '이자카야',
+  WINE_BAR: '와인바',
+  COCKTAIL_BAR: '칵테일바',
+  POCHA: '포차/실내포장마차',
+  KOREAN_PUB: '한식 주점',
+  // 기타
+  FOODCOURT: '푸드코트',
+  OTHER: '기타',
+} as const;
+
+const CATEGORY_GROUPS = [
+  { label: '음식점', options: ['KOREAN', 'CHINESE', 'JAPANESE', 'WESTERN', 'ASIAN', 'BUNSIK', 'FASTFOOD', 'MEAT', 'SEAFOOD', 'BUFFET', 'BRUNCH'] },
+  { label: '카페/디저트', options: ['CAFE', 'BAKERY', 'DESSERT', 'ICECREAM'] },
+  { label: '주점', options: ['BEER', 'IZAKAYA', 'WINE_BAR', 'COCKTAIL_BAR', 'POCHA', 'KOREAN_PUB'] },
+  { label: '기타', options: ['FOODCOURT', 'OTHER'] },
+];
+
 interface Store {
   id: string;
   name: string;
+  category: string | null;
   slug: string | null;
   ownerName: string | null;
   phone: string | null;
@@ -206,6 +245,7 @@ export default function AdminStoresPage() {
     setSelectedStore(store);
     setEditForm({
       name: store.name,
+      category: store.category,
       slug: store.slug,
       ownerName: store.ownerName,
       phone: store.phone,
@@ -630,19 +670,46 @@ export default function AdminStoresPage() {
                   </button>
                 </div>
 
-                {/* 매장명 */}
-                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                  <label className="block text-[12px] text-neutral-500 mb-1">매장명</label>
-                  {isEditMode ? (
-                    <input
-                      type="text"
-                      value={editForm.name || ''}
-                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                      className="w-full text-[16px] font-medium text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
-                    />
-                  ) : (
-                    <p className="text-[16px] font-medium text-neutral-900">{selectedStore.name}</p>
-                  )}
+                {/* 2-column: 매장명 & 업종 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
+                    <label className="block text-[12px] text-neutral-500 mb-1">매장명</label>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editForm.name || ''}
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        className="w-full text-[16px] font-medium text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
+                      />
+                    ) : (
+                      <p className="text-[16px] font-medium text-neutral-900">{selectedStore.name}</p>
+                    )}
+                  </div>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
+                    <label className="block text-[12px] text-neutral-500 mb-1">업종</label>
+                    {isEditMode ? (
+                      <select
+                        value={editForm.category || ''}
+                        onChange={(e) => setEditForm({ ...editForm, category: e.target.value || null })}
+                        className="w-full text-[16px] font-medium text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
+                      >
+                        <option value="">업종 선택</option>
+                        {CATEGORY_GROUPS.map((group) => (
+                          <optgroup key={group.label} label={group.label}>
+                            {group.options.map((key) => (
+                              <option key={key} value={key}>
+                                {STORE_CATEGORIES[key as keyof typeof STORE_CATEGORIES]}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-[16px] font-medium text-neutral-900">
+                        {selectedStore.category ? STORE_CATEGORIES[selectedStore.category as keyof typeof STORE_CATEGORIES] || selectedStore.category : '-'}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* 2-column: 연락처 & 사업자등록번호 */}

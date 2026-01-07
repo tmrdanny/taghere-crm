@@ -8,10 +8,49 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+// 업종 분류
+const STORE_CATEGORIES = {
+  // 음식점
+  KOREAN: '한식',
+  CHINESE: '중식',
+  JAPANESE: '일식',
+  WESTERN: '양식',
+  ASIAN: '아시안 (베트남, 태국 등)',
+  BUNSIK: '분식',
+  FASTFOOD: '패스트푸드',
+  MEAT: '고기/구이',
+  SEAFOOD: '해산물',
+  BUFFET: '뷔페',
+  BRUNCH: '브런치',
+  // 카페/디저트
+  CAFE: '카페',
+  BAKERY: '베이커리',
+  DESSERT: '디저트',
+  ICECREAM: '아이스크림',
+  // 주점
+  BEER: '호프/맥주',
+  IZAKAYA: '이자카야',
+  WINE_BAR: '와인바',
+  COCKTAIL_BAR: '칵테일바',
+  POCHA: '포차/실내포장마차',
+  KOREAN_PUB: '한식 주점',
+  // 기타
+  FOODCOURT: '푸드코트',
+  OTHER: '기타',
+} as const;
+
+const CATEGORY_GROUPS = [
+  { label: '음식점', options: ['KOREAN', 'CHINESE', 'JAPANESE', 'WESTERN', 'ASIAN', 'BUNSIK', 'FASTFOOD', 'MEAT', 'SEAFOOD', 'BUFFET', 'BRUNCH'] },
+  { label: '카페/디저트', options: ['CAFE', 'BAKERY', 'DESSERT', 'ICECREAM'] },
+  { label: '주점', options: ['BEER', 'IZAKAYA', 'WINE_BAR', 'COCKTAIL_BAR', 'POCHA', 'KOREAN_PUB'] },
+  { label: '기타', options: ['FOODCOURT', 'OTHER'] },
+];
+
 export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
     storeName: '',
+    category: '',
     ownerName: '',
     phone: '',
     businessRegNumber: '',
@@ -23,7 +62,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -55,6 +94,7 @@ export default function RegisterPage() {
         },
         body: JSON.stringify({
           storeName: formData.storeName,
+          category: formData.category || null,
           ownerName: formData.ownerName,
           phone: formData.phone,
           businessRegNumber: formData.businessRegNumber,
@@ -115,6 +155,29 @@ export default function RegisterPage() {
                 onChange={handleChange}
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-700">
+                업종
+              </label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full h-10 px-3 rounded-md border border-neutral-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              >
+                <option value="">업종 선택 (선택사항)</option>
+                {CATEGORY_GROUPS.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.options.map((key) => (
+                      <option key={key} value={key}>
+                        {STORE_CATEGORIES[key as keyof typeof STORE_CATEGORIES]}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-2">

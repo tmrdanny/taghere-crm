@@ -12,14 +12,15 @@ datasource db {
 
 // 매장
 model Store {
-  id                     String   @id @default(cuid())
-  slug                   String?  @unique // URL 슬러그 (고객 등록 링크용)
-  name                   String   // 상호명
-  ownerName              String?  // 대표자명
-  phone                  String?  // 연락처
-  businessRegNumber      String?  @unique // 사업자등록번호
+  id                     String         @id @default(cuid())
+  slug                   String?        @unique // URL 슬러그 (고객 등록 링크용)
+  name                   String         // 상호명
+  category               StoreCategory? // 업종
+  ownerName              String?        // 대표자명
+  phone                  String?        // 연락처
+  businessRegNumber      String?        @unique // 사업자등록번호
   address                String?
-  naverPlaceId           String?  // 네이버 플레이스 ID (리뷰 연동용)
+  naverPlaceId           String?        // 네이버 플레이스 ID (리뷰 연동용)
   naverPlaceUrl          String?  // 네이버 플레이스 공유 링크
   pointsAlimtalkEnabled  Boolean  @default(true) // 포인트 적립/사용 알림톡 자동 발송
   // 포인트 적립률 설정 (결제금액 기반) - 항상 활성화
@@ -71,6 +72,40 @@ model StaffUser {
 enum StaffRole {
   OWNER
   STAFF
+}
+
+// 매장 업종 분류
+enum StoreCategory {
+  // 음식점
+  KOREAN           // 한식
+  CHINESE          // 중식
+  JAPANESE         // 일식
+  WESTERN          // 양식
+  ASIAN            // 아시안 (베트남, 태국 등)
+  BUNSIK           // 분식
+  FASTFOOD         // 패스트푸드
+  MEAT             // 고기/구이
+  SEAFOOD          // 해산물
+  BUFFET           // 뷔페
+  BRUNCH           // 브런치
+
+  // 카페/디저트
+  CAFE             // 카페
+  BAKERY           // 베이커리
+  DESSERT          // 디저트
+  ICECREAM         // 아이스크림
+
+  // 주점
+  BEER             // 호프/맥주
+  IZAKAYA          // 이자카야
+  WINE_BAR         // 와인바
+  COCKTAIL_BAR     // 칵테일바
+  POCHA            // 포차/실내포장마차
+  KOREAN_PUB       // 한식 주점
+
+  // 기타
+  FOODCOURT        // 푸드코트
+  OTHER            // 기타
 }
 
 // 고객 (매장별로 별도 관리)

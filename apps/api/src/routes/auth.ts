@@ -88,7 +88,7 @@ async function getUniqueSlug(baseSlug: string): Promise<string> {
 // POST /api/auth/register - 회원가입
 router.post('/register', async (req, res) => {
   try {
-    const { storeName, ownerName, phone, businessRegNumber, naverPlaceUrl, email, password } = req.body;
+    const { storeName, category, ownerName, phone, businessRegNumber, naverPlaceUrl, email, password } = req.body;
 
     // 필수 필드 검증
     if (!storeName || !ownerName || !phone || !businessRegNumber || !email || !password) {
@@ -126,6 +126,7 @@ router.post('/register', async (req, res) => {
       const store = await tx.store.create({
         data: {
           name: storeName,
+          category: category || null,
           slug,
           ownerName,
           phone,

@@ -80,7 +80,7 @@ router.get('/store', authMiddleware, async (req: AuthRequest, res) => {
 router.patch('/store', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { name, ownerName, phone, businessRegNumber, address, naverPlaceUrl } = req.body;
+    const { name, category, ownerName, phone, businessRegNumber, address, naverPlaceUrl } = req.body;
 
     // 최소 매장명은 필수
     if (!name || name.trim() === '') {
@@ -108,6 +108,7 @@ router.patch('/store', authMiddleware, async (req: AuthRequest, res) => {
       where: { id: storeId },
       data: {
         name: name.trim(),
+        category: category || null,
         ownerName: ownerName?.trim() || null,
         phone: phone?.trim() || null,
         businessRegNumber: businessRegNumber?.trim() || null,

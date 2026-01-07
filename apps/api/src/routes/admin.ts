@@ -121,6 +121,7 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
       select: {
         id: true,
         name: true,
+        category: true,
         slug: true,
         ownerName: true,
         phone: true,
@@ -158,6 +159,7 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
     const formattedStores = stores.map((store) => ({
       id: store.id,
       name: store.name,
+      category: store.category,
       slug: store.slug,
       ownerName: store.ownerName,
       phone: store.phone,
@@ -233,6 +235,7 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
     const { storeId } = req.params;
     const {
       name,
+      category,
       slug,
       ownerName,
       phone,
@@ -271,6 +274,7 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       where: { id: storeId },
       data: {
         ...(name !== undefined && { name }),
+        ...(category !== undefined && { category: category || null }),
         ...(slug !== undefined && { slug: slug || null }),
         ...(ownerName !== undefined && { ownerName: ownerName || null }),
         ...(phone !== undefined && { phone: phone || null }),
