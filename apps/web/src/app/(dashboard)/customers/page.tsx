@@ -1563,23 +1563,23 @@ export default function CustomersPage() {
 
               {/* Right Column - Tabs for Orders, Feedback, History */}
               <div className="flex flex-col min-w-0 overflow-hidden h-full">
-                {/* Tab Headers - 2 rows */}
+                {/* Tab Headers - 2 rows, 3 columns grid */}
                 <div className="flex-shrink-0 border-b border-neutral-200">
-                  {/* Row 1: 주문내역, 피드백 */}
-                  <div className="flex">
+                  <div className="grid grid-cols-3 gap-1">
+                    {/* Row 1 */}
                     <button
                       type="button"
                       onClick={() => setEditModalTab('orders')}
-                      className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                      className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                         editModalTab === 'orders'
-                          ? 'border-brand-800 text-brand-800'
-                          : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                          ? 'border-brand-800 text-brand-800 bg-brand-50'
+                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
                       }`}
                     >
                       <ShoppingBag className="w-4 h-4 flex-shrink-0" />
-                      <span>주문내역</span>
+                      <span>주문</span>
                       {(orderHistory?.length || 0) > 0 && (
-                        <span className="ml-1 text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
+                        <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
                           {orderHistory.length}
                         </span>
                       )}
@@ -1587,21 +1587,36 @@ export default function CustomersPage() {
                     <button
                       type="button"
                       onClick={() => setEditModalTab('feedback')}
-                      className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                      className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                         editModalTab === 'feedback'
-                          ? 'border-brand-800 text-brand-800'
-                          : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                          ? 'border-brand-800 text-brand-800 bg-brand-50'
+                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
                       }`}
                     >
                       <MessageSquare className="w-4 h-4 flex-shrink-0" />
                       <span>피드백</span>
                       {(feedbackHistory?.length || 0) > 0 && (
-                        <span className="ml-1 text-yellow-500">★{feedbackHistory.length}</span>
+                        <span className="text-yellow-500">★{feedbackHistory.length}</span>
                       )}
                     </button>
-                  </div>
-                  {/* Row 2: 발송, 포인트 */}
-                  <div className="flex">
+                    <button
+                      type="button"
+                      onClick={() => setEditModalTab('history')}
+                      className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                        editModalTab === 'history'
+                          ? 'border-brand-800 text-brand-800 bg-brand-50'
+                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
+                      }`}
+                    >
+                      <History className="w-4 h-4 flex-shrink-0" />
+                      <span>포인트</span>
+                      {(pointHistory?.length || 0) > 0 && (
+                        <span className="text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full">
+                          {pointHistory.length}
+                        </span>
+                      )}
+                    </button>
+                    {/* Row 2 */}
                     <button
                       type="button"
                       onClick={() => {
@@ -1610,37 +1625,34 @@ export default function CustomersPage() {
                           fetchCustomerMessages(editingCustomer.id);
                         }
                       }}
-                      className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                      className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                         editModalTab === 'messages'
-                          ? 'border-brand-800 text-brand-800'
-                          : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                          ? 'border-brand-800 text-brand-800 bg-brand-50'
+                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
                       }`}
                     >
                       <Send className="w-4 h-4 flex-shrink-0" />
-                      <span>발송내역</span>
+                      <span>발송</span>
                       {messageSummary.total > 0 && (
-                        <span className="ml-1 text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">
+                        <span className="text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">
                           {messageSummary.total}
                         </span>
                       )}
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEditModalTab('history')}
-                      className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                        editModalTab === 'history'
-                          ? 'border-brand-800 text-brand-800'
-                          : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                      onClick={() => setEditModalTab('memo')}
+                      className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                        editModalTab === 'memo'
+                          ? 'border-brand-800 text-brand-800 bg-brand-50'
+                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
                       }`}
                     >
-                      <History className="w-4 h-4 flex-shrink-0" />
-                      <span>포인트내역</span>
-                      {(pointHistory?.length || 0) > 0 && (
-                        <span className="ml-1 text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full">
-                          {pointHistory.length}
-                        </span>
-                      )}
+                      <Edit2 className="w-4 h-4 flex-shrink-0" />
+                      <span>메모</span>
                     </button>
+                    {/* Empty cell for alignment */}
+                    <div className="px-2 py-2.5"></div>
                   </div>
                 </div>
 
