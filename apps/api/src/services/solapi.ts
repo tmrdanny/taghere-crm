@@ -387,9 +387,9 @@ export async function sendLowBalanceAlimTalk(params: {
   });
   const balance = wallet?.balance ?? 0;
 
-  // 하루에 한 번만 발송되도록 멱등성 키 설정 (storeId + 날짜)
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  const idempotencyKey = `low_balance:${params.storeId}:${today}`;
+  // 하루에 한 번만 발송되도록 멱등성 키 설정 (storeId + KST 날짜)
+  const kstDate = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0]; // KST YYYY-MM-DD
+  const idempotencyKey = `low_balance:${params.storeId}:${kstDate}`;
 
   console.log(`[AlimTalk] Sending low balance notification to store ${params.storeId}, phone: ${store.phone}, balance: ${balance}`);
 
