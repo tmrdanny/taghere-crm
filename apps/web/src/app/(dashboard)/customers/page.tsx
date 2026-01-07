@@ -1405,7 +1405,7 @@ export default function CustomersPage() {
                   >
                     <ShoppingBag className="w-4 h-4 flex-shrink-0" />
                     <span>주문내역</span>
-                    {orderHistory.length > 0 && (
+                    {(orderHistory?.length || 0) > 0 && (
                       <span className="ml-1 text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
                         {orderHistory.length}
                       </span>
@@ -1422,7 +1422,7 @@ export default function CustomersPage() {
                   >
                     <MessageSquare className="w-4 h-4 flex-shrink-0" />
                     <span>피드백</span>
-                    {feedbackHistory.length > 0 && (
+                    {(feedbackHistory?.length || 0) > 0 && (
                       <span className="ml-1 text-yellow-500">★{feedbackHistory.length}</span>
                     )}
                   </button>
@@ -1437,7 +1437,7 @@ export default function CustomersPage() {
                   >
                     <History className="w-4 h-4 flex-shrink-0" />
                     <span>포인트</span>
-                    {pointHistory.length > 0 && (
+                    {(pointHistory?.length || 0) > 0 && (
                       <span className="ml-1 text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full">
                         {pointHistory.length}
                       </span>
@@ -1525,15 +1525,15 @@ export default function CustomersPage() {
                         불러오는 중...
                       </div>
                     )}
-                    {!loadingHistory && orderHistory.length === 0 && (
+                    {!loadingHistory && (orderHistory?.length || 0) === 0 && (
                       <div className="text-center py-4 text-neutral-500 text-sm">
                         주문 내역이 없습니다.
                       </div>
                     )}
-                    {!loadingHistory && orderHistory.length > 0 && (
+                    {!loadingHistory && (orderHistory?.length || 0) > 0 && (
                       <div className="flex-1 overflow-hidden relative">
                         <div className="h-full overflow-y-auto space-y-3 pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}>
-                          {orderHistory.map((order) => (
+                          {(orderHistory || []).map((order) => (
                             <div
                               key={order.id}
                               className="p-3 bg-neutral-50 rounded-lg border border-neutral-100"
@@ -1543,11 +1543,6 @@ export default function CustomersPage() {
                                   <span className="text-sm font-medium text-neutral-900">
                                     {order.totalAmount ? `${formatNumber(order.totalAmount)}원` : '금액 미입력'}
                                   </span>
-                                  {order.tableNumber && (
-                                    <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
-                                      {order.tableNumber}번 테이블
-                                    </span>
-                                  )}
                                 </div>
                                 <span className="text-xs text-neutral-400">
                                   {formatDate(order.visitedAt)} {new Date(order.visitedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -1617,15 +1612,15 @@ export default function CustomersPage() {
                         불러오는 중...
                       </div>
                     )}
-                    {!loadingHistory && feedbackHistory.length === 0 && (
+                    {!loadingHistory && (feedbackHistory?.length || 0) === 0 && (
                       <div className="text-center py-4 text-neutral-500 text-sm">
                         고객이 남긴 피드백이 없습니다.
                       </div>
                     )}
-                    {!loadingHistory && feedbackHistory.length > 0 && (
+                    {!loadingHistory && (feedbackHistory?.length || 0) > 0 && (
                       <div className="flex-1 overflow-hidden relative">
                         <div className="h-full overflow-y-auto space-y-3 pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}>
-                          {feedbackHistory.map((feedback) => (
+                          {(feedbackHistory || []).map((feedback) => (
                             <div
                               key={feedback.id}
                               className="p-3 bg-neutral-50 rounded-lg border border-neutral-100"
@@ -1657,15 +1652,15 @@ export default function CustomersPage() {
                         불러오는 중...
                       </div>
                     )}
-                    {!loadingHistory && pointHistory.length === 0 && (
+                    {!loadingHistory && (pointHistory?.length || 0) === 0 && (
                       <div className="text-center py-4 text-neutral-500 text-sm">
                         포인트 내역이 없습니다.
                       </div>
                     )}
-                    {!loadingHistory && pointHistory.length > 0 && (
+                    {!loadingHistory && (pointHistory?.length || 0) > 0 && (
                       <div className="flex-1 overflow-hidden relative">
                         <div className="h-full overflow-y-auto space-y-2 pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}>
-                          {pointHistory.map((entry) => {
+                          {(pointHistory || []).map((entry) => {
                             // ordersheetId가 포함된 reason을 필터링하여 표시
                             let displayReason = entry.reason;
                             if (displayReason && displayReason.includes('ordersheetId')) {
