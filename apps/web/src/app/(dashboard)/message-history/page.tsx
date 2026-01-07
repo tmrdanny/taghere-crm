@@ -96,7 +96,8 @@ export default function MessageHistoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, pageSize, searchQuery, statusFilter, startDate, endDate, showToast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize, searchQuery, statusFilter, startDate, endDate]);
 
   useEffect(() => {
     fetchHistory();
