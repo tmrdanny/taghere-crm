@@ -16,6 +16,7 @@ import {
   PanelLeft,
   Download,
   Send,
+  History,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -40,6 +41,7 @@ const navItems = [
   { href: '/points', label: '포인트 적립', icon: Coins },
   { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
   { href: '/messages', label: '메시지 발송', icon: Send },
+  { href: '/message-history', label: '발송 내역', icon: History },
   { href: '/billing', label: '충전 관리', icon: CreditCard },
   { href: '/settings', label: '설정', icon: Settings },
 ];

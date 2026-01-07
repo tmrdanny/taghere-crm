@@ -91,6 +91,7 @@ interface CustomerListItem {
   totalPoints: number;
   gender: string | null;
   createdAt: string;
+  messageCount?: number;
 }
 
 export default function MessagesPage() {
@@ -1080,7 +1081,12 @@ export default function MessagesPage() {
                           </div>
                         </div>
                         <div className="text-right text-sm flex-shrink-0">
-                          <div className="text-[#64748b]">방문 {customer.visitCount}회</div>
+                          <div className="text-[#64748b]">
+                            방문 {customer.visitCount}회
+                            {(customer.messageCount || 0) > 0 && (
+                              <span className="ml-1 text-green-600">· 수신 {customer.messageCount}회</span>
+                            )}
+                          </div>
                           <div className="text-[#3b82f6] font-medium">{formatNumber(customer.totalPoints)}P</div>
                         </div>
                       </button>

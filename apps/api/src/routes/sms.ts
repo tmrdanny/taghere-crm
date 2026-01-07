@@ -742,6 +742,116 @@ router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/sms/history - 전체 발송 내역 조회 (SMS, 알림톡 등 모든 발송)
+router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { page = '1', limit = '50', status, startDate, endDate, search } = req.query;
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build where clause
+    const where: any = { storeId };
+
+    // Filter by status
+    if (status && status !== 'all') {
+      where.status = status;
+    }
+
+    // Filter by date range
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) {
+        where.createdAt.gte = new Date(startDate as string);
+      }
+      if (endDate) {
+        const end = new Date(endDate as string);
+        end.setHours(23, 59, 59, 999);
+        where.createdAt.lte = end;
+      }
+    }
+
+    // Search by phone or content
+    if (search) {
+      where.OR = [
+        { phone: { contains: search as string } },
+        { content: { contains: search as string } },
+      ];
+    }
+
+    const [messages, total] = await Promise.all([
+      prisma.smsMessage.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limitNum,
+      }),
+      prisma.smsMessage.count({ where }),
+    ]);
+
+    // Get customer and campaign info separately
+    const customerIds = [...new Set(messages.filter((m) => m.customerId).map((m) => m.customerId!))] as string[];
+    const campaignIds = [...new Set(messages.map((m) => m.campaignId))];
+
+    const [customers, campaigns] = await Promise.all([
+      customerIds.length > 0
+        ? prisma.customer.findMany({
+            where: { id: { in: customerIds } },
+            select: { id: true, name: true, phone: true },
+          })
+        : [],
+      prisma.smsCampaign.findMany({
+        where: { id: { in: campaignIds } },
+        select: { id: true, title: true },
+      }),
+    ]);
+
+    const customerMap = new Map(customers.map((c) => [c.id, c]));
+    const campaignMap = new Map(campaigns.map((c) => [c.id, c]));
+
+    // Get summary counts
+    const statusCounts = await prisma.smsMessage.groupBy({
+      by: ['status'],
+      where: { storeId },
+      _count: { id: true },
+    });
+
+    const summary = {
+      total: statusCounts.reduce((sum, s) => sum + s._count.id, 0),
+      sent: statusCounts.find((s) => s.status === 'SENT')?._count.id || 0,
+      failed: statusCounts.find((s) => s.status === 'FAILED')?._count.id || 0,
+      pending: statusCounts.find((s) => s.status === 'PENDING')?._count.id || 0,
+    };
+
+    res.json({
+      messages: messages.map((m) => ({
+        id: m.id,
+        phone: m.phone,
+        content: m.content,
+        status: m.status,
+        cost: m.cost,
+        failReason: m.failReason,
+        sentAt: m.sentAt,
+        createdAt: m.createdAt,
+        customer: m.customerId ? customerMap.get(m.customerId) || null : null,
+        campaign: campaignMap.get(m.campaignId) || null,
+      })),
+      summary,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error) {
+    console.error('SMS history error:', error);
+    res.status(500).json({ error: '발송 내역 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 // DELETE /api/sms/delete-image - 업로드된 이미지 삭제
 router.delete('/delete-image', authMiddleware, async (req: AuthRequest, res) => {
   try {

@@ -106,11 +106,23 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       prisma.customer.count({ where }),
     ]);
 
-    // Determine VIP status
+    // Get message counts for all customers in this page
+    const customerIds = customers.map((c) => c.id);
+    const messageCounts = await prisma.smsMessage.groupBy({
+      by: ['customerId'],
+      where: { storeId, customerId: { in: customerIds } },
+      _count: { id: true },
+    });
+    const messageCountMap = new Map(
+      messageCounts.map((mc) => [mc.customerId, mc._count.id])
+    );
+
+    // Determine VIP status and add message count
     const customersWithVip = customers.map((customer) => ({
       ...customer,
       isVip: customer.visitCount >= 20 || customer.totalPoints >= 5000,
       isNew: customer.visitCount <= 1,
+      messageCount: messageCountMap.get(customer.id) || 0,
     }));
 
     res.json({
@@ -580,6 +592,80 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
   } catch (error) {
     console.error('Cancel order item error:', error);
     res.status(500).json({ error: '주문 취소 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/customers/:id/messages - Get messages sent to a customer
+router.get('/:id/messages', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const storeId = req.user!.storeId;
+    const { page = '1', limit = '20' } = req.query;
+
+    // Verify customer exists and belongs to the store
+    const customer = await prisma.customer.findFirst({
+      where: { id, storeId },
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
+    }
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    const [messages, total] = await Promise.all([
+      prisma.smsMessage.findMany({
+        where: { storeId, customerId: id },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limitNum,
+        include: {
+          campaign: {
+            select: { title: true },
+          },
+        },
+      }),
+      prisma.smsMessage.count({ where: { storeId, customerId: id } }),
+    ]);
+
+    // Count by status
+    const statusCounts = await prisma.smsMessage.groupBy({
+      by: ['status'],
+      where: { storeId, customerId: id },
+      _count: { id: true },
+    });
+
+    const sentCount = statusCounts.find((s) => s.status === 'SENT')?._count.id || 0;
+    const failedCount = statusCounts.find((s) => s.status === 'FAILED')?._count.id || 0;
+
+    res.json({
+      messages: messages.map((m) => ({
+        id: m.id,
+        content: m.content,
+        status: m.status,
+        cost: m.cost,
+        failReason: m.failReason,
+        sentAt: m.sentAt,
+        createdAt: m.createdAt,
+        campaignTitle: m.campaign?.title || null,
+      })),
+      summary: {
+        total,
+        sent: sentCount,
+        failed: failedCount,
+      },
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error) {
+    console.error('Customer messages error:', error);
+    res.status(500).json({ error: '발송 내역 조회 중 오류가 발생했습니다.' });
   }
 });
 
