@@ -303,6 +303,7 @@ router.post('/auto-earn', async (req, res) => {
       name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
       quantity: item.count || item.quantity || item.qty || item.amount || 1,
       price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+      option: item.option || null,
     }));
     const tableNumber = (orderData as any).content?.tableNumber || (orderData as any).tableNumber || null;
 

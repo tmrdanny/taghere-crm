@@ -63,6 +63,7 @@ interface OrderItem {
   price?: number;
   amount?: number;
   totalPrice?: number;
+  option?: string;  // 옵션 정보 (예: "온도: HOT")
   cancelled?: boolean;
   cancelledAt?: string;
 }
@@ -1676,15 +1677,20 @@ export default function CustomersPage() {
 
                                     return (
                                       <div key={idx} className={`flex items-center justify-between text-sm py-0.5 group ${isCancelled ? 'opacity-50' : ''}`}>
-                                        <span className={`flex-1 truncate pr-2 ${isCancelled ? 'text-neutral-400 line-through' : 'text-neutral-700'}`}>
-                                          {menuName}
-                                          {qty > 1 && (
-                                            <span className="text-neutral-400 ml-1">x{qty}</span>
+                                        <div className={`flex-1 pr-2 ${isCancelled ? 'text-neutral-400 line-through' : 'text-neutral-700'}`}>
+                                          <span className="truncate">
+                                            {menuName}
+                                            {qty > 1 && (
+                                              <span className="text-neutral-400 ml-1">x{qty}</span>
+                                            )}
+                                            {isCancelled && (
+                                              <span className="ml-2 text-xs text-red-500">(취소됨)</span>
+                                            )}
+                                          </span>
+                                          {item.option && (
+                                            <div className="text-xs text-neutral-400 mt-0.5">{item.option}</div>
                                           )}
-                                          {isCancelled && (
-                                            <span className="ml-2 text-xs text-red-500">(취소됨)</span>
-                                          )}
-                                        </span>
+                                        </div>
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                           {itemPrice > 0 && (
                                             <span className={`${isCancelled ? 'text-neutral-400 line-through' : 'text-neutral-500'}`}>
