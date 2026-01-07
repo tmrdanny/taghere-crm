@@ -956,7 +956,7 @@ export default function CustomersPage() {
                 >
                   {/* Date type selector */}
                   <div className="mb-3 space-y-1.5">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    <label className="flex items-center gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="radio"
                         name="dateType"
@@ -966,7 +966,7 @@ export default function CustomersPage() {
                       />
                       <span className="text-sm text-neutral-700">마지막 방문일</span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    <label className="flex items-center gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="radio"
                         name="dateType"
