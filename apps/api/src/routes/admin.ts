@@ -125,7 +125,18 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         ownerName: true,
         phone: true,
         businessRegNumber: true,
+        address: true,
         createdAt: true,
+        // Point settings
+        randomPointEnabled: true,
+        randomPointMin: true,
+        randomPointMax: true,
+        fixedPointEnabled: true,
+        fixedPointAmount: true,
+        pointRateEnabled: true,
+        pointRatePercent: true,
+        pointUsageRule: true,
+        pointsAlimtalkEnabled: true,
         staffUsers: {
           select: {
             id: true,
@@ -157,10 +168,21 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
       ownerName: store.ownerName,
       phone: store.phone,
       businessRegNumber: store.businessRegNumber,
+      address: store.address,
       createdAt: store.createdAt,
       ownerEmail: store.staffUsers[0]?.email || null,
       ownerId: store.staffUsers[0]?.id || null,
       customerCount: store._count.customers,
+      // Point settings
+      randomPointEnabled: store.randomPointEnabled,
+      randomPointMin: store.randomPointMin,
+      randomPointMax: store.randomPointMax,
+      fixedPointEnabled: store.fixedPointEnabled,
+      fixedPointAmount: store.fixedPointAmount,
+      pointRateEnabled: store.pointRateEnabled,
+      pointRatePercent: store.pointRatePercent,
+      pointUsageRule: store.pointUsageRule,
+      pointsAlimtalkEnabled: store.pointsAlimtalkEnabled,
     }));
 
     res.json(formattedStores);
@@ -214,6 +236,84 @@ router.post('/stores/:storeId/reset-password', adminAuthMiddleware, async (req: 
   } catch (error) {
     console.error('Admin reset password error:', error);
     res.status(500).json({ error: '비밀번호 초기화 중 오류가 발생했습니다.' });
+  }
+});
+
+// PATCH /api/admin/stores/:storeId - 매장 정보 수정
+router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { storeId } = req.params;
+    const {
+      name,
+      slug,
+      ownerName,
+      phone,
+      businessRegNumber,
+      address,
+      randomPointEnabled,
+      randomPointMin,
+      randomPointMax,
+      fixedPointEnabled,
+      fixedPointAmount,
+      pointRateEnabled,
+      pointRatePercent,
+      pointUsageRule,
+      pointsAlimtalkEnabled,
+    } = req.body;
+
+    // 매장 확인
+    const existingStore = await prisma.store.findUnique({
+      where: { id: storeId },
+    });
+
+    if (!existingStore) {
+      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    // slug 중복 체크 (변경하려는 경우)
+    if (slug && slug !== existingStore.slug) {
+      const slugExists = await prisma.store.findFirst({
+        where: {
+          slug,
+          id: { not: storeId },
+        },
+      });
+
+      if (slugExists) {
+        return res.status(400).json({ error: '이미 사용 중인 slug입니다.' });
+      }
+    }
+
+    // 매장 정보 업데이트
+    const updatedStore = await prisma.store.update({
+      where: { id: storeId },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(slug !== undefined && { slug: slug || null }),
+        ...(ownerName !== undefined && { ownerName: ownerName || null }),
+        ...(phone !== undefined && { phone: phone || null }),
+        ...(businessRegNumber !== undefined && { businessRegNumber: businessRegNumber || null }),
+        ...(address !== undefined && { address: address || null }),
+        ...(randomPointEnabled !== undefined && { randomPointEnabled }),
+        ...(randomPointMin !== undefined && { randomPointMin }),
+        ...(randomPointMax !== undefined && { randomPointMax }),
+        ...(fixedPointEnabled !== undefined && { fixedPointEnabled }),
+        ...(fixedPointAmount !== undefined && { fixedPointAmount }),
+        ...(pointRateEnabled !== undefined && { pointRateEnabled }),
+        ...(pointRatePercent !== undefined && { pointRatePercent }),
+        ...(pointUsageRule !== undefined && { pointUsageRule: pointUsageRule || null }),
+        ...(pointsAlimtalkEnabled !== undefined && { pointsAlimtalkEnabled }),
+      },
+    });
+
+    res.json({
+      success: true,
+      message: '매장 정보가 수정되었습니다.',
+      store: updatedStore,
+    });
+  } catch (error) {
+    console.error('Admin update store error:', error);
+    res.status(500).json({ error: '매장 정보 수정 중 오류가 발생했습니다.' });
   }
 });
 

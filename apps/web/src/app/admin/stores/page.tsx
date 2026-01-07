@@ -10,11 +10,22 @@ interface Store {
   ownerName: string | null;
   phone: string | null;
   businessRegNumber: string | null;
+  address: string | null;
   createdAt: string;
   ownerEmail: string | null;
   ownerId: string | null;
   customerCount: number;
   walletBalance?: number;
+  // Point settings
+  randomPointEnabled?: boolean;
+  randomPointMin?: number;
+  randomPointMax?: number;
+  fixedPointEnabled?: boolean;
+  fixedPointAmount?: number;
+  pointRateEnabled?: boolean;
+  pointRatePercent?: number;
+  pointUsageRule?: string | null;
+  pointsAlimtalkEnabled?: boolean;
 }
 
 interface TopupModalData {
@@ -54,6 +65,12 @@ export default function AdminStoresPage() {
   const [deleteCustomersModal, setDeleteCustomersModal] = useState<DeleteCustomersModalData | null>(null);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
+  // Store detail modal
+  const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Store>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -137,12 +154,14 @@ export default function AdminStoresPage() {
     }
   };
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     navigator.clipboard.writeText(text);
     setToast({ message: '클립보드에 복사되었습니다.', type: 'success' });
   };
 
-  const openTopupModal = (store: Store) => {
+  const openTopupModal = (store: Store, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setTopupModal({
       storeId: store.id,
       storeName: store.name,
@@ -153,7 +172,8 @@ export default function AdminStoresPage() {
     setTopupPassword('');
   };
 
-  const openDeductModal = (store: Store) => {
+  const openDeductModal = (store: Store, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setDeductModal({
       storeId: store.id,
       storeName: store.name,
@@ -164,13 +184,81 @@ export default function AdminStoresPage() {
     setDeductPassword('');
   };
 
-  const openDeleteCustomersModal = (store: Store) => {
+  const openDeleteCustomersModal = (store: Store, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setDeleteCustomersModal({
       storeId: store.id,
       storeName: store.name,
       customerCount: store.customerCount,
     });
     setDeleteConfirmText('');
+  };
+
+  const openStoreDetail = (store: Store) => {
+    setSelectedStore(store);
+    setEditForm({
+      name: store.name,
+      slug: store.slug,
+      ownerName: store.ownerName,
+      phone: store.phone,
+      businessRegNumber: store.businessRegNumber,
+      address: store.address,
+      randomPointEnabled: store.randomPointEnabled ?? true,
+      randomPointMin: store.randomPointMin ?? 1,
+      randomPointMax: store.randomPointMax ?? 1500,
+      fixedPointEnabled: store.fixedPointEnabled ?? false,
+      fixedPointAmount: store.fixedPointAmount ?? 100,
+      pointRateEnabled: store.pointRateEnabled ?? false,
+      pointRatePercent: store.pointRatePercent ?? 5,
+      pointUsageRule: store.pointUsageRule,
+      pointsAlimtalkEnabled: store.pointsAlimtalkEnabled ?? true,
+    });
+    setIsEditMode(false);
+  };
+
+  const handleSaveStore = async () => {
+    if (!selectedStore) return;
+
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsSaving(true);
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${selectedStore.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(editForm),
+        }
+      );
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setToast({ message: '매장 정보가 수정되었습니다.', type: 'success' });
+        // Update local store data
+        setStores((prevStores) =>
+          prevStores.map((store) =>
+            store.id === selectedStore.id
+              ? { ...store, ...editForm }
+              : store
+          )
+        );
+        setSelectedStore({ ...selectedStore, ...editForm });
+        setIsEditMode(false);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      setToast({ message: error.message || '저장에 실패했습니다.', type: 'error' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDeleteCustomers = async () => {
@@ -370,9 +458,9 @@ export default function AdminStoresPage() {
         </div>
       )}
 
-      {/* Stores Table */}
-      <div className="bg-white border border-[#EAEAEA] rounded-xl overflow-hidden">
-        <div className="p-5 border-b border-[#EAEAEA] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header */}
+      <div className="bg-white border border-[#EAEAEA] rounded-xl p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-[16px] font-semibold text-neutral-900">매장 목록</h2>
             <p className="text-[13px] text-neutral-500 mt-0.5">총 {stores.length}개 매장</p>
@@ -400,188 +488,487 @@ export default function AdminStoresPage() {
             </svg>
           </div>
         </div>
+      </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[#EAEAEA] bg-neutral-50">
-                <th className="text-left text-[12px] font-medium text-neutral-500 uppercase tracking-wider px-5 py-3">
-                  매장
-                </th>
-                <th className="text-left text-[12px] font-medium text-neutral-500 uppercase tracking-wider px-5 py-3">
-                  ID
-                </th>
-                <th className="text-left text-[12px] font-medium text-neutral-500 uppercase tracking-wider px-5 py-3">
-                  점주 이메일
-                </th>
-                <th className="text-left text-[12px] font-medium text-neutral-500 uppercase tracking-wider px-5 py-3">
-                  고객 수
-                </th>
-                <th className="text-right text-[12px] font-medium text-neutral-500 uppercase tracking-wider px-5 py-3">
-                  충전금
-                </th>
-                <th className="text-left text-[12px] font-medium text-neutral-500 uppercase tracking-wider px-5 py-3">
-                  가입일
-                </th>
-                <th className="text-left text-[12px] font-medium text-neutral-500 uppercase tracking-wider px-5 py-3">
-                  고객등록 링크
-                </th>
-                <th className="text-right text-[12px] font-medium text-neutral-500 uppercase tracking-wider px-5 py-3">
-                  액션
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#EAEAEA]">
-              {filteredStores.map((store) => (
-                <tr key={store.id} className="hover:bg-neutral-50 transition-colors">
-                  <td className="px-5 py-4">
-                    <div>
-                      <p className="text-[14px] font-medium text-neutral-900">{store.name}</p>
-                      <p className="text-[12px] text-neutral-500">{store.ownerName || '-'}</p>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4">
+      {/* Store Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4">
+        {filteredStores.map((store) => (
+          <div
+            key={store.id}
+            onClick={() => openStoreDetail(store)}
+            className="bg-white border border-[#EAEAEA] rounded-xl p-5 cursor-pointer hover:shadow-lg hover:border-[#FFD541] transition-all group"
+          >
+            {/* Store Name & Owner */}
+            <div className="mb-4">
+              <h3 className="text-[16px] font-semibold text-neutral-900 group-hover:text-[#D4A800] transition-colors truncate">
+                {store.name}
+              </h3>
+              <p className="text-[13px] text-neutral-500 truncate">{store.ownerName || '-'}</p>
+            </div>
+
+            {/* Stats */}
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] text-neutral-500">고객 수</span>
+                <span className="text-[14px] font-medium text-neutral-900">
+                  {formatNumber(store.customerCount)}명
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] text-neutral-500">충전금</span>
+                <span className="text-[14px] font-medium text-neutral-900">
+                  {formatNumber(store.walletBalance || 0)}원
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] text-neutral-500">가입일</span>
+                <span className="text-[12px] text-neutral-600">
+                  {new Date(store.createdAt).toLocaleDateString('ko-KR')}
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex gap-2 pt-3 border-t border-[#EAEAEA]">
+              <button
+                onClick={(e) => openTopupModal(store, e)}
+                className="flex-1 px-2 py-1.5 text-[11px] font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded transition-colors"
+              >
+                + 충전
+              </button>
+              {(store.walletBalance || 0) > 0 && (
+                <button
+                  onClick={(e) => openDeductModal(store, e)}
+                  className="flex-1 px-2 py-1.5 text-[11px] font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
+                >
+                  - 차감
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+        {filteredStores.length === 0 && (
+          <div className="col-span-full text-center py-12 text-neutral-500">
+            {searchQuery ? '검색 결과가 없습니다.' : '등록된 매장이 없습니다.'}
+          </div>
+        )}
+      </div>
+
+      {/* Store Detail Modal */}
+      {selectedStore && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-[#EAEAEA] px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-[18px] font-semibold text-neutral-900">
+                  {isEditMode ? '매장 정보 수정' : '매장 상세 정보'}
+                </h3>
+                <p className="text-[13px] text-neutral-500 mt-0.5">{selectedStore.name}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {!isEditMode ? (
+                  <button
+                    onClick={() => setIsEditMode(true)}
+                    className="px-4 py-2 text-[14px] font-medium text-[#D4A800] hover:bg-[#FFD541]/10 rounded-lg transition-colors"
+                  >
+                    수정
+                  </button>
+                ) : (
+                  <>
                     <button
-                      onClick={() => copyToClipboard(store.id)}
-                      className="group flex items-center gap-1.5"
+                      onClick={() => setIsEditMode(false)}
+                      className="px-4 py-2 text-[14px] font-medium text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors"
                     >
-                      <code className="text-[12px] text-neutral-600 bg-neutral-100 px-2 py-1 rounded font-mono">
-                        {store.id.slice(0, 12)}...
-                      </code>
-                      <svg
-                        className="w-3.5 h-3.5 text-neutral-400 group-hover:text-neutral-600 transition-colors"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
-                      </svg>
+                      취소
                     </button>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="text-[14px] text-neutral-600">{store.ownerEmail || '-'}</span>
-                  </td>
-                  <td className="px-5 py-4">
+                    <button
+                      onClick={handleSaveStore}
+                      disabled={isSaving}
+                      className="px-4 py-2 text-[14px] font-medium text-white bg-[#FFD541] hover:bg-[#FFCA00] rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isSaving && (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      )}
+                      저장
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => setSelectedStore(null)}
+                  className="p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* Basic Info Section */}
+              <div>
+                <h4 className="text-[14px] font-semibold text-neutral-900 mb-4">기본 정보</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12px] font-medium text-neutral-500 mb-1">매장명</label>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editForm.name || ''}
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                      />
+                    ) : (
+                      <p className="text-[14px] text-neutral-900">{selectedStore.name}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-neutral-500 mb-1">대표자명</label>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editForm.ownerName || ''}
+                        onChange={(e) => setEditForm({ ...editForm, ownerName: e.target.value })}
+                        className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                      />
+                    ) : (
+                      <p className="text-[14px] text-neutral-900">{selectedStore.ownerName || '-'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-neutral-500 mb-1">연락처</label>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editForm.phone || ''}
+                        onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                        className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                      />
+                    ) : (
+                      <p className="text-[14px] text-neutral-900">{selectedStore.phone || '-'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-neutral-500 mb-1">사업자등록번호</label>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editForm.businessRegNumber || ''}
+                        onChange={(e) => setEditForm({ ...editForm, businessRegNumber: e.target.value })}
+                        className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                      />
+                    ) : (
+                      <p className="text-[14px] text-neutral-900">{selectedStore.businessRegNumber || '-'}</p>
+                    )}
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-[12px] font-medium text-neutral-500 mb-1">주소</label>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editForm.address || ''}
+                        onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                        className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                      />
+                    ) : (
+                      <p className="text-[14px] text-neutral-900">{selectedStore.address || '-'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-neutral-500 mb-1">Slug (URL)</label>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editForm.slug || ''}
+                        onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
+                        className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                      />
+                    ) : (
+                      <p className="text-[14px] text-neutral-900">{selectedStore.slug || '-'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-neutral-500 mb-1">점주 이메일</label>
+                    <p className="text-[14px] text-neutral-900">{selectedStore.ownerEmail || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* System Info (read-only) */}
+              <div>
+                <h4 className="text-[14px] font-semibold text-neutral-900 mb-4">시스템 정보</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12px] font-medium text-neutral-500 mb-1">Store ID</label>
                     <div className="flex items-center gap-2">
-                      <span className="text-[14px] text-neutral-600">{formatNumber(store.customerCount)}</span>
-                      {store.customerCount > 0 && (
+                      <code className="text-[12px] text-neutral-600 bg-neutral-100 px-2 py-1 rounded font-mono">
+                        {selectedStore.id}
+                      </code>
+                      <button
+                        onClick={(e) => copyToClipboard(selectedStore.id, e)}
+                        className="p-1 text-neutral-400 hover:text-neutral-600 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-neutral-500 mb-1">가입일</label>
+                    <p className="text-[14px] text-neutral-900">
+                      {new Date(selectedStore.createdAt).toLocaleDateString('ko-KR')}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-neutral-500 mb-1">고객 수</label>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[14px] text-neutral-900">{formatNumber(selectedStore.customerCount)}명</p>
+                      {selectedStore.customerCount > 0 && (
                         <button
-                          onClick={() => openDeleteCustomersModal(store)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-[12px] font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                          title="고객 전체 삭제"
+                          onClick={(e) => openDeleteCustomersModal(selectedStore, e)}
+                          className="px-2 py-1 text-[11px] font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
                         >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                          삭제
+                          전체 삭제
                         </button>
                       )}
                     </div>
-                  </td>
-                  <td className="px-5 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <span className="text-[14px] font-medium text-neutral-900">
-                        {formatNumber(store.walletBalance || 0)}원
-                      </span>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-neutral-500 mb-1">충전금</label>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[14px] font-medium text-neutral-900">
+                        {formatNumber(selectedStore.walletBalance || 0)}원
+                      </p>
                       <button
-                        onClick={() => openTopupModal(store)}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-[12px] font-medium text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors"
+                        onClick={(e) => openTopupModal(selectedStore, e)}
+                        className="px-2 py-1 text-[11px] font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded transition-colors"
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
                         충전
                       </button>
-                      {(store.walletBalance || 0) > 0 && (
+                      {(selectedStore.walletBalance || 0) > 0 && (
                         <button
-                          onClick={() => openDeductModal(store)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-[12px] font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                          onClick={(e) => openDeductModal(selectedStore, e)}
+                          className="px-2 py-1 text-[11px] font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
                         >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                          </svg>
-                          삭제
+                          차감
                         </button>
                       )}
                     </div>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="text-[14px] text-neutral-500">
-                      {new Date(store.createdAt).toLocaleDateString('ko-KR')}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    {store.slug ? (
-                      <button
-                        onClick={() => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll/${store.slug}?ordersheetId={ordersheetId}`)}
-                        className="group flex items-center gap-1.5"
-                        title="클릭하여 복사"
-                      >
-                        <code className="text-[12px] text-blue-600 bg-blue-50 px-2 py-1 rounded font-mono max-w-[200px] truncate">
-                          /taghere-enroll/{store.slug}?ordersheetId=...
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-[12px] font-medium text-neutral-500 mb-1">고객등록 링크</label>
+                    {selectedStore.slug ? (
+                      <div className="flex items-center gap-2">
+                        <code className="text-[12px] text-blue-600 bg-blue-50 px-2 py-1 rounded font-mono truncate max-w-md">
+                          /taghere-enroll/{selectedStore.slug}?ordersheetId=&#123;ordersheetId&#125;
                         </code>
-                        <svg
-                          className="w-3.5 h-3.5 text-neutral-400 group-hover:text-neutral-600 transition-colors flex-shrink-0"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                        <button
+                          onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll/${selectedStore.slug}?ordersheetId={ordersheetId}`, e)}
+                          className="p-1 text-neutral-400 hover:text-neutral-600 transition-colors flex-shrink-0"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                          />
-                        </svg>
-                      </button>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </button>
+                      </div>
                     ) : (
                       <span className="text-[12px] text-neutral-400">slug 없음</span>
                     )}
-                  </td>
-                  <td className="px-5 py-4 text-right">
-                    <button
-                      onClick={() => handleResetPassword(store.id, store.name)}
-                      disabled={resettingStoreId === store.id}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      {resettingStoreId === store.id ? (
-                        <>
-                          <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
-                          초기화 중...
-                        </>
+                  </div>
+                </div>
+              </div>
+
+              {/* Point Settings */}
+              <div>
+                <h4 className="text-[14px] font-semibold text-neutral-900 mb-4">포인트 설정</h4>
+                <div className="space-y-4">
+                  {/* Random Point */}
+                  <div className="p-4 bg-neutral-50 rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[14px] font-medium text-neutral-900">랜덤 포인트</span>
+                      {isEditMode ? (
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editForm.randomPointEnabled ?? true}
+                            onChange={(e) => setEditForm({ ...editForm, randomPointEnabled: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-neutral-300 peer-focus:ring-2 peer-focus:ring-[#FFD541]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-[#FFD541] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                        </label>
                       ) : (
-                        <>
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                            />
-                          </svg>
-                          비밀번호 초기화
-                        </>
+                        <span className={`px-2 py-1 text-[12px] font-medium rounded ${selectedStore.randomPointEnabled !== false ? 'bg-green-100 text-green-700' : 'bg-neutral-200 text-neutral-500'}`}>
+                          {selectedStore.randomPointEnabled !== false ? '활성화' : '비활성화'}
+                        </span>
                       )}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filteredStores.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-5 py-12 text-center text-neutral-500">
-                    {searchQuery ? '검색 결과가 없습니다.' : '등록된 매장이 없습니다.'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[12px] text-neutral-500 mb-1">최소 포인트</label>
+                        {isEditMode ? (
+                          <input
+                            type="number"
+                            value={editForm.randomPointMin ?? 1}
+                            onChange={(e) => setEditForm({ ...editForm, randomPointMin: parseInt(e.target.value) || 0 })}
+                            className="w-full h-9 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                          />
+                        ) : (
+                          <p className="text-[14px] text-neutral-900">{selectedStore.randomPointMin ?? 1}P</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-[12px] text-neutral-500 mb-1">최대 포인트</label>
+                        {isEditMode ? (
+                          <input
+                            type="number"
+                            value={editForm.randomPointMax ?? 1500}
+                            onChange={(e) => setEditForm({ ...editForm, randomPointMax: parseInt(e.target.value) || 0 })}
+                            className="w-full h-9 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                          />
+                        ) : (
+                          <p className="text-[14px] text-neutral-900">{selectedStore.randomPointMax ?? 1500}P</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Fixed Point */}
+                  <div className="p-4 bg-neutral-50 rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[14px] font-medium text-neutral-900">고정 포인트</span>
+                      {isEditMode ? (
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editForm.fixedPointEnabled ?? false}
+                            onChange={(e) => setEditForm({ ...editForm, fixedPointEnabled: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-neutral-300 peer-focus:ring-2 peer-focus:ring-[#FFD541]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-[#FFD541] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                        </label>
+                      ) : (
+                        <span className={`px-2 py-1 text-[12px] font-medium rounded ${selectedStore.fixedPointEnabled ? 'bg-green-100 text-green-700' : 'bg-neutral-200 text-neutral-500'}`}>
+                          {selectedStore.fixedPointEnabled ? '활성화' : '비활성화'}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-[12px] text-neutral-500 mb-1">고정 포인트</label>
+                      {isEditMode ? (
+                        <input
+                          type="number"
+                          value={editForm.fixedPointAmount ?? 100}
+                          onChange={(e) => setEditForm({ ...editForm, fixedPointAmount: parseInt(e.target.value) || 0 })}
+                          className="w-full h-9 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                        />
+                      ) : (
+                        <p className="text-[14px] text-neutral-900">{selectedStore.fixedPointAmount ?? 100}P</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Point Rate */}
+                  <div className="p-4 bg-neutral-50 rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[14px] font-medium text-neutral-900">결제금액 기반 적립</span>
+                      {isEditMode ? (
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editForm.pointRateEnabled ?? false}
+                            onChange={(e) => setEditForm({ ...editForm, pointRateEnabled: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-neutral-300 peer-focus:ring-2 peer-focus:ring-[#FFD541]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-[#FFD541] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                        </label>
+                      ) : (
+                        <span className={`px-2 py-1 text-[12px] font-medium rounded ${selectedStore.pointRateEnabled ? 'bg-green-100 text-green-700' : 'bg-neutral-200 text-neutral-500'}`}>
+                          {selectedStore.pointRateEnabled ? '활성화' : '비활성화'}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-[12px] text-neutral-500 mb-1">적립률 (%)</label>
+                      {isEditMode ? (
+                        <input
+                          type="number"
+                          value={editForm.pointRatePercent ?? 5}
+                          onChange={(e) => setEditForm({ ...editForm, pointRatePercent: parseInt(e.target.value) || 0 })}
+                          className="w-full h-9 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                        />
+                      ) : (
+                        <p className="text-[14px] text-neutral-900">{selectedStore.pointRatePercent ?? 5}%</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Point Usage Rule */}
+                  <div>
+                    <label className="block text-[12px] font-medium text-neutral-500 mb-1">포인트 사용 규칙 안내</label>
+                    {isEditMode ? (
+                      <textarea
+                        value={editForm.pointUsageRule || ''}
+                        onChange={(e) => setEditForm({ ...editForm, pointUsageRule: e.target.value })}
+                        placeholder="예: 1,000P 이상 적립 시 사용 가능"
+                        rows={2}
+                        className="w-full px-3 py-2 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541] resize-none"
+                      />
+                    ) : (
+                      <p className="text-[14px] text-neutral-900">{selectedStore.pointUsageRule || '-'}</p>
+                    )}
+                  </div>
+
+                  {/* Points Alimtalk */}
+                  <div className="flex items-center justify-between p-4 bg-neutral-50 rounded-lg">
+                    <span className="text-[14px] font-medium text-neutral-900">포인트 알림톡 자동 발송</span>
+                    {isEditMode ? (
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editForm.pointsAlimtalkEnabled ?? true}
+                          onChange={(e) => setEditForm({ ...editForm, pointsAlimtalkEnabled: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-neutral-300 peer-focus:ring-2 peer-focus:ring-[#FFD541]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-[#FFD541] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                      </label>
+                    ) : (
+                      <span className={`px-2 py-1 text-[12px] font-medium rounded ${selectedStore.pointsAlimtalkEnabled !== false ? 'bg-green-100 text-green-700' : 'bg-neutral-200 text-neutral-500'}`}>
+                        {selectedStore.pointsAlimtalkEnabled !== false ? '활성화' : '비활성화'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="pt-4 border-t border-[#EAEAEA]">
+                <button
+                  onClick={() => handleResetPassword(selectedStore.id, selectedStore.name)}
+                  disabled={resettingStoreId === selectedStore.id}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-[14px] font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {resettingStoreId === selectedStore.id ? (
+                    <>
+                      <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin" />
+                      초기화 중...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      비밀번호 초기화
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Topup Modal */}
       {topupModal && (
