@@ -107,6 +107,60 @@ export class SolapiService {
     }
   }
 
+  // SOLAPI 에러 코드 → 한글 메시지 매핑
+  private getFailReasonKorean(statusCode: string, statusMessage?: string): string {
+    // statusMessage가 있고 의미있는 값이면 그대로 사용
+    if (statusMessage && statusMessage.length > 0 && !statusMessage.startsWith('Failed')) {
+      return statusMessage;
+    }
+
+    // SOLAPI 에러 코드별 한글 메시지
+    const errorMessages: Record<string, string> = {
+      '3000': '전송경로 없음',
+      '3001': '잘못된 전화번호',
+      '3002': '수신거부',
+      '3003': '기타 오류',
+      '3004': '단말기 전원 꺼짐',
+      '3005': '메시지 삭제됨',
+      '3006': '음영지역',
+      '3007': '단말기 메시지 풀',
+      '3008': '일시정지',
+      '3009': '기타 오류',
+      '3010': '사용자 없음',
+      '3011': '발신번호 차단',
+      '3012': '스팸 차단',
+      '3013': '발신번호 사전등록 필요',
+      '3014': '결번',
+      '3015': '서비스 불가 단말기',
+      '3016': '착신 거부',
+      '3017': 'SPAM',
+      '3018': '휴대폰 호 처리 중',
+      '3019': '기타 단말기 문제',
+      '3020': '가입자 없음',
+      '3021': '단말기 일시정지',
+      '3022': '카카오톡 미사용자',
+      '3023': '카카오 시스템 오류',
+      '3024': '카카오 템플릿 오류',
+      '3025': '카카오 발신프로필 오류',
+      '3026': '친구톡 수신거부',
+      '3027': '카카오 메시지 형식 오류',
+      '3028': '카카오 이미지 오류',
+      '3029': '카카오 전화번호 형식 오류',
+      '3030': '카카오 버튼 오류',
+      '3031': '카카오 기타 오류',
+      '3032': '카카오 변수 오류',
+      '3033': '카카오 일일 발송량 초과',
+      '3034': '카카오 발송 불가 시간',
+      '3100': '카카오 비즈메시지 전환 발송 실패',
+      '3104': '카카오톡 미사용자',
+      '3108': '카카오 전화번호 형식 오류',
+      '3110': '카카오 발송 실패',
+      '3120': '알림톡 발송 실패 (대체 발송됨)',
+    };
+
+    return errorMessages[statusCode] || `발송 실패 (${statusCode})`;
+  }
+
   // 메시지 그룹 상태 조회
   async getMessageStatus(groupId: string): Promise<{
     success: boolean;
@@ -137,7 +191,7 @@ export class SolapiService {
         if (statusCode?.startsWith('4')) {
           return { success: true, status: 'SENT' };
         } else if (statusCode?.startsWith('3')) {
-          return { success: true, status: 'FAILED', failReason: statusMessage || `Failed (${statusCode})` };
+          return { success: true, status: 'FAILED', failReason: this.getFailReasonKorean(statusCode, statusMessage) };
         } else if (statusCode?.startsWith('2')) {
           return { success: true, status: 'PENDING' };
         }

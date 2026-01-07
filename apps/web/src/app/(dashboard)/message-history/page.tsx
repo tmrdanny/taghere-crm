@@ -385,7 +385,7 @@ export default function MessageHistoryPage() {
                       {getStatusBadge(msg.status)}
                       {msg.failReason && (
                         <div
-                          className="text-xs text-red-400 mt-1 max-w-[120px] truncate"
+                          className="text-xs text-red-500 mt-1 max-w-[200px]"
                           title={msg.failReason}
                         >
                           {msg.failReason}
