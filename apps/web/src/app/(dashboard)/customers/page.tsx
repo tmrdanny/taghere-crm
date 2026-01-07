@@ -1632,13 +1632,15 @@ export default function CustomersPage() {
                       }`}
                     >
                       <Send className="w-4 h-4 flex-shrink-0" />
-                      <span>발송</span>
+                      <span>발송내역</span>
                       {messageSummary.total > 0 && (
                         <span className="text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">
                           {messageSummary.total}
                         </span>
                       )}
                     </button>
+                    {/* Empty cell for grid alignment */}
+                    <div></div>
                     <button
                       type="button"
                       onClick={() => setEditModalTab('memo')}
@@ -1651,8 +1653,6 @@ export default function CustomersPage() {
                       <Edit2 className="w-4 h-4 flex-shrink-0" />
                       <span>메모</span>
                     </button>
-                    {/* Empty cell for alignment */}
-                    <div className="px-2 py-2.5"></div>
                   </div>
                 </div>
 
