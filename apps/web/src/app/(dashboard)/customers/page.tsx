@@ -1563,79 +1563,85 @@ export default function CustomersPage() {
 
               {/* Right Column - Tabs for Orders, Feedback, History */}
               <div className="flex flex-col min-w-0 overflow-hidden h-full">
-                {/* Tab Headers */}
-                <div className="flex border-b border-neutral-200 flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setEditModalTab('orders')}
-                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                      editModalTab === 'orders'
-                        ? 'border-brand-800 text-brand-800'
-                        : 'border-transparent text-neutral-500 hover:text-neutral-700'
-                    }`}
-                  >
-                    <ShoppingBag className="w-4 h-4 flex-shrink-0" />
-                    <span>주문내역</span>
-                    {(orderHistory?.length || 0) > 0 && (
-                      <span className="ml-1 text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
-                        {orderHistory.length}
-                      </span>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditModalTab('feedback')}
-                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                      editModalTab === 'feedback'
-                        ? 'border-brand-800 text-brand-800'
-                        : 'border-transparent text-neutral-500 hover:text-neutral-700'
-                    }`}
-                  >
-                    <MessageSquare className="w-4 h-4 flex-shrink-0" />
-                    <span>피드백</span>
-                    {(feedbackHistory?.length || 0) > 0 && (
-                      <span className="ml-1 text-yellow-500">★{feedbackHistory.length}</span>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditModalTab('history')}
-                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                      editModalTab === 'history'
-                        ? 'border-brand-800 text-brand-800'
-                        : 'border-transparent text-neutral-500 hover:text-neutral-700'
-                    }`}
-                  >
-                    <History className="w-4 h-4 flex-shrink-0" />
-                    <span>포인트</span>
-                    {(pointHistory?.length || 0) > 0 && (
-                      <span className="ml-1 text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full">
-                        {pointHistory.length}
-                      </span>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditModalTab('messages');
-                      if (editingCustomer && messageHistory.length === 0) {
-                        fetchCustomerMessages(editingCustomer.id);
-                      }
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                      editModalTab === 'messages'
-                        ? 'border-brand-800 text-brand-800'
-                        : 'border-transparent text-neutral-500 hover:text-neutral-700'
-                    }`}
-                  >
-                    <Send className="w-4 h-4 flex-shrink-0" />
-                    <span>발송</span>
-                    {messageSummary.total > 0 && (
-                      <span className="ml-1 text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">
-                        {messageSummary.total}
-                      </span>
-                    )}
-                  </button>
+                {/* Tab Headers - 2 rows */}
+                <div className="flex-shrink-0 border-b border-neutral-200">
+                  {/* Row 1: 주문내역, 피드백 */}
+                  <div className="flex">
+                    <button
+                      type="button"
+                      onClick={() => setEditModalTab('orders')}
+                      className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                        editModalTab === 'orders'
+                          ? 'border-brand-800 text-brand-800'
+                          : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                      }`}
+                    >
+                      <ShoppingBag className="w-4 h-4 flex-shrink-0" />
+                      <span>주문내역</span>
+                      {(orderHistory?.length || 0) > 0 && (
+                        <span className="ml-1 text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
+                          {orderHistory.length}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditModalTab('feedback')}
+                      className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                        editModalTab === 'feedback'
+                          ? 'border-brand-800 text-brand-800'
+                          : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                      }`}
+                    >
+                      <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                      <span>피드백</span>
+                      {(feedbackHistory?.length || 0) > 0 && (
+                        <span className="ml-1 text-yellow-500">★{feedbackHistory.length}</span>
+                      )}
+                    </button>
+                  </div>
+                  {/* Row 2: 발송, 포인트 */}
+                  <div className="flex">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditModalTab('messages');
+                        if (editingCustomer && messageHistory.length === 0) {
+                          fetchCustomerMessages(editingCustomer.id);
+                        }
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                        editModalTab === 'messages'
+                          ? 'border-brand-800 text-brand-800'
+                          : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                      }`}
+                    >
+                      <Send className="w-4 h-4 flex-shrink-0" />
+                      <span>발송내역</span>
+                      {messageSummary.total > 0 && (
+                        <span className="ml-1 text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">
+                          {messageSummary.total}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditModalTab('history')}
+                      className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                        editModalTab === 'history'
+                          ? 'border-brand-800 text-brand-800'
+                          : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                      }`}
+                    >
+                      <History className="w-4 h-4 flex-shrink-0" />
+                      <span>포인트내역</span>
+                      {(pointHistory?.length || 0) > 0 && (
+                        <span className="ml-1 text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full">
+                          {pointHistory.length}
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Orders Tab */}
