@@ -242,8 +242,8 @@ router.post('/auto-earn', async (req, res) => {
           phone: true,
           phoneLastDigits: true,
           gender: true,
-          ageRange: true,
           birthday: true,
+          birthYear: true,
         },
       });
 
@@ -274,8 +274,8 @@ router.post('/auto-earn', async (req, res) => {
           phone: phoneToUse,
           phoneLastDigits: phoneLastDigitsToUse,
           gender: existingCustomer?.gender ?? null,
-          ageRange: existingCustomer?.ageRange ?? null,
           birthday: existingCustomer?.birthday ?? null,
+          birthYear: existingCustomer?.birthYear ?? null,
           // 매장별 독립 데이터는 초기값
           totalPoints: 0,
           visitCount: 0,
