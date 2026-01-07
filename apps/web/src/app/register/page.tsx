@@ -1,12 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import Script from 'next/script';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+
+declare global {
+  interface Window {
+    daum: any;
+  }
+}
 
 // 업종 분류
 const STORE_CATEGORIES = {
@@ -54,6 +61,8 @@ export default function RegisterPage() {
     ownerName: '',
     phone: '',
     businessRegNumber: '',
+    address: '',
+    addressDetail: '',
     naverPlaceUrl: '',
     email: '',
     password: '',
@@ -61,6 +70,16 @@ export default function RegisterPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleAddressSearch = () => {
+    new window.daum.Postcode({
+      oncomplete: function (data: any) {
+        // 도로명 주소 우선, 없으면 지번 주소
+        const address = data.roadAddress || data.jibunAddress;
+        setFormData((prev) => ({ ...prev, address }));
+      },
+    }).open();
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -93,6 +112,13 @@ export default function RegisterPage() {
       return;
     }
 
+    // 주소 필수 체크
+    if (!formData.address) {
+      setError('주소를 입력해주세요.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auth/register`, {
         method: 'POST',
@@ -105,6 +131,9 @@ export default function RegisterPage() {
           ownerName: formData.ownerName,
           phone: formData.phone,
           businessRegNumber: formData.businessRegNumber,
+          address: formData.addressDetail
+            ? `${formData.address} ${formData.addressDetail}`
+            : formData.address,
           naverPlaceUrl: formData.naverPlaceUrl,
           email: formData.email,
           password: formData.password,
@@ -130,8 +159,13 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 p-4">
-      <Card className="w-full max-w-md">
+    <>
+      <Script
+        src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
+        strategy="lazyOnload"
+      />
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50 p-4">
+        <Card className="w-full max-w-md">
         <CardHeader className="text-center pb-2">
           <Image
             src="/Taghere-logo.png"
@@ -232,6 +266,38 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-neutral-700">
+                주소 <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  name="address"
+                  placeholder="주소 검색을 클릭하세요"
+                  value={formData.address}
+                  readOnly
+                  className="flex-1 bg-neutral-50 cursor-pointer"
+                  onClick={handleAddressSearch}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddressSearch}
+                  className="shrink-0"
+                >
+                  주소 검색
+                </Button>
+              </div>
+              <Input
+                type="text"
+                name="addressDetail"
+                placeholder="상세주소 (동/호수 등)"
+                value={formData.addressDetail}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-700">
                 네이버 플레이스 링크
               </label>
               <Input
@@ -308,7 +374,8 @@ export default function RegisterPage() {
             </p>
           </div>
         </CardContent>
-      </Card>
-    </div>
+        </Card>
+      </div>
+    </>
   );
 }

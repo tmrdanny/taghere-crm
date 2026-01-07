@@ -88,10 +88,10 @@ async function getUniqueSlug(baseSlug: string): Promise<string> {
 // POST /api/auth/register - 회원가입
 router.post('/register', async (req, res) => {
   try {
-    const { storeName, category, ownerName, phone, businessRegNumber, naverPlaceUrl, email, password } = req.body;
+    const { storeName, category, ownerName, phone, businessRegNumber, address, naverPlaceUrl, email, password } = req.body;
 
     // 필수 필드 검증
-    if (!storeName || !ownerName || !phone || !businessRegNumber || !email || !password) {
+    if (!storeName || !ownerName || !phone || !businessRegNumber || !address || !email || !password) {
       return res.status(400).json({ error: '모든 필드를 입력해주세요.' });
     }
 
@@ -131,6 +131,7 @@ router.post('/register', async (req, res) => {
           ownerName,
           phone,
           businessRegNumber,
+          address,
           naverPlaceUrl: naverPlaceUrl?.trim() || null,
           pointRatePercent: 5,
         },
