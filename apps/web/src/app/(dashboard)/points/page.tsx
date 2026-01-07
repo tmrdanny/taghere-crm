@@ -134,9 +134,11 @@ export default function PointsPage() {
 
       if (res.ok) {
         const data = await res.json();
+        const percent = data.pointRatePercent ?? 5;
         setStoreSettings({
-          pointRateEnabled: data.pointRateEnabled ?? false,
-          pointRatePercent: data.pointRatePercent ?? 5,
+          // pointRatePercent가 0보다 크면 활성화된 것으로 간주
+          pointRateEnabled: percent > 0,
+          pointRatePercent: percent,
         });
       }
     } catch (err) {
