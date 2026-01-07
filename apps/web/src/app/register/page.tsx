@@ -86,6 +86,13 @@ export default function RegisterPage() {
       return;
     }
 
+    // 업종 필수 체크
+    if (!formData.category) {
+      setError('업종을 선택해주세요.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auth/register`, {
         method: 'POST',
@@ -159,15 +166,16 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-neutral-700">
-                업종
+                업종 <span className="text-red-500">*</span>
               </label>
               <select
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
+                required
                 className="w-full h-10 px-3 rounded-md border border-neutral-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
               >
-                <option value="">업종 선택 (선택사항)</option>
+                <option value="">업종을 선택해주세요</option>
                 {CATEGORY_GROUPS.map((group) => (
                   <optgroup key={group.label} label={group.label}>
                     {group.options.map((key) => (
