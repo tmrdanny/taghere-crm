@@ -17,6 +17,9 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       visitCountMin,
       visitCountExact,
       lastVisitDays,
+      startDate,
+      endDate,
+      dateType = 'lastVisit',
     } = req.query;
     const storeId = req.user!.storeId;
 
@@ -61,6 +64,23 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
         sinceDate.setDate(sinceDate.getDate() - days);
         where.AND.push({ lastVisitAt: { gte: sinceDate } });
       }
+    }
+
+    // Filter by date range (startDate ~ endDate)
+    if (startDate || endDate) {
+      const dateField = dateType === 'created' ? 'createdAt' : 'lastVisitAt';
+      const dateWhere: any = {};
+
+      if (startDate) {
+        dateWhere.gte = new Date(startDate as string);
+      }
+      if (endDate) {
+        const end = new Date(endDate as string);
+        end.setHours(23, 59, 59, 999);
+        dateWhere.lte = end;
+      }
+
+      where.AND.push({ [dateField]: dateWhere });
     }
 
     // Filter by VIP (visit count > 20 or total points > 5000)

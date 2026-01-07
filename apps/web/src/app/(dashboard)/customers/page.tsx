@@ -160,6 +160,12 @@ export default function CustomersPage() {
   const [genderDropdownOpen, setGenderDropdownOpen] = useState(false);
   const [visitDropdownOpen, setVisitDropdownOpen] = useState(false);
   const [lastVisitDropdownOpen, setLastVisitDropdownOpen] = useState(false);
+  const [dateRangeDropdownOpen, setDateRangeDropdownOpen] = useState(false);
+
+  // Date range filter states
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [dateFilterType, setDateFilterType] = useState<'created' | 'lastVisit'>('lastVisit');
 
   // Add customer modal states
   const [addModal, setAddModal] = useState(false);
@@ -273,6 +279,9 @@ export default function CustomersPage() {
         }
       }
       if (lastVisitFilter !== 'all') params.set('lastVisitDays', lastVisitFilter);
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      if (startDate || endDate) params.set('dateType', dateFilterType);
 
       const res = await fetch(`${apiUrl}/api/customers?${params.toString()}`, {
         headers: {
@@ -305,7 +314,7 @@ export default function CustomersPage() {
         setIsLoading(false);
       }
     }
-  }, [apiUrl, searchQuery, genderFilter, visitFilter, lastVisitFilter, page, pageSize]);
+  }, [apiUrl, searchQuery, genderFilter, visitFilter, lastVisitFilter, startDate, endDate, dateFilterType, page, pageSize]);
 
   // Initial fetch and when filters change
   useEffect(() => {
@@ -665,6 +674,7 @@ export default function CustomersPage() {
     setGenderDropdownOpen(false);
     setVisitDropdownOpen(false);
     setLastVisitDropdownOpen(false);
+    setDateRangeDropdownOpen(false);
   };
 
   const handleGenderSelect = (value: 'all' | 'MALE' | 'FEMALE') => {
@@ -689,6 +699,9 @@ export default function CustomersPage() {
     setGenderFilter('all');
     setVisitFilter('all');
     setLastVisitFilter('all');
+    setStartDate('');
+    setEndDate('');
+    setDateFilterType('lastVisit');
     setSearchInput('');
     setSearchQuery('');
     setPage(1);
@@ -697,11 +710,11 @@ export default function CustomersPage() {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = () => closeAllDropdowns();
-    if (genderDropdownOpen || visitDropdownOpen || lastVisitDropdownOpen) {
+    if (genderDropdownOpen || visitDropdownOpen || lastVisitDropdownOpen || dateRangeDropdownOpen) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }
-  }, [genderDropdownOpen, visitDropdownOpen, lastVisitDropdownOpen]);
+  }, [genderDropdownOpen, visitDropdownOpen, lastVisitDropdownOpen, dateRangeDropdownOpen]);
 
   const genderOptions = [
     { value: 'all', label: '전체' },
@@ -907,6 +920,111 @@ export default function CustomersPage() {
                       )}
                     </button>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* Date Range Filter Dropdown */}
+            <div className="relative">
+              <Button
+                variant={(startDate || endDate) ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDateRangeDropdownOpen(!dateRangeDropdownOpen);
+                  setGenderDropdownOpen(false);
+                  setVisitDropdownOpen(false);
+                  setLastVisitDropdownOpen(false);
+                }}
+                className="flex items-center gap-1"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                {(startDate || endDate) ? (
+                  <span className="text-xs">
+                    {startDate && endDate ? `${startDate.slice(5)} ~ ${endDate.slice(5)}` : startDate ? `${startDate.slice(5)} ~` : `~ ${endDate.slice(5)}`}
+                  </span>
+                ) : (
+                  '기간'
+                )}
+                <ChevronDown className="w-3.5 h-3.5" />
+              </Button>
+              {dateRangeDropdownOpen && (
+                <div
+                  className="absolute top-full right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg p-3 min-w-[240px] z-50"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Date type selector */}
+                  <div className="mb-3 space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="dateType"
+                        checked={dateFilterType === 'lastVisit'}
+                        onChange={() => setDateFilterType('lastVisit')}
+                        className="text-brand-800 focus:ring-brand-800"
+                      />
+                      <span className="text-sm text-neutral-700">마지막 방문일</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="dateType"
+                        checked={dateFilterType === 'created'}
+                        onChange={() => setDateFilterType('created')}
+                        className="text-brand-800 focus:ring-brand-800"
+                      />
+                      <span className="text-sm text-neutral-700">가입일</span>
+                    </label>
+                  </div>
+
+                  {/* Date inputs */}
+                  <div className="space-y-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-neutral-500 w-12">시작일</span>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="flex-1 px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-neutral-500 w-12">종료일</span>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="flex-1 px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setStartDate('');
+                        setEndDate('');
+                        setDateFilterType('lastVisit');
+                        setPage(1);
+                      }}
+                      className="flex-1 text-sm"
+                    >
+                      초기화
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setDateRangeDropdownOpen(false);
+                        setPage(1);
+                      }}
+                      className="flex-1 text-sm"
+                    >
+                      적용
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
