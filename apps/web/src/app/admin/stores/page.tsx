@@ -659,16 +659,7 @@ export default function AdminStoresPage() {
             <div className="p-6 space-y-6">
               {/* 기본 정보 카드 */}
               <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-[15px] font-semibold text-neutral-900">기본 정보</h4>
-                  <button
-                    onClick={() => handleResetPassword(selectedStore.id, selectedStore.name)}
-                    disabled={resettingStoreId === selectedStore.id}
-                    className="text-[12px] font-medium text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
-                  >
-                    {resettingStoreId === selectedStore.id ? '초기화 중...' : '비밀번호 초기화'}
-                  </button>
-                </div>
+                <h4 className="text-[15px] font-semibold text-neutral-900 mb-2">기본 정보</h4>
 
                 {/* 2-column: 매장명 & 업종 */}
                 <div className="grid grid-cols-2 gap-3">
@@ -958,6 +949,17 @@ export default function AdminStoresPage() {
                     <p className="text-[15px] text-neutral-900">{selectedStore.pointUsageRule || '-'}</p>
                   )}
                 </div>
+              </div>
+
+              {/* 비밀번호 초기화 */}
+              <div className="pt-2 border-t border-neutral-200">
+                <button
+                  onClick={() => handleResetPassword(selectedStore.id, selectedStore.name)}
+                  disabled={resettingStoreId === selectedStore.id}
+                  className="text-[13px] font-medium text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
+                >
+                  {resettingStoreId === selectedStore.id ? '초기화 중...' : '비밀번호 초기화'}
+                </button>
               </div>
             </div>
           </div>
