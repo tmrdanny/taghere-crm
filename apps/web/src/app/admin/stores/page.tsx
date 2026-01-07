@@ -29,6 +29,7 @@ const STORE_CATEGORIES = {
   COCKTAIL_BAR: '칵테일바',
   POCHA: '포차/실내포장마차',
   KOREAN_PUB: '한식 주점',
+  COOK_PUB: '요리주점',
   // 기타
   FOODCOURT: '푸드코트',
   OTHER: '기타',
@@ -37,7 +38,7 @@ const STORE_CATEGORIES = {
 const CATEGORY_GROUPS = [
   { label: '음식점', options: ['KOREAN', 'CHINESE', 'JAPANESE', 'WESTERN', 'ASIAN', 'BUNSIK', 'FASTFOOD', 'MEAT', 'SEAFOOD', 'BUFFET', 'BRUNCH'] },
   { label: '카페/디저트', options: ['CAFE', 'BAKERY', 'DESSERT', 'ICECREAM'] },
-  { label: '주점', options: ['BEER', 'IZAKAYA', 'WINE_BAR', 'COCKTAIL_BAR', 'POCHA', 'KOREAN_PUB'] },
+  { label: '주점', options: ['BEER', 'IZAKAYA', 'WINE_BAR', 'COCKTAIL_BAR', 'POCHA', 'KOREAN_PUB', 'COOK_PUB'] },
   { label: '기타', options: ['FOODCOURT', 'OTHER'] },
 ];
 

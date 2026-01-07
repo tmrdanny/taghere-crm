@@ -102,6 +102,7 @@ enum StoreCategory {
   COCKTAIL_BAR     // 칵테일바
   POCHA            // 포차/실내포장마차
   KOREAN_PUB       // 한식 주점
+  COOK_PUB         // 요리주점
 
   // 기타
   FOODCOURT        // 푸드코트
