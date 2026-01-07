@@ -25,24 +25,7 @@ export async function authMiddleware(
 
     const token = authHeader.split(' ')[1];
 
-    // Development bypass
-    if (token === 'dev-token') {
-      const devUser = await prisma.staffUser.findFirst({
-        where: { role: 'OWNER' },
-      });
-
-      if (devUser) {
-        req.user = {
-          id: devUser.id,
-          email: devUser.email,
-          storeId: devUser.storeId,
-          role: devUser.role,
-        };
-        return next();
-      }
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
       id: string;
       email: string;
       storeId: string;

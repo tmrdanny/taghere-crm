@@ -39,9 +39,11 @@ const bannerUpload = multer({
   },
 });
 
-// 하드코딩된 어드민 계정 (환경변수로 관리 권장)
+// 어드민 계정 (환경변수 필수)
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'taghere';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '!Tmrfounders6023';
+// 비밀번호는 bcrypt 해시로 저장 (ADMIN_PASSWORD_HASH 환경변수 사용)
+// 해시 생성: npx bcrypt-cli hash "비밀번호"
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
 
 interface AdminRequest extends Request {
   isAdmin?: boolean;
@@ -58,7 +60,7 @@ const adminAuthMiddleware = (req: AdminRequest, res: Response, next: NextFunctio
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { isSystemAdmin: boolean };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { isSystemAdmin: boolean };
 
     if (!decoded.isSystemAdmin) {
       return res.status(403).json({ error: '어드민 권한이 필요합니다.' });
@@ -80,7 +82,18 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '아이디와 비밀번호를 입력해주세요.' });
     }
 
-    if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+    if (username !== ADMIN_USERNAME) {
+      return res.status(401).json({ error: '아이디 또는 비밀번호가 올바르지 않습니다.' });
+    }
+
+    // 비밀번호 해시 검증
+    if (!ADMIN_PASSWORD_HASH) {
+      console.error('[Admin] ADMIN_PASSWORD_HASH 환경변수가 설정되지 않았습니다.');
+      return res.status(500).json({ error: '서버 설정 오류입니다.' });
+    }
+
+    const isValidPassword = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+    if (!isValidPassword) {
       return res.status(401).json({ error: '아이디 또는 비밀번호가 올바르지 않습니다.' });
     }
 
@@ -90,7 +103,7 @@ router.post('/login', async (req: Request, res: Response) => {
         isSystemAdmin: true,
         username: ADMIN_USERNAME,
       },
-      process.env.JWT_SECRET || 'secret',
+      process.env.JWT_SECRET!,
       { expiresIn: '24h' }
     );
 

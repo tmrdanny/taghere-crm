@@ -2,10 +2,23 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import rateLimit from 'express-rate-limit';
 
 // Load environment variables (production uses system env, dev uses .env file)
 if (process.env.NODE_ENV !== 'production') {
   dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+}
+
+// 필수 환경변수 검증
+const requiredEnvVars = [
+  'JWT_SECRET',
+  'DATABASE_URL',
+];
+
+const missingEnvVars = requiredEnvVars.filter(key => !process.env[key]);
+if (missingEnvVars.length > 0) {
+  console.error(`❌ Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  process.exit(1);
 }
 
 // Import routes
@@ -50,6 +63,38 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+
+// Rate Limiting - 일반 API (15분에 300요청)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15분
+  max: 300,
+  message: { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Rate Limiting - 인증 관련 (15분에 20요청)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: '로그인 시도가 너무 많습니다. 15분 후 다시 시도해주세요.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Rate Limiting - 포인트 적립 (1분에 10요청)
+const earnLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1분
+  max: 10,
+  message: { error: '포인트 적립 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/', apiLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/admin/login', authLimiter);
+app.use('/api/taghere/auto-earn', earnLimiter);
 
 // Static file serving for uploads (MMS images)
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
