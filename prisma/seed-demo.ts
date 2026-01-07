@@ -74,9 +74,6 @@ async function main() {
       address: '서울특별시 강남구 테헤란로 123',
       naverPlaceUrl: 'https://naver.me/demo123',
       naverPlaceId: 'demo123456',
-      randomPointEnabled: true,
-      randomPointMin: 50,
-      randomPointMax: 500,
       pointsAlimtalkEnabled: true,
     }
   });

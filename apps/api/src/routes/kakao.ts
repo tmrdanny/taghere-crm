@@ -118,8 +118,6 @@ router.get('/callback', async (req, res) => {
     const storeSelect = {
       id: true,
       name: true,
-      fixedPointEnabled: true,
-      fixedPointAmount: true,
       pointsAlimtalkEnabled: true,
       naverPlaceUrl: true,
     };
@@ -234,12 +232,8 @@ router.get('/callback', async (req, res) => {
       });
     }
 
-    // Calculate points to earn (고정 포인트 사용)
-    let earnPoints = 100; // Default
-
-    if (store.fixedPointEnabled && store.fixedPointAmount > 0) {
-      earnPoints = store.fixedPointAmount;
-    }
+    // Calculate points to earn (기본 100포인트)
+    const earnPoints = 100;
 
     // Earn points
     const newBalance = customer.totalPoints + earnPoints;
@@ -861,8 +855,6 @@ router.get('/store-info', async (req, res) => {
         select: {
           id: true,
           name: true,
-          fixedPointEnabled: true,
-          fixedPointAmount: true,
         },
       });
     }
@@ -873,8 +865,6 @@ router.get('/store-info', async (req, res) => {
         select: {
           id: true,
           name: true,
-          fixedPointEnabled: true,
-          fixedPointAmount: true,
         },
       });
     }

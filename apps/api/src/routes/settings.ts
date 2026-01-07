@@ -174,60 +174,6 @@ router.patch('/alimtalk', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// GET /api/settings/fixed-point - 고정 포인트 설정 조회
-router.get('/fixed-point', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const storeId = req.user!.storeId;
-
-    const store = await prisma.store.findUnique({
-      where: { id: storeId },
-      select: {
-        fixedPointEnabled: true,
-        fixedPointAmount: true,
-      },
-    });
-
-    if (!store) {
-      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
-    }
-
-    res.json(store);
-  } catch (error) {
-    console.error('Fixed point settings get error:', error);
-    res.status(500).json({ error: '고정 포인트 설정 조회 중 오류가 발생했습니다.' });
-  }
-});
-
-// PATCH /api/settings/fixed-point - 고정 포인트 설정 수정
-router.patch('/fixed-point', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const storeId = req.user!.storeId;
-    const { fixedPointEnabled, fixedPointAmount } = req.body;
-
-    // 유효성 검사
-    if (fixedPointAmount !== undefined && fixedPointAmount < 0) {
-      return res.status(400).json({ error: '포인트는 0 이상이어야 합니다.' });
-    }
-
-    const store = await prisma.store.update({
-      where: { id: storeId },
-      data: {
-        fixedPointEnabled: fixedPointEnabled === true,
-        fixedPointAmount: fixedPointAmount ?? undefined,
-      },
-      select: {
-        fixedPointEnabled: true,
-        fixedPointAmount: true,
-      },
-    });
-
-    res.json({ success: true, ...store });
-  } catch (error) {
-    console.error('Fixed point settings update error:', error);
-    res.status(500).json({ error: '고정 포인트 설정 저장 중 오류가 발생했습니다.' });
-  }
-});
-
 // GET /api/settings/point-rate - 포인트 적립률 설정 조회
 router.get('/point-rate', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -236,7 +182,6 @@ router.get('/point-rate', authMiddleware, async (req: AuthRequest, res) => {
     const store = await prisma.store.findUnique({
       where: { id: storeId },
       select: {
-        pointRateEnabled: true,
         pointRatePercent: true,
       },
     });
@@ -256,7 +201,7 @@ router.get('/point-rate', authMiddleware, async (req: AuthRequest, res) => {
 router.patch('/point-rate', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { pointRateEnabled, pointRatePercent } = req.body;
+    const { pointRatePercent } = req.body;
 
     // 유효성 검사
     if (pointRatePercent !== undefined && (pointRatePercent < 0 || pointRatePercent > 100)) {
@@ -266,11 +211,9 @@ router.patch('/point-rate', authMiddleware, async (req: AuthRequest, res) => {
     const store = await prisma.store.update({
       where: { id: storeId },
       data: {
-        pointRateEnabled: pointRateEnabled === true,
         pointRatePercent: pointRatePercent ?? undefined,
       },
       select: {
-        pointRateEnabled: true,
         pointRatePercent: true,
       },
     });

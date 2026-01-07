@@ -17,8 +17,6 @@ router.get('/by-slug/:slug', async (req, res) => {
       select: {
         id: true,
         name: true,
-        fixedPointEnabled: true,
-        fixedPointAmount: true,
       },
     });
 

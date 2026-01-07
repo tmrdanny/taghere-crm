@@ -110,7 +110,6 @@ router.get('/ordersheet', async (req, res) => {
         id: true,
         name: true,
         pointRatePercent: true,
-        pointRateEnabled: true,
       },
     });
 
@@ -190,7 +189,6 @@ router.post('/auto-earn', async (req, res) => {
         id: true,
         name: true,
         pointRatePercent: true,
-        pointRateEnabled: true,
       },
     });
 

@@ -43,13 +43,7 @@ export default function SettingsPage() {
   const MIN_BALANCE_FOR_ALIMTALK = 5;
   const canEnableAlimtalk = walletBalance >= MIN_BALANCE_FOR_ALIMTALK;
 
-  // Fixed point settings
-  const [fixedPointEnabled, setFixedPointEnabled] = useState(false);
-  const [fixedPointAmount, setFixedPointAmount] = useState(100);
-  const [isSavingFixedPoint, setIsSavingFixedPoint] = useState(false);
-
   // Point rate settings (결제금액 기반 적립률)
-  const [pointRateEnabled, setPointRateEnabled] = useState(false);
   const [pointRatePercent, setPointRatePercent] = useState(5);
   const [isSavingPointRate, setIsSavingPointRate] = useState(false);
 
@@ -121,25 +115,6 @@ export default function SettingsPage() {
       }
     };
 
-    const fetchFixedPointSettings = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/settings/fixed-point`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setFixedPointEnabled(data.fixedPointEnabled ?? false);
-          setFixedPointAmount(data.fixedPointAmount ?? 100);
-        }
-      } catch (error) {
-        console.error('Failed to fetch fixed point settings:', error);
-      }
-    };
-
     const fetchPointRateSettings = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -151,7 +126,6 @@ export default function SettingsPage() {
 
         if (res.ok) {
           const data = await res.json();
-          setPointRateEnabled(data.pointRateEnabled ?? false);
           setPointRatePercent(data.pointRatePercent ?? 5);
         }
       } catch (error) {
@@ -184,7 +158,6 @@ export default function SettingsPage() {
     fetchStoreInfo();
     fetchUserInfo();
     fetchAlimtalkSettings();
-    fetchFixedPointSettings();
     fetchPointRateSettings();
     fetchWalletBalance();
   }, [apiUrl]);
@@ -263,41 +236,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveFixedPoint = async () => {
-    if (fixedPointAmount < 0) {
-      showToast('포인트는 0 이상이어야 합니다.', 'error');
-      return;
-    }
-
-    setIsSavingFixedPoint(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/settings/fixed-point`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          fixedPointEnabled,
-          fixedPointAmount,
-        }),
-      });
-
-      if (res.ok) {
-        showToast('고정 포인트 설정이 저장되었습니다.', 'success');
-      } else {
-        const error = await res.json();
-        showToast(error.error || '설정 저장 중 오류가 발생했습니다.', 'error');
-      }
-    } catch (error) {
-      console.error('Failed to save fixed point settings:', error);
-      showToast('설정 저장 중 오류가 발생했습니다.', 'error');
-    } finally {
-      setIsSavingFixedPoint(false);
-    }
-  };
-
   const handleSavePointRate = async () => {
     if (pointRatePercent < 0 || pointRatePercent > 100) {
       showToast('적립률은 0~100% 사이여야 합니다.', 'error');
@@ -314,7 +252,6 @@ export default function SettingsPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          pointRateEnabled,
           pointRatePercent,
         }),
       });
@@ -610,61 +547,35 @@ export default function SettingsPage() {
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* 활성화 토글 */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-neutral-900">
-                  적립률 기반 포인트 활성화
-                </p>
-                <p className="text-sm text-neutral-500 mt-1">
-                  결제 금액에 따라 포인트가 자동 계산됩니다.
-                </p>
-              </div>
-              <Switch
-                checked={pointRateEnabled}
-                onCheckedChange={setPointRateEnabled}
-              />
-            </div>
-
             {/* 적립률 설정 */}
-            {pointRateEnabled && (
-              <div className="space-y-4 p-4 bg-neutral-50 rounded-lg">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-700">
-                    적립률 (%)
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={pointRatePercent}
-                      onChange={(e) => setPointRatePercent(parseInt(e.target.value) || 0)}
-                      placeholder="5"
-                      className="w-24"
-                    />
-                    <span className="text-neutral-500">%</span>
-                  </div>
-                </div>
-                <p className="text-xs text-neutral-500">
-                  💡 예: 5% 설정 시 10,000원 결제 → 500P 적립
-                </p>
-                <div className="flex justify-end">
-                  <Button onClick={handleSavePointRate} disabled={isSavingPointRate}>
-                    {isSavingPointRate ? '저장 중...' : '저장하기'}
-                  </Button>
+            <div className="space-y-4 p-4 bg-neutral-50 rounded-lg">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-neutral-700">
+                  적립률 (%)
+                </label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={pointRatePercent}
+                    onChange={(e) => setPointRatePercent(parseInt(e.target.value) || 0)}
+                    placeholder="5"
+                    className="w-24"
+                  />
+                  <span className="text-neutral-500">%</span>
                 </div>
               </div>
-            )}
-
-            {!pointRateEnabled && (
+              <p className="text-xs text-neutral-500">
+                예: 5% 설정 시 10,000원 결제 → 500P 적립
+              </p>
               <div className="flex justify-end">
                 <Button onClick={handleSavePointRate} disabled={isSavingPointRate}>
                   {isSavingPointRate ? '저장 중...' : '저장하기'}
                 </Button>
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
 
@@ -699,70 +610,6 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
-
-{/* Fixed Point Settings Card - 임시 숨김
-        <Card>
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2">
-              <Coins className="w-5 h-5 text-neutral-600" />
-              <CardTitle className="text-lg">고정 포인트</CardTitle>
-            </div>
-            <p className="text-sm text-neutral-500 mt-1">
-              고객이 방문할 때마다 고정된 포인트를 적립받습니다.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-neutral-900">
-                  고정 포인트 활성화
-                </p>
-                <p className="text-sm text-neutral-500 mt-1">
-                  활성화하면 방문 시 고정 포인트가 적립됩니다.
-                </p>
-              </div>
-              <Switch
-                checked={fixedPointEnabled}
-                onCheckedChange={setFixedPointEnabled}
-              />
-            </div>
-
-            {fixedPointEnabled && (
-              <div className="space-y-4 p-4 bg-neutral-50 rounded-lg">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-700">
-                    적립 포인트
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="100"
-                    value={fixedPointAmount}
-                    onChange={(e) => setFixedPointAmount(parseInt(e.target.value) || 0)}
-                    placeholder="100"
-                  />
-                </div>
-                <p className="text-xs text-neutral-500">
-                  💡 매 방문 시 설정한 포인트가 동일하게 적립됩니다.
-                </p>
-                <div className="flex justify-end">
-                  <Button onClick={handleSaveFixedPoint} disabled={isSavingFixedPoint}>
-                    {isSavingFixedPoint ? '저장 중...' : '저장하기'}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {!fixedPointEnabled && (
-              <div className="flex justify-end">
-                <Button onClick={handleSaveFixedPoint} disabled={isSavingFixedPoint}>
-                  {isSavingFixedPoint ? '저장 중...' : '저장하기'}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        */}
 
         {/* Account Card */}
         <Card>
