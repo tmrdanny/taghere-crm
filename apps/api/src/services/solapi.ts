@@ -380,11 +380,18 @@ export async function sendLowBalanceAlimTalk(params: {
     return { success: false, error: 'Store phone not configured' };
   }
 
+  // 매장 잔액 조회
+  const wallet = await prisma.wallet.findUnique({
+    where: { storeId: params.storeId },
+    select: { balance: true },
+  });
+  const balance = wallet?.balance ?? 0;
+
   // 하루에 한 번만 발송되도록 멱등성 키 설정 (storeId + 날짜)
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
   const idempotencyKey = `low_balance:${params.storeId}:${today}`;
 
-  console.log(`[AlimTalk] Sending low balance notification to store ${params.storeId}, phone: ${store.phone}`);
+  console.log(`[AlimTalk] Sending low balance notification to store ${params.storeId}, phone: ${store.phone}, balance: ${balance}`);
 
   return enqueueAlimTalk({
     storeId: params.storeId,
@@ -393,6 +400,7 @@ export async function sendLowBalanceAlimTalk(params: {
     templateId,
     variables: {
       '#{상호명}': store.name,
+      '#{잔액}': balance.toLocaleString(),
     },
     idempotencyKey,
   });
