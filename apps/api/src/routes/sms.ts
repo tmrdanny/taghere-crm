@@ -338,12 +338,12 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
         const groupInfo = result.groupInfo;
         const groupId = groupInfo?.groupId;
 
-        // 2초 대기 후 실제 발송 결과 조회
+        // 3초 대기 후 실제 발송 결과 조회 (SOLAPI 처리 시간 고려)
         let success = false;
         let failReason: string | null = null;
 
         if (groupId) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 3000));
 
           const solapiService = getSolapiService();
           if (solapiService) {
@@ -357,20 +357,34 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
                 success = false;
                 failReason = statusResult.failReason || '발송 실패';
               } else {
-                // PENDING - 일단 성공으로 처리 (나중에 확인 필요)
+                // PENDING - 아직 처리 중, 실패로 표시하지 않고 성공으로 가정
+                // (실제 결과는 나중에 확인 필요)
                 success = true;
+                console.log(`[SMS] Message ${normalizedPhone} still PENDING after 3s, assuming success`);
               }
             } else {
-              // 상태 조회 실패 - 기존 방식으로 폴백
-              const successCount = groupInfo?.count?.sentSuccess || groupInfo?.count?.registeredSuccess || 0;
-              const failCount = groupInfo?.count?.sentFailed || groupInfo?.count?.registeredFailed || 0;
-              success = successCount > 0 || (groupInfo?.count?.total > 0 && failCount === 0);
+              // 상태 조회 실패 - sentSuccess만 확인 (registeredSuccess는 접수일 뿐)
+              console.log(`[SMS] Status query failed for ${normalizedPhone}, checking groupInfo:`, statusResult.error);
+              const sentSuccess = groupInfo?.count?.sentSuccess || 0;
+              const sentFailed = groupInfo?.count?.sentFailed || 0;
+              if (sentSuccess > 0) {
+                success = true;
+              } else if (sentFailed > 0) {
+                success = false;
+                failReason = '발송 실패';
+              } else {
+                // 아직 결과 없음 - PENDING 상태로 가정하고 성공 처리
+                success = true;
+                console.log(`[SMS] No sent status yet for ${normalizedPhone}, assuming success`);
+              }
             }
           } else {
-            // SolapiService 없음 - 기존 방식으로 폴백
-            const successCount = groupInfo?.count?.sentSuccess || groupInfo?.count?.registeredSuccess || 0;
-            const failCount = groupInfo?.count?.sentFailed || groupInfo?.count?.registeredFailed || 0;
-            success = successCount > 0 || (groupInfo?.count?.total > 0 && failCount === 0);
+            // SolapiService 없음 - sentSuccess만 확인
+            const sentSuccess = groupInfo?.count?.sentSuccess || 0;
+            success = sentSuccess > 0;
+            if (!success) {
+              failReason = 'SOLAPI 서비스 오류';
+            }
           }
         } else {
           // groupId 없음 - 실패
@@ -735,12 +749,12 @@ router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
     const groupInfo = result.groupInfo;
     const groupId = groupInfo?.groupId;
 
-    // 2초 대기 후 실제 발송 결과 조회
+    // 3초 대기 후 실제 발송 결과 조회 (SOLAPI 처리 시간 고려)
     let success = false;
     let failReason: string | null = null;
 
     if (groupId) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
 
       const solapiService = getSolapiService();
       if (solapiService) {
@@ -754,20 +768,32 @@ router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
             success = false;
             failReason = statusResult.failReason || '발송 실패';
           } else {
-            // PENDING - 일단 성공으로 처리
+            // PENDING - 아직 처리 중
             success = true;
+            console.log('[SMS Test] Message still PENDING after 3s, assuming success');
           }
         } else {
-          // 상태 조회 실패 - 기존 방식으로 폴백
-          const successCount = groupInfo?.count?.sentSuccess || groupInfo?.count?.registeredSuccess || 0;
-          const failCount = groupInfo?.count?.sentFailed || groupInfo?.count?.registeredFailed || 0;
-          success = successCount > 0 || (groupInfo?.count?.total > 0 && failCount === 0);
+          // 상태 조회 실패 - sentSuccess만 확인
+          console.log('[SMS Test] Status query failed, checking groupInfo:', statusResult.error);
+          const sentSuccess = groupInfo?.count?.sentSuccess || 0;
+          const sentFailed = groupInfo?.count?.sentFailed || 0;
+          if (sentSuccess > 0) {
+            success = true;
+          } else if (sentFailed > 0) {
+            success = false;
+            failReason = '발송 실패';
+          } else {
+            success = true;
+            console.log('[SMS Test] No sent status yet, assuming success');
+          }
         }
       } else {
-        // SolapiService 없음 - 기존 방식으로 폴백
-        const successCount = groupInfo?.count?.sentSuccess || groupInfo?.count?.registeredSuccess || 0;
-        const failCount = groupInfo?.count?.sentFailed || groupInfo?.count?.registeredFailed || 0;
-        success = successCount > 0 || (groupInfo?.count?.total > 0 && failCount === 0);
+        // SolapiService 없음
+        const sentSuccess = groupInfo?.count?.sentSuccess || 0;
+        success = sentSuccess > 0;
+        if (!success) {
+          failReason = 'SOLAPI 서비스 오류';
+        }
       }
     } else {
       success = false;

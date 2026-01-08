@@ -181,23 +181,37 @@ export class SolapiService {
       if (result.messageList && Object.keys(result.messageList).length > 0) {
         const messages = Object.values(result.messageList) as any[];
 
+        // 모든 메시지 정보 로깅
+        console.log('[SOLAPI] All messages in group:', messages.map((m: any) => ({
+          to: m.to,
+          statusCode: m.statusCode,
+          statusMessage: m.statusMessage,
+        })));
+
         // 특정 전화번호가 지정된 경우 해당 번호의 메시지만 찾기
         let targetMessage = messages[0];
         if (targetPhone) {
           const normalizedTarget = this.normalizePhoneNumber(targetPhone);
+          console.log('[SOLAPI] Looking for phone:', normalizedTarget);
+
           const foundMessage = messages.find((msg) => {
             const msgPhone = this.normalizePhoneNumber(msg.to || '');
+            console.log('[SOLAPI] Comparing:', { msgPhone, normalizedTarget, match: msgPhone === normalizedTarget });
             return msgPhone === normalizedTarget;
           });
+
           if (foundMessage) {
             targetMessage = foundMessage;
+            console.log('[SOLAPI] Found matching message for phone:', targetPhone);
+          } else {
+            console.log('[SOLAPI] No matching message found for phone:', targetPhone, '- using first message');
           }
         }
 
         const statusCode = targetMessage?.statusCode;
         const statusMessage = targetMessage?.statusMessage;
 
-        console.log('[SOLAPI] Target message status:', { phone: targetPhone, statusCode, statusMessage });
+        console.log('[SOLAPI] Target message status:', { phone: targetPhone, to: targetMessage?.to, statusCode, statusMessage });
 
         // SOLAPI 상태 코드 매핑
         // 2xxx: 발송 대기/처리중
