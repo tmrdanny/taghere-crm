@@ -115,8 +115,9 @@ export class SolapiService {
     }
 
     // SOLAPI 에러 코드별 한글 메시지
+    // 참고: 3000은 "이통사 접수 중"으로 PENDING 상태이며, 여기서 처리되지 않음
     const errorMessages: Record<string, string> = {
-      '3000': '전송경로 없음',
+      // '3000': 이통사 접수 중 (PENDING으로 처리됨, 에러 아님)
       '3001': '잘못된 전화번호',
       '3002': '수신거부',
       '3003': '기타 오류',
@@ -211,14 +212,19 @@ export class SolapiService {
         const statusCode = targetMessage?.statusCode;
         const statusMessage = targetMessage?.statusMessage;
 
-        console.log('[SOLAPI] Target message status:', { phone: targetPhone, to: targetMessage?.to, statusCode, statusMessage });
+        console.log('[SOLAPI] Target message status:', { phone: targetPhone, to: targetMessage?.to, statusCode, statusMessage, status: targetMessage?.status });
 
         // SOLAPI 상태 코드 매핑
         // 2xxx: 발송 대기/처리중
-        // 3xxx: 발송 실패
+        // 3000: 이통사 접수 중 (아직 결과 없음) - PENDING으로 처리
+        // 3001~3999: 발송 실패
         // 4xxx: 발송 성공
         if (statusCode?.startsWith('4')) {
           return { success: true, status: 'SENT' };
+        } else if (statusCode === '3000') {
+          // 3000은 이통사에 접수되어 리포트를 기다리는 중 - 아직 결과 없음
+          console.log('[SOLAPI] Status 3000 = waiting for carrier report, treating as PENDING');
+          return { success: true, status: 'PENDING' };
         } else if (statusCode?.startsWith('3')) {
           return { success: true, status: 'FAILED', failReason: this.getFailReasonKorean(statusCode, statusMessage) };
         } else if (statusCode?.startsWith('2')) {
