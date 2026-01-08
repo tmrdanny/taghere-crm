@@ -6,8 +6,20 @@ import path from 'path';
 import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { SolapiService } from '../services/solapi.js';
 
 const router = Router();
+
+// SOLAPI 서비스 인스턴스 (발송 결과 조회용)
+let solapiServiceInstance: SolapiService | null = null;
+function getSolapiService(): SolapiService | null {
+  if (solapiServiceInstance) return solapiServiceInstance;
+  const apiKey = process.env.SOLAPI_API_KEY;
+  const apiSecret = process.env.SOLAPI_API_SECRET;
+  if (!apiKey || !apiSecret) return null;
+  solapiServiceInstance = new SolapiService(apiKey, apiSecret);
+  return solapiServiceInstance;
+}
 
 // SMS 비용 (건당)
 const SMS_COST_SHORT = 50;  // 단문 (90byte 이하)
@@ -323,28 +335,52 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
         }
 
         const result = await messageService.send(sendOptions);
-
-        // SOLAPI 응답 상세 분석
-        // result.groupInfo.count: { total, sentTotal, sentFailed, sentPending, sentSuccess, registeredFailed, registeredSuccess }
         const groupInfo = result.groupInfo;
-        const successCount = groupInfo?.count?.sentSuccess || groupInfo?.count?.registeredSuccess || 0;
-        const failCount = groupInfo?.count?.sentFailed || groupInfo?.count?.registeredFailed || 0;
+        const groupId = groupInfo?.groupId;
 
-        // 실패 사유 추출 (failedMessageList가 있는 경우)
+        // 2초 대기 후 실제 발송 결과 조회
+        let success = false;
         let failReason: string | null = null;
-        if (result.failedMessageList && result.failedMessageList.length > 0) {
-          const firstFail = result.failedMessageList[0] as any;
-          failReason = firstFail.reason || firstFail.statusMessage || firstFail.message || 'Send failed';
+
+        if (groupId) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+
+          const solapiService = getSolapiService();
+          if (solapiService) {
+            const statusResult = await solapiService.getMessageStatus(groupId);
+            console.log(`[SMS] Delivery status for ${normalizedPhone}:`, statusResult);
+
+            if (statusResult.success) {
+              if (statusResult.status === 'SENT') {
+                success = true;
+              } else if (statusResult.status === 'FAILED') {
+                success = false;
+                failReason = statusResult.failReason || '발송 실패';
+              } else {
+                // PENDING - 일단 성공으로 처리 (나중에 확인 필요)
+                success = true;
+              }
+            } else {
+              // 상태 조회 실패 - 기존 방식으로 폴백
+              const successCount = groupInfo?.count?.sentSuccess || groupInfo?.count?.registeredSuccess || 0;
+              const failCount = groupInfo?.count?.sentFailed || groupInfo?.count?.registeredFailed || 0;
+              success = successCount > 0 || (groupInfo?.count?.total > 0 && failCount === 0);
+            }
+          } else {
+            // SolapiService 없음 - 기존 방식으로 폴백
+            const successCount = groupInfo?.count?.sentSuccess || groupInfo?.count?.registeredSuccess || 0;
+            const failCount = groupInfo?.count?.sentFailed || groupInfo?.count?.registeredFailed || 0;
+            success = successCount > 0 || (groupInfo?.count?.total > 0 && failCount === 0);
+          }
+        } else {
+          // groupId 없음 - 실패
+          success = false;
+          failReason = 'No group ID returned';
         }
 
-        const success = successCount > 0 || (groupInfo?.count?.total > 0 && failCount === 0);
-
-        console.log(`[SMS] Send result for ${normalizedPhone}:`, {
+        console.log(`[SMS] Final result for ${normalizedPhone}:`, {
           success,
-          groupId: groupInfo?.groupId,
-          total: groupInfo?.count?.total,
-          successCount,
-          failCount,
+          groupId,
           failReason,
         });
 
@@ -696,26 +732,54 @@ router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
     console.log('[SMS Test] Sending test message:', { phone: normalizedPhone, messageType, hasImage });
 
     const result = await messageService.send(sendOptions);
-
-    // SOLAPI 응답 분석
     const groupInfo = result.groupInfo;
-    const successCount = groupInfo?.count?.sentSuccess || groupInfo?.count?.registeredSuccess || 0;
-    const failCount = groupInfo?.count?.sentFailed || groupInfo?.count?.registeredFailed || 0;
+    const groupId = groupInfo?.groupId;
 
+    // 2초 대기 후 실제 발송 결과 조회
+    let success = false;
     let failReason: string | null = null;
-    if (result.failedMessageList && result.failedMessageList.length > 0) {
-      const firstFail = result.failedMessageList[0] as any;
-      failReason = firstFail.reason || firstFail.statusMessage || firstFail.message || 'Send failed';
+
+    if (groupId) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const solapiService = getSolapiService();
+      if (solapiService) {
+        const statusResult = await solapiService.getMessageStatus(groupId);
+        console.log('[SMS Test] Delivery status:', statusResult);
+
+        if (statusResult.success) {
+          if (statusResult.status === 'SENT') {
+            success = true;
+          } else if (statusResult.status === 'FAILED') {
+            success = false;
+            failReason = statusResult.failReason || '발송 실패';
+          } else {
+            // PENDING - 일단 성공으로 처리
+            success = true;
+          }
+        } else {
+          // 상태 조회 실패 - 기존 방식으로 폴백
+          const successCount = groupInfo?.count?.sentSuccess || groupInfo?.count?.registeredSuccess || 0;
+          const failCount = groupInfo?.count?.sentFailed || groupInfo?.count?.registeredFailed || 0;
+          success = successCount > 0 || (groupInfo?.count?.total > 0 && failCount === 0);
+        }
+      } else {
+        // SolapiService 없음 - 기존 방식으로 폴백
+        const successCount = groupInfo?.count?.sentSuccess || groupInfo?.count?.registeredSuccess || 0;
+        const failCount = groupInfo?.count?.sentFailed || groupInfo?.count?.registeredFailed || 0;
+        success = successCount > 0 || (groupInfo?.count?.total > 0 && failCount === 0);
+      }
+    } else {
+      success = false;
+      failReason = 'No group ID returned';
     }
 
-    const success = successCount > 0 || (groupInfo?.count?.total > 0 && failCount === 0);
-
-    console.log('[SMS Test] Result:', { success, groupId: groupInfo?.groupId, failReason });
+    console.log('[SMS Test] Final result:', { success, groupId, failReason });
 
     if (!success) {
       return res.status(400).json({
         error: failReason || '테스트 발송에 실패했습니다.',
-        details: { groupInfo, failedMessageList: result.failedMessageList },
+        details: { groupInfo },
       });
     }
 
