@@ -347,7 +347,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
 
           const solapiService = getSolapiService();
           if (solapiService) {
-            const statusResult = await solapiService.getMessageStatus(groupId);
+            const statusResult = await solapiService.getMessageStatus(groupId, normalizedPhone);
             console.log(`[SMS] Delivery status for ${normalizedPhone}:`, statusResult);
 
             if (statusResult.success) {
@@ -744,7 +744,7 @@ router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
 
       const solapiService = getSolapiService();
       if (solapiService) {
-        const statusResult = await solapiService.getMessageStatus(groupId);
+        const statusResult = await solapiService.getMessageStatus(groupId, normalizedPhone);
         console.log('[SMS Test] Delivery status:', statusResult);
 
         if (statusResult.success) {

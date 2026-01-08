@@ -161,8 +161,8 @@ export class SolapiService {
     return errorMessages[statusCode] || `발송 실패 (${statusCode})`;
   }
 
-  // 메시지 그룹 상태 조회
-  async getMessageStatus(groupId: string): Promise<{
+  // 메시지 그룹 상태 조회 (특정 전화번호로 필터링 가능)
+  async getMessageStatus(groupId: string, targetPhone?: string): Promise<{
     success: boolean;
     status?: 'PENDING' | 'SENT' | 'FAILED';
     failReason?: string;
@@ -179,10 +179,25 @@ export class SolapiService {
       console.log('[SOLAPI] Message status result:', JSON.stringify(result, null, 2));
 
       if (result.messageList && Object.keys(result.messageList).length > 0) {
-        // 첫 번째 메시지 상태 확인
-        const firstMessage = Object.values(result.messageList)[0] as any;
-        const statusCode = firstMessage?.statusCode;
-        const statusMessage = firstMessage?.statusMessage;
+        const messages = Object.values(result.messageList) as any[];
+
+        // 특정 전화번호가 지정된 경우 해당 번호의 메시지만 찾기
+        let targetMessage = messages[0];
+        if (targetPhone) {
+          const normalizedTarget = this.normalizePhoneNumber(targetPhone);
+          const foundMessage = messages.find((msg) => {
+            const msgPhone = this.normalizePhoneNumber(msg.to || '');
+            return msgPhone === normalizedTarget;
+          });
+          if (foundMessage) {
+            targetMessage = foundMessage;
+          }
+        }
+
+        const statusCode = targetMessage?.statusCode;
+        const statusMessage = targetMessage?.statusMessage;
+
+        console.log('[SOLAPI] Target message status:', { phone: targetPhone, statusCode, statusMessage });
 
         // SOLAPI 상태 코드 매핑
         // 2xxx: 발송 대기/처리중
