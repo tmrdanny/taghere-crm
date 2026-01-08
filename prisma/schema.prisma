@@ -487,6 +487,7 @@ model SmsMessage {
   phone         String         // 수신자 전화번호
   content       String         @db.Text // 실제 발송 내용 ({고객명} 치환 후)
   status        SmsMessageStatus @default(PENDING)
+  solapiGroupId   String?      // SOLAPI 그룹 ID (결과 조회용)
   solapiMessageId String?      // SOLAPI 메시지 ID
   failReason    String?
   cost          Int            @default(0) // 발송 비용

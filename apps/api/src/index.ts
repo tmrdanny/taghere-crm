@@ -40,6 +40,7 @@ import storesRoutes from './routes/stores.js';
 import adminRoutes from './routes/admin.js';
 import smsRoutes from './routes/sms.js';
 import { startAlimTalkWorker } from './services/alimtalk-worker.js';
+import { startSmsWorker } from './services/sms-worker.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -184,6 +185,7 @@ app.listen(PORT, () => {
   console.log(`🚀 API Server running on http://localhost:${PORT}`);
   console.log(`📚 API documentation at http://localhost:${PORT}/api`);
 
-  // Start AlimTalk worker
+  // Start background workers
   startAlimTalkWorker();
+  startSmsWorker();
 });

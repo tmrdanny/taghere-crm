@@ -315,8 +315,8 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     let sentCount = 0;
     let failedCount = 0;
 
-    // 개별 메시지 생성 및 발송
-    for (const customer of customers) {
+    // 개별 메시지 생성 및 발송 (병렬 처리, 대기 없이 즉시 응답)
+    const sendPromises = customers.map(async (customer) => {
       const personalizedContent = content.replace(/{고객명}/g, customer.name || '고객');
       const normalizedPhone = normalizePhoneNumber(customer.phone!);
 
@@ -338,66 +338,9 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
         const groupInfo = result.groupInfo;
         const groupId = groupInfo?.groupId;
 
-        // 3초 대기 후 실제 발송 결과 조회 (SOLAPI 처리 시간 고려)
-        let success = false;
-        let failReason: string | null = null;
+        console.log(`[SMS] Sent to ${normalizedPhone}, groupId: ${groupId}`);
 
-        if (groupId) {
-          await new Promise((resolve) => setTimeout(resolve, 3000));
-
-          const solapiService = getSolapiService();
-          if (solapiService) {
-            const statusResult = await solapiService.getMessageStatus(groupId, normalizedPhone);
-            console.log(`[SMS] Delivery status for ${normalizedPhone}:`, statusResult);
-
-            if (statusResult.success) {
-              if (statusResult.status === 'SENT') {
-                success = true;
-              } else if (statusResult.status === 'FAILED') {
-                success = false;
-                failReason = statusResult.failReason || '발송 실패';
-              } else {
-                // PENDING - 아직 처리 중, 실패로 표시하지 않고 성공으로 가정
-                // (실제 결과는 나중에 확인 필요)
-                success = true;
-                console.log(`[SMS] Message ${normalizedPhone} still PENDING after 3s, assuming success`);
-              }
-            } else {
-              // 상태 조회 실패 - sentSuccess만 확인 (registeredSuccess는 접수일 뿐)
-              console.log(`[SMS] Status query failed for ${normalizedPhone}, checking groupInfo:`, statusResult.error);
-              const sentSuccess = groupInfo?.count?.sentSuccess || 0;
-              const sentFailed = groupInfo?.count?.sentFailed || 0;
-              if (sentSuccess > 0) {
-                success = true;
-              } else if (sentFailed > 0) {
-                success = false;
-                failReason = '발송 실패';
-              } else {
-                // 아직 결과 없음 - PENDING 상태로 가정하고 성공 처리
-                success = true;
-                console.log(`[SMS] No sent status yet for ${normalizedPhone}, assuming success`);
-              }
-            }
-          } else {
-            // SolapiService 없음 - sentSuccess만 확인
-            const sentSuccess = groupInfo?.count?.sentSuccess || 0;
-            success = sentSuccess > 0;
-            if (!success) {
-              failReason = 'SOLAPI 서비스 오류';
-            }
-          }
-        } else {
-          // groupId 없음 - 실패
-          success = false;
-          failReason = 'No group ID returned';
-        }
-
-        console.log(`[SMS] Final result for ${normalizedPhone}:`, {
-          success,
-          groupId,
-          failReason,
-        });
-
+        // 즉시 PENDING 상태로 저장 (결과는 워커에서 확인)
         await prisma.smsMessage.create({
           data: {
             campaignId: campaign.id,
@@ -405,24 +348,18 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
             customerId: customer.id,
             phone: normalizedPhone,
             content: personalizedContent,
-            status: success ? 'SENT' : 'FAILED',
-            solapiMessageId: groupInfo?.groupId,
-            cost: success ? costPerMessage : 0, // 실패 시 비용 0
-            sentAt: success ? new Date() : null,
-            failReason: success ? null : (failReason || 'Send failed'),
+            status: 'PENDING', // 워커에서 결과 확인 후 업데이트
+            solapiGroupId: groupId, // 결과 조회용
+            solapiMessageId: groupInfo?.groupId, // groupId를 messageId로도 사용
+            cost: costPerMessage, // 예상 비용 저장 (실패 시 워커에서 0으로 변경)
           },
         });
 
-        if (success) {
-          sentCount++;
-        } else {
-          failedCount++;
-        }
+        return { success: true, phone: normalizedPhone };
       } catch (error: any) {
         // API 호출 자체가 실패한 경우
         console.error(`[SMS] Send error for ${normalizedPhone}:`, error.message);
 
-        failedCount++;
         await prisma.smsMessage.create({
           data: {
             campaignId: campaign.id,
@@ -435,51 +372,37 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
             failReason: error.message || 'Unknown error',
           },
         });
-      }
-    }
 
-    // 캠페인 완료 업데이트
-    const actualCost = sentCount * costPerMessage;
+        return { success: false, phone: normalizedPhone };
+      }
+    });
+
+    // 모든 발송 요청 병렬 처리
+    const results = await Promise.all(sendPromises);
+    sentCount = results.filter((r) => r.success).length;
+    failedCount = results.filter((r) => !r.success).length;
+
+    // 캠페인 상태 업데이트 (SENDING 상태 유지, 워커에서 완료 처리)
+    // sentCount는 SOLAPI에 전송 요청된 건수 (아직 결과 미확인)
     await prisma.smsCampaign.update({
       where: { id: campaign.id },
       data: {
-        sentCount,
-        failedCount,
-        totalCost: actualCost,
-        status: 'COMPLETED',
-        completedAt: new Date(),
+        sentCount: 0, // 아직 확인된 성공 건수 없음
+        failedCount,  // API 호출 자체가 실패한 건수
+        // totalCost는 워커에서 최종 계산
+        status: sentCount > 0 ? 'SENDING' : 'COMPLETED', // 발송 중인 건이 있으면 SENDING
       },
     });
 
-    // 지갑 잔액 차감
-    if (actualCost > 0) {
-      await prisma.$transaction([
-        prisma.wallet.update({
-          where: { storeId },
-          data: { balance: { decrement: actualCost } },
-        }),
-        prisma.paymentTransaction.create({
-          data: {
-            storeId,
-            amount: actualCost,
-            type: 'ALIMTALK_SEND', // SMS_SEND enum 추가 필요시 변경
-            status: 'SUCCESS',
-            meta: {
-              campaignId: campaign.id,
-              messageCount: sentCount,
-              type: 'SMS',
-            },
-          },
-        }),
-      ]);
-    }
+    // 비용은 워커에서 성공 확인 후 차감하므로 여기서는 차감하지 않음
+    // (단, API 호출 실패한 건은 이미 cost: 0으로 저장됨)
 
     res.json({
       success: true,
       campaignId: campaign.id,
-      sentCount,
-      failedCount,
-      totalCost: actualCost,
+      pendingCount: sentCount, // PENDING 상태로 저장된 건수
+      failedCount,             // API 호출 실패 건수
+      message: '발송 요청이 완료되었습니다. 결과는 발송내역에서 확인하세요.',
     });
   } catch (error) {
     console.error('SMS send error:', error);

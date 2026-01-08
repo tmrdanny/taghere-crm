@@ -64,6 +64,67 @@ async function processMessage(messageId: string): Promise<void> {
 
   if (!msg) return;
 
+  // 이미 SOLAPI에 발송된 메시지인 경우 (solapiMessageId가 있음)
+  // 다시 발송하지 않고 상태만 조회
+  if (msg.solapiMessageId) {
+    console.log(`[Worker] Message ${messageId} already sent to SOLAPI, checking status only`);
+    const solapiService = getSolapiService();
+    if (solapiService) {
+      const statusResult = await solapiService.getMessageStatus(msg.solapiMessageId);
+      console.log(`[Worker] Existing message ${messageId} status:`, statusResult);
+
+      if (statusResult.success) {
+        if (statusResult.status === 'SENT') {
+          // 발송 성공 확인됨
+          const isLowBalanceMessage = msg.messageType === 'LOW_BALANCE';
+          const cost = isLowBalanceMessage ? 0 : (ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST);
+
+          if (isLowBalanceMessage) {
+            await prisma.alimTalkOutbox.update({
+              where: { id: messageId },
+              data: { status: 'SENT', sentAt: new Date(), updatedAt: new Date() },
+            });
+          } else {
+            await prisma.$transaction(async (tx) => {
+              await tx.alimTalkOutbox.update({
+                where: { id: messageId },
+                data: { status: 'SENT', sentAt: new Date(), updatedAt: new Date() },
+              });
+              await tx.wallet.update({
+                where: { storeId: msg.storeId },
+                data: { balance: { decrement: cost } },
+              });
+              await tx.paymentTransaction.create({
+                data: {
+                  storeId: msg.storeId,
+                  amount: -cost,
+                  type: 'ALIMTALK_SEND',
+                  status: 'SUCCESS',
+                  meta: { messageId, messageType: msg.messageType, phone: msg.phone, unitCost: cost },
+                },
+              });
+            });
+          }
+          console.log(`[Worker] Message ${messageId} confirmed SENT`);
+        } else if (statusResult.status === 'FAILED') {
+          await prisma.alimTalkOutbox.update({
+            where: { id: messageId },
+            data: { status: 'FAILED', failReason: statusResult.failReason, updatedAt: new Date() },
+          });
+          console.log(`[Worker] Message ${messageId} confirmed FAILED: ${statusResult.failReason}`);
+        } else {
+          // 아직 PENDING - 다음 폴링에서 다시 확인 (RETRY 유지, 재발송 안 함)
+          await prisma.alimTalkOutbox.update({
+            where: { id: messageId },
+            data: { status: 'RETRY', updatedAt: new Date() },
+          });
+          console.log(`[Worker] Message ${messageId} still PENDING, will check again`);
+        }
+      }
+    }
+    return;
+  }
+
   try {
     // LOW_BALANCE 타입은 비용 없이 무료 발송 (충전금 부족 안내이므로)
     const isLowBalanceMessage = msg.messageType === 'LOW_BALANCE';
