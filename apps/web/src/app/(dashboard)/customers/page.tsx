@@ -13,7 +13,7 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatPhone, formatNumber, formatDate, getRelativeTime, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
-import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Upload } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -864,6 +864,13 @@ export default function CustomersPage() {
           <Button onClick={() => setAddModal(true)}>
             <UserPlus className="w-4 h-4 mr-2" />
             고객 등록
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => window.open('https://tally.so/r/q4DXMG', '_blank')}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            고객 대량 등록(파일)
           </Button>
         </div>
       </div>
