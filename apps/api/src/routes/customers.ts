@@ -428,12 +428,12 @@ router.post('/feedback', async (req, res) => {
   }
 });
 
-// POST /api/customers/:id/cancel-order-item - Cancel a specific item in an order
+// POST /api/customers/:id/cancel-order-item - Cancel a specific item in an order (supports partial quantity)
 router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const storeId = req.user!.storeId;
-    const { visitOrOrderId, itemIndex } = req.body;
+    const { visitOrOrderId, itemIndex, cancelQuantity } = req.body;
 
     if (!visitOrOrderId || itemIndex === undefined) {
       return res.status(400).json({ error: '주문 ID와 아이템 인덱스가 필요합니다.' });
@@ -477,35 +477,57 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
       return res.status(400).json({ error: '유효하지 않은 아이템 인덱스입니다.' });
     }
 
-    const cancelledItem = items[itemIndex];
+    const targetItem = items[itemIndex];
 
-    // Check if already cancelled
-    if (cancelledItem.cancelled) {
+    // Get item quantity
+    const itemTotalQty = targetItem.count || targetItem.quantity || targetItem.qty || 1;
+    const alreadyCancelledQty = targetItem.cancelledQuantity || 0;
+    const remainingQty = itemTotalQty - alreadyCancelledQty;
+
+    // Check if already fully cancelled
+    if (targetItem.cancelled || remainingQty <= 0) {
       return res.status(400).json({ error: '이미 취소된 아이템입니다.' });
+    }
+
+    // Determine cancel quantity (default: cancel all remaining)
+    const cancelQty = cancelQuantity !== undefined ? Math.min(cancelQuantity, remainingQty) : remainingQty;
+
+    if (cancelQty <= 0) {
+      return res.status(400).json({ error: '취소할 수량은 1 이상이어야 합니다.' });
     }
 
     // Calculate points to deduct using store's pointRatePercent (same as earn logic)
     const pointRatePercent = customer.store.pointRatePercent || 5; // 기본값 5%
 
-    // Debug: log the cancelled item structure
-    console.log('[Cancel Order Item] cancelledItem:', JSON.stringify(cancelledItem, null, 2));
+    // Debug: log the target item structure
+    console.log('[Cancel Order Item] targetItem:', JSON.stringify(targetItem, null, 2));
 
-    const itemPrice = typeof cancelledItem.price === 'string'
-      ? parseInt(cancelledItem.price, 10)
-      : (cancelledItem.price || cancelledItem.totalPrice || 0);
-    const itemQty = cancelledItem.count || cancelledItem.quantity || cancelledItem.qty || 1;
-    const itemTotalPrice = itemPrice * itemQty;
+    const itemPrice = typeof targetItem.price === 'string'
+      ? parseInt(targetItem.price, 10)
+      : (targetItem.price || 0);
+
+    // Calculate price for cancelled quantity only (not total)
+    const cancelledPrice = itemPrice * cancelQty;
 
     // Debug: log calculated values
-    console.log('[Cancel Order Item] itemPrice:', itemPrice, 'itemQty:', itemQty, 'itemTotalPrice:', itemTotalPrice);
+    console.log('[Cancel Order Item] itemPrice:', itemPrice, 'cancelQty:', cancelQty, 'cancelledPrice:', cancelledPrice);
     console.log('[Cancel Order Item] pointRatePercent:', pointRatePercent);
 
-    // 적립과 동일한 방식으로 포인트 계산 (퍼센트 기반)
-    const pointsToDeduct = Math.floor(itemTotalPrice * (pointRatePercent / 100));
-    console.log('[Cancel Order Item] pointsToDeduct:', itemTotalPrice, '*', pointRatePercent / 100, '=', pointsToDeduct);
+    // 적립과 동일한 방식으로 포인트 계산 (취소된 수량 기준)
+    const pointsToDeduct = Math.floor(cancelledPrice * (pointRatePercent / 100));
+    console.log('[Cancel Order Item] pointsToDeduct:', cancelledPrice, '*', pointRatePercent / 100, '=', pointsToDeduct);
 
-    // Mark item as cancelled
-    items[itemIndex] = { ...cancelledItem, cancelled: true, cancelledAt: new Date().toISOString() };
+    // Update cancelled quantity
+    const newCancelledQty = alreadyCancelledQty + cancelQty;
+    const isFullyCancelled = newCancelledQty >= itemTotalQty;
+
+    // Mark item as cancelled (partial or full)
+    items[itemIndex] = {
+      ...targetItem,
+      cancelledQuantity: newCancelledQty,
+      cancelled: isFullyCancelled,
+      cancelledAt: new Date().toISOString(),
+    };
 
     // Update the visit/order with cancelled item
     const updatedItemsData = Array.isArray(itemsData)
@@ -531,6 +553,11 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
 
       if (actualDeduction > 0) {
         // Create point ledger entry for deduction
+        const itemName = targetItem.label || targetItem.name || targetItem.menuName || '메뉴';
+        const cancelReason = isFullyCancelled
+          ? `주문 취소 차감 (${itemName})`
+          : `주문 취소 차감 (${itemName} ${cancelQty}개)`;
+
         await prisma.pointLedger.create({
           data: {
             storeId,
@@ -538,7 +565,7 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
             delta: -actualDeduction,
             balance: newBalance,
             type: 'ADJUST',
-            reason: `주문 취소 차감 (${cancelledItem.label || cancelledItem.name || cancelledItem.menuName || '메뉴'})`,
+            reason: cancelReason,
             orderId: visitOrOrder.orderId,
           },
         });
@@ -578,15 +605,24 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
     }
 
     // Get menu name for response
-    const menuName = cancelledItem.label || cancelledItem.name || cancelledItem.menuName || cancelledItem.productName || '메뉴';
+    const menuName = targetItem.label || targetItem.name || targetItem.menuName || targetItem.productName || '메뉴';
+
+    // Build response message
+    const cancelMessage = isFullyCancelled
+      ? `${menuName} 주문이 취소되었습니다.`
+      : `${menuName} ${cancelQty}개가 취소되었습니다. (남은 수량: ${itemTotalQty - newCancelledQty}개)`;
 
     res.json({
       success: true,
-      message: `${menuName} 주문이 취소되었습니다.`,
+      message: cancelMessage,
       pointsDeducted: pointsToDeduct,
       cancelledItem: {
         name: menuName,
-        price: itemTotalPrice,
+        price: cancelledPrice,
+        cancelledQuantity: cancelQty,
+        totalQuantity: itemTotalQty,
+        remainingQuantity: itemTotalQty - newCancelledQty,
+        isFullyCancelled,
       },
     });
   } catch (error) {

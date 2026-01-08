@@ -66,6 +66,7 @@ interface OrderItem {
   option?: string;  // 옵션 정보 (예: "온도: HOT")
   cancelled?: boolean;
   cancelledAt?: string;
+  cancelledQuantity?: number;  // 부분 취소된 수량
 }
 
 interface VisitOrOrderEntry {
@@ -207,7 +208,14 @@ export default function CustomersPage() {
   const [orderEndDate, setOrderEndDate] = useState('');
   const [cancellingItem, setCancellingItem] = useState<{ orderId: string; itemIndex: number } | null>(null);
   const [cancelConfirmModal, setCancelConfirmModal] = useState(false);
-  const [cancellingItemInfo, setCancellingItemInfo] = useState<{ name: string; price: number } | null>(null);
+  const [cancellingItemInfo, setCancellingItemInfo] = useState<{
+    name: string;
+    price: number;
+    totalQty: number;
+    remainingQty: number;
+    unitPrice: number;
+  } | null>(null);
+  const [cancelQuantity, setCancelQuantity] = useState(1);
 
   // Tablet-friendly UI states
   const [showDateFilter, setShowDateFilter] = useState(false);
@@ -543,7 +551,7 @@ export default function CustomersPage() {
 
   // Handle cancel order item
   const handleCancelOrderItem = async () => {
-    if (!editingCustomer || !cancellingItem) return;
+    if (!editingCustomer || !cancellingItem || !cancellingItemInfo) return;
 
     try {
       const res = await fetch(`${apiUrl}/api/customers/${editingCustomer.id}/cancel-order-item`, {
@@ -555,6 +563,7 @@ export default function CustomersPage() {
         body: JSON.stringify({
           visitOrOrderId: cancellingItem.orderId,
           itemIndex: cancellingItem.itemIndex,
+          cancelQuantity: cancelQuantity,
         }),
       });
 
@@ -597,12 +606,28 @@ export default function CustomersPage() {
       setCancelConfirmModal(false);
       setCancellingItem(null);
       setCancellingItemInfo(null);
+      setCancelQuantity(1);
     }
   };
 
-  const openCancelConfirm = (orderId: string, itemIndex: number, itemName: string, itemPrice: number) => {
+  const openCancelConfirm = (
+    orderId: string,
+    itemIndex: number,
+    itemName: string,
+    unitPrice: number,
+    totalQty: number,
+    cancelledQty: number
+  ) => {
+    const remainingQty = totalQty - cancelledQty;
     setCancellingItem({ orderId, itemIndex });
-    setCancellingItemInfo({ name: itemName, price: itemPrice });
+    setCancellingItemInfo({
+      name: itemName,
+      price: unitPrice * remainingQty,
+      totalQty,
+      remainingQty,
+      unitPrice,
+    });
+    setCancelQuantity(remainingQty); // 기본값: 남은 수량 전체
     setCancelConfirmModal(true);
   };
 
@@ -1754,18 +1779,24 @@ export default function CustomersPage() {
                                     const menuName = item.label || item.name || item.menuName || item.productName || item.title || '(메뉴명 없음)';
                                     const qty = item.count || item.quantity || item.qty || 1;
                                     const itemPrice = typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.amount || item.totalPrice || 0);
-                                    const isCancelled = item.cancelled === true;
+                                    const cancelledQty = item.cancelledQuantity || 0;
+                                    const isFullyCancelled = item.cancelled === true || cancelledQty >= qty;
+                                    const isPartlyCancelled = cancelledQty > 0 && cancelledQty < qty;
+                                    const remainingQty = qty - cancelledQty;
 
                                     return (
-                                      <div key={idx} className={`flex items-center justify-between text-sm py-0.5 group ${isCancelled ? 'opacity-50' : ''}`}>
-                                        <div className={`flex-1 pr-2 ${isCancelled ? 'text-neutral-400 line-through' : 'text-neutral-700'}`}>
+                                      <div key={idx} className={`flex items-center justify-between text-sm py-0.5 group ${isFullyCancelled ? 'opacity-50' : ''}`}>
+                                        <div className={`flex-1 pr-2 ${isFullyCancelled ? 'text-neutral-400 line-through' : 'text-neutral-700'}`}>
                                           <span className="truncate">
                                             {menuName}
                                             {qty > 1 && (
                                               <span className="text-neutral-400 ml-1">x{qty}</span>
                                             )}
-                                            {isCancelled && (
+                                            {isFullyCancelled && (
                                               <span className="ml-2 text-xs text-red-500">(취소됨)</span>
+                                            )}
+                                            {isPartlyCancelled && (
+                                              <span className="ml-2 text-xs text-orange-500">({cancelledQty}개 취소)</span>
                                             )}
                                           </span>
                                           {item.option && (
@@ -1774,16 +1805,16 @@ export default function CustomersPage() {
                                         </div>
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                           {itemPrice > 0 && (
-                                            <span className={`${isCancelled ? 'text-neutral-400 line-through' : 'text-neutral-500'}`}>
+                                            <span className={`${isFullyCancelled ? 'text-neutral-400 line-through' : 'text-neutral-500'}`}>
                                               {formatNumber(itemPrice)}원
                                             </span>
                                           )}
-                                          {!isCancelled && cancelMode && (
+                                          {!isFullyCancelled && cancelMode && remainingQty > 0 && (
                                             <button
                                               type="button"
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                openCancelConfirm(order.id, idx, menuName, itemPrice * qty);
+                                                openCancelConfirm(order.id, idx, menuName, itemPrice, qty, cancelledQty);
                                               }}
                                               className="p-1.5 rounded-full bg-red-100 text-red-500 hover:bg-red-200 transition-colors"
                                               title="적립 취소"
@@ -2181,7 +2212,14 @@ export default function CustomersPage() {
       </Modal>
 
       {/* Cancel Order Item Confirm Modal */}
-      <Modal open={cancelConfirmModal} onOpenChange={setCancelConfirmModal}>
+      <Modal open={cancelConfirmModal} onOpenChange={(open) => {
+        setCancelConfirmModal(open);
+        if (!open) {
+          setCancellingItem(null);
+          setCancellingItemInfo(null);
+          setCancelQuantity(1);
+        }
+      }}>
         <ModalContent className="sm:max-w-md">
           <ModalHeader>
             <ModalTitle>주문 취소 확인</ModalTitle>
@@ -2192,11 +2230,45 @@ export default function CustomersPage() {
               다음 메뉴의 주문을 취소하시겠습니까?
             </p>
             {cancellingItemInfo && (
-              <div className="p-3 bg-neutral-50 rounded-lg">
-                <p className="font-medium text-neutral-900">{cancellingItemInfo.name}</p>
-                <p className="text-sm text-neutral-500 mt-1">
-                  {formatNumber(cancellingItemInfo.price)}원
-                </p>
+              <div className="p-3 bg-neutral-50 rounded-lg space-y-3">
+                <div>
+                  <p className="font-medium text-neutral-900">{cancellingItemInfo.name}</p>
+                  <p className="text-sm text-neutral-500 mt-1">
+                    단가: {formatNumber(cancellingItemInfo.unitPrice)}원
+                  </p>
+                </div>
+
+                {/* 수량이 2개 이상일 때만 수량 선택 UI 표시 */}
+                {cancellingItemInfo.remainingQty > 1 ? (
+                  <div className="pt-3 border-t border-neutral-200">
+                    <p className="text-sm font-medium text-neutral-700 mb-2">
+                      취소할 수량 (남은 수량: {cancellingItemInfo.remainingQty}개)
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from({ length: cancellingItemInfo.remainingQty }, (_, i) => i + 1).map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setCancelQuantity(num)}
+                          className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
+                            cancelQuantity === num
+                              ? 'bg-red-500 text-white'
+                              : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-sm text-neutral-600 mt-3">
+                      취소 금액: <span className="font-medium">{formatNumber(cancellingItemInfo.unitPrice * cancelQuantity)}원</span>
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-500">
+                    취소 금액: {formatNumber(cancellingItemInfo.price)}원
+                  </p>
+                )}
               </div>
             )}
             <p className="text-xs text-red-500 mt-3">
@@ -2211,6 +2283,7 @@ export default function CustomersPage() {
                 setCancelConfirmModal(false);
                 setCancellingItem(null);
                 setCancellingItemInfo(null);
+                setCancelQuantity(1);
               }}
               className="flex-1"
             >
@@ -2221,7 +2294,9 @@ export default function CustomersPage() {
               onClick={handleCancelOrderItem}
               className="flex-1"
             >
-              주문 취소
+              {cancellingItemInfo && cancellingItemInfo.remainingQty > 1
+                ? `${cancelQuantity}개 취소`
+                : '주문 취소'}
             </Button>
           </ModalFooter>
         </ModalContent>
