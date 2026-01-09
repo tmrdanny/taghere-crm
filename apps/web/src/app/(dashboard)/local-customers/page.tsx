@@ -36,7 +36,7 @@ const GENDER_OPTIONS = [
 ];
 
 // 비용 상수
-const COST_PER_MESSAGE = 250;
+const COST_PER_MESSAGE = 200;
 
 // 인증 토큰 가져오기
 const getAuthToken = () => {
@@ -126,7 +126,7 @@ export default function LocalCustomersPage() {
 
   // 고객 수 조회
   const fetchCount = useCallback(async () => {
-    if (!regionSido || !regionSigungu) {
+    if (!regionSido) {
       setTotalCount(0);
       setAvailableCount(0);
       return;
@@ -136,8 +136,12 @@ export default function LocalCustomersPage() {
     try {
       const params = new URLSearchParams({
         regionSido,
-        regionSigungu,
       });
+
+      // 시/군/구는 선택 시에만 추가
+      if (regionSigungu) {
+        params.set('regionSigungu', regionSigungu);
+      }
 
       if (selectedAgeGroups.length > 0) {
         params.set('ageGroups', selectedAgeGroups.join(','));
@@ -205,10 +209,9 @@ export default function LocalCustomersPage() {
   const estimatedCost = sendCount * COST_PER_MESSAGE;
   const canAfford = walletBalance >= estimatedCost;
 
-  // 발송 가능 여부
+  // 발송 가능 여부 (시/군/구는 필수 아님)
   const canSend =
     regionSido &&
-    regionSigungu &&
     content.trim() &&
     sendCount > 0 &&
     sendCount <= availableCount &&
@@ -409,20 +412,10 @@ export default function LocalCustomersPage() {
                   <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
                 </div>
                 <div className="relative">
-                  <select
-                    value={regionSigungu}
-                    onChange={(e) => setRegionSigungu(e.target.value)}
-                    disabled={!regionSido}
-                    className="w-full appearance-none bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 pr-8 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-neutral-100 disabled:text-neutral-400"
-                  >
-                    <option value="">시/군/구 선택</option>
-                    {sigungus.map((sigungu) => (
-                      <option key={sigungu} value={sigungu}>
-                        {sigungu}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
+                  <div className="w-full bg-neutral-100 border border-neutral-200 rounded-lg px-3 py-2 pr-8 text-sm text-neutral-400 cursor-not-allowed">
+                    준비 중
+                  </div>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-300 pointer-events-none" />
                 </div>
               </div>
             </div>

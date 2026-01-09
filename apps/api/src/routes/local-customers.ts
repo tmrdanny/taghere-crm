@@ -6,7 +6,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 const router = Router();
 
 // 건당 비용 (외부 고객 SMS)
-const EXTERNAL_SMS_COST = 250;
+const EXTERNAL_SMS_COST = 200;
 
 // 월요일 기준 주차 시작일 계산
 function getWeekStart(date: Date): Date {
@@ -60,16 +60,20 @@ router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { ageGroups, gender, regionSido, regionSigungu } = req.query;
 
-    if (!regionSido || !regionSigungu) {
+    if (!regionSido) {
       return res.status(400).json({ error: '지역을 선택해주세요.' });
     }
 
     // 필터 조건 구성
     const where: any = {
       regionSido: regionSido as string,
-      regionSigungu: regionSigungu as string,
       consentMarketing: true,
     };
+
+    // 시/군/구 필터 (선택 시에만 적용)
+    if (regionSigungu) {
+      where.regionSigungu = regionSigungu as string;
+    }
 
     // 연령대 필터
     if (ageGroups) {
@@ -158,7 +162,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     const { content, ageGroups, gender, regionSido, regionSigungu, sendCount } = req.body;
 
     // 유효성 검사
-    if (!content || !regionSido || !regionSigungu || !sendCount) {
+    if (!content || !regionSido || !sendCount) {
       return res.status(400).json({ error: '필수 항목을 모두 입력해주세요.' });
     }
 
@@ -183,9 +187,13 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     // 필터 조건 구성
     const where: any = {
       regionSido,
-      regionSigungu,
       consentMarketing: true,
     };
+
+    // 시/군/구 필터 (선택 시에만 적용)
+    if (regionSigungu) {
+      where.regionSigungu = regionSigungu;
+    }
 
     if (ageGroups && ageGroups.length > 0) {
       where.ageGroup = { in: ageGroups };
