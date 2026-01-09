@@ -16,6 +16,7 @@ import {
   X,
   Search,
   Plus,
+  Store,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +36,58 @@ const GENDER_OPTIONS = [
   { value: 'all', label: '전체 성별' },
   { value: 'FEMALE', label: '여성' },
   { value: 'MALE', label: '남성' },
+];
+
+// 업종 카테고리
+const STORE_CATEGORIES: Record<string, string> = {
+  // 음식점
+  KOREAN: '한식',
+  CHINESE: '중식',
+  JAPANESE: '일식',
+  WESTERN: '양식',
+  ASIAN: '아시안',
+  BUNSIK: '분식',
+  FASTFOOD: '패스트푸드',
+  MEAT: '고기/구이',
+  SEAFOOD: '해산물',
+  BUFFET: '뷔페',
+  BRUNCH: '브런치',
+  // 카페/디저트
+  CAFE: '카페',
+  BAKERY: '베이커리',
+  DESSERT: '디저트',
+  ICECREAM: '아이스크림',
+  // 주점
+  BEER: '호프/맥주',
+  IZAKAYA: '이자카야',
+  WINE_BAR: '와인바',
+  COCKTAIL_BAR: '칵테일바',
+  POCHA: '포차',
+  KOREAN_PUB: '한식주점',
+  COOK_PUB: '요리주점',
+  // 기타
+  FOODCOURT: '푸드코트',
+  OTHER: '기타',
+};
+
+// 업종 그룹
+const CATEGORY_GROUPS = [
+  {
+    label: '음식점',
+    categories: ['KOREAN', 'CHINESE', 'JAPANESE', 'WESTERN', 'ASIAN', 'BUNSIK', 'FASTFOOD', 'MEAT', 'SEAFOOD', 'BUFFET', 'BRUNCH'],
+  },
+  {
+    label: '카페/디저트',
+    categories: ['CAFE', 'BAKERY', 'DESSERT', 'ICECREAM'],
+  },
+  {
+    label: '주점',
+    categories: ['BEER', 'IZAKAYA', 'WINE_BAR', 'COCKTAIL_BAR', 'POCHA', 'KOREAN_PUB', 'COOK_PUB'],
+  },
+  {
+    label: '기타',
+    categories: ['FOODCOURT', 'OTHER'],
+  },
 ];
 
 // 비용 상수
@@ -64,6 +117,7 @@ export default function LocalCustomersPage() {
   // 필터 상태
   const [selectedAgeGroups, setSelectedAgeGroups] = useState<string[]>([]);
   const [gender, setGender] = useState<string>('all');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   // 발송 대상 상태
   const [globalTotalCount, setGlobalTotalCount] = useState(0); // 전체 DB 고객 수
@@ -145,6 +199,9 @@ export default function LocalCustomersPage() {
       if (gender !== 'all') {
         params.set('gender', gender);
       }
+      if (selectedCategories.length > 0) {
+        params.set('categories', selectedCategories.join(','));
+      }
 
       const res = await fetch(`${API_BASE}/api/local-customers/count?${params}`, {
         headers: {
@@ -160,7 +217,7 @@ export default function LocalCustomersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedRegions, selectedAgeGroups, gender]);
+  }, [selectedRegions, selectedAgeGroups, gender, selectedCategories]);
 
   // 필터 변경 시 고객 수 조회
   useEffect(() => {
@@ -203,6 +260,13 @@ export default function LocalCustomersPage() {
   // 연령대 토글
   const toggleAgeGroup = (value: string) => {
     setSelectedAgeGroups((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  };
+
+  // 업종 토글
+  const toggleCategory = (value: string) => {
+    setSelectedCategories((prev) =>
       prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
     );
   };
@@ -255,6 +319,7 @@ export default function LocalCustomersPage() {
           ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : null,
           gender: gender !== 'all' ? gender : null,
           regionSidos: selectedRegions.map((r) => r.sido),
+          categories: selectedCategories.length > 0 ? selectedCategories : null,
           sendCount,
         }),
       });
@@ -397,87 +462,139 @@ export default function LocalCustomersPage() {
           </div>
         </div>
 
-        {/* 지역 선택 (태그 기반) */}
-        <div className="p-4 rounded-xl border border-neutral-200 bg-white">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
-              <MapPin className="w-5 h-5 text-neutral-500" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-neutral-900">지역 선택</p>
-              <p className="text-xs text-neutral-500">여러 지역을 선택할 수 있습니다</p>
-            </div>
-          </div>
-
-          {/* 선택된 지역 태그 */}
-          {selectedRegions.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {selectedRegions.map((region) => (
-                <span
-                  key={region.sido}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-100 text-brand-700 rounded-full text-sm font-medium"
-                >
-                  {region.sido} 전체
-                  <button
-                    onClick={() => removeRegion(region.sido)}
-                    className="hover:bg-brand-200 rounded-full p-0.5 transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* 지역 검색/추가 */}
-          <div className="relative">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-              <input
-                type="text"
-                value={regionSearchQuery}
-                onChange={(e) => {
-                  setRegionSearchQuery(e.target.value);
-                  setIsRegionDropdownOpen(true);
-                }}
-                onFocus={() => setIsRegionDropdownOpen(true)}
-                placeholder="지역 검색 (예: 경기, 서울, 부산...)"
-                className="w-full pl-9 pr-4 py-2.5 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* 드롭다운 */}
-            {isRegionDropdownOpen && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                {filteredSidos.length > 0 ? (
-                  filteredSidos.map((sido) => (
-                    <button
-                      key={sido}
-                      onClick={() => addRegion(sido)}
-                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-50 flex items-center justify-between group"
-                    >
-                      <span>{sido}</span>
-                      <Plus className="w-4 h-4 text-neutral-400 group-hover:text-brand-600" />
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-4 py-3 text-sm text-neutral-500">
-                    {regionSearchQuery
-                      ? '검색 결과가 없습니다'
-                      : '모든 지역이 선택되었습니다'}
-                  </div>
-                )}
+        {/* 지역 + 업종 선택 - 2열 그리드 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* 좌측: 지역 선택 */}
+          <div className="p-4 rounded-xl border border-neutral-200 bg-white">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-neutral-500" />
               </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-neutral-900">지역 선택</p>
+                <p className="text-xs text-neutral-500">여러 지역을 선택할 수 있습니다</p>
+              </div>
+            </div>
+
+            {/* 선택된 지역 태그 */}
+            {selectedRegions.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {selectedRegions.map((region) => (
+                  <span
+                    key={region.sido}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-100 text-brand-700 rounded-full text-sm font-medium"
+                  >
+                    {region.sido} 전체
+                    <button
+                      onClick={() => removeRegion(region.sido)}
+                      className="hover:bg-brand-200 rounded-full p-0.5 transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* 지역 검색/추가 */}
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                <input
+                  type="text"
+                  value={regionSearchQuery}
+                  onChange={(e) => {
+                    setRegionSearchQuery(e.target.value);
+                    setIsRegionDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsRegionDropdownOpen(true)}
+                  placeholder="지역 검색 (예: 경기, 서울, 부산...)"
+                  className="w-full pl-9 pr-4 py-2.5 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* 드롭다운 */}
+              {isRegionDropdownOpen && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {filteredSidos.length > 0 ? (
+                    filteredSidos.map((sido) => (
+                      <button
+                        key={sido}
+                        onClick={() => addRegion(sido)}
+                        className="w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-50 flex items-center justify-between group"
+                      >
+                        <span>{sido}</span>
+                        <Plus className="w-4 h-4 text-neutral-400 group-hover:text-brand-600" />
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-sm text-neutral-500">
+                      {regionSearchQuery
+                        ? '검색 결과가 없습니다'
+                        : '모든 지역이 선택되었습니다'}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 드롭다운 닫기 (외부 클릭) */}
+            {isRegionDropdownOpen && (
+              <div
+                className="fixed inset-0 z-0"
+                onClick={() => setIsRegionDropdownOpen(false)}
+              />
             )}
           </div>
 
-          {/* 드롭다운 닫기 (외부 클릭) */}
-          {isRegionDropdownOpen && (
-            <div
-              className="fixed inset-0 z-0"
-              onClick={() => setIsRegionDropdownOpen(false)}
-            />
-          )}
+          {/* 우측: 선호 업종 */}
+          <div className="p-4 rounded-xl border border-neutral-200 bg-white">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
+                <Store className="w-5 h-5 text-neutral-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-neutral-900">선호 업종</p>
+                <p className="text-xs text-neutral-500">복수 선택 가능</p>
+              </div>
+            </div>
+
+            {/* 업종 그룹별 버튼 */}
+            <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
+              {CATEGORY_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <p className="text-xs text-neutral-400 mb-1.5">{group.label}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.categories.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => toggleCategory(cat)}
+                        className={cn(
+                          'px-2.5 py-1 rounded-full text-xs font-medium transition-colors border',
+                          selectedCategories.includes(cat)
+                            ? 'bg-brand-600 text-white border-brand-600'
+                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-brand-300'
+                        )}
+                      >
+                        {STORE_CATEGORIES[cat]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {selectedCategories.length === 0 && (
+              <p className="text-xs text-neutral-500 mt-3">
+                미선택 시 전체 업종 고객에게 발송됩니다
+              </p>
+            )}
+            {selectedCategories.length > 0 && (
+              <p className="text-xs text-brand-600 mt-3">
+                {selectedCategories.length}개 업종 선택됨
+              </p>
+            )}
+          </div>
         </div>
 
         {/* 상세 필터 */}

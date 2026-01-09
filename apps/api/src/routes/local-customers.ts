@@ -72,7 +72,7 @@ router.get('/total-count', authMiddleware, async (req: AuthRequest, res) => {
 // GET /api/local-customers/count - 조건에 맞는 고객 수 조회 (다중 지역 지원)
 router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { ageGroups, gender, regionSidos, regionSigungu } = req.query;
+    const { ageGroups, gender, regionSidos, regionSigungu, categories } = req.query;
 
     if (!regionSidos) {
       return res.status(400).json({ error: '지역을 선택해주세요.' });
@@ -105,6 +105,17 @@ router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
     // 성별 필터
     if (gender && gender !== 'all') {
       where.gender = gender as string;
+    }
+
+    // 선호 업종 필터 (하나라도 포함되면 매칭 - OR 조건)
+    if (categories) {
+      const categoryList = (categories as string).split(',').filter(Boolean);
+      if (categoryList.length > 0) {
+        // preferredCategories JSON 배열에서 하나라도 포함되면 매칭
+        where.OR = categoryList.map((cat) => ({
+          preferredCategories: { contains: cat },
+        }));
+      }
     }
 
     // 전체 고객 수
@@ -180,7 +191,7 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { content, ageGroups, gender, regionSidos, sendCount, isAdMessage = true } = req.body;
+    const { content, ageGroups, gender, regionSidos, sendCount, categories, isAdMessage = true } = req.body;
 
     // 유효성 검사
     if (!content || !regionSidos || regionSidos.length === 0 || !sendCount) {
@@ -217,6 +228,13 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
 
     if (gender && gender !== 'all') {
       where.gender = gender;
+    }
+
+    // 선호 업종 필터 (하나라도 포함되면 매칭 - OR 조건)
+    if (categories && categories.length > 0) {
+      where.OR = categories.map((cat: string) => ({
+        preferredCategories: { contains: cat },
+      }));
     }
 
     // 이번 주 슬롯 여유 있는 고객만 조회
@@ -281,6 +299,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
         filterGender: gender || null,
         filterRegionSido: regionSidos.join(','),
         filterRegionSigungu: '',
+        filterCategories: categories && categories.length > 0 ? JSON.stringify(categories) : null,
         targetCount: sendCount,
         costPerMessage: EXTERNAL_SMS_COST,
         status: 'SENDING',

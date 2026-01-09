@@ -591,15 +591,16 @@ enum AgeGroup {
 
 // 외부 고객 (태그히어 제공 DB)
 model ExternalCustomer {
-  id               String    @id @default(cuid())
-  phone            String    @unique
-  ageGroup         AgeGroup
-  gender           Gender?
-  regionSido       String              // 시/도
-  regionSigungu    String              // 시/군/구
-  consentMarketing Boolean   @default(true)
-  consentAt        DateTime
-  createdAt        DateTime  @default(now())
+  id                  String    @id @default(cuid())
+  phone               String    @unique
+  ageGroup            AgeGroup
+  gender              Gender?
+  regionSido          String              // 시/도
+  regionSigungu       String              // 시/군/구
+  preferredCategories String?   @db.Text  // JSON: ["KOREAN", "CAFE", "MEAT"] - 선호 업종
+  consentMarketing    Boolean   @default(true)
+  consentAt           DateTime
+  createdAt           DateTime  @default(now())
 
   // Relations
   weeklySlots      ExternalCustomerWeeklySlot[]
@@ -642,6 +643,7 @@ model ExternalSmsCampaign {
   filterGender        String?                   // MALE, FEMALE, null(전체)
   filterRegionSido    String                    // 시/도
   filterRegionSigungu String                    // 시/군/구
+  filterCategories    String?                   @db.Text // JSON: ["KOREAN", "CAFE"] - 선호 업종 필터
   targetCount         Int                       // 발송 대상 수
   sentCount           Int                       @default(0) // 발송 완료 수
   failedCount         Int                       @default(0) // 실패 수
