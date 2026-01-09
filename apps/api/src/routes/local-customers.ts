@@ -180,7 +180,7 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { content, ageGroups, gender, regionSidos, sendCount } = req.body;
+    const { content, ageGroups, gender, regionSidos, sendCount, isAdMessage = true } = req.body;
 
     // 유효성 검사
     if (!content || !regionSidos || regionSidos.length === 0 || !sendCount) {
@@ -266,12 +266,17 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       select: { name: true },
     });
 
+    // 광고 메시지 형식 적용
+    const formattedContent = isAdMessage
+      ? `(광고)\n${content}\n무료수신거부 080-500-4233`
+      : content;
+
     // 캠페인 생성 (다중 지역은 콤마로 구분하여 저장)
     const campaign = await prisma.externalSmsCampaign.create({
       data: {
         storeId,
         title: `우리동네 손님 찾기 - ${new Date().toLocaleDateString('ko-KR')}`,
-        content,
+        content: formattedContent,
         filterAgeGroups: JSON.stringify(ageGroups || []),
         filterGender: gender || null,
         filterRegionSido: regionSidos.join(','),
@@ -305,7 +310,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
         const result = await messageService.send({
           to: normalizedPhone,
           from: '07041380263', // 발신번호 고정
-          text: content,
+          text: formattedContent,
         });
 
         const groupInfo = result.groupInfo;
@@ -317,7 +322,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
             campaignId: campaign.id,
             storeId,
             externalCustomerId: customer.id,
-            content,
+            content: formattedContent,
             status: 'PENDING',
             solapiGroupId: groupId,
             cost: EXTERNAL_SMS_COST,
@@ -333,7 +338,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
             campaignId: campaign.id,
             storeId,
             externalCustomerId: customer.id,
-            content,
+            content: formattedContent,
             status: 'FAILED',
             cost: 0,
             failReason: err.message || 'Unknown error',
