@@ -216,7 +216,7 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { title, content, targetType, customerIds, genderFilter, ageFilter, imageUrl, imageId } = req.body;
+    const { title, content, targetType, customerIds, genderFilter, ageFilter, imageUrl, imageId, isAdMessage = false } = req.body;
 
     if (!content || content.trim() === '') {
       return res.status(400).json({ error: '메시지 내용을 입력해주세요.' });
@@ -295,12 +295,17 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       select: { name: true },
     });
 
+    // 광고 메시지 형식 적용
+    const formattedContent = isAdMessage
+      ? `(광고)\n${content}\n무료수신거부 080-500-4233`
+      : content;
+
     // 캠페인 생성
     const campaign = await prisma.smsCampaign.create({
       data: {
         storeId,
         title: title || `${store?.name || '매장'} 메시지`,
-        content,
+        content: formattedContent,
         targetType: targetType || 'ALL',
         targetCount: customers.length,
         totalCost,
@@ -317,7 +322,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
 
     // 개별 메시지 생성 및 발송 (병렬 처리, 대기 없이 즉시 응답)
     const sendPromises = customers.map(async (customer) => {
-      const personalizedContent = content.replace(/{고객명}/g, customer.name || '고객');
+      const personalizedContent = formattedContent.replace(/{고객명}/g, customer.name || '고객');
       const normalizedPhone = normalizePhoneNumber(customer.phone!);
 
       try {

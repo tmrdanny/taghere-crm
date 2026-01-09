@@ -140,6 +140,9 @@ export default function MessagesPage() {
   const [isTestSending, setIsTestSending] = useState(false);
   const [testCount, setTestCount] = useState({ count: 0, limit: 5, remaining: 5 });
 
+  // 광고 메시지 여부
+  const [isAdMessage, setIsAdMessage] = useState(true);
+
   // Get auth token
   const getAuthToken = () => {
     if (typeof window === 'undefined') return 'dev-token';
@@ -529,6 +532,7 @@ export default function MessagesPage() {
         ageFilter: ageFilter !== 'all' ? ageFilter : undefined,
         imageUrl: uploadedImage?.imageUrl || undefined,
         imageId: uploadedImage?.imageId || undefined, // SOLAPI 이미지 ID 전달
+        isAdMessage,
       };
 
       if (selectedTarget === 'CUSTOM') {
@@ -730,6 +734,34 @@ export default function MessagesPage() {
                 ))}
               </div>
             </div>
+
+            {/* 광고 메시지 여부 */}
+            <div className="mt-4 p-4 rounded-xl border border-[#e5e7eb] bg-white">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isAdMessage}
+                  onChange={(e) => setIsAdMessage(e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded border-[#d1d5db] text-[#3b82f6] focus:ring-[#3b82f6]"
+                />
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-[#1e293b]">광고 메시지로 발송</span>
+                  <p className="text-xs text-[#64748b] mt-1">
+                    체크 시 메시지에 (광고) 표기와 무료수신거부 번호가 자동 추가됩니다
+                  </p>
+                </div>
+              </label>
+              {!isAdMessage && (
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-start gap-2 text-amber-700">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm">
+                      광고 문자임에도 광고 표기 가이드라인을 지키지 않은 경우, 이용 약관에 의거해 예고 없이 계정이 차단될 수 있으며, 환불 또한 불가능합니다.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -907,7 +939,9 @@ export default function MessagesPage() {
                 )}
                 {messageContent ? (
                   <span className="whitespace-pre-wrap break-words">
-                    {messageContent.replace(/{고객명}/g, '{고객명}')}
+                    {isAdMessage
+                      ? `(광고)\n${messageContent.replace(/{고객명}/g, '{고객명}')}\n무료수신거부 080-500-4233`
+                      : messageContent.replace(/{고객명}/g, '{고객명}')}
                   </span>
                 ) : (
                   <span className="text-[#94a3b8]">메시지 미리보기</span>
