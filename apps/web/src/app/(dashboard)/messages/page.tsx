@@ -551,8 +551,10 @@ export default function MessagesPage() {
       const data = await res.json();
 
       if (res.ok) {
+        const sentOrPending = data.sentCount || data.pendingCount || 0;
         const failedMsg = data.failedCount > 0 ? `, ${data.failedCount}건 실패` : '';
-        showToast(`${data.sentCount}건 발송 완료${failedMsg} (비용: ${formatNumber(data.totalCost)}원)`, 'success');
+        const costMsg = data.totalCost ? ` (비용: ${formatNumber(data.totalCost)}원)` : '';
+        showToast(`${sentOrPending}건 발송 요청 완료${failedMsg}${costMsg}`, 'success');
         setMessageContent('');
         setUploadedImage(null);
         setImageError(null);
