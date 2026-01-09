@@ -15,9 +15,20 @@
     "db:push": "prisma db push",
     "db:seed": "npx ts-node prisma/seed.ts",
     "db:studio": "prisma studio",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:e2e": "npx playwright test",
+    "test:e2e:ui": "npx playwright test --ui",
+    "test:e2e:headed": "npx playwright test --headed",
+    "test:e2e:debug": "npx playwright test --debug",
+    "test:e2e:report": "npx playwright show-report",
+    "test:e2e:auth": "npx playwright test tests/e2e/auth/",
+    "test:e2e:messages": "npx playwright test tests/e2e/messages/",
+    "test:e2e:points": "npx playwright test tests/e2e/points/",
+    "test:e2e:billing": "npx playwright test tests/e2e/billing/",
+    "test:e2e:customers": "npx playwright test tests/e2e/customers/"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@types/node": "^20.10.0",
     "concurrently": "^8.2.2",
     "eslint": "^8.55.0",

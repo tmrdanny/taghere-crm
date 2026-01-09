@@ -33,6 +33,15 @@ import { cn } from '@/lib/utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+// 연령대 옵션 (local-customers와 동일)
+const AGE_GROUP_OPTIONS = [
+  { value: 'TWENTIES', label: '20대' },
+  { value: 'THIRTIES', label: '30대' },
+  { value: 'FORTIES', label: '40대' },
+  { value: 'FIFTIES', label: '50대' },
+  { value: 'SIXTY_PLUS', label: '60대 이상' },
+];
+
 interface TargetCounts {
   all: number;
   revisit: number;
@@ -114,7 +123,14 @@ export default function MessagesPage() {
 
   // Filters
   const [genderFilter, setGenderFilter] = useState<'all' | 'MALE' | 'FEMALE'>('all');
-  const [ageFilter, setAgeFilter] = useState<'all' | '20-30' | '40-50'>('all');
+  const [selectedAgeGroups, setSelectedAgeGroups] = useState<string[]>([]);
+
+  // 연령대 토글
+  const toggleAgeGroup = (value: string) => {
+    setSelectedAgeGroups((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  };
 
   // UI states
   const [isLoading, setIsLoading] = useState(true);
@@ -172,8 +188,8 @@ export default function MessagesPage() {
       if (genderFilter !== 'all') {
         params.set('genderFilter', genderFilter);
       }
-      if (ageFilter !== 'all') {
-        params.set('ageFilter', ageFilter);
+      if (selectedAgeGroups.length > 0) {
+        params.set('ageGroups', selectedAgeGroups.join(','));
       }
 
       const url = `${API_BASE}/api/sms/target-counts${params.toString() ? '?' + params.toString() : ''}`;
@@ -187,7 +203,7 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Failed to fetch target counts:', error);
     }
-  }, [genderFilter, ageFilter]);
+  }, [genderFilter, selectedAgeGroups]);
 
   // Fetch estimate (with filters)
   const fetchEstimate = useCallback(async () => {
@@ -210,8 +226,8 @@ export default function MessagesPage() {
       if (genderFilter !== 'all') {
         params.set('genderFilter', genderFilter);
       }
-      if (ageFilter !== 'all') {
-        params.set('ageFilter', ageFilter);
+      if (selectedAgeGroups.length > 0) {
+        params.set('ageGroups', selectedAgeGroups.join(','));
       }
 
       // 이미지 첨부 여부
@@ -230,7 +246,7 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Failed to fetch estimate:', error);
     }
-  }, [messageContent, selectedTarget, selectedCustomers, genderFilter, ageFilter, uploadedImage]);
+  }, [messageContent, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, uploadedImage]);
 
   // Fetch test count
   const fetchTestCount = useCallback(async () => {
@@ -529,7 +545,7 @@ export default function MessagesPage() {
         content: messageContent,
         targetType: selectedTarget,
         genderFilter: genderFilter !== 'all' ? genderFilter : undefined,
-        ageFilter: ageFilter !== 'all' ? ageFilter : undefined,
+        ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : undefined,
         imageUrl: uploadedImage?.imageUrl || undefined,
         imageId: uploadedImage?.imageId || undefined, // SOLAPI 이미지 ID 전달
         isAdMessage,
@@ -720,22 +736,25 @@ export default function MessagesPage() {
               <div className="hidden sm:block w-px bg-[#e5e7eb] mx-1" />
 
               <div className="flex flex-wrap gap-2">
-                {['all', '20-30', '40-50'].map((age) => (
+                {AGE_GROUP_OPTIONS.map((option) => (
                   <button
-                    key={age}
-                    onClick={() => setAgeFilter(age as any)}
+                    key={option.value}
+                    onClick={() => toggleAgeGroup(option.value)}
                     className={cn(
                       'px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm border transition-all',
-                      ageFilter === age
+                      selectedAgeGroups.includes(option.value)
                         ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
                         : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
                     )}
                   >
-                    {age === 'all' ? '전체 연령' : age === '20-30' ? '20~30대' : '40~50대'}
+                    {option.label}
                   </button>
                 ))}
               </div>
             </div>
+            {selectedAgeGroups.length === 0 && (
+              <p className="text-xs text-[#64748b] mt-2">연령대 미선택 시 전체 연령대로 발송됩니다</p>
+            )}
 
             {/* 광고 메시지 여부 */}
             <div className="mt-4 p-4 rounded-xl border border-[#e5e7eb] bg-white">

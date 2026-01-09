@@ -83,8 +83,27 @@ function getByteLength(str: string): number {
   return byteLength;
 }
 
+// 연령대 -> 출생연도 범위 매핑
+function getAgeGroupBirthYearRange(ageGroup: string): { gte: number; lte: number } | null {
+  const currentYear = new Date().getFullYear();
+  switch (ageGroup) {
+    case 'TWENTIES':
+      return { gte: currentYear - 29, lte: currentYear - 20 };
+    case 'THIRTIES':
+      return { gte: currentYear - 39, lte: currentYear - 30 };
+    case 'FORTIES':
+      return { gte: currentYear - 49, lte: currentYear - 40 };
+    case 'FIFTIES':
+      return { gte: currentYear - 59, lte: currentYear - 50 };
+    case 'SIXTY_PLUS':
+      return { gte: 1900, lte: currentYear - 60 };
+    default:
+      return null;
+  }
+}
+
 // 필터 조건 생성 헬퍼 함수
-function buildFilterConditions(genderFilter?: string, ageFilter?: string): any {
+function buildFilterConditions(genderFilter?: string, ageGroups?: string[]): any {
   const conditions: any = {};
 
   // 성별 필터
@@ -92,13 +111,19 @@ function buildFilterConditions(genderFilter?: string, ageFilter?: string): any {
     conditions.gender = genderFilter;
   }
 
-  // 연령 필터 (출생연도 기준)
-  if (ageFilter && ageFilter !== 'all') {
-    const currentYear = new Date().getFullYear();
-    if (ageFilter === '20-30') {
-      conditions.birthYear = { gte: currentYear - 39, lte: currentYear - 20 };
-    } else if (ageFilter === '40-50') {
-      conditions.birthYear = { gte: currentYear - 59, lte: currentYear - 40 };
+  // 연령대 필터 (개별 연령대 배열 지원)
+  if (ageGroups && ageGroups.length > 0) {
+    const birthYearConditions: any[] = [];
+    for (const ageGroup of ageGroups) {
+      const range = getAgeGroupBirthYearRange(ageGroup);
+      if (range) {
+        birthYearConditions.push({
+          birthYear: range,
+        });
+      }
+    }
+    if (birthYearConditions.length > 0) {
+      conditions.OR = birthYearConditions;
     }
   }
 
@@ -109,12 +134,15 @@ function buildFilterConditions(genderFilter?: string, ageFilter?: string): any {
 router.get('/target-counts', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { genderFilter, ageFilter } = req.query;
+    const { genderFilter, ageGroups } = req.query;
+
+    // ageGroups 문자열을 배열로 변환
+    const ageGroupList = ageGroups ? (ageGroups as string).split(',').filter(Boolean) : undefined;
 
     // 필터 조건 생성
     const filterConditions = buildFilterConditions(
       genderFilter as string,
-      ageFilter as string
+      ageGroupList
     );
 
     const baseWhere = { storeId, phone: { not: null }, ...filterConditions };
@@ -154,12 +182,15 @@ router.get('/target-counts', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { targetType, content, customerIds, genderFilter, ageFilter, hasImage } = req.query;
+    const { targetType, content, customerIds, genderFilter, ageGroups, hasImage } = req.query;
+
+    // ageGroups 문자열을 배열로 변환
+    const ageGroupList = ageGroups ? (ageGroups as string).split(',').filter(Boolean) : undefined;
 
     // 필터 조건 생성
     const filterConditions = buildFilterConditions(
       genderFilter as string,
-      ageFilter as string
+      ageGroupList
     );
 
     let targetCount = 0;
@@ -216,7 +247,7 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { title, content, targetType, customerIds, genderFilter, ageFilter, imageUrl, imageId, isAdMessage = false } = req.body;
+    const { title, content, targetType, customerIds, genderFilter, ageGroups, imageUrl, imageId, isAdMessage = false } = req.body;
 
     if (!content || content.trim() === '') {
       return res.status(400).json({ error: '메시지 내용을 입력해주세요.' });
@@ -248,13 +279,19 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       where.gender = genderFilter;
     }
 
-    // 연령 필터 (출생연도 기준)
-    if (ageFilter) {
-      const currentYear = new Date().getFullYear();
-      if (ageFilter === '20-30') {
-        where.birthYear = { gte: currentYear - 39, lte: currentYear - 20 };
-      } else if (ageFilter === '40-50') {
-        where.birthYear = { gte: currentYear - 59, lte: currentYear - 40 };
+    // 연령대 필터 (개별 연령대 배열 지원)
+    if (ageGroups && ageGroups.length > 0) {
+      const birthYearConditions: any[] = [];
+      for (const ageGroup of ageGroups) {
+        const range = getAgeGroupBirthYearRange(ageGroup);
+        if (range) {
+          birthYearConditions.push({
+            birthYear: range,
+          });
+        }
+      }
+      if (birthYearConditions.length > 0) {
+        where.OR = birthYearConditions;
       }
     }
 
