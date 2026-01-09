@@ -755,7 +755,18 @@ router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// GET /api/sms/history - 전체 발송 내역 조회 (SMS, 알림톡 등 모든 발송)
+// 전화번호 마스킹 함수 (외부 고객용)
+function maskPhoneNumber(phone: string): string {
+  // 010-1234-5678 형식이면 ***-****-5678로
+  // 01012345678 형식이면 ***-****-5678로
+  const digits = phone.replace(/[^0-9]/g, '');
+  if (digits.length >= 4) {
+    return `***-****-${digits.slice(-4)}`;
+  }
+  return '***-****-****';
+}
+
+// GET /api/sms/history - 전체 발송 내역 조회 (SMS, 알림톡, 외부고객 SMS 모든 발송)
 router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
@@ -768,26 +779,32 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
     const smsWhere: any = { storeId };
     // Build where clause for AlimTalk
     const alimtalkWhere: any = { storeId };
+    // Build where clause for External SMS
+    const externalSmsWhere: any = { storeId };
 
     // Filter by status
     if (status && status !== 'all') {
       smsWhere.status = status;
       alimtalkWhere.status = status;
+      externalSmsWhere.status = status;
     }
 
     // Filter by date range
     if (startDate || endDate) {
       smsWhere.createdAt = {};
       alimtalkWhere.createdAt = {};
+      externalSmsWhere.createdAt = {};
       if (startDate) {
         smsWhere.createdAt.gte = new Date(startDate as string);
         alimtalkWhere.createdAt.gte = new Date(startDate as string);
+        externalSmsWhere.createdAt.gte = new Date(startDate as string);
       }
       if (endDate) {
         const end = new Date(endDate as string);
         end.setHours(23, 59, 59, 999);
         smsWhere.createdAt.lte = end;
         alimtalkWhere.createdAt.lte = end;
+        externalSmsWhere.createdAt.lte = end;
       }
     }
 
@@ -798,10 +815,11 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
         { content: { contains: search as string } },
       ];
       alimtalkWhere.phone = { contains: search as string };
+      externalSmsWhere.content = { contains: search as string };
     }
 
-    // Fetch both SMS messages and AlimTalk logs
-    const [smsMessages, alimtalkMessages, smsTotal, alimtalkTotal] = await Promise.all([
+    // Fetch SMS, AlimTalk, and External SMS messages
+    const [smsMessages, alimtalkMessages, externalSmsMessages, smsTotal, alimtalkTotal, externalSmsTotal] = await Promise.all([
       prisma.smsMessage.findMany({
         where: smsWhere,
         orderBy: { createdAt: 'desc' },
@@ -810,8 +828,17 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
         where: alimtalkWhere,
         orderBy: { createdAt: 'desc' },
       }),
+      prisma.externalSmsMessage.findMany({
+        where: externalSmsWhere,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          externalCustomer: { select: { phone: true, regionSido: true, regionSigungu: true } },
+          campaign: { select: { id: true, title: true } },
+        },
+      }),
       prisma.smsMessage.count({ where: smsWhere }),
       prisma.alimTalkOutbox.count({ where: alimtalkWhere }),
+      prisma.externalSmsMessage.count({ where: externalSmsWhere }),
     ]);
 
     // Get customer info for both
@@ -874,17 +901,33 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
       type: 'ALIMTALK' as const,
     }));
 
+    // Normalize External SMS messages (전화번호 마스킹)
+    const normalizedExternalSms = externalSmsMessages.map((m) => ({
+      id: m.id,
+      phone: maskPhoneNumber(m.externalCustomer.phone),
+      content: m.content,
+      status: m.status,
+      cost: m.cost,
+      failReason: m.failReason,
+      sentAt: m.sentAt,
+      createdAt: m.createdAt,
+      customer: null, // 외부 고객은 개인정보 보호로 고객 정보 없음
+      campaign: m.campaign ? { id: m.campaign.id, title: m.campaign.title } : null,
+      type: 'LOCAL_CUSTOMER' as const,
+      region: `${m.externalCustomer.regionSido} ${m.externalCustomer.regionSigungu}`,
+    }));
+
     // Merge and sort by createdAt desc
-    const allMessages = [...normalizedSms, ...normalizedAlimtalk]
+    const allMessages = [...normalizedSms, ...normalizedAlimtalk, ...normalizedExternalSms]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     // Apply pagination to merged results
-    const total = smsTotal + alimtalkTotal;
+    const total = smsTotal + alimtalkTotal + externalSmsTotal;
     const skip = (pageNum - 1) * limitNum;
     const paginatedMessages = allMessages.slice(skip, skip + limitNum);
 
-    // Get summary counts (SMS + AlimTalk)
-    const [smsStatusCounts, alimtalkStatusCounts] = await Promise.all([
+    // Get summary counts (SMS + AlimTalk + External SMS)
+    const [smsStatusCounts, alimtalkStatusCounts, externalSmsStatusCounts] = await Promise.all([
       prisma.smsMessage.groupBy({
         by: ['status'],
         where: { storeId },
@@ -895,16 +938,24 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
         where: { storeId },
         _count: { id: true },
       }),
+      prisma.externalSmsMessage.groupBy({
+        by: ['status'],
+        where: { storeId },
+        _count: { id: true },
+      }),
     ]);
 
     const getSmsCount = (s: string) => smsStatusCounts.find((x) => x.status === s)?._count.id || 0;
     const getAlimtalkCount = (s: string) => alimtalkStatusCounts.find((x) => x.status === s)?._count.id || 0;
+    const getExternalSmsCount = (s: string) => externalSmsStatusCounts.find((x) => x.status === s)?._count.id || 0;
 
     const summary = {
-      total: smsStatusCounts.reduce((sum, s) => sum + s._count.id, 0) + alimtalkStatusCounts.reduce((sum, s) => sum + s._count.id, 0),
-      sent: getSmsCount('SENT') + getAlimtalkCount('SENT'),
-      failed: getSmsCount('FAILED') + getAlimtalkCount('FAILED'),
-      pending: getSmsCount('PENDING') + getAlimtalkCount('PENDING') + getAlimtalkCount('RETRY') + getAlimtalkCount('PROCESSING'),
+      total: smsStatusCounts.reduce((sum, s) => sum + s._count.id, 0)
+        + alimtalkStatusCounts.reduce((sum, s) => sum + s._count.id, 0)
+        + externalSmsStatusCounts.reduce((sum, s) => sum + s._count.id, 0),
+      sent: getSmsCount('SENT') + getAlimtalkCount('SENT') + getExternalSmsCount('SENT'),
+      failed: getSmsCount('FAILED') + getAlimtalkCount('FAILED') + getExternalSmsCount('FAILED'),
+      pending: getSmsCount('PENDING') + getAlimtalkCount('PENDING') + getAlimtalkCount('RETRY') + getAlimtalkCount('PROCESSING') + getExternalSmsCount('PENDING'),
     };
 
     res.json({

@@ -27,6 +27,8 @@ interface MessageHistoryItem {
     id: string;
     title: string;
   } | null;
+  type?: 'SMS' | 'ALIMTALK' | 'LOCAL_CUSTOMER';
+  region?: string; // LOCAL_CUSTOMER 타입일 때 지역 정보
 }
 
 interface Summary {
@@ -398,6 +400,7 @@ export default function MessageHistoryPage() {
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50">
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">발송일시</th>
+                <th className="p-4 text-left text-sm font-medium text-neutral-600">타입</th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">상태</th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">수신번호</th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">고객명</th>
@@ -408,14 +411,14 @@ export default function MessageHistoryPage() {
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-neutral-500">
+                  <td colSpan={7} className="p-8 text-center text-neutral-500">
                     불러오는 중...
                   </td>
                 </tr>
               )}
               {!isLoading && messages.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-neutral-500">
+                  <td colSpan={7} className="p-8 text-center text-neutral-500">
                     발송 내역이 없습니다.
                   </td>
                 </tr>
@@ -433,6 +436,21 @@ export default function MessageHistoryPage() {
                       </div>
                     </td>
                     <td className="p-4">
+                      {msg.type === 'LOCAL_CUSTOMER' ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded font-medium">
+                          동네손님
+                        </span>
+                      ) : msg.type === 'ALIMTALK' ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded font-medium">
+                          알림톡
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded font-medium">
+                          SMS
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-4">
                       {getStatusBadge(msg.status)}
                       {msg.failReason && (
                         <div
@@ -447,7 +465,15 @@ export default function MessageHistoryPage() {
                       {formatPhone(msg.phone)}
                     </td>
                     <td className="p-4 text-sm text-neutral-900">
-                      {msg.customer ? maskNickname(msg.customer.name) : '-'}
+                      {msg.type === 'LOCAL_CUSTOMER' ? (
+                        <span className="text-neutral-500 text-xs" title={msg.region}>
+                          {msg.region || '외부 고객'}
+                        </span>
+                      ) : msg.customer ? (
+                        maskNickname(msg.customer.name)
+                      ) : (
+                        '-'
+                      )}
                     </td>
                     <td className="p-4 text-sm text-neutral-700">
                       <div className="max-w-[300px] truncate" title={msg.content}>

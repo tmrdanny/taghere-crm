@@ -17,6 +17,7 @@ import {
   Download,
   Send,
   History,
+  MapPin,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +40,7 @@ const navItems = [
   { href: '/home', label: '홈', icon: Home },
   { href: '/customers', label: '고객 리스트', icon: Users },
   { href: '/points', label: '포인트 적립', icon: Coins },
+  { href: '/local-customers', label: '우리동네 손님 찾기', icon: MapPin, isNew: true },
   { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
   { href: '/messages', label: '메시지 발송', icon: Send },
   { href: '/message-history', label: '발송 내역', icon: History },
@@ -159,7 +161,16 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
               title={isCollapsed ? item.label : undefined}
             >
               <Icon className={cn('w-5 h-5 flex-shrink-0', isActive && 'text-brand-800')} />
-              {!isCollapsed && <span>{item.label}</span>}
+              {!isCollapsed && (
+                <>
+                  <span>{item.label}</span>
+                  {(item as any).isNew && (
+                    <span className="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                      NEW
+                    </span>
+                  )}
+                </>
+              )}
             </Link>
           );
         })}
@@ -280,6 +291,11 @@ export function MobileHeader() {
               >
                 <Icon className={cn('w-5 h-5', isActive && 'text-brand-800')} />
                 <span>{item.label}</span>
+                {(item as any).isNew && (
+                  <span className="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                    NEW
+                  </span>
+                )}
               </Link>
             );
           })}

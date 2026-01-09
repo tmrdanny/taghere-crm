@@ -39,8 +39,10 @@ import paymentsRoutes from './routes/payments.js';
 import storesRoutes from './routes/stores.js';
 import adminRoutes from './routes/admin.js';
 import smsRoutes from './routes/sms.js';
+import localCustomersRoutes from './routes/local-customers.js';
 import { startAlimTalkWorker } from './services/alimtalk-worker.js';
 import { startSmsWorker } from './services/sms-worker.js';
+import { startExternalSmsWorker } from './services/external-sms-worker.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -165,6 +167,7 @@ app.use('/api/payments', paymentsRoutes);
 app.use('/api/stores', storesRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/sms', smsRoutes);
+app.use('/api/local-customers', localCustomersRoutes);
 
 // OAuth routes (without /api prefix)
 app.use('/auth/kakao', kakaoRoutes);
@@ -188,4 +191,5 @@ app.listen(PORT, () => {
   // Start background workers
   startAlimTalkWorker();
   startSmsWorker();
+  startExternalSmsWorker();
 });

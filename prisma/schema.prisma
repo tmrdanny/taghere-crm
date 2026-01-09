@@ -44,6 +44,7 @@ model Store {
   alimTalkConfig        AlimTalkConfig?
   smsCampaigns          SmsCampaign[]
   smsTestLogs           SmsTestLog[]
+  externalSmsCampaigns  ExternalSmsCampaign[]
 
   @@map("stores")
 }
@@ -573,4 +574,125 @@ model OrderCompleteBanner {
 
   @@index([isActive, order])
   @@map("order_complete_banners")
+}
+
+// ============================================
+// 우리동네 손님 찾기 (외부 고객 마케팅)
+// ============================================
+
+// 연령대 enum
+enum AgeGroup {
+  TWENTIES    // 20대
+  THIRTIES    // 30대
+  FORTIES     // 40대
+  FIFTIES     // 50대
+  SIXTY_PLUS  // 60대 이상
+}
+
+// 외부 고객 (태그히어 제공 DB)
+model ExternalCustomer {
+  id               String    @id @default(cuid())
+  phone            String    @unique
+  ageGroup         AgeGroup
+  gender           Gender?
+  regionSido       String              // 시/도
+  regionSigungu    String              // 시/군/구
+  consentMarketing Boolean   @default(true)
+  consentAt        DateTime
+  createdAt        DateTime  @default(now())
+
+  // Relations
+  weeklySlots      ExternalCustomerWeeklySlot[]
+  sentMessages     ExternalSmsMessage[]
+
+  @@index([ageGroup, gender, regionSido, regionSigungu])
+  @@map("external_customers")
+}
+
+// 외부 고객 주간 슬롯 (1주에 최대 2회 발송 제한)
+model ExternalCustomerWeeklySlot {
+  id                 String   @id @default(cuid())
+  externalCustomerId String
+  weekStart          DateTime @db.Date  // 해당 주 월요일
+  slotUsed           Int      @default(0)  // 사용된 슬롯 (최대 2)
+
+  // Relations
+  externalCustomer   ExternalCustomer @relation(fields: [externalCustomerId], references: [id], onDelete: Cascade)
+
+  @@unique([externalCustomerId, weekStart])
+  @@index([weekStart])
+  @@map("external_customer_weekly_slots")
+}
+
+// 외부 SMS 캠페인 상태
+enum ExternalSmsCampaignStatus {
+  PENDING    // 대기
+  SENDING    // 발송 중
+  COMPLETED  // 완료
+  CANCELLED  // 취소
+}
+
+// 외부 SMS 캠페인 (우리동네 손님 찾기)
+model ExternalSmsCampaign {
+  id                  String                    @id @default(cuid())
+  storeId             String
+  title               String                    // 캠페인 제목
+  content             String                    @db.Text // 메시지 내용
+  filterAgeGroups     String                    // JSON: ["TWENTIES", "THIRTIES"]
+  filterGender        String?                   // MALE, FEMALE, null(전체)
+  filterRegionSido    String                    // 시/도
+  filterRegionSigungu String                    // 시/군/구
+  targetCount         Int                       // 발송 대상 수
+  sentCount           Int                       @default(0) // 발송 완료 수
+  failedCount         Int                       @default(0) // 실패 수
+  costPerMessage      Int                       @default(250) // 건당 비용
+  totalCost           Int                       @default(0) // 총 비용
+  status              ExternalSmsCampaignStatus @default(PENDING)
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  // Relations
+  store               Store                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  messages            ExternalSmsMessage[]
+
+  @@index([storeId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("external_sms_campaigns")
+}
+
+// 외부 SMS 메시지
+model ExternalSmsMessage {
+  id                 String           @id @default(cuid())
+  campaignId         String
+  storeId            String
+  externalCustomerId String
+  content            String           @db.Text
+  status             SmsMessageStatus @default(PENDING)
+  solapiGroupId      String?
+  solapiMessageId    String?
+  failReason         String?
+  cost               Int              @default(250)
+  sentAt             DateTime?
+  createdAt          DateTime         @default(now())
+
+  // Relations
+  campaign           ExternalSmsCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  externalCustomer   ExternalCustomer    @relation(fields: [externalCustomerId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([storeId])
+  @@index([status])
+  @@map("external_sms_messages")
+}
+
+// 한국 지역 데이터 (시/도, 시/군/구)
+model KoreaRegion {
+  id        String @id @default(cuid())
+  sido      String
+  sigungu   String
+
+  @@unique([sido, sigungu])
+  @@index([sido])
+  @@map("korea_regions")
 }
