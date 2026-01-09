@@ -38,6 +38,14 @@ const GENDER_OPTIONS = [
 // 비용 상수
 const COST_PER_MESSAGE = 250;
 
+// 인증 토큰 가져오기
+const getAuthToken = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('token') || '';
+  }
+  return '';
+};
+
 export default function LocalCustomersPage() {
   // 지역 상태
   const [sidos, setSidos] = useState<string[]>([]);
@@ -75,7 +83,9 @@ export default function LocalCustomersPage() {
     const fetchSidos = async () => {
       try {
         const res = await fetch(`${API_BASE}/api/local-customers/regions`, {
-          credentials: 'include',
+          headers: {
+            Authorization: `Bearer ${getAuthToken()}`,
+          },
         });
         const data = await res.json();
         setSidos(data.sidos || []);
@@ -98,7 +108,11 @@ export default function LocalCustomersPage() {
       try {
         const res = await fetch(
           `${API_BASE}/api/local-customers/regions?sido=${encodeURIComponent(regionSido)}`,
-          { credentials: 'include' }
+          {
+            headers: {
+              Authorization: `Bearer ${getAuthToken()}`,
+            },
+          }
         );
         const data = await res.json();
         setSigungus(data.sigungus || []);
@@ -133,7 +147,9 @@ export default function LocalCustomersPage() {
       }
 
       const res = await fetch(`${API_BASE}/api/local-customers/count?${params}`, {
-        credentials: 'include',
+        headers: {
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
       });
       const data = await res.json();
 
@@ -158,7 +174,11 @@ export default function LocalCustomersPage() {
     try {
       const res = await fetch(
         `${API_BASE}/api/local-customers/estimate?sendCount=${sendCount}`,
-        { credentials: 'include' }
+        {
+          headers: {
+            Authorization: `Bearer ${getAuthToken()}`,
+          },
+        }
       );
       const data = await res.json();
       setWalletBalance(data.walletBalance || 0);
@@ -212,8 +232,10 @@ export default function LocalCustomersPage() {
     try {
       const res = await fetch(`${API_BASE}/api/local-customers/send`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
         body: JSON.stringify({
           content,
           ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : null,
@@ -256,8 +278,10 @@ export default function LocalCustomersPage() {
     try {
       const res = await fetch(`${API_BASE}/api/local-customers/test`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
         body: JSON.stringify({ content, phone: testPhone }),
       });
 
