@@ -55,23 +55,44 @@ router.get('/regions', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// GET /api/local-customers/count - 조건에 맞는 고객 수 조회
+// GET /api/local-customers/total-count - 전체 외부 고객 수 조회 (지역 선택 전 표시용)
+router.get('/total-count', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const totalCount = await prisma.externalCustomer.count({
+      where: { consentMarketing: true },
+    });
+
+    res.json({ totalCount });
+  } catch (error) {
+    console.error('Total count fetch error:', error);
+    res.status(500).json({ error: '전체 고객 수 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/local-customers/count - 조건에 맞는 고객 수 조회 (다중 지역 지원)
 router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { ageGroups, gender, regionSido, regionSigungu } = req.query;
+    const { ageGroups, gender, regionSidos, regionSigungu } = req.query;
 
-    if (!regionSido) {
+    if (!regionSidos) {
       return res.status(400).json({ error: '지역을 선택해주세요.' });
     }
 
-    // 필터 조건 구성
+    // 다중 지역 파싱 (콤마로 구분)
+    const regionSidoList = (regionSidos as string).split(',').filter(Boolean);
+
+    if (regionSidoList.length === 0) {
+      return res.status(400).json({ error: '지역을 선택해주세요.' });
+    }
+
+    // 필터 조건 구성 (다중 지역: OR 조건)
     const where: any = {
-      regionSido: regionSido as string,
+      regionSido: { in: regionSidoList },
       consentMarketing: true,
     };
 
-    // 시/군/구 필터 (선택 시에만 적용)
-    if (regionSigungu) {
+    // 시/군/구 필터 (선택 시에만 적용 - 단일 지역일 때만 유효)
+    if (regionSigungu && regionSidoList.length === 1) {
       where.regionSigungu = regionSigungu as string;
     }
 
@@ -155,14 +176,14 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// POST /api/local-customers/send - 메시지 발송
+// POST /api/local-customers/send - 메시지 발송 (다중 지역 지원)
 router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { content, ageGroups, gender, regionSido, regionSigungu, sendCount } = req.body;
+    const { content, ageGroups, gender, regionSidos, sendCount } = req.body;
 
     // 유효성 검사
-    if (!content || !regionSido || !sendCount) {
+    if (!content || !regionSidos || regionSidos.length === 0 || !sendCount) {
       return res.status(400).json({ error: '필수 항목을 모두 입력해주세요.' });
     }
 
@@ -184,16 +205,11 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       });
     }
 
-    // 필터 조건 구성
+    // 필터 조건 구성 (다중 지역 지원)
     const where: any = {
-      regionSido,
+      regionSido: { in: regionSidos },
       consentMarketing: true,
     };
-
-    // 시/군/구 필터 (선택 시에만 적용)
-    if (regionSigungu) {
-      where.regionSigungu = regionSigungu;
-    }
 
     if (ageGroups && ageGroups.length > 0) {
       where.ageGroup = { in: ageGroups };
@@ -250,7 +266,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       select: { name: true },
     });
 
-    // 캠페인 생성
+    // 캠페인 생성 (다중 지역은 콤마로 구분하여 저장)
     const campaign = await prisma.externalSmsCampaign.create({
       data: {
         storeId,
@@ -258,8 +274,8 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
         content,
         filterAgeGroups: JSON.stringify(ageGroups || []),
         filterGender: gender || null,
-        filterRegionSido: regionSido,
-        filterRegionSigungu: regionSigungu,
+        filterRegionSido: regionSidos.join(','),
+        filterRegionSigungu: null,
         targetCount: sendCount,
         costPerMessage: EXTERNAL_SMS_COST,
         status: 'SENDING',

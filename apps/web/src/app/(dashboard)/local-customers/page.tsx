@@ -13,7 +13,9 @@ import {
   Wifi,
   Camera,
   BatteryFull,
-  UserPlus,
+  X,
+  Search,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -46,21 +48,28 @@ const getAuthToken = () => {
   return '';
 };
 
+// 선택된 지역 타입
+interface SelectedRegion {
+  sido: string;
+  sigungu?: string; // 없으면 해당 시/도 전체
+}
+
 export default function LocalCustomersPage() {
   // 지역 상태
   const [sidos, setSidos] = useState<string[]>([]);
-  const [sigungus, setSigungus] = useState<string[]>([]);
-  const [regionSido, setRegionSido] = useState('');
-  const [regionSigungu, setRegionSigungu] = useState('');
+  const [selectedRegions, setSelectedRegions] = useState<SelectedRegion[]>([]);
+  const [regionSearchQuery, setRegionSearchQuery] = useState('');
+  const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
 
   // 필터 상태
   const [selectedAgeGroups, setSelectedAgeGroups] = useState<string[]>([]);
   const [gender, setGender] = useState<string>('all');
 
   // 발송 대상 상태
-  const [totalCount, setTotalCount] = useState(0);
-  const [availableCount, setAvailableCount] = useState(0);
-  const [sendCount, setSendCount] = useState(100);
+  const [globalTotalCount, setGlobalTotalCount] = useState(0); // 전체 DB 고객 수
+  const [totalCount, setTotalCount] = useState(0); // 필터된 전체 고객 수
+  const [availableCount, setAvailableCount] = useState(0); // 발송 가능 고객 수
+  const [sendCount, setSendCount] = useState(0); // 기본값 0
 
   // 메시지 상태
   const [content, setContent] = useState('');
@@ -77,6 +86,24 @@ export default function LocalCustomersPage() {
   // 테스트 발송 상태
   const [testPhone, setTestPhone] = useState('');
   const [isTestSending, setIsTestSending] = useState(false);
+
+  // 전체 고객 수 로드 (지역 선택 전)
+  useEffect(() => {
+    const fetchGlobalCount = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/local-customers/total-count`, {
+          headers: {
+            Authorization: `Bearer ${getAuthToken()}`,
+          },
+        });
+        const data = await res.json();
+        setGlobalTotalCount(data.totalCount || 0);
+      } catch (err) {
+        console.error('Failed to fetch global count:', err);
+      }
+    };
+    fetchGlobalCount();
+  }, []);
 
   // 시/도 목록 로드
   useEffect(() => {
@@ -96,37 +123,9 @@ export default function LocalCustomersPage() {
     fetchSidos();
   }, []);
 
-  // 시/군/구 목록 로드
-  useEffect(() => {
-    if (!regionSido) {
-      setSigungus([]);
-      setRegionSigungu('');
-      return;
-    }
-
-    const fetchSigungus = async () => {
-      try {
-        const res = await fetch(
-          `${API_BASE}/api/local-customers/regions?sido=${encodeURIComponent(regionSido)}`,
-          {
-            headers: {
-              Authorization: `Bearer ${getAuthToken()}`,
-            },
-          }
-        );
-        const data = await res.json();
-        setSigungus(data.sigungus || []);
-        setRegionSigungu('');
-      } catch (err) {
-        console.error('Failed to fetch sigungus:', err);
-      }
-    };
-    fetchSigungus();
-  }, [regionSido]);
-
-  // 고객 수 조회
+  // 고객 수 조회 (다중 지역 지원)
   const fetchCount = useCallback(async () => {
-    if (!regionSido) {
+    if (selectedRegions.length === 0) {
       setTotalCount(0);
       setAvailableCount(0);
       return;
@@ -134,14 +133,11 @@ export default function LocalCustomersPage() {
 
     setIsLoading(true);
     try {
+      // 다중 지역을 콤마로 구분하여 전송
+      const regionSidos = selectedRegions.map((r) => r.sido).join(',');
       const params = new URLSearchParams({
-        regionSido,
+        regionSidos,
       });
-
-      // 시/군/구는 선택 시에만 추가
-      if (regionSigungu) {
-        params.set('regionSigungu', regionSigungu);
-      }
 
       if (selectedAgeGroups.length > 0) {
         params.set('ageGroups', selectedAgeGroups.join(','));
@@ -164,7 +160,7 @@ export default function LocalCustomersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [regionSido, regionSigungu, selectedAgeGroups, gender]);
+  }, [selectedRegions, selectedAgeGroups, gender]);
 
   // 필터 변경 시 고객 수 조회
   useEffect(() => {
@@ -173,17 +169,12 @@ export default function LocalCustomersPage() {
 
   // 비용 예상 조회
   const fetchEstimate = useCallback(async () => {
-    if (sendCount <= 0) return;
-
     try {
-      const res = await fetch(
-        `${API_BASE}/api/local-customers/estimate?sendCount=${sendCount}`,
-        {
-          headers: {
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
-        }
-      );
+      const res = await fetch(`${API_BASE}/api/local-customers/estimate?sendCount=${sendCount}`, {
+        headers: {
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+      });
       const data = await res.json();
       setWalletBalance(data.walletBalance || 0);
     } catch (err) {
@@ -195,12 +186,32 @@ export default function LocalCustomersPage() {
     fetchEstimate();
   }, [fetchEstimate]);
 
+  // 지역 추가
+  const addRegion = (sido: string) => {
+    if (!selectedRegions.some((r) => r.sido === sido)) {
+      setSelectedRegions([...selectedRegions, { sido }]);
+    }
+    setRegionSearchQuery('');
+    setIsRegionDropdownOpen(false);
+  };
+
+  // 지역 제거
+  const removeRegion = (sido: string) => {
+    setSelectedRegions(selectedRegions.filter((r) => r.sido !== sido));
+  };
+
   // 연령대 토글
   const toggleAgeGroup = (value: string) => {
     setSelectedAgeGroups((prev) =>
       prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
     );
   };
+
+  // 필터된 시/도 목록
+  const filteredSidos = sidos.filter(
+    (sido) =>
+      sido.includes(regionSearchQuery) && !selectedRegions.some((r) => r.sido === sido)
+  );
 
   // 발송 수량 초과 확인
   const isOverLimit = sendCount > availableCount && availableCount > 0;
@@ -209,9 +220,9 @@ export default function LocalCustomersPage() {
   const estimatedCost = sendCount * COST_PER_MESSAGE;
   const canAfford = walletBalance >= estimatedCost;
 
-  // 발송 가능 여부 (시/군/구는 필수 아님)
+  // 발송 가능 여부
   const canSend =
-    regionSido &&
+    selectedRegions.length > 0 &&
     content.trim() &&
     sendCount > 0 &&
     sendCount <= availableCount &&
@@ -243,8 +254,7 @@ export default function LocalCustomersPage() {
           content,
           ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : null,
           gender: gender !== 'all' ? gender : null,
-          regionSido,
-          regionSigungu,
+          regionSidos: selectedRegions.map((r) => r.sido),
           sendCount,
         }),
       });
@@ -361,19 +371,21 @@ export default function LocalCustomersPage() {
         <div>
           <h2 className="text-sm font-semibold text-neutral-900 mb-3">발송 대상 선택</h2>
           <div className="grid grid-cols-3 gap-3">
-            <div
-              className={cn(
-                'p-4 rounded-xl border-2 cursor-pointer transition-all',
-                'border-brand-500 bg-brand-50'
-              )}
-            >
+            <div className="p-4 rounded-xl border border-neutral-200 bg-white">
               <p className="text-sm text-neutral-600">전체 고객</p>
               <p className="text-2xl font-bold text-neutral-900">
-                {isLoading ? '...' : totalCount.toLocaleString()}명
+                {globalTotalCount.toLocaleString()}명
               </p>
             </div>
-            <div className="p-4 rounded-xl border border-neutral-200 bg-white">
-              <p className="text-sm text-neutral-600">발송 가능</p>
+            <div
+              className={cn(
+                'p-4 rounded-xl border-2 transition-all',
+                selectedRegions.length > 0
+                  ? 'border-brand-500 bg-brand-50'
+                  : 'border-neutral-200 bg-white'
+              )}
+            >
+              <p className="text-sm text-neutral-600">선택 지역</p>
               <p className="text-2xl font-bold text-green-600">
                 {isLoading ? '...' : availableCount.toLocaleString()}명
               </p>
@@ -385,41 +397,87 @@ export default function LocalCustomersPage() {
           </div>
         </div>
 
-        {/* 지역 선택 */}
-        <div
-          className="p-4 rounded-xl border border-neutral-200 bg-white cursor-pointer hover:border-brand-300 transition-colors"
-        >
-          <div className="flex items-center gap-3">
+        {/* 지역 선택 (태그 기반) */}
+        <div className="p-4 rounded-xl border border-neutral-200 bg-white">
+          <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
               <MapPin className="w-5 h-5 text-neutral-500" />
             </div>
             <div className="flex-1">
-              <p className="text-sm text-neutral-500">지역 선택</p>
-              <div className="grid grid-cols-2 gap-3 mt-2">
-                <div className="relative">
-                  <select
-                    value={regionSido}
-                    onChange={(e) => setRegionSido(e.target.value)}
-                    className="w-full appearance-none bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 pr-8 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    <option value="">시/도 선택</option>
-                    {sidos.map((sido) => (
-                      <option key={sido} value={sido}>
-                        {sido}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
-                </div>
-                <div className="relative">
-                  <div className="w-full bg-neutral-100 border border-neutral-200 rounded-lg px-3 py-2 pr-8 text-sm text-neutral-400 cursor-not-allowed">
-                    준비 중
-                  </div>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-300 pointer-events-none" />
-                </div>
-              </div>
+              <p className="text-sm font-medium text-neutral-900">지역 선택</p>
+              <p className="text-xs text-neutral-500">여러 지역을 선택할 수 있습니다</p>
             </div>
           </div>
+
+          {/* 선택된 지역 태그 */}
+          {selectedRegions.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {selectedRegions.map((region) => (
+                <span
+                  key={region.sido}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-100 text-brand-700 rounded-full text-sm font-medium"
+                >
+                  {region.sido} 전체
+                  <button
+                    onClick={() => removeRegion(region.sido)}
+                    className="hover:bg-brand-200 rounded-full p-0.5 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* 지역 검색/추가 */}
+          <div className="relative">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+              <input
+                type="text"
+                value={regionSearchQuery}
+                onChange={(e) => {
+                  setRegionSearchQuery(e.target.value);
+                  setIsRegionDropdownOpen(true);
+                }}
+                onFocus={() => setIsRegionDropdownOpen(true)}
+                placeholder="지역 검색 (예: 경기, 서울, 부산...)"
+                className="w-full pl-9 pr-4 py-2.5 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* 드롭다운 */}
+            {isRegionDropdownOpen && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {filteredSidos.length > 0 ? (
+                  filteredSidos.map((sido) => (
+                    <button
+                      key={sido}
+                      onClick={() => addRegion(sido)}
+                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-50 flex items-center justify-between group"
+                    >
+                      <span>{sido}</span>
+                      <Plus className="w-4 h-4 text-neutral-400 group-hover:text-brand-600" />
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-4 py-3 text-sm text-neutral-500">
+                    {regionSearchQuery
+                      ? '검색 결과가 없습니다'
+                      : '모든 지역이 선택되었습니다'}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 드롭다운 닫기 (외부 클릭) */}
+          {isRegionDropdownOpen && (
+            <div
+              className="fixed inset-0 z-0"
+              onClick={() => setIsRegionDropdownOpen(false)}
+            />
+          )}
         </div>
 
         {/* 상세 필터 */}
@@ -469,10 +527,10 @@ export default function LocalCustomersPage() {
           <div className="flex items-center gap-3">
             <input
               type="number"
-              min={1}
+              min={0}
               max={availableCount || 10000}
               value={sendCount}
-              onChange={(e) => setSendCount(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={(e) => setSendCount(Math.max(0, parseInt(e.target.value) || 0))}
               className={cn(
                 'w-32 border rounded-lg px-3 py-2 text-right focus:outline-none focus:ring-2 focus:ring-brand-500',
                 isOverLimit ? 'border-orange-400 bg-orange-50' : 'border-neutral-300'
@@ -486,6 +544,11 @@ export default function LocalCustomersPage() {
               </span>
             )}
           </div>
+          {availableCount > 0 && (
+            <p className="text-xs text-neutral-500 mt-2">
+              최대 발송 가능: {availableCount.toLocaleString()}명
+            </p>
+          )}
         </div>
 
         {/* 메시지 내용 입력 */}
@@ -582,65 +645,65 @@ export default function LocalCustomersPage() {
         <div className="sticky top-6 bg-[#e2e8f0] rounded-3xl p-5">
           {/* iPhone Frame */}
           <div className="w-full h-[680px] bg-white rounded-[44px] border-[10px] border-[#1e293b] overflow-hidden flex flex-col shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] relative">
-          {/* Dynamic Island */}
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[90px] h-[28px] bg-[#1e293b] rounded-full z-20" />
+            {/* Dynamic Island */}
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[90px] h-[28px] bg-[#1e293b] rounded-full z-20" />
 
-          {/* Status Bar */}
-          <div className="h-12 bg-white flex items-end justify-between px-6 pb-1 text-xs font-semibold">
-            <span>12:30</span>
-            <div className="flex items-center gap-1">
-              <Wifi className="w-4 h-4" />
-              <BatteryFull className="w-5 h-5" />
-            </div>
-          </div>
-
-          {/* iOS Header */}
-          <div className="h-[60px] bg-white flex items-center justify-between px-4 border-b border-[#e5e7eb]">
-            <ChevronLeft className="w-6 h-6 text-[#007aff]" />
-            <div className="flex flex-col items-center">
-              <div className="w-10 h-10 rounded-full bg-[#e5e7eb] flex items-center justify-center">
-                <Users className="w-5 h-5 text-[#9ca3af]" />
-              </div>
-              <span className="text-[13px] font-semibold text-[#1e293b] mt-1">태그히어 CRM</span>
-            </div>
-            <div className="w-6" />
-          </div>
-
-          {/* Message Body */}
-          <div className="flex-1 bg-white px-4 py-3 flex flex-col overflow-y-auto">
-            <div className="text-center text-[12px] text-[#8e8e93] font-medium mb-4">
-              문자 메시지
-              <br />
-              오늘 오후 12:30
-            </div>
-            <div className="flex justify-start">
-              <div className="bg-[#e5e5ea] text-[#1e293b] py-3 px-4 rounded-[20px] rounded-bl-[6px] max-w-[85%] text-[15px] leading-[1.5]">
-                {content ? (
-                  <span className="whitespace-pre-wrap break-words">{content}</span>
-                ) : (
-                  <span className="text-[#94a3b8]">메시지 미리보기</span>
-                )}
+            {/* Status Bar */}
+            <div className="h-12 bg-white flex items-end justify-between px-6 pb-1 text-xs font-semibold">
+              <span>12:30</span>
+              <div className="flex items-center gap-1">
+                <Wifi className="w-4 h-4" />
+                <BatteryFull className="w-5 h-5" />
               </div>
             </div>
-          </div>
 
-          {/* Input Bar */}
-          <div className="py-3 px-4 bg-white border-t border-[#e5e7eb] flex items-center gap-3">
-            <Camera className="w-6 h-6 text-[#007aff]" />
-            <span className="text-[17px] font-bold text-[#007aff]">A</span>
-            <div className="flex-1 h-9 bg-[#f1f5f9] rounded-full px-4 flex items-center">
-              <span className="text-[#94a3b8] text-[15px]">iMessage</span>
+            {/* iOS Header */}
+            <div className="h-[60px] bg-white flex items-center justify-between px-4 border-b border-[#e5e7eb]">
+              <ChevronLeft className="w-6 h-6 text-[#007aff]" />
+              <div className="flex flex-col items-center">
+                <div className="w-10 h-10 rounded-full bg-[#e5e7eb] flex items-center justify-center">
+                  <Users className="w-5 h-5 text-[#9ca3af]" />
+                </div>
+                <span className="text-[13px] font-semibold text-[#1e293b] mt-1">태그히어 CRM</span>
+              </div>
+              <div className="w-6" />
             </div>
-            <div className="w-8 h-8 bg-[#007aff] rounded-full flex items-center justify-center">
-              <ChevronUp className="w-5 h-5 text-white" />
-            </div>
-          </div>
 
-          {/* Home Indicator */}
-          <div className="h-8 bg-white flex items-center justify-center">
-            <div className="w-32 h-1 bg-[#1e293b] rounded-full" />
+            {/* Message Body */}
+            <div className="flex-1 bg-white px-4 py-3 flex flex-col overflow-y-auto">
+              <div className="text-center text-[12px] text-[#8e8e93] font-medium mb-4">
+                문자 메시지
+                <br />
+                오늘 오후 12:30
+              </div>
+              <div className="flex justify-start">
+                <div className="bg-[#e5e5ea] text-[#1e293b] py-3 px-4 rounded-[20px] rounded-bl-[6px] max-w-[85%] text-[15px] leading-[1.5]">
+                  {content ? (
+                    <span className="whitespace-pre-wrap break-words">{content}</span>
+                  ) : (
+                    <span className="text-[#94a3b8]">메시지 미리보기</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Input Bar */}
+            <div className="py-3 px-4 bg-white border-t border-[#e5e7eb] flex items-center gap-3">
+              <Camera className="w-6 h-6 text-[#007aff]" />
+              <span className="text-[17px] font-bold text-[#007aff]">A</span>
+              <div className="flex-1 h-9 bg-[#f1f5f9] rounded-full px-4 flex items-center">
+                <span className="text-[#94a3b8] text-[15px]">iMessage</span>
+              </div>
+              <div className="w-8 h-8 bg-[#007aff] rounded-full flex items-center justify-center">
+                <ChevronUp className="w-5 h-5 text-white" />
+              </div>
+            </div>
+
+            {/* Home Indicator */}
+            <div className="h-8 bg-white flex items-center justify-center">
+              <div className="w-32 h-1 bg-[#1e293b] rounded-full" />
+            </div>
           </div>
-        </div>
         </div>
       </div>
     </div>
