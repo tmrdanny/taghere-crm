@@ -275,7 +275,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
         filterAgeGroups: JSON.stringify(ageGroups || []),
         filterGender: gender || null,
         filterRegionSido: regionSidos.join(','),
-        filterRegionSigungu: null,
+        filterRegionSigungu: '',
         targetCount: sendCount,
         costPerMessage: EXTERNAL_SMS_COST,
         status: 'SENDING',
