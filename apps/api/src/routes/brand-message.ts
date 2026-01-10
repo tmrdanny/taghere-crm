@@ -146,9 +146,9 @@ function getNextSendableTime(): Date {
   return new Date(nextSendable.getTime() - kstOffset);
 }
 
-// 광고 메시지 포맷
+// 브랜드 메시지 포맷 (카카오톡은 광고 표기/수신거부 불필요)
 function formatBrandMessage(content: string, storeName: string): string {
-  return `(광고) ${storeName}\n${content}\n\n무료수신거부 080-500-4233`;
+  return content;
 }
 
 // GET /api/brand-message/send-available - 발송 가능 시간 확인

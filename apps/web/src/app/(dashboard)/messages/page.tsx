@@ -1369,11 +1369,6 @@ export default function MessagesPage() {
                 메시지 내용 입력
                 <span className="font-normal text-[#64748b] text-xs ml-1">({'{고객명}'} 사용 시 자동 치환)</span>
               </label>
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-2">
-                <p className="text-xs text-amber-700">
-                  광고 메시지로 발송되며, (광고) 표기와 무료수신거부 번호가 자동 추가됩니다.
-                </p>
-              </div>
               <textarea
                 value={kakaoContent}
                 onChange={(e) => setKakaoContent(e.target.value)}
@@ -1625,13 +1620,9 @@ export default function MessagesPage() {
                                 {/* Message body */}
                                 <div className="p-3">
                                   {kakaoContent ? (
-                                    <>
-                                      <p className="text-[10px] text-neutral-500 mb-1">(광고) 태그히어</p>
-                                      <p className="text-[11px] text-neutral-800 whitespace-pre-wrap break-words leading-[1.5]">
-                                        {kakaoContent.replace(/{고객명}/g, '{고객명}')}
-                                      </p>
-                                      <p className="text-[10px] text-neutral-500 mt-2">무료수신거부 080-500-4233</p>
-                                    </>
+                                    <p className="text-[11px] text-neutral-800 whitespace-pre-wrap break-words leading-[1.5]">
+                                      {kakaoContent.replace(/{고객명}/g, '{고객명}')}
+                                    </p>
                                   ) : (
                                     <p className="text-[11px] text-[#94a3b8]">메시지 미리보기</p>
                                   )}
