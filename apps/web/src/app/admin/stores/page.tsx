@@ -142,25 +142,8 @@ export default function AdminStoresPage() {
 
       if (storesRes.ok) {
         const storesData = await storesRes.json();
-        // Fetch wallet balance for each store
-        const storesWithWallet = await Promise.all(
-          storesData.map(async (store: Store) => {
-            try {
-              const walletRes = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${store.id}/wallet`,
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
-              if (walletRes.ok) {
-                const walletData = await walletRes.json();
-                return { ...store, walletBalance: walletData.balance };
-              }
-            } catch (e) {
-              console.error('Failed to fetch wallet for store:', store.id);
-            }
-            return { ...store, walletBalance: 0 };
-          })
-        );
-        setStores(storesWithWallet);
+        // walletBalance가 이미 API 응답에 포함됨 (N+1 문제 해결)
+        setStores(storesData);
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);

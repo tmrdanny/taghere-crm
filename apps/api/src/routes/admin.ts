@@ -162,6 +162,12 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
             customers: true,
           },
         },
+        // Wallet 정보 함께 조회 (N+1 문제 해결)
+        wallet: {
+          select: {
+            balance: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -186,6 +192,8 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
       pointRatePercent: store.pointRatePercent,
       pointUsageRule: store.pointUsageRule,
       pointsAlimtalkEnabled: store.pointsAlimtalkEnabled,
+      // Wallet balance 포함
+      walletBalance: store.wallet?.balance || 0,
     }));
 
     res.json(formattedStores);
