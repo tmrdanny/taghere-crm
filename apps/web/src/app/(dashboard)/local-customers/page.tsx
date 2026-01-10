@@ -609,25 +609,6 @@ export default function LocalCustomersPage() {
           </div>
         </div>
 
-        {/* 카카오톡 발송 불가 시간 안내 */}
-        {activeTab === 'kakao' && !isSendableTime && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-            <div className="flex items-start gap-3">
-              <Clock className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-amber-800">
-                  현재 발송 불가 시간대입니다 (20:50 ~ 08:00)
-                </p>
-                <p className="text-xs text-amber-600 mt-1">
-                  {nextSendableTime
-                    ? `다음 발송 가능 시간: ${nextSendableTime.toLocaleString('ko-KR')}`
-                    : '08:00 이후 발송 가능합니다'}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* 에러/성공 메시지 */}
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">

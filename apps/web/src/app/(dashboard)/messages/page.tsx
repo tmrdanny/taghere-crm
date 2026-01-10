@@ -1288,24 +1288,6 @@ export default function MessagesPage() {
         {/* 카카오톡 탭 콘텐츠 */}
         {activeTab === 'kakao' && (
           <>
-            {/* 발송 불가 시간 안내 */}
-            {!isSendableTime && (
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                <div className="flex items-start gap-3">
-                  <Clock className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-amber-800">
-                      현재 발송 불가 시간대입니다 (20:50 ~ 08:00)
-                    </p>
-                    <p className="text-xs text-amber-700 mt-1">
-                      카카오톡 브랜드 메시지는 08:00 ~ 20:50 사이에만 발송할 수 있습니다.
-                      지금 발송하면 다음 날 08:00에 예약 발송됩니다.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* 메시지 타입 선택 */}
             <div className="flex flex-col gap-3">
               <label className="text-sm font-semibold text-[#1e293b]">메시지 타입</label>
