@@ -305,7 +305,7 @@ async function processScheduledCampaigns(): Promise<void> {
             content: personalizedContent,
             messageType: campaign.messageType as 'TEXT' | 'IMAGE',
             imageId: campaign.imageId || undefined,
-            buttons: campaign.buttons as BrandMessageButton[] | undefined,
+            buttons: campaign.buttons as unknown as BrandMessageButton[] | undefined,
           });
 
           if (result.success && result.groupId) {

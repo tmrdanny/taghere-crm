@@ -321,7 +321,7 @@ export class SolapiService {
     }
 
     try {
-      const result = await this.messageService.uploadFile(filePath, 'KAKAO', {});
+      const result = await this.messageService.uploadFile(filePath, 'KAKAO');
 
       console.log('[SOLAPI] Image upload result:', JSON.stringify(result, null, 2));
 
