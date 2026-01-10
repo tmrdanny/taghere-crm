@@ -48,22 +48,57 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // CORS configuration
+const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || '';
+
+// 정적 + 동적 origin 목록 (환경변수 로딩 실패에도 동작 보장)
 const allowedOrigins = [
-  process.env.PUBLIC_APP_URL,
+  // Production URLs (하드코딩으로 안정성 확보)
+  'https://taghere-crm-web-g96p.onrender.com',
+  'https://www.taghere-crm-web-g96p.onrender.com',
+  // 환경변수 (추가 도메인 지원)
+  PUBLIC_APP_URL,
+  // Development
   'http://localhost:3999',
   'http://localhost:3000',
 ].filter(Boolean) as string[];
 
+// CORS 디버깅 로그 (production에서 문제 추적용)
+const corsDebug = process.env.CORS_DEBUG === 'true';
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.some(allowed => origin.startsWith(allowed.replace(/\/$/, '')))) {
+    // 디버깅 로그
+    if (corsDebug) {
+      console.log('[CORS] Request origin:', origin);
+      console.log('[CORS] Allowed origins:', allowedOrigins);
+    }
+
+    // No origin (mobile apps, curl, Postman, server-to-server)
+    if (!origin) {
       return callback(null, true);
     }
-    callback(new Error('Not allowed by CORS'));
+
+    // Origin 정규화 (trailing slash 제거, 소문자)
+    const normalizedOrigin = origin.toLowerCase().replace(/\/$/, '');
+    const isAllowed = allowedOrigins.some(allowed => {
+      const normalizedAllowed = allowed.toLowerCase().replace(/\/$/, '');
+      return normalizedOrigin === normalizedAllowed;
+    });
+
+    if (isAllowed) {
+      return callback(null, true);
+    }
+
+    // 실패 시 로그 (항상)
+    console.error('[CORS] Blocked origin:', origin, 'Allowed:', allowedOrigins);
+    callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
   credentials: true,
+  // 추가 헤더 명시
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400, // Preflight 캐시 24시간
 }));
 app.use(express.json());
 
