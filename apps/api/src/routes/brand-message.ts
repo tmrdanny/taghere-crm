@@ -252,7 +252,7 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
       canSend: (wallet?.balance || 0) >= totalCost,
       estimatedRevenue: {
         avgOrderValue,
-        conversionRate: 0.042, // 카카오톡 방문율 4.2%
+        conversionRate: 0.076, // 카카오톡 방문율 7.6%
       },
     });
   } catch (error) {

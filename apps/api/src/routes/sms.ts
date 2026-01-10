@@ -248,7 +248,7 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
       canSend: (wallet?.balance || 0) >= totalCost,
       estimatedRevenue: {
         avgOrderValue,
-        conversionRate: 0.03, // SMS 전환율 3%
+        conversionRate: 0.045, // SMS 방문율 4.5%
       },
     });
   } catch (error) {

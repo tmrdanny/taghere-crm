@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber, formatPhone, formatDate, maskNickname } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
-import { Search, ChevronLeft, ChevronRight, ChevronDown, Check, Calendar, RefreshCw, X } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, ChevronDown, Check, Calendar, RefreshCw, X, TrendingUp } from 'lucide-react';
 
 interface MessageHistoryItem {
   id: string;
