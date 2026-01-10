@@ -933,7 +933,7 @@ export default function MessagesPage() {
               className={cn(
                 'px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all',
                 activeTab === 'kakao'
-                  ? 'bg-[#FEE500] shadow-sm text-[#3C1E1E]'
+                  ? 'bg-white shadow-sm text-[#1e293b]'
                   : 'text-[#64748b] hover:text-[#1e293b]'
               )}
             >
@@ -1275,30 +1275,30 @@ export default function MessagesPage() {
                   className={cn(
                     'p-4 rounded-xl border-2 text-left transition-all',
                     kakaoMessageType === 'TEXT'
-                      ? 'border-[#FEE500] bg-[#FFFAE5]'
+                      ? 'border-[#3b82f6] bg-[#eff6ff]'
                       : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-[#3C1E1E]" />
+                    <MessageSquare className="w-5 h-5 text-[#1e293b]" />
                     <span className="font-medium text-[#1e293b]">텍스트형</span>
                   </div>
-                  <p className="text-lg font-bold text-[#3C1E1E] mt-2">200원/건</p>
+                  <p className="text-lg font-bold text-[#1e293b] mt-2">200원/건</p>
                 </button>
                 <button
                   onClick={() => setKakaoMessageType('IMAGE')}
                   className={cn(
                     'p-4 rounded-xl border-2 text-left transition-all',
                     kakaoMessageType === 'IMAGE'
-                      ? 'border-[#FEE500] bg-[#FFFAE5]'
+                      ? 'border-[#3b82f6] bg-[#eff6ff]'
                       : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <ImagePlus className="w-5 h-5 text-[#3C1E1E]" />
+                    <ImagePlus className="w-5 h-5 text-[#1e293b]" />
                     <span className="font-medium text-[#1e293b]">이미지형</span>
                   </div>
-                  <p className="text-lg font-bold text-[#3C1E1E] mt-2">230원/건</p>
+                  <p className="text-lg font-bold text-[#1e293b] mt-2">230원/건</p>
                 </button>
               </div>
             </div>
@@ -1322,7 +1322,7 @@ export default function MessagesPage() {
                         disabled={isKakaoUploading}
                       />
                       <div className={cn(
-                        "flex items-center gap-2 px-4 py-2.5 border border-dashed border-[#d1d5db] rounded-xl text-sm text-[#64748b] hover:border-[#FEE500] hover:text-[#3C1E1E] transition-colors",
+                        "flex items-center gap-2 px-4 py-2.5 border border-dashed border-[#d1d5db] rounded-xl text-sm text-[#64748b] hover:border-[#3b82f6] hover:text-[#3b82f6] transition-colors",
                         isKakaoUploading && "opacity-50 cursor-not-allowed"
                       )}>
                         {isKakaoUploading ? (
@@ -1335,7 +1335,7 @@ export default function MessagesPage() {
                     </label>
                   </div>
                 ) : (
-                  <div className="flex items-start gap-3 p-3 bg-[#FFFAE5] rounded-xl border border-[#FEE500]">
+                  <div className="flex items-start gap-3 p-3 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
                     <img
                       src={kakaoUploadedImage.imageUrl}
                       alt="첨부 이미지"
@@ -1343,7 +1343,7 @@ export default function MessagesPage() {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-[#1e293b] truncate">{kakaoUploadedImage.filename}</p>
-                      <Badge className="mt-1.5 bg-[#FEE500] text-[#3C1E1E]">이미지형 (230원/건)</Badge>
+                      <Badge variant="secondary" className="mt-1.5">이미지형 (230원/건)</Badge>
                     </div>
                     <button
                       onClick={handleKakaoImageDelete}
@@ -1386,7 +1386,7 @@ export default function MessagesPage() {
 
 - 기간: 4/1 ~ 4/30
 - 문의: 02-555-1234`}
-                className="w-full h-[140px] p-4 border border-[#e5e7eb] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#FEE500] focus:border-transparent text-sm leading-relaxed"
+                className="w-full h-[140px] p-4 border border-[#e5e7eb] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent text-sm leading-relaxed"
               />
             </div>
 
@@ -1427,7 +1427,7 @@ export default function MessagesPage() {
                           onChange={(e) => updateKakaoButton(index, 'name', e.target.value)}
                           placeholder="버튼명 (최대 14자)"
                           maxLength={14}
-                          className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FEE500] focus:border-transparent"
+                          className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
                         />
                         <div className="flex items-center gap-2">
                           <Link className="w-4 h-4 text-[#64748b] flex-shrink-0" />
@@ -1436,7 +1436,7 @@ export default function MessagesPage() {
                             value={button.linkMo}
                             onChange={(e) => updateKakaoButton(index, 'linkMo', e.target.value)}
                             placeholder="https://example.com"
-                            className="flex-1 px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FEE500] focus:border-transparent"
+                            className="flex-1 px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
                           />
                         </div>
                       </div>
@@ -1447,12 +1447,12 @@ export default function MessagesPage() {
             </div>
 
             {/* Cost Summary */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 bg-[#FFFAE5] rounded-xl border border-[#FEE500]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
               <div className="flex flex-col gap-1">
                 <span className="text-xs sm:text-sm text-[#64748b]">
                   발송 대상 {formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명 × {kakaoMessageType === 'IMAGE' ? '230' : '200'}원 (카카오톡)
                 </span>
-                <span className="text-lg sm:text-xl font-bold text-[#3C1E1E]">
+                <span className="text-lg sm:text-xl font-bold text-[#1e293b]">
                   총 {formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 230 : 200)))}원
                 </span>
               </div>
@@ -1460,7 +1460,7 @@ export default function MessagesPage() {
                 <button
                   disabled={!kakaoContent.trim()}
                   onClick={() => setShowKakaoTestModal(true)}
-                  className="w-full sm:w-auto px-4 py-3 sm:py-3.5 border border-[#3C1E1E] text-[#3C1E1E] bg-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#FFFAE5] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto px-4 py-3 sm:py-3.5 border border-[#3b82f6] text-[#3b82f6] bg-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#eff6ff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   테스트 발송
                 </button>
@@ -1472,7 +1472,7 @@ export default function MessagesPage() {
                     (kakaoEstimate !== null && !kakaoEstimate.canSend)
                   }
                   onClick={() => setShowKakaoConfirmModal(true)}
-                  className="w-full sm:w-auto px-6 py-3 sm:py-3.5 bg-[#FEE500] text-[#3C1E1E] rounded-xl text-sm sm:text-base font-semibold hover:bg-[#FAE100] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto px-6 py-3 sm:py-3.5 bg-[#2a2d62] text-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSendableTime ? '메시지 발송하기' : '08:00에 예약 발송'}
                 </button>
@@ -1489,159 +1489,185 @@ export default function MessagesPage() {
       </div>
 
       {/* Right Panel - Preview (hidden on mobile) */}
-      <div className="hidden lg:flex flex-none w-[360px] bg-[#e2e8f0] rounded-3xl p-5 items-center justify-center">
-        {/* Phone Mockup - Full height iPhone style */}
-        <div className="w-full h-[680px] bg-white rounded-[44px] border-[10px] border-[#1e293b] overflow-hidden flex flex-col shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] relative">
-          {/* Dynamic Island / Notch */}
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[90px] h-[28px] bg-[#1e293b] rounded-full z-20" />
+      <div className="hidden lg:block flex-none w-[360px]">
+        <div className="sticky top-6">
+          <p className="text-center text-[#64748b] mb-4">발송 메시지 미리보기</p>
+          <div className="flex justify-center">
+            {/* Phone Frame */}
+            <div className="relative w-72 h-[580px] bg-neutral-800 rounded-[2.5rem] p-2 shadow-2xl">
+              {/* Inner bezel */}
+              <div className="w-full h-full bg-neutral-900 rounded-[2rem] p-1 overflow-hidden">
+                {/* Screen */}
+                <div className={cn(
+                  "w-full h-full rounded-[1.75rem] overflow-hidden flex flex-col relative",
+                  activeTab === 'sms' ? 'bg-white' : 'bg-[#B2C7D9]'
+                )}>
+                  {/* Dynamic Island / Notch */}
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-neutral-900 rounded-full z-10" />
 
-          {/* Status Bar */}
-          <div className="h-12 bg-white flex items-end justify-between px-6 pb-1 text-xs font-semibold flex-shrink-0">
-            <span className="text-[#1e293b]">12:30</span>
-            <div className="flex items-center gap-1">
-              <Wifi className="w-4 h-4 text-[#1e293b]" />
-              <Battery className="w-5 h-4 text-[#1e293b]" />
-            </div>
-          </div>
-
-          {/* SMS Preview */}
-          {activeTab === 'sms' && (
-            <>
-              {/* iOS Header */}
-              <div className="h-[60px] bg-white flex items-center justify-between px-4 border-b border-[#e5e5ea] flex-shrink-0">
-                <div className="flex items-center text-[#007aff]">
-                  <ChevronLeft className="w-7 h-7" />
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <div className="w-9 h-9 bg-[#9ca3af] rounded-full flex items-center justify-center text-white">
-                    <Users className="w-5 h-5" />
-                  </div>
-                  <span className="text-[13px] font-medium text-[#1e293b]">태그히어 CRM</span>
-                </div>
-                <div className="w-7" />
-              </div>
-
-              {/* Message Body */}
-              <div className="flex-1 bg-white px-4 py-3 flex flex-col overflow-y-auto">
-                <div className="text-center text-[12px] text-[#8e8e93] font-medium mb-4">
-                  {uploadedImage ? 'MMS' : '문자 메시지'}<br />오늘 오후 12:30
-                </div>
-
-                <div className="flex justify-start">
-                  <div className="bg-[#e5e5ea] text-[#1e293b] py-3 px-4 rounded-[20px] rounded-bl-[6px] max-w-[85%] text-[15px] leading-[1.5]">
-                    {/* 이미지 미리보기 */}
-                    {uploadedImage && (
-                      <div className="mb-2 -mx-1 -mt-1">
-                        <img
-                          src={`${API_BASE}${uploadedImage.imageUrl}`}
-                          alt="첨부 이미지"
-                          className="w-full max-w-[200px] rounded-lg"
-                        />
-                      </div>
-                    )}
-                    {messageContent ? (
-                      <span className="whitespace-pre-wrap break-words">
-                        {isAdMessage
-                          ? `(광고)\n${messageContent.replace(/{고객명}/g, '{고객명}')}\n무료수신거부 080-500-4233`
-                          : messageContent.replace(/{고객명}/g, '{고객명}')}
-                      </span>
-                    ) : (
-                      <span className="text-[#94a3b8]">메시지 미리보기</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Input Bar */}
-              <div className="py-3 px-4 bg-white border-t border-[#e5e5ea] flex items-center gap-3 flex-shrink-0">
-                <Camera className="w-7 h-7 text-[#c7c7cc]" />
-                <span className="text-2xl font-bold text-[#c7c7cc]">A</span>
-                <div className="flex-1 h-10 border border-[#c7c7cc] rounded-full px-4 flex items-center text-[15px] text-[#c7c7cc]">
-                  iMessage
-                </div>
-                <div className="w-8 h-8 bg-[#007aff] rounded-full flex items-center justify-center text-white">
-                  <ArrowUp className="w-5 h-5" strokeWidth={2.5} />
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Kakao Preview */}
-          {activeTab === 'kakao' && (
-            <>
-              {/* Kakao Header */}
-              <div className="h-[56px] bg-[#FEE500] flex items-center justify-between px-4 flex-shrink-0">
-                <ChevronLeft className="w-6 h-6 text-[#3C1E1E]" />
-                <span className="text-[16px] font-bold text-[#3C1E1E]">태그히어</span>
-                <div className="w-6" />
-              </div>
-
-              {/* Message Body */}
-              <div className="flex-1 bg-[#B2C7D9] px-4 py-3 flex flex-col overflow-y-auto">
-                <div className="text-center text-[11px] text-[#5B6B7A] font-medium mb-4">
-                  오늘 오후 12:30
-                </div>
-
-                <div className="flex justify-start gap-2">
-                  {/* Profile */}
-                  <div className="w-10 h-10 bg-[#FEE500] rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-[14px] font-bold text-[#3C1E1E]">TH</span>
-                  </div>
-
-                  {/* Message Bubble */}
-                  <div className="flex flex-col gap-1 max-w-[75%]">
-                    <span className="text-[12px] text-[#1e293b] font-medium">태그히어</span>
-                    <div className="bg-white text-[#1e293b] rounded-lg overflow-hidden shadow-sm">
-                      {/* 이미지 */}
-                      {kakaoMessageType === 'IMAGE' && kakaoUploadedImage && (
-                        <img
-                          src={kakaoUploadedImage.imageUrl}
-                          alt="첨부 이미지"
-                          className="w-full h-auto"
-                        />
-                      )}
-                      {/* 메시지 내용 */}
-                      <div className="p-3">
-                        {kakaoContent ? (
-                          <span className="whitespace-pre-wrap break-words text-[14px] leading-[1.5]">
-                            {`(광고) 태그히어\n${kakaoContent.replace(/{고객명}/g, '{고객명}')}\n\n무료수신거부 080-500-4233`}
-                          </span>
-                        ) : (
-                          <span className="text-[#94a3b8] text-[14px]">메시지 미리보기</span>
-                        )}
-                      </div>
-                      {/* 버튼 */}
-                      {kakaoButtons.length > 0 && (
-                        <div className="border-t border-[#e5e7eb]">
-                          {kakaoButtons.filter(b => b.name.trim()).map((button, index) => (
-                            <div
-                              key={index}
-                              className="px-4 py-3 text-center text-[14px] text-[#3b82f6] font-medium border-b border-[#e5e7eb] last:border-b-0 hover:bg-[#f8fafc]"
-                            >
-                              {button.name || '버튼'}
-                            </div>
-                          ))}
+                  {/* SMS Preview */}
+                  {activeTab === 'sms' && (
+                    <>
+                      {/* iOS Header */}
+                      <div className="flex items-center justify-between px-4 pt-10 pb-2 border-b border-[#e5e5ea]">
+                        <ChevronLeft className="w-5 h-5 text-[#007aff]" />
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="w-8 h-8 bg-[#9ca3af] rounded-full flex items-center justify-center text-white">
+                            <Users className="w-4 h-4" />
+                          </div>
+                          <span className="text-[11px] font-medium text-[#1e293b]">태그히어 CRM</span>
                         </div>
-                      )}
-                    </div>
-                  </div>
+                        <div className="w-5" />
+                      </div>
+
+                      {/* Date badge */}
+                      <div className="flex justify-center my-3">
+                        <span className="text-[10px] bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full">
+                          오늘 오후 12:30
+                        </span>
+                      </div>
+
+                      {/* Message Body */}
+                      <div className="flex-1 px-3 overflow-y-auto">
+                        <div className="flex justify-start">
+                          <div className="bg-[#e5e5ea] text-[#1e293b] py-2.5 px-3 rounded-2xl rounded-bl-sm max-w-[85%] text-[12px] leading-[1.5]">
+                            {/* 이미지 미리보기 */}
+                            {uploadedImage && (
+                              <div className="mb-2 -mx-1 -mt-1">
+                                <img
+                                  src={`${API_BASE}${uploadedImage.imageUrl}`}
+                                  alt="첨부 이미지"
+                                  className="w-full max-w-[180px] rounded-lg"
+                                />
+                              </div>
+                            )}
+                            {messageContent ? (
+                              <span className="whitespace-pre-wrap break-words">
+                                {isAdMessage
+                                  ? `(광고)\n${messageContent.replace(/{고객명}/g, '{고객명}')}\n무료수신거부 080-500-4233`
+                                  : messageContent.replace(/{고객명}/g, '{고객명}')}
+                              </span>
+                            ) : (
+                              <span className="text-[#94a3b8]">메시지 미리보기</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Input Bar */}
+                      <div className="py-2 px-3 bg-white border-t border-[#e5e5ea] flex items-center gap-2">
+                        <Camera className="w-5 h-5 text-[#c7c7cc]" />
+                        <div className="flex-1 h-8 border border-[#c7c7cc] rounded-full px-3 flex items-center text-[12px] text-[#c7c7cc]">
+                          iMessage
+                        </div>
+                        <div className="w-6 h-6 bg-[#007aff] rounded-full flex items-center justify-center text-white">
+                          <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Kakao Preview */}
+                  {activeTab === 'kakao' && (
+                    <>
+                      {/* KakaoTalk header */}
+                      <div className="flex items-center justify-between px-4 pt-10 pb-2">
+                        <ChevronLeft className="w-4 h-4 text-neutral-700" />
+                        <span className="font-medium text-xs text-neutral-800">태그히어</span>
+                        <div className="w-4" />
+                      </div>
+
+                      {/* Date badge */}
+                      <div className="flex justify-center mb-3">
+                        <span className="text-[10px] bg-neutral-500/30 text-neutral-700 px-2 py-0.5 rounded-full">
+                          {new Date().toLocaleDateString('ko-KR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </span>
+                      </div>
+
+                      {/* Message area */}
+                      <div className="flex-1 pl-2 pr-4 overflow-auto">
+                        <div className="flex gap-1.5">
+                          {/* Profile icon */}
+                          <div className="flex-shrink-0">
+                            <div className="w-7 h-7 rounded-full bg-neutral-300" />
+                          </div>
+
+                          {/* Message content */}
+                          <div className="flex-1 min-w-0 mr-4">
+                            <p className="text-[10px] text-neutral-600 mb-0.5">태그히어</p>
+
+                            {/* Message bubble - KakaoTalk style */}
+                            <div className="relative">
+                              {/* Kakao badge */}
+                              <div className="absolute -top-1 -right-1 z-10">
+                                <span className="bg-neutral-700 text-white text-[8px] px-1 py-0.5 rounded-full font-medium">
+                                  kakao
+                                </span>
+                              </div>
+
+                              <div className="bg-[#FEE500] rounded-t-md px-2 py-1.5">
+                                <span className="text-[10px] font-medium text-neutral-800">브랜드 메시지</span>
+                              </div>
+                              <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
+                                {/* 이미지 */}
+                                {kakaoMessageType === 'IMAGE' && kakaoUploadedImage && (
+                                  <img
+                                    src={kakaoUploadedImage.imageUrl}
+                                    alt="첨부 이미지"
+                                    className="w-full h-auto"
+                                  />
+                                )}
+
+                                {/* Message body */}
+                                <div className="p-3">
+                                  {kakaoContent ? (
+                                    <>
+                                      <p className="text-[10px] text-neutral-500 mb-1">(광고) 태그히어</p>
+                                      <p className="text-[11px] text-neutral-800 whitespace-pre-wrap break-words leading-[1.5]">
+                                        {kakaoContent.replace(/{고객명}/g, '{고객명}')}
+                                      </p>
+                                      <p className="text-[10px] text-neutral-500 mt-2">무료수신거부 080-500-4233</p>
+                                    </>
+                                  ) : (
+                                    <p className="text-[11px] text-[#94a3b8]">메시지 미리보기</p>
+                                  )}
+                                </div>
+
+                                {/* 버튼 */}
+                                {kakaoButtons.filter(b => b.name.trim()).length > 0 && (
+                                  <div className="border-t border-neutral-200">
+                                    {kakaoButtons.filter(b => b.name.trim()).map((button, index) => (
+                                      <button
+                                        key={index}
+                                        className="w-full py-2 text-center text-[10px] font-medium text-neutral-800 bg-white hover:bg-neutral-50 transition-colors border-b border-neutral-200 last:border-b-0"
+                                      >
+                                        {button.name || '버튼'}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Time */}
+                            <p className="text-[8px] text-neutral-500 mt-0.5 text-right">
+                              오후 12:30
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom safe area */}
+                      <div className="h-6" />
+                    </>
+                  )}
                 </div>
               </div>
-
-              {/* Input Bar */}
-              <div className="py-3 px-4 bg-white border-t border-[#e5e7eb] flex items-center gap-3 flex-shrink-0">
-                <Plus className="w-6 h-6 text-[#9ca3af]" />
-                <div className="flex-1 h-10 bg-[#f1f5f9] rounded-full px-4 flex items-center text-[14px] text-[#9ca3af]">
-                  메시지 보내기
-                </div>
-                <Send className="w-6 h-6 text-[#FEE500]" />
-              </div>
-            </>
-          )}
-
-          {/* Home Indicator */}
-          <div className="h-8 bg-white flex items-center justify-center flex-shrink-0">
-            <div className="w-32 h-1 bg-[#1e293b] rounded-full" />
+            </div>
           </div>
         </div>
       </div>
@@ -1897,31 +1923,31 @@ export default function MessagesPage() {
           </ModalHeader>
 
           <div className="space-y-4 py-4">
-            <div className="p-4 bg-[#FFFAE5] rounded-xl space-y-3 border border-[#FEE500]">
+            <div className="p-4 bg-neutral-50 rounded-xl space-y-3">
               <div className="flex justify-between">
-                <span className="text-[#64748b]">발송 대상</span>
-                <span className="font-semibold text-[#3C1E1E]">{formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명</span>
+                <span className="text-neutral-600">발송 대상</span>
+                <span className="font-semibold">{formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#64748b]">메시지 유형</span>
-                <span className="font-semibold text-[#3C1E1E]">
+                <span className="text-neutral-600">메시지 유형</span>
+                <span className="font-semibold">
                   {kakaoMessageType === 'IMAGE' ? '이미지형 (230원)' : '텍스트형 (200원)'}
                 </span>
               </div>
               {!isSendableTime && (
                 <div className="flex justify-between">
-                  <span className="text-[#64748b]">발송 예정</span>
+                  <span className="text-neutral-600">발송 예정</span>
                   <span className="font-semibold text-amber-600">다음 날 08:00 예약</span>
                 </div>
               )}
-              <div className="flex justify-between text-lg pt-2 border-t border-[#FEE500]">
-                <span className="text-[#1e293b] font-medium">총 비용</span>
-                <span className="font-bold text-[#3C1E1E]">{formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 230 : 200)))}원</span>
+              <div className="flex justify-between text-lg pt-2 border-t border-neutral-200">
+                <span className="text-neutral-900 font-medium">총 비용</span>
+                <span className="font-bold text-brand-700">{formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 230 : 200)))}원</span>
               </div>
             </div>
 
-            <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
-              <p className="text-sm text-amber-800">
+            <div className="p-4 bg-brand-50 rounded-xl">
+              <p className="text-sm text-brand-800">
                 {isSendableTime
                   ? '발송 후에는 취소할 수 없으며, 발송 성공 시에만 비용이 차감됩니다.'
                   : '08:00에 자동 발송되며, 발송 성공 시에만 비용이 차감됩니다.'}
@@ -1940,7 +1966,6 @@ export default function MessagesPage() {
             <Button
               onClick={handleKakaoSend}
               disabled={isKakaoSending}
-              className="bg-[#FEE500] text-[#3C1E1E] hover:bg-[#FAE100]"
             >
               {isKakaoSending ? (
                 <>
@@ -1969,8 +1994,11 @@ export default function MessagesPage() {
             <p className="text-sm text-[#64748b]">
               테스트용 전화번호를 입력해주세요.
             </p>
-            <div className="p-3 bg-[#FFFAE5] border border-[#FEE500] rounded-lg">
-              <p className="text-sm text-[#3C1E1E]">
+            <p className="text-sm text-[#3b82f6]">
+              테스트 발송은 금액이 차감되지 않아요.
+            </p>
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-700">
                 카카오톡이 설치되어 있고 해당 번호로 가입된 계정이어야 수신 가능합니다.
               </p>
             </div>
@@ -1980,7 +2008,7 @@ export default function MessagesPage() {
               value={kakaoTestPhone}
               onChange={(e) => setKakaoTestPhone(e.target.value)}
               placeholder="01012345678"
-              className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FEE500] focus:border-transparent"
+              className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
             />
 
             <div className="p-4 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
@@ -2006,7 +2034,6 @@ export default function MessagesPage() {
             <Button
               onClick={handleKakaoTestSend}
               disabled={isKakaoTestSending || !kakaoTestPhone.trim() || !kakaoContent.trim()}
-              className="bg-[#FEE500] text-[#3C1E1E] hover:bg-[#FAE100]"
             >
               {isKakaoTestSending ? (
                 <>
