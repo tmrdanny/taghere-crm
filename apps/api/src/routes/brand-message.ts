@@ -668,6 +668,7 @@ router.post('/schedule', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // POST /api/brand-message/test-send - 테스트 발송
+// 테스트 발송은 시간 제한 없이 항상 가능
 router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
@@ -681,13 +682,7 @@ router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: '메시지 내용을 입력해주세요.' });
     }
 
-    // 발송 가능 시간 체크
-    if (!isSendableTime()) {
-      return res.status(400).json({
-        error: '발송 불가 시간대입니다. (08:00 ~ 20:50 사이에만 발송 가능)',
-        nextAvailable: getNextSendableTime(),
-      });
-    }
+    // 테스트 발송은 시간 제한 없음 (발송 가능 시간 체크 제거)
 
     const pfId = process.env.SOLAPI_PF_ID;
     if (!pfId) {
