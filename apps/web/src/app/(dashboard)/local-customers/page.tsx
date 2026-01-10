@@ -17,6 +17,11 @@ import {
   Search,
   Plus,
   Store,
+  Clock,
+  TrendingUp,
+  ImagePlus,
+  Link,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -91,7 +96,9 @@ const CATEGORY_GROUPS = [
 ];
 
 // 비용 상수
-const COST_PER_MESSAGE = 200;
+const SMS_COST_PER_MESSAGE = 200;
+const KAKAO_TEXT_COST = 200;
+const KAKAO_IMAGE_COST = 230;
 
 // 인증 토큰 가져오기
 const getAuthToken = () => {
@@ -104,10 +111,27 @@ const getAuthToken = () => {
 // 선택된 지역 타입
 interface SelectedRegion {
   sido: string;
-  sigungu?: string; // 없으면 해당 시/도 전체
+  sigungu?: string;
+}
+
+// 카카오톡 버튼 타입
+interface KakaoButton {
+  type: 'WL';
+  name: string;
+  linkMo: string;
+  linkPc?: string;
+}
+
+// 예상 매출 타입
+interface EstimatedRevenue {
+  avgOrderValue: number;
+  conversionRate: number;
 }
 
 export default function LocalCustomersPage() {
+  // 탭 상태 (카카오톡 우선)
+  const [activeTab, setActiveTab] = useState<'kakao' | 'sms'>('kakao');
+
   // 지역 상태
   const [sidos, setSidos] = useState<string[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<SelectedRegion[]>([]);
@@ -120,13 +144,28 @@ export default function LocalCustomersPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   // 발송 대상 상태
-  const [globalTotalCount, setGlobalTotalCount] = useState(0); // 전체 DB 고객 수
-  const [totalCount, setTotalCount] = useState(0); // 필터된 전체 고객 수
-  const [availableCount, setAvailableCount] = useState(0); // 발송 가능 고객 수
-  const [sendCount, setSendCount] = useState(0); // 기본값 0
+  const [globalTotalCount, setGlobalTotalCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [availableCount, setAvailableCount] = useState(0);
+  const [sendCount, setSendCount] = useState(0);
 
-  // 메시지 상태
+  // 메시지 상태 (공통)
   const [content, setContent] = useState('');
+
+  // 카카오톡 전용 상태
+  const [kakaoMessageType, setKakaoMessageType] = useState<'TEXT' | 'IMAGE'>('TEXT');
+  const [kakaoImageId, setKakaoImageId] = useState<string | null>(null);
+  const [kakaoImageUrl, setKakaoImageUrl] = useState<string | null>(null);
+  const [kakaoButtons, setKakaoButtons] = useState<KakaoButton[]>([]);
+  const [isSendableTime, setIsSendableTime] = useState(true);
+  const [nextSendableTime, setNextSendableTime] = useState<Date | null>(null);
+  const [kakaoEstimate, setKakaoEstimate] = useState<{
+    costPerMessage: number;
+    totalCost: number;
+    walletBalance: number;
+    canSend: boolean;
+    estimatedRevenue?: EstimatedRevenue;
+  } | null>(null);
 
   // 지갑 상태
   const [walletBalance, setWalletBalance] = useState(0);
@@ -141,7 +180,7 @@ export default function LocalCustomersPage() {
   const [testPhone, setTestPhone] = useState('');
   const [isTestSending, setIsTestSending] = useState(false);
 
-  // 전체 고객 수 로드 (지역 선택 전)
+  // 전체 고객 수 로드
   useEffect(() => {
     const fetchGlobalCount = async () => {
       try {
@@ -177,7 +216,29 @@ export default function LocalCustomersPage() {
     fetchSidos();
   }, []);
 
-  // 고객 수 조회 (다중 지역 지원)
+  // 카카오톡 발송 가능 시간 체크
+  useEffect(() => {
+    const checkSendableTime = async () => {
+      if (activeTab !== 'kakao') return;
+      try {
+        const res = await fetch(`${API_BASE}/api/local-customers/kakao/send-available`, {
+          headers: {
+            Authorization: `Bearer ${getAuthToken()}`,
+          },
+        });
+        const data = await res.json();
+        setIsSendableTime(data.canSend);
+        setNextSendableTime(data.nextAvailable ? new Date(data.nextAvailable) : null);
+      } catch (err) {
+        console.error('Failed to check sendable time:', err);
+      }
+    };
+    checkSendableTime();
+    const interval = setInterval(checkSendableTime, 60000);
+    return () => clearInterval(interval);
+  }, [activeTab]);
+
+  // 고객 수 조회
   const fetchCount = useCallback(async () => {
     if (selectedRegions.length === 0) {
       setTotalCount(0);
@@ -187,7 +248,6 @@ export default function LocalCustomersPage() {
 
     setIsLoading(true);
     try {
-      // 다중 지역을 콤마로 구분하여 전송
       const regionSidos = selectedRegions.map((r) => r.sido).join(',');
       const params = new URLSearchParams({
         regionSidos,
@@ -219,13 +279,13 @@ export default function LocalCustomersPage() {
     }
   }, [selectedRegions, selectedAgeGroups, gender, selectedCategories]);
 
-  // 필터 변경 시 고객 수 조회
   useEffect(() => {
     fetchCount();
   }, [fetchCount]);
 
-  // 비용 예상 조회
-  const fetchEstimate = useCallback(async () => {
+  // SMS 비용 예상 조회
+  const fetchSmsEstimate = useCallback(async () => {
+    if (activeTab !== 'sms') return;
     try {
       const res = await fetch(`${API_BASE}/api/local-customers/estimate?sendCount=${sendCount}`, {
         headers: {
@@ -237,11 +297,38 @@ export default function LocalCustomersPage() {
     } catch (err) {
       console.error('Failed to fetch estimate:', err);
     }
-  }, [sendCount]);
+  }, [sendCount, activeTab]);
+
+  // 카카오톡 비용 예상 조회
+  const fetchKakaoEstimate = useCallback(async () => {
+    if (activeTab !== 'kakao' || sendCount <= 0) {
+      setKakaoEstimate(null);
+      return;
+    }
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/local-customers/kakao/estimate?sendCount=${sendCount}&messageType=${kakaoMessageType}`,
+        {
+          headers: {
+            Authorization: `Bearer ${getAuthToken()}`,
+          },
+        }
+      );
+      const data = await res.json();
+      setKakaoEstimate(data);
+      setWalletBalance(data.walletBalance || 0);
+    } catch (err) {
+      console.error('Failed to fetch kakao estimate:', err);
+    }
+  }, [sendCount, activeTab, kakaoMessageType]);
 
   useEffect(() => {
-    fetchEstimate();
-  }, [fetchEstimate]);
+    if (activeTab === 'sms') {
+      fetchSmsEstimate();
+    } else {
+      fetchKakaoEstimate();
+    }
+  }, [fetchSmsEstimate, fetchKakaoEstimate, activeTab]);
 
   // 지역 추가
   const addRegion = (sido: string) => {
@@ -280,8 +367,15 @@ export default function LocalCustomersPage() {
   // 발송 수량 초과 확인
   const isOverLimit = sendCount > availableCount && availableCount > 0;
 
-  // 예상 비용
-  const estimatedCost = sendCount * COST_PER_MESSAGE;
+  // 예상 비용 계산
+  const getCostPerMessage = () => {
+    if (activeTab === 'kakao') {
+      return kakaoMessageType === 'IMAGE' ? KAKAO_IMAGE_COST : KAKAO_TEXT_COST;
+    }
+    return SMS_COST_PER_MESSAGE;
+  };
+
+  const estimatedCost = sendCount * getCostPerMessage();
   const canAfford = walletBalance >= estimatedCost;
 
   // 발송 가능 여부
@@ -291,10 +385,11 @@ export default function LocalCustomersPage() {
     sendCount > 0 &&
     sendCount <= availableCount &&
     canAfford &&
-    !isSending;
+    !isSending &&
+    (activeTab === 'sms' || isSendableTime);
 
-  // 메시지 발송
-  const handleSend = async () => {
+  // SMS 메시지 발송
+  const handleSmsSend = async () => {
     if (isOverLimit) {
       setError(`발송 가능한 고객이 ${availableCount.toLocaleString()}명입니다.`);
       setSendCount(availableCount);
@@ -335,11 +430,74 @@ export default function LocalCustomersPage() {
       );
       setContent('');
       fetchCount();
-      fetchEstimate();
+      fetchSmsEstimate();
     } catch (err: any) {
       setError(err.message || '발송 중 오류가 발생했습니다.');
     } finally {
       setIsSending(false);
+    }
+  };
+
+  // 카카오톡 메시지 발송
+  const handleKakaoSend = async () => {
+    if (isOverLimit) {
+      setError(`발송 가능한 고객이 ${availableCount.toLocaleString()}명입니다.`);
+      setSendCount(availableCount);
+      return;
+    }
+
+    if (!canSend) return;
+
+    setIsSending(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/local-customers/kakao/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+        body: JSON.stringify({
+          content,
+          messageType: kakaoMessageType,
+          ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : null,
+          gender: gender !== 'all' ? gender : null,
+          regionSidos: selectedRegions.map((r) => r.sido),
+          categories: selectedCategories.length > 0 ? selectedCategories : null,
+          sendCount,
+          imageId: kakaoImageId,
+          buttons: kakaoButtons.length > 0 ? kakaoButtons : null,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || '발송에 실패했습니다.');
+      }
+
+      setSuccessMessage(
+        `${data.pendingCount.toLocaleString()}건 발송 요청 완료! 결과는 발송 내역에서 확인하세요.`
+      );
+      setContent('');
+      setKakaoButtons([]);
+      fetchCount();
+      fetchKakaoEstimate();
+    } catch (err: any) {
+      setError(err.message || '발송 중 오류가 발생했습니다.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // 발송 핸들러
+  const handleSend = () => {
+    if (activeTab === 'sms') {
+      handleSmsSend();
+    } else {
+      handleKakaoSend();
     }
   };
 
@@ -377,7 +535,7 @@ export default function LocalCustomersPage() {
     }
   };
 
-  // 바이트 길이 계산
+  // 바이트 길이 계산 (SMS용)
   const getByteLength = (str: string): number => {
     let byteLength = 0;
     for (let i = 0; i < str.length; i++) {
@@ -392,32 +550,82 @@ export default function LocalCustomersPage() {
   };
 
   const byteLength = getByteLength(content);
-  const messageType = byteLength > 90 ? 'LMS' : 'SMS';
+  const smsMessageType = byteLength > 90 ? 'LMS' : 'SMS';
+
+  // 카카오톡 버튼 추가
+  const addKakaoButton = () => {
+    if (kakaoButtons.length >= 5) return;
+    setKakaoButtons([...kakaoButtons, { type: 'WL', name: '', linkMo: '' }]);
+  };
+
+  // 카카오톡 버튼 업데이트
+  const updateKakaoButton = (index: number, field: keyof KakaoButton, value: string) => {
+    const newButtons = [...kakaoButtons];
+    newButtons[index] = { ...newButtons[index], [field]: value };
+    setKakaoButtons(newButtons);
+  };
+
+  // 카카오톡 버튼 삭제
+  const removeKakaoButton = (index: number) => {
+    setKakaoButtons(kakaoButtons.filter((_, i) => i !== index));
+  };
 
   return (
     <div className="flex-1 flex flex-col lg:flex-row p-4 md:p-6 gap-6 overflow-hidden max-w-[1200px] mx-auto w-full lg:justify-center">
       {/* Left Panel - Settings */}
       <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6 overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e5e7eb]">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-neutral-900">우리동네 손님 찾기</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-neutral-900">우리동네 손님 찾기</h1>
             <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
               NEW
             </span>
           </div>
-          <div className="flex gap-2">
-            <button className="px-4 py-2 rounded-lg text-sm font-medium bg-brand-600 text-white">
-              문자 (SMS/LMS)
+          <div className="flex bg-[#f1f5f9] rounded-lg p-1 self-start sm:self-auto">
+            <button
+              onClick={() => setActiveTab('kakao')}
+              className={cn(
+                'px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all',
+                activeTab === 'kakao'
+                  ? 'bg-white shadow-sm text-[#1e293b]'
+                  : 'text-[#64748b] hover:text-[#1e293b]'
+              )}
+            >
+              카카오톡
             </button>
             <button
-              disabled
-              className="px-4 py-2 rounded-lg text-sm font-medium bg-neutral-100 text-neutral-400 cursor-not-allowed"
+              onClick={() => setActiveTab('sms')}
+              className={cn(
+                'px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all',
+                activeTab === 'sms'
+                  ? 'bg-white shadow-sm text-[#1e293b]'
+                  : 'text-[#64748b] hover:text-[#1e293b]'
+              )}
             >
-              카카오톡 (알림톡)
+              문자 (SMS/LMS)
             </button>
           </div>
         </div>
+
+        {/* 카카오톡 발송 불가 시간 안내 */}
+        {activeTab === 'kakao' && !isSendableTime && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <div className="flex items-start gap-3">
+              <Clock className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-800">
+                  현재 발송 불가 시간대입니다 (20:50 ~ 08:00)
+                </p>
+                <p className="text-xs text-amber-600 mt-1">
+                  {nextSendableTime
+                    ? `다음 발송 가능 시간: ${nextSendableTime.toLocaleString('ko-KR')}`
+                    : '08:00 이후 발송 가능합니다'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 에러/성공 메시지 */}
         {error && (
@@ -538,7 +746,7 @@ export default function LocalCustomersPage() {
               )}
             </div>
 
-            {/* 드롭다운 닫기 (외부 클릭) */}
+            {/* 드롭다운 닫기 */}
             {isRegionDropdownOpen && (
               <div
                 className="fixed inset-0 z-0"
@@ -673,33 +881,109 @@ export default function LocalCustomersPage() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-neutral-900">
               메시지 내용 입력{' '}
-              <span className="text-neutral-400 font-normal">(단문/장문 자동 전환)</span>
+              {activeTab === 'sms' && (
+                <span className="text-neutral-400 font-normal">(단문/장문 자동 전환)</span>
+              )}
             </h2>
           </div>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder={`[태그히어] 4월 봄맞이 이벤트 안내\n\n안녕하세요!\n따뜻한 봄을 맞아 태그히어 강남본점에서 특별한 혜택을 준비했습니다.\n\n[이벤트 혜택]\n- 첫 방문 고객 10% 할인\n- 2인 이상 방문 시 음료 무료\n\n기간: 4/1 ~ 4/30\n\n많은 관심 부탁드립니다!`}
+            placeholder={
+              activeTab === 'kakao'
+                ? '안녕하세요!\n\n4월 봄맞이 이벤트 안내드립니다.\n\n[이벤트 혜택]\n- 첫 방문 고객 10% 할인\n- 2인 이상 방문 시 음료 무료\n\n기간: 4/1 ~ 4/30'
+                : `[태그히어] 4월 봄맞이 이벤트 안내\n\n안녕하세요!\n따뜻한 봄을 맞아 태그히어 강남본점에서 특별한 혜택을 준비했습니다.\n\n[이벤트 혜택]\n- 첫 방문 고객 10% 할인\n- 2인 이상 방문 시 음료 무료\n\n기간: 4/1 ~ 4/30\n\n많은 관심 부탁드립니다!`
+            }
             rows={8}
             className="w-full border border-neutral-300 rounded-lg px-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none"
           />
           <div className="flex justify-between text-xs text-neutral-500 mt-2">
-            <span>
-              {messageType} ({byteLength}byte)
-            </span>
-            <span>{content.length}자</span>
+            {activeTab === 'sms' ? (
+              <>
+                <span>
+                  {smsMessageType} ({byteLength}byte)
+                </span>
+                <span>{content.length}자</span>
+              </>
+            ) : (
+              <>
+                <span>카카오톡 브랜드 메시지</span>
+                <span>{content.length}자</span>
+              </>
+            )}
           </div>
         </div>
 
-        {/* 이미지 첨부 (비활성화 - 외부 고객 SMS는 텍스트만) */}
-        <div className="p-3 bg-neutral-50 rounded-lg">
-          <div className="flex items-center gap-2 text-neutral-400">
-            <Info className="w-4 h-4" />
-            <span className="text-sm">
-              외부 고객 SMS는 텍스트만 발송 가능합니다. (이미지 첨부 불가)
-            </span>
+        {/* 카카오톡 전용: 버튼 추가 */}
+        {activeTab === 'kakao' && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-neutral-900">
+                버튼 추가 <span className="text-neutral-400 font-normal">(선택, 최대 5개)</span>
+              </h2>
+              {kakaoButtons.length < 5 && (
+                <button
+                  onClick={addKakaoButton}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 rounded-lg text-sm text-neutral-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  버튼 추가
+                </button>
+              )}
+            </div>
+            {kakaoButtons.length > 0 && (
+              <div className="space-y-3">
+                {kakaoButtons.map((button, index) => (
+                  <div
+                    key={index}
+                    className="p-3 bg-neutral-50 rounded-lg border border-neutral-200"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-neutral-500">버튼 {index + 1}</span>
+                      <button
+                        onClick={() => removeKakaoButton(index)}
+                        className="p-1 hover:bg-neutral-200 rounded transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4 text-neutral-400" />
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={button.name}
+                        onChange={(e) => updateKakaoButton(index, 'name', e.target.value)}
+                        placeholder="버튼 이름 (예: 예약하기)"
+                        className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Link className="w-4 h-4 text-neutral-400" />
+                        <input
+                          type="url"
+                          value={button.linkMo}
+                          onChange={(e) => updateKakaoButton(index, 'linkMo', e.target.value)}
+                          placeholder="연결 URL (https://...)"
+                          className="flex-1 px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
+        )}
+
+        {/* SMS 전용: 이미지 첨부 안내 */}
+        {activeTab === 'sms' && (
+          <div className="p-3 bg-neutral-50 rounded-lg">
+            <div className="flex items-center gap-2 text-neutral-400">
+              <Info className="w-4 h-4" />
+              <span className="text-sm">
+                외부 고객 SMS는 텍스트만 발송 가능합니다. (이미지 첨부 불가)
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* 비용 요약 및 발송 버튼 */}
         <div className="border-t border-neutral-200 pt-4 mt-auto">
@@ -707,7 +991,7 @@ export default function LocalCustomersPage() {
             <div>
               <p className="text-sm text-neutral-600">예상 비용</p>
               <p className="text-xl font-bold text-neutral-900">
-                {sendCount.toLocaleString()}명 × {COST_PER_MESSAGE}원 ={' '}
+                {sendCount.toLocaleString()}명 × {getCostPerMessage()}원 ={' '}
                 <span className="text-brand-600">{estimatedCost.toLocaleString()}원</span>
               </p>
             </div>
@@ -719,28 +1003,92 @@ export default function LocalCustomersPage() {
             </div>
           </div>
 
-          {/* 테스트 발송 */}
-          <div className="mb-4 p-3 bg-neutral-50 rounded-lg">
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              테스트 발송 (선택)
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="tel"
-                value={testPhone}
-                onChange={(e) => setTestPhone(e.target.value)}
-                placeholder="010-1234-5678"
-                className="flex-1 border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-              <button
-                onClick={handleTestSend}
-                disabled={isTestSending || !content.trim() || !testPhone}
-                className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg text-sm font-medium hover:bg-neutral-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isTestSending ? '발송 중...' : '테스트 발송'}
-              </button>
+          {/* 예상 마케팅 효과 (카카오톡) */}
+          {activeTab === 'kakao' && sendCount > 0 && kakaoEstimate?.estimatedRevenue && (
+            <div className="mb-4 p-4 bg-green-50 rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-semibold text-green-700">예상 마케팅 효과</span>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-[#64748b]">예상 방문율</p>
+                  <p className="text-sm font-bold text-green-700">7.6%</p>
+                </div>
+                <div>
+                  <p className="text-xs text-[#64748b]">예상 방문</p>
+                  <p className="text-sm font-bold text-green-700">
+                    {Math.round(sendCount * 0.076).toLocaleString()}명
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-[#64748b]">예상 매출</p>
+                  <p className="text-sm font-bold text-green-700">
+                    {(Math.round(sendCount * 0.076) * (kakaoEstimate.estimatedRevenue.avgOrderValue || 25000)).toLocaleString()}원
+                  </p>
+                </div>
+              </div>
+              <p className="text-[10px] text-[#94a3b8] mt-2">
+                * 업계 평균 방문율 7.6% 및 매장 평균 객단가 {(kakaoEstimate.estimatedRevenue.avgOrderValue || 25000).toLocaleString()}원 기준
+              </p>
             </div>
-          </div>
+          )}
+
+          {/* 예상 마케팅 효과 (SMS) */}
+          {activeTab === 'sms' && sendCount > 0 && (
+            <div className="mb-4 p-4 bg-green-50 rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-semibold text-green-700">예상 마케팅 효과</span>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-[#64748b]">예상 방문율</p>
+                  <p className="text-sm font-bold text-green-700">4.5%</p>
+                </div>
+                <div>
+                  <p className="text-xs text-[#64748b]">예상 방문</p>
+                  <p className="text-sm font-bold text-green-700">
+                    {Math.round(sendCount * 0.045).toLocaleString()}명
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-[#64748b]">예상 매출</p>
+                  <p className="text-sm font-bold text-green-700">
+                    {(Math.round(sendCount * 0.045) * 25000).toLocaleString()}원
+                  </p>
+                </div>
+              </div>
+              <p className="text-[10px] text-[#94a3b8] mt-2">
+                * 업계 평균 방문율 4.5% 및 기본 객단가 25,000원 기준
+              </p>
+            </div>
+          )}
+
+          {/* 테스트 발송 (SMS만) */}
+          {activeTab === 'sms' && (
+            <div className="mb-4 p-3 bg-neutral-50 rounded-lg">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
+                테스트 발송 (선택)
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="tel"
+                  value={testPhone}
+                  onChange={(e) => setTestPhone(e.target.value)}
+                  placeholder="010-1234-5678"
+                  className="flex-1 border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+                <button
+                  onClick={handleTestSend}
+                  disabled={isTestSending || !content.trim() || !testPhone}
+                  className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg text-sm font-medium hover:bg-neutral-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isTestSending ? '발송 중...' : '테스트 발송'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* 발송 버튼 */}
           <button
@@ -789,21 +1137,46 @@ export default function LocalCustomersPage() {
             {/* Message Body */}
             <div className="flex-1 bg-white px-4 py-3 flex flex-col overflow-y-auto">
               <div className="text-center text-[12px] text-[#8e8e93] font-medium mb-4">
-                문자 메시지
+                {activeTab === 'kakao' ? '카카오톡' : '문자 메시지'}
                 <br />
                 오늘 오후 12:30
               </div>
               <div className="flex justify-start">
-                <div className="bg-[#e5e5ea] text-[#1e293b] py-3 px-4 rounded-[20px] rounded-bl-[6px] max-w-[85%] text-[15px] leading-[1.5]">
+                <div
+                  className={cn(
+                    'py-3 px-4 rounded-[20px] rounded-bl-[6px] max-w-[85%] text-[15px] leading-[1.5]',
+                    activeTab === 'kakao'
+                      ? 'bg-[#fee500] text-[#1e293b]'
+                      : 'bg-[#e5e5ea] text-[#1e293b]'
+                  )}
+                >
                   {content ? (
                     <span className="whitespace-pre-wrap break-words">
-                      {`(광고)\n${content}\n무료수신거부 080-500-4233`}
+                      {activeTab === 'sms'
+                        ? `(광고)\n${content}\n무료수신거부 080-500-4233`
+                        : content}
                     </span>
                   ) : (
                     <span className="text-[#94a3b8]">메시지 미리보기</span>
                   )}
                 </div>
               </div>
+              {/* 카카오톡 버튼 미리보기 */}
+              {activeTab === 'kakao' && kakaoButtons.length > 0 && content && (
+                <div className="mt-2 space-y-1.5">
+                  {kakaoButtons.map(
+                    (button, index) =>
+                      button.name && (
+                        <div
+                          key={index}
+                          className="bg-[#fee500] text-[#1e293b] py-2 px-4 rounded-lg text-center text-sm font-medium"
+                        >
+                          {button.name}
+                        </div>
+                      )
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Input Bar */}

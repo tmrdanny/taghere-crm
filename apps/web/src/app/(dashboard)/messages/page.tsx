@@ -146,8 +146,8 @@ export default function MessagesPage() {
   const searchParams = useSearchParams();
   const { showToast, ToastComponent } = useToast();
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState<'sms' | 'kakao'>('sms');
+  // Tab state (카카오톡 우선)
+  const [activeTab, setActiveTab] = useState<'sms' | 'kakao'>('kakao');
 
   // Target counts
   const [targetCounts, setTargetCounts] = useState<TargetCounts>({ all: 0, revisit: 0, new: 0 });
@@ -928,17 +928,6 @@ export default function MessagesPage() {
           <h1 className="text-lg sm:text-xl font-bold text-[#1e293b]">캠페인 메시지 만들기</h1>
           <div className="flex bg-[#f1f5f9] rounded-lg p-1 self-start sm:self-auto">
             <button
-              onClick={() => setActiveTab('sms')}
-              className={cn(
-                'px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all',
-                activeTab === 'sms'
-                  ? 'bg-white shadow-sm text-[#1e293b]'
-                  : 'text-[#64748b] hover:text-[#1e293b]'
-              )}
-            >
-              문자 (SMS/LMS)
-            </button>
-            <button
               onClick={() => setActiveTab('kakao')}
               className={cn(
                 'px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all',
@@ -948,6 +937,17 @@ export default function MessagesPage() {
               )}
             >
               카카오톡
+            </button>
+            <button
+              onClick={() => setActiveTab('sms')}
+              className={cn(
+                'px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all',
+                activeTab === 'sms'
+                  ? 'bg-white shadow-sm text-[#1e293b]'
+                  : 'text-[#64748b] hover:text-[#1e293b]'
+              )}
+            >
+              문자 (SMS/LMS)
             </button>
           </div>
         </div>
