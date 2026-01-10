@@ -157,7 +157,7 @@ export default function LocalCustomersPage() {
   const [kakaoMessageType, setKakaoMessageType] = useState<'TEXT' | 'IMAGE'>('TEXT');
   const [kakaoImageId, setKakaoImageId] = useState<string | null>(null);
   const [kakaoImageUrl, setKakaoImageUrl] = useState<string | null>(null);
-  const [kakaoButtons, setKakaoButtons] = useState<KakaoButton[]>([]);
+  const [kakaoButtons, setKakaoButtons] = useState<KakaoButton[]>([{ name: '', url: '' }]);
   const [isSendableTime, setIsSendableTime] = useState(true);
   const [nextSendableTime, setNextSendableTime] = useState<Date | null>(null);
   const [kakaoEstimate, setKakaoEstimate] = useState<{
