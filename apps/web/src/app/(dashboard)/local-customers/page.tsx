@@ -756,14 +756,14 @@ export default function LocalCustomersPage() {
             )}
           </div>
 
-          {/* 우측: 선호 업종 */}
+          {/* 우측: 고객 선호 업종 */}
           <div className="p-4 rounded-xl border border-neutral-200 bg-white">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
                 <Store className="w-5 h-5 text-neutral-500" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-neutral-900">선호 업종</p>
+                <p className="text-sm font-medium text-neutral-900">고객 선호 업종</p>
                 <p className="text-xs text-neutral-500">복수 선택 가능</p>
               </div>
             </div>
