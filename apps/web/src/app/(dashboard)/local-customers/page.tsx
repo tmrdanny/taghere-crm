@@ -244,6 +244,7 @@ export default function LocalCustomersPage() {
     if (selectedRegions.length === 0) {
       setTotalCount(0);
       setAvailableCount(0);
+      setSendCount(0);
       return;
     }
 
@@ -273,6 +274,8 @@ export default function LocalCustomersPage() {
 
       setTotalCount(data.totalCount || 0);
       setAvailableCount(data.availableCount || 0);
+      // 발송 인원수를 발송 가능 인원수로 자동 설정
+      setSendCount(data.availableCount || 0);
     } catch (err) {
       console.error('Failed to fetch count:', err);
     } finally {

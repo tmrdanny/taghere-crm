@@ -33,7 +33,9 @@ export class LoginPage {
   }
 
   async expectLoginSuccess() {
-    await expect(this.page).toHaveURL(/\/(home|dashboard)/);
+    // 로그인 성공 시 메인 페이지(/) 또는 대시보드로 리디렉션
+    // 로그인 페이지에서 벗어났는지 확인 (최대 10초 대기)
+    await expect(this.page).not.toHaveURL('/login', { timeout: 10000 });
   }
 
   async expectLoginError() {

@@ -15,7 +15,7 @@ export default defineConfig({
     ['list'],
   ],
   use: {
-    baseURL: process.env.TEST_BASE_URL || 'http://localhost:3000',
+    baseURL: process.env.TEST_BASE_URL || 'http://localhost:3999',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -48,18 +48,23 @@ export default defineConfig({
   ],
 
   // Run local dev server before starting tests
-  webServer: [
-    {
-      command: 'npm run dev:api',
-      url: 'http://localhost:4000/health',
-      reuseExistingServer: !process.env.CI,
-      timeout: 120 * 1000,
-    },
-    {
-      command: 'npm run dev:web',
-      url: 'http://localhost:3000',
-      reuseExistingServer: !process.env.CI,
-      timeout: 120 * 1000,
-    },
-  ],
+  // Set SKIP_WEB_SERVER=true to use already running servers
+  ...(process.env.SKIP_WEB_SERVER
+    ? {}
+    : {
+        webServer: [
+          {
+            command: 'npm run dev:api',
+            url: 'http://localhost:4000/health',
+            reuseExistingServer: true,
+            timeout: 120 * 1000,
+          },
+          {
+            command: 'npm run dev:web',
+            url: 'http://localhost:3999',
+            reuseExistingServer: true,
+            timeout: 120 * 1000,
+          },
+        ],
+      }),
 });
