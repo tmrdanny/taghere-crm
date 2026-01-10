@@ -22,6 +22,7 @@ import {
   ImagePlus,
   Link,
   Trash2,
+  Menu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -1108,94 +1109,163 @@ export default function LocalCustomersPage() {
       {/* Right Panel - iPhone Preview (Sticky) */}
       <div className="hidden lg:block flex-none w-[360px]">
         <div className="sticky top-6 bg-[#e2e8f0] rounded-3xl p-5">
-          {/* iPhone Frame */}
-          <div className="w-full h-[680px] bg-white rounded-[44px] border-[10px] border-[#1e293b] overflow-hidden flex flex-col shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] relative">
-            {/* Dynamic Island */}
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[90px] h-[28px] bg-[#1e293b] rounded-full z-20" />
+          {activeTab === 'kakao' ? (
+            /* 카카오톡 미리보기 - 네이버 리뷰 스타일 */
+            <div className="relative w-full h-[680px] bg-neutral-800 rounded-[2.5rem] p-2 shadow-2xl">
+              {/* Inner bezel */}
+              <div className="w-full h-full bg-neutral-900 rounded-[2rem] p-1 overflow-hidden">
+                {/* Screen */}
+                <div className="w-full h-full bg-[#B2C7D9] rounded-[1.75rem] overflow-hidden flex flex-col relative">
+                  {/* Dynamic Island / Notch */}
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-neutral-900 rounded-full z-10" />
 
-            {/* Status Bar */}
-            <div className="h-12 bg-white flex items-end justify-between px-6 pb-1 text-xs font-semibold">
-              <span>12:30</span>
-              <div className="flex items-center gap-1">
-                <Wifi className="w-4 h-4" />
-                <BatteryFull className="w-5 h-5" />
-              </div>
-            </div>
+                  {/* KakaoTalk header */}
+                  <div className="flex items-center justify-between px-4 pt-10 pb-2">
+                    <ChevronLeft className="w-4 h-4 text-neutral-700" />
+                    <span className="font-medium text-xs text-neutral-800">카카오톡</span>
+                    <Menu className="w-4 h-4 text-neutral-700" />
+                  </div>
 
-            {/* iOS Header */}
-            <div className="h-[60px] bg-white flex items-center justify-between px-4 border-b border-[#e5e7eb]">
-              <ChevronLeft className="w-6 h-6 text-[#007aff]" />
-              <div className="flex flex-col items-center">
-                <div className="w-10 h-10 rounded-full bg-[#e5e7eb] flex items-center justify-center">
-                  <Users className="w-5 h-5 text-[#9ca3af]" />
-                </div>
-                <span className="text-[13px] font-semibold text-[#1e293b] mt-1">태그히어 CRM</span>
-              </div>
-              <div className="w-6" />
-            </div>
-
-            {/* Message Body */}
-            <div className="flex-1 bg-white px-4 py-3 flex flex-col overflow-y-auto">
-              <div className="text-center text-[12px] text-[#8e8e93] font-medium mb-4">
-                {activeTab === 'kakao' ? '카카오톡' : '문자 메시지'}
-                <br />
-                오늘 오후 12:30
-              </div>
-              <div className="flex justify-start">
-                <div
-                  className={cn(
-                    'py-3 px-4 rounded-[20px] rounded-bl-[6px] max-w-[85%] text-[15px] leading-[1.5]',
-                    activeTab === 'kakao'
-                      ? 'bg-[#fee500] text-[#1e293b]'
-                      : 'bg-[#e5e5ea] text-[#1e293b]'
-                  )}
-                >
-                  {content ? (
-                    <span className="whitespace-pre-wrap break-words">
-                      {activeTab === 'sms'
-                        ? `(광고)\n${content}\n무료수신거부 080-500-4233`
-                        : content}
+                  {/* Date badge */}
+                  <div className="flex justify-center mb-3">
+                    <span className="text-[10px] bg-neutral-500/30 text-neutral-700 px-2 py-0.5 rounded-full">
+                      {new Date().toLocaleDateString('ko-KR', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
                     </span>
-                  ) : (
-                    <span className="text-[#94a3b8]">메시지 미리보기</span>
-                  )}
-                </div>
-              </div>
-              {/* 카카오톡 버튼 미리보기 */}
-              {activeTab === 'kakao' && kakaoButtons.length > 0 && content && (
-                <div className="mt-2 space-y-1.5">
-                  {kakaoButtons.map(
-                    (button, index) =>
-                      button.name && (
-                        <div
-                          key={index}
-                          className="bg-[#fee500] text-[#1e293b] py-2 px-4 rounded-lg text-center text-sm font-medium"
-                        >
-                          {button.name}
+                  </div>
+
+                  {/* Message area */}
+                  <div className="flex-1 pl-2 pr-4 overflow-auto">
+                    <div className="flex gap-1.5">
+                      {/* Profile icon */}
+                      <div className="flex-shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-neutral-300" />
+                      </div>
+
+                      {/* Message content */}
+                      <div className="flex-1 min-w-0 mr-4">
+                        <p className="text-[10px] text-neutral-600 mb-0.5">태그히어</p>
+
+                        {/* Message bubble - KakaoTalk style */}
+                        <div className="relative">
+                          {/* Kakao badge */}
+                          <div className="absolute -top-1 -right-1 z-10">
+                            <span className="bg-neutral-700 text-white text-[8px] px-1 py-0.5 rounded-full font-medium">
+                              kakao
+                            </span>
+                          </div>
+
+                          <div className="bg-[#FEE500] rounded-t-md px-2 py-1.5">
+                            <span className="text-xs font-medium text-neutral-800">브랜드 메시지</span>
+                          </div>
+                          <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
+                            {/* Message body */}
+                            <div className="p-3">
+                              <p className="text-xs text-neutral-800 whitespace-pre-wrap break-words leading-relaxed">
+                                {content || '메시지 미리보기'}
+                              </p>
+
+                              {/* Buttons */}
+                              {kakaoButtons.length > 0 && (
+                                <div className="mt-3 space-y-1.5">
+                                  {kakaoButtons.map(
+                                    (button, index) =>
+                                      button.name && (
+                                        <button
+                                          key={index}
+                                          className="w-full py-2 border border-neutral-300 rounded-md text-xs font-medium text-neutral-800 bg-white hover:bg-neutral-50 transition-colors"
+                                        >
+                                          {button.name}
+                                        </button>
+                                      )
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      )
-                  )}
+
+                        {/* Time */}
+                        <p className="text-[8px] text-neutral-500 mt-0.5 text-right">
+                          오후 12:30
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom safe area */}
+                  <div className="h-6" />
                 </div>
-              )}
-            </div>
-
-            {/* Input Bar */}
-            <div className="py-3 px-4 bg-white border-t border-[#e5e7eb] flex items-center gap-3">
-              <Camera className="w-6 h-6 text-[#007aff]" />
-              <span className="text-[17px] font-bold text-[#007aff]">A</span>
-              <div className="flex-1 h-9 bg-[#f1f5f9] rounded-full px-4 flex items-center">
-                <span className="text-[#94a3b8] text-[15px]">iMessage</span>
-              </div>
-              <div className="w-8 h-8 bg-[#007aff] rounded-full flex items-center justify-center">
-                <ChevronUp className="w-5 h-5 text-white" />
               </div>
             </div>
+          ) : (
+            /* SMS 미리보기 - 기존 스타일 유지 */
+            <div className="w-full h-[680px] bg-white rounded-[44px] border-[10px] border-[#1e293b] overflow-hidden flex flex-col shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] relative">
+              {/* Dynamic Island */}
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[90px] h-[28px] bg-[#1e293b] rounded-full z-20" />
 
-            {/* Home Indicator */}
-            <div className="h-8 bg-white flex items-center justify-center">
-              <div className="w-32 h-1 bg-[#1e293b] rounded-full" />
+              {/* Status Bar */}
+              <div className="h-12 bg-white flex items-end justify-between px-6 pb-1 text-xs font-semibold">
+                <span>12:30</span>
+                <div className="flex items-center gap-1">
+                  <Wifi className="w-4 h-4" />
+                  <BatteryFull className="w-5 h-5" />
+                </div>
+              </div>
+
+              {/* iOS Header */}
+              <div className="h-[60px] bg-white flex items-center justify-between px-4 border-b border-[#e5e7eb]">
+                <ChevronLeft className="w-6 h-6 text-[#007aff]" />
+                <div className="flex flex-col items-center">
+                  <div className="w-10 h-10 rounded-full bg-[#e5e7eb] flex items-center justify-center">
+                    <Users className="w-5 h-5 text-[#9ca3af]" />
+                  </div>
+                  <span className="text-[13px] font-semibold text-[#1e293b] mt-1">태그히어 CRM</span>
+                </div>
+                <div className="w-6" />
+              </div>
+
+              {/* Message Body */}
+              <div className="flex-1 bg-white px-4 py-3 flex flex-col overflow-y-auto">
+                <div className="text-center text-[12px] text-[#8e8e93] font-medium mb-4">
+                  문자 메시지
+                  <br />
+                  오늘 오후 12:30
+                </div>
+                <div className="flex justify-start">
+                  <div className="py-3 px-4 rounded-[20px] rounded-bl-[6px] max-w-[85%] text-[15px] leading-[1.5] bg-[#e5e5ea] text-[#1e293b]">
+                    {content ? (
+                      <span className="whitespace-pre-wrap break-words">
+                        {`(광고)\n${content}\n무료수신거부 080-500-4233`}
+                      </span>
+                    ) : (
+                      <span className="text-[#94a3b8]">메시지 미리보기</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Input Bar */}
+              <div className="py-3 px-4 bg-white border-t border-[#e5e7eb] flex items-center gap-3">
+                <Camera className="w-6 h-6 text-[#007aff]" />
+                <span className="text-[17px] font-bold text-[#007aff]">A</span>
+                <div className="flex-1 h-9 bg-[#f1f5f9] rounded-full px-4 flex items-center">
+                  <span className="text-[#94a3b8] text-[15px]">iMessage</span>
+                </div>
+                <div className="w-8 h-8 bg-[#007aff] rounded-full flex items-center justify-center">
+                  <ChevronUp className="w-5 h-5 text-white" />
+                </div>
+              </div>
+
+              {/* Home Indicator */}
+              <div className="h-8 bg-white flex items-center justify-center">
+                <div className="w-32 h-1 bg-[#1e293b] rounded-full" />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
