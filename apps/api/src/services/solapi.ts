@@ -241,6 +241,100 @@ export class SolapiService {
       return { success: false, error: error.message || 'Unknown error' };
     }
   }
+
+  // 브랜드 메시지 자유형 발송
+  async sendBrandMessage(params: {
+    to: string;
+    pfId: string;
+    content: string;
+    messageType: 'TEXT' | 'IMAGE';
+    imageId?: string;
+    buttons?: BrandMessageButton[];
+  }): Promise<{ success: boolean; messageId?: string; groupId?: string; error?: string }> {
+    if (!this.messageService) {
+      return { success: false, error: 'SOLAPI not configured' };
+    }
+
+    try {
+      // 전화번호 정규화
+      const normalizedPhone = this.normalizePhoneNumber(params.to);
+
+      // 버튼 형식 변환 (Solapi 형식)
+      const solapiButtons = params.buttons?.map((btn) => ({
+        buttonType: btn.type,
+        buttonName: btn.name,
+        linkMo: btn.linkMo,
+        linkPc: btn.linkPc || btn.linkMo,
+      }));
+
+      // 브랜드 메시지 자유형(RCS fallback 없음) 발송 요청 구성
+      const sendParams: any = {
+        to: normalizedPhone,
+        from: '07041380263', // 발신번호 고정
+        kakaoOptions: {
+          pfId: params.pfId,
+          // 브랜드 메시지 자유형 설정
+          templateId: '', // 자유형은 템플릿 ID 없음
+          disableSms: true, // SMS 폴백 비활성화
+          content: params.content,
+          buttons: solapiButtons,
+        },
+      };
+
+      // 이미지형인 경우 이미지 추가
+      if (params.messageType === 'IMAGE' && params.imageId) {
+        sendParams.kakaoOptions.imageId = params.imageId;
+      }
+
+      console.log('[SOLAPI] Sending Brand Message:', JSON.stringify(sendParams, null, 2));
+
+      const result = await this.messageService.send(sendParams);
+
+      console.log('[SOLAPI] Brand Message result:', JSON.stringify(result, null, 2));
+
+      // SOLAPI 응답 처리
+      if (result.groupInfo?.count?.total > 0) {
+        return {
+          success: true,
+          messageId: result.groupInfo?.groupId,
+          groupId: result.groupInfo?.groupId,
+        };
+      }
+
+      return {
+        success: false,
+        error: 'No messages sent',
+      };
+    } catch (error: any) {
+      console.error('[SOLAPI] Brand Message send error:', error);
+      return {
+        success: false,
+        error: error.message || 'Unknown error',
+      };
+    }
+  }
+
+  // 이미지 업로드 (브랜드 메시지용)
+  async uploadImage(filePath: string): Promise<{ success: boolean; fileId?: string; error?: string }> {
+    if (!this.messageService) {
+      return { success: false, error: 'SOLAPI not configured' };
+    }
+
+    try {
+      const result = await this.messageService.uploadFile(filePath, 'KAKAO', {});
+
+      console.log('[SOLAPI] Image upload result:', JSON.stringify(result, null, 2));
+
+      if (result.fileId) {
+        return { success: true, fileId: result.fileId };
+      }
+
+      return { success: false, error: 'Failed to upload image' };
+    } catch (error: any) {
+      console.error('[SOLAPI] Image upload error:', error);
+      return { success: false, error: error.message || 'Unknown error' };
+    }
+  }
 }
 
 // Outbox에 메시지 추가
@@ -490,6 +584,14 @@ export async function enqueuePointsUsedAlimTalk(params: {
     },
     idempotencyKey,
   });
+}
+
+// 브랜드 메시지 자유형 버튼 인터페이스
+export interface BrandMessageButton {
+  type: 'WL'; // 웹링크만 지원
+  name: string; // 버튼명 (최대 14자)
+  linkMo: string; // 모바일 URL (필수)
+  linkPc?: string; // PC URL (선택)
 }
 
 // 충전금 부족 안내 알림톡 발송 요청 (매장 소유자에게)
