@@ -1305,10 +1305,10 @@ export default function MessagesPage() {
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-[#1e293b]" />
-                    <span className="font-medium text-[#1e293b]">텍스트형</span>
+                    <MessageSquare className="w-5 h-5 text-[#64748b]" />
+                    <span className="text-sm text-[#1e293b]">텍스트형</span>
                   </div>
-                  <p className="text-lg font-bold text-[#1e293b] mt-2">200원/건</p>
+                  <p className="text-base font-medium text-[#1e293b] mt-2">200원/건</p>
                 </button>
                 <button
                   onClick={() => setKakaoMessageType('IMAGE')}
@@ -1320,10 +1320,10 @@ export default function MessagesPage() {
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <ImagePlus className="w-5 h-5 text-[#1e293b]" />
-                    <span className="font-medium text-[#1e293b]">이미지형</span>
+                    <ImagePlus className="w-5 h-5 text-[#64748b]" />
+                    <span className="text-sm text-[#1e293b]">이미지형</span>
                   </div>
-                  <p className="text-lg font-bold text-[#1e293b] mt-2">230원/건</p>
+                  <p className="text-base font-medium text-[#1e293b] mt-2">230원/건</p>
                 </button>
               </div>
             </div>
