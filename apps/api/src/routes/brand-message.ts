@@ -233,6 +233,16 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
 
     const wallet = await prisma.wallet.findUnique({ where: { storeId } });
 
+    // 매장 평균 객단가 조회 (예상 매출 계산용)
+    const avgOrderResult = await prisma.visitOrOrder.aggregate({
+      where: {
+        storeId,
+        totalAmount: { not: null },
+      },
+      _avg: { totalAmount: true },
+    });
+    const avgOrderValue = Math.round(avgOrderResult._avg.totalAmount || 25000);
+
     res.json({
       targetCount,
       messageType: messageType || 'TEXT',
@@ -240,6 +250,10 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
       totalCost,
       walletBalance: wallet?.balance || 0,
       canSend: (wallet?.balance || 0) >= totalCost,
+      estimatedRevenue: {
+        avgOrderValue,
+        conversionRate: 0.042, // 카카오톡 방문율 4.2%
+      },
     });
   } catch (error) {
     console.error('Estimate error:', error);

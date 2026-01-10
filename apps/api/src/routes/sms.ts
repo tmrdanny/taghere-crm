@@ -228,6 +228,16 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
       where: { storeId },
     });
 
+    // 매장 평균 객단가 조회 (예상 매출 계산용)
+    const avgOrderResult = await prisma.visitOrOrder.aggregate({
+      where: {
+        storeId,
+        totalAmount: { not: null },
+      },
+      _avg: { totalAmount: true },
+    });
+    const avgOrderValue = Math.round(avgOrderResult._avg.totalAmount || 25000);
+
     res.json({
       targetCount,
       byteLength,
@@ -236,6 +246,10 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
       totalCost,
       walletBalance: wallet?.balance || 0,
       canSend: (wallet?.balance || 0) >= totalCost,
+      estimatedRevenue: {
+        avgOrderValue,
+        conversionRate: 0.03, // SMS 전환율 3%
+      },
     });
   } catch (error) {
     console.error('Estimate error:', error);
@@ -991,13 +1005,43 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
     const getAlimtalkCount = (s: string) => alimtalkStatusCounts.find((x) => x.status === s)?._count.id || 0;
     const getExternalSmsCount = (s: string) => externalSmsStatusCounts.find((x) => x.status === s)?._count.id || 0;
 
+    const sentCount = getSmsCount('SENT') + getAlimtalkCount('SENT') + getExternalSmsCount('SENT');
+
+    // 예상 매출 계산 (발송 성공 건이 있을 때만)
+    let estimatedRevenue = null;
+    if (sentCount > 0) {
+      // 매장 평균 객단가 계산
+      const avgOrderResult = await prisma.visitOrOrder.aggregate({
+        where: {
+          storeId,
+          totalAmount: { not: null },
+        },
+        _avg: { totalAmount: true },
+        _count: { id: true },
+      });
+
+      const avgOrderValue = Math.round(avgOrderResult._avg.totalAmount || 25000); // 기본값 25,000원
+      const CONVERSION_RATE = 0.03; // 업계 평균 3%
+
+      const expectedVisits = Math.round(sentCount * CONVERSION_RATE);
+      const expectedRevenue = expectedVisits * avgOrderValue;
+
+      estimatedRevenue = {
+        avgOrderValue,
+        conversionRate: CONVERSION_RATE,
+        expectedVisits,
+        expectedRevenue,
+      };
+    }
+
     const summary = {
       total: smsStatusCounts.reduce((sum, s) => sum + s._count.id, 0)
         + alimtalkStatusCounts.reduce((sum, s) => sum + s._count.id, 0)
         + externalSmsStatusCounts.reduce((sum, s) => sum + s._count.id, 0),
-      sent: getSmsCount('SENT') + getAlimtalkCount('SENT') + getExternalSmsCount('SENT'),
+      sent: sentCount,
       failed: getSmsCount('FAILED') + getAlimtalkCount('FAILED') + getExternalSmsCount('FAILED'),
       pending: getSmsCount('PENDING') + getAlimtalkCount('PENDING') + getAlimtalkCount('RETRY') + getAlimtalkCount('PROCESSING') + getExternalSmsCount('PENDING'),
+      estimatedRevenue,
     };
 
     res.json({

@@ -33,6 +33,7 @@ import {
   Link,
   Clock,
   MessageSquare,
+  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -53,6 +54,13 @@ interface TargetCounts {
   new: number;
 }
 
+interface EstimatedRevenue {
+  avgOrderValue: number;
+  conversionRate: number;
+  expectedVisits: number;
+  expectedRevenue: number;
+}
+
 interface Estimate {
   targetCount: number;
   byteLength: number;
@@ -61,6 +69,7 @@ interface Estimate {
   totalCost: number;
   walletBalance: number;
   canSend: boolean;
+  estimatedRevenue?: EstimatedRevenue;
 }
 
 interface UploadedImage {
@@ -112,6 +121,7 @@ interface KakaoEstimate {
   totalCost: number;
   walletBalance: number;
   canSend: boolean;
+  estimatedRevenue?: EstimatedRevenue;
 }
 
 interface KakaoUploadedImage {
@@ -193,7 +203,7 @@ export default function MessagesPage() {
   // 카카오톡 브랜드 메시지 상태
   const [kakaoMessageType, setKakaoMessageType] = useState<'TEXT' | 'IMAGE'>('TEXT');
   const [kakaoContent, setKakaoContent] = useState('');
-  const [kakaoButtons, setKakaoButtons] = useState<KakaoButton[]>([]);
+  const [kakaoButtons, setKakaoButtons] = useState<KakaoButton[]>([{ type: 'WL', name: '', linkMo: '' }]);
   const [kakaoUploadedImage, setKakaoUploadedImage] = useState<KakaoUploadedImage | null>(null);
   const [kakaoEstimate, setKakaoEstimate] = useState<KakaoEstimate | null>(null);
   const [isSendableTime, setIsSendableTime] = useState(true);
@@ -1203,35 +1213,68 @@ export default function MessagesPage() {
             </div>
 
             {/* Cost Summary */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs sm:text-sm text-[#64748b]">
-                  발송 대상 {formatNumber(estimate?.targetCount || getCurrentTargetCount())}명 × {formatNumber(estimate?.costPerMessage || (uploadedImage ? 110 : 50))}원 ({uploadedImage ? 'MMS' : '문자'})
-                </span>
-                <span className="text-lg sm:text-xl font-bold text-[#1e293b]">
-                  총 {formatNumber(estimate?.totalCost || 0)}원
-                </span>
+            <div className="p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs sm:text-sm text-[#64748b]">
+                    발송 대상 {formatNumber(estimate?.targetCount || getCurrentTargetCount())}명 × {formatNumber(estimate?.costPerMessage || (uploadedImage ? 110 : 50))}원 ({uploadedImage ? 'MMS' : '문자'})
+                  </span>
+                  <span className="text-lg sm:text-xl font-bold text-[#1e293b]">
+                    총 {formatNumber(estimate?.totalCost || 0)}원
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  <button
+                    disabled={!messageContent.trim()}
+                    onClick={() => setShowTestModal(true)}
+                    className="w-full sm:w-auto px-4 py-3 sm:py-3.5 border border-[#3b82f6] text-[#3b82f6] bg-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#eff6ff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    테스트 발송
+                  </button>
+                  <button
+                    disabled={
+                      !messageContent.trim() ||
+                      getCurrentTargetCount() === 0 ||
+                      (estimate !== null && !estimate.canSend)
+                    }
+                    onClick={() => setShowConfirmModal(true)}
+                    className="w-full sm:w-auto px-6 py-3 sm:py-3.5 bg-[#2a2d62] text-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    메시지 발송하기
+                  </button>
+                </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <button
-                  disabled={!messageContent.trim()}
-                  onClick={() => setShowTestModal(true)}
-                  className="w-full sm:w-auto px-4 py-3 sm:py-3.5 border border-[#3b82f6] text-[#3b82f6] bg-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#eff6ff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  테스트 발송
-                </button>
-                <button
-                  disabled={
-                    !messageContent.trim() ||
-                    getCurrentTargetCount() === 0 ||
-                    (estimate !== null && !estimate.canSend)
-                  }
-                  onClick={() => setShowConfirmModal(true)}
-                  className="w-full sm:w-auto px-6 py-3 sm:py-3.5 bg-[#2a2d62] text-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  메시지 발송하기
-                </button>
-              </div>
+
+              {/* 예상 마케팅 효과 */}
+              {(estimate?.targetCount || getCurrentTargetCount()) > 0 && (
+                <div className="mt-4 pt-4 border-t border-[#e5e7eb]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-semibold text-green-700">예상 마케팅 효과</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-xs text-[#64748b]">예상 방문율</p>
+                      <p className="text-sm font-bold text-green-700">3%</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#64748b]">예상 방문</p>
+                      <p className="text-sm font-bold text-green-700">
+                        {Math.round((estimate?.targetCount || getCurrentTargetCount()) * 0.03).toLocaleString()}명
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#64748b]">예상 매출</p>
+                      <p className="text-sm font-bold text-green-700">
+                        {(Math.round((estimate?.targetCount || getCurrentTargetCount()) * 0.03) * (estimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-[#94a3b8] mt-2">
+                    * 업계 평균 방문율 3% 및 매장 평균 객단가 {(estimate?.estimatedRevenue?.avgOrderValue || 25000).toLocaleString()}원 기준
+                  </p>
+                </div>
+              )}
             </div>
 
             {estimate && !estimate.canSend && (
@@ -1442,36 +1485,69 @@ export default function MessagesPage() {
             </div>
 
             {/* Cost Summary */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs sm:text-sm text-[#64748b]">
-                  발송 대상 {formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명 × {kakaoMessageType === 'IMAGE' ? '230' : '200'}원 (카카오톡)
-                </span>
-                <span className="text-lg sm:text-xl font-bold text-[#1e293b]">
-                  총 {formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 230 : 200)))}원
-                </span>
+            <div className="p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs sm:text-sm text-[#64748b]">
+                    발송 대상 {formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명 × {kakaoMessageType === 'IMAGE' ? '230' : '200'}원 (카카오톡)
+                  </span>
+                  <span className="text-lg sm:text-xl font-bold text-[#1e293b]">
+                    총 {formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 230 : 200)))}원
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  <button
+                    disabled={!kakaoContent.trim()}
+                    onClick={() => setShowKakaoTestModal(true)}
+                    className="w-full sm:w-auto px-4 py-3 sm:py-3.5 border border-[#3b82f6] text-[#3b82f6] bg-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#eff6ff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    테스트 발송
+                  </button>
+                  <button
+                    disabled={
+                      !kakaoContent.trim() ||
+                      getCurrentTargetCount() === 0 ||
+                      (kakaoMessageType === 'IMAGE' && !kakaoUploadedImage) ||
+                      (kakaoEstimate !== null && !kakaoEstimate.canSend)
+                    }
+                    onClick={() => setShowKakaoConfirmModal(true)}
+                    className="w-full sm:w-auto px-6 py-3 sm:py-3.5 bg-[#2a2d62] text-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSendableTime ? '메시지 발송하기' : '08:00에 예약 발송'}
+                  </button>
+                </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <button
-                  disabled={!kakaoContent.trim()}
-                  onClick={() => setShowKakaoTestModal(true)}
-                  className="w-full sm:w-auto px-4 py-3 sm:py-3.5 border border-[#3b82f6] text-[#3b82f6] bg-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#eff6ff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  테스트 발송
-                </button>
-                <button
-                  disabled={
-                    !kakaoContent.trim() ||
-                    getCurrentTargetCount() === 0 ||
-                    (kakaoMessageType === 'IMAGE' && !kakaoUploadedImage) ||
-                    (kakaoEstimate !== null && !kakaoEstimate.canSend)
-                  }
-                  onClick={() => setShowKakaoConfirmModal(true)}
-                  className="w-full sm:w-auto px-6 py-3 sm:py-3.5 bg-[#2a2d62] text-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSendableTime ? '메시지 발송하기' : '08:00에 예약 발송'}
-                </button>
-              </div>
+
+              {/* 예상 마케팅 효과 */}
+              {(kakaoEstimate?.targetCount || getCurrentTargetCount()) > 0 && (
+                <div className="mt-4 pt-4 border-t border-[#e5e7eb]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-semibold text-green-700">예상 마케팅 효과</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-xs text-[#64748b]">예상 방문율</p>
+                      <p className="text-sm font-bold text-green-700">4.2%</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#64748b]">예상 방문</p>
+                      <p className="text-sm font-bold text-green-700">
+                        {Math.round((kakaoEstimate?.targetCount || getCurrentTargetCount()) * 0.042).toLocaleString()}명
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#64748b]">예상 매출</p>
+                      <p className="text-sm font-bold text-green-700">
+                        {(Math.round((kakaoEstimate?.targetCount || getCurrentTargetCount()) * 0.042) * (kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-[#94a3b8] mt-2">
+                    * 업계 평균 방문율 4.2% 및 매장 평균 객단가 {(kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000).toLocaleString()}원 기준
+                  </p>
+                </div>
+              )}
             </div>
 
             {kakaoEstimate && !kakaoEstimate.canSend && (
