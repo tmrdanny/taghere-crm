@@ -46,56 +46,22 @@ const GENDER_OPTIONS = [
   { value: 'MALE', label: '남성' },
 ];
 
-// 업종 카테고리
-const STORE_CATEGORIES: Record<string, string> = {
-  // 음식점
-  KOREAN: '한식',
-  CHINESE: '중식',
-  JAPANESE: '일식',
-  WESTERN: '양식',
-  ASIAN: '아시안',
-  BUNSIK: '분식',
-  FASTFOOD: '패스트푸드',
-  MEAT: '고기/구이',
-  SEAFOOD: '해산물',
-  BUFFET: '뷔페',
-  BRUNCH: '브런치',
-  // 카페/디저트
-  CAFE: '카페',
-  BAKERY: '베이커리',
-  DESSERT: '디저트',
-  ICECREAM: '아이스크림',
-  // 주점
-  BEER: '호프/맥주',
-  IZAKAYA: '이자카야',
-  WINE_BAR: '와인바',
-  COCKTAIL_BAR: '칵테일바',
-  POCHA: '포차',
-  KOREAN_PUB: '한식주점',
-  COOK_PUB: '요리주점',
-  // 기타
-  FOODCOURT: '푸드코트',
-  OTHER: '기타',
-};
-
-// 업종 그룹
-const CATEGORY_GROUPS = [
-  {
-    label: '음식점',
-    categories: ['KOREAN', 'CHINESE', 'JAPANESE', 'WESTERN', 'ASIAN', 'BUNSIK', 'FASTFOOD', 'MEAT', 'SEAFOOD', 'BUFFET', 'BRUNCH'],
-  },
-  {
-    label: '카페/디저트',
-    categories: ['CAFE', 'BAKERY', 'DESSERT', 'ICECREAM'],
-  },
-  {
-    label: '주점',
-    categories: ['BEER', 'IZAKAYA', 'WINE_BAR', 'COCKTAIL_BAR', 'POCHA', 'KOREAN_PUB', 'COOK_PUB'],
-  },
-  {
-    label: '기타',
-    categories: ['FOODCOURT', 'OTHER'],
-  },
+// 업종 카테고리 (플랫 리스트)
+const CATEGORY_OPTIONS = [
+  { value: 'KOREAN', label: '한식' },
+  { value: 'CHINESE', label: '중식' },
+  { value: 'JAPANESE', label: '일식' },
+  { value: 'WESTERN', label: '양식' },
+  { value: 'ASIAN', label: '아시안' },
+  { value: 'MEAT', label: '고기/구이' },
+  { value: 'SEAFOOD', label: '해산물' },
+  { value: 'CAFE', label: '카페' },
+  { value: 'BAKERY', label: '베이커리' },
+  { value: 'DESSERT', label: '디저트' },
+  { value: 'BEER', label: '호프/맥주' },
+  { value: 'IZAKAYA', label: '이자카야' },
+  { value: 'WINE_BAR', label: '와인바' },
+  { value: 'POCHA', label: '포차' },
 ];
 
 // 비용 상수
@@ -811,51 +777,27 @@ export default function LocalCustomersPage() {
 
           {/* 우측: 고객 선호 업종 */}
           <div className="p-4 rounded-xl border border-neutral-200 bg-white">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
-                <Store className="w-5 h-5 text-neutral-500" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-neutral-900">고객 선호 업종</p>
-                <p className="text-xs text-neutral-500">복수 선택 가능</p>
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-base font-semibold text-neutral-900">관심 업종 <span className="text-neutral-400 font-normal">(선택)</span></p>
             </div>
 
-            {/* 업종 그룹별 버튼 */}
-            <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
-              {CATEGORY_GROUPS.map((group) => (
-                <div key={group.label}>
-                  <p className="text-xs text-neutral-400 mb-1.5">{group.label}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {group.categories.map((cat) => (
-                      <button
-                        key={cat}
-                        onClick={() => toggleCategory(cat)}
-                        className={cn(
-                          'px-2.5 py-1 rounded-full text-xs font-medium transition-colors border',
-                          selectedCategories.includes(cat)
-                            ? 'bg-brand-600 text-white border-brand-600'
-                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-brand-300'
-                        )}
-                      >
-                        {STORE_CATEGORIES[cat]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            {/* 업종 버튼 (플랫 리스트) */}
+            <div className="flex flex-wrap gap-2">
+              {CATEGORY_OPTIONS.map((cat) => (
+                <button
+                  key={cat.value}
+                  onClick={() => toggleCategory(cat.value)}
+                  className={cn(
+                    'px-4 py-2 rounded-full text-sm font-medium transition-colors border',
+                    selectedCategories.includes(cat.value)
+                      ? 'bg-neutral-900 text-white border-neutral-900'
+                      : 'bg-white text-neutral-700 border-neutral-200 hover:border-neutral-300'
+                  )}
+                >
+                  {cat.label}
+                </button>
               ))}
             </div>
-
-            {selectedCategories.length === 0 && (
-              <p className="text-xs text-neutral-500 mt-3">
-                미선택 시 전체 업종 고객에게 발송됩니다
-              </p>
-            )}
-            {selectedCategories.length > 0 && (
-              <p className="text-xs text-brand-600 mt-3">
-                {selectedCategories.length}개 업종 선택됨
-              </p>
-            )}
           </div>
         </div>
 
