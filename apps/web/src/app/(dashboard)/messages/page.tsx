@@ -1214,16 +1214,23 @@ export default function MessagesPage() {
 
             {/* Cost Summary */}
             <div className="p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs sm:text-sm text-[#64748b]">
-                    발송 대상 {formatNumber(estimate?.targetCount || getCurrentTargetCount())}명 × {formatNumber(estimate?.costPerMessage || (uploadedImage ? 110 : 50))}원 ({uploadedImage ? 'MMS' : '문자'})
-                  </span>
-                  <span className="text-lg sm:text-xl font-bold text-[#1e293b]">
-                    총 {formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원
-                  </span>
+              {/* 예상 비용 + 현재 잔액 */}
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <div>
+                  <p className="text-xs sm:text-sm text-[#64748b]">예상 비용</p>
+                  <p className="text-lg sm:text-xl font-bold text-[#1e293b]">
+                    {formatNumber(estimate?.targetCount || getCurrentTargetCount())}명 × {formatNumber(estimate?.costPerMessage || (uploadedImage ? 110 : 50))}원 ={' '}
+                    <span className="text-[#3b82f6]">{formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원</span>
+                  </p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <div className="text-right">
+                  <p className="text-xs sm:text-sm text-[#64748b]">현재 잔액</p>
+                  <p className={`text-lg sm:text-xl font-bold ${estimate?.canSend !== false ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatNumber(estimate?.walletBalance || 0)}원
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2 w-full sm:w-auto">
                   <button
                     disabled={!messageContent.trim()}
                     onClick={() => setShowTestModal(true)}
@@ -1242,7 +1249,6 @@ export default function MessagesPage() {
                   >
                     메시지 발송하기
                   </button>
-                </div>
               </div>
 
               {/* 예상 마케팅 효과 */}
@@ -1502,16 +1508,23 @@ export default function MessagesPage() {
 
             {/* Cost Summary */}
             <div className="p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs sm:text-sm text-[#64748b]">
-                    발송 대상 {formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명 × 150원 (카카오톡)
-                  </span>
-                  <span className="text-lg sm:text-xl font-bold text-[#1e293b]">
-                    총 {formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * 150))}원
-                  </span>
+              {/* 예상 비용 + 현재 잔액 */}
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <div>
+                  <p className="text-xs sm:text-sm text-[#64748b]">예상 비용</p>
+                  <p className="text-lg sm:text-xl font-bold text-[#1e293b]">
+                    {formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명 × 150원 ={' '}
+                    <span className="text-[#3b82f6]">{formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * 150))}원</span>
+                  </p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <div className="text-right">
+                  <p className="text-xs sm:text-sm text-[#64748b]">현재 잔액</p>
+                  <p className={`text-lg sm:text-xl font-bold ${kakaoEstimate?.canSend !== false ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatNumber(kakaoEstimate?.walletBalance || 0)}원
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2 w-full sm:w-auto">
                   <button
                     disabled={!kakaoContent.trim()}
                     onClick={() => setShowKakaoTestModal(true)}
@@ -1531,7 +1544,6 @@ export default function MessagesPage() {
                   >
                     {isSendableTime ? '메시지 발송하기' : '08:00에 예약 발송'}
                   </button>
-                </div>
               </div>
 
               {/* 예상 마케팅 효과 */}
