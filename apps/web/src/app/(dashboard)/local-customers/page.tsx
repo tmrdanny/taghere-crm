@@ -1017,7 +1017,7 @@ export default function LocalCustomersPage() {
             ) : (
               <div className="flex items-start gap-3 p-3 bg-neutral-50 rounded-xl border border-neutral-200">
                 <img
-                  src={kakaoUploadedImage.imageUrl}
+                  src={`${API_BASE}${kakaoUploadedImage.imageUrl}`}
                   alt="첨부 이미지"
                   className="w-16 h-16 object-cover rounded-lg"
                 />
@@ -1328,6 +1328,14 @@ export default function LocalCustomersPage() {
                             <span className="text-xs font-medium text-neutral-800">브랜드 메시지</span>
                           </div>
                           <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
+                            {/* 이미지 */}
+                            {kakaoMessageType === 'IMAGE' && kakaoUploadedImage && (
+                              <img
+                                src={`${API_BASE}${kakaoUploadedImage.imageUrl}`}
+                                alt="첨부 이미지"
+                                className="w-full h-auto"
+                              />
+                            )}
                             {/* Message body */}
                             <div className="p-3">
                               <p className="text-xs text-neutral-800 whitespace-pre-wrap break-words leading-relaxed">

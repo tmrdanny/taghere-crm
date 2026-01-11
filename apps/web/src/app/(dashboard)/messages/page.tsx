@@ -1373,7 +1373,7 @@ export default function MessagesPage() {
                 ) : (
                   <div className="flex items-start gap-3 p-3 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
                     <img
-                      src={kakaoUploadedImage.imageUrl}
+                      src={`${API_BASE}${kakaoUploadedImage.imageUrl}`}
                       alt="첨부 이미지"
                       className="w-16 h-16 object-cover rounded-lg"
                     />
@@ -1680,7 +1680,7 @@ export default function MessagesPage() {
                                 {/* 이미지 */}
                                 {kakaoMessageType === 'IMAGE' && kakaoUploadedImage && (
                                   <img
-                                    src={kakaoUploadedImage.imageUrl}
+                                    src={`${API_BASE}${kakaoUploadedImage.imageUrl}`}
                                     alt="첨부 이미지"
                                     className="w-full h-auto"
                                   />
