@@ -1220,7 +1220,7 @@ export default function MessagesPage() {
                     발송 대상 {formatNumber(estimate?.targetCount || getCurrentTargetCount())}명 × {formatNumber(estimate?.costPerMessage || (uploadedImage ? 110 : 50))}원 ({uploadedImage ? 'MMS' : '문자'})
                   </span>
                   <span className="text-lg sm:text-xl font-bold text-[#1e293b]">
-                    총 {formatNumber(estimate?.totalCost || 0)}원
+                    총 {formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원
                   </span>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -1742,7 +1742,7 @@ export default function MessagesPage() {
               </div>
               <div className="flex justify-between text-lg">
                 <span className="text-neutral-900 font-medium">총 비용</span>
-                <span className="font-bold text-brand-700">{formatNumber(estimate?.totalCost || 0)}원</span>
+                <span className="font-bold text-brand-700">{formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원</span>
               </div>
             </div>
 
