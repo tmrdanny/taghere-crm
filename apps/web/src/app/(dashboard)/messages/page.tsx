@@ -1333,7 +1333,18 @@ export default function MessagesPage() {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-semibold text-[#1e293b]">이미지 첨부</label>
-                  <span className="text-xs text-[#64748b]">(JPG/PNG, 최대 500KB)</span>
+                </div>
+
+                {/* 이미지 규격 안내 */}
+                <div className="p-3 bg-[#f0f9ff] rounded-lg border border-[#bae6fd]">
+                  <p className="text-xs font-medium text-[#0369a1] mb-1.5">이미지 규격 안내</p>
+                  <ul className="text-xs text-[#0c4a6e] space-y-0.5">
+                    <li>• 가로 너비: 500px 이상</li>
+                    <li>• 세로 높이: 250px 이상</li>
+                    <li>• 가로:세로 비율: 2:1 ~ 3:4</li>
+                    <li>• 파일 형식: JPG, PNG</li>
+                    <li>• 파일 용량: 최대 500KB</li>
+                  </ul>
                 </div>
 
                 {!kakaoUploadedImage ? (

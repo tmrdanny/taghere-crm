@@ -977,7 +977,18 @@ export default function LocalCustomersPage() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <h2 className="text-sm font-semibold text-neutral-900">이미지 첨부</h2>
-              <span className="text-xs text-neutral-500">(JPG/PNG, 최대 500KB)</span>
+            </div>
+
+            {/* 이미지 규격 안내 */}
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-3">
+              <p className="text-xs font-medium text-blue-700 mb-1.5">이미지 규격 안내</p>
+              <ul className="text-xs text-blue-600 space-y-0.5">
+                <li>• 가로 너비: 500px 이상</li>
+                <li>• 세로 높이: 250px 이상</li>
+                <li>• 가로:세로 비율: 2:1 ~ 3:4</li>
+                <li>• 파일 형식: JPG, PNG</li>
+                <li>• 파일 용량: 최대 500KB</li>
+              </ul>
             </div>
 
             {!kakaoUploadedImage ? (
