@@ -918,11 +918,11 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row p-4 md:p-6 gap-6 overflow-hidden max-w-[1200px] mx-auto w-full lg:justify-center">
+    <div className="flex-1 flex flex-col lg:flex-row p-4 md:p-6 gap-6 max-w-[1200px] mx-auto w-full lg:justify-center lg:items-start">
       {ToastComponent}
 
       {/* Left Panel - Settings */}
-      <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6 overflow-y-auto">
+      <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e5e7eb]">
           <h1 className="text-lg sm:text-xl font-bold text-[#1e293b]">캠페인 메시지 만들기</h1>
@@ -1419,6 +1419,29 @@ export default function MessagesPage() {
 - 문의: 02-555-1234`}
                 className="w-full h-[140px] p-4 border border-[#e5e7eb] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent text-sm leading-relaxed"
               />
+
+              {/* 템플릿 선택 버튼 */}
+              <button
+                type="button"
+                onClick={() => {
+                  setKakaoContent(`[매장명]에서 선물을 보냈어요.
+
+🎁 단골 고객 혜택
+- 음료 또는 디저트 서비스
+- 적립 포인트 2배
+
+언제든 편하게 들러주세요.
+맛있는 음식으로 보답하겠습니다!`);
+                  setKakaoButtons([
+                    { type: 'WL', name: '네이버 길찾기', linkMo: '' },
+                    { type: 'WL', name: '예약하기', linkMo: '' },
+                  ]);
+                }}
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#fee500] to-[#ffd000] text-[#3c1e1e] rounded-xl text-sm font-medium hover:shadow-md transition-all self-start"
+              >
+                <MessageSquare className="w-4 h-4" />
+                단골 고객 혜택 템플릿 사용하기
+              </button>
             </div>
 
             {/* 버튼 추가 */}
