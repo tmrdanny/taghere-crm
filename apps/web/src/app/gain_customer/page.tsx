@@ -1,29 +1,90 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-// 지역 옵션 (시/도)
-const REGION_OPTIONS = [
-  '서울',
-  '경기',
-  '인천',
-  '부산',
-  '대구',
-  '광주',
-  '대전',
-  '울산',
-  '세종',
-  '강원',
-  '충북',
-  '충남',
-  '전북',
-  '전남',
-  '경북',
-  '경남',
-  '제주',
+// 대한민국 전체 시/도 및 시/군/구 데이터
+const KOREA_REGIONS: Record<string, string[]> = {
+  '서울': [
+    '강남구', '강동구', '강북구', '강서구', '관악구', '광진구', '구로구', '금천구',
+    '노원구', '도봉구', '동대문구', '동작구', '마포구', '서대문구', '서초구', '성동구',
+    '성북구', '송파구', '양천구', '영등포구', '용산구', '은평구', '종로구', '중구', '중랑구'
+  ],
+  '경기': [
+    '가평군', '고양시 덕양구', '고양시 일산동구', '고양시 일산서구', '과천시', '광명시', '광주시', '구리시',
+    '군포시', '김포시', '남양주시', '동두천시', '부천시', '성남시 분당구', '성남시 수정구', '성남시 중원구',
+    '수원시 권선구', '수원시 영통구', '수원시 장안구', '수원시 팔달구', '시흥시', '안산시 단원구', '안산시 상록구',
+    '안성시', '안양시 동안구', '안양시 만안구', '양주시', '양평군', '여주시', '연천군', '오산시',
+    '용인시 기흥구', '용인시 수지구', '용인시 처인구', '의왕시', '의정부시', '이천시', '파주시', '평택시',
+    '포천시', '하남시', '화성시'
+  ],
+  '인천': [
+    '강화군', '계양구', '남동구', '동구', '미추홀구', '부평구', '서구', '연수구', '옹진군', '중구'
+  ],
+  '부산': [
+    '강서구', '금정구', '기장군', '남구', '동구', '동래구', '부산진구', '북구',
+    '사상구', '사하구', '서구', '수영구', '연제구', '영도구', '중구', '해운대구'
+  ],
+  '대구': [
+    '남구', '달서구', '달성군', '동구', '북구', '서구', '수성구', '중구', '군위군'
+  ],
+  '광주': [
+    '광산구', '남구', '동구', '북구', '서구'
+  ],
+  '대전': [
+    '대덕구', '동구', '서구', '유성구', '중구'
+  ],
+  '울산': [
+    '남구', '동구', '북구', '울주군', '중구'
+  ],
+  '세종': [
+    '세종시 전체'
+  ],
+  '강원': [
+    '강릉시', '고성군', '동해시', '삼척시', '속초시', '양구군', '양양군', '영월군',
+    '원주시', '인제군', '정선군', '철원군', '춘천시', '태백시', '평창군', '홍천군', '화천군', '횡성군'
+  ],
+  '충북': [
+    '괴산군', '단양군', '보은군', '영동군', '옥천군', '음성군', '제천시', '증평군', '진천군', '청주시 상당구',
+    '청주시 서원구', '청주시 청원구', '청주시 흥덕구', '충주시'
+  ],
+  '충남': [
+    '계룡시', '공주시', '금산군', '논산시', '당진시', '보령시', '부여군', '서산시',
+    '서천군', '아산시', '예산군', '천안시 동남구', '천안시 서북구', '청양군', '태안군', '홍성군'
+  ],
+  '전북': [
+    '고창군', '군산시', '김제시', '남원시', '무주군', '부안군', '순창군', '완주군',
+    '익산시', '임실군', '장수군', '전주시 덕진구', '전주시 완산구', '정읍시', '진안군'
+  ],
+  '전남': [
+    '강진군', '고흥군', '곡성군', '광양시', '구례군', '나주시', '담양군', '목포시',
+    '무안군', '보성군', '순천시', '신안군', '여수시', '영광군', '영암군', '완도군',
+    '장성군', '장흥군', '진도군', '함평군', '해남군', '화순군'
+  ],
+  '경북': [
+    '경산시', '경주시', '고령군', '구미시', '김천시', '문경시', '봉화군', '상주시',
+    '성주군', '안동시', '영덕군', '영양군', '영주시', '영천시', '예천군', '울릉군',
+    '울진군', '의성군', '청도군', '청송군', '칠곡군', '포항시 남구', '포항시 북구'
+  ],
+  '경남': [
+    '거제시', '거창군', '고성군', '김해시', '남해군', '밀양시', '사천시', '산청군',
+    '양산시', '의령군', '진주시', '창녕군', '창원시 마산합포구', '창원시 마산회원구', '창원시 성산구',
+    '창원시 의창구', '창원시 진해구', '통영시', '하동군', '함안군', '함양군', '합천군'
+  ],
+  '제주': [
+    '서귀포시', '제주시'
+  ],
+};
+
+// 연령대 옵션
+const AGE_GROUP_OPTIONS = [
+  { value: 'TWENTIES', label: '20대' },
+  { value: 'THIRTIES', label: '30대' },
+  { value: 'FORTIES', label: '40대' },
+  { value: 'FIFTIES', label: '50대' },
+  { value: 'SIXTY_PLUS', label: '60대 이상' },
 ];
 
 // 업종 카테고리
@@ -47,9 +108,10 @@ const CATEGORY_OPTIONS = [
 export default function GainCustomerPage() {
   // 폼 상태
   const [phone, setPhone] = useState('');
-  const [location, setLocation] = useState('');
+  const [selectedSido, setSelectedSido] = useState('');
+  const [selectedSigungu, setSelectedSigungu] = useState('');
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | null>(null);
-  const [birthDate, setBirthDate] = useState('');
+  const [ageGroup, setAgeGroup] = useState('');
   const [consent, setConsent] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
@@ -58,6 +120,12 @@ export default function GainCustomerPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 시/도 목록
+  const sidoList = Object.keys(KOREA_REGIONS);
+
+  // 선택된 시/도의 시/군/구 목록
+  const sigunguList = selectedSido ? KOREA_REGIONS[selectedSido] : [];
+
   // 업종 토글
   const toggleCategory = (value: string) => {
     setSelectedCategories((prev) =>
@@ -65,49 +133,10 @@ export default function GainCustomerPage() {
     );
   };
 
-  // 생년월일로 연령대 계산
-  const calculateAgeGroup = (birthDateStr: string): string => {
-    if (!birthDateStr) return 'THIRTIES';
-    const birthYear = parseInt(birthDateStr.split('-')[0]);
-    const currentYear = new Date().getFullYear();
-    const age = currentYear - birthYear;
-
-    if (age < 30) return 'TWENTIES';
-    if (age < 40) return 'THIRTIES';
-    if (age < 50) return 'FORTIES';
-    if (age < 60) return 'FIFTIES';
-    return 'SIXTY_PLUS';
-  };
-
-  // 지역 문자열에서 시/도 추출
-  const extractSido = (locationStr: string): string => {
-    // 서울시, 서울특별시, 서울 -> 서울
-    const sidoMap: Record<string, string> = {
-      '서울': '서울', '서울시': '서울', '서울특별시': '서울',
-      '경기': '경기', '경기도': '경기',
-      '인천': '인천', '인천시': '인천', '인천광역시': '인천',
-      '부산': '부산', '부산시': '부산', '부산광역시': '부산',
-      '대구': '대구', '대구시': '대구', '대구광역시': '대구',
-      '광주': '광주', '광주시': '광주', '광주광역시': '광주',
-      '대전': '대전', '대전시': '대전', '대전광역시': '대전',
-      '울산': '울산', '울산시': '울산', '울산광역시': '울산',
-      '세종': '세종', '세종시': '세종', '세종특별자치시': '세종',
-      '강원': '강원', '강원도': '강원', '강원특별자치도': '강원',
-      '충북': '충북', '충청북도': '충북',
-      '충남': '충남', '충청남도': '충남',
-      '전북': '전북', '전라북도': '전북', '전북특별자치도': '전북',
-      '전남': '전남', '전라남도': '전남',
-      '경북': '경북', '경상북도': '경북',
-      '경남': '경남', '경상남도': '경남',
-      '제주': '제주', '제주도': '제주', '제주특별자치도': '제주',
-    };
-
-    for (const [key, value] of Object.entries(sidoMap)) {
-      if (locationStr.includes(key)) {
-        return value;
-      }
-    }
-    return '서울'; // 기본값
+  // 시/도 변경 시 시/군/구 초기화
+  const handleSidoChange = (sido: string) => {
+    setSelectedSido(sido);
+    setSelectedSigungu('');
   };
 
   // 폼 제출
@@ -119,16 +148,20 @@ export default function GainCustomerPage() {
       setError('연락처를 입력해주세요.');
       return;
     }
-    if (!location.trim()) {
-      setError('자주 가는 장소를 입력해주세요.');
+    if (!selectedSido) {
+      setError('시/도를 선택해주세요.');
+      return;
+    }
+    if (!selectedSigungu) {
+      setError('시/군/구를 선택해주세요.');
       return;
     }
     if (!gender) {
       setError('성별을 선택해주세요.');
       return;
     }
-    if (!birthDate) {
-      setError('생일을 입력해주세요.');
+    if (!ageGroup) {
+      setError('연령대를 선택해주세요.');
       return;
     }
     if (!consent) {
@@ -151,8 +184,9 @@ export default function GainCustomerPage() {
         body: JSON.stringify({
           phone: normalizedPhone,
           gender,
-          ageGroup: calculateAgeGroup(birthDate),
-          regionSido: extractSido(location),
+          ageGroup,
+          regionSido: selectedSido,
+          regionSigungu: selectedSigungu,
           preferredCategories: selectedCategories.length > 0 ? selectedCategories : null,
           consentMarketing: true,
         }),
@@ -222,18 +256,45 @@ export default function GainCustomerPage() {
             />
           </div>
 
-          {/* 자주 가는 장소 */}
+          {/* 자주 가는 장소 - 시/도 선택 */}
           <div>
             <label className="block text-base font-medium text-gray-900 mb-2">
-              내가 자주 가는 장소(식사하러 자주 가시는 곳을 작성해 주세요) <span className="text-gray-400">*</span>
+              내가 자주 가는 장소 <span className="text-gray-400">*</span>
             </label>
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="서울시 성수동"
-              className="w-full px-4 py-3 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900 placeholder-gray-400 transition-colors"
-            />
+            <p className="text-sm text-gray-500 mb-3">식사하러 자주 가시는 곳을 선택해 주세요</p>
+
+            {/* 시/도 선택 */}
+            <div className="relative mb-3">
+              <select
+                value={selectedSido}
+                onChange={(e) => handleSidoChange(e.target.value)}
+                className="w-full px-4 py-3 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900 bg-white appearance-none cursor-pointer"
+              >
+                <option value="">시/도 선택</option>
+                {sidoList.map((sido) => (
+                  <option key={sido} value={sido}>{sido}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            </div>
+
+            {/* 시/군/구 선택 */}
+            <div className="relative">
+              <select
+                value={selectedSigungu}
+                onChange={(e) => setSelectedSigungu(e.target.value)}
+                disabled={!selectedSido}
+                className={`w-full px-4 py-3 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none bg-white appearance-none cursor-pointer ${
+                  selectedSido ? 'text-gray-900' : 'text-gray-400'
+                }`}
+              >
+                <option value="">시/군/구 선택</option>
+                {sigunguList.map((sigungu) => (
+                  <option key={sigungu} value={sigungu}>{sigungu}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            </div>
           </div>
 
           {/* 성별 */}
@@ -277,18 +338,32 @@ export default function GainCustomerPage() {
             </div>
           </div>
 
-          {/* 생일 */}
+          {/* 연령대 */}
           <div>
-            <label className="block text-base font-medium text-gray-900 mb-2">
-              생일 <span className="text-gray-400">*</span>
+            <label className="block text-base font-medium text-gray-900 mb-3">
+              연령대 <span className="text-gray-400">*</span>
             </label>
-            <input
-              type="date"
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              placeholder="1990-11-01"
-              className="w-full px-4 py-3 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900 placeholder-gray-400 transition-colors"
-            />
+            <div className="space-y-2">
+              {AGE_GROUP_OPTIONS.map((option, index) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setAgeGroup(option.value)}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg border transition-all ${
+                    ageGroup === option.value
+                      ? 'border-gray-900 bg-gray-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-medium ${
+                    ageGroup === option.value ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 text-gray-400'
+                  }`}>
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                  <span className="text-gray-900">{option.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* 관심 업종 (선택) */}
@@ -331,7 +406,12 @@ export default function GainCustomerPage() {
               </span>
               <span className="text-gray-700">네, 동의합니다</span>
             </button>
-            <a href="#" className="block mt-3 text-sm text-gray-500 underline">
+            <a
+              href="https://tmr-founders.notion.site/2492217234e380e1abbbe6867fc96aea?source=copy_link"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block mt-3 text-sm text-gray-500 underline"
+            >
               자세히보기
             </a>
           </div>
