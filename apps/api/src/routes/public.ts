@@ -10,6 +10,9 @@ const prisma = new PrismaClient();
  */
 router.post('/gain-customer', async (req: Request, res: Response) => {
   try {
+    // 요청 데이터 로깅
+    console.log('[gain-customer] Request body:', JSON.stringify(req.body, null, 2));
+
     const {
       phone,
       gender,
@@ -95,9 +98,30 @@ router.post('/gain-customer', async (req: Request, res: Response) => {
       message: '등록이 완료되었습니다.',
       isNew: true,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in gain-customer:', error);
-    res.status(500).json({ error: '등록 중 오류가 발생했습니다.' });
+    console.error('Error details:', {
+      name: error?.name,
+      message: error?.message,
+      code: error?.code,
+      meta: error?.meta,
+    });
+
+    // Prisma 유효성 검증 에러인 경우 더 구체적인 메시지 반환
+    if (error?.code === 'P2002') {
+      return res.status(400).json({ error: '이미 등록된 전화번호입니다.' });
+    }
+    if (error?.code === 'P2003') {
+      return res.status(400).json({ error: '잘못된 참조 데이터입니다.' });
+    }
+
+    res.status(500).json({
+      error: '등록 중 오류가 발생했습니다.',
+      // 개발 환경에서만 상세 에러 표시
+      ...(process.env.NODE_ENV !== 'production' && {
+        detail: error?.message
+      })
+    });
   }
 });
 
