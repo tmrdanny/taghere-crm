@@ -73,7 +73,7 @@ const CATEGORY_OPTIONS = [
 // 비용 상수
 const SMS_COST_PER_MESSAGE = 150;
 const KAKAO_TEXT_COST = 200;
-const KAKAO_IMAGE_COST = 220;
+const KAKAO_IMAGE_COST = 200;
 
 // 인증 토큰 가져오기
 const getAuthToken = () => {
@@ -890,7 +890,7 @@ export default function LocalCustomersPage() {
                   <ImagePlus className="w-5 h-5 text-[#64748b]" />
                   <span className="text-sm text-[#1e293b]">이미지형</span>
                 </div>
-                <p className="text-base font-medium text-[#1e293b] mt-2">220원/건</p>
+                <p className="text-base font-medium text-[#1e293b] mt-2">200원/건</p>
               </button>
             </div>
           </div>
@@ -947,7 +947,7 @@ export default function LocalCustomersPage() {
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-neutral-900 truncate">{kakaoUploadedImage.filename}</p>
-                  <span className="inline-block mt-1.5 px-2 py-0.5 bg-neutral-200 rounded text-xs text-neutral-600">이미지형 (220원/건)</span>
+                  <span className="inline-block mt-1.5 px-2 py-0.5 bg-neutral-200 rounded text-xs text-neutral-600">이미지형 (200원/건)</span>
                 </div>
                 <button
                   onClick={handleKakaoImageDelete}

@@ -1323,7 +1323,7 @@ export default function MessagesPage() {
                     <ImagePlus className="w-5 h-5 text-[#64748b]" />
                     <span className="text-sm text-[#1e293b]">이미지형</span>
                   </div>
-                  <p className="text-base font-medium text-[#1e293b] mt-2">170원/건</p>
+                  <p className="text-base font-medium text-[#1e293b] mt-2">150원/건</p>
                 </button>
               </div>
             </div>
@@ -1379,7 +1379,7 @@ export default function MessagesPage() {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-[#1e293b] truncate">{kakaoUploadedImage.filename}</p>
-                      <Badge variant="secondary" className="mt-1.5">이미지형 (170원/건)</Badge>
+                      <Badge variant="secondary" className="mt-1.5">이미지형 (150원/건)</Badge>
                     </div>
                     <button
                       onClick={handleKakaoImageDelete}
@@ -1505,10 +1505,10 @@ export default function MessagesPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex flex-col gap-1">
                   <span className="text-xs sm:text-sm text-[#64748b]">
-                    발송 대상 {formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명 × {kakaoMessageType === 'IMAGE' ? '170' : '150'}원 (카카오톡)
+                    발송 대상 {formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명 × 150원 (카카오톡)
                   </span>
                   <span className="text-lg sm:text-xl font-bold text-[#1e293b]">
-                    총 {formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 170 : 150)))}원
+                    총 {formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * 150))}원
                   </span>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -2014,7 +2014,7 @@ export default function MessagesPage() {
               <div className="flex justify-between">
                 <span className="text-neutral-600">메시지 유형</span>
                 <span className="font-semibold">
-                  {kakaoMessageType === 'IMAGE' ? '이미지형 (170원)' : '텍스트형 (150원)'}
+                  {kakaoMessageType === 'IMAGE' ? '이미지형 (150원)' : '텍스트형 (150원)'}
                 </span>
               </div>
               {!isSendableTime && (
@@ -2025,7 +2025,7 @@ export default function MessagesPage() {
               )}
               <div className="flex justify-between text-lg pt-2 border-t border-neutral-200">
                 <span className="text-neutral-900 font-medium">총 비용</span>
-                <span className="font-bold text-brand-700">{formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 170 : 150)))}원</span>
+                <span className="font-bold text-brand-700">{formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * 150))}원</span>
               </div>
             </div>
 
