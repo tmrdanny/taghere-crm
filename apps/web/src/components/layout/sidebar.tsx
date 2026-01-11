@@ -160,7 +160,15 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
               )}
               title={isCollapsed ? item.label : undefined}
             >
-              <Icon className={cn('w-5 h-5 flex-shrink-0', isActive && 'text-brand-800')} />
+              <div className="relative flex-shrink-0">
+                <Icon className={cn('w-5 h-5', isActive && 'text-brand-800')} />
+                {/* Collapsed 상태에서 NEW 배지 - 작은 빨간 점 */}
+                {isCollapsed && (item as any).isNew && (
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-[8px] font-bold leading-none">N</span>
+                  </span>
+                )}
+              </div>
               {!isCollapsed && (
                 <>
                   <span>{item.label}</span>
