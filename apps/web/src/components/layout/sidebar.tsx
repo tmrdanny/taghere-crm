@@ -17,7 +17,7 @@ import {
   Download,
   Send,
   History,
-  MapPin,
+  UserPlus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -40,7 +40,7 @@ const navItems = [
   { href: '/home', label: '홈', icon: Home },
   { href: '/customers', label: '고객 리스트', icon: Users },
   { href: '/points', label: '포인트 적립', icon: Coins },
-  { href: '/local-customers', label: '우리동네 손님 찾기', icon: MapPin, isNew: true },
+  { href: '/local-customers', label: '신규 고객 유치', icon: UserPlus, isNew: true },
   { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
   { href: '/messages', label: '메시지 발송', icon: Send },
   { href: '/message-history', label: '발송 내역', icon: History },

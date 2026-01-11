@@ -650,7 +650,7 @@ export default function LocalCustomersPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e5e7eb]">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg sm:text-xl font-bold text-neutral-900">우리동네 손님 찾기</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-neutral-900">신규 고객 유치</h1>
             <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
               NEW
             </span>
