@@ -346,13 +346,21 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
       },
     });
 
+    // 이름 마스킹 함수: "홍길동" → "홍**", "진웅" → "진*"
+    const maskName = (name: string | null): string => {
+      if (!name) return '익명';
+      if (name.length <= 1) return name;
+      if (name.length === 2) return name[0] + '*';
+      return name[0] + '*'.repeat(name.length - 1);
+    };
+
     // 3점 미만 피드백이 2개 미만이면 최근 피드백으로 보충
     let feedbacks = lowRatingFeedbacks.map((f) => ({
       id: f.id,
       rating: f.rating,
       text: f.text,
       createdAt: f.createdAt.toISOString(),
-      customerName: f.customer.name,
+      customerName: maskName(f.customer.name),
     }));
 
     if (feedbacks.length < 2) {
@@ -378,7 +386,7 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
           rating: f.rating,
           text: f.text,
           createdAt: f.createdAt.toISOString(),
-          customerName: f.customer.name,
+          customerName: maskName(f.customer.name),
         })),
       ];
     }
