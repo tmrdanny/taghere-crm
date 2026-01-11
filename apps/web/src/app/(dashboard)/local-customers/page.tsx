@@ -581,9 +581,9 @@ export default function LocalCustomersPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row p-4 md:p-6 gap-6 overflow-hidden max-w-[1200px] mx-auto w-full lg:justify-center">
+    <div className="flex-1 flex flex-col lg:flex-row p-4 md:p-6 gap-6 max-w-[1200px] mx-auto w-full lg:justify-center lg:items-start">
       {/* Left Panel - Settings */}
-      <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6 overflow-y-auto">
+      <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e5e7eb]">
           <div className="flex items-center gap-2">
