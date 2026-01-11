@@ -304,4 +304,95 @@ router.get('/announcements', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/dashboard/feedback-summary - 고객 피드백 평점 및 리뷰 요약
+router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+
+    // 전체 피드백 통계 조회
+    const feedbackStats = await prisma.customerFeedback.aggregate({
+      where: {
+        customer: { storeId },
+      },
+      _avg: { rating: true },
+      _count: { id: true },
+    });
+
+    const averageRating = feedbackStats._avg.rating
+      ? Math.round(feedbackStats._avg.rating * 10) / 10
+      : 0;
+    const totalFeedbackCount = feedbackStats._count.id;
+
+    // 3점 미만 피드백 수
+    const lowRatingCount = await prisma.customerFeedback.count({
+      where: {
+        customer: { storeId },
+        rating: { lt: 3 },
+      },
+    });
+
+    // 3점 미만 피드백 조회 (최신순, 최대 2개)
+    const lowRatingFeedbacks = await prisma.customerFeedback.findMany({
+      where: {
+        customer: { storeId },
+        rating: { lt: 3 },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 2,
+      include: {
+        customer: {
+          select: { name: true },
+        },
+      },
+    });
+
+    // 3점 미만 피드백이 2개 미만이면 최근 피드백으로 보충
+    let feedbacks = lowRatingFeedbacks.map((f) => ({
+      id: f.id,
+      rating: f.rating,
+      text: f.text,
+      createdAt: f.createdAt.toISOString(),
+      customerName: f.customer.name,
+    }));
+
+    if (feedbacks.length < 2) {
+      const existingIds = feedbacks.map((f) => f.id);
+      const recentFeedbacks = await prisma.customerFeedback.findMany({
+        where: {
+          customer: { storeId },
+          id: { notIn: existingIds },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 2 - feedbacks.length,
+        include: {
+          customer: {
+            select: { name: true },
+          },
+        },
+      });
+
+      feedbacks = [
+        ...feedbacks,
+        ...recentFeedbacks.map((f) => ({
+          id: f.id,
+          rating: f.rating,
+          text: f.text,
+          createdAt: f.createdAt.toISOString(),
+          customerName: f.customer.name,
+        })),
+      ];
+    }
+
+    res.json({
+      averageRating,
+      totalFeedbackCount,
+      lowRatingCount,
+      feedbacks,
+    });
+  } catch (error) {
+    console.error('Feedback summary error:', error);
+    res.status(500).json({ error: '피드백 요약 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;

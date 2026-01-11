@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber, formatCurrency } from '@/lib/utils';
-import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone } from 'lucide-react';
+import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare } from 'lucide-react';
 import {
   XAxis,
   YAxis,
@@ -46,6 +46,21 @@ interface Announcement {
   createdAt: string;
 }
 
+interface FeedbackItem {
+  id: string;
+  rating: number;
+  text: string | null;
+  createdAt: string;
+  customerName: string | null;
+}
+
+interface FeedbackSummary {
+  averageRating: number;
+  totalFeedbackCount: number;
+  lowRatingCount: number;
+  feedbacks: FeedbackItem[];
+}
+
 type PeriodKey = '7일' | '30일' | '90일' | '전체';
 
 export default function HomePage() {
@@ -57,6 +72,8 @@ export default function HomePage() {
   const [isRefreshingChart, setIsRefreshingChart] = useState(false);
   const [isRefreshingStats, setIsRefreshingStats] = useState(false);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [feedbackSummary, setFeedbackSummary] = useState<FeedbackSummary | null>(null);
+  const [isRefreshingFeedback, setIsRefreshingFeedback] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -105,6 +122,51 @@ export default function HomePage() {
 
     fetchStats();
   }, [apiUrl]);
+
+  // Fetch feedback summary
+  useEffect(() => {
+    const fetchFeedbackSummary = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${apiUrl}/api/dashboard/feedback-summary`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setFeedbackSummary(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch feedback summary:', error);
+      }
+    };
+
+    fetchFeedbackSummary();
+  }, [apiUrl]);
+
+  // Refresh feedback summary
+  const handleRefreshFeedback = async () => {
+    setIsRefreshingFeedback(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/api/dashboard/feedback-summary`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setFeedbackSummary(data);
+      }
+    } catch (error) {
+      console.error('Failed to refresh feedback summary:', error);
+    } finally {
+      setIsRefreshingFeedback(false);
+    }
+  };
 
   // Fetch visitor chart data based on period
   useEffect(() => {
@@ -178,6 +240,45 @@ export default function HomePage() {
       setIsRefreshingChart(false);
       setIsRefreshingStats(false);
     }
+  };
+
+  // StarDisplay component for showing ratings
+  const StarDisplay = ({ rating, size = 'md' }: { rating: number; size?: 'sm' | 'md' | 'lg' }) => {
+    const sizeClasses = {
+      sm: 'w-3 h-3',
+      md: 'w-5 h-5',
+      lg: 'w-6 h-6',
+    };
+
+    return (
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((star) => {
+          const filled = star <= Math.floor(rating);
+          const partial = !filled && star === Math.ceil(rating) && rating % 1 > 0;
+          const partialWidth = partial ? `${(rating % 1) * 100}%` : '0%';
+
+          return (
+            <div key={star} className="relative">
+              <Star
+                className={`${sizeClasses[size]} text-neutral-200`}
+                fill="#e5e7eb"
+              />
+              {(filled || partial) && (
+                <div
+                  className="absolute inset-0 overflow-hidden"
+                  style={{ width: filled ? '100%' : partialWidth }}
+                >
+                  <Star
+                    className={`${sizeClasses[size]} text-yellow-400`}
+                    fill="#facc15"
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   // Helper function to render growth indicator
@@ -377,51 +478,88 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        {/* Today Visitors */}
+        {/* Customer Feedback */}
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-medium text-neutral-900">
-                오늘 방문자 수
+                고객 피드백
               </span>
               <button
-                onClick={handleRefreshVisitorChart}
-                disabled={isRefreshingStats}
+                onClick={handleRefreshFeedback}
+                disabled={isRefreshingFeedback}
                 className="p-1.5 rounded-md hover:bg-neutral-100 transition-colors disabled:opacity-50"
                 title="새로고침"
               >
-                <RefreshCw className={`w-4 h-4 text-neutral-500 ${isRefreshingStats ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 text-neutral-500 ${isRefreshingFeedback ? 'animate-spin' : ''}`} />
               </button>
             </div>
-            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm mb-4 ${
-              (visitorStats?.growth ?? 0) >= 0
-                ? 'bg-green-50 text-green-700'
-                : 'bg-red-50 text-red-700'
-            }`}>
-              {(visitorStats?.growth ?? 0) >= 0 ? (
-                <TrendingUp className="w-4 h-4" />
-              ) : (
-                <TrendingDown className="w-4 h-4" />
-              )}
-              어제 대비 {(visitorStats?.growth ?? 0) >= 0 ? '+' : ''}{visitorStats?.growth ?? 0}%
+
+            {/* Average Rating */}
+            <div className="flex items-center gap-3 mb-2">
+              <StarDisplay rating={feedbackSummary?.averageRating ?? 0} size="lg" />
+              <span className="text-2xl font-bold text-neutral-900">
+                {feedbackSummary?.averageRating?.toFixed(1) ?? '0.0'}
+              </span>
             </div>
-            <p className="text-4xl font-bold text-neutral-900 mb-2">
-              {formatNumber(visitorStats?.todayVisitors ?? 0)}명
-            </p>
             <p className="text-sm text-neutral-500 mb-4">
-              오늘 포인트 적립 또는 신규 등록된 고객 수
+              총 {formatNumber(feedbackSummary?.totalFeedbackCount ?? 0)}개 피드백
             </p>
-            <div className="p-4 bg-brand-50 rounded-lg text-sm text-neutral-700 mb-4">
-              <p className="font-medium">
-                어제 방문자: {formatNumber(visitorStats?.yesterdayVisitors ?? 0)}명
-              </p>
+
+            {/* Low Rating Warning */}
+            {(feedbackSummary?.lowRatingCount ?? 0) > 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg mb-4">
+                <AlertTriangle className="w-4 h-4 text-orange-600 flex-shrink-0" />
+                <span className="text-sm text-orange-700">
+                  개선 필요 피드백 {feedbackSummary?.lowRatingCount}개
+                </span>
+              </div>
+            )}
+
+            {/* Feedback List */}
+            <div className="space-y-3">
+              {feedbackSummary?.feedbacks && feedbackSummary.feedbacks.length > 0 ? (
+                feedbackSummary.feedbacks.map((feedback) => (
+                  <div
+                    key={feedback.id}
+                    className={`p-3 rounded-lg ${
+                      feedback.rating < 3
+                        ? 'bg-red-50 border border-red-200'
+                        : 'bg-neutral-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <StarDisplay rating={feedback.rating} size="sm" />
+                        <span className="text-xs text-neutral-600">
+                          {feedback.customerName || '익명'}
+                        </span>
+                      </div>
+                      <span className="text-xs text-neutral-400">
+                        {new Date(feedback.createdAt).toLocaleDateString('ko-KR')}
+                      </span>
+                    </div>
+                    {feedback.text && (
+                      <p className={`text-sm mt-1 line-clamp-2 ${
+                        feedback.rating < 3 ? 'text-red-700' : 'text-neutral-700'
+                      }`}>
+                        {feedback.text}
+                      </p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 bg-neutral-50 rounded-lg text-center">
+                  <MessageSquare className="w-8 h-8 text-neutral-300 mx-auto mb-2" />
+                  <p className="text-sm text-neutral-500">아직 피드백이 없습니다</p>
+                </div>
+              )}
             </div>
-            <div className="p-4 bg-neutral-50 rounded-lg text-sm text-neutral-600">
-              <p>
-                포인트 적립 및 신규 고객 등록이 방문자 수로 집계됩니다.
-              </p>
-              <p className="mt-2">
-                같은 날 여러 번 방문한 고객은 1명으로 계산됩니다.
+
+            {/* Info */}
+            <div className="mt-4 p-3 bg-neutral-50 rounded-lg">
+              <p className="text-xs text-neutral-500">
+                고객이 포인트 적립 시 남긴 피드백이 표시됩니다.
               </p>
             </div>
           </CardContent>
