@@ -23,6 +23,8 @@ import {
   Link,
   Trash2,
   Menu,
+  MessageSquare,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -97,9 +99,9 @@ const CATEGORY_GROUPS = [
 ];
 
 // 비용 상수
-const SMS_COST_PER_MESSAGE = 200;
+const SMS_COST_PER_MESSAGE = 150;
 const KAKAO_TEXT_COST = 200;
-const KAKAO_IMAGE_COST = 230;
+const KAKAO_IMAGE_COST = 220;
 
 // 인증 토큰 가져오기
 const getAuthToken = () => {
@@ -157,6 +159,9 @@ export default function LocalCustomersPage() {
   const [kakaoMessageType, setKakaoMessageType] = useState<'TEXT' | 'IMAGE'>('TEXT');
   const [kakaoImageId, setKakaoImageId] = useState<string | null>(null);
   const [kakaoImageUrl, setKakaoImageUrl] = useState<string | null>(null);
+  const [kakaoUploadedImage, setKakaoUploadedImage] = useState<{ imageId: string; imageUrl: string; filename: string } | null>(null);
+  const [isKakaoUploading, setIsKakaoUploading] = useState(false);
+  const [kakaoImageError, setKakaoImageError] = useState<string | null>(null);
   const [kakaoButtons, setKakaoButtons] = useState<KakaoButton[]>([{ type: 'WL', name: '', linkMo: '' }]);
   const [isSendableTime, setIsSendableTime] = useState(true);
   const [nextSendableTime, setNextSendableTime] = useState<Date | null>(null);
@@ -362,11 +367,21 @@ export default function LocalCustomersPage() {
     );
   };
 
-  // 필터된 시/도 목록
-  const filteredSidos = sidos.filter(
-    (sido) =>
-      sido.includes(regionSearchQuery) && !selectedRegions.some((r) => r.sido === sido)
-  );
+  // 필터된 시/도 목록 (서울, 경기를 최상단에 배치)
+  const filteredSidos = sidos
+    .filter(
+      (sido) =>
+        sido.includes(regionSearchQuery) && !selectedRegions.some((r) => r.sido === sido)
+    )
+    .sort((a, b) => {
+      const priority = ['서울', '경기'];
+      const aIndex = priority.indexOf(a);
+      const bIndex = priority.indexOf(b);
+      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+      if (aIndex !== -1) return -1;
+      if (bIndex !== -1) return 1;
+      return 0;
+    });
 
   // 발송 수량 초과 확인
   const isOverLimit = sendCount > availableCount && availableCount > 0;
@@ -555,6 +570,60 @@ export default function LocalCustomersPage() {
 
   const byteLength = getByteLength(content);
   const smsMessageType = byteLength > 90 ? 'LMS' : 'SMS';
+
+  // 카카오톡 이미지 업로드
+  const handleKakaoImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setKakaoImageError(null);
+
+    // 파일 형식 검증
+    const ext = file.name.toLowerCase().split('.').pop();
+    if (!['jpg', 'jpeg', 'png'].includes(ext || '')) {
+      setKakaoImageError('JPG 또는 PNG 파일만 업로드 가능합니다.');
+      return;
+    }
+
+    // 용량 검증 (500KB)
+    if (file.size > 500 * 1024) {
+      setKakaoImageError(`이미지 용량이 너무 큽니다. (최대 500KB, 현재 ${Math.round(file.size / 1024)}KB)`);
+      return;
+    }
+
+    setIsKakaoUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const res = await fetch(`${API_BASE}/api/brand-message/upload-image`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setKakaoUploadedImage(data);
+        setKakaoMessageType('IMAGE');
+      } else {
+        setKakaoImageError(data.error || '이미지 업로드에 실패했습니다.');
+      }
+    } catch (err) {
+      setKakaoImageError('이미지 업로드 중 오류가 발생했습니다.');
+    } finally {
+      setIsKakaoUploading(false);
+    }
+  };
+
+  // 카카오톡 이미지 삭제
+  const handleKakaoImageDelete = () => {
+    setKakaoUploadedImage(null);
+    setKakaoMessageType('TEXT');
+  };
 
   // 카카오톡 버튼 추가
   const addKakaoButton = () => {
@@ -860,6 +929,108 @@ export default function LocalCustomersPage() {
             </p>
           )}
         </div>
+
+        {/* 카카오톡 전용: 메시지 타입 선택 */}
+        {activeTab === 'kakao' && (
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-900 mb-3">메시지 타입</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  setKakaoMessageType('TEXT');
+                  setKakaoUploadedImage(null);
+                }}
+                className={cn(
+                  'p-4 rounded-xl border-2 text-left transition-all',
+                  kakaoMessageType === 'TEXT'
+                    ? 'border-[#3b82f6] bg-[#eff6ff]'
+                    : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-[#64748b]" />
+                  <span className="text-sm text-[#1e293b]">텍스트형</span>
+                </div>
+                <p className="text-base font-medium text-[#1e293b] mt-2">200원/건</p>
+              </button>
+              <button
+                onClick={() => setKakaoMessageType('IMAGE')}
+                className={cn(
+                  'p-4 rounded-xl border-2 text-left transition-all',
+                  kakaoMessageType === 'IMAGE'
+                    ? 'border-[#3b82f6] bg-[#eff6ff]'
+                    : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <ImagePlus className="w-5 h-5 text-[#64748b]" />
+                  <span className="text-sm text-[#1e293b]">이미지형</span>
+                </div>
+                <p className="text-base font-medium text-[#1e293b] mt-2">220원/건</p>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 카카오톡 전용: 이미지 업로드 */}
+        {activeTab === 'kakao' && kakaoMessageType === 'IMAGE' && (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <h2 className="text-sm font-semibold text-neutral-900">이미지 첨부</h2>
+              <span className="text-xs text-neutral-500">(JPG/PNG, 최대 500KB)</span>
+            </div>
+
+            {!kakaoUploadedImage ? (
+              <div className="flex items-center gap-3">
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={handleKakaoImageUpload}
+                    disabled={isKakaoUploading}
+                  />
+                  <div className={cn(
+                    "flex items-center gap-2 px-4 py-2.5 border border-dashed border-neutral-300 rounded-xl text-sm text-neutral-500 hover:border-brand-500 hover:text-brand-500 transition-colors",
+                    isKakaoUploading && "opacity-50 cursor-not-allowed"
+                  )}>
+                    {isKakaoUploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <ImagePlus className="w-4 h-4" />
+                    )}
+                    <span>{isKakaoUploading ? '업로드 중...' : '이미지 추가'}</span>
+                  </div>
+                </label>
+              </div>
+            ) : (
+              <div className="flex items-start gap-3 p-3 bg-neutral-50 rounded-xl border border-neutral-200">
+                <img
+                  src={kakaoUploadedImage.imageUrl}
+                  alt="첨부 이미지"
+                  className="w-16 h-16 object-cover rounded-lg"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-neutral-900 truncate">{kakaoUploadedImage.filename}</p>
+                  <span className="inline-block mt-1.5 px-2 py-0.5 bg-neutral-200 rounded text-xs text-neutral-600">이미지형 (220원/건)</span>
+                </div>
+                <button
+                  onClick={handleKakaoImageDelete}
+                  className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {kakaoImageError && (
+              <div className="flex items-center gap-2 p-3 mt-2 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{kakaoImageError}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 메시지 내용 입력 */}
         <div>
