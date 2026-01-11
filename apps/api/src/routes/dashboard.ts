@@ -331,21 +331,6 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
       },
     });
 
-    // 3점 미만 피드백 조회 (최신순, 최대 2개)
-    const lowRatingFeedbacks = await prisma.customerFeedback.findMany({
-      where: {
-        customer: { storeId },
-        rating: { lt: 3 },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 2,
-      include: {
-        customer: {
-          select: { name: true },
-        },
-      },
-    });
-
     // 이름 마스킹 함수: "홍길동" → "홍*동", "김원" → "김*원", "정" → "정"
     const maskName = (name: string | null): string => {
       if (!name) return '익명';
@@ -355,8 +340,26 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
       return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
     };
 
-    // 3점 미만 피드백이 2개 미만이면 텍스트가 있는 최근 피드백으로 보충
-    let feedbacks = lowRatingFeedbacks.map((f) => ({
+    // 텍스트가 있는 모든 피드백을 가져와서 길이순으로 정렬
+    const feedbacksWithText = await prisma.customerFeedback.findMany({
+      where: {
+        customer: { storeId },
+        text: { not: null },
+      },
+      include: {
+        customer: {
+          select: { name: true },
+        },
+      },
+    });
+
+    // 텍스트 길이순으로 정렬 (긴 것 먼저)
+    const sortedByTextLength = feedbacksWithText
+      .filter((f) => f.text && f.text.length > 0)
+      .sort((a, b) => (b.text?.length || 0) - (a.text?.length || 0))
+      .slice(0, 2);
+
+    let feedbacks = sortedByTextLength.map((f) => ({
       id: f.id,
       rating: f.rating,
       text: f.text,
@@ -364,15 +367,13 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
       customerName: maskName(f.customer.name),
     }));
 
+    // 텍스트가 있는 피드백이 2개 미만이면 최근 피드백으로 보충
     if (feedbacks.length < 2) {
       const existingIds = feedbacks.map((f) => f.id);
-
-      // 먼저 텍스트가 있는 최근 피드백을 가져옴
-      const recentFeedbacksWithText = await prisma.customerFeedback.findMany({
+      const recentFeedbacks = await prisma.customerFeedback.findMany({
         where: {
           customer: { storeId },
           id: { notIn: existingIds },
-          text: { not: null },
         },
         orderBy: { createdAt: 'desc' },
         take: 2 - feedbacks.length,
@@ -385,7 +386,7 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
 
       feedbacks = [
         ...feedbacks,
-        ...recentFeedbacksWithText.map((f) => ({
+        ...recentFeedbacks.map((f) => ({
           id: f.id,
           rating: f.rating,
           text: f.text,
@@ -393,35 +394,6 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
           customerName: maskName(f.customer.name),
         })),
       ];
-
-      // 텍스트가 있는 피드백이 부족하면 최근 피드백으로 보충
-      if (feedbacks.length < 2) {
-        const allExistingIds = feedbacks.map((f) => f.id);
-        const recentFeedbacks = await prisma.customerFeedback.findMany({
-          where: {
-            customer: { storeId },
-            id: { notIn: allExistingIds },
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 2 - feedbacks.length,
-          include: {
-            customer: {
-              select: { name: true },
-            },
-          },
-        });
-
-        feedbacks = [
-          ...feedbacks,
-          ...recentFeedbacks.map((f) => ({
-            id: f.id,
-            rating: f.rating,
-            text: f.text,
-            createdAt: f.createdAt.toISOString(),
-            customerName: maskName(f.customer.name),
-          })),
-        ];
-      }
     }
 
     res.json({
