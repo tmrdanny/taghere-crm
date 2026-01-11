@@ -15,6 +15,7 @@ router.post('/gain-customer', async (req: Request, res: Response) => {
       gender,
       ageGroup,
       regionSido,
+      regionSigungu,
       preferredCategories,
       consentMarketing,
     } = req.body;
@@ -27,7 +28,10 @@ router.post('/gain-customer', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '연령대 정보가 필요합니다.' });
     }
     if (!regionSido) {
-      return res.status(400).json({ error: '지역 정보가 필요합니다.' });
+      return res.status(400).json({ error: '시/도를 선택해주세요.' });
+    }
+    if (!regionSigungu) {
+      return res.status(400).json({ error: '시/군/구를 선택해주세요.' });
     }
     if (!consentMarketing) {
       return res.status(400).json({ error: '마케팅 수신 동의가 필요합니다.' });
@@ -54,7 +58,7 @@ router.post('/gain-customer', async (req: Request, res: Response) => {
           gender: gender || null,
           ageGroup,
           regionSido,
-          regionSigungu: '', // 폼에서는 시/군/구 미수집
+          regionSigungu,
           preferredCategories: preferredCategories
             ? JSON.stringify(preferredCategories)
             : null,
@@ -77,7 +81,7 @@ router.post('/gain-customer', async (req: Request, res: Response) => {
         gender: gender || null,
         ageGroup,
         regionSido,
-        regionSigungu: '',
+        regionSigungu,
         preferredCategories: preferredCategories
           ? JSON.stringify(preferredCategories)
           : null,
