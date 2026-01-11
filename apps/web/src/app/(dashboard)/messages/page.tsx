@@ -1249,28 +1249,28 @@ export default function MessagesPage() {
               {(estimate?.targetCount || getCurrentTargetCount()) > 0 && (
                 <div className="mt-4 pt-4 border-t border-[#e5e7eb]">
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-semibold text-green-700">예상 마케팅 효과</span>
+                    <TrendingUp className="w-5 h-5 text-green-600" />
+                    <span className="text-base font-semibold text-green-700">예상 마케팅 효과</span>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <p className="text-xs text-[#64748b]">예상 방문율</p>
-                      <p className="text-sm font-bold text-green-700">4.5%</p>
+                      <p className="text-sm text-[#64748b]">예상 방문율</p>
+                      <p className="text-base font-bold text-green-700">4.5%</p>
                     </div>
                     <div>
-                      <p className="text-xs text-[#64748b]">예상 방문</p>
-                      <p className="text-sm font-bold text-green-700">
+                      <p className="text-sm text-[#64748b]">예상 방문</p>
+                      <p className="text-base font-bold text-green-700">
                         {Math.round((estimate?.targetCount || getCurrentTargetCount()) * 0.045).toLocaleString()}명
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-[#64748b]">예상 매출</p>
-                      <p className="text-sm font-bold text-green-700">
+                      <p className="text-sm text-[#64748b]">예상 매출</p>
+                      <p className="text-base font-bold text-green-700">
                         {(Math.round((estimate?.targetCount || getCurrentTargetCount()) * 0.045) * (estimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원
                       </p>
                     </div>
                   </div>
-                  <p className="text-[10px] text-[#94a3b8] mt-2">
+                  <p className="text-xs text-[#94a3b8] mt-2">
                     * 업계 평균 방문율 4.5% 및 매장 평균 객단가 {(estimate?.estimatedRevenue?.avgOrderValue || 25000).toLocaleString()}원 기준
                   </p>
                 </div>
@@ -1515,28 +1515,28 @@ export default function MessagesPage() {
               {(kakaoEstimate?.targetCount || getCurrentTargetCount()) > 0 && (
                 <div className="mt-4 pt-4 border-t border-[#e5e7eb]">
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-semibold text-green-700">예상 마케팅 효과</span>
+                    <TrendingUp className="w-5 h-5 text-green-600" />
+                    <span className="text-base font-semibold text-green-700">예상 마케팅 효과</span>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <p className="text-xs text-[#64748b]">예상 방문율</p>
-                      <p className="text-sm font-bold text-green-700">{kakaoMessageType === 'IMAGE' ? '8.0%' : '7.6%'}</p>
+                      <p className="text-sm text-[#64748b]">예상 방문율</p>
+                      <p className="text-base font-bold text-green-700">{kakaoMessageType === 'IMAGE' ? '8.0%' : '7.6%'}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-[#64748b]">예상 방문</p>
-                      <p className="text-sm font-bold text-green-700">
+                      <p className="text-sm text-[#64748b]">예상 방문</p>
+                      <p className="text-base font-bold text-green-700">
                         {Math.round((kakaoEstimate?.targetCount || getCurrentTargetCount()) * (kakaoMessageType === 'IMAGE' ? 0.080 : 0.076)).toLocaleString()}명
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-[#64748b]">예상 매출</p>
-                      <p className="text-sm font-bold text-green-700">
+                      <p className="text-sm text-[#64748b]">예상 매출</p>
+                      <p className="text-base font-bold text-green-700">
                         {(Math.round((kakaoEstimate?.targetCount || getCurrentTargetCount()) * (kakaoMessageType === 'IMAGE' ? 0.080 : 0.076)) * (kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원
                       </p>
                     </div>
                   </div>
-                  <p className="text-[10px] text-[#94a3b8] mt-2">
+                  <p className="text-xs text-[#94a3b8] mt-2">
                     * 업계 평균 방문율 {kakaoMessageType === 'IMAGE' ? '8.0%' : '7.6%'} 및 매장 평균 객단가 {(kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000).toLocaleString()}원 기준
                   </p>
                 </div>
