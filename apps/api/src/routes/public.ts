@@ -117,10 +117,8 @@ router.post('/gain-customer', async (req: Request, res: Response) => {
 
     res.status(500).json({
       error: '등록 중 오류가 발생했습니다.',
-      // 개발 환경에서만 상세 에러 표시
-      ...(process.env.NODE_ENV !== 'production' && {
-        detail: error?.message
-      })
+      detail: error?.message,
+      code: error?.code,
     });
   }
 });
