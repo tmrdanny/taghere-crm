@@ -241,7 +241,7 @@ export default function GainCustomerPage() {
           내가 자주 가는 곳의 레스토랑과 카페의 파격 혜택을 매주 받아보세요.
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-8" autoComplete="off">
           {/* 연락처 */}
           <div>
             <label className="block text-base font-medium text-gray-900 mb-2">
@@ -252,6 +252,7 @@ export default function GainCustomerPage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="010-0000-0000"
+              autoComplete="off"
               className="w-full px-4 py-3 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900 placeholder-gray-400 transition-colors"
             />
           </div>
@@ -268,6 +269,7 @@ export default function GainCustomerPage() {
               <select
                 value={selectedSido}
                 onChange={(e) => handleSidoChange(e.target.value)}
+                autoComplete="off"
                 className="w-full px-4 py-3 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900 bg-white appearance-none cursor-pointer"
               >
                 <option value="">시/도 선택</option>
@@ -284,6 +286,7 @@ export default function GainCustomerPage() {
                 value={selectedSigungu}
                 onChange={(e) => setSelectedSigungu(e.target.value)}
                 disabled={!selectedSido}
+                autoComplete="off"
                 className={`w-full px-4 py-3 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none bg-white appearance-none cursor-pointer ${
                   selectedSido ? 'text-gray-900' : 'text-gray-400'
                 }`}
@@ -369,7 +372,7 @@ export default function GainCustomerPage() {
           {/* 관심 업종 (선택) */}
           <div>
             <label className="block text-base font-medium text-gray-900 mb-3">
-              관심 업종 <span className="text-gray-400">(선택)</span>
+              고객 관심 업종
             </label>
             <div className="flex flex-wrap gap-2">
               {CATEGORY_OPTIONS.map((cat) => (
