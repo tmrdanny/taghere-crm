@@ -476,9 +476,28 @@ function TaghereEnrollContent() {
     );
   }
 
+  // X 버튼 클릭 시 주문완료 페이지로 이동
+  const handleSkipEarn = () => {
+    const url = new URL(window.location.origin + '/taghere-enroll/order-success');
+    if (ordersheetId) url.searchParams.set('ordersheetId', ordersheetId);
+    url.searchParams.set('slug', slug);
+    window.location.href = url.toString();
+  };
+
   return (
     <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
       <div className="w-full max-w-[430px] h-full flex flex-col bg-white relative">
+        {/* 우측 상단 X 버튼 */}
+        <button
+          onClick={handleSkipEarn}
+          className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-neutral-600 transition-colors z-10"
+          aria-label="건너뛰기"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
         {/* Title - 상단 영역 (flex: 1) */}
         <div className="flex-1 flex flex-col justify-end pb-4">
           <div className="text-center">
@@ -509,6 +528,8 @@ function TaghereEnrollContent() {
 
         {/* 하단 고정 영역 - 체크박스 + CTA */}
         <div className="flex-[1.2] flex flex-col justify-end px-5 pb-8">
+          {/* 주문 접수 완료 안내 */}
+          <p className="text-center text-[13px] text-neutral-400 mb-3">주문이 접수되었어요</p>
           {/* 동의 안내 영역 */}
           <div
             className={`rounded-[12px] mb-4 p-4 transition-colors ${
