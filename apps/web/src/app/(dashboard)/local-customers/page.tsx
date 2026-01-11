@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronUp,
+  ChevronRight,
   Wifi,
   Camera,
   BatteryFull,
@@ -29,6 +30,79 @@ import {
 import { cn } from '@/lib/utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+// 대한민국 전체 시/도 및 시/군/구 데이터
+const KOREA_REGIONS: Record<string, string[]> = {
+  '서울': [
+    '강남구', '강동구', '강북구', '강서구', '관악구', '광진구', '구로구', '금천구',
+    '노원구', '도봉구', '동대문구', '동작구', '마포구', '서대문구', '서초구', '성동구',
+    '성북구', '송파구', '양천구', '영등포구', '용산구', '은평구', '종로구', '중구', '중랑구'
+  ],
+  '경기': [
+    '가평군', '고양시 덕양구', '고양시 일산동구', '고양시 일산서구', '과천시', '광명시', '광주시', '구리시',
+    '군포시', '김포시', '남양주시', '동두천시', '부천시', '성남시 분당구', '성남시 수정구', '성남시 중원구',
+    '수원시 권선구', '수원시 영통구', '수원시 장안구', '수원시 팔달구', '시흥시', '안산시 단원구', '안산시 상록구',
+    '안성시', '안양시 동안구', '안양시 만안구', '양주시', '양평군', '여주시', '연천군', '오산시',
+    '용인시 기흥구', '용인시 수지구', '용인시 처인구', '의왕시', '의정부시', '이천시', '파주시', '평택시',
+    '포천시', '하남시', '화성시'
+  ],
+  '인천': [
+    '강화군', '계양구', '남동구', '동구', '미추홀구', '부평구', '서구', '연수구', '옹진군', '중구'
+  ],
+  '부산': [
+    '강서구', '금정구', '기장군', '남구', '동구', '동래구', '부산진구', '북구',
+    '사상구', '사하구', '서구', '수영구', '연제구', '영도구', '중구', '해운대구'
+  ],
+  '대구': [
+    '남구', '달서구', '달성군', '동구', '북구', '서구', '수성구', '중구', '군위군'
+  ],
+  '광주': [
+    '광산구', '남구', '동구', '북구', '서구'
+  ],
+  '대전': [
+    '대덕구', '동구', '서구', '유성구', '중구'
+  ],
+  '울산': [
+    '남구', '동구', '북구', '울주군', '중구'
+  ],
+  '세종': [
+    '세종시 전체'
+  ],
+  '강원': [
+    '강릉시', '고성군', '동해시', '삼척시', '속초시', '양구군', '양양군', '영월군',
+    '원주시', '인제군', '정선군', '철원군', '춘천시', '태백시', '평창군', '홍천군', '화천군', '횡성군'
+  ],
+  '충북': [
+    '괴산군', '단양군', '보은군', '영동군', '옥천군', '음성군', '제천시', '증평군', '진천군', '청주시 상당구',
+    '청주시 서원구', '청주시 청원구', '청주시 흥덕구', '충주시'
+  ],
+  '충남': [
+    '계룡시', '공주시', '금산군', '논산시', '당진시', '보령시', '부여군', '서산시',
+    '서천군', '아산시', '예산군', '천안시 동남구', '천안시 서북구', '청양군', '태안군', '홍성군'
+  ],
+  '전북': [
+    '고창군', '군산시', '김제시', '남원시', '무주군', '부안군', '순창군', '완주군',
+    '익산시', '임실군', '장수군', '전주시 덕진구', '전주시 완산구', '정읍시', '진안군'
+  ],
+  '전남': [
+    '강진군', '고흥군', '곡성군', '광양시', '구례군', '나주시', '담양군', '목포시',
+    '무안군', '보성군', '순천시', '신안군', '여수시', '영광군', '영암군', '완도군',
+    '장성군', '장흥군', '진도군', '함평군', '해남군', '화순군'
+  ],
+  '경북': [
+    '경산시', '경주시', '고령군', '구미시', '김천시', '문경시', '봉화군', '상주시',
+    '성주군', '안동시', '영덕군', '영양군', '영주시', '영천시', '예천군', '울릉군',
+    '울진군', '의성군', '청도군', '청송군', '칠곡군', '포항시 남구', '포항시 북구'
+  ],
+  '경남': [
+    '거제시', '거창군', '고성군', '김해시', '남해군', '밀양시', '사천시', '산청군',
+    '양산시', '의령군', '진주시', '창녕군', '창원시 마산합포구', '창원시 마산회원구', '창원시 성산구',
+    '창원시 의창구', '창원시 진해구', '통영시', '하동군', '함안군', '함양군', '합천군'
+  ],
+  '제주': [
+    '서귀포시', '제주시'
+  ],
+};
 
 // 연령대 옵션
 const AGE_GROUP_OPTIONS = [
@@ -106,6 +180,7 @@ export default function LocalCustomersPage() {
   const [selectedRegions, setSelectedRegions] = useState<SelectedRegion[]>([]);
   const [regionSearchQuery, setRegionSearchQuery] = useState('');
   const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
+  const [expandedSido, setExpandedSido] = useState<string | null>(null); // 시/군/구 선택을 위해 펼쳐진 시/도
 
   // 필터 상태
   const [selectedAgeGroups, setSelectedAgeGroups] = useState<string[]>([]);
@@ -221,10 +296,10 @@ export default function LocalCustomersPage() {
 
     setIsLoading(true);
     try {
-      const regionSidos = selectedRegions.map((r) => r.sido).join(',');
-      const params = new URLSearchParams({
-        regionSidos,
-      });
+      const params = new URLSearchParams();
+
+      // 지역 정보를 JSON으로 전달 (시/도 전체 또는 시/군/구 개별 선택 구분)
+      params.set('regions', JSON.stringify(selectedRegions));
 
       if (selectedAgeGroups.length > 0) {
         params.set('ageGroups', selectedAgeGroups.join(','));
@@ -305,18 +380,29 @@ export default function LocalCustomersPage() {
     }
   }, [fetchSmsEstimate, fetchKakaoEstimate, activeTab]);
 
-  // 지역 추가
-  const addRegion = (sido: string) => {
-    if (!selectedRegions.some((r) => r.sido === sido)) {
-      setSelectedRegions([...selectedRegions, { sido }]);
+  // 지역 추가 (시/군/구 포함)
+  const addRegion = (sido: string, sigungu?: string) => {
+    const regionKey = sigungu ? `${sido}-${sigungu}` : sido;
+    if (!selectedRegions.some((r) => r.sido === sido && r.sigungu === sigungu)) {
+      setSelectedRegions([...selectedRegions, { sido, sigungu }]);
     }
     setRegionSearchQuery('');
     setIsRegionDropdownOpen(false);
+    setExpandedSido(null);
   };
 
   // 지역 제거
-  const removeRegion = (sido: string) => {
-    setSelectedRegions(selectedRegions.filter((r) => r.sido !== sido));
+  const removeRegion = (sido: string, sigungu?: string) => {
+    setSelectedRegions(selectedRegions.filter((r) => !(r.sido === sido && r.sigungu === sigungu)));
+  };
+
+  // 시/도 전체 선택 (해당 시/도의 모든 선택 제거 후 전체 추가)
+  const selectEntireSido = (sido: string) => {
+    // 해당 시/도의 모든 선택 제거
+    const filtered = selectedRegions.filter((r) => r.sido !== sido);
+    // 전체로 추가
+    setSelectedRegions([...filtered, { sido }]);
+    setExpandedSido(null);
   };
 
   // 연령대 토글
@@ -333,21 +419,56 @@ export default function LocalCustomersPage() {
     );
   };
 
-  // 필터된 시/도 목록 (서울, 경기를 최상단에 배치)
-  const filteredSidos = sidos
-    .filter(
-      (sido) =>
-        sido.includes(regionSearchQuery) && !selectedRegions.some((r) => r.sido === sido)
-    )
-    .sort((a, b) => {
-      const priority = ['서울', '경기'];
-      const aIndex = priority.indexOf(a);
-      const bIndex = priority.indexOf(b);
-      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-      if (aIndex !== -1) return -1;
-      if (bIndex !== -1) return 1;
-      return 0;
-    });
+  // KOREA_REGIONS 기반 시/도 목록 (서울, 경기를 최상단에 배치)
+  const sidoList = Object.keys(KOREA_REGIONS).sort((a, b) => {
+    const priority = ['서울', '경기'];
+    const aIndex = priority.indexOf(a);
+    const bIndex = priority.indexOf(b);
+    if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+    if (aIndex !== -1) return -1;
+    if (bIndex !== -1) return 1;
+    return 0;
+  });
+
+  // 검색어에 따른 필터링 (시/도 및 시/군/구 모두 검색 가능)
+  const getFilteredRegions = () => {
+    if (!regionSearchQuery.trim()) {
+      return sidoList.map(sido => ({ sido, sigungus: KOREA_REGIONS[sido] }));
+    }
+
+    const query = regionSearchQuery.toLowerCase();
+    const results: { sido: string; sigungus: string[] }[] = [];
+
+    for (const sido of sidoList) {
+      const sigungus = KOREA_REGIONS[sido];
+      // 시/도 이름에 검색어가 포함되면 모든 시/군/구 표시
+      if (sido.toLowerCase().includes(query)) {
+        results.push({ sido, sigungus });
+      } else {
+        // 시/군/구 이름에 검색어가 포함되는 것만 필터링
+        const matchedSigungus = sigungus.filter(s => s.toLowerCase().includes(query));
+        if (matchedSigungus.length > 0) {
+          results.push({ sido, sigungus: matchedSigungus });
+        }
+      }
+    }
+    return results;
+  };
+
+  const filteredRegions = getFilteredRegions();
+
+  // 이미 선택된 지역인지 확인
+  const isRegionSelected = (sido: string, sigungu?: string) => {
+    if (sigungu) {
+      // 시/군/구가 직접 선택되었거나, 해당 시/도 전체가 선택된 경우
+      return selectedRegions.some((r) =>
+        (r.sido === sido && r.sigungu === sigungu) ||
+        (r.sido === sido && !r.sigungu)
+      );
+    }
+    // 시/도 전체가 선택된 경우
+    return selectedRegions.some((r) => r.sido === sido && !r.sigungu);
+  };
 
   // 발송 수량 초과 확인
   const isOverLimit = sendCount > availableCount && availableCount > 0;
@@ -398,7 +519,7 @@ export default function LocalCustomersPage() {
           content,
           ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : null,
           gender: gender !== 'all' ? gender : null,
-          regionSidos: selectedRegions.map((r) => r.sido),
+          regions: selectedRegions,
           categories: selectedCategories.length > 0 ? selectedCategories : null,
           sendCount,
         }),
@@ -449,7 +570,7 @@ export default function LocalCustomersPage() {
           messageType: kakaoMessageType,
           ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : null,
           gender: gender !== 'all' ? gender : null,
-          regionSidos: selectedRegions.map((r) => r.sido),
+          regions: selectedRegions,
           categories: selectedCategories.length > 0 ? selectedCategories : null,
           sendCount,
           imageId: kakaoImageId,
@@ -709,12 +830,12 @@ export default function LocalCustomersPage() {
               <div className="flex flex-wrap gap-2 mb-3">
                 {selectedRegions.map((region) => (
                   <span
-                    key={region.sido}
+                    key={region.sigungu ? `${region.sido}-${region.sigungu}` : region.sido}
                     className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-100 text-brand-700 rounded-full text-sm font-medium"
                   >
-                    {region.sido} 전체
+                    {region.sigungu ? `${region.sido} ${region.sigungu}` : `${region.sido} 전체`}
                     <button
-                      onClick={() => removeRegion(region.sido)}
+                      onClick={() => removeRegion(region.sido, region.sigungu)}
                       className="hover:bg-brand-200 rounded-full p-0.5 transition-colors"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -734,32 +855,89 @@ export default function LocalCustomersPage() {
                   onChange={(e) => {
                     setRegionSearchQuery(e.target.value);
                     setIsRegionDropdownOpen(true);
+                    setExpandedSido(null);
                   }}
                   onFocus={() => setIsRegionDropdownOpen(true)}
-                  placeholder="지역 검색 (예: 경기, 서울, 부산...)"
+                  placeholder="지역 검색 (예: 강남구, 분당구, 해운대구...)"
                   className="w-full pl-9 pr-4 py-2.5 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                 />
               </div>
 
               {/* 드롭다운 */}
               {isRegionDropdownOpen && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {filteredSidos.length > 0 ? (
-                    filteredSidos.map((sido) => (
-                      <button
-                        key={sido}
-                        onClick={() => addRegion(sido)}
-                        className="w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-50 flex items-center justify-between group"
-                      >
-                        <span>{sido}</span>
-                        <Plus className="w-4 h-4 text-neutral-400 group-hover:text-brand-600" />
-                      </button>
+                <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
+                  {filteredRegions.length > 0 ? (
+                    filteredRegions.map(({ sido, sigungus }) => (
+                      <div key={sido}>
+                        {/* 시/도 헤더 */}
+                        <div
+                          className={cn(
+                            "flex items-center justify-between px-4 py-2.5 bg-neutral-50 border-b border-neutral-100 cursor-pointer hover:bg-neutral-100 transition-colors",
+                            expandedSido === sido && "bg-neutral-100"
+                          )}
+                          onClick={() => setExpandedSido(expandedSido === sido ? null : sido)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm text-neutral-900">{sido}</span>
+                            <span className="text-xs text-neutral-500">({sigungus.length}개 구/군)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {!isRegionSelected(sido) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  selectEntireSido(sido);
+                                }}
+                                className="text-xs text-brand-600 hover:text-brand-700 font-medium px-2 py-1 hover:bg-brand-50 rounded"
+                              >
+                                전체 선택
+                              </button>
+                            )}
+                            {isRegionSelected(sido) && (
+                              <span className="text-xs text-green-600 font-medium">선택됨</span>
+                            )}
+                            <ChevronDown
+                              className={cn(
+                                "w-4 h-4 text-neutral-400 transition-transform",
+                                expandedSido === sido && "rotate-180"
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                        {/* 시/군/구 목록 (펼쳐진 경우 또는 검색 중) */}
+                        {(expandedSido === sido || regionSearchQuery.trim()) && (
+                          <div className="py-1">
+                            {sigungus.map((sigungu) => {
+                              const isSelected = isRegionSelected(sido, sigungu);
+                              return (
+                                <button
+                                  key={sigungu}
+                                  onClick={() => !isSelected && addRegion(sido, sigungu)}
+                                  disabled={isSelected}
+                                  className={cn(
+                                    "w-full px-4 py-2 text-left text-sm flex items-center justify-between transition-colors",
+                                    isSelected
+                                      ? "bg-brand-50 text-brand-600"
+                                      : "hover:bg-neutral-50 text-neutral-700"
+                                  )}
+                                >
+                                  <span className="pl-4">{sigungu}</span>
+                                  {isSelected ? (
+                                    <span className="text-xs text-brand-500">선택됨</span>
+                                  ) : (
+                                    <Plus className="w-4 h-4 text-neutral-400" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     ))
                   ) : (
                     <div className="px-4 py-3 text-sm text-neutral-500">
-                      {regionSearchQuery
-                        ? '검색 결과가 없습니다'
-                        : '모든 지역이 선택되었습니다'}
+                      검색 결과가 없습니다
                     </div>
                   )}
                 </div>
@@ -770,7 +948,10 @@ export default function LocalCustomersPage() {
             {isRegionDropdownOpen && (
               <div
                 className="fixed inset-0 z-0"
-                onClick={() => setIsRegionDropdownOpen(false)}
+                onClick={() => {
+                  setIsRegionDropdownOpen(false);
+                  setExpandedSido(null);
+                }}
               />
             )}
           </div>

@@ -121,29 +121,44 @@ router.get('/total-count', authMiddleware, async (req: AuthRequest, res) => {
 // GET /api/local-customers/count - 조건에 맞는 고객 수 조회 (다중 지역 지원)
 router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { ageGroups, gender, regionSidos, regionSigungu, categories } = req.query;
+    const { ageGroups, gender, regions, regionSidos, regionSigungu, categories } = req.query;
 
-    if (!regionSidos) {
-      return res.status(400).json({ error: '지역을 선택해주세요.' });
+    // 새 형식 (regions JSON) 또는 구 형식 (regionSidos) 지원
+    let regionFilters: Array<{ sido: string; sigungu?: string }> = [];
+
+    if (regions) {
+      // 새 형식: regions JSON 파싱
+      try {
+        regionFilters = JSON.parse(regions as string);
+      } catch (e) {
+        return res.status(400).json({ error: '지역 데이터 형식이 올바르지 않습니다.' });
+      }
+    } else if (regionSidos) {
+      // 구 형식: regionSidos 콤마 구분
+      const regionSidoList = (regionSidos as string).split(',').filter(Boolean);
+      regionFilters = regionSidoList.map((sido) => ({ sido }));
     }
 
-    // 다중 지역 파싱 (콤마로 구분)
-    const regionSidoList = (regionSidos as string).split(',').filter(Boolean);
-
-    if (regionSidoList.length === 0) {
+    if (regionFilters.length === 0) {
       return res.status(400).json({ error: '지역을 선택해주세요.' });
     }
 
     // 필터 조건 구성 (다중 지역: OR 조건)
+    // 시/도 전체 선택과 시/군/구 개별 선택 모두 지원
+    const regionOrConditions = regionFilters.map((r) => {
+      if (r.sigungu) {
+        // 특정 시/군/구 선택
+        return { regionSido: r.sido, regionSigungu: r.sigungu };
+      } else {
+        // 시/도 전체 선택
+        return { regionSido: r.sido };
+      }
+    });
+
     const where: any = {
-      regionSido: { in: regionSidoList },
+      OR: regionOrConditions,
       consentMarketing: true,
     };
-
-    // 시/군/구 필터 (선택 시에만 적용 - 단일 지역일 때만 유효)
-    if (regionSigungu && regionSidoList.length === 1) {
-      where.regionSigungu = regionSigungu as string;
-    }
 
     // 연령대 필터
     if (ageGroups) {
@@ -240,10 +255,19 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { content, ageGroups, gender, regionSidos, sendCount, categories, isAdMessage = true } = req.body;
+    const { content, ageGroups, gender, regions, regionSidos, sendCount, categories, isAdMessage = true } = req.body;
+
+    // 새 형식 (regions) 또는 구 형식 (regionSidos) 지원
+    let regionFilters: Array<{ sido: string; sigungu?: string }> = [];
+
+    if (regions && Array.isArray(regions) && regions.length > 0) {
+      regionFilters = regions;
+    } else if (regionSidos && Array.isArray(regionSidos) && regionSidos.length > 0) {
+      regionFilters = regionSidos.map((sido: string) => ({ sido }));
+    }
 
     // 유효성 검사
-    if (!content || !regionSidos || regionSidos.length === 0 || !sendCount) {
+    if (!content || regionFilters.length === 0 || !sendCount) {
       return res.status(400).json({ error: '필수 항목을 모두 입력해주세요.' });
     }
 
@@ -265,9 +289,17 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       });
     }
 
-    // 필터 조건 구성 (다중 지역 지원)
+    // 필터 조건 구성 (다중 지역 지원 - 시/군/구 포함)
+    const regionOrConditions = regionFilters.map((r) => {
+      if (r.sigungu) {
+        return { regionSido: r.sido, regionSigungu: r.sigungu };
+      } else {
+        return { regionSido: r.sido };
+      }
+    });
+
     const where: any = {
-      regionSido: { in: regionSidos },
+      OR: regionOrConditions,
       consentMarketing: true,
     };
 
@@ -338,16 +370,19 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       ? `(광고)\n${content}\n무료수신거부 080-500-4233`
       : content;
 
-    // 캠페인 생성 (다중 지역은 콤마로 구분하여 저장)
+    // 캠페인 생성 (지역 정보를 JSON으로 저장)
+    const regionSidoList = [...new Set(regionFilters.map((r) => r.sido))];
+    const regionSigunguList = regionFilters.filter((r) => r.sigungu).map((r) => r.sigungu);
+
     const campaign = await prisma.externalSmsCampaign.create({
       data: {
         storeId,
-        title: `우리동네 손님 찾기 - ${new Date().toLocaleDateString('ko-KR')}`,
+        title: `신규 고객 유치 - ${new Date().toLocaleDateString('ko-KR')}`,
         content: formattedContent,
         filterAgeGroups: JSON.stringify(ageGroups || []),
         filterGender: gender || null,
-        filterRegionSido: regionSidos.join(','),
-        filterRegionSigungu: '',
+        filterRegionSido: regionSidoList.join(','),
+        filterRegionSigungu: regionSigunguList.join(','),
         filterCategories: categories && categories.length > 0 ? JSON.stringify(categories) : null,
         targetCount: sendCount,
         costPerMessage: EXTERNAL_SMS_COST,
@@ -559,6 +594,7 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
       messageType = 'TEXT',
       ageGroups,
       gender,
+      regions,
       regionSidos,
       sendCount,
       categories,
@@ -566,8 +602,17 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
       buttons,
     } = req.body;
 
+    // 새 형식 (regions) 또는 구 형식 (regionSidos) 지원
+    let regionFilters: Array<{ sido: string; sigungu?: string }> = [];
+
+    if (regions && Array.isArray(regions) && regions.length > 0) {
+      regionFilters = regions;
+    } else if (regionSidos && Array.isArray(regionSidos) && regionSidos.length > 0) {
+      regionFilters = regionSidos.map((sido: string) => ({ sido }));
+    }
+
     // 유효성 검사
-    if (!content || !regionSidos || regionSidos.length === 0 || !sendCount) {
+    if (!content || regionFilters.length === 0 || !sendCount) {
       return res.status(400).json({ error: '필수 항목을 모두 입력해주세요.' });
     }
 
@@ -611,9 +656,17 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
       });
     }
 
-    // 필터 조건 구성 (다중 지역 지원)
+    // 필터 조건 구성 (다중 지역 지원 - 시/군/구 포함)
+    const regionOrConditions = regionFilters.map((r) => {
+      if (r.sigungu) {
+        return { regionSido: r.sido, regionSigungu: r.sigungu };
+      } else {
+        return { regionSido: r.sido };
+      }
+    });
+
     const where: any = {
-      regionSido: { in: regionSidos },
+      OR: regionOrConditions,
       consentMarketing: true,
     };
 
@@ -679,15 +732,18 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
     });
 
     // 캠페인 생성 (SMS 캠페인 테이블 재사용, 제목으로 구분)
+    const regionSidoList = [...new Set(regionFilters.map((r) => r.sido))];
+    const regionSigunguList = regionFilters.filter((r) => r.sigungu).map((r) => r.sigungu);
+
     const campaign = await prisma.externalSmsCampaign.create({
       data: {
         storeId,
-        title: `우리동네 손님 찾기 (카카오톡) - ${new Date().toLocaleDateString('ko-KR')}`,
+        title: `신규 고객 유치 (카카오톡) - ${new Date().toLocaleDateString('ko-KR')}`,
         content,
         filterAgeGroups: JSON.stringify(ageGroups || []),
         filterGender: gender || null,
-        filterRegionSido: regionSidos.join(','),
-        filterRegionSigungu: '',
+        filterRegionSido: regionSidoList.join(','),
+        filterRegionSigungu: regionSigunguList.join(','),
         filterCategories: categories && categories.length > 0 ? JSON.stringify(categories) : null,
         targetCount: sendCount,
         costPerMessage,
