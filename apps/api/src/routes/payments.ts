@@ -9,6 +9,21 @@ const router = Router();
 const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || '';
 const TOSS_WEBHOOK_SECRET = process.env.TOSS_WEBHOOK_SECRET || '';
 
+// 금액에 따른 보너스율 계산 (프론트엔드와 동일하게 유지)
+const getBonusRate = (amount: number): number => {
+  if (amount >= 1000000) return 7;
+  if (amount >= 500000) return 5;
+  if (amount >= 200000) return 4;
+  if (amount >= 100000) return 3;
+  return 0;
+};
+
+// 보너스 포함 충전 금액 계산
+const getChargeAmountWithBonus = (amount: number): number => {
+  const bonusRate = getBonusRate(amount);
+  return Math.floor(amount * (1 + bonusRate / 100));
+};
+
 // POST /api/payments/confirm - 토스페이먼츠 결제 승인
 router.post('/confirm', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -102,8 +117,11 @@ router.post('/confirm', authMiddleware, async (req: AuthRequest, res) => {
           console.error('Payment status from Toss:', paymentData.status, 'amount:', paymentData.totalAmount);
 
           if (paymentData.status === 'DONE') {
-            // DB에 없지만 토스에서는 성공 - 충전 처리
-            const chargeAmount = paymentData.totalAmount || amount;
+            // DB에 없지만 토스에서는 성공 - 충전 처리 (보너스 포함)
+            const paidAmount = paymentData.totalAmount || amount;
+            const chargeAmount = getChargeAmountWithBonus(paidAmount);
+            const recoveryBonusRate = getBonusRate(paidAmount);
+            const recoveryBonusAmount = chargeAmount - paidAmount;
 
             const wallet = await prisma.wallet.upsert({
               where: { storeId },
@@ -121,7 +139,10 @@ router.post('/confirm', authMiddleware, async (req: AuthRequest, res) => {
                   source: 'tosspayments',
                   paymentKey,
                   orderId,
-                  totalAmount: chargeAmount,
+                  paidAmount,
+                  chargedAmount: chargeAmount,
+                  bonusRate: recoveryBonusRate,
+                  bonusAmount: recoveryBonusAmount,
                   method: paymentData.method,
                   card: paymentData.card,
                   recoveredFromError: confirmData.code,
@@ -129,7 +150,7 @@ router.post('/confirm', authMiddleware, async (req: AuthRequest, res) => {
               },
             });
 
-            console.error('Payment recovered successfully, amount:', chargeAmount);
+            console.error('Payment recovered successfully, paid:', paidAmount, 'charged:', chargeAmount);
 
             return res.json({
               success: true,
@@ -149,8 +170,10 @@ router.post('/confirm', authMiddleware, async (req: AuthRequest, res) => {
       });
     }
 
-    // 결제 성공 - 지갑에 충전금 추가 (결제 금액 그대로 충전)
-    const chargeAmount = amount;
+    // 결제 성공 - 지갑에 충전금 추가 (보너스 포함)
+    const chargeAmount = getChargeAmountWithBonus(amount);
+    const bonusRate = getBonusRate(amount);
+    const bonusAmount = chargeAmount - amount;
 
     // Update wallet
     const wallet = await prisma.wallet.upsert({
@@ -175,7 +198,10 @@ router.post('/confirm', authMiddleware, async (req: AuthRequest, res) => {
           source: 'tosspayments',
           paymentKey,
           orderId,
-          totalAmount: amount,
+          paidAmount: amount,
+          chargedAmount: chargeAmount,
+          bonusRate,
+          bonusAmount,
           method: confirmData.method,
           card: confirmData.card,
         },

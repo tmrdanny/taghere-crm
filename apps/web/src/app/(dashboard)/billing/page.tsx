@@ -21,8 +21,29 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 // 토스페이먼츠 클라이언트 키
 const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || '';
 
-// 충전 금액 프리셋
-const AMOUNT_PRESETS = [50000, 100000, 500000, 1000000];
+// 충전 금액 프리셋 및 보너스율
+const AMOUNT_PRESETS = [
+  { amount: 50000, bonusRate: 0 },
+  { amount: 100000, bonusRate: 3 },
+  { amount: 200000, bonusRate: 4 },
+  { amount: 500000, bonusRate: 5 },
+  { amount: 1000000, bonusRate: 7 },
+];
+
+// 금액에 따른 보너스율 계산
+const getBonusRate = (amount: number): number => {
+  if (amount >= 1000000) return 7;
+  if (amount >= 500000) return 5;
+  if (amount >= 200000) return 4;
+  if (amount >= 100000) return 3;
+  return 0;
+};
+
+// 보너스 포함 충전 금액 계산
+const getChargeAmountWithBonus = (amount: number): number => {
+  const bonusRate = getBonusRate(amount);
+  return Math.floor(amount * (1 + bonusRate / 100));
+};
 
 interface Transaction {
   id: string;
@@ -443,17 +464,22 @@ export default function BillingPage() {
             <div className="flex flex-wrap gap-2">
               {AMOUNT_PRESETS.map((preset) => (
                 <button
-                  key={preset}
-                  onClick={() => handlePresetClick(preset)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                    amount === preset
+                  key={preset.amount}
+                  onClick={() => handlePresetClick(preset.amount)}
+                  className={`relative px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    amount === preset.amount
                       ? 'bg-brand-800 text-white border-brand-800'
                       : 'bg-white text-neutral-700 border-neutral-300 hover:border-brand-800'
                   }`}
                 >
-                  {preset >= 1000000
-                    ? `${preset / 10000}만`
-                    : `${preset / 10000}만`}
+                  {preset.amount >= 10000 ? `${preset.amount / 10000}만` : formatCurrency(preset.amount)}
+                  {preset.bonusRate > 0 && (
+                    <span className={`ml-1 text-xs font-bold ${
+                      amount === preset.amount ? 'text-yellow-300' : 'text-green-600'
+                    }`}>
+                      +{preset.bonusRate}%
+                    </span>
+                  )}
                 </button>
               ))}
               <button
@@ -466,14 +492,26 @@ export default function BillingPage() {
 
             {/* 결제 예정 금액 */}
             <div className="border-t border-neutral-200 pt-4">
-              <div className="flex justify-end items-center gap-2">
-                <span className="text-sm font-medium text-neutral-700">
-                  결제 예정 금액
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-neutral-500">결제 금액</span>
+                <span className="text-lg font-medium text-neutral-700">
+                  {formatCurrency(totalAmount)}
                 </span>
               </div>
-              <div className="text-right mt-1">
-                <span className="text-3xl font-bold text-brand-800">
-                  {formatCurrency(totalAmount)}
+              {getBonusRate(amount) > 0 && (
+                <div className="flex justify-between items-center mt-2">
+                  <span className="text-sm text-green-600">보너스 충전 (+{getBonusRate(amount)}%)</span>
+                  <span className="text-lg font-medium text-green-600">
+                    +{formatCurrency(getChargeAmountWithBonus(amount) - amount)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center mt-3 pt-3 border-t border-neutral-100">
+                <span className="text-sm font-semibold text-neutral-900">
+                  실제 충전 금액
+                </span>
+                <span className="text-2xl font-bold text-brand-800">
+                  {formatCurrency(getChargeAmountWithBonus(amount))}
                 </span>
               </div>
             </div>
@@ -498,7 +536,7 @@ export default function BillingPage() {
               ) : (
                 <>
                   <CreditCard className="w-4 h-4 mr-2" />
-                  {formatCurrency(totalAmount)} 충전하기
+                  {formatCurrency(totalAmount)} 결제하고 {formatCurrency(getChargeAmountWithBonus(amount))} 충전하기
                 </>
               )}
             </Button>
