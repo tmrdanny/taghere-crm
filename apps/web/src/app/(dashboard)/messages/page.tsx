@@ -1255,23 +1255,23 @@ export default function MessagesPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <p className="text-sm text-[#64748b]">예상 방문율</p>
-                      <p className="text-base font-bold text-green-700">4.5%</p>
+                      <p className="text-base font-bold text-green-700">3.2%</p>
                     </div>
                     <div>
                       <p className="text-sm text-[#64748b]">예상 방문</p>
                       <p className="text-base font-bold text-green-700">
-                        {Math.round((estimate?.targetCount || getCurrentTargetCount()) * 0.045).toLocaleString()}명
+                        {Math.round((estimate?.targetCount || getCurrentTargetCount()) * 0.032).toLocaleString()}명
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-[#64748b]">예상 매출</p>
                       <p className="text-base font-bold text-green-700">
-                        {(Math.round((estimate?.targetCount || getCurrentTargetCount()) * 0.045) * (estimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원
+                        {(Math.round((estimate?.targetCount || getCurrentTargetCount()) * 0.032) * (estimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원
                       </p>
                     </div>
                   </div>
                   <p className="text-xs text-[#94a3b8] mt-2">
-                    * 업계 평균 방문율 4.5% 및 매장 평균 객단가 {(estimate?.estimatedRevenue?.avgOrderValue || 25000).toLocaleString()}원 기준
+                    * 업계 평균 방문율 3.2% 및 매장 평균 객단가 {(estimate?.estimatedRevenue?.avgOrderValue || 25000).toLocaleString()}원 기준
                   </p>
                 </div>
               )}
@@ -1521,23 +1521,23 @@ export default function MessagesPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <p className="text-sm text-[#64748b]">예상 방문율</p>
-                      <p className="text-base font-bold text-green-700">{kakaoMessageType === 'IMAGE' ? '8.0%' : '7.6%'}</p>
+                      <p className="text-base font-bold text-green-700">4.6%</p>
                     </div>
                     <div>
                       <p className="text-sm text-[#64748b]">예상 방문</p>
                       <p className="text-base font-bold text-green-700">
-                        {Math.round((kakaoEstimate?.targetCount || getCurrentTargetCount()) * (kakaoMessageType === 'IMAGE' ? 0.080 : 0.076)).toLocaleString()}명
+                        {Math.round((kakaoEstimate?.targetCount || getCurrentTargetCount()) * 0.046).toLocaleString()}명
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-[#64748b]">예상 매출</p>
                       <p className="text-base font-bold text-green-700">
-                        {(Math.round((kakaoEstimate?.targetCount || getCurrentTargetCount()) * (kakaoMessageType === 'IMAGE' ? 0.080 : 0.076)) * (kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원
+                        {(Math.round((kakaoEstimate?.targetCount || getCurrentTargetCount()) * 0.046) * (kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원
                       </p>
                     </div>
                   </div>
                   <p className="text-xs text-[#94a3b8] mt-2">
-                    * 업계 평균 방문율 {kakaoMessageType === 'IMAGE' ? '8.0%' : '7.6%'} 및 매장 평균 객단가 {(kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000).toLocaleString()}원 기준
+                    * 업계 평균 방문율 4.6% 및 매장 평균 객단가 {(kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000).toLocaleString()}원 기준
                   </p>
                 </div>
               )}
