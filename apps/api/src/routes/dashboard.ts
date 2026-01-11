@@ -355,7 +355,7 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
       return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
     };
 
-    // 3점 미만 피드백이 2개 미만이면 최근 피드백으로 보충
+    // 3점 미만 피드백이 2개 미만이면 텍스트가 있는 최근 피드백으로 보충
     let feedbacks = lowRatingFeedbacks.map((f) => ({
       id: f.id,
       rating: f.rating,
@@ -366,10 +366,13 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
 
     if (feedbacks.length < 2) {
       const existingIds = feedbacks.map((f) => f.id);
-      const recentFeedbacks = await prisma.customerFeedback.findMany({
+
+      // 먼저 텍스트가 있는 최근 피드백을 가져옴
+      const recentFeedbacksWithText = await prisma.customerFeedback.findMany({
         where: {
           customer: { storeId },
           id: { notIn: existingIds },
+          text: { not: null },
         },
         orderBy: { createdAt: 'desc' },
         take: 2 - feedbacks.length,
@@ -382,7 +385,7 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
 
       feedbacks = [
         ...feedbacks,
-        ...recentFeedbacks.map((f) => ({
+        ...recentFeedbacksWithText.map((f) => ({
           id: f.id,
           rating: f.rating,
           text: f.text,
@@ -390,6 +393,35 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
           customerName: maskName(f.customer.name),
         })),
       ];
+
+      // 텍스트가 있는 피드백이 부족하면 최근 피드백으로 보충
+      if (feedbacks.length < 2) {
+        const allExistingIds = feedbacks.map((f) => f.id);
+        const recentFeedbacks = await prisma.customerFeedback.findMany({
+          where: {
+            customer: { storeId },
+            id: { notIn: allExistingIds },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 2 - feedbacks.length,
+          include: {
+            customer: {
+              select: { name: true },
+            },
+          },
+        });
+
+        feedbacks = [
+          ...feedbacks,
+          ...recentFeedbacks.map((f) => ({
+            id: f.id,
+            rating: f.rating,
+            text: f.text,
+            createdAt: f.createdAt.toISOString(),
+            customerName: maskName(f.customer.name),
+          })),
+        ];
+      }
     }
 
     res.json({
