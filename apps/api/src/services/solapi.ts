@@ -260,35 +260,35 @@ export class SolapiService {
       // 전화번호 정규화
       const normalizedPhone = this.normalizePhoneNumber(params.to);
 
-      // 버튼 형식 변환 (Solapi 형식)
-      const solapiButtons = params.buttons?.map((btn) => ({
-        buttonType: btn.type,
-        buttonName: btn.name,
-        linkMo: btn.linkMo,
+      // 버튼 형식 변환 (BMS_FREE 형식: name, linkType, linkMobile)
+      const bmsButtons = params.buttons?.map((btn) => ({
+        name: btn.name,
+        linkType: 'WL' as const, // 웹링크
+        linkMobile: btn.linkMo,
         linkPc: btn.linkPc || btn.linkMo,
       }));
 
-      // 브랜드 메시지 자유형 (BMS_FREE) 발송
-      const bmsType = 'BMS_FREE';
+      // chatBubbleType 결정 (이미지 유무에 따라)
+      const chatBubbleType = params.imageId ? 'IMAGE' : 'TEXT';
 
       const sendParams: any = {
         to: normalizedPhone,
         from: '07041380263', // 발신번호 고정
-        type: bmsType,
+        type: 'BMS_FREE', // 브랜드 메시지 자유형
         text: params.content,
         kakaoOptions: {
           pfId: params.pfId,
-          disableSms: true, // SMS 폴백 비활성화
-          buttons: solapiButtons,
           bms: {
-            targeting: 'M', // M: 마케팅 메시지 (광고)
+            targeting: 'M', // M: 마케팅수신동의자
+            chatBubbleType: chatBubbleType,
+            buttons: bmsButtons,
           },
         },
       };
 
-      // 이미지가 있는 경우 추가
+      // 이미지가 있는 경우 bms.imageId에 추가
       if (params.imageId) {
-        sendParams.kakaoOptions.imageId = params.imageId;
+        sendParams.kakaoOptions.bms.imageId = params.imageId;
       }
 
       // 예약 발송 시간 설정

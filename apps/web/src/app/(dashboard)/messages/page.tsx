@@ -1542,9 +1542,14 @@ export default function MessagesPage() {
                     onClick={() => setShowKakaoConfirmModal(true)}
                     className="w-full sm:w-auto px-6 py-3 sm:py-3.5 bg-[#2a2d62] text-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSendableTime ? '메시지 발송하기' : '08:00에 예약 발송'}
+                    메시지 발송하기
                   </button>
               </div>
+
+              {/* 야간 발송 안내 */}
+              <p className="text-xs text-neutral-500 text-center mt-2">
+                * KST 기준 20:50 이후 발송 시, 다음날 08:00에 발송됩니다.
+              </p>
 
               {/* 예상 마케팅 효과 */}
               {(kakaoEstimate?.targetCount || getCurrentTargetCount()) > 0 && (
