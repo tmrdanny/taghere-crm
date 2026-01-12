@@ -868,12 +868,15 @@ export default function AdminStoresPage() {
                     {isEditMode ? (
                       <div className="flex items-center gap-1">
                         <input
-                          type="number"
-                          step="0.1"
-                          min="0.1"
-                          max="99.9"
-                          value={editForm.pointRatePercent ?? 5}
-                          onChange={(e) => setEditForm({ ...editForm, pointRatePercent: parseFloat(e.target.value) || 0 })}
+                          type="text"
+                          inputMode="decimal"
+                          value={editForm.pointRatePercent ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '' || /^\d*\.?\d{0,1}$/.test(val)) {
+                              setEditForm({ ...editForm, pointRatePercent: val === '' ? 0 : parseFloat(val) });
+                            }
+                          }}
                           className="w-20 text-[20px] font-bold text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
                         />
                         <span className="text-[20px] font-bold text-neutral-900">%</span>

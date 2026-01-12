@@ -617,12 +617,15 @@ export default function SettingsPage() {
                 </label>
                 <div className="flex items-center gap-2">
                   <Input
-                    type="number"
-                    min="0.1"
-                    max="99.9"
-                    step="0.1"
-                    value={pointRatePercent}
-                    onChange={(e) => setPointRatePercent(parseFloat(e.target.value) || 0)}
+                    type="text"
+                    inputMode="decimal"
+                    value={pointRatePercent || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '' || /^\d*\.?\d{0,1}$/.test(val)) {
+                        setPointRatePercent(val === '' ? 0 : parseFloat(val));
+                      }
+                    }}
                     placeholder="5"
                     className="w-24"
                   />
