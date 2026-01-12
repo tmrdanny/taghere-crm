@@ -104,6 +104,7 @@ export default function AdminStoresPage() {
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Store>>({});
+  const [pointRateInput, setPointRateInput] = useState(''); // 소수점 입력을 위한 문자열 상태
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -239,6 +240,7 @@ export default function AdminStoresPage() {
       pointUsageRule: store.pointUsageRule,
       pointsAlimtalkEnabled: store.pointsAlimtalkEnabled ?? true,
     });
+    setPointRateInput(String(store.pointRatePercent ?? 5));
     setIsEditMode(false);
   };
 
@@ -250,6 +252,12 @@ export default function AdminStoresPage() {
 
     setIsSaving(true);
 
+    // pointRateInput을 숫자로 변환해서 editForm에 반영
+    const formData = {
+      ...editForm,
+      pointRatePercent: parseFloat(pointRateInput) || 5,
+    };
+
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${selectedStore.id}`,
@@ -259,7 +267,7 @@ export default function AdminStoresPage() {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(editForm),
+          body: JSON.stringify(formData),
         }
       );
 
@@ -271,11 +279,11 @@ export default function AdminStoresPage() {
         setStores((prevStores) =>
           prevStores.map((store) =>
             store.id === selectedStore.id
-              ? { ...store, ...editForm }
+              ? { ...store, ...formData }
               : store
           )
         );
-        setSelectedStore({ ...selectedStore, ...editForm });
+        setSelectedStore({ ...selectedStore, ...formData });
         setIsEditMode(false);
       } else {
         throw new Error(data.error);
@@ -870,12 +878,12 @@ export default function AdminStoresPage() {
                         <input
                           type="text"
                           inputMode="decimal"
-                          value={editForm.pointRatePercent ?? ''}
+                          value={pointRateInput}
                           onChange={(e) => {
                             const val = e.target.value;
                             // 0~99.9 범위의 숫자 허용 (소수점 한 자리까지)
                             if (val === '' || /^\d{0,2}(\.\d?)?$/.test(val)) {
-                              setEditForm({ ...editForm, pointRatePercent: val === '' ? 0 : parseFloat(val) || 0 });
+                              setPointRateInput(val);
                             }
                           }}
                           className="w-20 text-[20px] font-bold text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"

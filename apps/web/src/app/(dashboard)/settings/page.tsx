@@ -83,7 +83,7 @@ export default function SettingsPage() {
   const canEnableAlimtalk = walletBalance >= MIN_BALANCE_FOR_ALIMTALK;
 
   // Point rate settings (결제금액 기반 적립률)
-  const [pointRatePercent, setPointRatePercent] = useState(5);
+  const [pointRatePercent, setPointRatePercent] = useState('5');
   const [isSavingPointRate, setIsSavingPointRate] = useState(false);
 
   // Point usage rule settings (포인트 사용 규칙)
@@ -166,7 +166,7 @@ export default function SettingsPage() {
 
         if (res.ok) {
           const data = await res.json();
-          setPointRatePercent(data.pointRatePercent ?? 5);
+          setPointRatePercent(String(data.pointRatePercent ?? 5));
         }
       } catch (error) {
         console.error('Failed to fetch point rate settings:', error);
@@ -278,7 +278,8 @@ export default function SettingsPage() {
   };
 
   const handleSavePointRate = async () => {
-    if (pointRatePercent < 0.1 || pointRatePercent > 99.9) {
+    const rateValue = parseFloat(pointRatePercent) || 0;
+    if (rateValue < 0.1 || rateValue > 99.9) {
       showToast('적립률은 0.1~99.9% 사이여야 합니다.', 'error');
       return;
     }
@@ -293,7 +294,7 @@ export default function SettingsPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          pointRatePercent,
+          pointRatePercent: rateValue,
         }),
       });
 
@@ -619,12 +620,12 @@ export default function SettingsPage() {
                   <Input
                     type="text"
                     inputMode="decimal"
-                    value={pointRatePercent || ''}
+                    value={pointRatePercent}
                     onChange={(e) => {
                       const val = e.target.value;
                       // 0~99.9 범위의 숫자 허용 (소수점 한 자리까지)
                       if (val === '' || /^\d{0,2}(\.\d?)?$/.test(val)) {
-                        setPointRatePercent(val === '' ? 0 : parseFloat(val) || 0);
+                        setPointRatePercent(val);
                       }
                     }}
                     placeholder="5"
