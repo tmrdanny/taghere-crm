@@ -1,6 +1,7 @@
 import { SolapiMessageService } from 'solapi';
 import { prisma } from '../lib/prisma.js';
 import type { AlimTalkType, AlimTalkStatus } from '@prisma/client';
+import * as crypto from 'crypto';
 
 // 템플릿 변수 타입
 export interface PointsEarnedVariables {
@@ -242,7 +243,19 @@ export class SolapiService {
     }
   }
 
-  // 브랜드 메시지 자유형 발송
+  // HMAC-SHA256 인증 헤더 생성
+  private generateAuthHeader(): string {
+    const salt = Array.from(crypto.randomBytes(32))
+      .map((b) => '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'[b % 62])
+      .join('');
+    const date = new Date().toISOString();
+    const hmac = crypto.createHmac('sha256', this.apiSecret);
+    hmac.update(date + salt);
+    const signature = hmac.digest('hex');
+    return `HMAC-SHA256 apiKey=${this.apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
+  }
+
+  // 브랜드 메시지 자유형 발송 (직접 HTTP API 호출 - SDK 타입 제한 우회)
   async sendBrandMessage(params: {
     to: string;
     pfId: string;
@@ -252,7 +265,7 @@ export class SolapiService {
     buttons?: BrandMessageButton[];
     scheduledAt?: Date; // 예약 발송 시간
   }): Promise<{ success: boolean; messageId?: string; groupId?: string; error?: string }> {
-    if (!this.messageService) {
+    if (!this.apiKey || !this.apiSecret) {
       return { success: false, error: 'SOLAPI not configured' };
     }
 
@@ -261,46 +274,71 @@ export class SolapiService {
       const normalizedPhone = this.normalizePhoneNumber(params.to);
 
       // 버튼 형식 변환 (BMS_FREE 형식: name, linkType, linkMobile)
-      const bmsButtons = params.buttons?.map((btn) => ({
-        name: btn.name,
-        linkType: 'WL' as const, // 웹링크
-        linkMobile: btn.linkMo,
-        linkPc: btn.linkPc || btn.linkMo,
-      }));
+      const bmsButtons = params.buttons?.length
+        ? params.buttons.map((btn) => ({
+            name: btn.name,
+            linkType: 'WL',
+            linkMobile: btn.linkMo,
+            linkPc: btn.linkPc || btn.linkMo,
+          }))
+        : undefined;
 
-      // 메시지 타입 결정 (이미지 유무에 따라)
-      // SDK 타입 정의에 BMS_FREE가 없으므로 BMS_TEXT/BMS_IMAGE 사용
-      const messageType = params.imageId ? 'BMS_IMAGE' : 'BMS_TEXT';
-
-      const sendParams: any = {
+      // BMS_FREE 메시지 파라미터 구성
+      const message: any = {
         to: normalizedPhone,
-        from: '07041380263', // 발신번호 고정
-        type: messageType,
+        from: '07041380263',
+        type: 'BMS_FREE',
         text: params.content,
         kakaoOptions: {
           pfId: params.pfId,
           bms: {
-            targeting: 'M', // M: 마케팅수신동의자
-            buttons: bmsButtons,
+            targeting: 'M',
+            chatBubbleType: params.imageId ? 'IMAGE' : 'TEXT',
           },
         },
       };
 
-      // 이미지가 있는 경우 bms.imageId에 추가
-      if (params.imageId) {
-        sendParams.kakaoOptions.bms.imageId = params.imageId;
+      // 버튼이 있는 경우 추가
+      if (bmsButtons) {
+        message.kakaoOptions.bms.buttons = bmsButtons;
       }
+
+      // 이미지가 있는 경우 추가
+      if (params.imageId) {
+        message.kakaoOptions.bms.imageId = params.imageId;
+      }
+
+      const requestBody: any = {
+        messages: [message],
+      };
 
       // 예약 발송 시간 설정
       if (params.scheduledAt) {
-        sendParams.scheduledDate = params.scheduledAt.toISOString();
+        requestBody.scheduledDate = params.scheduledAt.toISOString();
       }
 
-      console.log('[SOLAPI] Sending Brand Message:', JSON.stringify(sendParams, null, 2));
+      console.log('[SOLAPI] Sending BMS_FREE via HTTP API:', JSON.stringify(requestBody, null, 2));
 
-      const result = await this.messageService.send(sendParams);
+      // 직접 HTTP API 호출
+      const response = await fetch('https://api.solapi.com/messages/v4/send-many/detail', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: this.generateAuthHeader(),
+        },
+        body: JSON.stringify(requestBody),
+      });
 
-      console.log('[SOLAPI] Brand Message result:', JSON.stringify(result, null, 2));
+      const result = (await response.json()) as any;
+
+      console.log('[SOLAPI] BMS_FREE API result:', JSON.stringify(result, null, 2));
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: result.errorMessage || result.message || 'API Error',
+        };
+      }
 
       // SOLAPI 응답 처리
       if (result.groupInfo?.count?.total > 0) {
