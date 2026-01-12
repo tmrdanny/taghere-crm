@@ -280,6 +280,9 @@ export class SolapiService {
           pfId: params.pfId,
           disableSms: true, // SMS 폴백 비활성화
           buttons: solapiButtons,
+          bms: {
+            targeting: 'M', // M: 마케팅 메시지 (광고)
+          },
         },
       };
 
