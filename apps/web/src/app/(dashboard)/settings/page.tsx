@@ -622,8 +622,9 @@ export default function SettingsPage() {
                     value={pointRatePercent || ''}
                     onChange={(e) => {
                       const val = e.target.value;
-                      if (val === '' || /^\d*\.?\d{0,1}$/.test(val)) {
-                        setPointRatePercent(val === '' ? 0 : parseFloat(val));
+                      // 0~99.9 범위의 숫자 허용 (소수점 한 자리까지)
+                      if (val === '' || /^\d{0,2}(\.\d?)?$/.test(val)) {
+                        setPointRatePercent(val === '' ? 0 : parseFloat(val) || 0);
                       }
                     }}
                     placeholder="5"

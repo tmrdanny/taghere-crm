@@ -873,8 +873,9 @@ export default function AdminStoresPage() {
                           value={editForm.pointRatePercent ?? ''}
                           onChange={(e) => {
                             const val = e.target.value;
-                            if (val === '' || /^\d*\.?\d{0,1}$/.test(val)) {
-                              setEditForm({ ...editForm, pointRatePercent: val === '' ? 0 : parseFloat(val) });
+                            // 0~99.9 범위의 숫자 허용 (소수점 한 자리까지)
+                            if (val === '' || /^\d{0,2}(\.\d?)?$/.test(val)) {
+                              setEditForm({ ...editForm, pointRatePercent: val === '' ? 0 : parseFloat(val) || 0 });
                             }
                           }}
                           className="w-20 text-[20px] font-bold text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
