@@ -1,0 +1,35 @@
+{
+  "cookies": [
+    {
+      "name": "_ga",
+      "value": "GA1.1.2075205936.1768138034",
+      "domain": ".taghere-crm-web-dev.onrender.com",
+      "path": "/",
+      "expires": 1802698034.448073,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga_ZPYVXVK1GJ",
+      "value": "GS2.1.s1768138034$o1$g1$t1768138037$j57$l0$h0",
+      "domain": ".taghere-crm-web-dev.onrender.com",
+      "path": "/",
+      "expires": 1802698037.388836,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://taghere-crm-web-dev.onrender.com",
+      "localStorage": [
+        {
+          "name": "token",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNtanF1dWtjMDAwMXExM2pqdnRsNTQwc2ciLCJlbWFpbCI6ImRhbm55QHRtci5jb20iLCJzdG9yZUlkIjoiY21qcXV1a2J4MDAxbzEzamppanUxemFvOSIsInJvbGUiOiJPV05FUiIsImlzQWRtaW4iOmZhbHNlLCJpYXQiOjE3NjgxMzgwMzUsImV4cCI6MTc2ODc0MjgzNX0.xjtJAcEc68yLDbreovd_LewVsylipS38uu00DvSHSZA"
+        }
+      ]
+    }
+  ]
+}

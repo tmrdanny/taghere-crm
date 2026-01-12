@@ -4,8 +4,8 @@
  */
 
 export const TEST_USER = {
-  email: 'test@taghere.com',
-  password: 'testpassword123',
+  email: 'danny@tmr.com',
+  password: '123456789a',
   storeName: 'E2E 테스트 매장',
   category: '카페/디저트',
   ownerName: '테스트 점주',

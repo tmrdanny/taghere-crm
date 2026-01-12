@@ -341,8 +341,7 @@ export default function LocalCustomersPage() {
     sendCount > 0 &&
     sendCount <= availableCount &&
     canAfford &&
-    !isSending &&
-    (activeTab === 'sms' || isSendableTime);
+    !isSending;
 
   // SMS 메시지 발송
   const handleSmsSend = async () => {
@@ -616,6 +615,14 @@ export default function LocalCustomersPage() {
               문자 (SMS/LMS)
             </button>
           </div>
+        </div>
+
+        {/* 안내 콜아웃 */}
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
+          <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-blue-800">
+            문자를 받으시는 고객분들은 전국 태그히어 이용 고객 중 전국 태그히어 매장의 이벤트와 혜택을 주기적으로 받기 희망하신 분들입니다.
+          </p>
         </div>
 
         {/* 에러/성공 메시지 */}
@@ -1191,8 +1198,15 @@ export default function LocalCustomersPage() {
             )}
           >
             <Send className="w-5 h-5" />
-            {isSending ? '발송 중...' : `메시지 발송하기`}
+            {isSending ? '발송 중...' : '발송하기'}
           </button>
+
+          {/* 야간 발송 안내 */}
+          {activeTab === 'kakao' && (
+            <p className="text-xs text-neutral-500 text-center mt-2">
+              * KST 기준 20:50 이후 발송 시, 다음날 08:00에 발송됩니다.
+            </p>
+          )}
         </div>
       </div>
 

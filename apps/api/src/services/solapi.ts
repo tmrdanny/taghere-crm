@@ -267,16 +267,15 @@ export class SolapiService {
         linkPc: btn.linkPc || btn.linkMo,
       }));
 
-      // 브랜드 메시지 자유형(RCS fallback 없음) 발송 요청 구성
+      // 브랜드 메시지 자유형(BMS_FREE) 발송 요청 구성
       const sendParams: any = {
         to: normalizedPhone,
         from: '07041380263', // 발신번호 고정
+        type: 'BMS_FREE', // 브랜드 메시지 자유형 타입 명시
+        text: params.content, // BMS는 text 필드 사용
         kakaoOptions: {
           pfId: params.pfId,
-          // 브랜드 메시지 자유형 설정
-          templateId: '', // 자유형은 템플릿 ID 없음
           disableSms: true, // SMS 폴백 비활성화
-          content: params.content,
           buttons: solapiButtons,
         },
       };
