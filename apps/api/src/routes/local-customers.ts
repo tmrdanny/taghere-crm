@@ -620,13 +620,9 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: '발송 수량은 1 이상이어야 합니다.' });
     }
 
-    // 발송 가능 시간 체크
-    if (!isSendableTime()) {
-      return res.status(400).json({
-        error: '발송 불가 시간대입니다. (08:00 ~ 20:50 사이에만 발송 가능)',
-        nextAvailable: getNextSendableTime(),
-      });
-    }
+    // 발송 가능 시간 체크 - 야간이면 다음날 08:00에 예약 발송
+    const sendableNow = isSendableTime();
+    const scheduledAt = sendableNow ? undefined : getNextSendableTime();
 
     // SOLAPI 설정 확인
     const pfId = process.env.SOLAPI_PF_ID;
@@ -766,6 +762,7 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
           messageType: messageType as 'TEXT' | 'IMAGE',
           imageId,
           buttons: buttons as BrandMessageButton[],
+          scheduledAt,
         });
 
         if (result.success && result.groupId) {
@@ -812,13 +809,19 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
       },
     });
 
+    // 예약 발송 여부에 따른 메시지
+    const responseMessage = scheduledAt
+      ? `다음날 08:00에 예약 발송됩니다. 결과는 발송내역에서 확인하세요.`
+      : '발송 요청이 완료되었습니다. 결과는 발송내역에서 확인하세요.';
+
     res.json({
       success: true,
       campaignId: campaign.id,
       pendingCount,
       failedCount,
       totalCost: pendingCount * costPerMessage,
-      message: '발송 요청이 완료되었습니다. 결과는 발송내역에서 확인하세요.',
+      message: responseMessage,
+      scheduledAt: scheduledAt?.toISOString(),
     });
   } catch (error) {
     console.error('Kakao send error:', error);

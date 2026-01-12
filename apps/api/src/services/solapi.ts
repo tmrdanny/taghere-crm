@@ -250,6 +250,7 @@ export class SolapiService {
     messageType: 'TEXT' | 'IMAGE';
     imageId?: string;
     buttons?: BrandMessageButton[];
+    scheduledAt?: Date; // 예약 발송 시간
   }): Promise<{ success: boolean; messageId?: string; groupId?: string; error?: string }> {
     if (!this.messageService) {
       return { success: false, error: 'SOLAPI not configured' };
@@ -267,12 +268,14 @@ export class SolapiService {
         linkPc: btn.linkPc || btn.linkMo,
       }));
 
-      // 브랜드 메시지 자유형(BMS_FREE) 발송 요청 구성
+      // 브랜드 메시지 발송 요청 구성 (BMS_TEXT 또는 BMS_IMAGE)
+      const bmsType = params.messageType === 'IMAGE' && params.imageId ? 'BMS_IMAGE' : 'BMS_TEXT';
+
       const sendParams: any = {
         to: normalizedPhone,
         from: '07041380263', // 발신번호 고정
-        type: 'BMS_FREE', // 브랜드 메시지 자유형 타입 명시
-        text: params.content, // BMS는 text 필드 사용
+        type: bmsType,
+        text: params.content,
         kakaoOptions: {
           pfId: params.pfId,
           disableSms: true, // SMS 폴백 비활성화
@@ -281,8 +284,13 @@ export class SolapiService {
       };
 
       // 이미지형인 경우 이미지 추가
-      if (params.messageType === 'IMAGE' && params.imageId) {
+      if (bmsType === 'BMS_IMAGE' && params.imageId) {
         sendParams.kakaoOptions.imageId = params.imageId;
+      }
+
+      // 예약 발송 시간 설정
+      if (params.scheduledAt) {
+        sendParams.scheduledDate = params.scheduledAt.toISOString();
       }
 
       console.log('[SOLAPI] Sending Brand Message:', JSON.stringify(sendParams, null, 2));
