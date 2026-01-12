@@ -421,7 +421,7 @@ router.post('/tablet-earn', authMiddleware, async (req: AuthRequest, res) => {
         totalPoints: updatedCustomer.totalPoints,
         visitCount: updatedCustomer.visitCount,
       },
-      earnedPoints,
+      earnedPoints: earnPoints,
       newBalance,
       isNewCustomer,
     });
