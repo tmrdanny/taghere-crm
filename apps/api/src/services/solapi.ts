@@ -268,8 +268,8 @@ export class SolapiService {
         linkPc: btn.linkPc || btn.linkMo,
       }));
 
-      // 브랜드 메시지 발송 요청 구성 (BMS_TEXT 또는 BMS_IMAGE)
-      const bmsType = params.messageType === 'IMAGE' && params.imageId ? 'BMS_IMAGE' : 'BMS_TEXT';
+      // 브랜드 메시지 자유형 (BMS_FREE) 발송
+      const bmsType = 'BMS_FREE';
 
       const sendParams: any = {
         to: normalizedPhone,
@@ -286,8 +286,8 @@ export class SolapiService {
         },
       };
 
-      // 이미지형인 경우 이미지 추가
-      if (bmsType === 'BMS_IMAGE' && params.imageId) {
+      // 이미지가 있는 경우 추가
+      if (params.imageId) {
         sendParams.kakaoOptions.imageId = params.imageId;
       }
 
