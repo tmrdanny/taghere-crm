@@ -12,7 +12,7 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatNumber, formatPhone, getRelativeTime, maskNickname } from '@/lib/utils';
-import { Delete, Loader2, UserPlus, RefreshCw, AlertCircle, CheckCircle2, Calculator, Keyboard, Tablet } from 'lucide-react';
+import { Delete, Loader2, UserPlus, RefreshCw, AlertCircle, CheckCircle2, Calculator, Keyboard, Tablet, Copy, Check } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 // Types for tablet session
@@ -104,6 +104,7 @@ export default function PointsPage() {
   const [tabletPaymentInput, setTabletPaymentInput] = useState('');
   const [activeSession, setActiveSession] = useState<PointSession | null>(null);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [copiedTabletLink, setCopiedTabletLink] = useState(false);
 
   const hiddenInputRef = useRef<HTMLInputElement>(null);
   const tabletPaymentInputRef = useRef<HTMLInputElement>(null);
@@ -667,23 +668,73 @@ export default function PointsPage() {
                   <div className="flex-1 h-px bg-neutral-200" />
                 </div>
 
-                {/* Tablet Send Button */}
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowTabletModal(true);
-                    setTabletPaymentInput('');
-                    setActiveSession(null);
-                    setTimeout(() => {
-                      tabletPaymentInputRef.current?.focus();
-                    }, 100);
-                  }}
-                  className="w-full py-4 text-base font-semibold rounded-xl mt-4 border-2 border-brand-800 text-brand-800 hover:bg-brand-50"
-                  size="lg"
-                >
-                  <Tablet className="w-5 h-5 mr-2" />
-                  태블릿으로 결제금액 전송
-                </Button>
+                {/* Tablet Point Earn Card */}
+                <div className="mt-4 p-4 bg-neutral-50 rounded-xl border border-neutral-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Tablet className="w-5 h-5 text-neutral-600" />
+                    <span className="font-semibold text-neutral-900">태블릿 포인트 적립</span>
+                  </div>
+                  <p className="text-sm text-neutral-500 mb-4">
+                    카운터에 태블릿을 비치하여 고객이 직접 포인트를 적립할 수 있습니다.
+                  </p>
+
+                  {/* Tablet Link Copy */}
+                  <div className="space-y-2 mb-4">
+                    <label className="text-xs font-medium text-neutral-600">
+                      태블릿 적립 페이지 링크
+                    </label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={typeof window !== 'undefined' ? `${window.location.origin}/point-tablet` : ''}
+                        readOnly
+                        className="font-mono text-xs bg-white"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const link = `${window.location.origin}/point-tablet`;
+                          navigator.clipboard.writeText(link);
+                          setCopiedTabletLink(true);
+                          setTimeout(() => setCopiedTabletLink(false), 2000);
+                        }}
+                        className="shrink-0"
+                      >
+                        {copiedTabletLink ? (
+                          <>
+                            <Check className="w-4 h-4 mr-1" />
+                            복사됨
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4 mr-1" />
+                            복사
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-neutral-400">
+                      * 로그인된 상태에서만 접근 가능합니다. 태블릿에서 먼저 로그인해주세요.
+                    </p>
+                  </div>
+
+                  {/* Tablet Send Button */}
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowTabletModal(true);
+                      setTabletPaymentInput('');
+                      setActiveSession(null);
+                      setTimeout(() => {
+                        tabletPaymentInputRef.current?.focus();
+                      }, 100);
+                    }}
+                    className="w-full py-3 text-sm font-semibold rounded-lg border-2 border-brand-800 text-brand-800 hover:bg-brand-50"
+                  >
+                    <Tablet className="w-4 h-4 mr-2" />
+                    태블릿으로 결제금액 전송
+                  </Button>
+                </div>
               </div>
             </Card>
           </div>
