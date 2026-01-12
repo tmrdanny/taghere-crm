@@ -278,6 +278,159 @@ router.post('/use', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// POST /api/points/tablet-earn - 태블릿 포인트 적립 (고객이 직접 입력)
+router.post('/tablet-earn', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { phone, marketingConsent, gender, ageGroup } = req.body;
+    const storeId = req.user!.storeId;
+
+    // 마케팅 동의 필수 체크
+    if (marketingConsent !== true) {
+      return res.status(400).json({ error: '마케팅 정보 수신 동의가 필요합니다.' });
+    }
+
+    if (!phone) {
+      return res.status(400).json({ error: '전화번호를 입력해주세요.' });
+    }
+
+    // 전화번호 정규화 (숫자만 추출)
+    const phoneDigits = phone.replace(/[^0-9]/g, '');
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      return res.status(400).json({ error: '올바른 전화번호 형식이 아닙니다.' });
+    }
+
+    const phoneLastDigits = phoneDigits.slice(-8);
+    const formattedPhone = phoneDigits.length === 11
+      ? `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 7)}-${phoneDigits.slice(7)}`
+      : `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
+
+    // 매장 정보 조회 (적립률, 이름)
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { name: true, pointRatePercent: true, pointsAlimtalkEnabled: true },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    // 고정 포인트 적립 (태블릿 적립은 100P 고정 또는 매장 설정에 따름)
+    const earnPoints = 100;
+
+    // 기존 고객 조회 또는 생성
+    let customer = await prisma.customer.findFirst({
+      where: { storeId, phoneLastDigits },
+    });
+
+    let isNewCustomer = false;
+
+    if (!customer) {
+      // 신규 고객 생성
+      isNewCustomer = true;
+      customer = await prisma.customer.create({
+        data: {
+          storeId,
+          phone: formattedPhone,
+          phoneLastDigits,
+          gender: gender || null,
+          ageGroup: ageGroup || null,
+          consentMarketing: true,
+          consentAt: new Date(),
+          totalPoints: 0,
+          visitCount: 0,
+        },
+      });
+    } else {
+      // 기존 고객 - 마케팅 동의 업데이트 (true로만)
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          consentMarketing: true,
+          consentAt: customer.consentAt || new Date(),
+          // 기존 값이 없는 경우에만 성별/연령대 업데이트
+          ...(gender && !customer.gender && { gender }),
+          ...(ageGroup && !customer.ageGroup && { ageGroup }),
+        },
+      });
+    }
+
+    // 오늘 날짜의 시작/끝 계산
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // 오늘 이미 방문(포인트 적립)한 적이 있는지 확인
+    const todayVisit = await prisma.pointLedger.findFirst({
+      where: {
+        customerId: customer.id,
+        storeId,
+        type: 'EARN',
+        createdAt: { gte: todayStart, lte: todayEnd },
+      },
+    });
+
+    const isFirstVisitToday = !todayVisit;
+    const newBalance = customer.totalPoints + earnPoints;
+
+    // 포인트 적립 및 고객 정보 업데이트
+    const [updatedCustomer, ledger] = await prisma.$transaction([
+      prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          totalPoints: newBalance,
+          ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
+          lastVisitAt: new Date(),
+        },
+      }),
+      prisma.pointLedger.create({
+        data: {
+          storeId,
+          customerId: customer.id,
+          delta: earnPoints,
+          balance: newBalance,
+          type: 'EARN',
+          reason: '태블릿 적립',
+        },
+      }),
+    ]);
+
+    // 알림톡 발송 (포인트 적립)
+    if (store.pointsAlimtalkEnabled) {
+      const phoneNumber = formattedPhone.replace(/[^0-9]/g, '');
+      enqueuePointsEarnedAlimTalk({
+        storeId,
+        customerId: customer.id,
+        pointLedgerId: ledger.id,
+        phone: phoneNumber,
+        variables: {
+          storeName: store.name || '매장',
+          points: earnPoints,
+          totalPoints: newBalance,
+        },
+      }).catch((err) => {
+        console.error('[TabletEarn] AlimTalk enqueue failed:', err);
+      });
+    }
+
+    res.json({
+      success: true,
+      customer: {
+        id: updatedCustomer.id,
+        name: updatedCustomer.name,
+        totalPoints: updatedCustomer.totalPoints,
+        visitCount: updatedCustomer.visitCount,
+      },
+      earnedPoints,
+      newBalance,
+      isNewCustomer,
+    });
+  } catch (error) {
+    console.error('Tablet earn error:', error);
+    res.status(500).json({ error: '포인트 적립 중 오류가 발생했습니다.' });
+  }
+});
+
 // GET /api/points/recent - 최근 적립 내역
 router.get('/recent', authMiddleware, async (req: AuthRequest, res) => {
   try {
