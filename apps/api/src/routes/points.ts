@@ -477,4 +477,299 @@ router.get('/recent', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// ============================================
+// 포인트 세션 API (POS-태블릿 연동)
+// ============================================
+
+// POST /api/points/session - 포인트 세션 생성 (POS에서 호출)
+router.post('/session', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { paymentAmount } = req.body;
+
+    if (!paymentAmount || paymentAmount <= 0) {
+      return res.status(400).json({ error: '결제 금액을 입력해주세요.' });
+    }
+
+    // 매장 정보 조회 (포인트 적립률)
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { pointRatePercent: true },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    // 포인트 계산
+    const earnPoints = Math.round(paymentAmount * store.pointRatePercent / 100);
+
+    if (earnPoints <= 0) {
+      return res.status(400).json({ error: '적립 포인트가 0원입니다. 결제금액을 확인해주세요.' });
+    }
+
+    // 기존 PENDING 세션 삭제 (1매장 1세션 - 새 세션으로 자동 교체)
+    await prisma.pointSession.deleteMany({
+      where: {
+        storeId,
+        status: 'PENDING',
+      },
+    });
+
+    // 5분 후 만료
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    // 새 세션 생성
+    const session = await prisma.pointSession.create({
+      data: {
+        storeId,
+        paymentAmount,
+        earnPoints,
+        expiresAt,
+      },
+    });
+
+    res.json({
+      success: true,
+      session: {
+        id: session.id,
+        paymentAmount: session.paymentAmount,
+        earnPoints: session.earnPoints,
+        expiresAt: session.expiresAt.toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('Create session error:', error);
+    res.status(500).json({ error: '세션 생성 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/points/session/current - 현재 활성 세션 조회 (태블릿에서 polling)
+router.get('/session/current', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const now = new Date();
+
+    // PENDING 상태이면서 미만료인 세션 조회
+    const session = await prisma.pointSession.findFirst({
+      where: {
+        storeId,
+        status: 'PENDING',
+        expiresAt: { gt: now },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!session) {
+      return res.json({ session: null });
+    }
+
+    res.json({
+      session: {
+        id: session.id,
+        paymentAmount: session.paymentAmount,
+        earnPoints: session.earnPoints,
+        remainingSeconds: Math.max(0, Math.floor((session.expiresAt.getTime() - now.getTime()) / 1000)),
+      },
+    });
+  } catch (error) {
+    console.error('Get current session error:', error);
+    res.status(500).json({ error: '세션 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/points/session/:id/complete - 세션 완료 (태블릿에서 적립 시)
+router.post('/session/:id/complete', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { id: sessionId } = req.params;
+    const { phone, marketingConsent, gender, ageGroup } = req.body;
+
+    // 마케팅 동의 필수 체크
+    if (marketingConsent !== true) {
+      return res.status(400).json({ error: '마케팅 정보 수신 동의가 필요합니다.' });
+    }
+
+    if (!phone) {
+      return res.status(400).json({ error: '전화번호를 입력해주세요.' });
+    }
+
+    // 세션 조회 및 유효성 검사
+    const session = await prisma.pointSession.findFirst({
+      where: {
+        id: sessionId,
+        storeId,
+        status: 'PENDING',
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: '유효한 세션이 없습니다. 사장님에게 다시 요청해주세요.' });
+    }
+
+    // 전화번호 정규화
+    const phoneDigits = phone.replace(/[^0-9]/g, '');
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      return res.status(400).json({ error: '올바른 전화번호 형식이 아닙니다.' });
+    }
+
+    const phoneLastDigits = phoneDigits.slice(-8);
+    const formattedPhone = phoneDigits.length === 11
+      ? `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 7)}-${phoneDigits.slice(7)}`
+      : `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
+
+    // 매장 정보 조회
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { name: true, pointsAlimtalkEnabled: true },
+    });
+
+    // 고객 조회 또는 생성
+    let customer = await prisma.customer.findFirst({
+      where: { storeId, phoneLastDigits },
+    });
+
+    let isNewCustomer = false;
+
+    if (!customer) {
+      isNewCustomer = true;
+      customer = await prisma.customer.create({
+        data: {
+          storeId,
+          phone: formattedPhone,
+          phoneLastDigits,
+          gender: gender || null,
+          ageGroup: ageGroup || null,
+          consentMarketing: true,
+          consentAt: new Date(),
+          totalPoints: 0,
+          visitCount: 0,
+        },
+      });
+    } else {
+      // 기존 고객 - 마케팅 동의 업데이트
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          consentMarketing: true,
+          consentAt: customer.consentAt || new Date(),
+          ...(gender && !customer.gender && { gender }),
+          ...(ageGroup && !customer.ageGroup && { ageGroup }),
+        },
+      });
+    }
+
+    // 오늘 방문 체크
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const todayVisit = await prisma.pointLedger.findFirst({
+      where: {
+        customerId: customer.id,
+        storeId,
+        type: 'EARN',
+        createdAt: { gte: todayStart, lte: todayEnd },
+      },
+    });
+
+    const isFirstVisitToday = !todayVisit;
+    const newBalance = customer.totalPoints + session.earnPoints;
+
+    // 트랜잭션: 포인트 적립 + 고객 업데이트 + 세션 완료
+    const [updatedCustomer, ledger] = await prisma.$transaction([
+      prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          totalPoints: newBalance,
+          ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
+          lastVisitAt: new Date(),
+        },
+      }),
+      prisma.pointLedger.create({
+        data: {
+          storeId,
+          customerId: customer.id,
+          delta: session.earnPoints,
+          balance: newBalance,
+          type: 'EARN',
+          reason: '태블릿 적립',
+        },
+      }),
+    ]);
+
+    // 세션 완료 처리
+    await prisma.pointSession.update({
+      where: { id: sessionId },
+      data: {
+        status: 'COMPLETED',
+        customerId: customer.id,
+        completedAt: new Date(),
+      },
+    });
+
+    // 알림톡 발송
+    if (store?.pointsAlimtalkEnabled) {
+      const phoneNumber = formattedPhone.replace(/[^0-9]/g, '');
+      enqueuePointsEarnedAlimTalk({
+        storeId,
+        customerId: customer.id,
+        pointLedgerId: ledger.id,
+        phone: phoneNumber,
+        variables: {
+          storeName: store.name || '매장',
+          points: session.earnPoints,
+          totalPoints: newBalance,
+        },
+      }).catch((err) => {
+        console.error('[Session] AlimTalk enqueue failed:', err);
+      });
+    }
+
+    res.json({
+      success: true,
+      customer: {
+        id: updatedCustomer.id,
+        name: updatedCustomer.name,
+        totalPoints: updatedCustomer.totalPoints,
+        visitCount: updatedCustomer.visitCount,
+      },
+      earnedPoints: session.earnPoints,
+      newBalance,
+      isNewCustomer,
+    });
+  } catch (error) {
+    console.error('Complete session error:', error);
+    res.status(500).json({ error: '포인트 적립 중 오류가 발생했습니다.' });
+  }
+});
+
+// DELETE /api/points/session - 세션 취소 (POS에서 호출)
+router.delete('/session', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+
+    // 현재 PENDING 세션 취소
+    const result = await prisma.pointSession.updateMany({
+      where: {
+        storeId,
+        status: 'PENDING',
+      },
+      data: {
+        status: 'CANCELLED',
+      },
+    });
+
+    res.json({
+      success: true,
+      cancelledCount: result.count,
+    });
+  } catch (error) {
+    console.error('Cancel session error:', error);
+    res.status(500).json({ error: '세션 취소 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;

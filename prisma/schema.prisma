@@ -46,6 +46,7 @@ model Store {
   smsTestLogs           SmsTestLog[]
   externalSmsCampaigns  ExternalSmsCampaign[]
   brandMessageCampaigns BrandMessageCampaign[]
+  pointSessions         PointSession[]
 
   @@map("stores")
 }
@@ -152,6 +153,7 @@ model Customer {
   pointLedger       PointLedger[]
   reviewRequestLogs ReviewRequestLog[]
   feedbacks         CustomerFeedback[]
+  pointSessions     PointSession[]
 
   @@unique([storeId, kakaoId])  // 매장별 카카오ID 유니크 (null 허용)
   // naverId 유니크 제약조건 제거 - null인 경우가 많아 부분 인덱스로 처리
@@ -781,4 +783,37 @@ enum BrandMessageStatus {
   PENDING    // 대기
   SENT       // 발송 완료
   FAILED     // 실패
+}
+
+// ============================================
+// 포인트 세션 (POS-태블릿 연동)
+// ============================================
+
+// 포인트 세션 상태
+enum PointSessionStatus {
+  PENDING     // 대기 중 (태블릿에서 표시)
+  COMPLETED   // 적립 완료
+  EXPIRED     // 만료됨
+  CANCELLED   // 취소됨
+}
+
+// 포인트 세션 (POS에서 생성, 태블릿에서 조회)
+model PointSession {
+  id              String              @id @default(cuid())
+  storeId         String
+  paymentAmount   Int                 // 결제 금액
+  earnPoints      Int                 // 적립 포인트
+  status          PointSessionStatus  @default(PENDING)
+  customerId      String?             // 적립 완료 시 고객 ID
+  createdAt       DateTime            @default(now())
+  expiresAt       DateTime            // 5분 후 자동 만료
+  completedAt     DateTime?
+
+  // Relations
+  store           Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer        Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, status])
+  @@index([expiresAt])
+  @@map("point_sessions")
 }
