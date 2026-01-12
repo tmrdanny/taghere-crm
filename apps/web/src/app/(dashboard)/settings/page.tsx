@@ -278,8 +278,8 @@ export default function SettingsPage() {
   };
 
   const handleSavePointRate = async () => {
-    if (pointRatePercent < 0 || pointRatePercent > 100) {
-      showToast('적립률은 0~100% 사이여야 합니다.', 'error');
+    if (pointRatePercent < 0.1 || pointRatePercent > 99.9) {
+      showToast('적립률은 0.1~99.9% 사이여야 합니다.', 'error');
       return;
     }
 
@@ -613,16 +613,16 @@ export default function SettingsPage() {
             <div className="space-y-4 p-4 bg-neutral-50 rounded-lg">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-neutral-700">
-                  적립률 (%)
+                  적립률 (0.1~99.9%)
                 </label>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
-                    min="0"
-                    max="100"
-                    step="1"
+                    min="0.1"
+                    max="99.9"
+                    step="0.1"
                     value={pointRatePercent}
-                    onChange={(e) => setPointRatePercent(parseInt(e.target.value) || 0)}
+                    onChange={(e) => setPointRatePercent(parseFloat(e.target.value) || 0)}
                     placeholder="5"
                     className="w-24"
                   />
@@ -630,7 +630,7 @@ export default function SettingsPage() {
                 </div>
               </div>
               <p className="text-xs text-neutral-500">
-                예: 5% 설정 시 10,000원 결제 → 500P 적립
+                예: 5% 설정 시 10,000원 결제 → 500P 적립 (소수점 한 자리까지, 반올림 적용)
               </p>
               <div className="flex justify-end">
                 <Button onClick={handleSavePointRate} disabled={isSavingPointRate}>

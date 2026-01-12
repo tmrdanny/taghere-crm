@@ -662,7 +662,7 @@ router.get('/taghere-callback', async (req, res) => {
 
     // 적립률 기반 포인트 계산 (기본 5%)
     const ratePercent = store.pointRatePercent || 5;
-    const earnPoints = resultPrice > 0 ? Math.floor(resultPrice * ratePercent / 100) : 100;
+    const earnPoints = resultPrice > 0 ? Math.round(resultPrice * ratePercent / 100) : 100;
 
     if (!customer) {
       // 신규 고객 생성

@@ -514,7 +514,7 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
     console.log('[Cancel Order Item] pointRatePercent:', pointRatePercent);
 
     // 적립과 동일한 방식으로 포인트 계산 (취소된 수량 기준)
-    const pointsToDeduct = Math.floor(cancelledPrice * (pointRatePercent / 100));
+    const pointsToDeduct = Math.round(cancelledPrice * (pointRatePercent / 100));
     console.log('[Cancel Order Item] pointsToDeduct:', cancelledPrice, '*', pointRatePercent / 100, '=', pointsToDeduct);
 
     // Update cancelled quantity

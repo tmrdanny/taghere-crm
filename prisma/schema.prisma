@@ -24,7 +24,7 @@ model Store {
   naverPlaceUrl          String?  // 네이버 플레이스 공유 링크
   pointsAlimtalkEnabled  Boolean  @default(true) // 포인트 적립/사용 알림톡 자동 발송
   // 포인트 적립률 설정 (결제금액 기반) - 항상 활성화
-  pointRatePercent       Int      @default(5)     // 적립률 (%)
+  pointRatePercent       Float    @default(5)     // 적립률 (%) - 소수점 한 자리까지 지원 (0.1~99.9)
   // 포인트 사용 규칙
   pointUsageRule         String?  @db.Text        // 포인트 사용 규칙 안내 문구
   createdAt              DateTime @default(now())

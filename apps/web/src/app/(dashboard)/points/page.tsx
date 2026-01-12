@@ -159,7 +159,7 @@ export default function PointsPage() {
   // Calculate points from payment amount
   const calculatePointsFromPayment = (amount: number) => {
     if (!storeSettings.pointRateEnabled) return 0;
-    return Math.floor(amount * storeSettings.pointRatePercent / 100);
+    return Math.round(amount * storeSettings.pointRatePercent / 100);
   };
 
   // Search customer by phone

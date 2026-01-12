@@ -864,14 +864,17 @@ export default function AdminStoresPage() {
                 {/* 2-column: 적립률 & 알림톡 */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                    <label className="block text-[12px] text-neutral-500 mb-1">적립률</label>
+                    <label className="block text-[12px] text-neutral-500 mb-1">적립률 (0.1~99.9%)</label>
                     {isEditMode ? (
                       <div className="flex items-center gap-1">
                         <input
                           type="number"
+                          step="0.1"
+                          min="0.1"
+                          max="99.9"
                           value={editForm.pointRatePercent ?? 5}
-                          onChange={(e) => setEditForm({ ...editForm, pointRatePercent: parseInt(e.target.value) || 0 })}
-                          className="w-16 text-[20px] font-bold text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
+                          onChange={(e) => setEditForm({ ...editForm, pointRatePercent: parseFloat(e.target.value) || 0 })}
+                          className="w-20 text-[20px] font-bold text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
                         />
                         <span className="text-[20px] font-bold text-neutral-900">%</span>
                       </div>
