@@ -268,19 +268,19 @@ export class SolapiService {
         linkPc: btn.linkPc || btn.linkMo,
       }));
 
-      // chatBubbleType 결정 (이미지 유무에 따라)
-      const chatBubbleType = params.imageId ? 'IMAGE' : 'TEXT';
+      // 메시지 타입 결정 (이미지 유무에 따라)
+      // SDK 타입 정의에 BMS_FREE가 없으므로 BMS_TEXT/BMS_IMAGE 사용
+      const messageType = params.imageId ? 'BMS_IMAGE' : 'BMS_TEXT';
 
       const sendParams: any = {
         to: normalizedPhone,
         from: '07041380263', // 발신번호 고정
-        type: 'BMS_FREE', // 브랜드 메시지 자유형
+        type: messageType,
         text: params.content,
         kakaoOptions: {
           pfId: params.pfId,
           bms: {
             targeting: 'M', // M: 마케팅수신동의자
-            chatBubbleType: chatBubbleType,
             buttons: bmsButtons,
           },
         },
