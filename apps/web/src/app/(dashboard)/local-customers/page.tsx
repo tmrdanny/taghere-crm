@@ -98,8 +98,8 @@ interface EstimatedRevenue {
 }
 
 export default function LocalCustomersPage() {
-  // 탭 상태 (카카오톡 우선)
-  const [activeTab, setActiveTab] = useState<'kakao' | 'sms'>('kakao');
+  // 탭 상태 (문자 우선 - 카카오톡 임시 비활성화)
+  const [activeTab, setActiveTab] = useState<'kakao' | 'sms'>('sms');
 
   // 지역 상태 (시/도만 선택)
   const [selectedSidos, setSelectedSidos] = useState<string[]>([]);
@@ -593,13 +593,9 @@ export default function LocalCustomersPage() {
           </div>
           <div className="flex bg-[#f1f5f9] rounded-lg p-1 self-start sm:self-auto">
             <button
-              onClick={() => setActiveTab('kakao')}
-              className={cn(
-                'px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all',
-                activeTab === 'kakao'
-                  ? 'bg-white shadow-sm text-[#1e293b]'
-                  : 'text-[#64748b] hover:text-[#1e293b]'
-              )}
+              disabled
+              className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all text-[#94a3b8] cursor-not-allowed"
+              title="카카오톡 발송은 준비 중입니다"
             >
               카카오톡
             </button>
