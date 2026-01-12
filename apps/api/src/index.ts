@@ -105,10 +105,10 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Rate Limiting - 일반 API (15분에 300요청)
+// Rate Limiting - 일반 API (15분에 1000요청)
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15분
-  max: 300,
+  max: 1000,
   message: { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
   standardHeaders: true,
   legacyHeaders: false,
