@@ -602,114 +602,111 @@ export default function AdminStoresPage() {
       )}
 
       {/* Header */}
-      <div className="bg-white border border-[#EAEAEA] rounded-xl p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-[16px] font-semibold text-neutral-900">매장 목록</h2>
-            <p className="text-[13px] text-neutral-500 mt-0.5">총 {stores.length}개 매장</p>
-          </div>
-          <div className="flex items-center gap-3">
+      <div className="bg-white border border-[#EAEAEA] rounded-xl p-4 sm:p-5">
+        <div className="flex flex-col gap-3">
+          {/* 상단: 제목 + 잔액부족 버튼 */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-[15px] sm:text-[16px] font-semibold text-neutral-900">매장 목록</h2>
+              <p className="text-[12px] sm:text-[13px] text-neutral-500 mt-0.5">총 {stores.length}개 매장</p>
+            </div>
             {/* 발송잔액 부족 알림 버튼 */}
             <button
               onClick={openLowBalanceModal}
-              className="h-10 px-4 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-2"
+              className="h-9 sm:h-10 px-3 sm:px-4 bg-orange-500 hover:bg-orange-600 text-white text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              발송잔액 부족 알림
+              <span className="hidden sm:inline">잔액부족</span>
               {lowBalanceStores.length > 0 && (
                 <span className="bg-white/20 px-1.5 py-0.5 rounded text-[11px]">
                   {lowBalanceStores.length}
                 </span>
               )}
             </button>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="매장명, ID, 이메일 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-72 h-10 pl-10 pr-4 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+          </div>
+          {/* 하단: 검색창 */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="매장명, ID, 이메일 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-10 pl-10 pr-4 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+            />
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
-              <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </div>
+            </svg>
           </div>
         </div>
       </div>
 
       {/* Store Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3 sm:gap-4">
         {filteredStores.map((store) => (
           <div
             key={store.id}
             onClick={() => openStoreDetail(store)}
-            className="bg-white border border-[#EAEAEA] rounded-xl p-5 cursor-pointer hover:shadow-lg hover:border-[#FFD541] transition-all group"
+            className="bg-white border border-[#EAEAEA] rounded-xl p-4 sm:p-5 cursor-pointer hover:shadow-lg hover:border-[#FFD541] transition-all group"
           >
             {/* Store Name & Owner */}
-            <div className="mb-4">
-              <h3 className="text-[16px] font-semibold text-neutral-900 group-hover:text-[#D4A800] transition-colors truncate">
+            <div className="mb-3 sm:mb-4">
+              <h3 className="text-[15px] sm:text-[16px] font-semibold text-neutral-900 group-hover:text-[#D4A800] transition-colors truncate">
                 {store.name}
               </h3>
-              <p className="text-[13px] text-neutral-500 truncate">{store.ownerName || '-'}</p>
+              <p className="text-[12px] sm:text-[13px] text-neutral-500 truncate">{store.ownerName || '-'}</p>
             </div>
 
             {/* Stats */}
-            <div className="space-y-2 mb-4">
+            <div className="space-y-1.5 sm:space-y-2 mb-3 sm:mb-4">
               <div className="flex items-center justify-between">
-                <span className="text-[12px] text-neutral-500">고객 수</span>
-                <span className="text-[14px] font-medium text-neutral-900">
+                <span className="text-[11px] sm:text-[12px] text-neutral-500">고객 수</span>
+                <span className="text-[13px] sm:text-[14px] font-medium text-neutral-900">
                   {formatNumber(store.customerCount)}명
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[12px] text-neutral-500">충전금</span>
-                <span className="text-[14px] font-medium text-neutral-900">
+                <span className="text-[11px] sm:text-[12px] text-neutral-500">충전금</span>
+                <span className="text-[13px] sm:text-[14px] font-medium text-neutral-900">
                   {formatNumber(store.walletBalance || 0)}원
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[12px] text-neutral-500">가입일</span>
-                <span className="text-[12px] text-neutral-600">
+                <span className="text-[11px] sm:text-[12px] text-neutral-500">가입일</span>
+                <span className="text-[11px] sm:text-[12px] text-neutral-600">
                   {new Date(store.createdAt).toLocaleDateString('ko-KR')}
                 </span>
               </div>
             </div>
 
             {/* Quick Actions */}
-            <div className="flex gap-2 pt-3 border-t border-[#EAEAEA]">
+            <div className="flex gap-1.5 sm:gap-2 pt-3 border-t border-[#EAEAEA]">
               <button
                 onClick={(e) => handleOpenStoreHome(store.id, e)}
-                className="flex-1 px-2 py-1.5 text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+                className="flex-1 px-1.5 sm:px-2 py-2 sm:py-1.5 text-[11px] sm:text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
               >
-                홈 화면
+                홈
               </button>
               <button
                 onClick={(e) => openTopupModal(store, e)}
-                className="flex-1 px-2 py-1.5 text-[11px] font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded transition-colors"
+                className="flex-1 px-1.5 sm:px-2 py-2 sm:py-1.5 text-[11px] sm:text-[11px] font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded transition-colors"
               >
-                + 충전
+                +충전
               </button>
-              {(store.walletBalance || 0) > 0 && (
-                <button
-                  onClick={(e) => openDeductModal(store, e)}
-                  className="flex-1 px-2 py-1.5 text-[11px] font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
-                >
-                  - 차감
-                </button>
-              )}
+              <button
+                onClick={(e) => openDeductModal(store, e)}
+                className="flex-1 px-1.5 sm:px-2 py-2 sm:py-1.5 text-[11px] sm:text-[11px] font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
+              >
+                -차감
+              </button>
             </div>
           </div>
         ))}
