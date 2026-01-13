@@ -288,10 +288,8 @@ export default function PointTabletPage() {
         {/* Step 1: 전화번호 입력 */}
         {step === 'phone' && (
           <div className="w-full h-full bg-white rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden flex">
-            {/* 좌측 - 매장 정보 (40%) */}
-            <div className={`w-[35%] sm:w-[40%] h-full p-4 sm:p-6 md:p-8 lg:p-10 text-white flex flex-col justify-center ${
-              session ? 'bg-gradient-to-br from-amber-400 to-amber-500' : 'bg-gradient-to-br from-neutral-400 to-neutral-500'
-            }`}>
+            {/* 좌측 - 매장 정보 (35%) - 항상 Grey */}
+            <div className="w-[35%] h-full p-4 sm:p-6 md:p-8 lg:p-10 text-white flex flex-col justify-center bg-gradient-to-br from-neutral-400 to-neutral-500">
               <div className="text-center">
                 <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold mb-2 sm:mb-3 md:mb-4 line-clamp-2">
                   {storeName || '매장'}
@@ -319,8 +317,8 @@ export default function PointTabletPage() {
               </div>
             </div>
 
-            {/* 우측 - 전화번호 입력 (60%) */}
-            <div className="w-[65%] sm:w-[60%] h-full p-3 sm:p-4 md:p-6 lg:p-8 flex flex-col justify-center overflow-hidden">
+            {/* 우측 - 전화번호 입력 (65%) - 항상 키패드 표시 */}
+            <div className="w-[65%] h-full p-3 sm:p-4 md:p-6 lg:p-8 flex flex-col justify-center overflow-hidden">
               {/* 에러 메시지 */}
               {error && (
                 <div className="bg-red-50 text-red-600 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl mb-2 sm:mb-3 text-[10px] sm:text-xs md:text-sm">
@@ -328,95 +326,106 @@ export default function PointTabletPage() {
                 </div>
               )}
 
-              {session ? (
-                // 세션 있을 때: 전화번호 입력 가능
-                <div className="flex flex-col h-full justify-center">
-                  {/* 전화번호 표시 */}
-                  <div
-                    className="text-center mb-2 sm:mb-4 md:mb-6 cursor-text"
-                    onClick={() => hiddenInputRef.current?.focus()}
-                  >
-                    <p className="text-[10px] sm:text-xs md:text-sm text-neutral-500 mb-1 sm:mb-2">휴대전화 번호</p>
-                    <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-wide">
-                      {formatPhoneDisplay(phone).split('').map((char, i) => (
-                        <span
-                          key={i}
-                          className={char === '_' ? 'text-neutral-300' : 'text-neutral-900'}
-                        >
-                          {char}
-                        </span>
-                      ))}
-                    </div>
+              <div className="flex flex-col h-full justify-center">
+                {/* 전화번호 표시 */}
+                <div
+                  className="text-center mb-2 sm:mb-3 md:mb-4 cursor-text"
+                  onClick={() => session && hiddenInputRef.current?.focus()}
+                >
+                  <p className="text-[10px] sm:text-xs md:text-sm text-neutral-500 mb-1 sm:mb-2">휴대전화 번호</p>
+                  <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-wide">
+                    {formatPhoneDisplay(phone).split('').map((char, i) => (
+                      <span
+                        key={i}
+                        className={char === '_' ? 'text-neutral-300' : 'text-neutral-900'}
+                      >
+                        {char}
+                      </span>
+                    ))}
                   </div>
+                </div>
 
-                  {/* 안내 문구 */}
-                  <p className="text-center text-[10px] sm:text-xs md:text-sm text-neutral-500 mb-2 sm:mb-4 md:mb-6">
-                    결제금액 {formatNumber(session.paymentAmount)}원에 대해<br />
-                    <span className="font-bold text-amber-600">{formatNumber(session.earnPoints)}P</span>가 적립됩니다!
-                  </p>
+                {/* 안내 문구 */}
+                <p className="text-center text-[10px] sm:text-xs md:text-sm text-neutral-500 mb-2 sm:mb-3 md:mb-4">
+                  {session ? (
+                    <>
+                      결제금액 {formatNumber(session.paymentAmount)}원에 대해<br />
+                      <span className="font-bold text-amber-600">{formatNumber(session.earnPoints)}P</span>가 적립됩니다!
+                    </>
+                  ) : (
+                    <>
+                      사장님이 결제금액을 입력하면<br />
+                      포인트 적립이 가능합니다.
+                    </>
+                  )}
+                </p>
 
-                  {/* 키패드 */}
-                  <div className="bg-neutral-50 rounded-xl sm:rounded-2xl p-2 sm:p-3 md:p-4 max-w-[280px] sm:max-w-[320px] mx-auto w-full">
-                    <div className="grid grid-cols-3 gap-1 sm:gap-1.5 md:gap-2">
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                        <button
-                          key={num}
-                          onClick={() => handleKeypadPress(num.toString())}
-                          className="aspect-square flex items-center justify-center text-lg sm:text-xl md:text-2xl font-semibold text-neutral-900 bg-white rounded-lg sm:rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
-                        >
-                          {num}
-                        </button>
-                      ))}
+                {/* 키패드 - 항상 표시, 세션 없으면 비활성화 */}
+                <div className="bg-neutral-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 w-full max-w-[400px] mx-auto">
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2 md:gap-3">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                       <button
-                        onClick={handleKeypadClear}
-                        className="aspect-square flex items-center justify-center text-[10px] sm:text-xs md:text-sm font-semibold text-neutral-600 bg-red-50 rounded-lg sm:rounded-xl hover:bg-red-100 active:bg-red-200 transition-colors"
+                        key={num}
+                        onClick={() => session && handleKeypadPress(num.toString())}
+                        disabled={!session}
+                        className={`aspect-square flex items-center justify-center text-xl sm:text-2xl md:text-3xl font-semibold rounded-lg sm:rounded-xl transition-colors shadow-sm ${
+                          session
+                            ? 'text-neutral-900 bg-white hover:bg-neutral-100 active:bg-neutral-200'
+                            : 'text-neutral-400 bg-neutral-100 cursor-not-allowed'
+                        }`}
                       >
-                        초기화
+                        {num}
                       </button>
-                      <button
-                        onClick={() => handleKeypadPress('0')}
-                        className="aspect-square flex items-center justify-center text-lg sm:text-xl md:text-2xl font-semibold text-neutral-900 bg-white rounded-lg sm:rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
-                      >
-                        0
-                      </button>
-                      <button
-                        onClick={handleKeypadDelete}
-                        className="aspect-square flex items-center justify-center text-neutral-600 bg-neutral-200 rounded-lg sm:rounded-xl hover:bg-neutral-300 active:bg-neutral-400 transition-colors"
-                      >
-                        <Delete className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
-                      </button>
-                    </div>
-
-                    {/* 적립 버튼 */}
+                    ))}
                     <button
-                      onClick={handleEarnClick}
-                      disabled={phone.length !== 8}
-                      className={`w-full mt-2 sm:mt-3 md:mt-4 py-2.5 sm:py-3 md:py-4 rounded-lg sm:rounded-xl text-sm sm:text-base md:text-lg font-bold transition-colors ${
-                        phone.length === 8
-                          ? 'bg-amber-500 text-white hover:bg-amber-600'
-                          : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
+                      onClick={() => session && handleKeypadClear()}
+                      disabled={!session}
+                      className={`aspect-square flex items-center justify-center text-[10px] sm:text-xs md:text-sm font-semibold rounded-lg sm:rounded-xl transition-colors ${
+                        session
+                          ? 'text-neutral-600 bg-red-50 hover:bg-red-100 active:bg-red-200'
+                          : 'text-neutral-400 bg-neutral-100 cursor-not-allowed'
                       }`}
                     >
-                      적립
+                      초기화
+                    </button>
+                    <button
+                      onClick={() => session && handleKeypadPress('0')}
+                      disabled={!session}
+                      className={`aspect-square flex items-center justify-center text-xl sm:text-2xl md:text-3xl font-semibold rounded-lg sm:rounded-xl transition-colors shadow-sm ${
+                        session
+                          ? 'text-neutral-900 bg-white hover:bg-neutral-100 active:bg-neutral-200'
+                          : 'text-neutral-400 bg-neutral-100 cursor-not-allowed'
+                      }`}
+                    >
+                      0
+                    </button>
+                    <button
+                      onClick={() => session && handleKeypadDelete()}
+                      disabled={!session}
+                      className={`aspect-square flex items-center justify-center rounded-lg sm:rounded-xl transition-colors ${
+                        session
+                          ? 'text-neutral-600 bg-neutral-200 hover:bg-neutral-300 active:bg-neutral-400'
+                          : 'text-neutral-400 bg-neutral-100 cursor-not-allowed'
+                      }`}
+                    >
+                      <Delete className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
                     </button>
                   </div>
+
+                  {/* 적립 버튼 */}
+                  <button
+                    onClick={handleEarnClick}
+                    disabled={!session || phone.length !== 8}
+                    className={`w-full mt-3 sm:mt-4 md:mt-5 py-3 sm:py-4 md:py-5 rounded-lg sm:rounded-xl text-base sm:text-lg md:text-xl font-bold transition-colors ${
+                      session && phone.length === 8
+                        ? 'bg-amber-500 text-white hover:bg-amber-600'
+                        : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {session ? '적립' : '대기 중'}
+                  </button>
                 </div>
-              ) : (
-                // 세션 없을 때: 대기 중
-                <div className="flex flex-col items-center justify-center h-full">
-                  <Clock className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 text-neutral-300 mb-3 sm:mb-4 md:mb-6" />
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-neutral-400 mb-1 sm:mb-2">
-                    대기 중
-                  </h2>
-                  <p className="text-xs sm:text-sm md:text-base text-neutral-500 text-center mb-4 sm:mb-6 md:mb-8">
-                    사장님이 결제금액을 입력하면<br />
-                    포인트 적립이 가능합니다.
-                  </p>
-                  <p className="text-[10px] sm:text-xs md:text-sm text-neutral-400">
-                    잠시만 기다려주세요
-                  </p>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         )}
