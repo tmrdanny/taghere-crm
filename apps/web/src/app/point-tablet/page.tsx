@@ -332,7 +332,7 @@ export default function PointTabletPage() {
                   className="text-center mb-2 sm:mb-3 md:mb-4 cursor-text"
                   onClick={() => session && hiddenInputRef.current?.focus()}
                 >
-                  <p className="text-[10px] sm:text-xs md:text-sm text-neutral-500 mb-1 sm:mb-2">휴대전화 번호</p>
+                  <div className="h-[14px] sm:h-[16px] md:h-[20px] mb-1 sm:mb-2"></div>
                   <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-wide">
                     {formatPhoneDisplay(phone).split('').map((char, i) => (
                       <span
