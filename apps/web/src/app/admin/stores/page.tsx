@@ -107,6 +107,12 @@ export default function AdminStoresPage() {
   const [pointRateInput, setPointRateInput] = useState(''); // 소수점 입력을 위한 문자열 상태
   const [isSaving, setIsSaving] = useState(false);
 
+  // 발송잔액 부족 알림 모달
+  const [lowBalanceModal, setLowBalanceModal] = useState(false);
+  const [excludedStoreIds, setExcludedStoreIds] = useState<Set<string>>(new Set());
+  const [isSendingLowBalance, setIsSendingLowBalance] = useState(false);
+  const [lowBalancePassword, setLowBalancePassword] = useState('');
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -469,6 +475,109 @@ export default function AdminStoresPage() {
     );
   });
 
+  // 발송잔액 부족 대상 매장 (300원 미만, 전화번호 있음)
+  const lowBalanceStores = stores.filter(
+    (s) => (s.walletBalance ?? 0) < 300 && s.phone
+  );
+
+  // 발송 대상 매장 (제외된 매장 빼고)
+  const targetLowBalanceStores = lowBalanceStores.filter(
+    (s) => !excludedStoreIds.has(s.id)
+  );
+
+  // 발송잔액 부족 알림 발송 핸들러
+  const handleSendLowBalanceNotification = async () => {
+    if (lowBalancePassword !== '0614') {
+      setToast({ message: '비밀번호가 올바르지 않습니다.', type: 'error' });
+      return;
+    }
+
+    if (targetLowBalanceStores.length === 0) {
+      setToast({ message: '발송 대상 매장이 없습니다.', type: 'error' });
+      return;
+    }
+
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsSendingLowBalance(true);
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/alimtalk/low-balance-bulk`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            excludeStoreIds: Array.from(excludedStoreIds),
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setToast({
+          message: `${data.sent}개 매장에 알림톡 발송 완료${data.failed > 0 ? ` (실패: ${data.failed}개)` : ''}`,
+          type: 'success',
+        });
+        setLowBalanceModal(false);
+        setLowBalancePassword('');
+        setExcludedStoreIds(new Set());
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      setToast({ message: error.message || '발송에 실패했습니다.', type: 'error' });
+    } finally {
+      setIsSendingLowBalance(false);
+    }
+  };
+
+  // 모달 열 때 제외 목록 초기화
+  const openLowBalanceModal = () => {
+    setExcludedStoreIds(new Set());
+    setLowBalancePassword('');
+    setLowBalanceModal(true);
+  };
+
+  // 홈 화면 열기 (매장 대리 로그인)
+  const handleOpenStoreHome = async (storeId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+
+    const adminToken = localStorage.getItem('adminToken');
+    if (!adminToken) {
+      setToast({ message: '관리자 인증이 필요합니다.', type: 'error' });
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${storeId}/impersonate`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${adminToken}` },
+        }
+      );
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || '홈 화면 열기 실패');
+      }
+
+      const data = await res.json();
+
+      // Store 토큰 저장 후 새 탭에서 /home 열기
+      localStorage.setItem('token', data.token);
+      window.open('/home', '_blank');
+    } catch (error: any) {
+      setToast({ message: error.message || '홈 화면 열기 실패', type: 'error' });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -499,27 +608,44 @@ export default function AdminStoresPage() {
             <h2 className="text-[16px] font-semibold text-neutral-900">매장 목록</h2>
             <p className="text-[13px] text-neutral-500 mt-0.5">총 {stores.length}개 매장</p>
           </div>
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="매장명, ID, 이메일 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-72 h-10 pl-10 pr-4 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
-            />
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="flex items-center gap-3">
+            {/* 발송잔액 부족 알림 버튼 */}
+            <button
+              onClick={openLowBalanceModal}
+              className="h-10 px-4 bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-2"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              발송잔액 부족 알림
+              {lowBalanceStores.length > 0 && (
+                <span className="bg-white/20 px-1.5 py-0.5 rounded text-[11px]">
+                  {lowBalanceStores.length}
+                </span>
+              )}
+            </button>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="매장명, ID, 이메일 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full sm:w-72 h-10 pl-10 pr-4 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
               />
-            </svg>
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
           </div>
         </div>
       </div>
@@ -564,6 +690,12 @@ export default function AdminStoresPage() {
 
             {/* Quick Actions */}
             <div className="flex gap-2 pt-3 border-t border-[#EAEAEA]">
+              <button
+                onClick={(e) => handleOpenStoreHome(store.id, e)}
+                className="flex-1 px-2 py-1.5 text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+              >
+                홈 화면
+              </button>
               <button
                 onClick={(e) => openTopupModal(store, e)}
                 className="flex-1 px-2 py-1.5 text-[11px] font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded transition-colors"
@@ -950,8 +1082,17 @@ export default function AdminStoresPage() {
                 </div>
               </div>
 
-              {/* 비밀번호 초기화 */}
-              <div className="pt-2 border-t border-neutral-200">
+              {/* 액션 버튼들 */}
+              <div className="pt-4 border-t border-neutral-200 flex items-center justify-between">
+                <button
+                  onClick={(e) => handleOpenStoreHome(selectedStore.id, e)}
+                  className="px-4 py-2 text-[13px] font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                  홈 화면 열기
+                </button>
                 <button
                   onClick={() => handleResetPassword(selectedStore.id, selectedStore.name)}
                   disabled={resettingStoreId === selectedStore.id}
@@ -1193,6 +1334,140 @@ export default function AdminStoresPage() {
                   </>
                 ) : (
                   '고객 전체 삭제'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 발송잔액 부족 알림 모달 */}
+      {lowBalanceModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-lg w-full max-h-[80vh] flex flex-col">
+            <h3 className="text-[16px] font-semibold text-neutral-900 mb-4">
+              발송잔액 부족 알림 발송
+            </h3>
+
+            {/* 통계 */}
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-[12px] text-orange-600">잔액 300원 미만</p>
+                  <p className="text-[18px] font-bold text-orange-700">{lowBalanceStores.length}개</p>
+                </div>
+                <div>
+                  <p className="text-[12px] text-orange-600">발송 제외</p>
+                  <p className="text-[18px] font-bold text-orange-700">{excludedStoreIds.size}개</p>
+                </div>
+                <div>
+                  <p className="text-[12px] text-orange-600">발송 대상</p>
+                  <p className="text-[18px] font-bold text-orange-700">{targetLowBalanceStores.length}개</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 안내 문구 */}
+            <p className="text-[13px] text-neutral-500 mb-3">
+              체크 해제한 매장은 발송에서 제외됩니다.
+            </p>
+
+            {/* 전체 선택/해제 */}
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={() => setExcludedStoreIds(new Set())}
+                className="text-[12px] text-blue-600 hover:underline"
+              >
+                전체 선택
+              </button>
+              <span className="text-neutral-300">|</span>
+              <button
+                onClick={() => setExcludedStoreIds(new Set(lowBalanceStores.map(s => s.id)))}
+                className="text-[12px] text-blue-600 hover:underline"
+              >
+                전체 해제
+              </button>
+            </div>
+
+            {/* 매장 목록 */}
+            <div className="flex-1 overflow-y-auto border border-[#EAEAEA] rounded-lg mb-4">
+              {lowBalanceStores.length === 0 ? (
+                <div className="p-4 text-center text-neutral-500 text-[13px]">
+                  잔액 300원 미만인 매장이 없습니다.
+                </div>
+              ) : (
+                <div className="divide-y divide-[#EAEAEA]">
+                  {lowBalanceStores.map((store) => (
+                    <label
+                      key={store.id}
+                      className="flex items-center gap-3 p-3 hover:bg-neutral-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!excludedStoreIds.has(store.id)}
+                        onChange={(e) => {
+                          const newSet = new Set(excludedStoreIds);
+                          if (e.target.checked) {
+                            newSet.delete(store.id);
+                          } else {
+                            newSet.add(store.id);
+                          }
+                          setExcludedStoreIds(newSet);
+                        }}
+                        className="w-4 h-4 rounded border-neutral-300 text-orange-500 focus:ring-orange-500"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-medium text-neutral-900 truncate">
+                          {store.name}
+                        </p>
+                        <p className="text-[12px] text-neutral-500">
+                          잔액: {formatNumber(store.walletBalance ?? 0)}원 · {store.phone}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 비밀번호 입력 */}
+            <div className="mb-4">
+              <label className="block text-[13px] font-medium text-neutral-700 mb-1">
+                관리자 비밀번호
+              </label>
+              <input
+                type="password"
+                value={lowBalancePassword}
+                onChange={(e) => setLowBalancePassword(e.target.value)}
+                placeholder="비밀번호 입력"
+                className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500"
+              />
+            </div>
+
+            {/* 버튼 */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setLowBalanceModal(false);
+                  setLowBalancePassword('');
+                  setExcludedStoreIds(new Set());
+                }}
+                className="flex-1 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg text-[14px] font-medium transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSendLowBalanceNotification}
+                disabled={isSendingLowBalance || targetLowBalanceStores.length === 0}
+                className="flex-1 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-[14px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSendingLowBalance ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    발송 중...
+                  </>
+                ) : (
+                  `발송 (${targetLowBalanceStores.length}개)`
                 )}
               </button>
             </div>

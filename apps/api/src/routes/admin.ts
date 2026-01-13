@@ -5,6 +5,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
+import { enqueueAlimTalk } from '../services/solapi.js';
 
 const router = Router();
 
@@ -998,6 +999,139 @@ router.post('/banners/upload', adminAuthMiddleware, bannerUpload.single('image')
   } catch (error: any) {
     console.error('Banner upload error:', error);
     res.status(500).json({ error: error.message || '이미지 업로드 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/stores/:storeId/impersonate - 매장 대리 로그인 (홈 화면 열기)
+router.post('/stores/:storeId/impersonate', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { storeId } = req.params;
+
+    // 매장 및 Owner 조회
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      include: {
+        staffUsers: {
+          where: { role: 'OWNER' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    const owner = store.staffUsers[0];
+
+    if (!owner) {
+      return res.status(404).json({ error: '매장 점주를 찾을 수 없습니다.' });
+    }
+
+    // Store Owner JWT 토큰 생성 (1시간 만료)
+    const token = jwt.sign(
+      {
+        id: owner.id,
+        email: owner.email,
+        storeId: store.id,
+        role: owner.role,
+        isAdmin: false,
+        isImpersonated: true,
+      },
+      process.env.JWT_SECRET!,
+      { expiresIn: '1h' }
+    );
+
+    res.json({
+      token,
+      storeName: store.name,
+    });
+  } catch (error) {
+    console.error('Admin impersonate error:', error);
+    res.status(500).json({ error: '대리 로그인 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/alimtalk/low-balance-bulk - 발송잔액 부족 알림 일괄 발송
+router.post('/alimtalk/low-balance-bulk', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { excludeStoreIds = [] } = req.body;
+    const templateId = 'KA01TP26010513462218279L5IthM7TY';
+
+    // 1. 300원 미만 매장 조회 (전화번호가 있는 매장만)
+    const stores = await prisma.store.findMany({
+      where: {
+        phone: { not: null },
+        wallet: {
+          balance: { lt: 300 }
+        },
+        id: {
+          notIn: excludeStoreIds
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        wallet: {
+          select: { balance: true }
+        }
+      }
+    });
+
+    // 2. 날짜 기반 멱등성 키용 날짜 (KST)
+    const kstDate = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // 3. 각 매장에 알림톡 발송 요청
+    let sent = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const store of stores) {
+      const balance = store.wallet?.balance ?? 0;
+      const idempotencyKey = `admin_low_balance_bulk:${store.id}:${kstDate}`;
+
+      // #{상호명} 변수에 매장명 + 안내 문구
+      const storeNameVariable = `${store.name} 대표님 현재 충전금이 부족하여 손님께 포인트 적립 완료 알림톡이 전달되지 않고 있어요. 알림톡을 끄시려면 '설정 > 알림톡 발송 OFF'를 클릭해주세요.`;
+
+      try {
+        const result = await enqueueAlimTalk({
+          storeId: store.id,
+          phone: store.phone!,
+          messageType: 'LOW_BALANCE',
+          templateId,
+          variables: {
+            '#{상호명}': storeNameVariable,
+            '#{잔액}': balance.toLocaleString(),
+          },
+          idempotencyKey,
+        });
+
+        if (result.success) {
+          sent++;
+        } else {
+          failed++;
+          if (result.error) {
+            errors.push(`${store.name}: ${result.error}`);
+          }
+        }
+      } catch (err: any) {
+        failed++;
+        errors.push(`${store.name}: ${err.message}`);
+      }
+    }
+
+    res.json({
+      success: true,
+      totalStores: stores.length,
+      sent,
+      failed,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+
+  } catch (error: any) {
+    console.error('Low balance bulk notification error:', error);
+    res.status(500).json({ error: error.message || '알림 발송 중 오류가 발생했습니다.' });
   }
 });
 
