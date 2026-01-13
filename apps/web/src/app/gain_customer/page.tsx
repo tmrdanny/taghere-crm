@@ -375,6 +375,23 @@ export default function GainCustomerPage() {
               관심 업종 <span className="text-gray-400">(선택)</span>
             </label>
             <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedCategories.length === CATEGORY_OPTIONS.length) {
+                    setSelectedCategories([]);
+                  } else {
+                    setSelectedCategories(CATEGORY_OPTIONS.map((c) => c.value));
+                  }
+                }}
+                className={`px-4 py-2 rounded-full border text-sm transition-all ${
+                  selectedCategories.length === CATEGORY_OPTIONS.length
+                    ? 'border-gray-900 bg-gray-900 text-white'
+                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                전체 선택
+              </button>
               {CATEGORY_OPTIONS.map((cat) => (
                 <button
                   key={cat.value}
