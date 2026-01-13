@@ -1089,7 +1089,8 @@ router.post('/alimtalk/low-balance-bulk', adminAuthMiddleware, async (req: Admin
 
     for (const store of stores) {
       const balance = store.wallet?.balance ?? 0;
-      const idempotencyKey = `admin_low_balance_bulk:${store.id}:${kstDate}`;
+      // 타임스탬프 기반 멱등성 키 - 매번 발송 가능하도록 변경
+      const idempotencyKey = `admin_low_balance_bulk:${store.id}:${Date.now()}`;
 
       // #{상호명} 변수에 매장명 + 안내 문구 (줄바꿈 포함)
       const storeNameVariable = `${store.name}

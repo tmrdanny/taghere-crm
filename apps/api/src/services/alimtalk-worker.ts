@@ -150,11 +150,12 @@ async function processMessage(messageId: string): Promise<void> {
           },
         });
         // 잔액이 400원 미만이면 충전금 부족 안내 알림톡 발송
-        if (!wallet || wallet.balance < LOW_BALANCE_THRESHOLD) {
-          sendLowBalanceAlimTalk({ storeId: msg.storeId, reason: '알림톡 발송' }).catch((err) => {
-            console.error(`[Worker] Failed to send low balance notification:`, err);
-          });
-        }
+        // NOTE: 자동 발송 비활성화 - 관리자 페이지에서 수동 발송으로 대체
+        // if (!wallet || wallet.balance < LOW_BALANCE_THRESHOLD) {
+        //   sendLowBalanceAlimTalk({ storeId: msg.storeId, reason: '알림톡 발송' }).catch((err) => {
+        //     console.error(`[Worker] Failed to send low balance notification:`, err);
+        //   });
+        // }
         return;
       }
     }
@@ -258,15 +259,16 @@ async function processMessage(messageId: string): Promise<void> {
           console.log(`[Worker] Message ${messageId} (${msg.messageType}) sent successfully, SOLAPI ID: ${result.messageId}, cost: ${cost}원 차감`);
 
           // 차감 후 잔액 확인 - 400원 미만이면 충전금 부족 알림톡 발송
-          const updatedWallet = await prisma.wallet.findUnique({
-            where: { storeId: msg.storeId },
-          });
-          if (updatedWallet && updatedWallet.balance < LOW_BALANCE_THRESHOLD) {
-            console.log(`[Worker] Low balance detected for store ${msg.storeId}: ${updatedWallet.balance}원`);
-            sendLowBalanceAlimTalk({ storeId: msg.storeId, reason: '알림톡 발송 후 잔액 부족' }).catch((err) => {
-              console.error(`[Worker] Failed to send low balance notification:`, err);
-            });
-          }
+          // NOTE: 자동 발송 비활성화 - 관리자 페이지에서 수동 발송으로 대체
+          // const updatedWallet = await prisma.wallet.findUnique({
+          //   where: { storeId: msg.storeId },
+          // });
+          // if (updatedWallet && updatedWallet.balance < LOW_BALANCE_THRESHOLD) {
+          //   console.log(`[Worker] Low balance detected for store ${msg.storeId}: ${updatedWallet.balance}원`);
+          //   sendLowBalanceAlimTalk({ storeId: msg.storeId, reason: '알림톡 발송 후 잔액 부족' }).catch((err) => {
+          //     console.error(`[Worker] Failed to send low balance notification:`, err);
+          //   });
+          // }
         }
       } else {
         // PENDING 상태 - 아직 결과가 안 나옴, 재시도 대기열에 넣기
