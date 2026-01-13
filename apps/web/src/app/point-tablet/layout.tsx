@@ -73,7 +73,7 @@ export default function PointTabletLayout({
     return null;
   }
 
-  // 사이드바 없이 전체 화면으로 렌더링
+  // 사이드바 없이 전체 화면으로 렌더링 (dashboard 그룹 밖에 위치)
   return (
     <div className="min-h-screen bg-neutral-100">
       {children}
