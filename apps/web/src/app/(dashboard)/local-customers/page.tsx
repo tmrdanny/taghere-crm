@@ -760,27 +760,21 @@ export default function LocalCustomersPage() {
             )}
           </div>
 
-          {/* 우측: 고객 선호 업종 */}
-          <div className="p-4 rounded-xl border border-neutral-200 bg-white">
+          {/* 우측: 고객 선호 업종 - 준비중 */}
+          <div className="p-4 rounded-xl border border-neutral-200 bg-white opacity-50">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-base font-semibold text-neutral-900">관심 업종 <span className="text-neutral-400 font-normal">(선택)</span></p>
+              <p className="text-base font-semibold text-neutral-400">관심 업종 <span className="text-neutral-300 font-normal">(준비중)</span></p>
             </div>
 
-            {/* 업종 버튼 (플랫 리스트) */}
+            {/* 업종 버튼 (플랫 리스트) - 비활성화 */}
             <div className="flex flex-wrap gap-2">
               {CATEGORY_OPTIONS.map((cat) => (
-                <button
+                <span
                   key={cat.value}
-                  onClick={() => toggleCategory(cat.value)}
-                  className={cn(
-                    'px-4 py-2 rounded-full text-sm font-medium transition-colors border',
-                    selectedCategories.includes(cat.value)
-                      ? 'bg-neutral-900 text-white border-neutral-900'
-                      : 'bg-white text-neutral-700 border-neutral-200 hover:border-neutral-300'
-                  )}
+                  className="px-4 py-2 rounded-full text-sm font-medium border bg-white text-neutral-400 border-neutral-200 cursor-not-allowed"
                 >
                   {cat.label}
-                </button>
+                </span>
               ))}
             </div>
           </div>

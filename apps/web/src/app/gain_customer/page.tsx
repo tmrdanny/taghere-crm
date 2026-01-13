@@ -369,19 +369,25 @@ export default function GainCustomerPage() {
             </div>
           </div>
 
-          {/* 관심 업종 (선택) - 준비중 */}
-          <div className="opacity-50">
-            <label className="block text-base font-medium text-gray-400 mb-3">
-              관심 업종 <span className="text-gray-300">(준비중)</span>
+          {/* 관심 업종 (선택) */}
+          <div>
+            <label className="block text-base font-medium text-gray-900 mb-3">
+              관심 업종 <span className="text-gray-400">(선택)</span>
             </label>
             <div className="flex flex-wrap gap-2">
               {CATEGORY_OPTIONS.map((cat) => (
-                <span
+                <button
                   key={cat.value}
-                  className="px-4 py-2 rounded-full border border-gray-200 text-sm text-gray-400 cursor-not-allowed"
+                  type="button"
+                  onClick={() => toggleCategory(cat.value)}
+                  className={`px-4 py-2 rounded-full border text-sm transition-all ${
+                    selectedCategories.includes(cat.value)
+                      ? 'border-gray-900 bg-gray-900 text-white'
+                      : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                  }`}
                 >
                   {cat.label}
-                </span>
+                </button>
               ))}
             </div>
           </div>
