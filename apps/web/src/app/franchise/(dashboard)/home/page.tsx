@@ -15,6 +15,17 @@ interface OverviewData {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+// Demo data for fallback
+const DEMO_DATA: OverviewData = {
+  totalStores: 20,
+  totalCustomers: 4836,
+  newCustomersThisMonth: 523,
+  walletBalance: 1000000,
+  storeGrowth: 5,
+  customerGrowth: 12.3,
+  newCustomerGrowth: 8.7,
+};
+
 // Skeleton component for loading state
 function KpiCardSkeleton() {
   return (
@@ -112,16 +123,16 @@ export default function FranchiseHomePage() {
         }
 
         const responseData = await res.json();
-        setData(responseData);
+        // Use demo data if API returns empty/zero values
+        if (responseData.totalStores === 0 && responseData.totalCustomers === 0) {
+          setData(DEMO_DATA);
+        } else {
+          setData(responseData);
+        }
       } catch (err: any) {
         setError(err.message);
-        // Set default empty data on error
-        setData({
-          totalStores: 0,
-          totalCustomers: 0,
-          newCustomersThisMonth: 0,
-          walletBalance: 0,
-        });
+        // Use demo data on error
+        setData(DEMO_DATA);
       } finally {
         setIsLoading(false);
       }

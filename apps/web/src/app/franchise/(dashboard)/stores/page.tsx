@@ -144,7 +144,8 @@ export default function FranchiseStoresPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setStores(data.stores || DEMO_STORES);
+        // Use demo data if API returns empty array
+        setStores(data.stores?.length > 0 ? data.stores : DEMO_STORES);
       } else {
         // Use demo data if API fails
         setStores(DEMO_STORES);
