@@ -22,8 +22,15 @@ import {
 interface FranchiseUser {
   id: string;
   email: string;
-  brandName: string;
-  ownerName: string;
+  name: string;
+  phone: string | null;
+  role: string;
+  franchise: {
+    id: string;
+    name: string;
+    slug: string;
+    logoUrl: string | null;
+  };
 }
 
 interface FranchiseSidebarProps {
@@ -209,7 +216,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
         {/* Brand Selector (Mobile) */}
         <div className="p-4 border-b border-slate-200">
           <button className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors">
-            <span className="truncate">{user.brandName}</span>
+            <span className="truncate">{user.franchise.name}</span>
             <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
           </button>
         </div>
@@ -225,12 +232,12 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center">
                 <span className="text-sm font-medium text-indigo-700">
-                  {user.ownerName.charAt(0)}
+                  {user.name?.charAt(0) || 'U'}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-900 truncate">
-                  {user.ownerName}
+                  {user.name}
                 </p>
                 <div className="flex items-center gap-1.5">
                   <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-medium rounded">
@@ -263,7 +270,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
         {/* Brand Selector */}
         <div className="p-4 border-b border-slate-200">
           <button className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors">
-            <span className="truncate">{user.brandName}</span>
+            <span className="truncate">{user.franchise.name}</span>
             <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
           </button>
         </div>
@@ -279,12 +286,12 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center">
                 <span className="text-sm font-medium text-indigo-700">
-                  {user.ownerName.charAt(0)}
+                  {user.name?.charAt(0) || 'U'}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-900 truncate">
-                  {user.ownerName}
+                  {user.name}
                 </p>
                 <div className="flex items-center gap-1.5">
                   <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-medium rounded">

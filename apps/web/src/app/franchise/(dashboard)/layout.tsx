@@ -7,8 +7,15 @@ import { FranchiseSidebar } from '@/components/franchise/sidebar';
 interface FranchiseUser {
   id: string;
   email: string;
-  brandName: string;
-  ownerName: string;
+  name: string;
+  phone: string | null;
+  role: string;
+  franchise: {
+    id: string;
+    name: string;
+    slug: string;
+    logoUrl: string | null;
+  };
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
