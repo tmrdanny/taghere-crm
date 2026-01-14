@@ -103,6 +103,22 @@ function EmptyState() {
   );
 }
 
+// Demo account email
+const DEMO_EMAIL = 'franchise@tmr.com';
+
+// Check if current user is demo account
+function isDemoAccount(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const token = localStorage.getItem('franchiseToken');
+    if (!token) return false;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.email === DEMO_EMAIL;
+  } catch {
+    return false;
+  }
+}
+
 export default function FranchiseHomePage() {
   const [data, setData] = useState<OverviewData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -123,16 +139,25 @@ export default function FranchiseHomePage() {
         }
 
         const responseData = await res.json();
-        // Use demo data if API returns empty/zero values
-        if (responseData.totalStores === 0 && responseData.totalCustomers === 0) {
+        // Use demo data only for demo account with empty results
+        if (isDemoAccount() && responseData.totalStores === 0 && responseData.totalCustomers === 0) {
           setData(DEMO_DATA);
         } else {
           setData(responseData);
         }
       } catch (err: any) {
         setError(err.message);
-        // Use demo data on error
-        setData(DEMO_DATA);
+        // Use demo data only for demo account on error
+        if (isDemoAccount()) {
+          setData(DEMO_DATA);
+        } else {
+          setData({
+            totalStores: 0,
+            totalCustomers: 0,
+            newCustomersThisMonth: 0,
+            walletBalance: 0,
+          });
+        }
       } finally {
         setIsLoading(false);
       }

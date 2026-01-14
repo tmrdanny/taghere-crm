@@ -20,6 +20,22 @@ import { cn } from '@/lib/utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+// Demo account email
+const DEMO_EMAIL = 'franchise@tmr.com';
+
+// Check if current user is demo account
+function isDemoAccount(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const token = localStorage.getItem('franchiseToken');
+    if (!token) return false;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.email === DEMO_EMAIL;
+  } catch {
+    return false;
+  }
+}
+
 interface StoreData {
   id: string;
   name: string;
@@ -144,15 +160,21 @@ export default function FranchiseStoresPage() {
 
       if (res.ok) {
         const data = await res.json();
-        // Use demo data if API returns empty array
-        setStores(data.stores?.length > 0 ? data.stores : DEMO_STORES);
+        // Use demo data only for demo account with empty results
+        if (data.stores?.length > 0) {
+          setStores(data.stores);
+        } else if (isDemoAccount()) {
+          setStores(DEMO_STORES);
+        } else {
+          setStores([]);
+        }
       } else {
-        // Use demo data if API fails
-        setStores(DEMO_STORES);
+        // Use demo data only for demo account if API fails
+        setStores(isDemoAccount() ? DEMO_STORES : []);
       }
     } catch (err) {
       console.error('Failed to fetch stores:', err);
-      setStores(DEMO_STORES);
+      setStores(isDemoAccount() ? DEMO_STORES : []);
     } finally {
       setIsLoading(false);
     }
