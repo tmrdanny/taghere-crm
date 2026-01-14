@@ -78,6 +78,378 @@ const KOREA_REGIONS: Record<string, string[]> = {
   ],
 };
 
+// 주요 동/지역명 → 시/군/구 매핑 (검색 확장용)
+const DONG_ALIASES: Record<string, { sido: string; sigungu: string }[]> = {
+  // 서울 - 강남구
+  '압구정': [{ sido: '서울', sigungu: '강남구' }],
+  '청담': [{ sido: '서울', sigungu: '강남구' }],
+  '신사': [{ sido: '서울', sigungu: '강남구' }],
+  '논현': [{ sido: '서울', sigungu: '강남구' }],
+  '역삼': [{ sido: '서울', sigungu: '강남구' }],
+  '삼성': [{ sido: '서울', sigungu: '강남구' }],
+  '대치': [{ sido: '서울', sigungu: '강남구' }],
+  '개포': [{ sido: '서울', sigungu: '강남구' }],
+  '도곡': [{ sido: '서울', sigungu: '강남구' }],
+  '일원': [{ sido: '서울', sigungu: '강남구' }],
+  '세곡': [{ sido: '서울', sigungu: '강남구' }],
+  '수서': [{ sido: '서울', sigungu: '강남구' }],
+  '가로수길': [{ sido: '서울', sigungu: '강남구' }],
+  // 서울 - 송파구
+  '잠실': [{ sido: '서울', sigungu: '송파구' }],
+  '석촌': [{ sido: '서울', sigungu: '송파구' }],
+  '방이': [{ sido: '서울', sigungu: '송파구' }],
+  '문정': [{ sido: '서울', sigungu: '송파구' }],
+  '가락': [{ sido: '서울', sigungu: '송파구' }],
+  '오금': [{ sido: '서울', sigungu: '송파구' }],
+  '풍납': [{ sido: '서울', sigungu: '송파구' }],
+  '거여': [{ sido: '서울', sigungu: '송파구' }],
+  '마천': [{ sido: '서울', sigungu: '송파구' }],
+  '송리단길': [{ sido: '서울', sigungu: '송파구' }],
+  // 서울 - 마포구
+  '홍대': [{ sido: '서울', sigungu: '마포구' }],
+  '합정': [{ sido: '서울', sigungu: '마포구' }],
+  '상수': [{ sido: '서울', sigungu: '마포구' }],
+  '망원': [{ sido: '서울', sigungu: '마포구' }],
+  '연남': [{ sido: '서울', sigungu: '마포구' }],
+  '서교': [{ sido: '서울', sigungu: '마포구' }],
+  '성산': [{ sido: '서울', sigungu: '마포구' }, { sido: '제주', sigungu: '서귀포시' }],
+  '공덕': [{ sido: '서울', sigungu: '마포구' }],
+  '대흥': [{ sido: '서울', sigungu: '마포구' }],
+  '아현': [{ sido: '서울', sigungu: '마포구' }],
+  '연트럴파크': [{ sido: '서울', sigungu: '마포구' }],
+  // 서울 - 용산구
+  '이태원': [{ sido: '서울', sigungu: '용산구' }],
+  '한남': [{ sido: '서울', sigungu: '용산구' }],
+  '경리단길': [{ sido: '서울', sigungu: '용산구' }],
+  '해방촌': [{ sido: '서울', sigungu: '용산구' }],
+  '녹사평': [{ sido: '서울', sigungu: '용산구' }],
+  '삼각지': [{ sido: '서울', sigungu: '용산구' }],
+  '후암': [{ sido: '서울', sigungu: '용산구' }],
+  '서빙고': [{ sido: '서울', sigungu: '용산구' }],
+  '이촌': [{ sido: '서울', sigungu: '용산구' }],
+  '우사단길': [{ sido: '서울', sigungu: '용산구' }],
+  // 서울 - 성동구
+  '성수': [{ sido: '서울', sigungu: '성동구' }],
+  '왕십리': [{ sido: '서울', sigungu: '성동구' }],
+  '금호': [{ sido: '서울', sigungu: '성동구' }],
+  '옥수': [{ sido: '서울', sigungu: '성동구' }],
+  '행당': [{ sido: '서울', sigungu: '성동구' }],
+  '응봉': [{ sido: '서울', sigungu: '성동구' }],
+  '마장': [{ sido: '서울', sigungu: '성동구' }],
+  '서울숲': [{ sido: '서울', sigungu: '성동구' }],
+  '뚝섬': [{ sido: '서울', sigungu: '성동구' }],
+  // 서울 - 서초구
+  '서초': [{ sido: '서울', sigungu: '서초구' }],
+  '반포': [{ sido: '서울', sigungu: '서초구' }],
+  '방배': [{ sido: '서울', sigungu: '서초구' }],
+  '잠원': [{ sido: '서울', sigungu: '서초구' }],
+  '양재': [{ sido: '서울', sigungu: '서초구' }],
+  '내곡': [{ sido: '서울', sigungu: '서초구' }],
+  '신반포': [{ sido: '서울', sigungu: '서초구' }],
+  // 서울 - 영등포구
+  '여의도': [{ sido: '서울', sigungu: '영등포구' }],
+  '당산': [{ sido: '서울', sigungu: '영등포구' }],
+  '문래': [{ sido: '서울', sigungu: '영등포구' }],
+  '영등포': [{ sido: '서울', sigungu: '영등포구' }],
+  '신길': [{ sido: '서울', sigungu: '영등포구' }],
+  '대림': [{ sido: '서울', sigungu: '영등포구' }],
+  // 서울 - 종로구
+  '광화문': [{ sido: '서울', sigungu: '종로구' }],
+  '삼청': [{ sido: '서울', sigungu: '종로구' }],
+  '북촌': [{ sido: '서울', sigungu: '종로구' }],
+  '서촌': [{ sido: '서울', sigungu: '종로구' }],
+  '익선동': [{ sido: '서울', sigungu: '종로구' }],
+  '종로': [{ sido: '서울', sigungu: '종로구' }],
+  '인사동': [{ sido: '서울', sigungu: '종로구' }],
+  '안국': [{ sido: '서울', sigungu: '종로구' }],
+  '혜화': [{ sido: '서울', sigungu: '종로구' }],
+  '대학로': [{ sido: '서울', sigungu: '종로구' }],
+  '창신': [{ sido: '서울', sigungu: '종로구' }],
+  // 서울 - 중구
+  '명동': [{ sido: '서울', sigungu: '중구' }],
+  '을지로': [{ sido: '서울', sigungu: '중구' }],
+  '충무로': [{ sido: '서울', sigungu: '중구' }],
+  '회현': [{ sido: '서울', sigungu: '중구' }],
+  '남대문': [{ sido: '서울', sigungu: '중구' }],
+  '동대문': [{ sido: '서울', sigungu: '중구' }],
+  '신당': [{ sido: '서울', sigungu: '중구' }],
+  '약수': [{ sido: '서울', sigungu: '중구' }],
+  '필동': [{ sido: '서울', sigungu: '중구' }],
+  // 서울 - 강서구
+  '마곡': [{ sido: '서울', sigungu: '강서구' }],
+  '발산': [{ sido: '서울', sigungu: '강서구' }],
+  '화곡': [{ sido: '서울', sigungu: '강서구' }],
+  '등촌': [{ sido: '서울', sigungu: '강서구' }],
+  '가양': [{ sido: '서울', sigungu: '강서구' }],
+  '염창': [{ sido: '서울', sigungu: '강서구' }],
+  // 서울 - 양천구
+  '목동': [{ sido: '서울', sigungu: '양천구' }],
+  '신정': [{ sido: '서울', sigungu: '양천구' }],
+  '신월': [{ sido: '서울', sigungu: '양천구' }],
+  // 서울 - 관악구
+  '신림': [{ sido: '서울', sigungu: '관악구' }],
+  '봉천': [{ sido: '서울', sigungu: '관악구' }],
+  '낙성대': [{ sido: '서울', sigungu: '관악구' }],
+  '서울대': [{ sido: '서울', sigungu: '관악구' }],
+  '샤로수길': [{ sido: '서울', sigungu: '관악구' }],
+  // 서울 - 동작구
+  '사당': [{ sido: '서울', sigungu: '동작구' }],
+  '노량진': [{ sido: '서울', sigungu: '동작구' }],
+  '흑석': [{ sido: '서울', sigungu: '동작구' }],
+  '상도': [{ sido: '서울', sigungu: '동작구' }],
+  '대방': [{ sido: '서울', sigungu: '동작구' }],
+  // 서울 - 서대문구
+  '신촌': [{ sido: '서울', sigungu: '서대문구' }],
+  '연희': [{ sido: '서울', sigungu: '서대문구' }],
+  '이대': [{ sido: '서울', sigungu: '서대문구' }],
+  '홍제': [{ sido: '서울', sigungu: '서대문구' }],
+  '충정로': [{ sido: '서울', sigungu: '서대문구' }],
+  // 서울 - 광진구
+  '건대': [{ sido: '서울', sigungu: '광진구' }],
+  '구의': [{ sido: '서울', sigungu: '광진구' }],
+  '자양': [{ sido: '서울', sigungu: '광진구' }],
+  '화양': [{ sido: '서울', sigungu: '광진구' }],
+  '중곡': [{ sido: '서울', sigungu: '광진구' }],
+  '군자': [{ sido: '서울', sigungu: '광진구' }],
+  // 서울 - 강동구
+  '천호': [{ sido: '서울', sigungu: '강동구' }],
+  '둔촌': [{ sido: '서울', sigungu: '강동구' }],
+  '암사': [{ sido: '서울', sigungu: '강동구' }],
+  '고덕': [{ sido: '서울', sigungu: '강동구' }],
+  '길동': [{ sido: '서울', sigungu: '강동구' }],
+  '명일': [{ sido: '서울', sigungu: '강동구' }],
+  '상일': [{ sido: '서울', sigungu: '강동구' }],
+  // 서울 - 노원구
+  '노원': [{ sido: '서울', sigungu: '노원구' }],
+  '상계': [{ sido: '서울', sigungu: '노원구' }],
+  '중계': [{ sido: '서울', sigungu: '노원구' }],
+  '하계': [{ sido: '서울', sigungu: '노원구' }],
+  '공릉': [{ sido: '서울', sigungu: '노원구' }],
+  '월계': [{ sido: '서울', sigungu: '노원구' }],
+  // 서울 - 성북구
+  '성신여대': [{ sido: '서울', sigungu: '성북구' }],
+  '돈암': [{ sido: '서울', sigungu: '성북구' }],
+  '길음': [{ sido: '서울', sigungu: '성북구' }],
+  '정릉': [{ sido: '서울', sigungu: '성북구' }],
+  '장위': [{ sido: '서울', sigungu: '성북구' }],
+  '석관': [{ sido: '서울', sigungu: '성북구' }],
+  // 서울 - 동대문구
+  '회기': [{ sido: '서울', sigungu: '동대문구' }],
+  '이문': [{ sido: '서울', sigungu: '동대문구' }],
+  '장안': [{ sido: '서울', sigungu: '동대문구' }],
+  '청량리': [{ sido: '서울', sigungu: '동대문구' }],
+  '제기': [{ sido: '서울', sigungu: '동대문구' }],
+  '용두': [{ sido: '서울', sigungu: '동대문구' }],
+  '경희대': [{ sido: '서울', sigungu: '동대문구' }],
+  // 서울 - 은평구
+  '연신내': [{ sido: '서울', sigungu: '은평구' }],
+  '불광': [{ sido: '서울', sigungu: '은평구' }],
+  '응암': [{ sido: '서울', sigungu: '은평구' }],
+  '역촌': [{ sido: '서울', sigungu: '은평구' }],
+  '구산': [{ sido: '서울', sigungu: '은평구' }],
+  // 서울 - 구로구
+  '구로디지털단지': [{ sido: '서울', sigungu: '구로구' }],
+  '신도림': [{ sido: '서울', sigungu: '구로구' }],
+  '구로': [{ sido: '서울', sigungu: '구로구' }],
+  '개봉': [{ sido: '서울', sigungu: '구로구' }],
+  '고척': [{ sido: '서울', sigungu: '구로구' }],
+  'g밸리': [{ sido: '서울', sigungu: '구로구' }],
+  // 서울 - 금천구
+  '가산': [{ sido: '서울', sigungu: '금천구' }],
+  '독산': [{ sido: '서울', sigungu: '금천구' }],
+  '시흥': [{ sido: '서울', sigungu: '금천구' }],
+  '가산디지털단지': [{ sido: '서울', sigungu: '금천구' }],
+  // 서울 - 강북구
+  '미아': [{ sido: '서울', sigungu: '강북구' }],
+  '수유': [{ sido: '서울', sigungu: '강북구' }],
+  '번': [{ sido: '서울', sigungu: '강북구' }],
+  '우이': [{ sido: '서울', sigungu: '강북구' }],
+  // 서울 - 도봉구
+  '도봉': [{ sido: '서울', sigungu: '도봉구' }],
+  '창동': [{ sido: '서울', sigungu: '도봉구' }],
+  '쌍문': [{ sido: '서울', sigungu: '도봉구' }],
+  '방학': [{ sido: '서울', sigungu: '도봉구' }],
+  // 서울 - 중랑구
+  '면목': [{ sido: '서울', sigungu: '중랑구' }],
+  '상봉': [{ sido: '서울', sigungu: '중랑구' }],
+  '망우': [{ sido: '서울', sigungu: '중랑구' }],
+  '신내': [{ sido: '서울', sigungu: '중랑구' }],
+
+  // 경기 - 성남시 분당구
+  '판교': [{ sido: '경기', sigungu: '성남시 분당구' }],
+  '정자': [{ sido: '경기', sigungu: '성남시 분당구' }],
+  '서현': [{ sido: '경기', sigungu: '성남시 분당구' }],
+  '야탑': [{ sido: '경기', sigungu: '성남시 분당구' }],
+  '미금': [{ sido: '경기', sigungu: '성남시 분당구' }],
+  '오리': [{ sido: '경기', sigungu: '성남시 분당구' }],
+  '이매': [{ sido: '경기', sigungu: '성남시 분당구' }],
+  '분당': [{ sido: '경기', sigungu: '성남시 분당구' }],
+  '수내': [{ sido: '경기', sigungu: '성남시 분당구' }],
+  '삼평': [{ sido: '경기', sigungu: '성남시 분당구' }],
+  '판교테크노밸리': [{ sido: '경기', sigungu: '성남시 분당구' }],
+  // 경기 - 성남시 수정구/중원구
+  '모란': [{ sido: '경기', sigungu: '성남시 수정구' }],
+  '태평': [{ sido: '경기', sigungu: '성남시 수정구' }],
+  // 경기 - 수원시
+  '광교': [{ sido: '경기', sigungu: '수원시 영통구' }],
+  '영통': [{ sido: '경기', sigungu: '수원시 영통구' }],
+  '인계': [{ sido: '경기', sigungu: '수원시 팔달구' }],
+  '매탄': [{ sido: '경기', sigungu: '수원시 영통구' }],
+  '행궁': [{ sido: '경기', sigungu: '수원시 팔달구' }],
+  '수원역': [{ sido: '경기', sigungu: '수원시 팔달구' }],
+  // 경기 - 고양시
+  '일산': [{ sido: '경기', sigungu: '고양시 일산동구' }, { sido: '경기', sigungu: '고양시 일산서구' }],
+  '화정': [{ sido: '경기', sigungu: '고양시 덕양구' }],
+  '대화': [{ sido: '경기', sigungu: '고양시 일산서구' }],
+  '백석': [{ sido: '경기', sigungu: '고양시 일산동구' }],
+  '마두': [{ sido: '경기', sigungu: '고양시 일산동구' }],
+  '정발산': [{ sido: '경기', sigungu: '고양시 일산동구' }],
+  '킨텍스': [{ sido: '경기', sigungu: '고양시 일산서구' }],
+  '삼송': [{ sido: '경기', sigungu: '고양시 덕양구' }],
+  '원흥': [{ sido: '경기', sigungu: '고양시 덕양구' }],
+  // 경기 - 용인시
+  '수지': [{ sido: '경기', sigungu: '용인시 수지구' }],
+  '기흥': [{ sido: '경기', sigungu: '용인시 기흥구' }],
+  '죽전': [{ sido: '경기', sigungu: '용인시 수지구' }],
+  '동백': [{ sido: '경기', sigungu: '용인시 기흥구' }],
+  '보정': [{ sido: '경기', sigungu: '용인시 기흥구' }],
+  '신갈': [{ sido: '경기', sigungu: '용인시 기흥구' }],
+  '구성': [{ sido: '경기', sigungu: '용인시 기흥구' }],
+  // 경기 - 화성시
+  '동탄': [{ sido: '경기', sigungu: '화성시' }],
+  '병점': [{ sido: '경기', sigungu: '화성시' }],
+  '봉담': [{ sido: '경기', sigungu: '화성시' }],
+  // 경기 - 부천시
+  '중동': [{ sido: '경기', sigungu: '부천시' }],
+  '상동': [{ sido: '경기', sigungu: '부천시' }],
+  '소사': [{ sido: '경기', sigungu: '부천시' }],
+  '역곡': [{ sido: '경기', sigungu: '부천시' }],
+  '송내': [{ sido: '경기', sigungu: '부천시' }],
+  // 경기 - 안양시
+  '평촌': [{ sido: '경기', sigungu: '안양시 동안구' }],
+  '범계': [{ sido: '경기', sigungu: '안양시 동안구' }],
+  '인덕원': [{ sido: '경기', sigungu: '안양시 동안구' }],
+  '안양': [{ sido: '경기', sigungu: '안양시 만안구' }],
+  // 경기 - 하남시
+  '미사': [{ sido: '경기', sigungu: '하남시' }],
+  '위례': [{ sido: '경기', sigungu: '하남시' }, { sido: '서울', sigungu: '송파구' }],
+  '감일': [{ sido: '경기', sigungu: '하남시' }],
+  '스타필드하남': [{ sido: '경기', sigungu: '하남시' }],
+  // 경기 - 김포시
+  '한강신도시': [{ sido: '경기', sigungu: '김포시' }],
+  '구래': [{ sido: '경기', sigungu: '김포시' }],
+  '장기': [{ sido: '경기', sigungu: '김포시' }],
+  '걸포': [{ sido: '경기', sigungu: '김포시' }],
+  // 경기 - 파주시
+  '운정': [{ sido: '경기', sigungu: '파주시' }],
+  '금촌': [{ sido: '경기', sigungu: '파주시' }],
+  '헤이리': [{ sido: '경기', sigungu: '파주시' }],
+  // 경기 - 광명시
+  '광명': [{ sido: '경기', sigungu: '광명시' }],
+  '철산': [{ sido: '경기', sigungu: '광명시' }],
+  // 경기 - 남양주시
+  '다산': [{ sido: '경기', sigungu: '남양주시' }],
+  '별내': [{ sido: '경기', sigungu: '남양주시' }],
+  '마석': [{ sido: '경기', sigungu: '남양주시' }],
+  // 경기 - 의정부시
+  '의정부': [{ sido: '경기', sigungu: '의정부시' }],
+  '민락': [{ sido: '경기', sigungu: '의정부시' }],
+  // 경기 - 평택시
+  '평택': [{ sido: '경기', sigungu: '평택시' }],
+  '송탄': [{ sido: '경기', sigungu: '평택시' }],
+  '고덕국제': [{ sido: '경기', sigungu: '평택시' }],
+  // 경기 - 시흥시
+  '정왕': [{ sido: '경기', sigungu: '시흥시' }],
+  '배곧': [{ sido: '경기', sigungu: '시흥시' }],
+
+  // 인천
+  '송도': [{ sido: '인천', sigungu: '연수구' }],
+  '청라': [{ sido: '인천', sigungu: '서구' }],
+  '인천공항': [{ sido: '인천', sigungu: '중구' }],
+  '부평': [{ sido: '인천', sigungu: '부평구' }],
+  '구월': [{ sido: '인천', sigungu: '남동구' }],
+  '주안': [{ sido: '인천', sigungu: '미추홀구' }],
+  '작전': [{ sido: '인천', sigungu: '계양구' }],
+  '삼산': [{ sido: '인천', sigungu: '부평구' }],
+  '계산': [{ sido: '인천', sigungu: '계양구' }],
+  '인천논현': [{ sido: '인천', sigungu: '남동구' }],
+  '소래포구': [{ sido: '인천', sigungu: '남동구' }],
+  '월미도': [{ sido: '인천', sigungu: '중구' }],
+  '차이나타운': [{ sido: '인천', sigungu: '중구' }],
+
+  // 부산
+  '해운대': [{ sido: '부산', sigungu: '해운대구' }],
+  '광안리': [{ sido: '부산', sigungu: '수영구' }],
+  '서면': [{ sido: '부산', sigungu: '부산진구' }],
+  '남포동': [{ sido: '부산', sigungu: '중구' }],
+  '센텀시티': [{ sido: '부산', sigungu: '해운대구' }],
+  '전포': [{ sido: '부산', sigungu: '부산진구' }],
+  '수영': [{ sido: '부산', sigungu: '수영구' }],
+  '해리단길': [{ sido: '부산', sigungu: '해운대구' }],
+  '초량': [{ sido: '부산', sigungu: '동구' }],
+  '영도': [{ sido: '부산', sigungu: '영도구' }],
+  '자갈치': [{ sido: '부산', sigungu: '중구' }],
+  '송정': [{ sido: '부산', sigungu: '해운대구' }],
+  '기장': [{ sido: '부산', sigungu: '기장군' }],
+  '해운대해변': [{ sido: '부산', sigungu: '해운대구' }],
+  '마린시티': [{ sido: '부산', sigungu: '해운대구' }],
+  '다대포': [{ sido: '부산', sigungu: '사하구' }],
+  '덕천': [{ sido: '부산', sigungu: '북구' }],
+  '동래': [{ sido: '부산', sigungu: '동래구' }],
+  '연산': [{ sido: '부산', sigungu: '연제구' }],
+
+  // 대구
+  '동성로': [{ sido: '대구', sigungu: '중구' }],
+  '수성못': [{ sido: '대구', sigungu: '수성구' }],
+  '앞산': [{ sido: '대구', sigungu: '남구' }],
+  '범어': [{ sido: '대구', sigungu: '수성구' }],
+  '황금': [{ sido: '대구', sigungu: '수성구' }],
+  '대구역': [{ sido: '대구', sigungu: '북구' }],
+  '반월당': [{ sido: '대구', sigungu: '중구' }],
+  '이월드': [{ sido: '대구', sigungu: '달서구' }],
+  '팔공산': [{ sido: '대구', sigungu: '동구' }],
+
+  // 광주
+  '상무지구': [{ sido: '광주', sigungu: '서구' }],
+  '충장로': [{ sido: '광주', sigungu: '동구' }],
+  '수완': [{ sido: '광주', sigungu: '광산구' }],
+  '첨단': [{ sido: '광주', sigungu: '광산구' }],
+  '운남': [{ sido: '광주', sigungu: '광산구' }],
+  '봉선': [{ sido: '광주', sigungu: '남구' }],
+  '동명동': [{ sido: '광주', sigungu: '동구' }],
+
+  // 대전
+  '둔산': [{ sido: '대전', sigungu: '서구' }],
+  '유성': [{ sido: '대전', sigungu: '유성구' }],
+  '궁동': [{ sido: '대전', sigungu: '유성구' }],
+  '은행': [{ sido: '대전', sigungu: '중구' }],
+  '대전역': [{ sido: '대전', sigungu: '동구' }],
+  '노은': [{ sido: '대전', sigungu: '유성구' }],
+  '관평': [{ sido: '대전', sigungu: '유성구' }],
+
+  // 울산
+  '삼산동': [{ sido: '울산', sigungu: '남구' }],
+  '성남동': [{ sido: '울산', sigungu: '중구' }],
+  '태화강': [{ sido: '울산', sigungu: '중구' }],
+
+  // 세종
+  '세종': [{ sido: '세종', sigungu: '세종시 전체' }],
+  '어진동': [{ sido: '세종', sigungu: '세종시 전체' }],
+  '나성동': [{ sido: '세종', sigungu: '세종시 전체' }],
+
+  // 제주
+  '애월': [{ sido: '제주', sigungu: '제주시' }],
+  '함덕': [{ sido: '제주', sigungu: '제주시' }],
+  '중문': [{ sido: '제주', sigungu: '서귀포시' }],
+  '협재': [{ sido: '제주', sigungu: '제주시' }],
+  '성산일출봉': [{ sido: '제주', sigungu: '서귀포시' }],
+  '연동': [{ sido: '제주', sigungu: '제주시' }],
+  '노형': [{ sido: '제주', sigungu: '제주시' }],
+  '서귀포': [{ sido: '제주', sigungu: '서귀포시' }],
+  '월정리': [{ sido: '제주', sigungu: '제주시' }],
+  '한림': [{ sido: '제주', sigungu: '제주시' }],
+};
+
 // 지역 검색을 위한 플랫 리스트 생성 (시/도 + 시/군/구 조합)
 interface RegionItem {
   sido: string;
@@ -113,11 +485,18 @@ const REGION_LIST: RegionItem[] = Object.entries(KOREA_REGIONS).flatMap(([sido, 
       return [part, normalized];
     });
 
+    // 해당 시/군/구에 매핑된 동/지역명 찾기
+    const dongAliases = Object.entries(DONG_ALIASES)
+      .filter(([, mappings]) =>
+        mappings.some(m => m.sido === sido && m.sigungu === sigungu)
+      )
+      .map(([dong]) => dong.toLowerCase());
+
     return {
       sido,
       sigungu,
       displayName: `${sidoDisplay} ${sigungu}`,
-      searchTerms: [sido, sidoDisplay, sigungu, ...keywords].map(s => s.toLowerCase()),
+      searchTerms: [sido, sidoDisplay, sigungu, ...keywords, ...dongAliases].map(s => s.toLowerCase()),
     };
   })
 );
