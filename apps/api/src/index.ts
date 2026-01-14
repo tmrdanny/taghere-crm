@@ -42,6 +42,8 @@ import smsRoutes from './routes/sms.js';
 import localCustomersRoutes from './routes/local-customers.js';
 import brandMessageRoutes from './routes/brand-message.js';
 import publicRoutes from './routes/public.js';
+import franchiseAuthRoutes from './routes/franchise-auth.js';
+import franchiseRoutes from './routes/franchise.js';
 import { startAlimTalkWorker } from './services/alimtalk-worker.js';
 import { startSmsWorker } from './services/sms-worker.js';
 import { startExternalSmsWorker } from './services/external-sms-worker.js';
@@ -135,6 +137,7 @@ const earnLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/admin/login', authLimiter);
+app.use('/api/franchise/auth/login', authLimiter);
 app.use('/api/taghere/auto-earn', earnLimiter);
 
 // Static file serving for uploads (MMS images)
@@ -208,6 +211,10 @@ app.use('/api/sms', smsRoutes);
 app.use('/api/local-customers', localCustomersRoutes);
 app.use('/api/brand-message', brandMessageRoutes);
 app.use('/api/public', publicRoutes);
+
+// Franchise routes
+app.use('/api/franchise/auth', franchiseAuthRoutes);
+app.use('/api/franchise', franchiseRoutes);
 
 // OAuth routes (without /api prefix)
 app.use('/auth/kakao', kakaoRoutes);

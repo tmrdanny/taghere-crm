@@ -30,6 +30,10 @@ model Store {
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
+  // 프랜차이즈 연동
+  franchiseId           String?
+  franchise             Franchise? @relation(fields: [franchiseId], references: [id])
+
   // Relations
   staffUsers            StaffUser[]
   customers             Customer[]
@@ -48,6 +52,7 @@ model Store {
   brandMessageCampaigns BrandMessageCampaign[]
   pointSessions         PointSession[]
 
+  @@index([franchiseId])
   @@map("stores")
 }
 
@@ -816,4 +821,76 @@ model PointSession {
   @@index([storeId, status])
   @@index([expiresAt])
   @@map("point_sessions")
+}
+
+// ============================================
+// 프랜차이즈 시스템
+// ============================================
+
+// 프랜차이즈 역할
+enum FranchiseRole {
+  OWNER    // 본사 대표
+  MANAGER  // 본사 담당자
+}
+
+// 프랜차이즈 (브랜드)
+model Franchise {
+  id            String   @id @default(cuid())
+  name          String   // 브랜드명
+  slug          String   @unique
+  logoUrl       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  users         FranchiseUser[]
+  stores        Store[]
+  wallet        FranchiseWallet?
+
+  @@map("franchises")
+}
+
+// 프랜차이즈 본사 계정
+model FranchiseUser {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  passwordHash  String
+  name          String
+  phone         String?
+  role          FranchiseRole  @default(MANAGER)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  franchiseId   String
+  franchise     Franchise @relation(fields: [franchiseId], references: [id])
+
+  @@index([franchiseId])
+  @@map("franchise_users")
+}
+
+// 프랜차이즈 지갑
+model FranchiseWallet {
+  id            String   @id @default(cuid())
+  balance       Int      @default(0)
+  franchiseId   String   @unique
+  franchise     Franchise @relation(fields: [franchiseId], references: [id])
+  transactions  FranchiseTransaction[]
+
+  @@map("franchise_wallets")
+}
+
+// 프랜차이즈 결제 트랜잭션
+model FranchiseTransaction {
+  id            String                   @id @default(cuid())
+  amount        Int
+  type          PaymentTransactionType
+  description   String?
+  meta          Json?
+  createdAt     DateTime                 @default(now())
+
+  walletId      String
+  wallet        FranchiseWallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId])
+  @@index([createdAt])
+  @@map("franchise_transactions")
 }
