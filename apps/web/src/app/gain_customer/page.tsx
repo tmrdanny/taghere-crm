@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { ArrowRight, Check, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ArrowRight, Check, MapPin, Search, X, Loader2 } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -78,6 +78,50 @@ const KOREA_REGIONS: Record<string, string[]> = {
   ],
 };
 
+// 지역 검색을 위한 플랫 리스트 생성 (시/도 + 시/군/구 조합)
+interface RegionItem {
+  sido: string;
+  sigungu: string;
+  displayName: string;
+  searchTerms: string[];
+}
+
+const REGION_LIST: RegionItem[] = Object.entries(KOREA_REGIONS).flatMap(([sido, sigungus]) =>
+  sigungus.map((sigungu) => {
+    // 시/도 표시명 변환
+    const sidoDisplay = sido === '서울' ? '서울시' :
+                        sido === '경기' ? '경기도' :
+                        sido === '인천' ? '인천시' :
+                        sido === '부산' ? '부산시' :
+                        sido === '대구' ? '대구시' :
+                        sido === '광주' ? '광주시' :
+                        sido === '대전' ? '대전시' :
+                        sido === '울산' ? '울산시' :
+                        sido === '세종' ? '세종시' :
+                        sido === '강원' ? '강원도' :
+                        sido === '충북' ? '충청북도' :
+                        sido === '충남' ? '충청남도' :
+                        sido === '전북' ? '전라북도' :
+                        sido === '전남' ? '전라남도' :
+                        sido === '경북' ? '경상북도' :
+                        sido === '경남' ? '경상남도' :
+                        sido === '제주' ? '제주도' : sido;
+
+    // 검색 키워드 추출 (구/군/시 이름에서 핵심 키워드)
+    const keywords = sigungu.split(' ').flatMap(part => {
+      const normalized = part.replace(/(구|군|시)$/, '');
+      return [part, normalized];
+    });
+
+    return {
+      sido,
+      sigungu,
+      displayName: `${sidoDisplay} ${sigungu}`,
+      searchTerms: [sido, sidoDisplay, sigungu, ...keywords].map(s => s.toLowerCase()),
+    };
+  })
+);
+
 // 연령대 옵션
 const AGE_GROUP_OPTIONS = [
   { value: 'TWENTIES', label: '20대' },
@@ -113,18 +157,39 @@ export default function GainCustomerPage() {
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | null>(null);
   const [ageGroup, setAgeGroup] = useState('');
   const [consent, setConsent] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  // 관심 업종 기본값: 전체 선택
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    CATEGORY_OPTIONS.map((c) => c.value)
+  );
+
+  // 지역 검색 상태
+  const [regionQuery, setRegionQuery] = useState('');
+  const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   // UI 상태
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 시/도 목록
-  const sidoList = Object.keys(KOREA_REGIONS);
+  // 선택된 지역 표시명
+  const selectedRegionDisplay = useMemo(() => {
+    if (!selectedSido || !selectedSigungu) return '';
+    const region = REGION_LIST.find(
+      (r) => r.sido === selectedSido && r.sigungu === selectedSigungu
+    );
+    return region?.displayName || `${selectedSido} ${selectedSigungu}`;
+  }, [selectedSido, selectedSigungu]);
 
-  // 선택된 시/도의 시/군/구 목록
-  const sigunguList = selectedSido ? KOREA_REGIONS[selectedSido] : [];
+  // 검색 필터링된 지역 목록
+  const filteredRegions = useMemo(() => {
+    if (!regionQuery.trim()) return REGION_LIST.slice(0, 20); // 검색어 없으면 상위 20개만
+    const query = regionQuery.toLowerCase().trim();
+    return REGION_LIST.filter((region) =>
+      region.searchTerms.some((term) => term.includes(query))
+    ).slice(0, 20);
+  }, [regionQuery]);
 
   // 업종 토글
   const toggleCategory = (value: string) => {
@@ -133,10 +198,94 @@ export default function GainCustomerPage() {
     );
   };
 
-  // 시/도 변경 시 시/군/구 초기화
-  const handleSidoChange = (sido: string) => {
-    setSelectedSido(sido);
+  // 지역 선택
+  const handleRegionSelect = (region: RegionItem) => {
+    setSelectedSido(region.sido);
+    setSelectedSigungu(region.sigungu);
+    setRegionQuery('');
+    setIsRegionDropdownOpen(false);
+  };
+
+  // 선택된 지역 삭제
+  const handleRegionClear = () => {
+    setSelectedSido('');
     setSelectedSigungu('');
+    setRegionQuery('');
+  };
+
+  // 현재 위치로 설정
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('브라우저에서 위치 기능을 지원하지 않습니다.');
+      return;
+    }
+
+    setIsLocating(true);
+    setLocationError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+
+          // Kakao Maps API 또는 Naver Maps API가 없으므로 간단한 역지오코딩 서비스 사용
+          // 여기서는 대략적인 위치 기반으로 가장 가까운 지역 추정
+          // 실제 구현에서는 역지오코딩 API 사용 권장
+
+          // 주요 도시 좌표 기준 매칭 (간단한 구현)
+          const cityCoords: { sido: string; sigungu: string; lat: number; lng: number }[] = [
+            { sido: '서울', sigungu: '강남구', lat: 37.5172, lng: 127.0473 },
+            { sido: '서울', sigungu: '강북구', lat: 37.6396, lng: 127.0257 },
+            { sido: '서울', sigungu: '마포구', lat: 37.5663, lng: 126.9014 },
+            { sido: '서울', sigungu: '송파구', lat: 37.5145, lng: 127.1066 },
+            { sido: '서울', sigungu: '영등포구', lat: 37.5262, lng: 126.8962 },
+            { sido: '경기', sigungu: '성남시 분당구', lat: 37.3825, lng: 127.1194 },
+            { sido: '경기', sigungu: '수원시 영통구', lat: 37.2596, lng: 127.0465 },
+            { sido: '경기', sigungu: '고양시 일산동구', lat: 37.6584, lng: 126.7724 },
+            { sido: '인천', sigungu: '연수구', lat: 37.4102, lng: 126.6783 },
+            { sido: '인천', sigungu: '부평구', lat: 37.5074, lng: 126.7218 },
+            { sido: '부산', sigungu: '해운대구', lat: 35.1631, lng: 129.1635 },
+            { sido: '부산', sigungu: '부산진구', lat: 35.1631, lng: 129.0530 },
+            { sido: '대구', sigungu: '수성구', lat: 35.8581, lng: 128.6306 },
+            { sido: '광주', sigungu: '서구', lat: 35.1523, lng: 126.8895 },
+            { sido: '대전', sigungu: '유성구', lat: 36.3623, lng: 127.3562 },
+            { sido: '울산', sigungu: '남구', lat: 35.5443, lng: 129.3302 },
+            { sido: '제주', sigungu: '제주시', lat: 33.4996, lng: 126.5312 },
+          ];
+
+          // 가장 가까운 도시 찾기
+          let closestCity = cityCoords[0];
+          let minDistance = Infinity;
+
+          for (const city of cityCoords) {
+            const distance = Math.sqrt(
+              Math.pow(latitude - city.lat, 2) + Math.pow(longitude - city.lng, 2)
+            );
+            if (distance < minDistance) {
+              minDistance = distance;
+              closestCity = city;
+            }
+          }
+
+          setSelectedSido(closestCity.sido);
+          setSelectedSigungu(closestCity.sigungu);
+          setRegionQuery('');
+        } catch (err) {
+          setLocationError('위치를 가져오는데 실패했습니다.');
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      (err) => {
+        setIsLocating(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setLocationError('위치 권한을 허용해주세요.');
+        } else {
+          setLocationError('위치를 가져오는데 실패했습니다.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   // 폼 제출
@@ -148,12 +297,8 @@ export default function GainCustomerPage() {
       setError('연락처를 입력해주세요.');
       return;
     }
-    if (!selectedSido) {
-      setError('시/도를 선택해주세요.');
-      return;
-    }
-    if (!selectedSigungu) {
-      setError('시/군/구를 선택해주세요.');
+    if (!selectedSido || !selectedSigungu) {
+      setError('자주 가는 장소를 선택해주세요.');
       return;
     }
     if (!gender) {
@@ -257,47 +402,92 @@ export default function GainCustomerPage() {
             />
           </div>
 
-          {/* 자주 가는 장소 - 시/도 선택 */}
+          {/* 자주 가는 장소 - 검색형 자동완성 */}
           <div>
             <label className="block text-base font-medium text-gray-900 mb-2">
               내가 자주 가는 장소 <span className="text-gray-400">*</span>
             </label>
-            <p className="text-sm text-gray-500 mb-3">식사하러 자주 가시는 곳을 선택해 주세요</p>
+            <p className="text-sm text-gray-500 mb-3">동네 이름으로 검색하세요 (예: 강남, 송도, 해운대)</p>
 
-            {/* 시/도 선택 */}
-            <div className="relative mb-3">
-              <select
-                value={selectedSido}
-                onChange={(e) => handleSidoChange(e.target.value)}
-                autoComplete="off"
-                className="w-full px-4 py-3 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900 bg-white appearance-none cursor-pointer"
-              >
-                <option value="">시/도 선택</option>
-                {sidoList.map((sido) => (
-                  <option key={sido} value={sido}>{sido}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-            </div>
+            {/* 현재 위치 버튼 */}
+            <button
+              type="button"
+              onClick={handleGetCurrentLocation}
+              disabled={isLocating}
+              className="flex items-center gap-2 mb-3 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {isLocating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <MapPin className="w-4 h-4" />
+              )}
+              {isLocating ? '위치 확인 중...' : '현재 위치로 설정'}
+            </button>
+            {locationError && (
+              <p className="text-sm text-red-500 mb-2">{locationError}</p>
+            )}
 
-            {/* 시/군/구 선택 */}
-            <div className="relative">
-              <select
-                value={selectedSigungu}
-                onChange={(e) => setSelectedSigungu(e.target.value)}
-                disabled={!selectedSido}
-                autoComplete="off"
-                className={`w-full px-4 py-3 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none bg-white appearance-none cursor-pointer ${
-                  selectedSido ? 'text-gray-900' : 'text-gray-400'
-                }`}
-              >
-                <option value="">시/군/구 선택</option>
-                {sigunguList.map((sigungu) => (
-                  <option key={sigungu} value={sigungu}>{sigungu}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-            </div>
+            {/* 선택된 지역 표시 */}
+            {selectedRegionDisplay ? (
+              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 mb-3">
+                <MapPin className="w-4 h-4 text-gray-500" />
+                <span className="flex-1 text-gray-900 font-medium">{selectedRegionDisplay}</span>
+                <button
+                  type="button"
+                  onClick={handleRegionClear}
+                  className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+            ) : (
+              /* 검색 입력 */
+              <div className="relative">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={regionQuery}
+                    onChange={(e) => {
+                      setRegionQuery(e.target.value);
+                      setIsRegionDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsRegionDropdownOpen(true)}
+                    placeholder="동네 이름을 입력하세요"
+                    autoComplete="off"
+                    className="w-full pl-10 pr-4 py-3 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900 placeholder-gray-400 transition-colors"
+                  />
+                </div>
+
+                {/* 자동완성 드롭다운 */}
+                {isRegionDropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setIsRegionDropdownOpen(false)}
+                    />
+                    <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                      {filteredRegions.length > 0 ? (
+                        filteredRegions.map((region, index) => (
+                          <button
+                            key={`${region.sido}-${region.sigungu}-${index}`}
+                            type="button"
+                            onClick={() => handleRegionSelect(region)}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
+                          >
+                            <span className="text-gray-900">{region.displayName}</span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-4 py-3 text-gray-500 text-sm">
+                          검색 결과가 없습니다
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 성별 */}
@@ -369,11 +559,12 @@ export default function GainCustomerPage() {
             </div>
           </div>
 
-          {/* 관심 업종 (선택) */}
+          {/* 관심 업종 - 기본 전체 선택 */}
           <div>
-            <label className="block text-base font-medium text-gray-900 mb-3">
-              관심 업종 <span className="text-gray-400">(선택)</span>
+            <label className="block text-base font-medium text-gray-900 mb-1">
+              관심 업종
             </label>
+            <p className="text-sm text-gray-500 mb-3">관심 없는 업종은 선택 해제하세요</p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -412,7 +603,7 @@ export default function GainCustomerPage() {
           {/* 수신 동의 */}
           <div>
             <label className="block text-base font-medium text-gray-900 mb-3">
-              혜택을 받기위해 수신 동의가 필요해요 <span className="text-gray-400">*</span>
+              할인 정보를 문자로 보내드려요 (주 1~2회) <span className="text-gray-400">*</span>
             </label>
             <button
               type="button"
@@ -424,7 +615,7 @@ export default function GainCustomerPage() {
               }`}>
                 {consent && <Check className="w-3 h-3 text-white" />}
               </span>
-              <span className="text-gray-700">네, 동의합니다</span>
+              <span className="text-gray-700">동의하고 쿠폰 받기</span>
             </button>
             <a
               href="https://tmr-founders.notion.site/2492217234e380e1abbbe6867fc96aea?source=copy_link"
@@ -449,7 +640,7 @@ export default function GainCustomerPage() {
             disabled={isSubmitting}
             className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? '등록 중...' : '제출하기'}
+            {isSubmitting ? '등록 중...' : '쿠폰 받기'}
             {!isSubmitting && <ArrowRight className="w-4 h-4" />}
           </button>
         </form>
