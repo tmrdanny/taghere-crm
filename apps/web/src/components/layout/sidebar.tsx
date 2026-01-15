@@ -23,7 +23,7 @@ import {
   Store,
   TabletSmartphone,
   ListOrdered,
-  Coins,
+  HandCoins,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -73,7 +73,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: 'https://admin.tag-here.com', label: '주문/결제', icon: TabletSmartphone, isExternal: true },
       { href: '#waiting', label: '웨이팅', icon: ListOrdered, isNew: true, isComingSoon: true, comingSoonLink: 'https://tally.so/r/Gxp0Lp' },
-      { href: '/points', label: '포인트 적립', icon: Coins },
+      { href: '/points', label: '포인트 적립', icon: HandCoins },
     ],
   },
   {
