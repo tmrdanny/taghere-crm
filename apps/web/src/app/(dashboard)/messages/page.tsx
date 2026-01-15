@@ -918,11 +918,13 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row lg:items-start p-4 md:p-6 gap-6 max-w-[1200px] mx-auto w-full lg:justify-center">
+    <div className="min-h-screen bg-neutral-50">
       {ToastComponent}
-
-      {/* Left Panel - Settings */}
-      <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6">
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Left Panel - Settings */}
+          <div className="flex-1 lg:max-w-2xl">
+            <div className="bg-white border border-neutral-200 rounded-xl shadow-sm p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e5e7eb]">
           <h1 className="text-lg sm:text-xl font-bold text-[#1e293b]">캠페인 메시지 만들기</h1>
@@ -1586,11 +1588,13 @@ export default function MessagesPage() {
             )}
           </>
         )}
-      </div>
+            </div>
+          </div>
+        </div>
 
-      {/* Right Panel - Preview (hidden on mobile) */}
-      <div className="hidden lg:block flex-none w-[360px] self-start">
-        <div className="bg-[#e2e8f0] rounded-3xl p-5">
+        {/* Right Panel - Preview */}
+        <div className="hidden lg:block flex-none w-[360px]">
+          <div className="bg-[#e2e8f0] rounded-3xl p-5">
           <p className="text-center text-[#64748b] mb-4">발송 메시지 미리보기</p>
           <div className="flex justify-center">
             {/* Phone Frame */}
@@ -2146,6 +2150,7 @@ export default function MessagesPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
+      </div>
     </div>
   );
 }
