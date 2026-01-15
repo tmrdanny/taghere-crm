@@ -1589,7 +1589,7 @@ export default function MessagesPage() {
       </div>
 
       {/* Right Panel - Preview (hidden on mobile) */}
-      <div className="hidden lg:block flex-none w-[360px] self-start sticky top-0">
+      <div className="hidden lg:block flex-none w-[360px] self-start">
         <div className="bg-[#e2e8f0] rounded-3xl p-5">
           <p className="text-center text-[#64748b] mb-4">발송 메시지 미리보기</p>
           <div className="flex justify-center">

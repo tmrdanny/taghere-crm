@@ -847,12 +847,12 @@ export default function LocalCustomersPage() {
                   return (
                     <span
                       key={cat}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-medium"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-100 text-brand-700 rounded-full text-sm font-medium"
                     >
                       {catLabel}
                       <button
                         onClick={() => setSelectedPreferredCategories(prev => prev.filter(c => c !== cat))}
-                        className="hover:bg-green-200 rounded-full p-0.5 transition-colors"
+                        className="hover:bg-brand-200 rounded-full p-0.5 transition-colors"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -879,8 +879,8 @@ export default function LocalCustomersPage() {
                     className={cn(
                       "px-4 py-2 rounded-full text-sm font-medium border transition-colors",
                       isSelected
-                        ? "bg-green-600 text-white border-green-600"
-                        : "bg-white text-neutral-700 border-neutral-200 hover:border-green-300"
+                        ? "bg-brand-600 text-white border-brand-600"
+                        : "bg-white text-neutral-700 border-neutral-200 hover:border-brand-300"
                     )}
                   >
                     {cat.label}
@@ -1461,7 +1461,7 @@ export default function LocalCustomersPage() {
       </div>
 
       {/* Right Panel - iPhone Preview (Sticky) */}
-      <div className="hidden lg:block flex-none w-[360px] self-start sticky top-0">
+      <div className="hidden lg:block flex-none w-[360px] self-start">
         <div className="bg-[#e2e8f0] rounded-3xl p-5">
           {activeTab === 'kakao' ? (
             /* 카카오톡 미리보기 - 네이버 리뷰 스타일 */
