@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-// Demo customers data
+// Demo customers data (100명)
 const DEMO_CUSTOMERS = [
   { id: '1', name: '김*호', phone: '010-****-5678', visitCount: 12, lastVisit: '2025-01-12', preferredCategories: ['한식', '구이'], region: '서울 강남구', age: '30대', gender: 'MALE' },
   { id: '2', name: '이*영', phone: '010-****-1234', visitCount: 8, lastVisit: '2025-01-10', preferredCategories: ['한식'], region: '서울 마포구', age: '20대', gender: 'FEMALE' },
@@ -42,6 +42,86 @@ const DEMO_CUSTOMERS = [
   { id: '18', name: '홍*연', phone: '010-****-0125', visitCount: 6, lastVisit: '2025-01-06', preferredCategories: ['양식', '카페'], region: '충북 청주시', age: '20대', gender: 'FEMALE' },
   { id: '19', name: '유*훈', phone: '010-****-4569', visitCount: 13, lastVisit: '2025-01-11', preferredCategories: ['한식', '구이'], region: '전북 전주시', age: '50대', gender: 'MALE' },
   { id: '20', name: '조*희', phone: '010-****-8903', visitCount: 10, lastVisit: '2025-01-12', preferredCategories: ['디저트', '카페'], region: '경남 창원시', age: '30대', gender: 'FEMALE' },
+  { id: '21', name: '배*철', phone: '010-****-1357', visitCount: 16, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '서울 종로구', age: '40대', gender: 'MALE' },
+  { id: '22', name: '노*정', phone: '010-****-2468', visitCount: 7, lastVisit: '2025-01-09', preferredCategories: ['카페', '디저트'], region: '서울 성북구', age: '20대', gender: 'FEMALE' },
+  { id: '23', name: '하*근', phone: '010-****-3579', visitCount: 23, lastVisit: '2025-01-14', preferredCategories: ['한식', '일식'], region: '경기 고양시', age: '50대', gender: 'MALE' },
+  { id: '24', name: '양*윤', phone: '010-****-4680', visitCount: 4, lastVisit: '2025-01-05', preferredCategories: ['양식'], region: '경기 용인시', age: '30대', gender: 'FEMALE' },
+  { id: '25', name: '손*기', phone: '010-****-5791', visitCount: 28, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식', '구이'], region: '부산 해운대구', age: '60대', gender: 'MALE' },
+  { id: '26', name: '백*나', phone: '010-****-6802', visitCount: 9, lastVisit: '2025-01-10', preferredCategories: ['일식', '카페'], region: '서울 강서구', age: '20대', gender: 'FEMALE' },
+  { id: '27', name: '남*태', phone: '010-****-7913', visitCount: 17, lastVisit: '2025-01-12', preferredCategories: ['한식'], region: '대구 수성구', age: '40대', gender: 'MALE' },
+  { id: '28', name: '심*주', phone: '010-****-8024', visitCount: 5, lastVisit: '2025-01-06', preferredCategories: ['디저트', '카페'], region: '광주 북구', age: '20대', gender: 'FEMALE' },
+  { id: '29', name: '곽*성', phone: '010-****-9135', visitCount: 21, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '인천 연수구', age: '50대', gender: 'MALE' },
+  { id: '30', name: '문*린', phone: '010-****-0246', visitCount: 11, lastVisit: '2025-01-11', preferredCategories: ['양식', '일식'], region: '서울 동작구', age: '30대', gender: 'FEMALE' },
+  { id: '31', name: '장*원', phone: '010-****-1358', visitCount: 14, lastVisit: '2025-01-12', preferredCategories: ['한식', '중식'], region: '경기 안양시', age: '40대', gender: 'MALE' },
+  { id: '32', name: '류*하', phone: '010-****-2469', visitCount: 6, lastVisit: '2025-01-07', preferredCategories: ['카페'], region: '서울 노원구', age: '20대', gender: 'FEMALE' },
+  { id: '33', name: '차*용', phone: '010-****-3570', visitCount: 32, lastVisit: '2025-01-14', preferredCategories: ['한식', '구이', '일식'], region: '부산 사하구', age: '60대', gender: 'MALE' },
+  { id: '34', name: '구*선', phone: '010-****-4681', visitCount: 8, lastVisit: '2025-01-08', preferredCategories: ['디저트'], region: '대전 유성구', age: '30대', gender: 'FEMALE' },
+  { id: '35', name: '민*재', phone: '010-****-5792', visitCount: 19, lastVisit: '2025-01-13', preferredCategories: ['한식'], region: '울산 중구', age: '50대', gender: 'MALE' },
+  { id: '36', name: '추*예', phone: '010-****-6803', visitCount: 3, lastVisit: '2025-01-03', preferredCategories: ['카페', '양식'], region: '경기 부천시', age: '20대', gender: 'FEMALE' },
+  { id: '37', name: '도*환', phone: '010-****-7914', visitCount: 15, lastVisit: '2025-01-11', preferredCategories: ['한식', '구이'], region: '충남 아산시', age: '40대', gender: 'MALE' },
+  { id: '38', name: '성*림', phone: '010-****-8025', visitCount: 10, lastVisit: '2025-01-10', preferredCategories: ['일식', '디저트'], region: '서울 은평구', age: '30대', gender: 'FEMALE' },
+  { id: '39', name: '우*범', phone: '010-****-9136', visitCount: 26, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식'], region: '경북 포항시', age: '50대', gender: 'MALE' },
+  { id: '40', name: '탁*솔', phone: '010-****-0247', visitCount: 7, lastVisit: '2025-01-09', preferredCategories: ['카페'], region: '전남 여수시', age: '20대', gender: 'FEMALE' },
+  { id: '41', name: '봉*일', phone: '010-****-1359', visitCount: 20, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '서울 관악구', age: '40대', gender: 'MALE' },
+  { id: '42', name: '진*빈', phone: '010-****-2460', visitCount: 12, lastVisit: '2025-01-12', preferredCategories: ['양식', '카페'], region: '경기 의정부시', age: '30대', gender: 'FEMALE' },
+  { id: '43', name: '엄*찬', phone: '010-****-3571', visitCount: 29, lastVisit: '2025-01-14', preferredCategories: ['한식', '일식', '구이'], region: '부산 동래구', age: '60대', gender: 'MALE' },
+  { id: '44', name: '표*경', phone: '010-****-4682', visitCount: 4, lastVisit: '2025-01-04', preferredCategories: ['디저트'], region: '인천 계양구', age: '20대', gender: 'FEMALE' },
+  { id: '45', name: '길*완', phone: '010-****-5793', visitCount: 18, lastVisit: '2025-01-12', preferredCategories: ['한식'], region: '대구 달서구', age: '50대', gender: 'MALE' },
+  { id: '46', name: '변*담', phone: '010-****-6804', visitCount: 9, lastVisit: '2025-01-10', preferredCategories: ['카페', '일식'], region: '서울 중랑구', age: '30대', gender: 'FEMALE' },
+  { id: '47', name: '석*욱', phone: '010-****-7915', visitCount: 24, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '광주 광산구', age: '40대', gender: 'MALE' },
+  { id: '48', name: '맹*화', phone: '010-****-8026', visitCount: 6, lastVisit: '2025-01-06', preferredCategories: ['양식', '디저트'], region: '경기 안산시', age: '20대', gender: 'FEMALE' },
+  { id: '49', name: '피*혁', phone: '010-****-9137', visitCount: 33, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식', '구이'], region: '충북 충주시', age: '60대', gender: 'MALE' },
+  { id: '50', name: '금*슬', phone: '010-****-0248', visitCount: 11, lastVisit: '2025-01-11', preferredCategories: ['카페'], region: '서울 금천구', age: '20대', gender: 'FEMALE' },
+  { id: '51', name: '방*준', phone: '010-****-1360', visitCount: 16, lastVisit: '2025-01-12', preferredCategories: ['한식', '일식'], region: '경남 김해시', age: '40대', gender: 'MALE' },
+  { id: '52', name: '천*율', phone: '010-****-2461', visitCount: 8, lastVisit: '2025-01-08', preferredCategories: ['디저트', '카페'], region: '서울 도봉구', age: '30대', gender: 'FEMALE' },
+  { id: '53', name: '설*우', phone: '010-****-3572', visitCount: 27, lastVisit: '2025-01-14', preferredCategories: ['한식', '구이'], region: '전북 익산시', age: '50대', gender: 'MALE' },
+  { id: '54', name: '마*인', phone: '010-****-4683', visitCount: 5, lastVisit: '2025-01-05', preferredCategories: ['양식'], region: '경기 시흥시', age: '20대', gender: 'FEMALE' },
+  { id: '55', name: '제*동', phone: '010-****-5794', visitCount: 22, lastVisit: '2025-01-13', preferredCategories: ['한식', '중식'], region: '부산 북구', age: '40대', gender: 'MALE' },
+  { id: '56', name: '빈*아', phone: '010-****-6805', visitCount: 13, lastVisit: '2025-01-11', preferredCategories: ['카페', '일식'], region: '대전 동구', age: '30대', gender: 'FEMALE' },
+  { id: '57', name: '공*건', phone: '010-****-7916', visitCount: 30, lastVisit: '2025-01-14', preferredCategories: ['한식', '구이', '일식'], region: '서울 영등포구', age: '60대', gender: 'MALE' },
+  { id: '58', name: '염*비', phone: '010-****-8027', visitCount: 7, lastVisit: '2025-01-07', preferredCategories: ['디저트'], region: '인천 부평구', age: '20대', gender: 'FEMALE' },
+  { id: '59', name: '복*상', phone: '010-****-9138', visitCount: 17, lastVisit: '2025-01-12', preferredCategories: ['한식'], region: '경기 파주시', age: '50대', gender: 'MALE' },
+  { id: '60', name: '태*원', phone: '010-****-0249', visitCount: 10, lastVisit: '2025-01-10', preferredCategories: ['양식', '카페'], region: '울산 동구', age: '30대', gender: 'FEMALE' },
+  { id: '61', name: '음*승', phone: '010-****-1361', visitCount: 25, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '대구 동구', age: '40대', gender: 'MALE' },
+  { id: '62', name: '목*진', phone: '010-****-2462', visitCount: 4, lastVisit: '2025-01-04', preferredCategories: ['카페', '디저트'], region: '서울 구로구', age: '20대', gender: 'FEMALE' },
+  { id: '63', name: '소*택', phone: '010-****-3573', visitCount: 21, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식'], region: '광주 남구', age: '50대', gender: 'MALE' },
+  { id: '64', name: '어*름', phone: '010-****-4684', visitCount: 9, lastVisit: '2025-01-09', preferredCategories: ['일식'], region: '경기 광명시', age: '30대', gender: 'FEMALE' },
+  { id: '65', name: '명*오', phone: '010-****-5795', visitCount: 34, lastVisit: '2025-01-14', preferredCategories: ['한식', '구이', '일식'], region: '충남 논산시', age: '60대', gender: 'MALE' },
+  { id: '66', name: '현*미', phone: '010-****-6806', visitCount: 6, lastVisit: '2025-01-06', preferredCategories: ['양식', '카페'], region: '서울 동대문구', age: '20대', gender: 'FEMALE' },
+  { id: '67', name: '국*현', phone: '010-****-7917', visitCount: 14, lastVisit: '2025-01-11', preferredCategories: ['한식'], region: '부산 연제구', age: '40대', gender: 'MALE' },
+  { id: '68', name: '감*지', phone: '010-****-8028', visitCount: 11, lastVisit: '2025-01-10', preferredCategories: ['디저트', '일식'], region: '경기 군포시', age: '30대', gender: 'FEMALE' },
+  { id: '69', name: '경*로', phone: '010-****-9139', visitCount: 28, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '전남 순천시', age: '50대', gender: 'MALE' },
+  { id: '70', name: '계*별', phone: '010-****-0250', visitCount: 3, lastVisit: '2025-01-03', preferredCategories: ['카페'], region: '인천 서구', age: '20대', gender: 'FEMALE' },
+  { id: '71', name: '고*평', phone: '010-****-1362', visitCount: 19, lastVisit: '2025-01-12', preferredCategories: ['한식', '중식'], region: '대전 대덕구', age: '40대', gender: 'MALE' },
+  { id: '72', name: '관*정', phone: '010-****-2463', visitCount: 8, lastVisit: '2025-01-08', preferredCategories: ['양식', '디저트'], region: '서울 성동구', age: '30대', gender: 'FEMALE' },
+  { id: '73', name: '광*호', phone: '010-****-3574', visitCount: 35, lastVisit: '2025-01-14', preferredCategories: ['한식', '구이', '일식'], region: '경북 구미시', age: '60대', gender: 'MALE' },
+  { id: '74', name: '규*온', phone: '010-****-4685', visitCount: 5, lastVisit: '2025-01-05', preferredCategories: ['카페', '일식'], region: '경기 이천시', age: '20대', gender: 'FEMALE' },
+  { id: '75', name: '근*식', phone: '010-****-5796', visitCount: 23, lastVisit: '2025-01-13', preferredCategories: ['한식'], region: '울산 북구', age: '50대', gender: 'MALE' },
+  { id: '76', name: '기*향', phone: '010-****-6807', visitCount: 12, lastVisit: '2025-01-11', preferredCategories: ['디저트', '카페'], region: '서울 강동구', age: '30대', gender: 'FEMALE' },
+  { id: '77', name: '낙*빈', phone: '010-****-7918', visitCount: 20, lastVisit: '2025-01-12', preferredCategories: ['한식', '구이'], region: '부산 금정구', age: '40대', gender: 'MALE' },
+  { id: '78', name: '난*설', phone: '010-****-8029', visitCount: 7, lastVisit: '2025-01-07', preferredCategories: ['양식'], region: '경기 하남시', age: '20대', gender: 'FEMALE' },
+  { id: '79', name: '내*천', phone: '010-****-9140', visitCount: 31, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식', '구이'], region: '충북 제천시', age: '60대', gender: 'MALE' },
+  { id: '80', name: '다*름', phone: '010-****-0251', visitCount: 10, lastVisit: '2025-01-10', preferredCategories: ['일식', '카페'], region: '대구 북구', age: '30대', gender: 'FEMALE' },
+  { id: '81', name: '단*결', phone: '010-****-1363', visitCount: 15, lastVisit: '2025-01-11', preferredCategories: ['한식'], region: '광주 동구', age: '40대', gender: 'MALE' },
+  { id: '82', name: '달*봄', phone: '010-****-2464', visitCount: 4, lastVisit: '2025-01-04', preferredCategories: ['카페', '디저트'], region: '서울 서초구', age: '20대', gender: 'FEMALE' },
+  { id: '83', name: '대*수', phone: '010-****-3575', visitCount: 26, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '경남 양산시', age: '50대', gender: 'MALE' },
+  { id: '84', name: '덕*자', phone: '010-****-4686', visitCount: 9, lastVisit: '2025-01-09', preferredCategories: ['양식', '일식'], region: '인천 미추홀구', age: '30대', gender: 'FEMALE' },
+  { id: '85', name: '도*원', phone: '010-****-5797', visitCount: 36, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식', '일식'], region: '전북 군산시', age: '60대', gender: 'MALE' },
+  { id: '86', name: '동*천', phone: '010-****-6808', visitCount: 6, lastVisit: '2025-01-06', preferredCategories: ['디저트'], region: '경기 김포시', age: '20대', gender: 'FEMALE' },
+  { id: '87', name: '두*민', phone: '010-****-7919', visitCount: 18, lastVisit: '2025-01-12', preferredCategories: ['한식', '구이'], region: '대전 중구', age: '40대', gender: 'MALE' },
+  { id: '88', name: '라*희', phone: '010-****-8030', visitCount: 13, lastVisit: '2025-01-11', preferredCategories: ['카페'], region: '서울 양천구', age: '30대', gender: 'FEMALE' },
+  { id: '89', name: '래*준', phone: '010-****-9141', visitCount: 29, lastVisit: '2025-01-14', preferredCategories: ['한식', '일식'], region: '부산 사상구', age: '50대', gender: 'MALE' },
+  { id: '90', name: '려*운', phone: '010-****-0252', visitCount: 8, lastVisit: '2025-01-08', preferredCategories: ['양식', '카페'], region: '경기 남양주시', age: '20대', gender: 'FEMALE' },
+  { id: '91', name: '력*상', phone: '010-****-1364', visitCount: 22, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '울산 울주군', age: '40대', gender: 'MALE' },
+  { id: '92', name: '련*화', phone: '010-****-2465', visitCount: 11, lastVisit: '2025-01-10', preferredCategories: ['디저트', '일식'], region: '대구 서구', age: '30대', gender: 'FEMALE' },
+  { id: '93', name: '렬*진', phone: '010-****-3576', visitCount: 33, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식', '구이'], region: '광주 서구', age: '60대', gender: 'MALE' },
+  { id: '94', name: '령*아', phone: '010-****-4687', visitCount: 5, lastVisit: '2025-01-05', preferredCategories: ['카페'], region: '서울 강북구', age: '20대', gender: 'FEMALE' },
+  { id: '95', name: '례*문', phone: '010-****-5798', visitCount: 17, lastVisit: '2025-01-12', preferredCategories: ['한식'], region: '경기 오산시', age: '50대', gender: 'MALE' },
+  { id: '96', name: '로*빈', phone: '010-****-6809', visitCount: 14, lastVisit: '2025-01-11', preferredCategories: ['양식', '디저트'], region: '충남 서산시', age: '30대', gender: 'FEMALE' },
+  { id: '97', name: '록*찬', phone: '010-****-7920', visitCount: 24, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이', '일식'], region: '인천 강화군', age: '40대', gender: 'MALE' },
+  { id: '98', name: '론*희', phone: '010-****-8031', visitCount: 7, lastVisit: '2025-01-07', preferredCategories: ['카페', '일식'], region: '전남 목포시', age: '20대', gender: 'FEMALE' },
+  { id: '99', name: '롱*석', phone: '010-****-9142', visitCount: 38, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식'], region: '경북 경주시', age: '60대', gender: 'MALE' },
+  { id: '100', name: '뢰*수', phone: '010-****-0253', visitCount: 10, lastVisit: '2025-01-10', preferredCategories: ['디저트', '양식'], region: '제주 서귀포시', age: '30대', gender: 'FEMALE' },
 ];
 
 // Filter options
@@ -106,29 +186,14 @@ export default function FranchiseCustomersPage() {
     return '';
   };
 
-  // Fetch customers
+  // Fetch customers - 데모에서는 항상 DEMO_CUSTOMERS 사용
   const fetchCustomers = useCallback(async () => {
     setIsLoading(true);
-    try {
-      const token = getAuthToken();
-      const res = await fetch(`${API_BASE}/api/franchise/customers`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setCustomers(data.customers || DEMO_CUSTOMERS);
-      } else {
-        setCustomers(DEMO_CUSTOMERS);
-      }
-    } catch (err) {
-      console.error('Failed to fetch customers:', err);
+    // 데모 데이터 바로 사용
+    setTimeout(() => {
       setCustomers(DEMO_CUSTOMERS);
-    } finally {
       setIsLoading(false);
-    }
+    }, 500);
   }, []);
 
   useEffect(() => {
