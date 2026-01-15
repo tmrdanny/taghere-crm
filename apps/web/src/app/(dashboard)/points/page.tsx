@@ -12,17 +12,8 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatNumber, formatPhone, getRelativeTime, maskNickname } from '@/lib/utils';
-import { Delete, Loader2, UserPlus, RefreshCw, AlertCircle, CheckCircle2, Calculator, Keyboard, Tablet, Copy, Check, ExternalLink } from 'lucide-react';
+import { Delete, Loader2, UserPlus, RefreshCw, AlertCircle, CheckCircle2, Calculator, Keyboard } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
-import { Input } from '@/components/ui/input';
-
-// Types for tablet session
-interface PointSession {
-  id: string;
-  paymentAmount: number;
-  earnPoints: number;
-  expiresAt?: string;
-}
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -100,20 +91,10 @@ export default function PointsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Tablet send modal
-  const [showTabletModal, setShowTabletModal] = useState(false);
-  const [tabletPaymentInput, setTabletPaymentInput] = useState('');
-  const [activeSession, setActiveSession] = useState<PointSession | null>(null);
-  const [isCreatingSession, setIsCreatingSession] = useState(false);
-
-  // Tablet link copy state
-  const [copiedTabletLink, setCopiedTabletLink] = useState(false);
-
   // Toast
   const { showToast, ToastComponent } = useToast();
 
   const hiddenInputRef = useRef<HTMLInputElement>(null);
-  const tabletPaymentInputRef = useRef<HTMLInputElement>(null);
   const paymentInputRef = useRef<HTMLInputElement>(null);
   const pointsInputRef = useRef<HTMLInputElement>(null);
 
@@ -182,58 +163,6 @@ export default function PointsPage() {
   const calculatePointsFromPayment = (amount: number) => {
     if (!storeSettings.pointRateEnabled) return 0;
     return Math.round(amount * storeSettings.pointRatePercent / 100);
-  };
-
-  // Create tablet session
-  const handleCreateTabletSession = async () => {
-    const paymentAmount = parseInt(tabletPaymentInput);
-    if (!paymentAmount || paymentAmount <= 0) {
-      setError('결제 금액을 입력해주세요.');
-      return;
-    }
-
-    setIsCreatingSession(true);
-    setError(null);
-
-    try {
-      const token = getAuthToken();
-      const res = await fetch(`${API_BASE}/api/points/session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ paymentAmount }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || '세션 생성 중 오류가 발생했습니다.');
-      }
-
-      const data = await res.json();
-      setActiveSession(data.session);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '세션 생성 실패');
-    } finally {
-      setIsCreatingSession(false);
-    }
-  };
-
-  // Cancel tablet session and start new
-  const handleNewTabletSession = () => {
-    setActiveSession(null);
-    setTabletPaymentInput('');
-    setTimeout(() => {
-      tabletPaymentInputRef.current?.focus();
-    }, 100);
-  };
-
-  // Close tablet modal
-  const handleCloseTabletModal = () => {
-    setShowTabletModal(false);
-    setActiveSession(null);
-    setTabletPaymentInput('');
   };
 
   // Search customer by phone
@@ -534,66 +463,6 @@ export default function PointsPage() {
               </div>
             </Card>
 
-            {/* Tablet Point Earn Card */}
-            <Card className="bg-white shadow-sm">
-              <div className="p-3 border-b border-neutral-100">
-                <div className="flex items-center gap-2">
-                  <Tablet className="w-4 h-4 text-neutral-600" />
-                  <h2 className="text-sm font-semibold text-neutral-900">
-                    태블릿 적립
-                  </h2>
-                </div>
-                <p className="text-xs text-neutral-500 mt-0.5">
-                  고객이 직접 포인트를 적립할 수 있어요
-                </p>
-              </div>
-              <div className="p-3 space-y-2">
-                <div className="flex gap-2">
-                  <Input
-                    value={typeof window !== 'undefined' ? `${window.location.origin}/point-tablet` : ''}
-                    readOnly
-                    className="font-mono text-xs bg-neutral-50 flex-1 h-8"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const link = `${window.location.origin}/point-tablet`;
-                      navigator.clipboard.writeText(link);
-                      setCopiedTabletLink(true);
-                      showToast('링크가 복사되었습니다.', 'success');
-                      setTimeout(() => setCopiedTabletLink(false), 2000);
-                    }}
-                    className="shrink-0 px-2 h-8"
-                  >
-                    {copiedTabletLink ? (
-                      <Check className="w-4 h-4" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => {
-                    window.open('/point-tablet', '_blank');
-                  }}
-                  className="w-full h-8 text-xs"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-                  새 탭에서 열기
-                </Button>
-                <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-xs text-amber-800 font-medium mb-0.5">사용 방법</p>
-                  <ol className="text-[11px] text-amber-700 space-y-0 list-decimal list-inside">
-                    <li>태블릿에서 매장 계정 로그인</li>
-                    <li>위 링크를 브라우저에서 접속</li>
-                    <li>고객이 전화번호 입력 후 적립</li>
-                  </ol>
-                </div>
-              </div>
-            </Card>
           </div>
 
           {/* Right Panel - Point Input */}
@@ -731,30 +600,6 @@ export default function PointsPage() {
                   다음
                 </Button>
 
-                {/* Divider */}
-                <div className="flex items-center gap-4 mt-6">
-                  <div className="flex-1 h-px bg-neutral-200" />
-                  <span className="text-sm text-neutral-400">또는</span>
-                  <div className="flex-1 h-px bg-neutral-200" />
-                </div>
-
-                {/* Tablet Send Button */}
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowTabletModal(true);
-                    setTabletPaymentInput('');
-                    setActiveSession(null);
-                    setTimeout(() => {
-                      tabletPaymentInputRef.current?.focus();
-                    }, 100);
-                  }}
-                  className="w-full py-4 text-base font-semibold rounded-xl mt-4 border-2 border-brand-800 text-brand-800 hover:bg-brand-50"
-                  size="lg"
-                >
-                  <Tablet className="w-5 h-5 mr-2" />
-                  태블릿으로 결제금액 전송
-                </Button>
               </div>
             </Card>
           </div>
@@ -1206,185 +1051,6 @@ export default function PointsPage() {
         </ModalContent>
       </Modal>
 
-      {/* Tablet Send Modal */}
-      <Modal open={showTabletModal} onOpenChange={handleCloseTabletModal}>
-        <ModalContent className="max-w-2xl">
-          <ModalHeader>
-            <ModalTitle className="flex items-center gap-2">
-              <Tablet className="w-5 h-5" />
-              태블릿으로 전송
-            </ModalTitle>
-          </ModalHeader>
-
-          <div className="py-4">
-            {!activeSession ? (
-              // 결제금액 입력 화면
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Left - 결제금액 입력 */}
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-700">결제 금액</label>
-                    <div
-                      className="flex items-center justify-between px-4 py-3 border-2 rounded-xl bg-white border-brand-800 ring-2 ring-brand-100 cursor-text"
-                      onClick={() => tabletPaymentInputRef.current?.focus()}
-                    >
-                      <span className="text-2xl font-bold text-neutral-900">
-                        {tabletPaymentInput ? formatNumber(parseInt(tabletPaymentInput)) : '0'}
-                      </span>
-                      <span className="text-lg text-neutral-500">원</span>
-                    </div>
-                    <input
-                      ref={tabletPaymentInputRef}
-                      type="text"
-                      inputMode="numeric"
-                      value={tabletPaymentInput}
-                      onChange={(e) => setTabletPaymentInput(e.target.value.replace(/\D/g, ''))}
-                      className="absolute opacity-0 pointer-events-none"
-                    />
-                  </div>
-
-                  {/* Payment Presets */}
-                  <div className="grid grid-cols-4 gap-2">
-                    {PAYMENT_PRESETS.map((preset) => (
-                      <button
-                        key={preset}
-                        onClick={() => setTabletPaymentInput(preset.toString())}
-                        className={`py-2 rounded-lg text-sm font-medium transition-all ${
-                          parseInt(tabletPaymentInput) === preset
-                            ? 'bg-brand-800 text-white'
-                            : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                        }`}
-                      >
-                        {formatNumber(preset)}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Calculated Points Preview */}
-                  <div className="bg-brand-50 rounded-xl p-4 text-center">
-                    <p className="text-sm text-brand-700">적립 예정 포인트</p>
-                    <p className="text-2xl font-bold text-brand-800 mt-1">
-                      {formatNumber(calculatePointsFromPayment(parseInt(tabletPaymentInput) || 0))} P
-                    </p>
-                    <p className="text-xs text-brand-600 mt-1">
-                      ({storeSettings.pointRatePercent}% 적립)
-                    </p>
-                  </div>
-
-                  {/* Info message */}
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-xs text-blue-700">
-                      ⓘ 태블릿에서 고객이 직접 전화번호를 입력하고 포인트를 적립할 수 있습니다.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Right - Keypad */}
-                <div className="bg-neutral-50 rounded-2xl p-4">
-                  <div className="grid grid-cols-3 gap-2">
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                      <button
-                        key={num}
-                        onClick={() => setTabletPaymentInput(prev => prev + num.toString())}
-                        className="aspect-square flex items-center justify-center text-2xl font-semibold text-neutral-900 bg-white rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
-                      >
-                        {num}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => setTabletPaymentInput('')}
-                      className="aspect-square flex items-center justify-center text-sm font-semibold text-neutral-600 bg-red-50 rounded-xl hover:bg-red-100 active:bg-red-200 transition-colors"
-                    >
-                      초기화
-                    </button>
-                    <button
-                      onClick={() => setTabletPaymentInput(prev => prev + '0')}
-                      className="aspect-square flex items-center justify-center text-2xl font-semibold text-neutral-900 bg-white rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
-                    >
-                      0
-                    </button>
-                    <button
-                      onClick={() => setTabletPaymentInput(prev => prev.slice(0, -1))}
-                      className="aspect-square flex items-center justify-center text-neutral-600 bg-neutral-200 rounded-xl hover:bg-neutral-300 active:bg-neutral-400 transition-colors"
-                    >
-                      <Delete className="w-6 h-6" />
-                    </button>
-                  </div>
-                  {/* Quick add buttons */}
-                  <div className="grid grid-cols-2 gap-2 mt-3">
-                    <button
-                      onClick={() => setTabletPaymentInput(prev => (parseInt(prev || '0') + 10000).toString())}
-                      className="py-3 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-                    >
-                      +1만
-                    </button>
-                    <button
-                      onClick={() => setTabletPaymentInput(prev => (parseInt(prev || '0') + 50000).toString())}
-                      className="py-3 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-                    >
-                      +5만
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              // 전송 완료 화면
-              <div className="text-center py-4">
-                <div className="flex justify-center mb-4">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                    <CheckCircle2 className="w-10 h-10 text-green-600" />
-                  </div>
-                </div>
-                <h3 className="text-xl font-bold text-neutral-900 mb-2">
-                  태블릿에 전송 완료
-                </h3>
-                <div className="bg-neutral-50 rounded-xl p-4 mb-4 space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500">결제금액</span>
-                    <span className="font-semibold">{formatNumber(activeSession.paymentAmount)}원</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500">적립 포인트</span>
-                    <span className="font-bold text-brand-800">{formatNumber(activeSession.earnPoints)}P</span>
-                  </div>
-                </div>
-                <p className="text-sm text-neutral-600">
-                  고객이 태블릿에서 전화번호를 입력하면<br />
-                  자동으로 적립됩니다.
-                </p>
-              </div>
-            )}
-          </div>
-
-          <ModalFooter>
-            {!activeSession ? (
-              <>
-                <Button variant="outline" onClick={handleCloseTabletModal}>
-                  취소
-                </Button>
-                <Button
-                  onClick={handleCreateTabletSession}
-                  disabled={isCreatingSession || !tabletPaymentInput || calculatePointsFromPayment(parseInt(tabletPaymentInput) || 0) <= 0}
-                >
-                  {isCreatingSession ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : null}
-                  태블릿에 전송하기
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="outline" onClick={handleNewTabletSession}>
-                  다음 고객 처리하기
-                </Button>
-                <Button onClick={handleCloseTabletModal}>
-                  닫기
-                </Button>
-              </>
-            )}
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
     </div>
   );
 }

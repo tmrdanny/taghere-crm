@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Store, User, LogOut, MessageSquare, Percent, FileText, Tablet, Copy, Check } from 'lucide-react';
+import { Store, User, LogOut, MessageSquare, Percent, FileText } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 
@@ -91,9 +91,6 @@ export default function SettingsPage() {
   // Point usage rule settings (포인트 사용 규칙)
   const [pointUsageRule, setPointUsageRule] = useState('');
   const [isSavingPointUsageRule, setIsSavingPointUsageRule] = useState(false);
-
-  // Tablet link copy state
-  const [copiedTabletLink, setCopiedTabletLink] = useState(false);
 
   // Fetch store info
   useEffect(() => {
@@ -753,66 +750,6 @@ export default function SettingsPage() {
               <Button onClick={handleSavePointUsageRule} disabled={isSavingPointUsageRule}>
                 {isSavingPointUsageRule ? '저장 중...' : '저장하기'}
               </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tablet Point Earn Link Card */}
-        <Card>
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2">
-              <Tablet className="w-5 h-5 text-neutral-600" />
-              <CardTitle className="text-lg">태블릿 포인트 적립</CardTitle>
-            </div>
-            <p className="text-sm text-neutral-500 mt-1">
-              카운터에 태블릿을 비치하여 고객이 직접 포인트를 적립할 수 있습니다.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">
-                태블릿 적립 페이지 링크
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  value={typeof window !== 'undefined' ? `${window.location.origin}/point-tablet` : ''}
-                  readOnly
-                  className="font-mono text-sm bg-neutral-50"
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const link = `${window.location.origin}/point-tablet`;
-                    navigator.clipboard.writeText(link);
-                    setCopiedTabletLink(true);
-                    showToast('링크가 복사되었습니다.', 'success');
-                    setTimeout(() => setCopiedTabletLink(false), 2000);
-                  }}
-                  className="shrink-0"
-                >
-                  {copiedTabletLink ? (
-                    <>
-                      <Check className="w-4 h-4 mr-1" />
-                      복사됨
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4 mr-1" />
-                      복사
-                    </>
-                  )}
-                </Button>
-              </div>
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mt-3">
-                <p className="text-sm text-amber-800">
-                  💡 사용 방법
-                </p>
-                <ol className="text-xs text-amber-700 mt-2 space-y-1 list-decimal list-inside">
-                  <li>태블릿에서 이 매장 계정으로 로그인합니다</li>
-                  <li>위 링크를 태블릿 브라우저에서 접속합니다</li>
-                  <li>고객이 직접 전화번호를 입력하여 포인트를 적립합니다</li>
-                </ol>
-              </div>
             </div>
           </CardContent>
         </Card>
