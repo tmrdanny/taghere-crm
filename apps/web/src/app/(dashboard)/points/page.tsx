@@ -12,7 +12,8 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatNumber, formatPhone, getRelativeTime, maskNickname } from '@/lib/utils';
-import { Delete, Loader2, UserPlus, RefreshCw, AlertCircle, CheckCircle2, Calculator, Keyboard, Tablet } from 'lucide-react';
+import { Delete, Loader2, UserPlus, RefreshCw, AlertCircle, CheckCircle2, Calculator, Keyboard, Tablet, Copy, Check, ExternalLink } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 import { Input } from '@/components/ui/input';
 
 // Types for tablet session
@@ -104,6 +105,12 @@ export default function PointsPage() {
   const [tabletPaymentInput, setTabletPaymentInput] = useState('');
   const [activeSession, setActiveSession] = useState<PointSession | null>(null);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
+
+  // Tablet link copy state
+  const [copiedTabletLink, setCopiedTabletLink] = useState(false);
+
+  // Toast
+  const { showToast, ToastComponent } = useToast();
 
   const hiddenInputRef = useRef<HTMLInputElement>(null);
   const tabletPaymentInputRef = useRef<HTMLInputElement>(null);
@@ -453,6 +460,8 @@ export default function PointsPage() {
 
   return (
     <div className="min-h-screen bg-neutral-100 p-4 lg:p-6 flex items-center justify-center">
+      {ToastComponent}
+
       {/* Hidden input for keyboard typing */}
       <input
         ref={hiddenInputRef}
@@ -468,9 +477,10 @@ export default function PointsPage() {
       <div className="w-full max-w-7xl">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
 
-          {/* Left Panel - Recent Transactions */}
-          <div className="lg:col-span-4 order-2 lg:order-1">
-            <Card className="h-full bg-white shadow-sm">
+          {/* Left Panel - Recent Transactions & Tablet Link */}
+          <div className="lg:col-span-4 order-2 lg:order-1 flex flex-col gap-4">
+            {/* Recent Transactions Card */}
+            <Card className="bg-white shadow-sm flex-1">
               <div className="p-4 border-b border-neutral-100">
                 <div className="flex items-center justify-between">
                   <h2 className="text-base font-semibold text-neutral-900">
@@ -486,13 +496,13 @@ export default function PointsPage() {
                 </div>
               </div>
 
-              <div className="p-2 max-h-[calc(100vh-12rem)] overflow-y-auto">
+              <div className="p-2 max-h-[calc(100vh-26rem)] overflow-y-auto">
                 {isLoadingRecent ? (
-                  <div className="flex items-center justify-center py-12">
+                  <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-6 h-6 animate-spin text-neutral-400" />
                   </div>
                 ) : recentTransactions.length === 0 ? (
-                  <p className="text-center text-sm text-neutral-400 py-12">
+                  <p className="text-center text-sm text-neutral-400 py-8">
                     적립 내역이 없습니다
                   </p>
                 ) : (
@@ -521,6 +531,67 @@ export default function PointsPage() {
                     ))}
                   </div>
                 )}
+              </div>
+            </Card>
+
+            {/* Tablet Point Earn Card */}
+            <Card className="bg-white shadow-sm">
+              <div className="p-3 border-b border-neutral-100">
+                <div className="flex items-center gap-2">
+                  <Tablet className="w-4 h-4 text-neutral-600" />
+                  <h2 className="text-sm font-semibold text-neutral-900">
+                    태블릿 적립
+                  </h2>
+                </div>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  고객이 직접 포인트를 적립할 수 있어요
+                </p>
+              </div>
+              <div className="p-3 space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    value={typeof window !== 'undefined' ? `${window.location.origin}/point-tablet` : ''}
+                    readOnly
+                    className="font-mono text-xs bg-neutral-50 flex-1 h-8"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const link = `${window.location.origin}/point-tablet`;
+                      navigator.clipboard.writeText(link);
+                      setCopiedTabletLink(true);
+                      showToast('링크가 복사되었습니다.', 'success');
+                      setTimeout(() => setCopiedTabletLink(false), 2000);
+                    }}
+                    className="shrink-0 px-2 h-8"
+                  >
+                    {copiedTabletLink ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    window.open('/point-tablet', '_blank');
+                  }}
+                  className="w-full h-8 text-xs"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+                  새 탭에서 열기
+                </Button>
+                <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-xs text-amber-800 font-medium mb-0.5">사용 방법</p>
+                  <ol className="text-[11px] text-amber-700 space-y-0 list-decimal list-inside">
+                    <li>태블릿에서 매장 계정 로그인</li>
+                    <li>위 링크를 브라우저에서 접속</li>
+                    <li>고객이 전화번호 입력 후 적립</li>
+                  </ol>
+                </div>
               </div>
             </Card>
           </div>

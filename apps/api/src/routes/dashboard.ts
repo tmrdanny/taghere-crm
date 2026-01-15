@@ -408,4 +408,74 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
   }
 });
 
+// GET /api/dashboard/feedbacks - 고객 피드백 전체 리스트
+router.get('/feedbacks', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { limit = '20', offset = '0', rating } = req.query;
+
+    const limitNum = Math.min(parseInt(limit as string) || 20, 100);
+    const offsetNum = parseInt(offset as string) || 0;
+
+    // 이름 마스킹 함수
+    const maskName = (name: string | null): string => {
+      if (!name) return '익명';
+      if (name.length <= 1) return name;
+      if (name.length === 2) return name[0] + '*';
+      return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
+    };
+
+    // 필터 조건 설정
+    const whereClause: any = {
+      customer: { storeId },
+    };
+
+    // 별점 필터 (rating 파라미터가 있으면 적용)
+    if (rating) {
+      const ratingNum = parseInt(rating as string);
+      if (ratingNum >= 1 && ratingNum <= 5) {
+        whereClause.rating = ratingNum;
+      }
+    }
+
+    // 전체 개수 조회
+    const total = await prisma.customerFeedback.count({
+      where: whereClause,
+    });
+
+    // 피드백 목록 조회
+    const feedbacks = await prisma.customerFeedback.findMany({
+      where: whereClause,
+      include: {
+        customer: {
+          select: { name: true, phone: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limitNum,
+      skip: offsetNum,
+    });
+
+    const formattedFeedbacks = feedbacks.map((f) => ({
+      id: f.id,
+      rating: f.rating,
+      text: f.text,
+      createdAt: f.createdAt.toISOString(),
+      customerName: maskName(f.customer.name),
+      customerPhone: f.customer.phone
+        ? f.customer.phone.replace(/(\d{3})(\d{4})(\d{4})/, '$1-****-$3')
+        : null,
+    }));
+
+    res.json({
+      feedbacks: formattedFeedbacks,
+      total,
+      hasMore: offsetNum + feedbacks.length < total,
+    });
+  } catch (error) {
+    console.error('Feedbacks list error:', error);
+    res.status(500).json({ error: '피드백 목록 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;

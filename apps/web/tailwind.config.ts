@@ -57,7 +57,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['Pretendard JP', 'Pretendard', 'system-ui', 'sans-serif'],
+        sans: ['Pretendard Variable', 'Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'sans-serif'],
       },
       fontSize: {
         'display-lg': ['3rem', { lineHeight: '1.2', fontWeight: '700' }],
