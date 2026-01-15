@@ -133,6 +133,7 @@ router.get('/alimtalk', authMiddleware, async (req: AuthRequest, res) => {
       where: { id: storeId },
       select: {
         pointsAlimtalkEnabled: true,
+        pointsAlimtalkFrequency: true,
       },
     });
 
@@ -142,6 +143,7 @@ router.get('/alimtalk', authMiddleware, async (req: AuthRequest, res) => {
 
     res.json({
       pointsAlimtalkEnabled: store.pointsAlimtalkEnabled,
+      pointsAlimtalkFrequency: store.pointsAlimtalkFrequency,
     });
   } catch (error) {
     console.error('Alimtalk settings get error:', error);
@@ -153,21 +155,36 @@ router.get('/alimtalk', authMiddleware, async (req: AuthRequest, res) => {
 router.patch('/alimtalk', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { pointsAlimtalkEnabled } = req.body;
+    const { pointsAlimtalkEnabled, pointsAlimtalkFrequency } = req.body;
+
+    // 발송 빈도 유효성 검사
+    const validFrequencies = ['EVERY_ORDER', 'FIRST_ONLY'];
+    const updateData: Record<string, unknown> = {};
+
+    if (pointsAlimtalkEnabled !== undefined) {
+      updateData.pointsAlimtalkEnabled = pointsAlimtalkEnabled === true;
+    }
+
+    if (pointsAlimtalkFrequency !== undefined) {
+      if (!validFrequencies.includes(pointsAlimtalkFrequency)) {
+        return res.status(400).json({ error: '유효하지 않은 발송 빈도입니다.' });
+      }
+      updateData.pointsAlimtalkFrequency = pointsAlimtalkFrequency;
+    }
 
     const store = await prisma.store.update({
       where: { id: storeId },
-      data: {
-        pointsAlimtalkEnabled: pointsAlimtalkEnabled === true,
-      },
+      data: updateData,
       select: {
         pointsAlimtalkEnabled: true,
+        pointsAlimtalkFrequency: true,
       },
     });
 
     res.json({
       success: true,
       pointsAlimtalkEnabled: store.pointsAlimtalkEnabled,
+      pointsAlimtalkFrequency: store.pointsAlimtalkFrequency,
     });
   } catch (error) {
     console.error('Alimtalk settings update error:', error);

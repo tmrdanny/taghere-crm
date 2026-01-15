@@ -1,7 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Store, Users, UserPlus, CreditCard, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
+import {
+  Building2,
+  Users2,
+  UserRoundPlus,
+  Wallet,
+  ArrowUpRight,
+  ArrowDownRight,
+  AlertCircle,
+  ChevronRight,
+  MapPin,
+  Contact,
+  Link2,
+} from 'lucide-react';
 
 interface OverviewData {
   totalStores: number;
@@ -29,59 +41,53 @@ const DEMO_DATA: OverviewData = {
 // Skeleton component for loading state
 function KpiCardSkeleton() {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-      <div className="flex items-start justify-between">
-        <div className="space-y-3 flex-1">
-          <div className="h-4 w-24 bg-slate-200 rounded animate-pulse" />
-          <div className="h-8 w-20 bg-slate-200 rounded animate-pulse" />
-          <div className="h-3 w-32 bg-slate-100 rounded animate-pulse" />
-        </div>
-        <div className="w-12 h-12 bg-slate-100 rounded-lg animate-pulse" />
+    <div className="bg-white border border-slate-100 rounded-2xl p-6">
+      <div className="space-y-4">
+        <div className="h-3 w-20 bg-slate-100 rounded animate-pulse" />
+        <div className="h-9 w-24 bg-slate-100 rounded animate-pulse" />
+        <div className="h-3 w-28 bg-slate-50 rounded animate-pulse" />
       </div>
     </div>
   );
 }
 
-// KPI Card component
+// KPI Card component - minimal design
 interface KpiCardProps {
   title: string;
   value: string | number;
   icon: React.ElementType;
-  iconBgColor: string;
-  iconColor: string;
+  accentColor: string;
   growth?: number;
   growthLabel?: string;
 }
 
-function KpiCard({ title, value, icon: Icon, iconBgColor, iconColor, growth, growthLabel }: KpiCardProps) {
+function KpiCard({ title, value, icon: Icon, accentColor, growth, growthLabel }: KpiCardProps) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-500">{title}</p>
-          <p className="text-3xl font-bold text-slate-900 mt-2">
-            {typeof value === 'number' ? value.toLocaleString() : value}
-          </p>
-          {growth !== undefined && (
-            <div className="flex items-center gap-1 mt-2">
-              {growth >= 0 ? (
-                <TrendingUp className="w-4 h-4 text-emerald-500" />
-              ) : (
-                <TrendingDown className="w-4 h-4 text-red-500" />
-              )}
-              <span className={`text-sm font-medium ${growth >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                {growth >= 0 ? '+' : ''}{growth}%
-              </span>
-              {growthLabel && (
-                <span className="text-sm text-slate-400">{growthLabel}</span>
-              )}
-            </div>
-          )}
-        </div>
-        <div className={`w-12 h-12 ${iconBgColor} rounded-lg flex items-center justify-center`}>
-          <Icon className={`w-6 h-6 ${iconColor}`} />
+    <div className="bg-white border border-slate-100 rounded-2xl p-6 hover:border-slate-200 transition-all duration-200">
+      <div className="flex items-start justify-between mb-4">
+        <p className="text-[13px] font-medium text-slate-500 tracking-tight">{title}</p>
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${accentColor}`}>
+          <Icon className="w-[18px] h-[18px]" strokeWidth={1.5} />
         </div>
       </div>
+      <p className="text-[28px] font-semibold text-slate-900 tracking-tight">
+        {typeof value === 'number' ? value.toLocaleString() : value}
+      </p>
+      {growth !== undefined && (
+        <div className="flex items-center gap-1.5 mt-3">
+          {growth >= 0 ? (
+            <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" strokeWidth={2} />
+          ) : (
+            <ArrowDownRight className="w-3.5 h-3.5 text-rose-500" strokeWidth={2} />
+          )}
+          <span className={`text-xs font-medium ${growth >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+            {growth >= 0 ? '+' : ''}{growth}%
+          </span>
+          {growthLabel && (
+            <span className="text-xs text-slate-400">{growthLabel}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -89,14 +95,14 @@ function KpiCard({ title, value, icon: Icon, iconBgColor, iconColor, growth, gro
 // Empty state component
 function EmptyState() {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-12 text-center">
-      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <AlertCircle className="w-8 h-8 text-slate-400" />
+    <div className="bg-white border border-slate-100 rounded-2xl p-16 text-center">
+      <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
+        <AlertCircle className="w-6 h-6 text-slate-400" strokeWidth={1.5} />
       </div>
-      <h3 className="text-lg font-semibold text-slate-900 mb-2">
+      <h3 className="text-base font-semibold text-slate-900 mb-2">
         데이터가 없습니다
       </h3>
-      <p className="text-slate-500 max-w-sm mx-auto">
+      <p className="text-sm text-slate-500 max-w-xs mx-auto">
         아직 등록된 가맹점이 없습니다. 설정 페이지에서 가맹점을 연동해주세요.
       </p>
     </div>
@@ -178,86 +184,82 @@ export default function FranchiseHomePage() {
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">홈</h1>
-        <p className="text-slate-500 mt-1">
+        <h1 className="text-xl font-semibold text-slate-900 tracking-tight">홈</h1>
+        <p className="text-sm text-slate-500 mt-1">
           프랜차이즈 전체 현황을 한눈에 확인하세요
         </p>
       </div>
 
       {/* KPI Cards Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCardSkeleton />
           <KpiCardSkeleton />
           <KpiCardSkeleton />
           <KpiCardSkeleton />
         </div>
       ) : data && (data.totalStores > 0 || data.totalCustomers > 0) ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
             title="총 가맹점 수"
             value={data.totalStores}
-            icon={Store}
-            iconBgColor="bg-indigo-50"
-            iconColor="text-indigo-600"
+            icon={Building2}
+            accentColor="bg-slate-900 text-white"
             growth={data.storeGrowth}
             growthLabel="지난달 대비"
           />
           <KpiCard
             title="총 고객 수"
             value={data.totalCustomers}
-            icon={Users}
-            iconBgColor="bg-emerald-50"
-            iconColor="text-emerald-600"
+            icon={Users2}
+            accentColor="bg-emerald-500 text-white"
             growth={data.customerGrowth}
             growthLabel="지난달 대비"
           />
           <KpiCard
             title="이번 달 신규 고객"
             value={data.newCustomersThisMonth}
-            icon={UserPlus}
-            iconBgColor="bg-blue-50"
-            iconColor="text-blue-600"
+            icon={UserRoundPlus}
+            accentColor="bg-blue-500 text-white"
             growth={data.newCustomerGrowth}
             growthLabel="지난달 대비"
           />
           <KpiCard
             title="충전 잔액"
             value={formatCurrency(data.walletBalance)}
-            icon={CreditCard}
-            iconBgColor="bg-amber-50"
-            iconColor="text-amber-600"
+            icon={Wallet}
+            accentColor="bg-amber-500 text-white"
           />
         </div>
       ) : (
         <EmptyState />
       )}
 
-      {/* Additional Sections Placeholder */}
+      {/* Additional Sections */}
       {!isLoading && data && (data.totalStores > 0 || data.totalCustomers > 0) && (
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Recent Activity Card */}
-          <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">최근 활동</h3>
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg">
-                <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                  <Store className="w-5 h-5 text-indigo-600" />
+          <div className="bg-white border border-slate-100 rounded-2xl p-6">
+            <h3 className="text-sm font-semibold text-slate-900 mb-4">최근 활동</h3>
+            <div className="space-y-3">
+              <div className="flex items-center gap-4 p-4 bg-slate-50/80 rounded-xl">
+                <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center">
+                  <MapPin className="w-[18px] h-[18px] text-white" strokeWidth={1.5} />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-slate-900">가맹점 현황</p>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-[13px] text-slate-500">
                     {data.totalStores}개의 가맹점이 연동되어 있습니다.
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg">
-                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                  <Users className="w-5 h-5 text-emerald-600" />
+              <div className="flex items-center gap-4 p-4 bg-slate-50/80 rounded-xl">
+                <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
+                  <Contact className="w-[18px] h-[18px] text-white" strokeWidth={1.5} />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-slate-900">고객 현황</p>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-[13px] text-slate-500">
                     총 {data.totalCustomers.toLocaleString()}명의 고객 데이터가 있습니다.
                   </p>
                 </div>
@@ -266,44 +268,38 @@ export default function FranchiseHomePage() {
           </div>
 
           {/* Quick Actions Card */}
-          <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">빠른 작업</h3>
-            <div className="space-y-3">
+          <div className="bg-white border border-slate-100 rounded-2xl p-6">
+            <h3 className="text-sm font-semibold text-slate-900 mb-4">빠른 작업</h3>
+            <div className="space-y-2">
               <a
                 href="/franchise/stores"
-                className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors group"
+                className="flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 transition-colors group"
               >
                 <div className="flex items-center gap-3">
-                  <Store className="w-5 h-5 text-slate-600" />
+                  <Building2 className="w-[18px] h-[18px] text-slate-400" strokeWidth={1.5} />
                   <span className="text-sm font-medium text-slate-700">가맹점 관리</span>
                 </div>
-                <svg className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-400 transition-colors" strokeWidth={1.5} />
               </a>
               <a
                 href="/franchise/customers"
-                className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors group"
+                className="flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 transition-colors group"
               >
                 <div className="flex items-center gap-3">
-                  <Users className="w-5 h-5 text-slate-600" />
+                  <Users2 className="w-[18px] h-[18px] text-slate-400" strokeWidth={1.5} />
                   <span className="text-sm font-medium text-slate-700">고객 목록 보기</span>
                 </div>
-                <svg className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-400 transition-colors" strokeWidth={1.5} />
               </a>
               <a
                 href="/franchise/settings"
-                className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors group"
+                className="flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 transition-colors group"
               >
                 <div className="flex items-center gap-3">
-                  <UserPlus className="w-5 h-5 text-slate-600" />
+                  <Link2 className="w-[18px] h-[18px] text-slate-400" strokeWidth={1.5} />
                   <span className="text-sm font-medium text-slate-700">가맹점 연동하기</span>
                 </div>
-                <svg className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-400 transition-colors" strokeWidth={1.5} />
               </a>
             </div>
           </div>

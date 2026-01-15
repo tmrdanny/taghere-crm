@@ -75,7 +75,9 @@ export default function SettingsPage() {
 
   // Alimtalk settings
   const [pointsAlimtalkEnabled, setPointsAlimtalkEnabled] = useState(true);
+  const [pointsAlimtalkFrequency, setPointsAlimtalkFrequency] = useState<'EVERY_ORDER' | 'FIRST_ONLY'>('EVERY_ORDER');
   const [isSavingAlimtalk, setIsSavingAlimtalk] = useState(false);
+  const [isSavingFrequency, setIsSavingFrequency] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number>(0);
 
   // 충전금이 5원 미만이면 알림톡을 켤 수 없음
@@ -152,6 +154,7 @@ export default function SettingsPage() {
         if (res.ok) {
           const data = await res.json();
           setPointsAlimtalkEnabled(data.pointsAlimtalkEnabled ?? true);
+          setPointsAlimtalkFrequency(data.pointsAlimtalkFrequency || 'EVERY_ORDER');
         }
       } catch (error) {
         console.error('Failed to fetch alimtalk settings:', error);
@@ -277,6 +280,36 @@ export default function SettingsPage() {
       showToast('설정 저장 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsSavingAlimtalk(false);
+    }
+  };
+
+  const handleChangeFrequency = async (frequency: 'EVERY_ORDER' | 'FIRST_ONLY') => {
+    setIsSavingFrequency(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/api/settings/alimtalk`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          pointsAlimtalkFrequency: frequency,
+        }),
+      });
+
+      if (res.ok) {
+        setPointsAlimtalkFrequency(frequency);
+        showToast('발송 빈도 설정이 저장되었습니다.', 'success');
+      } else {
+        const error = await res.json();
+        showToast(error.error || '설정 저장 중 오류가 발생했습니다.', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to save frequency settings:', error);
+      showToast('설정 저장 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setIsSavingFrequency(false);
     }
   };
 
@@ -596,6 +629,49 @@ export default function SettingsPage() {
                 <p className="text-xs text-amber-600 mt-1">
                   현재 잔액: {walletBalance.toLocaleString()}원
                 </p>
+              </div>
+            )}
+
+            {/* 발송 빈도 설정 */}
+            {pointsAlimtalkEnabled && canEnableAlimtalk && (
+              <div className="mt-4 pt-4 border-t border-neutral-200">
+                <p className="text-sm font-medium text-neutral-700 mb-3">발송 빈도</p>
+                <div className="space-y-3">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="alimtalkFrequency"
+                      value="EVERY_ORDER"
+                      checked={pointsAlimtalkFrequency === 'EVERY_ORDER'}
+                      onChange={() => handleChangeFrequency('EVERY_ORDER')}
+                      disabled={isSavingFrequency}
+                      className="mt-1 w-4 h-4 text-brand-600 border-neutral-300 focus:ring-brand-500"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-neutral-900">매 주문 발송</span>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        포인트 적립 시마다 알림톡을 발송합니다.
+                      </p>
+                    </div>
+                  </label>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="alimtalkFrequency"
+                      value="FIRST_ONLY"
+                      checked={pointsAlimtalkFrequency === 'FIRST_ONLY'}
+                      onChange={() => handleChangeFrequency('FIRST_ONLY')}
+                      disabled={isSavingFrequency}
+                      className="mt-1 w-4 h-4 text-brand-600 border-neutral-300 focus:ring-brand-500"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-neutral-900">첫 주문 1회만 발송</span>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        당일 첫 주문 시에만 알림톡을 발송합니다. (포인트는 매번 적립)
+                      </p>
+                    </div>
+                  </label>
+                </div>
               </div>
             )}
           </CardContent>

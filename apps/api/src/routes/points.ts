@@ -120,25 +120,31 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
     if (updatedCustomer.phone) {
       const store = await prisma.store.findUnique({
         where: { id: storeId },
-        select: { name: true },
+        select: { name: true, pointsAlimtalkFrequency: true },
       });
 
       const phoneNumber = updatedCustomer.phone.replace(/[^0-9]/g, '');
 
+      // 발송 빈도 확인: EVERY_ORDER(매 주문) 또는 FIRST_ONLY(오늘 첫 주문만)
+      const frequency = store?.pointsAlimtalkFrequency || 'EVERY_ORDER';
+      const shouldSendAlimtalk = frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstVisitToday);
+
       // 1. 포인트 적립 알림톡
-      enqueuePointsEarnedAlimTalk({
-        storeId,
-        customerId: customer.id,
-        pointLedgerId: ledger.id,
-        phone: phoneNumber,
-        variables: {
-          storeName: store?.name || '매장',
-          points,
-          totalPoints: newBalance,
-        },
-      }).catch((err) => {
-        console.error('[Points] AlimTalk enqueue failed:', err);
-      });
+      if (shouldSendAlimtalk) {
+        enqueuePointsEarnedAlimTalk({
+          storeId,
+          customerId: customer.id,
+          pointLedgerId: ledger.id,
+          phone: phoneNumber,
+          variables: {
+            storeName: store?.name || '매장',
+            points,
+            totalPoints: newBalance,
+          },
+        }).catch((err) => {
+          console.error('[Points] AlimTalk enqueue failed:', err);
+        });
+      }
 
       // 2. 네이버 리뷰 요청 알림톡 (자동 발송 설정이 활성화된 경우)
       // 포인트 적립 알림톡 이후에 발송되도록 5초 지연
@@ -304,10 +310,10 @@ router.post('/tablet-earn', authMiddleware, async (req: AuthRequest, res) => {
       ? `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 7)}-${phoneDigits.slice(7)}`
       : `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
 
-    // 매장 정보 조회 (적립률, 이름)
+    // 매장 정보 조회 (적립률, 이름, 알림톡 설정)
     const store = await prisma.store.findUnique({
       where: { id: storeId },
-      select: { name: true, pointRatePercent: true, pointsAlimtalkEnabled: true },
+      select: { name: true, pointRatePercent: true, pointsAlimtalkEnabled: true, pointsAlimtalkFrequency: true },
     });
 
     if (!store) {
@@ -396,7 +402,11 @@ router.post('/tablet-earn', authMiddleware, async (req: AuthRequest, res) => {
     ]);
 
     // 알림톡 발송 (포인트 적립)
-    if (store.pointsAlimtalkEnabled) {
+    // 발송 빈도 확인: EVERY_ORDER(매 주문) 또는 FIRST_ONLY(오늘 첫 주문만)
+    const frequency = store.pointsAlimtalkFrequency || 'EVERY_ORDER';
+    const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstVisitToday));
+
+    if (shouldSendAlimtalk) {
       const phoneNumber = formattedPhone.replace(/[^0-9]/g, '');
       enqueuePointsEarnedAlimTalk({
         storeId,
@@ -622,7 +632,7 @@ router.post('/session/:id/complete', authMiddleware, async (req: AuthRequest, re
     // 매장 정보 조회
     const store = await prisma.store.findUnique({
       where: { id: storeId },
-      select: { name: true, pointsAlimtalkEnabled: true },
+      select: { name: true, pointsAlimtalkEnabled: true, pointsAlimtalkFrequency: true },
     });
 
     // 고객 조회 또는 생성
@@ -711,7 +721,11 @@ router.post('/session/:id/complete', authMiddleware, async (req: AuthRequest, re
     });
 
     // 알림톡 발송
-    if (store?.pointsAlimtalkEnabled) {
+    // 발송 빈도 확인: EVERY_ORDER(매 주문) 또는 FIRST_ONLY(오늘 첫 주문만)
+    const sessionFrequency = store?.pointsAlimtalkFrequency || 'EVERY_ORDER';
+    const shouldSendSessionAlimtalk = store?.pointsAlimtalkEnabled && (sessionFrequency === 'EVERY_ORDER' || (sessionFrequency === 'FIRST_ONLY' && isFirstVisitToday));
+
+    if (shouldSendSessionAlimtalk) {
       const phoneNumber = formattedPhone.replace(/[^0-9]/g, '');
       enqueuePointsEarnedAlimTalk({
         storeId,
@@ -719,7 +733,7 @@ router.post('/session/:id/complete', authMiddleware, async (req: AuthRequest, re
         pointLedgerId: ledger.id,
         phone: phoneNumber,
         variables: {
-          storeName: store.name || '매장',
+          storeName: store?.name || '매장',
           points: session.earnPoints,
           totalPoints: newBalance,
         },
