@@ -40,6 +40,7 @@ export default function FeedbackPage() {
   const [hasMore, setHasMore] = useState(false);
   const [ratingFilter, setRatingFilter] = useState<number | null>(null);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [hasTextFilter, setHasTextFilter] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -59,6 +60,9 @@ export default function FeedbackPage() {
       let url = `${apiUrl}/api/dashboard/feedbacks?limit=${pageSize}&offset=${offset}`;
       if (ratingFilter !== null) {
         url += `&rating=${ratingFilter}`;
+      }
+      if (hasTextFilter) {
+        url += `&hasText=true`;
       }
 
       const res = await fetch(url, {
@@ -80,7 +84,7 @@ export default function FeedbackPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [apiUrl, page, pageSize, ratingFilter]);
+  }, [apiUrl, page, pageSize, ratingFilter, hasTextFilter]);
 
   useEffect(() => {
     fetchFeedbacks();
@@ -92,6 +96,11 @@ export default function FeedbackPage() {
     setRatingFilter(rating);
     setPage(1);
     setShowFilterDropdown(false);
+  };
+
+  const handleHasTextFilter = () => {
+    setHasTextFilter(!hasTextFilter);
+    setPage(1);
   };
 
   // 피드백 통계 계산
@@ -131,45 +140,56 @@ export default function FeedbackPage() {
 
       {/* 필터 */}
       <div className="flex items-center justify-between">
-        <div className="relative">
-          <Button
-            variant="outline"
-            onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-            className="flex items-center gap-2"
-          >
-            <Filter className="w-4 h-4" />
-            {ratingFilter !== null ? (
-              <div className="flex gap-0.5">
-                {[...Array(ratingFilter)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Button
+              variant="outline"
+              onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+              className="flex items-center gap-2"
+            >
+              <Filter className="w-4 h-4" />
+              {ratingFilter !== null ? (
+                <div className="flex gap-0.5">
+                  {[...Array(ratingFilter)].map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                  ))}
+                </div>
+              ) : '전체 평점'}
+            </Button>
+
+            {showFilterDropdown && (
+              <div className="absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg z-10 min-w-[140px]">
+                <button
+                  onClick={() => handleRatingFilter(null)}
+                  className={`w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-50 ${ratingFilter === null ? 'bg-brand-50 text-brand-700' : ''}`}
+                >
+                  전체
+                </button>
+                {[5, 4, 3, 2, 1].map((rating) => (
+                  <button
+                    key={rating}
+                    onClick={() => handleRatingFilter(rating)}
+                    className={`w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-50 flex items-center ${ratingFilter === rating ? 'bg-brand-50 text-brand-700' : ''}`}
+                  >
+                    <div className="flex gap-0.5">
+                      {[...Array(rating)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                      ))}
+                    </div>
+                  </button>
                 ))}
               </div>
-            ) : '전체 평점'}
-          </Button>
+            )}
+          </div>
 
-          {showFilterDropdown && (
-            <div className="absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg z-10 min-w-[140px]">
-              <button
-                onClick={() => handleRatingFilter(null)}
-                className={`w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-50 ${ratingFilter === null ? 'bg-brand-50 text-brand-700' : ''}`}
-              >
-                전체
-              </button>
-              {[5, 4, 3, 2, 1].map((rating) => (
-                <button
-                  key={rating}
-                  onClick={() => handleRatingFilter(rating)}
-                  className={`w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-50 flex items-center ${ratingFilter === rating ? 'bg-brand-50 text-brand-700' : ''}`}
-                >
-                  <div className="flex gap-0.5">
-                    {[...Array(rating)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    ))}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
+          <Button
+            variant={hasTextFilter ? 'default' : 'outline'}
+            onClick={handleHasTextFilter}
+            className="flex items-center gap-2"
+          >
+            <MessageSquare className="w-4 h-4" />
+            텍스트 리뷰만
+          </Button>
         </div>
 
         <div className="text-sm text-neutral-500">

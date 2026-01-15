@@ -412,7 +412,7 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
 router.get('/feedbacks', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { limit = '20', offset = '0', rating } = req.query;
+    const { limit = '20', offset = '0', rating, hasText } = req.query;
 
     const limitNum = Math.min(parseInt(limit as string) || 20, 100);
     const offsetNum = parseInt(offset as string) || 0;
@@ -436,6 +436,16 @@ router.get('/feedbacks', authMiddleware, async (req: AuthRequest, res) => {
       if (ratingNum >= 1 && ratingNum <= 5) {
         whereClause.rating = ratingNum;
       }
+    }
+
+    // 텍스트 있는 리뷰만 필터 (hasText=true 파라미터가 있으면 적용)
+    if (hasText === 'true') {
+      whereClause.text = {
+        not: null,
+      };
+      whereClause.NOT = {
+        text: '',
+      };
     }
 
     // 전체 개수 조회
@@ -463,7 +473,7 @@ router.get('/feedbacks', authMiddleware, async (req: AuthRequest, res) => {
       createdAt: f.createdAt.toISOString(),
       customerName: maskName(f.customer.name),
       customerPhone: f.customer.phone
-        ? f.customer.phone.replace(/(\d{3})(\d{4})(\d{4})/, '$1-****-$3')
+        ? f.customer.phone.replace(/(\d{4})[-]?(\d{4})$/, '****-$2')
         : null,
     }));
 
