@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "stores" ADD COLUMN IF NOT EXISTS "pointsAlimtalkFrequency" TEXT NOT NULL DEFAULT 'EVERY_ORDER';
