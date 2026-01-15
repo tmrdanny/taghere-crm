@@ -21,6 +21,7 @@ import {
   Clock,
   MessageSquare,
   ExternalLink,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -66,6 +67,7 @@ interface NavItem {
 
 interface NavGroup {
   title: string;
+  icon: React.ElementType;
   items: NavItem[];
 }
 
@@ -78,6 +80,7 @@ const topNavItems: NavItem[] = [
 const navGroups: NavGroup[] = [
   {
     title: '매장 운영',
+    icon: TagHereIcon,
     items: [
       { href: 'https://admin.tag-here.com', label: '주문/결제', icon: TagHereIcon, isExternal: true, isCustomIcon: true },
       { href: '/points', label: '포인트 적립', icon: Coins },
@@ -86,6 +89,7 @@ const navGroups: NavGroup[] = [
   },
   {
     title: '고객',
+    icon: Users,
     items: [
       { href: '/customers', label: '고객 리스트', icon: Users },
       { href: '/feedback', label: '고객 피드백', icon: MessageSquare },
@@ -93,6 +97,7 @@ const navGroups: NavGroup[] = [
   },
   {
     title: '마케팅',
+    icon: Send,
     items: [
       { href: '/messages', label: '메시지 발송', icon: Send },
       { href: '/local-customers', label: '신규 고객 찾기', icon: UserPlus },
@@ -199,10 +204,32 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
   const { canInstall, handleInstall } = useInstallPrompt();
   const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; link?: string }>({ open: false });
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
 
   const isActive = (href: string) => {
     if (href.startsWith('http') || href.startsWith('#')) return false;
     return pathname === href || pathname.startsWith(href + '/');
+  };
+
+  // 그룹 내 아이템 중 하나라도 활성화되어 있는지 확인
+  const isGroupActive = (group: NavGroup) => {
+    return group.items.some(item => isActive(item.href));
+  };
+
+  // 현재 경로에 따라 활성화된 그룹 자동 확장
+  useEffect(() => {
+    const activeGroups = navGroups
+      .filter(group => isGroupActive(group))
+      .map(group => group.title);
+    setExpandedGroups(activeGroups);
+  }, [pathname]);
+
+  const toggleGroup = (title: string) => {
+    setExpandedGroups(prev =>
+      prev.includes(title)
+        ? prev.filter(t => t !== title)
+        : [...prev, title]
+    );
   };
 
   const handleNavClick = (e: React.MouseEvent, item: NavItem) => {
@@ -215,7 +242,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
     }
   };
 
-  const renderNavItem = (item: NavItem) => {
+  const renderNavItem = (item: NavItem, isSubItem = false) => {
     const active = isActive(item.href);
     const Icon = item.icon;
 
@@ -229,7 +256,8 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
           active
             ? 'bg-brand-50 text-brand-800'
             : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50',
-          isCollapsed && 'justify-center'
+          isCollapsed && 'justify-center',
+          isSubItem && !isCollapsed && 'ml-4'
         )}
         title={isCollapsed ? item.label : undefined}
       >
@@ -255,6 +283,64 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
           </>
         )}
       </Link>
+    );
+  };
+
+  const renderNavGroup = (group: NavGroup) => {
+    const GroupIcon = group.icon;
+    const isExpanded = expandedGroups.includes(group.title);
+    const groupActive = isGroupActive(group);
+    const hasNewItem = group.items.some(item => item.isNew);
+
+    // 접힌 상태에서는 그룹의 첫 번째 아이템만 표시
+    if (isCollapsed) {
+      return (
+        <div key={group.title} className="mb-1">
+          {group.items.map(item => renderNavItem(item))}
+        </div>
+      );
+    }
+
+    return (
+      <div key={group.title} className="mb-1">
+        {/* 그룹 헤더 (드롭다운 토글) */}
+        <button
+          onClick={() => toggleGroup(group.title)}
+          className={cn(
+            'flex items-center gap-3 w-full mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+            groupActive
+              ? 'bg-brand-50 text-brand-800'
+              : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
+          )}
+          style={{ width: 'calc(100% - 16px)' }}
+        >
+          <GroupIcon className={cn('w-5 h-5 flex-shrink-0', groupActive && 'text-brand-800')} />
+          <span className="flex-1 text-left">{group.title}</span>
+          {hasNewItem && !isExpanded && (
+            <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+              NEW
+            </span>
+          )}
+          <ChevronDown
+            className={cn(
+              'w-4 h-4 transition-transform duration-200',
+              isExpanded && 'rotate-180'
+            )}
+          />
+        </button>
+
+        {/* 드롭다운 아이템들 */}
+        <div
+          className={cn(
+            'overflow-hidden transition-all duration-200',
+            isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+          )}
+        >
+          <div className="py-1">
+            {group.items.map(item => renderNavItem(item, true))}
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -306,17 +392,8 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
           {/* 구분선 */}
           <div className="mx-4 my-3 border-t border-neutral-200" />
 
-          {/* 그룹화된 메뉴 */}
-          {navGroups.map(group => (
-            <div key={group.title} className="mb-1">
-              {!isCollapsed && (
-                <div className="px-5 py-2 text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">
-                  {group.title}
-                </div>
-              )}
-              {group.items.map(item => renderNavItem(item))}
-            </div>
-          ))}
+          {/* 그룹화된 메뉴 (드롭다운) */}
+          {navGroups.map(group => renderNavGroup(group))}
 
           {/* 구분선 */}
           <div className="mx-4 my-3 border-t border-neutral-200" />
@@ -360,6 +437,7 @@ export function MobileHeader() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { canInstall, handleInstall } = useInstallPrompt();
   const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; link?: string }>({ open: false });
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -372,6 +450,27 @@ export function MobileHeader() {
   const isActive = (href: string) => {
     if (href.startsWith('http') || href.startsWith('#')) return false;
     return pathname === href || pathname.startsWith(href + '/');
+  };
+
+  // 그룹 내 아이템 중 하나라도 활성화되어 있는지 확인
+  const isGroupActive = (group: NavGroup) => {
+    return group.items.some(item => isActive(item.href));
+  };
+
+  // 현재 경로에 따라 활성화된 그룹 자동 확장
+  useEffect(() => {
+    const activeGroups = navGroups
+      .filter(group => isGroupActive(group))
+      .map(group => group.title);
+    setExpandedGroups(activeGroups);
+  }, [pathname]);
+
+  const toggleGroup = (title: string) => {
+    setExpandedGroups(prev =>
+      prev.includes(title)
+        ? prev.filter(t => t !== title)
+        : [...prev, title]
+    );
   };
 
   const handleNavClick = (e: React.MouseEvent, item: NavItem) => {
@@ -388,7 +487,7 @@ export function MobileHeader() {
     }
   };
 
-  const renderMobileNavItem = (item: NavItem) => {
+  const renderMobileNavItem = (item: NavItem, isSubItem = false) => {
     const active = isActive(item.href);
     const Icon = item.icon;
 
@@ -401,7 +500,8 @@ export function MobileHeader() {
           'flex items-center gap-3 mx-2 px-3 py-3 rounded-lg text-sm font-medium transition-colors',
           active
             ? 'bg-brand-50 text-brand-800'
-            : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
+            : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50',
+          isSubItem && 'ml-4'
         )}
       >
         <Icon className={cn('w-5 h-5', active && 'text-brand-800')} />
@@ -415,6 +515,55 @@ export function MobileHeader() {
           <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
         )}
       </Link>
+    );
+  };
+
+  const renderMobileNavGroup = (group: NavGroup) => {
+    const GroupIcon = group.icon;
+    const isExpanded = expandedGroups.includes(group.title);
+    const groupActive = isGroupActive(group);
+    const hasNewItem = group.items.some(item => item.isNew);
+
+    return (
+      <div key={group.title} className="mb-1">
+        {/* 그룹 헤더 (드롭다운 토글) */}
+        <button
+          onClick={() => toggleGroup(group.title)}
+          className={cn(
+            'flex items-center gap-3 w-full mx-2 px-3 py-3 rounded-lg text-sm font-medium transition-colors',
+            groupActive
+              ? 'bg-brand-50 text-brand-800'
+              : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
+          )}
+          style={{ width: 'calc(100% - 16px)' }}
+        >
+          <GroupIcon className={cn('w-5 h-5 flex-shrink-0', groupActive && 'text-brand-800')} />
+          <span className="flex-1 text-left">{group.title}</span>
+          {hasNewItem && !isExpanded && (
+            <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+              NEW
+            </span>
+          )}
+          <ChevronDown
+            className={cn(
+              'w-4 h-4 transition-transform duration-200',
+              isExpanded && 'rotate-180'
+            )}
+          />
+        </button>
+
+        {/* 드롭다운 아이템들 */}
+        <div
+          className={cn(
+            'overflow-hidden transition-all duration-200',
+            isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+          )}
+        >
+          <div className="py-1">
+            {group.items.map(item => renderMobileNavItem(item, true))}
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -486,15 +635,8 @@ export function MobileHeader() {
           {/* 구분선 */}
           <div className="mx-4 my-3 border-t border-neutral-200" />
 
-          {/* 그룹화된 메뉴 */}
-          {navGroups.map(group => (
-            <div key={group.title} className="mb-1">
-              <div className="px-5 py-2 text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">
-                {group.title}
-              </div>
-              {group.items.map(item => renderMobileNavItem(item))}
-            </div>
-          ))}
+          {/* 그룹화된 메뉴 (드롭다운) */}
+          {navGroups.map(group => renderMobileNavGroup(group))}
 
           {/* 구분선 */}
           <div className="mx-4 my-3 border-t border-neutral-200" />
