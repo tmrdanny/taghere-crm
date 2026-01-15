@@ -338,10 +338,10 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
     <>
       <aside
         className={cn(
-          'hidden lg:flex flex-col bg-white border-r border-neutral-200 h-screen sticky top-0 transition-all duration-300',
+          'hidden lg:flex flex-col bg-white border-r border-neutral-200 sticky top-0 transition-all duration-300',
           isCollapsed ? 'w-20' : 'w-64'
         )}
-        style={{ zoom: 0.9 }}
+        style={{ zoom: 0.9, height: '111.11vh' }}
       >
         {/* Logo */}
         <div className={cn(
