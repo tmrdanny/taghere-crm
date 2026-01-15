@@ -7,7 +7,6 @@ import { usePathname } from 'next/navigation';
 import {
   Home,
   Users,
-  Coins,
   CreditCard,
   Settings,
   Menu,
@@ -22,6 +21,8 @@ import {
   MessageSquare,
   ExternalLink,
   ChevronDown,
+  Store,
+  Stamp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -80,15 +81,15 @@ const topNavItems: NavItem[] = [
 const navGroups: NavGroup[] = [
   {
     title: '매장 운영',
-    icon: TagHereIcon,
+    icon: Store,
     items: [
       { href: 'https://admin.tag-here.com', label: '주문/결제', icon: TagHereIcon, isExternal: true, isCustomIcon: true },
-      { href: '/points', label: '포인트 적립', icon: Coins },
+      { href: '/points', label: '포인트 적립', icon: Stamp },
       { href: '#waiting', label: '웨이팅', icon: Clock, isNew: true, isComingSoon: true, comingSoonLink: 'https://tally.so/r/Gxp0Lp' },
     ],
   },
   {
-    title: '고객',
+    title: '고객 관리',
     icon: Users,
     items: [
       { href: '/customers', label: '고객 리스트', icon: Users },
