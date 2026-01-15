@@ -198,7 +198,7 @@ export default function MessagesPage() {
   const [testCount, setTestCount] = useState({ count: 0, limit: 5, remaining: 5 });
 
   // 광고 메시지 여부
-  const [isAdMessage, setIsAdMessage] = useState(false);
+  const [isAdMessage, setIsAdMessage] = useState(true);
 
   // 카카오톡 브랜드 메시지 상태
   const [kakaoMessageType, setKakaoMessageType] = useState<'TEXT' | 'IMAGE'>('TEXT');
@@ -1218,27 +1218,29 @@ export default function MessagesPage() {
               </div>
 
               {/* 광고 메시지 여부 체크박스 */}
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isAdMessage}
-                  onChange={(e) => setIsAdMessage(e.target.checked)}
-                  className="w-4 h-4 rounded border-[#d1d5db] text-[#3b82f6] focus:ring-[#3b82f6]"
-                />
-                <span className="text-sm text-[#64748b]">
-                  광고 메시지로 발송 (체크 시 (광고) 표기 및 무료수신거부 자동 추가)
-                </span>
-              </label>
-              {!isAdMessage && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="flex items-start gap-2 text-amber-700">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs">
-                      광고 문자임에도 광고 표기 가이드라인을 지키지 않은 경우, 이용 약관에 의거해 예고 없이 계정이 차단될 수 있으며, 환불 또한 불가능합니다.
-                    </p>
+              <div className="mt-4 pt-4 border-t border-[#e5e7eb]">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isAdMessage}
+                    onChange={(e) => setIsAdMessage(e.target.checked)}
+                    className="w-4 h-4 rounded border-[#d1d5db] text-[#3b82f6] focus:ring-[#3b82f6]"
+                  />
+                  <span className="text-sm text-[#64748b]">
+                    광고 메시지로 발송 (체크 시 (광고) 표기 및 무료수신거부 자동 추가)
+                  </span>
+                </label>
+                {!isAdMessage && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-start gap-2 text-amber-700">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs">
+                        광고 문자임에도 광고 표기 가이드라인을 지키지 않은 경우, 이용 약관에 의거해 예고 없이 계정이 차단될 수 있으며, 환불 또한 불가능합니다.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* 예상 마케팅 효과 */}
               {(estimate?.targetCount || getCurrentTargetCount()) > 0 && (

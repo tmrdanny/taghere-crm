@@ -341,6 +341,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
           'hidden lg:flex flex-col bg-white border-r border-neutral-200 h-screen sticky top-0 transition-all duration-300',
           isCollapsed ? 'w-20' : 'w-64'
         )}
+        style={{ zoom: 0.9 }}
       >
         {/* Logo */}
         <div className={cn(
