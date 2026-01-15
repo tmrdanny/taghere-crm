@@ -17,12 +17,13 @@ import {
   Send,
   History,
   UserPlus,
-  Clock,
   MessageSquare,
   ExternalLink,
   ChevronDown,
   Store,
-  CircleDollarSign,
+  TabletSmartphone,
+  ListOrdered,
+  Coins,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,19 +33,6 @@ function NaverIcon({ className }: { className?: string }) {
     <div className={cn('w-5 h-5 rounded-full bg-[#03C75A] flex items-center justify-center', className)}>
       <span className="text-white text-xs font-bold leading-none">N</span>
     </div>
-  );
-}
-
-// 태그히어 아이콘 컴포넌트 (파비콘 이미지)
-function TagHereIcon({ className }: { className?: string }) {
-  return (
-    <Image
-      src="/images/taghere-favicon_64x64 (1).ico"
-      alt="태그히어"
-      width={20}
-      height={20}
-      className={cn('w-5 h-5', className)}
-    />
   );
 }
 
@@ -83,9 +71,9 @@ const navGroups: NavGroup[] = [
     title: '매장 운영',
     icon: Store,
     items: [
-      { href: 'https://admin.tag-here.com', label: '주문/결제', icon: TagHereIcon, isExternal: true, isCustomIcon: true },
-      { href: '/points', label: '포인트 적립', icon: CircleDollarSign },
-      { href: '#waiting', label: '웨이팅', icon: Clock, isNew: true, isComingSoon: true, comingSoonLink: 'https://tally.so/r/Gxp0Lp' },
+      { href: 'https://admin.tag-here.com', label: '주문/결제', icon: TabletSmartphone, isExternal: true },
+      { href: '#waiting', label: '웨이팅', icon: ListOrdered, isNew: true, isComingSoon: true, comingSoonLink: 'https://tally.so/r/Gxp0Lp' },
+      { href: '/points', label: '포인트 적립', icon: Coins },
     ],
   },
   {
