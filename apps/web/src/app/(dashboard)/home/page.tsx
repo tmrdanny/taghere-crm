@@ -479,14 +479,17 @@ export default function HomePage() {
         </Card>
 
         {/* Customer Feedback */}
-        <Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/feedback')}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-medium text-neutral-900">
                 고객 피드백
               </span>
               <button
-                onClick={handleRefreshFeedback}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRefreshFeedback();
+                }}
                 disabled={isRefreshingFeedback}
                 className="p-1.5 rounded-md hover:bg-neutral-100 transition-colors disabled:opacity-50"
                 title="새로고침"
