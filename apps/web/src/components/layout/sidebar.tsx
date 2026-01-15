@@ -18,6 +18,7 @@ import {
   History,
   UserPlus,
   MessageSquare,
+  MessageSquareMore,
   ExternalLink,
   ChevronDown,
   Store,
@@ -89,7 +90,7 @@ const navGroups: NavGroup[] = [
     icon: Send,
     items: [
       { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
-      { href: '/messages', label: '리타겟', icon: MessageSquare },
+      { href: '/messages', label: '리타겟', icon: MessageSquareMore },
       { href: '/local-customers', label: '신규 고객 타겟', icon: UserPlus },
     ],
   },
