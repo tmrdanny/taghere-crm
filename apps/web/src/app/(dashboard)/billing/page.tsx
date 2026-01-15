@@ -400,23 +400,6 @@ export default function BillingPage() {
         </p>
       </div>
 
-      {/* 안내 콜아웃 */}
-      <Card className="mb-6 bg-blue-50 border-blue-200">
-        <CardContent className="p-4">
-          <div className="flex gap-3">
-            <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="text-blue-800">
-                포인트 적립 시, 고객에게 알림톡이 발송됩니다.
-              </p>
-              <p className="text-blue-600 mt-1">
-                적립/사용 알림톡 1건 발송 시 20원이 차감됩니다. 비용이 없을경우 알림톡은 자동으로 발송 중지 됩니다.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* 현재 잔액 */}
       <Card className="mb-6 border-brand-200 bg-brand-50/30">
         <CardContent className="p-6">
