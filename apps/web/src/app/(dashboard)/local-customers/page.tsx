@@ -647,14 +647,11 @@ export default function LocalCustomersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Left Panel - Settings */}
-          <div className="flex-1 lg:max-w-2xl">
-            <div className="bg-white border border-neutral-200 rounded-xl shadow-sm p-6">
-              {/* Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e5e7eb]">
+    <div className="flex-1 flex flex-col lg:flex-row lg:items-start p-4 md:p-6 gap-6 max-w-[1200px] mx-auto w-full lg:justify-center">
+      {/* Left Panel - Settings */}
+      <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e5e7eb]">
           <div className="flex items-center gap-2">
             <h1 className="text-lg sm:text-xl font-bold text-neutral-900">신규 고객 유치</h1>
             <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
@@ -897,8 +894,8 @@ export default function LocalCustomersPage() {
           </div>
         </div>
 
-        {/* 시/군/구 선택 섹션 (임시로 숨김) */}
-        {false && selectedSidos.length > 0 && (
+        {/* 시/군/구 선택 섹션 (선택된 시/도가 있을 때만 표시) */}
+        {selectedSidos.length > 0 && (
           <div>
             <h2 className="text-sm font-semibold text-neutral-900 mb-3">시/군/구 상세 선택 (선택사항)</h2>
             <div className="p-4 rounded-xl border border-neutral-200 bg-white">
@@ -1460,14 +1457,12 @@ export default function LocalCustomersPage() {
               * KST 기준 20:50 이후 발송 시, 다음날 08:00에 발송됩니다.
             </p>
           )}
-            </div>
-          </div>
-            </div>
-          </div>
+        </div>
+      </div>
 
-          {/* Right Panel - iPhone Preview */}
-          <div className="hidden lg:block flex-none w-[360px]">
-          <div className="bg-[#e2e8f0] rounded-3xl p-5">
+      {/* Right Panel - iPhone Preview (Sticky) */}
+      <div className="hidden lg:block flex-none w-[360px] self-start">
+        <div className="bg-[#e2e8f0] rounded-3xl p-5">
           {activeTab === 'kakao' ? (
             /* 카카오톡 미리보기 - 네이버 리뷰 스타일 */
             <div className="relative w-full h-[680px] bg-neutral-800 rounded-[2.5rem] p-2 shadow-2xl">
@@ -1633,7 +1628,6 @@ export default function LocalCustomersPage() {
               </div>
             </div>
           )}
-          </div>
         </div>
       </div>
     </div>
