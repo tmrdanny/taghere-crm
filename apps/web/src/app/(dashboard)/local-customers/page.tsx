@@ -653,8 +653,8 @@ export default function LocalCustomersPage() {
           {/* Left Panel - Settings */}
           <div className="flex-1 lg:max-w-2xl">
             <div className="bg-white border border-neutral-200 rounded-xl shadow-sm p-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e5e7eb]">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e5e7eb]">
           <div className="flex items-center gap-2">
             <h1 className="text-lg sm:text-xl font-bold text-neutral-900">신규 고객 유치</h1>
             <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
@@ -1462,10 +1462,11 @@ export default function LocalCustomersPage() {
           )}
             </div>
           </div>
-        </div>
+            </div>
+          </div>
 
-        {/* Right Panel - iPhone Preview */}
-        <div className="hidden lg:block flex-none w-[360px]">
+          {/* Right Panel - iPhone Preview */}
+          <div className="hidden lg:block flex-none w-[360px]">
           <div className="bg-[#e2e8f0] rounded-3xl p-5">
           {activeTab === 'kakao' ? (
             /* 카카오톡 미리보기 - 네이버 리뷰 스타일 */
