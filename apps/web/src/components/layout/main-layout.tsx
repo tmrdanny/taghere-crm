@@ -35,7 +35,10 @@ export function MainLayout({ children }: MainLayoutProps) {
         <Sidebar isCollapsed={isCollapsed} onToggleCollapse={handleToggleCollapse} />
 
         {/* Main Content */}
-        <main className="flex-1 min-h-screen lg:min-h-[calc(100vh)] overflow-x-hidden">
+        <main
+          className="flex-1 min-h-screen lg:min-h-[calc(100vh)] overflow-x-hidden"
+          style={{ zoom: 0.9 }}
+        >
           {children}
         </main>
       </div>

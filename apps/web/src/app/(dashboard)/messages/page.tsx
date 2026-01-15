@@ -198,7 +198,7 @@ export default function MessagesPage() {
   const [testCount, setTestCount] = useState({ count: 0, limit: 5, remaining: 5 });
 
   // 광고 메시지 여부
-  const [isAdMessage, setIsAdMessage] = useState(true);
+  const [isAdMessage, setIsAdMessage] = useState(false);
 
   // 카카오톡 브랜드 메시지 상태
   const [kakaoMessageType, setKakaoMessageType] = useState<'TEXT' | 'IMAGE'>('TEXT');
@@ -949,23 +949,23 @@ export default function MessagesPage() {
         </div>
 
         {/* Target Selection */}
-        <div className="flex flex-col gap-3">
-          <label className="text-sm font-semibold text-[#1e293b]">발송 대상 선택</label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-medium text-[#64748b]">발송 대상 선택</label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <button
               onClick={() => {
                 setSelectedTarget('ALL');
                 setSelectedCustomers([]);
               }}
               className={cn(
-                'p-4 rounded-xl border-2 text-left transition-all',
+                'p-3 rounded-lg border text-left transition-all',
                 selectedTarget === 'ALL'
                   ? 'border-[#3b82f6] bg-[#eff6ff]'
                   : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
               )}
             >
               <span className="text-xs text-[#64748b]">전체 고객</span>
-              <div className="text-lg font-bold text-[#1e293b] mt-1">
+              <div className="text-base font-bold text-[#1e293b] mt-0.5">
                 {formatNumber(targetCounts.all)}명
               </div>
             </button>
@@ -976,14 +976,14 @@ export default function MessagesPage() {
                 setSelectedCustomers([]);
               }}
               className={cn(
-                'p-4 rounded-xl border-2 text-left transition-all',
+                'p-3 rounded-lg border text-left transition-all',
                 selectedTarget === 'REVISIT'
                   ? 'border-[#3b82f6] bg-[#eff6ff]'
                   : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
               )}
             >
               <span className="text-xs text-[#64748b]">재방문 고객 (2회 이상)</span>
-              <div className="text-lg font-bold text-[#1e293b] mt-1">
+              <div className="text-base font-bold text-[#1e293b] mt-0.5">
                 {formatNumber(targetCounts.revisit)}명
               </div>
             </button>
@@ -994,14 +994,14 @@ export default function MessagesPage() {
                 setSelectedCustomers([]);
               }}
               className={cn(
-                'p-4 rounded-xl border-2 text-left transition-all',
+                'p-3 rounded-lg border text-left transition-all',
                 selectedTarget === 'NEW'
                   ? 'border-[#3b82f6] bg-[#eff6ff]'
                   : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
               )}
             >
               <span className="text-xs text-[#64748b]">신규 고객 (최근 30일)</span>
-              <div className="text-lg font-bold text-[#1e293b] mt-1">
+              <div className="text-base font-bold text-[#1e293b] mt-0.5">
                 {formatNumber(targetCounts.new)}명
               </div>
             </button>
@@ -1011,18 +1011,18 @@ export default function MessagesPage() {
           <button
             onClick={openCustomerModal}
             className={cn(
-              'p-4 rounded-xl border-2 text-left transition-all flex items-center gap-3',
+              'p-3 rounded-lg border text-left transition-all flex items-center gap-2',
               selectedTarget === 'CUSTOM' && selectedCustomers.length > 0
                 ? 'border-[#3b82f6] bg-[#eff6ff]'
                 : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
             )}
           >
-            <div className="w-10 h-10 rounded-full bg-[#f1f5f9] flex items-center justify-center flex-shrink-0">
-              <UserPlus className="w-5 h-5 text-[#64748b]" />
+            <div className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center flex-shrink-0">
+              <UserPlus className="w-4 h-4 text-[#64748b]" />
             </div>
             <div className="flex-1">
               <span className="text-xs text-[#64748b]">고객 직접 선택</span>
-              <div className="text-lg font-bold text-[#1e293b]">
+              <div className="text-base font-bold text-[#1e293b]">
                 {selectedTarget === 'CUSTOM' && selectedCustomers.length > 0
                   ? `${formatNumber(selectedCustomers.length)}명 선택됨`
                   : '고객 선택하기'}
@@ -1045,16 +1045,16 @@ export default function MessagesPage() {
           </button>
 
           {/* Filters */}
-          <div className="mt-4">
-            <label className="text-sm font-semibold text-[#1e293b] mb-3 block">상세 필터</label>
+          <div className="mt-2">
+            <label className="text-xs font-medium text-[#64748b] mb-2 block">상세 필터</label>
             <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {['all', 'FEMALE', 'MALE'].map((gender) => (
                   <button
                     key={gender}
                     onClick={() => setGenderFilter(gender as any)}
                     className={cn(
-                      'px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm border transition-all',
+                      'px-3 py-1.5 rounded-full text-xs border transition-all',
                       genderFilter === gender
                         ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
                         : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
@@ -1067,13 +1067,13 @@ export default function MessagesPage() {
 
               <div className="hidden sm:block w-px bg-[#e5e7eb] mx-1" />
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {AGE_GROUP_OPTIONS.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => toggleAgeGroup(option.value)}
                     className={cn(
-                      'px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm border transition-all',
+                      'px-3 py-1.5 rounded-full text-xs border transition-all',
                       selectedAgeGroups.includes(option.value)
                         ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
                         : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
@@ -1085,37 +1085,7 @@ export default function MessagesPage() {
               </div>
             </div>
             {selectedAgeGroups.length === 0 && (
-              <p className="text-xs text-[#64748b] mt-2">연령대 미선택 시 전체 연령대로 발송됩니다</p>
-            )}
-
-            {/* 광고 메시지 여부 - SMS 탭에서만 표시 */}
-            {activeTab === 'sms' && (
-              <div className="mt-4 p-4 rounded-xl border border-[#e5e7eb] bg-white">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isAdMessage}
-                    onChange={(e) => setIsAdMessage(e.target.checked)}
-                    className="mt-1 w-5 h-5 rounded border-[#d1d5db] text-[#3b82f6] focus:ring-[#3b82f6]"
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm font-medium text-[#1e293b]">광고 메시지로 발송</span>
-                    <p className="text-xs text-[#64748b] mt-1">
-                      체크 시 메시지에 (광고) 표기와 무료수신거부 번호가 자동 추가됩니다
-                    </p>
-                  </div>
-                </label>
-                {!isAdMessage && (
-                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <div className="flex items-start gap-2 text-amber-700">
-                      <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm">
-                        광고 문자임에도 광고 표기 가이드라인을 지키지 않은 경우, 이용 약관에 의거해 예고 없이 계정이 차단될 수 있으며, 환불 또한 불가능합니다.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <p className="text-xs text-[#64748b] mt-1.5">연령대 미선택 시 전체 연령대로 발송됩니다</p>
             )}
           </div>
         </div>
@@ -1246,6 +1216,29 @@ export default function MessagesPage() {
                     메시지 발송하기
                   </button>
               </div>
+
+              {/* 광고 메시지 여부 체크박스 */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isAdMessage}
+                  onChange={(e) => setIsAdMessage(e.target.checked)}
+                  className="w-4 h-4 rounded border-[#d1d5db] text-[#3b82f6] focus:ring-[#3b82f6]"
+                />
+                <span className="text-sm text-[#64748b]">
+                  광고 메시지로 발송 (체크 시 (광고) 표기 및 무료수신거부 자동 추가)
+                </span>
+              </label>
+              {!isAdMessage && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-start gap-2 text-amber-700">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs">
+                      광고 문자임에도 광고 표기 가이드라인을 지키지 않은 경우, 이용 약관에 의거해 예고 없이 계정이 차단될 수 있으며, 환불 또한 불가능합니다.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* 예상 마케팅 효과 */}
               {(estimate?.targetCount || getCurrentTargetCount()) > 0 && (
