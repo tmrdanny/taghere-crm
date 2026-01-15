@@ -22,7 +22,7 @@ import {
   ExternalLink,
   ChevronDown,
   Store,
-  Stamp,
+  CircleDollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -84,7 +84,7 @@ const navGroups: NavGroup[] = [
     icon: Store,
     items: [
       { href: 'https://admin.tag-here.com', label: '주문/결제', icon: TagHereIcon, isExternal: true, isCustomIcon: true },
-      { href: '/points', label: '포인트 적립', icon: Stamp },
+      { href: '/points', label: '포인트 적립', icon: CircleDollarSign },
       { href: '#waiting', label: '웨이팅', icon: Clock, isNew: true, isComingSoon: true, comingSoonLink: 'https://tally.so/r/Gxp0Lp' },
     ],
   },
