@@ -390,10 +390,10 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+    <div className="p-4 lg:p-6 max-w-7xl mx-auto">
       {ToastComponent}
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-2xl font-semibold text-neutral-900">충전 관리</h1>
         <p className="text-neutral-500 mt-1">
           알림톡 발송을 위한 충전금을 관리합니다.
@@ -402,7 +402,7 @@ export default function BillingPage() {
 
       {/* 현재 잔액 */}
       <Card className="mb-6 border-brand-200 bg-brand-50/30">
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-neutral-500 mb-1">현재 보유 충전금</p>
@@ -420,13 +420,13 @@ export default function BillingPage() {
         </CardContent>
       </Card>
 
-      <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 충전 섹션 */}
         <Card>
-          <CardHeader className="pb-4">
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg">충전</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4">
             {/* 충전 금액 입력 */}
             <div>
               <label className="text-sm font-medium text-neutral-700 block mb-2">
@@ -437,7 +437,7 @@ export default function BillingPage() {
                   type="text"
                   value={customAmount}
                   onChange={(e) => handleAmountChange(e.target.value)}
-                  className="text-right text-2xl font-bold pr-4 h-16"
+                  className="text-right text-xl font-bold pr-4 h-14"
                   placeholder="0"
                 />
               </div>
@@ -449,7 +449,7 @@ export default function BillingPage() {
                 <button
                   key={preset.amount}
                   onClick={() => handlePresetClick(preset.amount)}
-                  className={`relative px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  className={`relative px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
                     amount === preset.amount
                       ? 'bg-brand-800 text-white border-brand-800'
                       : 'bg-white text-neutral-700 border-neutral-300 hover:border-brand-800'
@@ -467,49 +467,49 @@ export default function BillingPage() {
               ))}
               <button
                 onClick={handleAddAmount}
-                className="px-4 py-2 rounded-lg text-sm font-medium border border-neutral-300 bg-white text-neutral-700 hover:border-brand-800 transition-colors"
+                className="px-3 py-2 rounded-lg text-sm font-medium border border-neutral-300 bg-white text-neutral-700 hover:border-brand-800 transition-colors"
               >
                 +5만원
               </button>
             </div>
 
             {/* 결제 예정 금액 */}
-            <div className="border-t border-neutral-200 pt-4">
+            <div className="border-t border-neutral-200 pt-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-neutral-500">결제 금액</span>
-                <span className="text-lg font-medium text-neutral-700">
+                <span className="text-base font-medium text-neutral-700">
                   {formatCurrency(totalAmount)}
                 </span>
               </div>
               {getBonusRate(amount) > 0 && (
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-sm text-green-600">보너스 충전 (+{getBonusRate(amount)}%)</span>
-                  <span className="text-lg font-medium text-green-600">
+                  <span className="text-base font-medium text-green-600">
                     +{formatCurrency(getChargeAmountWithBonus(amount) - amount)}
                   </span>
                 </div>
               )}
-              <div className="flex justify-between items-center mt-3 pt-3 border-t border-neutral-100">
+              <div className="flex justify-between items-center mt-2 pt-2 border-t border-neutral-100">
                 <span className="text-sm font-semibold text-neutral-900">
                   실제 충전 금액
                 </span>
-                <span className="text-2xl font-bold text-brand-800">
+                <span className="text-xl font-bold text-brand-800">
                   {formatCurrency(getChargeAmountWithBonus(amount))}
                 </span>
               </div>
             </div>
 
             {/* 토스페이먼츠 결제 위젯 */}
-            <div className="border-t border-neutral-200 pt-6" key={`widget-container-${widgetKey}`}>
-              <div id="payment-methods" className="mb-4" />
-              <div id="agreement" className="mb-4" />
+            <div className="border-t border-neutral-200 pt-4" key={`widget-container-${widgetKey}`}>
+              <div id="payment-methods" className="mb-3" />
+              <div id="agreement" className="mb-3" />
             </div>
 
             {/* 충전하기 버튼 */}
             <Button
               onClick={handleCardPayment}
               disabled={!isPaymentReady || isProcessing || amount < 1000}
-              className="w-full h-12 text-base"
+              className="w-full h-11 text-base"
             >
               {isProcessing ? (
                 <>
@@ -527,65 +527,47 @@ export default function BillingPage() {
         </Card>
 
         {/* 충전 내역 */}
-        <Card>
-          <CardHeader className="pb-4">
+        <Card className="lg:max-h-[calc(100vh-20rem)] overflow-hidden flex flex-col">
+          <CardHeader className="pb-3 flex-shrink-0">
             <CardTitle className="text-lg">충전 내역</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-y-auto flex-1">
             {transactions.length === 0 ? (
               <p className="text-center text-neutral-400 py-8">
                 충전 내역이 없습니다
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-neutral-200">
-                      <th className="pb-3 text-left text-sm font-medium text-neutral-500">
-                        일시
-                      </th>
-                      <th className="pb-3 text-left text-sm font-medium text-neutral-500">
-                        구분
-                      </th>
-                      <th className="pb-3 text-right text-sm font-medium text-neutral-500">
-                        금액
-                      </th>
-                      <th className="pb-3 text-center text-sm font-medium text-neutral-500">
-                        상태
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.map((tx) => (
-                      <tr
-                        key={tx.id}
-                        className="border-b border-neutral-100 last:border-0"
-                      >
-                        <td className="py-4 text-sm text-neutral-600">
-                          {formatDate(tx.createdAt)}
-                        </td>
-                        <td className="py-4 text-sm text-neutral-900">
+              <div className="space-y-3">
+                {transactions.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="p-3 border border-neutral-200 rounded-lg hover:border-neutral-300 transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-neutral-900">
                           {getTransactionLabel(tx.type)}
-                        </td>
-                        <td className="py-4 text-sm font-medium text-right">
-                          <span
-                            className={
-                              tx.type === 'TOPUP'
-                                ? 'text-green-600'
-                                : 'text-red-600'
-                            }
-                          >
-                            {tx.type === 'TOPUP' ? '+' : '-'}
-                            {formatCurrency(tx.amount)}
-                          </span>
-                        </td>
-                        <td className="py-4 text-center">
+                        </p>
+                        <p className="text-xs text-neutral-500 mt-0.5">
+                          {formatDate(tx.createdAt)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-base font-semibold ${
+                          tx.type === 'TOPUP'
+                            ? 'text-green-600'
+                            : 'text-red-600'
+                        }`}>
+                          {tx.type === 'TOPUP' ? '+' : '-'}
+                          {formatCurrency(tx.amount)}
+                        </p>
+                        <div className="mt-1">
                           {getStatusBadge(tx.status)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
