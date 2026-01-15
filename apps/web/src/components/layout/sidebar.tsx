@@ -88,16 +88,16 @@ const navGroups: NavGroup[] = [
     title: '마케팅',
     icon: Send,
     items: [
-      { href: '/messages', label: '메시지 발송', icon: Send },
-      { href: '/local-customers', label: '신규 고객 찾기', icon: UserPlus },
       { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
-      { href: '/message-history', label: '발송 내역', icon: History },
+      { href: '/messages', label: '리타겟', icon: MessageSquare },
+      { href: '/local-customers', label: '신규 고객 타겟', icon: UserPlus },
     ],
   },
 ];
 
 // 하단 독립 메뉴
 const bottomNavItems: NavItem[] = [
+  { href: '/message-history', label: '발송 내역', icon: History },
   { href: '/billing', label: '충전 관리', icon: CreditCard },
   { href: '/settings', label: '설정', icon: Settings },
 ];

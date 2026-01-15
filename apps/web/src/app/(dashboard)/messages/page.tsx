@@ -918,7 +918,7 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row p-4 md:p-6 gap-6 max-w-[1200px] mx-auto w-full lg:justify-center lg:items-start">
+    <div className="flex-1 flex flex-col lg:flex-row lg:items-start p-4 md:p-6 gap-6 max-w-[1200px] mx-auto w-full lg:justify-center">
       {ToastComponent}
 
       {/* Left Panel - Settings */}
@@ -1589,8 +1589,8 @@ export default function MessagesPage() {
       </div>
 
       {/* Right Panel - Preview (hidden on mobile) */}
-      <div className="hidden lg:block flex-none w-[360px]">
-        <div className="sticky top-6">
+      <div className="hidden lg:block flex-none w-[360px] self-start sticky top-0">
+        <div className="bg-[#e2e8f0] rounded-3xl p-5">
           <p className="text-center text-[#64748b] mb-4">발송 메시지 미리보기</p>
           <div className="flex justify-center">
             {/* Phone Frame */}

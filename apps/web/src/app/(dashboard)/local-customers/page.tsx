@@ -36,6 +36,27 @@ const KOREA_SIDOS = [
   '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'
 ];
 
+// 시/도별 시/군/구 목록
+const KOREA_SIGUNGU: Record<string, string[]> = {
+  '서울': ['강남구', '강동구', '강북구', '강서구', '관악구', '광진구', '구로구', '금천구', '노원구', '도봉구', '동대문구', '동작구', '마포구', '서대문구', '서초구', '성동구', '성북구', '송파구', '양천구', '영등포구', '용산구', '은평구', '종로구', '중구', '중랑구'],
+  '경기': ['가평군', '고양시', '과천시', '광명시', '광주시', '구리시', '군포시', '김포시', '남양주시', '동두천시', '부천시', '성남시', '수원시', '시흥시', '안산시', '안성시', '안양시', '양주시', '양평군', '여주시', '연천군', '오산시', '용인시', '의왕시', '의정부시', '이천시', '파주시', '평택시', '포천시', '하남시', '화성시'],
+  '인천': ['강화군', '계양구', '남동구', '동구', '미추홀구', '부평구', '서구', '연수구', '옹진군', '중구'],
+  '부산': ['강서구', '금정구', '기장군', '남구', '동구', '동래구', '부산진구', '북구', '사상구', '사하구', '서구', '수영구', '연제구', '영도구', '중구', '해운대구'],
+  '대구': ['남구', '달서구', '달성군', '동구', '북구', '서구', '수성구', '중구'],
+  '광주': ['광산구', '남구', '동구', '북구', '서구'],
+  '대전': ['대덕구', '동구', '서구', '유성구', '중구'],
+  '울산': ['남구', '동구', '북구', '울주군', '중구'],
+  '세종': ['세종시'],
+  '강원': ['강릉시', '고성군', '동해시', '삼척시', '속초시', '양구군', '양양군', '영월군', '원주시', '인제군', '정선군', '철원군', '춘천시', '태백시', '평창군', '홍천군', '화천군', '횡성군'],
+  '충북': ['괴산군', '단양군', '보은군', '영동군', '옥천군', '음성군', '제천시', '증평군', '진천군', '청주시', '충주시'],
+  '충남': ['계룡시', '공주시', '금산군', '논산시', '당진시', '보령시', '부여군', '서산시', '서천군', '아산시', '예산군', '천안시', '청양군', '태안군', '홍성군'],
+  '전북': ['고창군', '군산시', '김제시', '남원시', '무주군', '부안군', '순창군', '완주군', '익산시', '임실군', '장수군', '전주시', '정읍시', '진안군'],
+  '전남': ['강진군', '고흥군', '곡성군', '광양시', '구례군', '나주시', '담양군', '목포시', '무안군', '보성군', '순천시', '신안군', '여수시', '영광군', '영암군', '완도군', '장성군', '장흥군', '진도군', '함평군', '해남군', '화순군'],
+  '경북': ['경산시', '경주시', '고령군', '구미시', '군위군', '김천시', '문경시', '봉화군', '상주시', '성주군', '안동시', '영덕군', '영양군', '영주시', '영천시', '예천군', '울릉군', '울진군', '의성군', '청도군', '청송군', '칠곡군', '포항시'],
+  '경남': ['거제시', '거창군', '고성군', '김해시', '남해군', '밀양시', '사천시', '산청군', '양산시', '의령군', '진주시', '창녕군', '창원시', '통영시', '하동군', '함안군', '함양군', '합천군'],
+  '제주': ['서귀포시', '제주시']
+};
+
 // 연령대 옵션
 const AGE_GROUP_OPTIONS = [
   { value: 'TWENTIES', label: '20대' },
@@ -101,15 +122,20 @@ export default function LocalCustomersPage() {
   // 탭 상태 (문자 우선 - 카카오톡 임시 비활성화)
   const [activeTab, setActiveTab] = useState<'kakao' | 'sms'>('sms');
 
-  // 지역 상태 (시/도만 선택)
+  // 지역 상태 (시/도 및 시/군/구 선택)
   const [selectedSidos, setSelectedSidos] = useState<string[]>([]);
+  const [selectedSigungus, setSelectedSigungus] = useState<Record<string, string[]>>({});
   const [regionSearchQuery, setRegionSearchQuery] = useState('');
+  const [sigunguSearchQuery, setSigunguSearchQuery] = useState('');
   const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
+  const [isSigunguDropdownOpen, setIsSigunguDropdownOpen] = useState(false);
+  const [activeSidoForSigungu, setActiveSidoForSigungu] = useState<string | null>(null);
 
   // 필터 상태
   const [selectedAgeGroups, setSelectedAgeGroups] = useState<string[]>([]);
   const [gender, setGender] = useState<string>('all');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedPreferredCategories, setSelectedPreferredCategories] = useState<string[]>([]);
 
   // 발송 대상 상태
   const [globalTotalCount, setGlobalTotalCount] = useState(0);
@@ -208,6 +234,19 @@ export default function LocalCustomersPage() {
       // 시/도 목록을 콤마로 구분하여 전달
       params.set('regionSidos', selectedSidos.join(','));
 
+      // 시/군/구 필터 추가 (시/도별로 선택된 경우)
+      const sigunguList: string[] = [];
+      Object.entries(selectedSigungus).forEach(([sido, sigungus]) => {
+        if (sigungus && sigungus.length > 0) {
+          sigungus.forEach(sigungu => {
+            sigunguList.push(`${sido}/${sigungu}`);
+          });
+        }
+      });
+      if (sigunguList.length > 0) {
+        params.set('regionSigungus', sigunguList.join(','));
+      }
+
       if (selectedAgeGroups.length > 0) {
         params.set('ageGroups', selectedAgeGroups.join(','));
       }
@@ -216,6 +255,10 @@ export default function LocalCustomersPage() {
       }
       if (selectedCategories.length > 0) {
         params.set('categories', selectedCategories.join(','));
+      }
+      // 선호 업종 필터 추가
+      if (selectedPreferredCategories.length > 0) {
+        params.set('preferredCategories', selectedPreferredCategories.join(','));
       }
 
       const res = await fetch(`${API_BASE}/api/local-customers/count?${params}`, {
@@ -234,7 +277,7 @@ export default function LocalCustomersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedSidos, selectedAgeGroups, gender, selectedCategories]);
+  }, [selectedSidos, selectedSigungus, selectedAgeGroups, gender, selectedCategories, selectedPreferredCategories]);
 
   useEffect(() => {
     fetchCount();
@@ -358,6 +401,16 @@ export default function LocalCustomersPage() {
     setSuccessMessage(null);
 
     try {
+      // 시/군/구 데이터 포맷팅
+      const sigunguList: string[] = [];
+      Object.entries(selectedSigungus).forEach(([sido, sigungus]) => {
+        if (sigungus && sigungus.length > 0) {
+          sigungus.forEach(sigungu => {
+            sigunguList.push(`${sido}/${sigungu}`);
+          });
+        }
+      });
+
       const res = await fetch(`${API_BASE}/api/local-customers/send`, {
         method: 'POST',
         headers: {
@@ -369,7 +422,9 @@ export default function LocalCustomersPage() {
           ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : null,
           gender: gender !== 'all' ? gender : null,
           regionSidos: selectedSidos,
+          regionSigungus: sigunguList.length > 0 ? sigunguList : null,
           categories: selectedCategories.length > 0 ? selectedCategories : null,
+          preferredCategories: selectedPreferredCategories.length > 0 ? selectedPreferredCategories : null,
           sendCount,
         }),
       });
@@ -408,6 +463,16 @@ export default function LocalCustomersPage() {
     setSuccessMessage(null);
 
     try {
+      // 시/군/구 데이터 포맷팅
+      const sigunguList: string[] = [];
+      Object.entries(selectedSigungus).forEach(([sido, sigungus]) => {
+        if (sigungus && sigungus.length > 0) {
+          sigungus.forEach(sigungu => {
+            sigunguList.push(`${sido}/${sigungu}`);
+          });
+        }
+      });
+
       const res = await fetch(`${API_BASE}/api/local-customers/kakao/send`, {
         method: 'POST',
         headers: {
@@ -420,7 +485,9 @@ export default function LocalCustomersPage() {
           ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : null,
           gender: gender !== 'all' ? gender : null,
           regionSidos: selectedSidos,
+          regionSigungus: sigunguList.length > 0 ? sigunguList : null,
           categories: selectedCategories.length > 0 ? selectedCategories : null,
+          preferredCategories: selectedPreferredCategories.length > 0 ? selectedPreferredCategories : null,
           sendCount,
           imageId: kakaoImageId,
           buttons: kakaoButtons.length > 0 ? kakaoButtons : null,
@@ -580,7 +647,7 @@ export default function LocalCustomersPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row p-4 md:p-6 gap-6 max-w-[1200px] mx-auto w-full lg:justify-center lg:items-start">
+    <div className="flex-1 flex flex-col lg:flex-row lg:items-start p-4 md:p-6 gap-6 max-w-[1200px] mx-auto w-full lg:justify-center">
       {/* Left Panel - Settings */}
       <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6">
         {/* Header */}
@@ -760,25 +827,218 @@ export default function LocalCustomersPage() {
             )}
           </div>
 
-          {/* 우측: 고객 선호 업종 - 준비중 */}
-          <div className="p-4 rounded-xl border border-neutral-200 bg-white opacity-50">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-base font-semibold text-neutral-400">관심 업종 <span className="text-neutral-300 font-normal">(준비중)</span></p>
+          {/* 우측: 고객 선호 업종 */}
+          <div className="p-4 rounded-xl border border-neutral-200 bg-white">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
+                <Store className="w-5 h-5 text-neutral-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-neutral-900">고객 선호 업종</p>
+                <p className="text-xs text-neutral-500">여러 업종을 선택할 수 있습니다</p>
+              </div>
             </div>
 
-            {/* 업종 버튼 (플랫 리스트) - 비활성화 */}
+            {/* 선택된 업종 태그 */}
+            {selectedPreferredCategories.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {selectedPreferredCategories.map((cat) => {
+                  const catLabel = CATEGORY_OPTIONS.find(c => c.value === cat)?.label || cat;
+                  return (
+                    <span
+                      key={cat}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-medium"
+                    >
+                      {catLabel}
+                      <button
+                        onClick={() => setSelectedPreferredCategories(prev => prev.filter(c => c !== cat))}
+                        className="hover:bg-green-200 rounded-full p-0.5 transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 업종 버튼 (플랫 리스트) */}
             <div className="flex flex-wrap gap-2">
-              {CATEGORY_OPTIONS.map((cat) => (
-                <span
-                  key={cat.value}
-                  className="px-4 py-2 rounded-full text-sm font-medium border bg-white text-neutral-400 border-neutral-200 cursor-not-allowed"
-                >
-                  {cat.label}
-                </span>
-              ))}
+              {CATEGORY_OPTIONS.map((cat) => {
+                const isSelected = selectedPreferredCategories.includes(cat.value);
+                return (
+                  <button
+                    key={cat.value}
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedPreferredCategories(prev => prev.filter(c => c !== cat.value));
+                      } else {
+                        setSelectedPreferredCategories(prev => [...prev, cat.value]);
+                      }
+                    }}
+                    className={cn(
+                      "px-4 py-2 rounded-full text-sm font-medium border transition-colors",
+                      isSelected
+                        ? "bg-green-600 text-white border-green-600"
+                        : "bg-white text-neutral-700 border-neutral-200 hover:border-green-300"
+                    )}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
             </div>
+            <p className="text-xs text-neutral-500 mt-2">
+              * 선택한 업종을 선호하는 고객에게만 발송됩니다
+            </p>
           </div>
         </div>
+
+        {/* 시/군/구 선택 섹션 (선택된 시/도가 있을 때만 표시) */}
+        {selectedSidos.length > 0 && (
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-900 mb-3">시/군/구 상세 선택 (선택사항)</h2>
+            <div className="p-4 rounded-xl border border-neutral-200 bg-white">
+              <div className="flex items-center gap-3 mb-3">
+                <MapPin className="w-5 h-5 text-neutral-500" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-neutral-900">세부 지역 선택</p>
+                  <p className="text-xs text-neutral-500">시/도를 선택한 후 상세 지역을 추가할 수 있습니다</p>
+                </div>
+              </div>
+
+              {/* 시/도별 시/군/구 선택 */}
+              <div className="space-y-4">
+                {selectedSidos.map((sido) => {
+                  const sigungus = KOREA_SIGUNGU[sido] || [];
+                  const selectedSigunguList = selectedSigungus[sido] || [];
+                  const filteredSigungus = sigungus.filter(sigungu =>
+                    sigungu.includes(sigunguSearchQuery)
+                  );
+
+                  return (
+                    <div key={sido} className="border border-neutral-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-neutral-900">{sido}</span>
+                        <span className="text-xs text-neutral-500">
+                          {selectedSigunguList.length > 0
+                            ? `${selectedSigunguList.length}개 선택`
+                            : '전체 선택'}
+                        </span>
+                      </div>
+
+                      {/* 선택된 시/군/구 태그 */}
+                      {selectedSigunguList.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {selectedSigunguList.map((sigungu) => (
+                            <span
+                              key={sigungu}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
+                            >
+                              {sigungu}
+                              <button
+                                onClick={() => {
+                                  setSelectedSigungus(prev => ({
+                                    ...prev,
+                                    [sido]: prev[sido]?.filter(s => s !== sigungu) || []
+                                  }));
+                                }}
+                                className="hover:bg-blue-200 rounded-full p-0.5 transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 시/군/구 검색 및 드롭다운 */}
+                      <div className="relative">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                          <input
+                            type="text"
+                            value={activeSidoForSigungu === sido ? sigunguSearchQuery : ''}
+                            onChange={(e) => {
+                              setSigunguSearchQuery(e.target.value);
+                              setActiveSidoForSigungu(sido);
+                              setIsSigunguDropdownOpen(true);
+                            }}
+                            onFocus={() => {
+                              setActiveSidoForSigungu(sido);
+                              setIsSigunguDropdownOpen(true);
+                            }}
+                            placeholder={`${sido} 시/군/구 검색...`}
+                            className="w-full pl-9 pr-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        {/* 드롭다운 */}
+                        {isSigunguDropdownOpen && activeSidoForSigungu === sido && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {filteredSigungus.length > 0 ? (
+                              filteredSigungus.map((sigungu) => {
+                                const isSelected = selectedSigunguList.includes(sigungu);
+                                return (
+                                  <button
+                                    key={sigungu}
+                                    onClick={() => {
+                                      if (!isSelected) {
+                                        setSelectedSigungus(prev => ({
+                                          ...prev,
+                                          [sido]: [...(prev[sido] || []), sigungu]
+                                        }));
+                                      }
+                                      setIsSigunguDropdownOpen(false);
+                                      setSigunguSearchQuery('');
+                                    }}
+                                    disabled={isSelected}
+                                    className={cn(
+                                      "w-full px-4 py-2 text-left text-sm flex items-center justify-between transition-colors",
+                                      isSelected
+                                        ? "bg-blue-50 text-blue-600 cursor-not-allowed"
+                                        : "hover:bg-neutral-50 text-neutral-700"
+                                    )}
+                                  >
+                                    <span>{sigungu}</span>
+                                    {isSelected ? (
+                                      <span className="text-xs text-blue-500">선택됨</span>
+                                    ) : (
+                                      <Plus className="w-4 h-4 text-neutral-400" />
+                                    )}
+                                  </button>
+                                );
+                              })
+                            ) : (
+                              <div className="px-4 py-3 text-sm text-neutral-500">
+                                검색 결과가 없습니다
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="text-xs text-neutral-500 mt-3">
+                * 시/군/구를 선택하지 않으면 해당 시/도 전체로 발송됩니다
+              </p>
+            </div>
+
+            {/* 드롭다운 닫기 */}
+            {isSigunguDropdownOpen && (
+              <div
+                className="fixed inset-0 z-0"
+                onClick={() => {
+                  setIsSigunguDropdownOpen(false);
+                  setSigunguSearchQuery('');
+                }}
+              />
+            )}
+          </div>
+        )}
 
         {/* 상세 필터 */}
         <div>
@@ -1201,8 +1461,8 @@ export default function LocalCustomersPage() {
       </div>
 
       {/* Right Panel - iPhone Preview (Sticky) */}
-      <div className="hidden lg:block flex-none w-[360px]">
-        <div className="sticky top-6 bg-[#e2e8f0] rounded-3xl p-5">
+      <div className="hidden lg:block flex-none w-[360px] self-start sticky top-0">
+        <div className="bg-[#e2e8f0] rounded-3xl p-5">
           {activeTab === 'kakao' ? (
             /* 카카오톡 미리보기 - 네이버 리뷰 스타일 */
             <div className="relative w-full h-[680px] bg-neutral-800 rounded-[2.5rem] p-2 shadow-2xl">
