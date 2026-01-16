@@ -332,46 +332,79 @@ function SuccessPopup({
               </p>
 
               {/* 업종 선택 버튼 그리드 */}
-              <div className={showAllCategories ? 'grid grid-cols-4 gap-2 mb-2' : 'flex flex-wrap gap-2 mb-2'}>
-                {/* "모든 업종" 버튼 */}
-                <button
-                  type="button"
-                  onClick={() => toggleCategory(ALL_CATEGORIES_VALUE)}
-                  className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
-                    selectedCategories.includes(ALL_CATEGORIES_VALUE)
-                      ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
-                      : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
-                  }`}
-                >
-                  모든 업종
-                </button>
-
-                {/* 개별 카테고리 버튼들 - 조건부 표시 */}
-                {(showAllCategories
-                  ? CATEGORY_OPTIONS
-                  : CATEGORY_OPTIONS.slice(0, 4)
-                ).map((category) => {
-                  const isSelected = selectedCategories.includes(category.value);
-                  return (
+              <div className={showAllCategories ? 'grid grid-cols-4 gap-2 mb-2' : 'relative mb-2'}>
+                {showAllCategories ? (
+                  <>
+                    {/* "모든 업종" 버튼 */}
                     <button
-                      key={category.value}
                       type="button"
-                      onClick={() => toggleCategory(category.value)}
+                      onClick={() => toggleCategory(ALL_CATEGORIES_VALUE)}
                       className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
-                        isSelected
+                        selectedCategories.includes(ALL_CATEGORIES_VALUE)
                           ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
                           : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
                       }`}
                     >
-                      {category.label}
+                      모든 업종
                     </button>
-                  );
-                })}
 
-                {/* 블러 처리된 카페 버튼 (접힌 상태일 때만) */}
-                {!showAllCategories && (
-                  <div className="relative px-3 py-2.5 rounded-lg text-[14px] font-medium bg-neutral-50 text-neutral-600 border border-neutral-200 opacity-50 blur-[1px] pointer-events-none">
-                    카페
+                    {/* 개별 카테고리 버튼들 */}
+                    {CATEGORY_OPTIONS.map((category) => {
+                      const isSelected = selectedCategories.includes(category.value);
+                      return (
+                        <button
+                          key={category.value}
+                          type="button"
+                          onClick={() => toggleCategory(category.value)}
+                          className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
+                            isSelected
+                              ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
+                              : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
+                          }`}
+                        >
+                          {category.label}
+                        </button>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <div className="flex gap-2 overflow-hidden">
+                    {/* "모든 업종" 버튼 */}
+                    <button
+                      type="button"
+                      onClick={() => toggleCategory(ALL_CATEGORIES_VALUE)}
+                      className={`flex-shrink-0 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
+                        selectedCategories.includes(ALL_CATEGORIES_VALUE)
+                          ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
+                          : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
+                      }`}
+                    >
+                      모든 업종
+                    </button>
+
+                    {/* 개별 카테고리 버튼들 (한식/중식/일식/양식) */}
+                    {CATEGORY_OPTIONS.slice(0, 4).map((category) => {
+                      const isSelected = selectedCategories.includes(category.value);
+                      return (
+                        <button
+                          key={category.value}
+                          type="button"
+                          onClick={() => toggleCategory(category.value)}
+                          className={`flex-shrink-0 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
+                            isSelected
+                              ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
+                              : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
+                          }`}
+                        >
+                          {category.label}
+                        </button>
+                      );
+                    })}
+
+                    {/* 블러 처리된 카페 버튼 */}
+                    <div className="flex-shrink-0 px-3 py-2.5 rounded-lg text-[14px] font-medium bg-neutral-50 text-neutral-600 border border-neutral-200 opacity-50 blur-[1px] pointer-events-none">
+                      카페
+                    </div>
                   </div>
                 )}
               </div>
