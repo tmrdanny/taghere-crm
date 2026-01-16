@@ -326,7 +326,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
             isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
           )}
         >
-          <div className="py-1">
+          <div className="py-1 ml-6 pl-4 border-l border-slate-200">
             {group.items.map(item => renderNavItem(item, true))}
           </div>
         </div>
