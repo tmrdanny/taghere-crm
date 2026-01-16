@@ -316,7 +316,7 @@ function SuccessPopup({
           </div>
 
           {/* Star Rating */}
-          <div className="mb-8">
+          <div className="mb-9">
             <StarRating rating={feedbackRating} onRatingChange={setFeedbackRating} />
           </div>
 
