@@ -332,7 +332,7 @@ function SuccessPopup({
               </p>
 
               {/* 업종 선택 버튼 그리드 */}
-              <div className="flex flex-wrap gap-2 mb-2">
+              <div className={showAllCategories ? 'grid grid-cols-4 gap-2 mb-2' : 'flex flex-wrap gap-2 mb-2'}>
                 {/* "모든 업종" 버튼 */}
                 <button
                   type="button"
@@ -349,7 +349,7 @@ function SuccessPopup({
                 {/* 개별 카테고리 버튼들 - 조건부 표시 */}
                 {(showAllCategories
                   ? CATEGORY_OPTIONS
-                  : CATEGORY_OPTIONS.slice(0, 3)
+                  : CATEGORY_OPTIONS.slice(0, 4)
                 ).map((category) => {
                   const isSelected = selectedCategories.includes(category.value);
                   return (
@@ -368,16 +368,16 @@ function SuccessPopup({
                   );
                 })}
 
-                {/* 블러 처리된 양식 버튼 (접힌 상태일 때만) */}
+                {/* 블러 처리된 카페 버튼 (접힌 상태일 때만) */}
                 {!showAllCategories && (
                   <div className="relative px-3 py-2.5 rounded-lg text-[14px] font-medium bg-neutral-50 text-neutral-600 border border-neutral-200 opacity-50 blur-[1px] pointer-events-none">
-                    양식
+                    카페
                   </div>
                 )}
               </div>
 
               {/* 더보기/접기 버튼 */}
-              <div className="text-center mb-3">
+              <div className="text-center my-3">
                 <button
                   type="button"
                   onClick={() => setShowAllCategories(!showAllCategories)}
