@@ -245,7 +245,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
           'flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
           active
             ? 'bg-brand-50 text-brand-800'
-            : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50',
+            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50',
           isCollapsed && 'justify-center',
           isSubItem && !isCollapsed && 'ml-4'
         )}
@@ -300,7 +300,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
             'flex items-center gap-3 w-full mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
             groupActive
               ? 'bg-brand-50 text-brand-800'
-              : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
+              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50'
           )}
           style={{ width: 'calc(100% - 16px)' }}
         >
@@ -345,7 +345,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
       >
         {/* Logo */}
         <div className={cn(
-          "flex items-center h-16 px-4 border-b border-neutral-200",
+          "flex items-center h-16 px-4 border-b border-slate-200",
           isCollapsed ? "justify-center" : "justify-between"
         )}>
           {!isCollapsed && (
@@ -381,13 +381,13 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
           {topNavItems.map(item => renderNavItem(item))}
 
           {/* 구분선 */}
-          <div className="mx-4 my-3 border-t border-neutral-200" />
+          <div className="mx-4 my-3 border-t border-slate-200" />
 
           {/* 그룹화된 메뉴 (드롭다운) */}
           {navGroups.map(group => renderNavGroup(group))}
 
           {/* 구분선 */}
-          <div className="mx-4 my-3 border-t border-neutral-200" />
+          <div className="mx-4 my-3 border-t border-slate-200" />
 
           {/* 하단 메뉴 */}
           {bottomNavItems.map(item => renderNavItem(item))}
