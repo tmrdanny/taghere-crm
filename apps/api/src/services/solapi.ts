@@ -440,6 +440,14 @@ export async function enqueuePointsEarnedAlimTalk(params: {
   phone: string;
   variables: PointsEarnedVariables;
 }): Promise<{ success: boolean; error?: string }> {
+  console.log(`[AlimTalk] enqueuePointsEarnedAlimTalk called:`, {
+    storeId: params.storeId,
+    customerId: params.customerId,
+    pointLedgerId: params.pointLedgerId,
+    phone: params.phone,
+    variables: params.variables,
+  });
+
   // 매장 알림톡 설정 및 지갑 잔액 확인
   const store = await prisma.store.findUnique({
     where: { id: params.storeId },
@@ -452,6 +460,12 @@ export async function enqueuePointsEarnedAlimTalk(params: {
     },
   });
 
+  console.log(`[AlimTalk] Store settings:`, {
+    pointsAlimtalkEnabled: store?.pointsAlimtalkEnabled,
+    hasPointUsageRule: !!store?.pointUsageRule,
+    hasBenefitText: !!store?.reviewAutomationSetting?.benefitText,
+  });
+
   if (!store?.pointsAlimtalkEnabled) {
     console.log(`[AlimTalk] Points alimtalk disabled for store: ${params.storeId}`);
     return { success: false, error: 'Points alimtalk disabled' };
@@ -462,6 +476,13 @@ export async function enqueuePointsEarnedAlimTalk(params: {
     where: { storeId: params.storeId },
   });
 
+  console.log(`[AlimTalk] Wallet balance check:`, {
+    storeId: params.storeId,
+    balance: wallet?.balance ?? 0,
+    minRequired: MIN_BALANCE_FOR_ALIMTALK,
+    canSend: wallet && wallet.balance >= MIN_BALANCE_FOR_ALIMTALK,
+  });
+
   if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
     console.log(`[AlimTalk] Insufficient balance for store: ${params.storeId}, balance: ${wallet?.balance ?? 0}`);
     return { success: false, error: 'Insufficient wallet balance' };
@@ -469,6 +490,11 @@ export async function enqueuePointsEarnedAlimTalk(params: {
 
   // 환경변수에서 설정 읽기
   const templateId = process.env.SOLAPI_TEMPLATE_ID_POINTS_EARNED;
+
+  console.log(`[AlimTalk] Template ID check:`, {
+    templateId: templateId || 'NOT_SET',
+    envVarName: 'SOLAPI_TEMPLATE_ID_POINTS_EARNED',
+  });
 
   if (!templateId) {
     console.log(`[AlimTalk] Points earned notification disabled: no template ID configured`);
