@@ -297,36 +297,36 @@ function SuccessPopup({
     <div className="h-[100dvh] bg-white font-pretendard flex justify-center overflow-hidden">
       <div className="w-full max-w-[430px] h-full flex flex-col">
         {/* Full Page Content */}
-        <div className="flex-1 flex flex-col px-5 py-8">
+        <div className="flex-1 flex flex-col px-5 py-6 overflow-y-auto">
           {/* Points Display */}
-          <div className="text-center mb-6">
-            <p className="text-[48px] font-bold text-[#61EB49] leading-none">
+          <div className="text-center mb-4">
+            <p className="text-[38px] font-bold text-[#61EB49] leading-none">
               +{formatNumber(successData.points)}P
             </p>
           </div>
 
           {/* Main Message */}
-          <div className="text-center mb-8">
-            <h2 className="text-[22px] font-bold text-neutral-900 mb-2">
+          <div className="text-center mb-5">
+            <h2 className="text-[18px] font-bold text-neutral-900 mb-1">
               주머니에 쏙 넣어드렸어요!
             </h2>
-            <p className="text-[15px] text-neutral-400">
+            <p className="text-[14px] text-neutral-400">
               소중한 의견은 큰 도움이 돼요
             </p>
           </div>
 
           {/* Star Rating */}
-          <div className="mb-8">
+          <div className="mb-5">
             <StarRating rating={feedbackRating} onRatingChange={setFeedbackRating} />
           </div>
 
           {/* Preferred Categories - 조건부 표시 */}
           {!successData.hasExistingPreferences && (
-            <div className="mb-6">
-              <p className="text-[16px] font-semibold text-neutral-900 mb-2 text-center">
+            <div className="mb-4">
+              <p className="text-[15px] font-semibold text-neutral-900 mb-1.5 text-center">
                 어떤 업종을 선호하세요?
               </p>
-              <p className="text-[14px] text-neutral-500 mb-4 text-center">
+              <p className="text-[13px] text-neutral-500 mb-3 text-center">
                 선택한 업종의 쿠폰을 매 주 보내드릴게요
               </p>
 
@@ -368,31 +368,31 @@ function SuccessPopup({
           )}
 
           {/* Feedback Text */}
-          <div className="mb-6">
+          <div className="mb-4">
             <textarea
               value={feedbackText}
               onChange={(e) => setFeedbackText(e.target.value)}
               placeholder="매장 경험에 대한 솔직한 피드백을 남겨주시면 감사하겠습니다."
-              className="w-full h-[120px] px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-lg resize-none text-[14px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+              className="w-full h-[84px] px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg resize-none text-[14px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
             />
           </div>
 
           {/* Spacer to push buttons to bottom */}
-          <div className="flex-1"></div>
+          <div className="flex-1 min-h-[12px]"></div>
 
           {/* Buttons */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 pb-2">
             <button
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1 py-4 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-semibold text-[15px] rounded-xl transition-colors"
+              className="flex-1 py-3.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-semibold text-[15px] rounded-xl transition-colors"
             >
               다음에 쓸게요
             </button>
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex-1 py-4 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-[15px] rounded-xl transition-colors"
+              className="flex-1 py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-[15px] rounded-xl transition-colors"
             >
               {isSubmitting ? '제출 중...' : '제출할게요'}
             </button>
