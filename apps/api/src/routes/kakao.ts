@@ -824,7 +824,12 @@ router.get('/taghere-callback', async (req, res) => {
     }
 
     // Check if customer already has preferredCategories
-    const hasPreferences = !!customer.preferredCategories;
+    // Refetch to ensure we have the preferredCategories field
+    const customerWithPrefs = await prisma.customer.findUnique({
+      where: { id: customer.id },
+      select: { preferredCategories: true },
+    });
+    const hasPreferences = !!customerWithPrefs?.preferredCategories;
 
     // Redirect back to enroll page with success data (shows popup with feedback)
     const successUrl = new URL(`${redirectOrigin}/taghere-enroll/${stateData.slug || ''}`);

@@ -393,17 +393,9 @@ router.post('/feedback', async (req, res) => {
       return res.json({ success: true, message: '피드백 없음' });
     }
 
-    // Verify customer exists and include store info
+    // Verify customer exists
     const customer = await prisma.customer.findUnique({
       where: { id: customerId },
-      include: {
-        store: {
-          select: {
-            regionSido: true,
-            regionSigungu: true,
-          }
-        }
-      }
     });
 
     if (!customer) {
@@ -436,20 +428,19 @@ router.post('/feedback', async (req, res) => {
     if (preferredCategories && preferredCategories.length > 0 && customer.phone) {
       try {
         // ageGroup 계산
-        let ageGroup = null;
+        let ageGroup: 'TWENTIES' | 'THIRTIES' | 'FORTIES' | 'FIFTIES' | 'SIXTY_PLUS' | null = null;
         if (customer.birthYear) {
           const age = new Date().getFullYear() - customer.birthYear;
-          if (age >= 10 && age < 20) ageGroup = 'TEENS';
-          else if (age >= 20 && age < 30) ageGroup = 'TWENTIES';
+          if (age >= 20 && age < 30) ageGroup = 'TWENTIES';
           else if (age >= 30 && age < 40) ageGroup = 'THIRTIES';
           else if (age >= 40 && age < 50) ageGroup = 'FORTIES';
           else if (age >= 50 && age < 60) ageGroup = 'FIFTIES';
           else if (age >= 60) ageGroup = 'SIXTY_PLUS';
         }
 
-        // regionSido, regionSigungu는 customer.store에서 가져옴
-        const regionSido = customer.store.regionSido || '서울특별시';
-        const regionSigungu = customer.store.regionSigungu || '강남구';
+        // Use default region values since Store doesn't have these fields
+        const regionSido = '서울특별시';
+        const regionSigungu = '강남구';
 
         if (ageGroup) {
           // upsert: 이미 존재하면 업데이트, 없으면 생성
