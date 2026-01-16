@@ -96,7 +96,7 @@ export default function FranchiseRegisterPage() {
       {ToastComponent}
 
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 p-12 flex-col justify-between">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-franchise-500 via-franchise-700 to-franchise-900 p-12 flex-col justify-between">
         <div>
           {/* Logo */}
           <div className="flex items-center gap-3">
@@ -112,12 +112,12 @@ export default function FranchiseRegisterPage() {
           <h1 className="text-4xl font-bold text-white leading-tight">
             프랜차이즈 본부를<br />시작하세요
           </h1>
-          <p className="text-lg text-indigo-100 leading-relaxed">
+          <p className="text-lg text-franchise-100 leading-relaxed">
             TagHere CRM으로 프랜차이즈 가맹점들을 효율적으로 관리하고,
             통합된 고객 데이터를 활용한 마케팅을 시작하세요.
           </p>
           <div className="flex flex-col gap-4 pt-4">
-            <div className="flex items-center gap-3 text-indigo-100">
+            <div className="flex items-center gap-3 text-franchise-100">
               <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -125,7 +125,7 @@ export default function FranchiseRegisterPage() {
               </div>
               <span>무료 가입, 무료 시작</span>
             </div>
-            <div className="flex items-center gap-3 text-indigo-100">
+            <div className="flex items-center gap-3 text-franchise-100">
               <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -133,7 +133,7 @@ export default function FranchiseRegisterPage() {
               </div>
               <span>기존 태그히어 CRM 가맹점 연동</span>
             </div>
-            <div className="flex items-center gap-3 text-indigo-100">
+            <div className="flex items-center gap-3 text-franchise-100">
               <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -145,7 +145,7 @@ export default function FranchiseRegisterPage() {
         </div>
 
         {/* Footer */}
-        <div className="text-indigo-200 text-sm">
+        <div className="text-franchise-200 text-sm">
           &copy; 2024 TagHere. All rights reserved.
         </div>
       </div>
@@ -156,7 +156,7 @@ export default function FranchiseRegisterPage() {
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
             <span className="text-2xl font-bold text-slate-900">TagHere CRM</span>
-            <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-md">
+            <span className="px-2 py-1 bg-franchise-100 text-franchise-700 text-xs font-medium rounded-md">
               Franchise
             </span>
           </div>
@@ -187,7 +187,7 @@ export default function FranchiseRegisterPage() {
                     value={formData.brandName}
                     onChange={handleChange}
                     required
-                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
@@ -208,7 +208,7 @@ export default function FranchiseRegisterPage() {
                     value={formData.ownerName}
                     onChange={handleChange}
                     required
-                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
@@ -229,7 +229,7 @@ export default function FranchiseRegisterPage() {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
@@ -251,7 +251,7 @@ export default function FranchiseRegisterPage() {
                     onChange={handleChange}
                     required
                     minLength={8}
-                    className="w-full pl-12 pr-12 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full pl-12 pr-12 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
                   />
                   <button
                     type="button"
@@ -284,7 +284,7 @@ export default function FranchiseRegisterPage() {
                     onChange={handleChange}
                     required
                     minLength={8}
-                    className="w-full pl-12 pr-12 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full pl-12 pr-12 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
                   />
                   <button
                     type="button"
@@ -315,7 +315,7 @@ export default function FranchiseRegisterPage() {
                     placeholder="010-1234-5678"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
@@ -324,7 +324,7 @@ export default function FranchiseRegisterPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full bg-franchise-500 text-white hover:bg-franchise-700 px-4 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <>
@@ -343,7 +343,7 @@ export default function FranchiseRegisterPage() {
                 이미 계정이 있으신가요?{' '}
                 <Link
                   href="/franchise/login"
-                  className="text-indigo-600 hover:text-indigo-700 font-medium hover:underline"
+                  className="text-franchise-600 hover:text-franchise-700 font-medium hover:underline"
                 >
                   로그인
                 </Link>

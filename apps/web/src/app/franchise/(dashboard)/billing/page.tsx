@@ -367,7 +367,7 @@ export default function FranchiseBillingPage() {
   if (isLoading || isConfirmingPayment) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-franchise-600" />
         {isConfirmingPayment && (
           <p className="mt-4 text-sm text-slate-500">결제 처리 중...</p>
         )}
@@ -413,8 +413,8 @@ export default function FranchiseBillingPage() {
                 약 {Math.floor(balance / 150).toLocaleString()}건 SMS 발송 가능
               </p>
             </div>
-            <div className="p-4 bg-indigo-100 rounded-xl">
-              <Wallet className="w-8 h-8 text-indigo-600" />
+            <div className="p-4 bg-franchise-100 rounded-xl">
+              <Wallet className="w-8 h-8 text-franchise-600" />
             </div>
           </div>
         </div>
@@ -435,7 +435,7 @@ export default function FranchiseBillingPage() {
                   type="text"
                   value={customAmount}
                   onChange={(e) => handleAmountChange(e.target.value)}
-                  className="w-full text-right text-2xl font-bold px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full text-right text-2xl font-bold px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent"
                   placeholder="0"
                 />
               </div>
@@ -449,8 +449,8 @@ export default function FranchiseBillingPage() {
                     className={cn(
                       'relative px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors',
                       amount === preset.amount
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300'
+                        ? 'bg-franchise-500 text-white border-franchise-600'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-franchise-300'
                     )}
                   >
                     {preset.label}
@@ -487,7 +487,7 @@ export default function FranchiseBillingPage() {
                 )}
                 <div className="flex justify-between items-center pt-2 border-t border-slate-100">
                   <span className="text-sm font-semibold text-slate-900">실제 충전 금액</span>
-                  <span className="text-2xl font-bold text-indigo-600">
+                  <span className="text-2xl font-bold text-franchise-600">
                     {formatWithComma(getChargeAmountWithBonus(amount))}원
                   </span>
                 </div>
@@ -507,7 +507,7 @@ export default function FranchiseBillingPage() {
                   'w-full py-3 rounded-xl text-white font-semibold flex items-center justify-center gap-2 transition-colors',
                   !isPaymentReady || isProcessing || amount < 100000
                     ? 'bg-slate-300 cursor-not-allowed'
-                    : 'bg-indigo-600 hover:bg-indigo-700'
+                    : 'bg-franchise-500 hover:bg-franchise-700'
                 )}
               >
                 {isProcessing ? (

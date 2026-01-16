@@ -55,6 +55,19 @@ const config: Config = {
           DEFAULT: '#3B82F6',
           light: '#DBEAFE',
         },
+        // Franchise Brand Colors
+        franchise: {
+          50: '#EBF6FF',   // 가장 밝음 (배경)
+          100: '#D6EDFF',  // 밝음 (배지, 섹션)
+          200: '#B3DCFF',  // 중간 밝음 (텍스트 on dark)
+          300: '#8DCBFF',  // 연한 (보더)
+          400: '#6EADFF',  // 기본 (차트, focus ring) - BASE COLOR
+          500: '#4A90FF',  // 중간 (버튼 기본)
+          600: '#2E75E8',  // 진함 (버튼 hover, 링크)
+          700: '#1C5BC7',  // 더 진함 (텍스트 on light, 액티브)
+          800: '#0F3D8F',  // 매우 진함
+          900: '#072554',  // 가장 진함 (그라디언트 끝)
+        },
       },
       fontFamily: {
         sans: ['Pretendard Variable', 'Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'sans-serif'],

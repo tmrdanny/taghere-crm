@@ -104,7 +104,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
               onClick={() => toggleMenu(item.href)}
               className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 active
-                  ? 'bg-indigo-50 text-indigo-700'
+                  ? 'bg-franchise-50 text-franchise-700'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
@@ -128,7 +128,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
                       onClick={isMobile ? closeMobileMenu : undefined}
                       className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         childActive
-                          ? 'bg-indigo-50 text-indigo-700'
+                          ? 'bg-franchise-50 text-franchise-700'
                           : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
                       }`}
                     >
@@ -150,7 +150,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
           onClick={isMobile ? closeMobileMenu : undefined}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
             active
-              ? 'bg-indigo-50 text-indigo-700'
+              ? 'bg-franchise-50 text-franchise-700'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
@@ -168,7 +168,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
         <div className="flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold text-slate-900">TagHere CRM</span>
-            <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-medium rounded">
+            <span className="px-1.5 py-0.5 bg-franchise-100 text-franchise-700 text-[10px] font-medium rounded">
               Franchise
             </span>
           </div>
@@ -200,7 +200,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
         <div className="flex items-center justify-between h-14 px-4 border-b border-slate-200">
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold text-slate-900">TagHere CRM</span>
-            <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-medium rounded">
+            <span className="px-1.5 py-0.5 bg-franchise-100 text-franchise-700 text-[10px] font-medium rounded">
               Franchise
             </span>
           </div>
@@ -230,8 +230,8 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
         <div className="p-4 border-t border-slate-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center">
-                <span className="text-sm font-medium text-indigo-700">
+              <div className="w-9 h-9 rounded-full bg-franchise-100 flex items-center justify-center">
+                <span className="text-sm font-medium text-franchise-700">
                   {user.name?.charAt(0) || 'U'}
                 </span>
               </div>
@@ -240,7 +240,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
                   {user.name}
                 </p>
                 <div className="flex items-center gap-1.5">
-                  <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-medium rounded">
+                  <span className="px-1.5 py-0.5 bg-franchise-100 text-franchise-700 text-[10px] font-medium rounded">
                     HQ
                   </span>
                 </div>
@@ -262,7 +262,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
         {/* Logo */}
         <div className="flex items-center gap-2 h-16 px-5 border-b border-slate-200">
           <span className="text-lg font-bold text-slate-900">TagHere CRM</span>
-          <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-medium rounded">
+          <span className="px-1.5 py-0.5 bg-franchise-100 text-franchise-700 text-[10px] font-medium rounded">
             Franchise
           </span>
         </div>
@@ -284,8 +284,8 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
         <div className="p-4 border-t border-slate-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center">
-                <span className="text-sm font-medium text-indigo-700">
+              <div className="w-9 h-9 rounded-full bg-franchise-100 flex items-center justify-center">
+                <span className="text-sm font-medium text-franchise-700">
                   {user.name?.charAt(0) || 'U'}
                 </span>
               </div>
@@ -294,7 +294,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
                   {user.name}
                 </p>
                 <div className="flex items-center gap-1.5">
-                  <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-medium rounded">
+                  <span className="px-1.5 py-0.5 bg-franchise-100 text-franchise-700 text-[10px] font-medium rounded">
                     HQ
                   </span>
                 </div>

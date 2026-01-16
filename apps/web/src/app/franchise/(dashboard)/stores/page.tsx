@@ -298,7 +298,7 @@ export default function FranchiseStoresPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="가맹점명 또는 지역으로 검색"
-                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent"
               />
             </div>
 
@@ -329,7 +329,7 @@ export default function FranchiseStoresPage() {
                         }}
                         className={cn(
                           'w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors',
-                          regionFilter === option.value ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'
+                          regionFilter === option.value ? 'bg-franchise-50 text-franchise-700' : 'text-slate-700'
                         )}
                       >
                         {option.label}
@@ -367,7 +367,7 @@ export default function FranchiseStoresPage() {
                         }}
                         className={cn(
                           'w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors',
-                          categoryFilter === option.value ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'
+                          categoryFilter === option.value ? 'bg-franchise-50 text-franchise-700' : 'text-slate-700'
                         )}
                       >
                         {option.label}
@@ -405,7 +405,7 @@ export default function FranchiseStoresPage() {
                         }}
                         className={cn(
                           'w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors',
-                          statusFilter === option.value ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'
+                          statusFilter === option.value ? 'bg-franchise-50 text-franchise-700' : 'text-slate-700'
                         )}
                       >
                         {option.label}
@@ -465,8 +465,8 @@ export default function FranchiseStoresPage() {
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-                            <Store className="w-4 h-4 text-indigo-600" />
+                          <div className="w-8 h-8 bg-franchise-100 rounded-lg flex items-center justify-center">
+                            <Store className="w-4 h-4 text-franchise-600" />
                           </div>
                           <span className="text-sm font-medium text-slate-900">{store.name}</span>
                         </div>
@@ -551,7 +551,7 @@ export default function FranchiseStoresPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-white border border-slate-200 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <Users className="w-4 h-4 text-indigo-600" />
+                        <Users className="w-4 h-4 text-franchise-600" />
                         <span className="text-xs text-slate-500">총 고객 수</span>
                       </div>
                       <p className="text-xl font-bold text-slate-900">{selectedStore.customerCount.toLocaleString()}</p>

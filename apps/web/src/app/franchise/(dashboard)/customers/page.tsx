@@ -410,7 +410,7 @@ export default function FranchiseCustomersPage() {
                 className={cn(
                   'px-3 py-1.5 text-xs font-medium rounded-full border transition-colors',
                   Array.isArray(condition.value) && condition.value.includes(region)
-                    ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                    ? 'bg-franchise-100 border-franchise-300 text-franchise-700'
                     : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                 )}
               >
@@ -435,7 +435,7 @@ export default function FranchiseCustomersPage() {
                 className={cn(
                   'px-3 py-1.5 text-xs font-medium rounded-full border transition-colors',
                   Array.isArray(condition.value) && condition.value.includes(age)
-                    ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                    ? 'bg-franchise-100 border-franchise-300 text-franchise-700'
                     : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                 )}
               >
@@ -454,7 +454,7 @@ export default function FranchiseCustomersPage() {
                 className={cn(
                   'px-4 py-2 text-sm font-medium rounded-lg border transition-colors',
                   condition.value === option.value
-                    ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                    ? 'bg-franchise-100 border-franchise-300 text-franchise-700'
                     : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                 )}
               >
@@ -473,7 +473,7 @@ export default function FranchiseCustomersPage() {
                 className={cn(
                   'px-4 py-2 text-sm font-medium rounded-lg border transition-colors',
                   condition.value === option.value
-                    ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                    ? 'bg-franchise-100 border-franchise-300 text-franchise-700'
                     : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                 )}
               >
@@ -492,7 +492,7 @@ export default function FranchiseCustomersPage() {
                 className={cn(
                   'px-4 py-2 text-sm font-medium rounded-lg border transition-colors',
                   condition.value === option.value
-                    ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                    ? 'bg-franchise-100 border-franchise-300 text-franchise-700'
                     : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                 )}
               >
@@ -530,14 +530,14 @@ export default function FranchiseCustomersPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="이름, 연락처, 지역으로 검색"
-                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent"
               />
             </div>
 
             {/* Segment Builder Button */}
             <button
               onClick={() => setIsSegmentModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-franchise-500 text-white rounded-lg text-sm font-medium hover:bg-franchise-700 transition-colors"
             >
               <Filter className="w-4 h-4" />
               세그먼트 빌더
@@ -651,15 +651,15 @@ export default function FranchiseCustomersPage() {
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-6">
               {/* Estimated Target Count */}
-              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-6">
+              <div className="bg-franchise-50 border border-franchise-200 rounded-xl p-4 mb-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                      <Users className="w-5 h-5 text-indigo-600" />
+                    <div className="w-10 h-10 bg-franchise-100 rounded-lg flex items-center justify-center">
+                      <Users className="w-5 h-5 text-franchise-600" />
                     </div>
                     <div>
-                      <p className="text-sm text-indigo-600">예상 타겟 수</p>
-                      <p className="text-2xl font-bold text-indigo-900">
+                      <p className="text-sm text-franchise-600">예상 타겟 수</p>
+                      <p className="text-2xl font-bold text-franchise-900">
                         {estimatedTargetCount.toLocaleString()}명
                       </p>
                     </div>
@@ -669,7 +669,7 @@ export default function FranchiseCustomersPage() {
                       setSegmentGroups([]);
                       setGroupLogic('AND');
                     }}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm text-franchise-600 hover:bg-franchise-100 rounded-lg transition-colors"
                   >
                     <RefreshCw className="w-4 h-4" />
                     초기화
@@ -753,7 +753,7 @@ export default function FranchiseCustomersPage() {
                         {/* Add Condition Button */}
                         <button
                           onClick={() => addCondition(group.id)}
-                          className="mt-3 flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 transition-colors"
+                          className="mt-3 flex items-center gap-1 text-sm text-franchise-600 hover:text-franchise-700 transition-colors"
                         >
                           <Plus className="w-4 h-4" />
                           조건 추가
@@ -767,7 +767,7 @@ export default function FranchiseCustomersPage() {
               {/* Add Group Button */}
               <button
                 onClick={addSegmentGroup}
-                className="mt-4 w-full py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm text-slate-500 hover:border-indigo-300 hover:text-indigo-600 transition-colors flex items-center justify-center gap-2"
+                className="mt-4 w-full py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm text-slate-500 hover:border-franchise-300 hover:text-franchise-600 transition-colors flex items-center justify-center gap-2"
               >
                 <Plus className="w-4 h-4" />
                 조건 그룹 추가
@@ -784,7 +784,7 @@ export default function FranchiseCustomersPage() {
               </button>
               <button
                 onClick={() => setIsSegmentModalOpen(false)}
-                className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+                className="px-4 py-2 bg-franchise-500 text-white text-sm font-medium rounded-lg hover:bg-franchise-700 transition-colors"
               >
                 적용하기
               </button>

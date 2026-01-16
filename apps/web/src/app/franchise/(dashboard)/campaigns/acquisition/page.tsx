@@ -306,7 +306,7 @@ export default function AcquisitionCampaignsPage() {
                   <div className={cn(
                     'p-4 rounded-xl border-2 transition-all',
                     selectedRegions.length > 0
-                      ? 'border-indigo-500 bg-indigo-50'
+                      ? 'border-franchise-500 bg-franchise-50'
                       : 'border-slate-200 bg-white'
                   )}>
                     <p className="text-xs text-slate-500 mb-1">선택 지역</p>
@@ -316,7 +316,7 @@ export default function AcquisitionCampaignsPage() {
                   </div>
                   <div className="p-4 rounded-xl border border-slate-200 bg-white">
                     <p className="text-xs text-slate-500 mb-1">발송 예정</p>
-                    <p className="text-xl font-bold text-indigo-600">{sendCount.toLocaleString()}</p>
+                    <p className="text-xl font-bold text-franchise-600">{sendCount.toLocaleString()}</p>
                   </div>
                 </div>
               </div>
@@ -343,12 +343,12 @@ export default function AcquisitionCampaignsPage() {
                         {selectedRegions.map((region) => (
                           <span
                             key={region}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-franchise-100 text-franchise-700 rounded-full text-sm font-medium"
                           >
                             {region}
                             <button
                               onClick={() => removeRegion(region)}
-                              className="hover:bg-indigo-200 rounded-full p-0.5 transition-colors"
+                              className="hover:bg-franchise-200 rounded-full p-0.5 transition-colors"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
@@ -370,7 +370,7 @@ export default function AcquisitionCampaignsPage() {
                           }}
                           onFocus={() => setShowRegionDropdown(true)}
                           placeholder="지역 검색 (예: 서울, 경기, 부산...)"
-                          className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent"
                         />
                       </div>
 
@@ -390,13 +390,13 @@ export default function AcquisitionCampaignsPage() {
                                     className={cn(
                                       'w-full px-4 py-2.5 text-left text-sm flex items-center justify-between transition-colors',
                                       isSelected
-                                        ? 'bg-indigo-50 text-indigo-600'
+                                        ? 'bg-franchise-50 text-franchise-600'
                                         : 'hover:bg-slate-50 text-slate-700'
                                     )}
                                   >
                                     <span className="font-medium">{region}</span>
                                     {isSelected ? (
-                                      <span className="text-xs text-indigo-500">선택됨</span>
+                                      <span className="text-xs text-franchise-500">선택됨</span>
                                     ) : (
                                       <Plus className="w-4 h-4 text-slate-400" />
                                     )}
@@ -499,7 +499,7 @@ export default function AcquisitionCampaignsPage() {
                                         setShowSigunguDropdown(true);
                                       }}
                                       placeholder={`${sido} 시/군/구 검색...`}
-                                      className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                      className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent"
                                     />
                                   </div>
 
@@ -646,8 +646,8 @@ export default function AcquisitionCampaignsPage() {
                       className={cn(
                         'px-4 py-2 rounded-full text-sm font-medium transition-colors border',
                         gender === option.value
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300'
+                          ? 'bg-franchise-500 text-white border-franchise-600'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-franchise-300'
                       )}
                     >
                       {option.label}
@@ -662,8 +662,8 @@ export default function AcquisitionCampaignsPage() {
                       className={cn(
                         'px-4 py-2 rounded-full text-sm font-medium transition-colors border',
                         selectedAgeGroups.includes(option.value)
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300'
+                          ? 'bg-franchise-500 text-white border-franchise-600'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-franchise-300'
                       )}
                     >
                       {option.label}
@@ -685,7 +685,7 @@ export default function AcquisitionCampaignsPage() {
                     max={availableCount || 10000}
                     value={sendCount}
                     onChange={(e) => setSendCount(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="w-32 border border-slate-200 rounded-lg px-3 py-2 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-32 border border-slate-200 rounded-lg px-3 py-2 text-right focus:outline-none focus:ring-2 focus:ring-franchise-600"
                   />
                   <span className="text-slate-600">명</span>
                 </div>
@@ -706,7 +706,7 @@ export default function AcquisitionCampaignsPage() {
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="메시지 내용을 입력하세요..."
                   rows={6}
-                  className="w-full border border-slate-200 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                  className="w-full border border-slate-200 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent resize-none"
                 />
                 <div className="flex justify-between text-xs text-slate-500 mt-2">
                   {activeTab === 'sms' ? (
@@ -730,7 +730,7 @@ export default function AcquisitionCampaignsPage() {
                     <p className="text-sm text-slate-600">예상 비용</p>
                     <p className="text-xl font-bold text-slate-900">
                       {sendCount.toLocaleString()}명 x {costPerMessage}원 ={' '}
-                      <span className="text-indigo-600">{estimatedCost.toLocaleString()}원</span>
+                      <span className="text-franchise-600">{estimatedCost.toLocaleString()}원</span>
                     </p>
                   </div>
                   <div className="text-right">
@@ -781,7 +781,7 @@ export default function AcquisitionCampaignsPage() {
                   className={cn(
                     'w-full py-3.5 rounded-xl text-white font-semibold flex items-center justify-center gap-2 transition-colors',
                     canSend
-                      ? 'bg-indigo-600 hover:bg-indigo-700'
+                      ? 'bg-franchise-500 hover:bg-franchise-700'
                       : 'bg-slate-300 cursor-not-allowed'
                   )}
                 >

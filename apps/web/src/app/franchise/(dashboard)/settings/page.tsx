@@ -151,8 +151,8 @@ export default function FranchiseSettingsPage() {
               <div className="space-y-6">
                 {/* Brand Name */}
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Building2 className="w-6 h-6 text-indigo-600" />
+                  <div className="w-12 h-12 bg-franchise-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Building2 className="w-6 h-6 text-franchise-600" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-500">브랜드명</p>
@@ -233,11 +233,11 @@ export default function FranchiseSettingsPage() {
           <div className="p-6">
             <form onSubmit={handleConnectStore} className="space-y-5">
               {/* Info Banner */}
-              <div className="flex items-start gap-3 p-4 bg-indigo-50 border border-indigo-100 rounded-lg">
-                <Link2 className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 p-4 bg-franchise-50 border border-franchise-100 rounded-lg">
+                <Link2 className="w-5 h-5 text-franchise-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-indigo-900">가맹점 연동 안내</p>
-                  <p className="text-sm text-indigo-700 mt-1">
+                  <p className="text-sm font-medium text-franchise-900">가맹점 연동 안내</p>
+                  <p className="text-sm text-franchise-700 mt-1">
                     가맹점 사장님이 이미 태그히어 CRM에 가입되어 있어야 합니다.
                     가맹점의 로그인 정보를 입력하면 해당 매장이 본부에 연동됩니다.
                   </p>
@@ -259,7 +259,7 @@ export default function FranchiseSettingsPage() {
                     value={connectEmail}
                     onChange={(e) => setConnectEmail(e.target.value)}
                     required
-                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
@@ -281,7 +281,7 @@ export default function FranchiseSettingsPage() {
                     value={connectPassword}
                     onChange={(e) => setConnectPassword(e.target.value)}
                     required
-                    className="w-full pl-12 pr-12 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full pl-12 pr-12 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
                   />
                   <button
                     type="button"
@@ -302,7 +302,7 @@ export default function FranchiseSettingsPage() {
                 <button
                   type="submit"
                   disabled={isConnecting}
-                  className="inline-flex items-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 px-5 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 bg-franchise-500 text-white hover:bg-franchise-700 px-5 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isConnecting ? (
                     <>

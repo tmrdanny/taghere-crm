@@ -52,7 +52,7 @@ export default function FranchiseLoginPage() {
       {ToastComponent}
 
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 p-12 flex-col justify-between">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-franchise-500 via-franchise-700 to-franchise-900 p-12 flex-col justify-between">
         <div>
           {/* Logo */}
           <div className="flex items-center gap-3">
@@ -68,12 +68,12 @@ export default function FranchiseLoginPage() {
           <h1 className="text-4xl font-bold text-white leading-tight">
             프랜차이즈 통합 관리 플랫폼
           </h1>
-          <p className="text-lg text-indigo-100 leading-relaxed">
+          <p className="text-lg text-franchise-100 leading-relaxed">
             모든 가맹점의 고객 데이터와 마케팅을 한 곳에서 관리하세요.
             데이터 기반의 스마트한 의사결정을 지원합니다.
           </p>
           <div className="flex flex-col gap-4 pt-4">
-            <div className="flex items-center gap-3 text-indigo-100">
+            <div className="flex items-center gap-3 text-franchise-100">
               <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -81,7 +81,7 @@ export default function FranchiseLoginPage() {
               </div>
               <span>실시간 가맹점 현황 모니터링</span>
             </div>
-            <div className="flex items-center gap-3 text-indigo-100">
+            <div className="flex items-center gap-3 text-franchise-100">
               <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -89,7 +89,7 @@ export default function FranchiseLoginPage() {
               </div>
               <span>통합 고객 데이터베이스</span>
             </div>
-            <div className="flex items-center gap-3 text-indigo-100">
+            <div className="flex items-center gap-3 text-franchise-100">
               <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
@@ -101,7 +101,7 @@ export default function FranchiseLoginPage() {
         </div>
 
         {/* Footer */}
-        <div className="text-indigo-200 text-sm">
+        <div className="text-franchise-200 text-sm">
           &copy; 2024 TagHere. All rights reserved.
         </div>
       </div>
@@ -112,7 +112,7 @@ export default function FranchiseLoginPage() {
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
             <span className="text-2xl font-bold text-slate-900">TagHere CRM</span>
-            <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-md">
+            <span className="px-2 py-1 bg-franchise-100 text-franchise-700 text-xs font-medium rounded-md">
               Franchise
             </span>
           </div>
@@ -142,7 +142,7 @@ export default function FranchiseLoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
@@ -162,7 +162,7 @@ export default function FranchiseLoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="w-full pl-12 pr-12 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full pl-12 pr-12 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
                   />
                   <button
                     type="button"
@@ -182,7 +182,7 @@ export default function FranchiseLoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full bg-franchise-500 text-white hover:bg-franchise-700 px-4 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <>
@@ -201,7 +201,7 @@ export default function FranchiseLoginPage() {
                 아직 계정이 없으신가요?{' '}
                 <Link
                   href="/franchise/register"
-                  className="text-indigo-600 hover:text-indigo-700 font-medium hover:underline"
+                  className="text-franchise-600 hover:text-franchise-700 font-medium hover:underline"
                 >
                   회원가입
                 </Link>

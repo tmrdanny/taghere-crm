@@ -68,7 +68,7 @@ export default function FranchiseDashboardLayout({
         <div className="text-center">
           {/* Loading Skeleton */}
           <div className="space-y-4">
-            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+            <div className="w-12 h-12 border-4 border-franchise-600 border-t-transparent rounded-full animate-spin mx-auto" />
             <div className="space-y-2">
               <div className="h-4 w-32 bg-slate-200 rounded animate-pulse mx-auto" />
               <div className="h-3 w-24 bg-slate-100 rounded animate-pulse mx-auto" />

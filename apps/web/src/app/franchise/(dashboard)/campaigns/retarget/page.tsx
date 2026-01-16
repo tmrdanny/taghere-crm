@@ -304,7 +304,7 @@ export default function RetargetCampaignsPage() {
       <p className="text-sm text-slate-500 mb-4">새 캠페인을 생성해보세요</p>
       <button
         onClick={() => setIsNewCampaignModalOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+        className="flex items-center gap-2 px-4 py-2 bg-franchise-500 text-white rounded-lg text-sm font-medium hover:bg-franchise-700 transition-colors"
       >
         <Plus className="w-4 h-4" />
         새 캠페인
@@ -325,7 +325,7 @@ export default function RetargetCampaignsPage() {
           </div>
           <button
             onClick={() => setIsNewCampaignModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-franchise-500 text-white rounded-lg text-sm font-medium hover:bg-franchise-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
             새 캠페인
@@ -343,7 +343,7 @@ export default function RetargetCampaignsPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="캠페인명으로 검색"
-                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent"
               />
             </div>
 
@@ -374,7 +374,7 @@ export default function RetargetCampaignsPage() {
                         }}
                         className={cn(
                           'w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors',
-                          selectedStore === store.id ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'
+                          selectedStore === store.id ? 'bg-franchise-50 text-franchise-700' : 'text-slate-700'
                         )}
                       >
                         {store.name}
@@ -412,7 +412,7 @@ export default function RetargetCampaignsPage() {
                         }}
                         className={cn(
                           'w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors',
-                          channelFilter === option.value ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'
+                          channelFilter === option.value ? 'bg-franchise-50 text-franchise-700' : 'text-slate-700'
                         )}
                       >
                         {option.label}
@@ -450,7 +450,7 @@ export default function RetargetCampaignsPage() {
                         }}
                         className={cn(
                           'w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors',
-                          statusFilter === option.value ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'
+                          statusFilter === option.value ? 'bg-franchise-50 text-franchise-700' : 'text-slate-700'
                         )}
                       >
                         {option.label}
@@ -559,7 +559,7 @@ export default function RetargetCampaignsPage() {
                   value={newCampaign.name}
                   onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })}
                   placeholder="예: 1월 신규 고객 환영 메시지"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent"
                 />
               </div>
 
@@ -574,7 +574,7 @@ export default function RetargetCampaignsPage() {
                     className={cn(
                       'flex-1 py-3 px-4 rounded-xl border-2 text-sm font-medium transition-colors',
                       newCampaign.channel === 'SMS'
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        ? 'border-franchise-500 bg-franchise-50 text-franchise-700'
                         : 'border-slate-200 text-slate-600 hover:border-slate-300'
                     )}
                   >
@@ -589,7 +589,7 @@ export default function RetargetCampaignsPage() {
                     className={cn(
                       'flex-1 py-3 px-4 rounded-xl border-2 text-sm font-medium transition-colors',
                       newCampaign.channel === '카카오톡'
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        ? 'border-franchise-500 bg-franchise-50 text-franchise-700'
                         : 'border-slate-200 text-slate-600 hover:border-slate-300'
                     )}
                   >
@@ -610,7 +610,7 @@ export default function RetargetCampaignsPage() {
                 <select
                   value={newCampaign.store}
                   onChange={(e) => setNewCampaign({ ...newCampaign, store: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent"
                 >
                   {stores.map((store) => (
                     <option key={store.id} value={store.id}>
@@ -631,7 +631,7 @@ export default function RetargetCampaignsPage() {
                     className={cn(
                       'py-2 px-4 rounded-lg border text-sm font-medium transition-colors',
                       newCampaign.targetType === 'all'
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        ? 'border-franchise-500 bg-franchise-50 text-franchise-700'
                         : 'border-slate-200 text-slate-600 hover:border-slate-300'
                     )}
                   >
@@ -642,7 +642,7 @@ export default function RetargetCampaignsPage() {
                     className={cn(
                       'py-2 px-4 rounded-lg border text-sm font-medium transition-colors',
                       newCampaign.targetType === 'revisit'
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        ? 'border-franchise-500 bg-franchise-50 text-franchise-700'
                         : 'border-slate-200 text-slate-600 hover:border-slate-300'
                     )}
                   >
@@ -653,7 +653,7 @@ export default function RetargetCampaignsPage() {
                     className={cn(
                       'py-2 px-4 rounded-lg border text-sm font-medium transition-colors',
                       newCampaign.targetType === 'vip'
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        ? 'border-franchise-500 bg-franchise-50 text-franchise-700'
                         : 'border-slate-200 text-slate-600 hover:border-slate-300'
                     )}
                   >
@@ -672,7 +672,7 @@ export default function RetargetCampaignsPage() {
                   onChange={(e) => setNewCampaign({ ...newCampaign, message: e.target.value })}
                   placeholder="메시지 내용을 입력하세요..."
                   rows={5}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent resize-none"
                 />
                 <p className="text-xs text-slate-500 mt-1">{newCampaign.message.length}자</p>
               </div>
@@ -686,7 +686,7 @@ export default function RetargetCampaignsPage() {
                   type="datetime-local"
                   value={newCampaign.scheduledAt}
                   onChange={(e) => setNewCampaign({ ...newCampaign, scheduledAt: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent"
                 />
                 <p className="text-xs text-slate-500 mt-1">비워두면 즉시 발송됩니다</p>
               </div>
@@ -707,7 +707,7 @@ export default function RetargetCampaignsPage() {
                   'flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors',
                   !newCampaign.name || !newCampaign.message || isSubmitting
                     ? 'bg-slate-300 cursor-not-allowed'
-                    : 'bg-indigo-600 hover:bg-indigo-700'
+                    : 'bg-franchise-500 hover:bg-franchise-700'
                 )}
               >
                 {isSubmitting ? (

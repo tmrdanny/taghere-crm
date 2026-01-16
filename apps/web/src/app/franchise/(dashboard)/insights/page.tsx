@@ -149,7 +149,7 @@ export default function FranchiseInsightsPage() {
             <span className="text-sm text-slate-600 w-20">{item.age}</span>
             <div className="flex-1 h-8 bg-slate-100 rounded-lg overflow-hidden">
               <div
-                className="h-full bg-indigo-500 rounded-lg transition-all duration-500"
+                className="h-full bg-franchise-500 rounded-lg transition-all duration-500"
                 style={{ width: `${(item.count / maxCount) * 100}%` }}
               />
             </div>
@@ -174,9 +174,9 @@ export default function FranchiseInsightsPage() {
               <div
                 className={cn(
                   'h-full rounded-full transition-all duration-500',
-                  index === 0 ? 'bg-indigo-500' :
-                    index === 1 ? 'bg-indigo-400' :
-                      index === 2 ? 'bg-indigo-300' :
+                  index === 0 ? 'bg-franchise-500' :
+                    index === 1 ? 'bg-franchise-400' :
+                      index === 2 ? 'bg-franchise-300' :
                         'bg-slate-300'
                 )}
                 style={{ width: `${item.percentage}%` }}
@@ -211,7 +211,7 @@ export default function FranchiseInsightsPage() {
         </div>
         <div className="space-y-3">
           <div className="flex items-center gap-3">
-            <div className="w-4 h-4 rounded-full bg-indigo-500" />
+            <div className="w-4 h-4 rounded-full bg-franchise-500" />
             <span className="text-sm text-slate-600">남성</span>
             <span className="text-sm font-medium text-slate-900">{male.toLocaleString()}명 ({malePercentage}%)</span>
           </div>
@@ -233,7 +233,7 @@ export default function FranchiseInsightsPage() {
         {insights.monthlyTrend.map((item) => (
           <div key={item.month} className="flex-1 flex flex-col items-center gap-1">
             <div
-              className="w-full bg-indigo-500 rounded-t-sm transition-all duration-500"
+              className="w-full bg-franchise-500 rounded-t-sm transition-all duration-500"
               style={{ height: `${(item.customers / maxCustomers) * 100}%` }}
             />
             <span className="text-[10px] text-slate-500">{item.month}</span>
@@ -293,7 +293,7 @@ export default function FranchiseInsightsPage() {
                         }}
                         className={cn(
                           'w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors',
-                          selectedPeriod === option.value ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'
+                          selectedPeriod === option.value ? 'bg-franchise-50 text-franchise-700' : 'text-slate-700'
                         )}
                       >
                         {option.label}
@@ -324,8 +324,8 @@ export default function FranchiseInsightsPage() {
               {/* Retention Cards */}
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 bg-indigo-100 rounded-lg">
-                    <TrendingUp className="w-5 h-5 text-indigo-600" />
+                  <div className="p-2 bg-franchise-100 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-franchise-600" />
                   </div>
                   <span className="text-sm font-medium text-slate-700">7일 재방문율</span>
                 </div>
@@ -361,7 +361,7 @@ export default function FranchiseInsightsPage() {
               {/* Age Distribution */}
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <BarChart3 className="w-5 h-5 text-indigo-600" />
+                  <BarChart3 className="w-5 h-5 text-franchise-600" />
                   <h3 className="text-lg font-semibold text-slate-900">연령대별 고객 분포</h3>
                 </div>
                 <p className="text-sm text-slate-500 mb-4">전체 고객의 연령대별 분포를 보여줍니다</p>
