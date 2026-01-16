@@ -645,114 +645,125 @@ function TaghereEnrollContent() {
   };
 
   return (
-    <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
-      <div className="w-full max-w-[430px] h-full flex flex-col bg-white relative">
-        {/* 우측 상단 X 버튼 */}
-        <button
-          onClick={handleSkipEarn}
-          className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-neutral-600 transition-colors z-10"
-          aria-label="건너뛰기"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-
-        {/* Title - 상단 영역 (flex: 1) */}
-        <div className="flex-1 flex flex-col justify-end pb-4">
-          <div className="text-center">
-            <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
-              방금 전 주문으로 적립된
-              <br />
-              <span className="text-[#61EB49]">{formatNumber(orderInfo?.earnPoints || 0)}P</span>
-              <span> 받아가세요</span>
-            </p>
-            {orderInfo && orderInfo.resultPrice > 0 && (
-              <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">
-                주문 금액 {formatNumber(orderInfo.resultPrice)}원 x {orderInfo.ratePercent}% 적립
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Coin Image - 중앙 영역 (flex: 2) */}
-        <div className="flex-[2] flex items-center justify-center">
-          <CoinImage onClick={() => {
-            if (!isAgreed) {
-              setShowAgreementWarning(true);
-              return;
-            }
-            handleOpenGift();
-          }} isOpening={isOpening} />
-        </div>
-
-        {/* 하단 고정 영역 - 체크박스 + CTA */}
-        <div className="flex-[1.2] flex flex-col justify-end px-5 pb-8">
-          {/* 주문 접수 완료 안내 */}
-          <p className="text-center text-[13px] text-neutral-400 mb-3">주문이 접수되었어요</p>
-          {/* 동의 안내 영역 */}
-          <div
-            className={`rounded-[12px] mb-4 p-4 transition-colors ${
-              showAgreementWarning && !isAgreed ? 'bg-[#fff0f3] border border-[#ffb3c1]' : 'bg-[#f8f9fa]'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-start gap-1">
-                <p className="text-[14px] font-medium leading-[140%] text-[#55595e]">
-                  포인트 적립 및 혜택 수신을 위한 동의가 필요해요
-                </p>
-                <span className="text-[#ff6b6b] text-[14px]">*</span>
-              </div>
-              <a
-                href="https://tmr-founders.notion.site/2492217234e380e1abbbe6867fc96aea?source=copy_link"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-shrink-0 p-1"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <svg className="w-5 h-5 text-[#b1b5b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </a>
-            </div>
+    <>
+      {successData ? (
+        // 포인트 적립 완료 → 피드백 화면만 표시
+        <SuccessPopup
+          successData={successData}
+          onClose={handleCloseSuccessPopup}
+        />
+      ) : (
+        // 포인트 적립 전 → 기본 화면만 표시
+        <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
+          <div className="w-full max-w-[430px] h-full flex flex-col bg-white relative">
+            {/* 우측 상단 X 버튼 */}
             <button
-              type="button"
-              onClick={() => {
-                setIsAgreed(!isAgreed);
-                setShowAgreementWarning(false);
-              }}
-              className="flex items-center gap-2.5"
+              onClick={handleSkipEarn}
+              className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-neutral-600 transition-colors z-10"
+              aria-label="건너뛰기"
             >
-              <div className={`w-[20px] h-[20px] border-2 rounded flex items-center justify-center transition-colors flex-shrink-0 ${
-                isAgreed ? 'bg-[#FFD541] border-[#FFD541]' : showAgreementWarning && !isAgreed ? 'border-[#ffb3c1] bg-white' : 'border-[#d1d5db] bg-white'
-              }`}>
-                {isAgreed && (
-                  <svg className="w-3 h-3 text-[#1d2022]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                  </svg>
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Title - 상단 영역 (flex: 1) */}
+            <div className="flex-1 flex flex-col justify-end pb-4">
+              <div className="text-center">
+                <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
+                  방금 전 주문으로 적립된
+                  <br />
+                  <span className="text-[#61EB49]">{formatNumber(orderInfo?.earnPoints || 0)}P</span>
+                  <span> 받아가세요</span>
+                </p>
+                {orderInfo && orderInfo.resultPrice > 0 && (
+                  <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">
+                    주문 금액 {formatNumber(orderInfo.resultPrice)}원 x {orderInfo.ratePercent}% 적립
+                  </p>
                 )}
               </div>
-              <span className={`text-[14px] ${showAgreementWarning && !isAgreed ? 'text-[#ff6b6b]' : 'text-[#55595e]'}`}>
-                네, 동의합니다
-              </span>
-            </button>
-          </div>
+            </div>
 
-          <button
-            onClick={() => {
-              if (!isAgreed) {
-                setShowAgreementWarning(true);
-                return;
-              }
-              handleOpenGift();
-            }}
-            disabled={isOpening}
-            className="w-full py-4 font-semibold text-base rounded-[10px] transition-colors bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022]"
-          >
-            {isOpening ? '적립 중...' : '포인트 적립하기'}
-          </button>
+            {/* Coin Image - 중앙 영역 (flex: 2) */}
+            <div className="flex-[2] flex items-center justify-center">
+              <CoinImage onClick={() => {
+                if (!isAgreed) {
+                  setShowAgreementWarning(true);
+                  return;
+                }
+                handleOpenGift();
+              }} isOpening={isOpening} />
+            </div>
+
+            {/* 하단 고정 영역 - 체크박스 + CTA */}
+            <div className="flex-[1.2] flex flex-col justify-end px-5 pb-8">
+              {/* 주문 접수 완료 안내 */}
+              <p className="text-center text-[13px] text-neutral-400 mb-3">주문이 접수되었어요</p>
+              {/* 동의 안내 영역 */}
+              <div
+                className={`rounded-[12px] mb-4 p-4 transition-colors ${
+                  showAgreementWarning && !isAgreed ? 'bg-[#fff0f3] border border-[#ffb3c1]' : 'bg-[#f8f9fa]'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-start gap-1">
+                    <p className="text-[14px] font-medium leading-[140%] text-[#55595e]">
+                      포인트 적립 및 혜택 수신을 위한 동의가 필요해요
+                    </p>
+                    <span className="text-[#ff6b6b] text-[14px]">*</span>
+                  </div>
+                  <a
+                    href="https://tmr-founders.notion.site/2492217234e380e1abbbe6867fc96aea?source=copy_link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 p-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <svg className="w-5 h-5 text-[#b1b5b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </a>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAgreed(!isAgreed);
+                    setShowAgreementWarning(false);
+                  }}
+                  className="flex items-center gap-2.5"
+                >
+                  <div className={`w-[20px] h-[20px] border-2 rounded flex items-center justify-center transition-colors flex-shrink-0 ${
+                    isAgreed ? 'bg-[#FFD541] border-[#FFD541]' : showAgreementWarning && !isAgreed ? 'border-[#ffb3c1] bg-white' : 'border-[#d1d5db] bg-white'
+                  }`}>
+                    {isAgreed && (
+                      <svg className="w-3 h-3 text-[#1d2022]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className={`text-[14px] ${showAgreementWarning && !isAgreed ? 'text-[#ff6b6b]' : 'text-[#55595e]'}`}>
+                    네, 동의합니다
+                  </span>
+                </button>
+              </div>
+
+              <button
+                onClick={() => {
+                  if (!isAgreed) {
+                    setShowAgreementWarning(true);
+                    return;
+                  }
+                  handleOpenGift();
+                }}
+                disabled={isOpening}
+                className="w-full py-4 font-semibold text-base rounded-[10px] transition-colors bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022]"
+              >
+                {isOpening ? '적립 중...' : '포인트 적립하기'}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Already Participated Popup */}
       {showAlreadyParticipated && (
@@ -781,14 +792,6 @@ function TaghereEnrollContent() {
         </div>
       )}
 
-      {/* Success Popup with Feedback */}
-      {successData && (
-        <SuccessPopup
-          successData={successData}
-          onClose={handleCloseSuccessPopup}
-        />
-      )}
-
       <style jsx global>{`
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-jp.min.css');
 
@@ -796,7 +799,7 @@ function TaghereEnrollContent() {
           font-family: 'Pretendard JP Variable', 'Pretendard JP', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
         }
       `}</style>
-    </div>
+    </>
   );
 }
 
