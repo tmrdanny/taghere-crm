@@ -220,7 +220,7 @@ function SuccessPopup({
   successData: SuccessData;
   onClose: () => void;
 }) {
-  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackText, setFeedbackText] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
