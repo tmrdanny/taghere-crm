@@ -224,6 +224,7 @@ function SuccessPopup({
   const [feedbackText, setFeedbackText] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   const toggleCategory = (categoryValue: string) => {
     setSelectedCategories(prev => {
@@ -316,7 +317,7 @@ function SuccessPopup({
           </div>
 
           {/* Star Rating */}
-          <div className="mb-9">
+          <div className="mb-11">
             <StarRating rating={feedbackRating} onRatingChange={setFeedbackRating} />
           </div>
 
@@ -331,7 +332,7 @@ function SuccessPopup({
               </p>
 
               {/* 업종 선택 버튼 그리드 (3x3) */}
-              <div className="grid grid-cols-4 gap-2 mb-3">
+              <div className="grid grid-cols-4 gap-2 mb-2">
                 {/* "모든 업종" 버튼 */}
                 <button
                   type="button"
@@ -345,8 +346,11 @@ function SuccessPopup({
                   모든 업종
                 </button>
 
-                {/* 개별 카테고리 버튼들 */}
-                {CATEGORY_OPTIONS.map((category) => {
+                {/* 개별 카테고리 버튼들 - 조건부 표시 */}
+                {(showAllCategories
+                  ? CATEGORY_OPTIONS
+                  : CATEGORY_OPTIONS.slice(0, 4)
+                ).map((category) => {
                   const isSelected = selectedCategories.includes(category.value);
                   return (
                     <button
@@ -363,6 +367,17 @@ function SuccessPopup({
                     </button>
                   );
                 })}
+              </div>
+
+              {/* 더보기/접기 버튼 */}
+              <div className="text-center mb-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAllCategories(!showAllCategories)}
+                  className="text-[13px] text-neutral-500 hover:text-neutral-700 transition-colors"
+                >
+                  {showAllCategories ? '접기 ▲' : '더보기 ▼'}
+                </button>
               </div>
             </div>
           )}
