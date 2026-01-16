@@ -294,56 +294,58 @@ function SuccessPopup({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-[30px]">
-      <div className="bg-white rounded-2xl w-full max-w-[315px] shadow-xl overflow-hidden">
-        {/* Points Display */}
-        <div className="pt-8 pb-2 text-center">
-          <p className="text-[32px] font-bold text-[#61EB49]">
-            +{formatNumber(successData.points)}P
-          </p>
-        </div>
+    <div className="h-[100dvh] bg-white font-pretendard flex justify-center overflow-hidden">
+      <div className="w-full max-w-[430px] h-full flex flex-col">
+        {/* Full Page Content */}
+        <div className="flex-1 flex flex-col px-5 py-8">
+          {/* Points Display */}
+          <div className="text-center mb-6">
+            <p className="text-[48px] font-bold text-[#61EB49] leading-none">
+              +{formatNumber(successData.points)}P
+            </p>
+          </div>
 
-        {/* Feedback Form */}
-        <div className="px-5 pb-6">
-          <h2 className="text-lg font-bold text-neutral-900 text-center mb-1">
-            주머니에 쏙 넣어드렸어요!
-          </h2>
-          <p className="text-sm text-neutral-400 text-center mb-6">
-            소중한 의견은 큰 도움이 돼요
-          </p>
+          {/* Main Message */}
+          <div className="text-center mb-8">
+            <h2 className="text-[22px] font-bold text-neutral-900 mb-2">
+              주머니에 쏙 넣어드렸어요!
+            </h2>
+            <p className="text-[15px] text-neutral-400">
+              소중한 의견은 큰 도움이 돼요
+            </p>
+          </div>
 
           {/* Star Rating */}
-          <div className="mb-4">
+          <div className="mb-8">
             <StarRating rating={feedbackRating} onRatingChange={setFeedbackRating} />
           </div>
 
           {/* Preferred Categories - 조건부 표시 */}
           {!successData.hasExistingPreferences && (
-            <div className="mb-4">
-              <p className="text-sm font-medium text-neutral-700 mb-2 text-center">
+            <div className="mb-6">
+              <p className="text-[16px] font-semibold text-neutral-900 mb-2 text-center">
                 어떤 업종을 선호하세요?
               </p>
-              <p className="text-xs text-neutral-500 mb-3 text-center">
+              <p className="text-[14px] text-neutral-500 mb-4 text-center">
                 선택한 업종의 쿠폰을 매 주 보내드릴게요
               </p>
 
-              {/* "모든 업종" 버튼 */}
-              <div className="flex justify-center mb-2">
+              {/* 업종 선택 버튼 그리드 (3x3) */}
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                {/* "모든 업종" 버튼 */}
                 <button
                   type="button"
                   onClick={() => toggleCategory(ALL_CATEGORIES_VALUE)}
-                  className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+                  className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
                     selectedCategories.includes(ALL_CATEGORIES_VALUE)
-                      ? 'bg-[#FFD541] text-neutral-900 border-2 border-[#FFD541]'
-                      : 'bg-white text-neutral-700 border-2 border-neutral-300 hover:border-[#FFD541]'
+                      ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
+                      : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
                   }`}
                 >
-                  ✨ 모든 업종 선택
+                  모든 업종
                 </button>
-              </div>
 
-              {/* 개별 카테고리 버튼들 */}
-              <div className="flex flex-wrap gap-2 justify-center">
+                {/* 개별 카테고리 버튼들 */}
                 {CATEGORY_OPTIONS.map((category) => {
                   const isSelected = selectedCategories.includes(category.value);
                   return (
@@ -351,13 +353,12 @@ function SuccessPopup({
                       key={category.value}
                       type="button"
                       onClick={() => toggleCategory(category.value)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                      className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
                         isSelected
-                          ? 'bg-[#FFD541] text-neutral-900 border border-[#FFD541]'
-                          : 'bg-neutral-100 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
+                          ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
+                          : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
                       }`}
                     >
-                      <span className="mr-1">{category.icon}</span>
                       {category.label}
                     </button>
                   );
@@ -367,28 +368,33 @@ function SuccessPopup({
           )}
 
           {/* Feedback Text */}
-          <textarea
-            value={feedbackText}
-            onChange={(e) => setFeedbackText(e.target.value)}
-            placeholder="의견을 남겨주세요 (선택)"
-            className="w-full h-[100px] px-4 py-3 bg-neutral-100 border-0 rounded-xl resize-none text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]"
-          />
+          <div className="mb-6">
+            <textarea
+              value={feedbackText}
+              onChange={(e) => setFeedbackText(e.target.value)}
+              placeholder="매장 경험에 대한 솔직한 피드백을 남겨주시면 감사하겠습니다."
+              className="w-full h-[120px] px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-lg resize-none text-[14px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+            />
+          </div>
+
+          {/* Spacer to push buttons to bottom */}
+          <div className="flex-1"></div>
 
           {/* Buttons */}
-          <div className="flex gap-2.5 mt-5">
+          <div className="flex gap-3">
             <button
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1 py-3.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-600 font-semibold text-sm rounded-xl transition-colors"
+              className="flex-1 py-4 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-semibold text-[15px] rounded-xl transition-colors"
             >
               다음에 쓸게요
             </button>
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex-1 py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-sm rounded-xl transition-colors"
+              className="flex-1 py-4 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-[15px] rounded-xl transition-colors"
             >
-              {isSubmitting ? '제출 중...' : '제출 할게요'}
+              {isSubmitting ? '제출 중...' : '제출할게요'}
             </button>
           </div>
         </div>
