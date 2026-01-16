@@ -507,8 +507,9 @@ export async function enqueuePointsEarnedAlimTalk(params: {
   // 포인트 사용 규칙 (없으면 기본 문구)
   const usageRule = store.pointUsageRule || '다음 방문 시 사용 가능';
 
-  // 리뷰 작성 안내 문구 (없으면 기본 문구)
-  const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
+  // 리뷰 작성 안내 문구 (포인트 적립 규칙 + 리뷰 안내)
+  const reviewBenefitText = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
+  const reviewGuide = `📌 ${store.pointUsageRule || '포인트 적립'}\n\n${reviewBenefitText}`;
 
   return enqueueAlimTalk({
     storeId: params.storeId,
