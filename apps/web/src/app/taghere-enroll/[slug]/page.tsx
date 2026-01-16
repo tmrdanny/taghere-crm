@@ -332,7 +332,7 @@ function SuccessPopup({
               </p>
 
               {/* 업종 선택 버튼 그리드 */}
-              <div className="grid grid-cols-4 gap-2 mb-2 relative">
+              <div className="flex flex-wrap gap-2 mb-2">
                 {/* "모든 업종" 버튼 */}
                 <button
                   type="button"
