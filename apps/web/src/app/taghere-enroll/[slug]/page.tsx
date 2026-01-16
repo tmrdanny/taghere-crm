@@ -323,7 +323,7 @@ function SuccessPopup({
 
           {/* Preferred Categories - 조건부 표시 */}
           {!successData.hasExistingPreferences && (
-            <div className="mb-4">
+            <div className="mb-4 mt-5">
               <p className="text-[15px] font-semibold text-neutral-900 mb-1.5 text-center">
                 어떤 업종을 선호하세요?
               </p>
@@ -331,8 +331,8 @@ function SuccessPopup({
                 선택한 업종의 쿠폰을 매 주 보내드릴게요
               </p>
 
-              {/* 업종 선택 버튼 그리드 (3x3) */}
-              <div className="grid grid-cols-4 gap-2 mb-2">
+              {/* 업종 선택 버튼 그리드 */}
+              <div className="grid grid-cols-4 gap-2 mb-2 relative">
                 {/* "모든 업종" 버튼 */}
                 <button
                   type="button"
@@ -349,7 +349,7 @@ function SuccessPopup({
                 {/* 개별 카테고리 버튼들 - 조건부 표시 */}
                 {(showAllCategories
                   ? CATEGORY_OPTIONS
-                  : CATEGORY_OPTIONS.slice(0, 4)
+                  : CATEGORY_OPTIONS.slice(0, 3)
                 ).map((category) => {
                   const isSelected = selectedCategories.includes(category.value);
                   return (
@@ -367,6 +367,13 @@ function SuccessPopup({
                     </button>
                   );
                 })}
+
+                {/* 블러 처리된 양식 버튼 (접힌 상태일 때만) */}
+                {!showAllCategories && (
+                  <div className="relative px-3 py-2.5 rounded-lg text-[14px] font-medium bg-neutral-50 text-neutral-600 border border-neutral-200 opacity-50 blur-[1px] pointer-events-none">
+                    양식
+                  </div>
+                )}
               </div>
 
               {/* 더보기/접기 버튼 */}
@@ -374,9 +381,17 @@ function SuccessPopup({
                 <button
                   type="button"
                   onClick={() => setShowAllCategories(!showAllCategories)}
-                  className="text-[13px] text-neutral-500 hover:text-neutral-700 transition-colors"
+                  className="flex items-center justify-center gap-1 mx-auto text-[13px] text-neutral-400 hover:text-neutral-600 transition-colors"
                 >
-                  {showAllCategories ? '접기 ▲' : '더보기 ▼'}
+                  <span>{showAllCategories ? '접기' : '더보기'}</span>
+                  <svg
+                    className={`w-3.5 h-3.5 transition-transform ${showAllCategories ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
               </div>
             </div>
