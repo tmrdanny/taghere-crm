@@ -10,6 +10,67 @@ import { formatNumber } from '@/lib/utils';
 const KAKAO_STORAGE_KEY = 'taghere_kakao_id';
 const KAKAO_STORAGE_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000; // 90일
 
+// 9개 핵심 카테고리 + 세부 매핑
+const CATEGORY_OPTIONS = [
+  {
+    value: 'KOREAN',
+    label: '한식',
+    icon: '🍚',
+    mappedCategories: ['KOREAN', 'BUNSIK', 'KOREAN_PUB']
+  },
+  {
+    value: 'CHINESE',
+    label: '중식',
+    icon: '🥟',
+    mappedCategories: ['CHINESE']
+  },
+  {
+    value: 'JAPANESE',
+    label: '일식',
+    icon: '🍣',
+    mappedCategories: ['JAPANESE', 'IZAKAYA']
+  },
+  {
+    value: 'WESTERN',
+    label: '양식',
+    icon: '🍝',
+    mappedCategories: ['WESTERN', 'BRUNCH']
+  },
+  {
+    value: 'CAFE',
+    label: '카페',
+    icon: '☕',
+    mappedCategories: ['CAFE', 'BAKERY', 'ICECREAM']
+  },
+  {
+    value: 'MEAT',
+    label: '고기/구이',
+    icon: '🥩',
+    mappedCategories: ['MEAT', 'SEAFOOD', 'BUFFET']
+  },
+  {
+    value: 'BEER',
+    label: '주점',
+    icon: '🍺',
+    mappedCategories: ['BEER', 'POCHA', 'COOK_PUB']
+  },
+  {
+    value: 'WINE_BAR',
+    label: '와인',
+    icon: '🍷',
+    mappedCategories: ['WINE_BAR', 'COCKTAIL_BAR']
+  },
+  {
+    value: 'DESSERT',
+    label: '디저트',
+    icon: '🍰',
+    mappedCategories: ['DESSERT']
+  },
+] as const;
+
+// "모든 업종" 선택 옵션
+const ALL_CATEGORIES_VALUE = 'ALL';
+
 interface StoredKakaoData {
   kakaoId: string;
   savedAt: number;
@@ -68,6 +129,7 @@ interface SuccessData {
   storeName: string;
   customerId: string;
   resultPrice: number;
+  hasExistingPreferences: boolean;
 }
 
 function StarRating({ rating, onRatingChange }: { rating: number; onRatingChange: (rating: number) => void }) {
@@ -160,7 +222,38 @@ function SuccessPopup({
 }) {
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackText, setFeedbackText] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const toggleCategory = (categoryValue: string) => {
+    setSelectedCategories(prev => {
+      // "모든 업종" 클릭 시
+      if (categoryValue === ALL_CATEGORIES_VALUE) {
+        if (prev.includes(ALL_CATEGORIES_VALUE)) {
+          // 이미 선택되어 있으면 전체 해제
+          return [];
+        } else {
+          // 모든 카테고리 선택
+          return [ALL_CATEGORIES_VALUE, ...CATEGORY_OPTIONS.map(c => c.value)];
+        }
+      }
+
+      // 개별 카테고리 클릭 시
+      if (prev.includes(categoryValue)) {
+        // 선택 해제
+        const newSelection = prev.filter(c => c !== categoryValue && c !== ALL_CATEGORIES_VALUE);
+        return newSelection;
+      } else {
+        // 선택 추가
+        const newSelection = [...prev.filter(c => c !== ALL_CATEGORIES_VALUE), categoryValue];
+        // 모든 개별 카테고리가 선택되었는지 확인
+        if (newSelection.length === CATEGORY_OPTIONS.length) {
+          return [ALL_CATEGORIES_VALUE, ...newSelection];
+        }
+        return newSelection;
+      }
+    });
+  };
 
   const handleSubmit = async () => {
     if (!successData.customerId) {
@@ -170,6 +263,14 @@ function SuccessPopup({
 
     setIsSubmitting(true);
     try {
+      // 선택된 카테고리를 세부 카테고리로 확장
+      const expandedCategories = selectedCategories
+        .filter(c => c !== ALL_CATEGORIES_VALUE)
+        .flatMap(categoryValue => {
+          const option = CATEGORY_OPTIONS.find(opt => opt.value === categoryValue);
+          return option ? option.mappedCategories : [];
+        });
+
       await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/customers/feedback`, {
         method: 'POST',
         headers: {
@@ -179,6 +280,7 @@ function SuccessPopup({
           customerId: successData.customerId,
           feedbackRating: feedbackRating || null,
           feedbackText: feedbackText.trim() || null,
+          preferredCategories: expandedCategories.length > 0 ? expandedCategories : null,
         }),
       });
       // 제출 완료 후 팝업 없이 바로 order-success로 이동
@@ -214,6 +316,55 @@ function SuccessPopup({
           <div className="mb-4">
             <StarRating rating={feedbackRating} onRatingChange={setFeedbackRating} />
           </div>
+
+          {/* Preferred Categories - 조건부 표시 */}
+          {!successData.hasExistingPreferences && (
+            <div className="mb-4">
+              <p className="text-sm font-medium text-neutral-700 mb-2 text-center">
+                어떤 업종을 선호하세요?
+              </p>
+              <p className="text-xs text-neutral-500 mb-3 text-center">
+                선택한 업종의 쿠폰을 매 주 보내드릴게요
+              </p>
+
+              {/* "모든 업종" 버튼 */}
+              <div className="flex justify-center mb-2">
+                <button
+                  type="button"
+                  onClick={() => toggleCategory(ALL_CATEGORIES_VALUE)}
+                  className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+                    selectedCategories.includes(ALL_CATEGORIES_VALUE)
+                      ? 'bg-[#FFD541] text-neutral-900 border-2 border-[#FFD541]'
+                      : 'bg-white text-neutral-700 border-2 border-neutral-300 hover:border-[#FFD541]'
+                  }`}
+                >
+                  ✨ 모든 업종 선택
+                </button>
+              </div>
+
+              {/* 개별 카테고리 버튼들 */}
+              <div className="flex flex-wrap gap-2 justify-center">
+                {CATEGORY_OPTIONS.map((category) => {
+                  const isSelected = selectedCategories.includes(category.value);
+                  return (
+                    <button
+                      key={category.value}
+                      type="button"
+                      onClick={() => toggleCategory(category.value)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        isSelected
+                          ? 'bg-[#FFD541] text-neutral-900 border border-[#FFD541]'
+                          : 'bg-neutral-100 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
+                      }`}
+                    >
+                      <span className="mr-1">{category.icon}</span>
+                      {category.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Feedback Text */}
           <textarea
@@ -270,6 +421,7 @@ function TaghereEnrollContent() {
   const customerId = searchParams.get('customerId');
   const successResultPrice = searchParams.get('resultPrice');
   const urlKakaoId = searchParams.get('kakaoId');
+  const hasPreferences = searchParams.get('hasPreferences') === 'true';
 
   // 자동 적립 시도 함수
   const attemptAutoEarn = async (kakaoId: string, orderData: OrderInfo) => {
@@ -296,6 +448,7 @@ function TaghereEnrollContent() {
           storeName: data.storeName,
           customerId: data.customerId,
           resultPrice: data.resultPrice,
+          hasExistingPreferences: data.hasExistingPreferences || false,
         });
         setOrderInfo(null); // 기본 UI 숨김
       } else {
@@ -343,6 +496,7 @@ function TaghereEnrollContent() {
         storeName: successStoreName || '태그히어',
         customerId,
         resultPrice: parseInt(successResultPrice || '0'),
+        hasExistingPreferences: hasPreferences,
       });
       setIsLoading(false);
       return;

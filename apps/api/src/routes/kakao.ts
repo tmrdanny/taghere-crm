@@ -823,6 +823,9 @@ router.get('/taghere-callback', async (req, res) => {
       }
     }
 
+    // Check if customer already has preferredCategories
+    const hasPreferences = !!customer.preferredCategories;
+
     // Redirect back to enroll page with success data (shows popup with feedback)
     const successUrl = new URL(`${redirectOrigin}/taghere-enroll/${stateData.slug || ''}`);
     successUrl.searchParams.set('points', earnPoints.toString());
@@ -830,6 +833,7 @@ router.get('/taghere-callback', async (req, res) => {
     successUrl.searchParams.set('customerId', customer.id);
     successUrl.searchParams.set('resultPrice', resultPrice.toString());
     successUrl.searchParams.set('kakaoId', kakaoId);  // 자동 적립을 위해 kakaoId 전달
+    successUrl.searchParams.set('hasPreferences', hasPreferences.toString());  // 선호도 선택 여부 전달
     if (stateData.ordersheetId) {
       successUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
     }
