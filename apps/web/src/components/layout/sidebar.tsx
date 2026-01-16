@@ -245,7 +245,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
           'flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
           active
             ? 'bg-brand-50 text-brand-800'
-            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50',
+            : 'text-slate-800 hover:text-slate-900 hover:bg-slate-50',
           isCollapsed && 'justify-center',
           isSubItem && !isCollapsed && 'ml-4'
         )}
@@ -300,7 +300,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
             'flex items-center gap-3 w-full mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
             groupActive
               ? 'bg-brand-50 text-brand-800'
-              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50'
+              : 'text-slate-800 hover:text-slate-900 hover:bg-slate-50'
           )}
           style={{ width: 'calc(100% - 16px)' }}
         >
