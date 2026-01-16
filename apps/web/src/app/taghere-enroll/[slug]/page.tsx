@@ -299,7 +299,7 @@ function SuccessPopup({
         {/* Full Page Content */}
         <div className="flex-1 flex flex-col px-5 py-6 overflow-y-auto">
           {/* Points Display */}
-          <div className="text-center mb-4">
+          <div className="text-center mb-4 mt-4">
             <p className="text-[38px] font-bold text-[#61EB49] leading-none">
               +{formatNumber(successData.points)}P
             </p>
@@ -316,7 +316,7 @@ function SuccessPopup({
           </div>
 
           {/* Star Rating */}
-          <div className="mb-5">
+          <div className="mb-8">
             <StarRating rating={feedbackRating} onRatingChange={setFeedbackRating} />
           </div>
 
