@@ -7,7 +7,7 @@ import { SolapiService, BrandMessageButton } from '../services/solapi.js';
 const router = Router();
 
 // 건당 비용 (외부 고객 SMS)
-const EXTERNAL_SMS_COST = 200;
+const EXTERNAL_SMS_COST = 150;
 
 // 카카오톡 브랜드 메시지 비용 (건당)
 const EXTERNAL_KAKAO_TEXT_COST = 200;

@@ -94,7 +94,7 @@ const CATEGORY_OPTIONS = [
 // 비용 상수
 const SMS_COST_PER_MESSAGE = 150;
 const KAKAO_TEXT_COST = 200;
-const KAKAO_IMAGE_COST = 200;
+const KAKAO_IMAGE_COST = 230;
 
 // 인증 토큰 가져오기
 const getAuthToken = () => {
