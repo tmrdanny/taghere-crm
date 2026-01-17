@@ -406,12 +406,11 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
 
     for (const customer of customers) {
       try {
-        // 전화번호 정규화 (하이픈 제거)
-        const normalizedPhone = customer.phone.replace(/-/g, '');
+        console.log(`[SMS 발송] 고객 전화번호 (원본 그대로): ${customer.phone}`);
 
-        // SOLAPI 발송
+        // SOLAPI 발송 (전화번호 그대로 전달)
         const result = await messageService.send({
-          to: normalizedPhone,
+          to: customer.phone,
           from: '07041380263', // 발신번호 고정
           text: formattedContent,
         });
@@ -752,11 +751,9 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
     let failedCount = 0;
 
     for (const customer of customers) {
-      const normalizedPhone = customer.phone.replace(/-/g, '');
-
       try {
         const result = await solapiService.sendBrandMessage({
-          to: normalizedPhone,
+          to: customer.phone,
           pfId,
           content,
           messageType: messageType as 'TEXT' | 'IMAGE',

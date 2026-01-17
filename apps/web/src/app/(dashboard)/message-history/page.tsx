@@ -403,7 +403,6 @@ export default function MessageHistoryPage() {
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">타입</th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">상태</th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">수신번호</th>
-                <th className="p-4 text-left text-sm font-medium text-neutral-600">고객명</th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">내용</th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">캠페인</th>
               </tr>
@@ -411,14 +410,14 @@ export default function MessageHistoryPage() {
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-neutral-500">
+                  <td colSpan={6} className="p-8 text-center text-neutral-500">
                     불러오는 중...
                   </td>
                 </tr>
               )}
               {!isLoading && messages.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-neutral-500">
+                  <td colSpan={6} className="p-8 text-center text-neutral-500">
                     발송 내역이 없습니다.
                   </td>
                 </tr>
@@ -463,17 +462,6 @@ export default function MessageHistoryPage() {
                     </td>
                     <td className="p-4 text-sm text-neutral-600">
                       {formatPhone(msg.phone)}
-                    </td>
-                    <td className="p-4 text-sm text-neutral-900">
-                      {msg.type === 'LOCAL_CUSTOMER' ? (
-                        <span className="text-neutral-500 text-xs" title={msg.region}>
-                          {msg.region || '외부 고객'}
-                        </span>
-                      ) : msg.customer ? (
-                        maskNickname(msg.customer.name)
-                      ) : (
-                        '-'
-                      )}
                     </td>
                     <td className="p-4 text-sm text-neutral-700">
                       <div className="max-w-[300px] truncate" title={msg.content}>
