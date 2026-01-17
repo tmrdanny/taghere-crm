@@ -418,9 +418,7 @@ router.post('/feedback', async (req, res) => {
         feedbackRating: feedbackRating || null,
         feedbackText: feedbackText || null,
         feedbackAt: new Date(),
-        ...(preferredCategories && {
-          preferredCategories: JSON.stringify(preferredCategories)
-        }),
+        // preferredCategories는 ExternalCustomer에만 저장 (아래 upsert 참조)
       },
     });
 
