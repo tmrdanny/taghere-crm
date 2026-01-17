@@ -1140,4 +1140,340 @@ router.post('/alimtalk/low-balance-bulk', adminAuthMiddleware, async (req: Admin
   }
 });
 
+// ============================================
+// 프랜차이즈 관리 API
+// ============================================
+
+// GET /api/admin/franchises - 전체 프랜차이즈 목록 조회
+router.get('/franchises', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const franchises = await prisma.franchise.findMany({
+      include: {
+        _count: {
+          select: {
+            stores: true,
+            users: true,
+          },
+        },
+        wallet: {
+          select: {
+            balance: true,
+          },
+        },
+        users: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            phone: true,
+            role: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    res.json({ franchises });
+  } catch (error: any) {
+    console.error('Failed to fetch franchises:', error);
+    res.status(500).json({ error: '프랜차이즈 목록 조회에 실패했습니다.' });
+  }
+});
+
+// GET /api/admin/franchises/:franchiseId - 특정 프랜차이즈 상세 조회
+router.get('/franchises/:franchiseId', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { franchiseId } = req.params;
+
+    const franchise = await prisma.franchise.findUnique({
+      where: { id: franchiseId },
+      include: {
+        users: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            phone: true,
+            role: true,
+            createdAt: true,
+          },
+        },
+        stores: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            category: true,
+            ownerName: true,
+            phone: true,
+            address: true,
+            createdAt: true,
+            _count: {
+              select: {
+                customers: true,
+              },
+            },
+            wallet: {
+              select: {
+                balance: true,
+              },
+            },
+          },
+        },
+        wallet: {
+          select: {
+            balance: true,
+          },
+        },
+      },
+    });
+
+    if (!franchise) {
+      return res.status(404).json({ error: '프랜차이즈를 찾을 수 없습니다.' });
+    }
+
+    res.json({ franchise });
+  } catch (error: any) {
+    console.error('Failed to fetch franchise:', error);
+    res.status(500).json({ error: '프랜차이즈 조회에 실패했습니다.' });
+  }
+});
+
+// POST /api/admin/franchises - 프랜차이즈 회원가입
+router.post('/franchises', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { name, slug, email, password, userName, phone, logoUrl } = req.body;
+
+    // 필수 필드 검증
+    if (!name || !slug || !email || !password || !userName) {
+      return res.status(400).json({ error: '필수 정보를 모두 입력해주세요.' });
+    }
+
+    // slug 중복 검사
+    const existingFranchiseBySlug = await prisma.franchise.findUnique({
+      where: { slug },
+    });
+
+    if (existingFranchiseBySlug) {
+      return res.status(400).json({ error: '이미 사용 중인 slug입니다.' });
+    }
+
+    // 이메일 중복 검사
+    const existingUser = await prisma.franchiseUser.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ error: '이미 사용 중인 이메일입니다.' });
+    }
+
+    // 비밀번호 해시
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // 프랜차이즈 및 사용자 생성 (트랜잭션)
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. 프랜차이즈 생성
+      const franchise = await tx.franchise.create({
+        data: {
+          name,
+          slug,
+          logoUrl: logoUrl || null,
+        },
+      });
+
+      // 2. 프랜차이즈 지갑 생성
+      await tx.franchiseWallet.create({
+        data: {
+          franchiseId: franchise.id,
+          balance: 0,
+        },
+      });
+
+      // 3. 프랜차이즈 관리자 사용자 생성
+      const franchiseUser = await tx.franchiseUser.create({
+        data: {
+          email,
+          passwordHash,
+          name: userName,
+          phone: phone || null,
+          role: 'OWNER',
+          franchiseId: franchise.id,
+        },
+      });
+
+      return { franchise, franchiseUser };
+    });
+
+    res.status(201).json({
+      success: true,
+      franchise: result.franchise,
+      user: {
+        id: result.franchiseUser.id,
+        email: result.franchiseUser.email,
+        name: result.franchiseUser.name,
+        phone: result.franchiseUser.phone,
+        role: result.franchiseUser.role,
+      },
+    });
+  } catch (error: any) {
+    console.error('Failed to create franchise:', error);
+    res.status(500).json({ error: '프랜차이즈 생성에 실패했습니다.' });
+  }
+});
+
+// POST /api/admin/franchises/:franchiseId/stores - 기존 매장을 프랜차이즈에 연결
+router.post('/franchises/:franchiseId/stores', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { franchiseId } = req.params;
+    const { storeId } = req.body;
+
+    if (!storeId) {
+      return res.status(400).json({ error: '매장 ID를 입력해주세요.' });
+    }
+
+    // 프랜차이즈 존재 확인
+    const franchise = await prisma.franchise.findUnique({
+      where: { id: franchiseId },
+    });
+
+    if (!franchise) {
+      return res.status(404).json({ error: '프랜차이즈를 찾을 수 없습니다.' });
+    }
+
+    // 매장 존재 확인
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    // 이미 다른 프랜차이즈에 연결되어 있는지 확인
+    if (store.franchiseId && store.franchiseId !== franchiseId) {
+      return res.status(400).json({ error: '이미 다른 프랜차이즈에 연결된 매장입니다.' });
+    }
+
+    // 매장을 프랜차이즈에 연결
+    const updatedStore = await prisma.store.update({
+      where: { id: storeId },
+      data: {
+        franchiseId,
+      },
+      include: {
+        _count: {
+          select: {
+            customers: true,
+          },
+        },
+        wallet: {
+          select: {
+            balance: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      store: updatedStore,
+    });
+  } catch (error: any) {
+    console.error('Failed to connect store to franchise:', error);
+    res.status(500).json({ error: '매장 연결에 실패했습니다.' });
+  }
+});
+
+// DELETE /api/admin/franchises/:franchiseId/stores/:storeId - 프랜차이즈에서 매장 연결 해제
+router.delete('/franchises/:franchiseId/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { franchiseId, storeId } = req.params;
+
+    // 매장 존재 및 연결 확인
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    if (store.franchiseId !== franchiseId) {
+      return res.status(400).json({ error: '해당 프랜차이즈에 연결되지 않은 매장입니다.' });
+    }
+
+    // 매장 연결 해제
+    await prisma.store.update({
+      where: { id: storeId },
+      data: {
+        franchiseId: null,
+      },
+    });
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Failed to disconnect store from franchise:', error);
+    res.status(500).json({ error: '매장 연결 해제에 실패했습니다.' });
+  }
+});
+
+// PATCH /api/admin/franchises/:franchiseId - 프랜차이즈 정보 수정
+router.patch('/franchises/:franchiseId', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { franchiseId } = req.params;
+    const { name, logoUrl } = req.body;
+
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
+
+    const franchise = await prisma.franchise.update({
+      where: { id: franchiseId },
+      data: updateData,
+    });
+
+    res.json({ success: true, franchise });
+  } catch (error: any) {
+    console.error('Failed to update franchise:', error);
+    res.status(500).json({ error: '프랜차이즈 정보 수정에 실패했습니다.' });
+  }
+});
+
+// GET /api/admin/stores/available - 프랜차이즈 미연결 매장 목록 조회
+router.get('/stores/available', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const stores = await prisma.store.findMany({
+      where: {
+        franchiseId: null, // 프랜차이즈에 연결되지 않은 매장만
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        category: true,
+        ownerName: true,
+        phone: true,
+        address: true,
+        createdAt: true,
+        _count: {
+          select: {
+            customers: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    res.json({ stores });
+  } catch (error: any) {
+    console.error('Failed to fetch available stores:', error);
+    res.status(500).json({ error: '매장 목록 조회에 실패했습니다.' });
+  }
+});
+
 export default router;
