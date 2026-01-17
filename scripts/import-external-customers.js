@@ -69,8 +69,19 @@ async function main() {
       continue;
     }
 
-    // 전화번호 포맷팅 (010 추가)
-    const phone = `010${String(phoneRaw).padStart(8, '0')}`;
+    // 전화번호 포맷팅
+    const phoneStr = String(phoneRaw);
+    let phone;
+    if (phoneStr.length === 10 && phoneStr.startsWith('10')) {
+      // 이미 "10"으로 시작하는 10자리 (예: 1036301992) -> 앞에 "0"만 추가
+      phone = `0${phoneStr}`;
+    } else if (phoneStr.length === 11 && phoneStr.startsWith('010')) {
+      // 이미 완전한 11자리 (예: 01036301992)
+      phone = phoneStr;
+    } else {
+      // 8자리 뒷번호만 있는 경우 (예: 36301992) -> "010" 추가
+      phone = `010${phoneStr.padStart(8, '0')}`;
+    }
 
     // 성별 변환
     const gender = genderRaw === '여' ? 'FEMALE' : genderRaw === '남' ? 'MALE' : null;
