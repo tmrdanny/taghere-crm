@@ -752,6 +752,8 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
 
     for (const customer of customers) {
       try {
+        console.log(`[브랜드 메시지 발송] 고객 전화번호 (DB): ${customer.phone}`);
+
         const result = await solapiService.sendBrandMessage({
           to: customer.phone,
           pfId,
