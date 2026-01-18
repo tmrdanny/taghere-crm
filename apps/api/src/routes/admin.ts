@@ -1162,7 +1162,13 @@ router.post('/alimtalk/low-balance-bulk', adminAuthMiddleware, async (req: Admin
 router.get('/franchises', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
     const franchises = await prisma.franchise.findMany({
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        logoUrl: true,
+        createdAt: true,
+        updatedAt: true,
         _count: {
           select: {
             stores: true,
@@ -1204,7 +1210,13 @@ router.get('/franchises/:franchiseId', adminAuthMiddleware, async (req: AdminReq
 
     const franchise = await prisma.franchise.findUnique({
       where: { id: franchiseId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        logoUrl: true,
+        createdAt: true,
+        updatedAt: true,
         users: {
           select: {
             id: true,
