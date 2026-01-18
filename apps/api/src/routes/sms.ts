@@ -960,7 +960,7 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
     // Normalize External SMS messages (전화번호 마스킹)
     const normalizedExternalSms = externalSmsMessages.map((m) => ({
       id: m.id,
-      phone: maskPhoneNumber(m.externalCustomer.phone),
+      phone: m.externalCustomer ? maskPhoneNumber(m.externalCustomer.phone) : '****-****',
       content: m.content,
       status: m.status,
       cost: m.cost,
@@ -970,7 +970,7 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
       customer: null, // 외부 고객은 개인정보 보호로 고객 정보 없음
       campaign: m.campaign ? { id: m.campaign.id, title: m.campaign.title } : null,
       type: 'LOCAL_CUSTOMER' as const,
-      region: `${m.externalCustomer.regionSido} ${m.externalCustomer.regionSigungu}`,
+      region: m.externalCustomer ? `${m.externalCustomer.regionSido || ''} ${m.externalCustomer.regionSigungu || ''}`.trim() : 'CRM 고객',
     }));
 
     // Merge and sort by createdAt desc

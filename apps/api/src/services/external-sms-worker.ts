@@ -72,6 +72,12 @@ async function processMessage(messageId: string): Promise<void> {
 
   try {
     // SOLAPI에서 실제 발송 결과 조회
+    // CRM 고객(externalCustomer가 null)인 경우 전화번호를 직접 가져올 수 없으므로 스킵
+    if (!msg.externalCustomer) {
+      console.log(`[External SMS Worker] Skipping status check for CRM customer message ${messageId}`);
+      return;
+    }
+
     const phone = msg.externalCustomer.phone.replace(/-/g, '');
     const statusResult = await solapiService.getMessageStatus(msg.solapiGroupId, phone);
     console.log(`[External SMS Worker] Status for ${phone}:`, statusResult);
@@ -112,21 +118,23 @@ async function processMessage(messageId: string): Promise<void> {
           },
         });
 
-        // 5. 외부 고객 주간 슬롯 증가
-        await tx.externalCustomerWeeklySlot.upsert({
-          where: {
-            externalCustomerId_weekStart: {
+        // 5. 외부 고객 주간 슬롯 증가 (externalCustomerId가 있는 경우에만)
+        if (msg.externalCustomerId) {
+          await tx.externalCustomerWeeklySlot.upsert({
+            where: {
+              externalCustomerId_weekStart: {
+                externalCustomerId: msg.externalCustomerId,
+                weekStart,
+              },
+            },
+            update: { slotUsed: { increment: 1 } },
+            create: {
               externalCustomerId: msg.externalCustomerId,
               weekStart,
+              slotUsed: 1,
             },
-          },
-          update: { slotUsed: { increment: 1 } },
-          create: {
-            externalCustomerId: msg.externalCustomerId,
-            weekStart,
-            slotUsed: 1,
-          },
-        });
+          });
+        }
       });
 
       console.log(`[External SMS Worker] Message ${messageId} sent successfully, cost: ${msg.cost}원 차감`);
