@@ -6,6 +6,27 @@ import { SolapiService, BrandMessageButton } from '../services/solapi.js';
 
 const router = Router();
 
+// 시/도 줄임말 → 전체 이름 매핑 (Customer DB용)
+const SIDO_SHORT_TO_FULL: Record<string, string> = {
+  서울: '서울특별시',
+  경기: '경기도',
+  인천: '인천광역시',
+  부산: '부산광역시',
+  대구: '대구광역시',
+  광주: '광주광역시',
+  대전: '대전광역시',
+  울산: '울산광역시',
+  세종: '세종특별자치시',
+  강원: '강원특별자치도',
+  충북: '충청북도',
+  충남: '충청남도',
+  전북: '전북특별자치도',
+  전남: '전라남도',
+  경북: '경상북도',
+  경남: '경상남도',
+  제주: '제주특별자치도',
+};
+
 // 건당 비용 (외부 고객 SMS)
 const EXTERNAL_SMS_COST = 150;
 
@@ -136,9 +157,9 @@ router.get('/total-count', authMiddleware, async (req: AuthRequest, res) => {
 // GET /api/local-customers/count - 조건에 맞는 고객 수 조회 (ExternalCustomer + Customer 통합)
 router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { ageGroups, gender, regions, regionSidos, regionSigungu, categories } = req.query;
+    const { ageGroups, gender, regions, regionSidos, regionSigungus, categories } = req.query;
 
-    // 새 형식 (regions JSON) 또는 구 형식 (regionSidos) 지원
+    // 새 형식 (regions JSON) 또는 구 형식 (regionSidos, regionSigungus) 지원
     let regionFilters: Array<{ sido: string; sigungu?: string }> = [];
 
     if (regions) {
@@ -148,6 +169,13 @@ router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
       } catch (e) {
         return res.status(400).json({ error: '지역 데이터 형식이 올바르지 않습니다.' });
       }
+    } else if (regionSigungus) {
+      // 시/군/구 선택 형식: '서울/강남구,서울/서초구' 파싱
+      const sigunguList = (regionSigungus as string).split(',').filter(Boolean);
+      regionFilters = sigunguList.map((item) => {
+        const [sido, sigungu] = item.split('/');
+        return { sido, sigungu };
+      });
     } else if (regionSidos) {
       // 구 형식: regionSidos 콤마 구분
       const regionSidoList = (regionSidos as string).split(',').filter(Boolean);
@@ -198,11 +226,13 @@ router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
+    // Customer DB는 전체 이름 사용 (서울특별시, 경기도)
     const customerRegionOrConditions = regionFilters.map((r) => {
+      const fullSido = SIDO_SHORT_TO_FULL[r.sido] || r.sido;
       if (r.sigungu) {
-        return { regionSido: r.sido, regionSigungu: r.sigungu };
+        return { regionSido: fullSido, regionSigungu: r.sigungu };
       } else {
-        return { regionSido: r.sido };
+        return { regionSido: fullSido };
       }
     });
 
@@ -322,13 +352,19 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { content, ageGroups, gender, regions, regionSidos, sendCount, categories, isAdMessage = true } = req.body;
+    const { content, ageGroups, gender, regions, regionSidos, regionSigungus, sendCount, categories, isAdMessage = true } = req.body;
 
-    // 새 형식 (regions) 또는 구 형식 (regionSidos) 지원
+    // 새 형식 (regions) 또는 구 형식 (regionSidos, regionSigungus) 지원
     let regionFilters: Array<{ sido: string; sigungu?: string }> = [];
 
     if (regions && Array.isArray(regions) && regions.length > 0) {
       regionFilters = regions;
+    } else if (regionSigungus && Array.isArray(regionSigungus) && regionSigungus.length > 0) {
+      // 시/군/구 선택 형식: ['서울/강남구', '서울/서초구'] 파싱
+      regionFilters = regionSigungus.map((item: string) => {
+        const [sido, sigungu] = item.split('/');
+        return { sido, sigungu };
+      });
     } else if (regionSidos && Array.isArray(regionSidos) && regionSidos.length > 0) {
       regionFilters = regionSidos.map((sido: string) => ({ sido }));
     }
@@ -410,11 +446,13 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
     let customers: Array<{ id: string; phone: string; source: 'customer' }> = [];
 
+    // Customer DB는 전체 이름 사용 (서울특별시, 경기도)
     const customerRegionOrConditions = regionFilters.map((r) => {
+      const fullSido = SIDO_SHORT_TO_FULL[r.sido] || r.sido;
       if (r.sigungu) {
-        return { regionSido: r.sido, regionSigungu: r.sigungu };
+        return { regionSido: fullSido, regionSigungu: r.sigungu };
       } else {
-        return { regionSido: r.sido };
+        return { regionSido: fullSido };
       }
     });
 
