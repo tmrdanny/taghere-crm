@@ -160,6 +160,7 @@ model Customer {
   reviewRequestLogs ReviewRequestLog[]
   feedbacks         CustomerFeedback[]
   pointSessions     PointSession[]
+  franchiseSmsMessages FranchiseSmsMessage[]
 
   @@unique([storeId, kakaoId])  // 매장별 카카오ID 유니크 (null 허용)
   // naverId 유니크 제약조건 제거 - null인 경우가 많아 부분 인덱스로 처리
@@ -846,6 +847,8 @@ model Franchise {
   users         FranchiseUser[]
   stores        Store[]
   wallet        FranchiseWallet?
+  smsCampaigns  FranchiseSmsCampaign[]
+  smsTestLogs   FranchiseSmsTestLog[]
 
   @@map("franchises")
 }
@@ -894,4 +897,62 @@ model FranchiseTransaction {
   @@index([walletId])
   @@index([createdAt])
   @@map("franchise_transactions")
+}
+
+// 프랜차이즈 SMS 캠페인
+model FranchiseSmsCampaign {
+  id            String   @id @default(cuid())
+  franchiseId   String
+  content       String   @db.Text
+  messageType   String   // "SMS" | "LMS" | "MMS"
+  targetType    String   // "ALL" | "REVISIT" | "NEW" | "CUSTOM"
+  targetCount   Int
+  sentCount     Int      @default(0)
+  costPerMessage Int
+  totalCost     Int
+  genderFilter  String?
+  ageGroups     String?  // JSON array
+  imageUrl      String?
+  status        String   // "PENDING" | "COMPLETED" | "FAILED"
+  createdAt     DateTime @default(now())
+
+  franchise     Franchise @relation(fields: [franchiseId], references: [id])
+  messages      FranchiseSmsMessage[]
+
+  @@index([franchiseId, createdAt])
+  @@map("franchise_sms_campaigns")
+}
+
+// 프랜차이즈 SMS 메시지 (개별 발송 기록)
+model FranchiseSmsMessage {
+  id         String   @id @default(cuid())
+  campaignId String
+  customerId String
+  phone      String
+  content    String   @db.Text
+  messageType String
+  cost       Int
+  status     String   // "SENT" | "DELIVERED" | "FAILED"
+  sentAt     DateTime @default(now())
+
+  campaign   FranchiseSmsCampaign @relation(fields: [campaignId], references: [id])
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  @@index([campaignId])
+  @@index([customerId])
+  @@map("franchise_sms_messages")
+}
+
+// 프랜차이즈 SMS 테스트 로그
+model FranchiseSmsTestLog {
+  id          String   @id @default(cuid())
+  franchiseId String
+  phone       String
+  content     String   @db.Text
+  createdAt   DateTime @default(now())
+
+  franchise   Franchise @relation(fields: [franchiseId], references: [id])
+
+  @@index([franchiseId, createdAt])
+  @@map("franchise_sms_test_logs")
 }

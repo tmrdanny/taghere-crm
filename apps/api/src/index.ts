@@ -44,6 +44,7 @@ import brandMessageRoutes from './routes/brand-message.js';
 import publicRoutes from './routes/public.js';
 import franchiseAuthRoutes from './routes/franchise-auth.js';
 import franchiseRoutes from './routes/franchise.js';
+import franchiseSmsRoutes from './routes/franchise-sms.js';
 import { startAlimTalkWorker } from './services/alimtalk-worker.js';
 import { startSmsWorker } from './services/sms-worker.js';
 import { startExternalSmsWorker } from './services/external-sms-worker.js';
@@ -214,6 +215,7 @@ app.use('/api/public', publicRoutes);
 
 // Franchise routes
 app.use('/api/franchise/auth', franchiseAuthRoutes);
+app.use('/api/franchise/sms', franchiseSmsRoutes);
 app.use('/api/franchise', franchiseRoutes);
 
 // OAuth routes (without /api prefix)
