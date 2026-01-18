@@ -309,6 +309,7 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
           phone: true,
           gender: true,
           ageGroup: true,
+          birthYear: true,
           visitCount: true,
           totalPoints: true,
           lastVisitAt: true,
@@ -328,19 +329,38 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
       prisma.customer.count({ where: whereCondition }),
     ]);
 
-    // 마스킹 적용
-    const maskedCustomers = customers.map((customer) => ({
-      id: customer.id,
-      name: maskName(customer.name || ''),
-      phone: maskPhone(customer.phone || ''),
-      gender: customer.gender,
-      ageGroup: customer.ageGroup,
-      visitCount: customer.visitCount,
-      totalPoints: customer.totalPoints,
-      lastVisitAt: customer.lastVisitAt,
-      createdAt: customer.createdAt,
-      store: customer.store,
-    }));
+    // birthYear로부터 ageGroup 계산하는 헬퍼 함수
+    const calculateAgeGroup = (birthYear: number | null): string | null => {
+      if (!birthYear) return null;
+      const currentYear = new Date().getFullYear();
+      const age = currentYear - birthYear;
+
+      if (age >= 20 && age < 30) return 'TWENTIES';
+      if (age >= 30 && age < 40) return 'THIRTIES';
+      if (age >= 40 && age < 50) return 'FORTIES';
+      if (age >= 50 && age < 60) return 'FIFTIES';
+      if (age >= 60) return 'SIXTY_PLUS';
+      return null;
+    };
+
+    // 마스킹 적용 및 ageGroup 계산
+    const maskedCustomers = customers.map((customer) => {
+      // ageGroup이 없으면 birthYear로부터 계산
+      const ageGroup = customer.ageGroup || calculateAgeGroup(customer.birthYear);
+
+      return {
+        id: customer.id,
+        name: maskName(customer.name || ''),
+        phone: maskPhone(customer.phone || ''),
+        gender: customer.gender,
+        ageGroup,
+        visitCount: customer.visitCount,
+        totalPoints: customer.totalPoints,
+        lastVisitAt: customer.lastVisitAt,
+        createdAt: customer.createdAt,
+        store: customer.store,
+      };
+    });
 
     res.json({
       customers: maskedCustomers,
@@ -785,6 +805,23 @@ router.get('/customers/:customerId', franchiseAuthMiddleware, async (req: Franch
       return sum + (order.totalAmount || 0);
     }, 0);
 
+    // birthYear로부터 ageGroup 계산하는 헬퍼 함수
+    const calculateAgeGroup = (birthYear: number | null): string | null => {
+      if (!birthYear) return null;
+      const currentYear = new Date().getFullYear();
+      const age = currentYear - birthYear;
+
+      if (age >= 20 && age < 30) return 'TWENTIES';
+      if (age >= 30 && age < 40) return 'THIRTIES';
+      if (age >= 40 && age < 50) return 'FORTIES';
+      if (age >= 50 && age < 60) return 'FIFTIES';
+      if (age >= 60) return 'SIXTY_PLUS';
+      return null;
+    };
+
+    // ageGroup 계산 (없으면 birthYear로부터 계산)
+    const ageGroup = customer.ageGroup || calculateAgeGroup(customer.birthYear);
+
     // 민감 정보 마스킹
     const maskedCustomer = {
       id: customer.id,
@@ -792,7 +829,7 @@ router.get('/customers/:customerId', franchiseAuthMiddleware, async (req: Franch
       phone: maskPhone(customer.phone),
       totalPoints: customer.totalPoints,
       gender: customer.gender,
-      ageGroup: customer.ageGroup,
+      ageGroup,
       birthday: customer.birthday,
       birthYear: customer.birthYear,
       visitCount: customer.visitCount,
@@ -869,18 +906,33 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
         storeId: { in: storeIds },
         createdAt: { gte: startDate }
       },
-      select: { ageGroup: true, gender: true, id: true }
+      select: { ageGroup: true, birthYear: true, gender: true, id: true }
     });
 
     const totalCustomers = allCustomers.length;
     console.log('[Franchise Insights] Total customers:', totalCustomers);
 
-    // 연령대 집계
+    // birthYear로부터 ageGroup 계산하는 헬퍼 함수
+    const calculateAgeGroup = (birthYear: number | null): string | null => {
+      if (!birthYear) return null;
+      const currentYear = new Date().getFullYear();
+      const age = currentYear - birthYear;
+
+      if (age >= 20 && age < 30) return 'TWENTIES';
+      if (age >= 30 && age < 40) return 'THIRTIES';
+      if (age >= 40 && age < 50) return 'FORTIES';
+      if (age >= 50 && age < 60) return 'FIFTIES';
+      if (age >= 60) return 'SIXTY_PLUS';
+      return null;
+    };
+
+    // 연령대 집계 (ageGroup이 없으면 birthYear로부터 계산)
     const ageMap = new Map<string, number>();
     let customersWithoutAgeGroup = 0;
     allCustomers.forEach(c => {
-      if (c.ageGroup) {
-        ageMap.set(c.ageGroup, (ageMap.get(c.ageGroup) || 0) + 1);
+      const ageGroup = c.ageGroup || calculateAgeGroup(c.birthYear);
+      if (ageGroup) {
+        ageMap.set(ageGroup, (ageMap.get(ageGroup) || 0) + 1);
       } else {
         customersWithoutAgeGroup++;
       }
