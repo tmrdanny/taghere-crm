@@ -372,6 +372,66 @@ router.get('/customers/selectable', franchiseAuthMiddleware, async (req: Franchi
   }
 });
 
+// 3-1. GET /api/franchise/sms/customers/all-ids - 특정 가맹점의 모든 고객 ID 조회 (전체 선택용)
+router.get('/customers/all-ids', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { storeId } = req.query;
+
+    console.log('[All Customer IDs] franchiseId:', franchiseId);
+    console.log('[All Customer IDs] storeId:', storeId);
+
+    if (!storeId) {
+      return res.status(400).json({ error: 'storeId가 필요합니다.' });
+    }
+
+    // 보안: 해당 가맹점이 이 프랜차이즈 소유인지 검증
+    const store = await prisma.store.findFirst({
+      where: {
+        id: storeId as string,
+        franchiseId
+      },
+      select: { id: true }
+    });
+
+    if (!store) {
+      console.log('[All Customer IDs] Access denied: store not owned by franchise');
+      return res.status(403).json({ error: '접근 권한이 없는 가맹점입니다.' });
+    }
+
+    // 전화번호가 있는 모든 고객의 ID, 이름, 전화번호만 조회 (마스킹 적용)
+    const customers = await prisma.customer.findMany({
+      where: {
+        storeId: storeId as string,
+        phone: { not: null }
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    console.log('[All Customer IDs] Found customers:', customers.length);
+
+    // 마스킹 적용
+    const masked = customers.map(c => ({
+      id: c.id,
+      name: maskName(c.name),
+      phone: maskPhone(c.phone)
+    }));
+
+    res.json({
+      customers: masked,
+      total: masked.length
+    });
+  } catch (error) {
+    console.error('All customer IDs error:', error);
+    res.status(500).json({ error: '고객 ID 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 // 4. POST /api/franchise/sms/upload-image - MMS 이미지 업로드
 router.post('/upload-image', franchiseAuthMiddleware, upload.single('image'), async (req: FranchiseAuthRequest, res) => {
   try {

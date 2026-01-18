@@ -846,14 +846,45 @@ export default function MessagesPage() {
     }
   };
 
-  // Select all customers
-  const selectAllCustomers = () => {
-    const allCustomers = customerList.map(c => ({
-      id: c.id,
-      name: c.name,
-      phone: c.phone,
-    }));
-    setTempSelectedCustomers(allCustomers);
+  // Fetch all customer IDs for the selected store (for "Select All")
+  const fetchAllCustomerIds = useCallback(async (storeId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/franchise/sms/customers/all-ids?storeId=${storeId}`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return data.customers || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Failed to fetch all customer IDs:', error);
+      return [];
+    }
+  }, []);
+
+  // Select all customers (fetch all from store, not just displayed 100)
+  const selectAllCustomers = async () => {
+    if (!selectedStore) {
+      // Fallback: just select from current list if no store selected
+      const allCustomers = customerList.map(c => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+      }));
+      setTempSelectedCustomers(allCustomers);
+      return;
+    }
+
+    // Fetch ALL customers from the selected store
+    setIsLoadingCustomers(true);
+    try {
+      const allCustomers = await fetchAllCustomerIds(selectedStore.id);
+      setTempSelectedCustomers(allCustomers);
+    } finally {
+      setIsLoadingCustomers(false);
+    }
   };
 
   // Deselect all customers
@@ -2036,9 +2067,16 @@ export default function MessagesPage() {
                   variant="outline"
                   size="sm"
                   onClick={selectAllCustomers}
-                  disabled={customerList.length === 0}
+                  disabled={customerList.length === 0 || isLoadingCustomers}
                 >
-                  전체 선택
+                  {isLoadingCustomers && tempSelectedCustomers.length === 0 ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                      로딩 중...
+                    </>
+                  ) : (
+                    '전체 선택'
+                  )}
                 </Button>
                 <Button
                   variant="outline"
@@ -2051,6 +2089,9 @@ export default function MessagesPage() {
               </div>
               <span className="text-sm text-[#64748b]">
                 {tempSelectedCustomers.length}명 선택됨
+                {selectedStore && tempSelectedCustomers.length > 0 && (
+                  <> / 총 {selectedStore.customerCount}명</>
+                )}
               </span>
             </div>
 
