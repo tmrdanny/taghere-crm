@@ -647,7 +647,8 @@ enum ExternalSmsCampaignStatus {
 // 외부 SMS 캠페인 (우리동네 손님 찾기)
 model ExternalSmsCampaign {
   id                  String                    @id @default(cuid())
-  storeId             String
+  storeId             String?                   // Store ID (nullable for franchise campaigns)
+  franchiseId         String?                   // Franchise ID (nullable for store campaigns)
   title               String                    // 캠페인 제목
   content             String                    @db.Text // 메시지 내용
   filterAgeGroups     String                    // JSON: ["TWENTIES", "THIRTIES"]
@@ -665,10 +666,12 @@ model ExternalSmsCampaign {
   updatedAt           DateTime                  @updatedAt
 
   // Relations
-  store               Store                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store               Store?                    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  franchise           Franchise?                @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
   messages            ExternalSmsMessage[]
 
   @@index([storeId])
+  @@index([franchiseId])
   @@index([status])
   @@index([createdAt])
   @@map("external_sms_campaigns")
@@ -678,7 +681,8 @@ model ExternalSmsCampaign {
 model ExternalSmsMessage {
   id                 String           @id @default(cuid())
   campaignId         String
-  storeId            String
+  storeId            String?          // Store ID (nullable for franchise campaigns)
+  franchiseId        String?          // Franchise ID (nullable for store campaigns)
   externalCustomerId String
   content            String           @db.Text
   status             SmsMessageStatus @default(PENDING)
@@ -695,6 +699,7 @@ model ExternalSmsMessage {
 
   @@index([campaignId])
   @@index([storeId])
+  @@index([franchiseId])
   @@index([status])
   @@map("external_sms_messages")
 }
@@ -844,11 +849,12 @@ model Franchise {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  users         FranchiseUser[]
-  stores        Store[]
-  wallet        FranchiseWallet?
-  smsCampaigns  FranchiseSmsCampaign[]
-  smsTestLogs   FranchiseSmsTestLog[]
+  users                  FranchiseUser[]
+  stores                 Store[]
+  wallet                 FranchiseWallet?
+  smsCampaigns           FranchiseSmsCampaign[]
+  smsTestLogs            FranchiseSmsTestLog[]
+  externalSmsCampaigns   ExternalSmsCampaign[]
 
   @@map("franchises")
 }
