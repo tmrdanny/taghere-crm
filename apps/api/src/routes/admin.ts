@@ -1451,6 +1451,13 @@ router.post('/franchises/:franchiseId/logo', adminAuthMiddleware, logoUpload.sin
   try {
     const { franchiseId } = req.params;
 
+    console.log('Logo upload request:', {
+      franchiseId,
+      hasFile: !!req.file,
+      fileSize: req.file?.size,
+      mimeType: req.file?.mimetype,
+    });
+
     if (!req.file) {
       return res.status(400).json({ error: '로고 파일을 업로드해주세요.' });
     }
@@ -1464,6 +1471,8 @@ router.post('/franchises/:franchiseId/logo', adminAuthMiddleware, logoUpload.sin
       return res.status(404).json({ error: '프랜차이즈를 찾을 수 없습니다.' });
     }
 
+    console.log('Updating franchise logo in database...');
+
     // 로고를 DB에 저장
     await prisma.franchise.update({
       where: { id: franchiseId },
@@ -1473,10 +1482,17 @@ router.post('/franchises/:franchiseId/logo', adminAuthMiddleware, logoUpload.sin
       },
     });
 
+    console.log('Logo uploaded successfully');
+
     res.json({ success: true, message: '로고가 업로드되었습니다.' });
   } catch (error: any) {
     console.error('Failed to upload franchise logo:', error);
-    res.status(500).json({ error: '로고 업로드에 실패했습니다.' });
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+    });
+    res.status(500).json({ error: '로고 업로드에 실패했습니다.', details: error.message });
   }
 });
 
