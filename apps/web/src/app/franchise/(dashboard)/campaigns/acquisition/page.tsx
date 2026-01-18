@@ -684,7 +684,7 @@ export default function LocalCustomersPage() {
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
           <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-blue-800">
-            문자를 받으시는 고객분들은 전국 태그히어 이용 고객 중 전국 태그히어 매장의 이벤트와 혜택을 주기적으로 받기 희망하신 분들입니다.
+            문자를 받으시는 고객분들은 전국 태그히어 이용 고객 중 매장의 이벤트와 혜택을 주기적으로 받기 희망하신 분들입니다.
           </p>
         </div>
 
