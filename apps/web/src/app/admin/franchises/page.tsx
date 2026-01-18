@@ -50,6 +50,8 @@ export default function FranchisesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedFranchise, setSelectedFranchise] = useState<Franchise | null>(null);
   const [showAddStoreModal, setShowAddStoreModal] = useState(false);
+  const [showLogoUploadModal, setShowLogoUploadModal] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   // 프랜차이즈 생성 폼 데이터
   const [formData, setFormData] = useState({
@@ -204,6 +206,43 @@ export default function FranchisesPage() {
     }
   };
 
+  const handleLogoUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFranchise || !logoFile) return;
+
+    setUploadingLogo(true);
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const formData = new FormData();
+      formData.append('logo', logoFile);
+
+      const res = await fetch(`${API_URL}/api/admin/franchises/${selectedFranchise.id}/logo`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || '로고 업로드에 실패했습니다.');
+      }
+
+      alert('로고가 업로드되었습니다.');
+      setShowLogoUploadModal(false);
+      setSelectedFranchise(null);
+      setLogoFile(null);
+      fetchFranchises();
+    } catch (error: any) {
+      alert(error.message);
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ko-KR', {
@@ -314,15 +353,26 @@ export default function FranchisesPage() {
                         {formatDate(franchise.createdAt)}
                       </td>
                       <td className="px-6 py-4">
-                        <button
-                          onClick={() => {
-                            setSelectedFranchise(franchise);
-                            setShowAddStoreModal(true);
-                          }}
-                          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                          매장 추가
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => {
+                              setSelectedFranchise(franchise);
+                              setShowAddStoreModal(true);
+                            }}
+                            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            매장 추가
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedFranchise(franchise);
+                              setShowLogoUploadModal(true);
+                            }}
+                            className="text-sm text-green-600 hover:text-green-700 font-medium"
+                          >
+                            로고 업로드
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -523,6 +573,67 @@ export default function FranchisesPage() {
                 닫기
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 로고 업로드 모달 */}
+      {showLogoUploadModal && selectedFranchise && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-neutral-900 mb-4">
+              {selectedFranchise.name} 로고 업로드
+            </h2>
+            <form onSubmit={handleLogoUpload} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                  로고 파일 선택 (최대 2MB)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 2 * 1024 * 1024) {
+                        alert('로고 파일은 2MB 이하만 업로드 가능합니다.');
+                        e.target.value = '';
+                        return;
+                      }
+                      setLogoFile(file);
+                    }
+                  }}
+                  required
+                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-neutral-50 file:text-neutral-700 hover:file:bg-neutral-100"
+                />
+                {logoFile && (
+                  <p className="mt-2 text-sm text-neutral-600">
+                    선택된 파일: {logoFile.name} ({(logoFile.size / 1024).toFixed(1)}KB)
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLogoUploadModal(false);
+                    setSelectedFranchise(null);
+                    setLogoFile(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-[#EAEAEA] rounded-lg hover:bg-neutral-50 transition-colors text-sm font-medium"
+                  disabled={uploadingLogo}
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors text-sm font-medium disabled:bg-neutral-400 disabled:cursor-not-allowed"
+                  disabled={uploadingLogo || !logoFile}
+                >
+                  {uploadingLogo ? '업로드 중...' : '업로드'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
