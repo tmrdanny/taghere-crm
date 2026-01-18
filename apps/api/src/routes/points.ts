@@ -48,6 +48,8 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
             visitCount: 0,
             regionSido: store?.addressSido || null,
             regionSigungu: store?.addressSigungu || null,
+            consentMarketing: true,
+            consentAt: new Date(),
           },
         });
       }
