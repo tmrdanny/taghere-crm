@@ -488,10 +488,16 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
 // GET /api/admin/point-stats - 누적 적립 포인트 통계
 router.get('/point-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    // 전체 누적 적립 포인트 (EARN 타입만)
+    // 추적 시작일: 2025년 12월 27일
+    const trackingStartDate = new Date('2025-12-27T00:00:00+09:00');
+
+    // 누적 적립 포인트 (2025.12.27부터, EARN 타입만)
     const result = await prisma.pointLedger.aggregate({
       where: {
         type: 'EARN',
+        createdAt: {
+          gte: trackingStartDate,
+        },
       },
       _sum: {
         delta: true,
