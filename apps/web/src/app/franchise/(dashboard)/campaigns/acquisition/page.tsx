@@ -167,6 +167,12 @@ export default function LocalCustomersPage() {
   // 지갑 상태
   const [walletBalance, setWalletBalance] = useState(0);
 
+  // 지역별 고객 수 상태
+  const [regionCounts, setRegionCounts] = useState<{
+    sidoCounts: Record<string, number>;
+    sigunguCounts: Record<string, Record<string, number>>;
+  }>({ sidoCounts: {}, sigunguCounts: {} });
+
   // UI 상태
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -177,7 +183,7 @@ export default function LocalCustomersPage() {
   const [testPhone, setTestPhone] = useState('');
   const [isTestSending, setIsTestSending] = useState(false);
 
-  // 전체 고객 수 로드
+  // 전체 고객 수 및 지역별 카운트 로드
   useEffect(() => {
     const fetchGlobalCount = async () => {
       try {
@@ -192,7 +198,23 @@ export default function LocalCustomersPage() {
         console.error('Failed to fetch global count:', err);
       }
     };
+
+    const fetchRegionCounts = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/franchise/local-customers/region-counts`, {
+          headers: {
+            Authorization: `Bearer ${getAuthToken()}`,
+          },
+        });
+        const data = await res.json();
+        setRegionCounts(data);
+      } catch (err) {
+        console.error('Failed to fetch region counts:', err);
+      }
+    };
+
     fetchGlobalCount();
+    fetchRegionCounts();
   }, []);
 
 
@@ -789,9 +811,26 @@ export default function LocalCustomersPage() {
               {/* 드롭다운 */}
               {isRegionDropdownOpen && (
                 <div className="absolute z-20 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
+                  {/* 전체 선택 버튼 */}
+                  {filteredSidos.length > 0 && selectedSidos.length < KOREA_SIDOS.length && (
+                    <button
+                      onClick={() => {
+                        setSelectedSidos(KOREA_SIDOS);
+                        setIsRegionDropdownOpen(false);
+                        setRegionSearchQuery('');
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-sm flex items-center justify-between transition-colors bg-blue-50 hover:bg-blue-100 text-blue-700 border-b border-blue-200"
+                    >
+                      <span className="font-semibold">전체 선택</span>
+                      <span className="text-xs text-blue-600">
+                        +{globalTotalCount.toLocaleString()}명
+                      </span>
+                    </button>
+                  )}
                   {filteredSidos.length > 0 ? (
                     filteredSidos.map((sido) => {
                       const isSelected = selectedSidos.includes(sido);
+                      const count = regionCounts.sidoCounts[sido] || 0;
                       return (
                         <button
                           key={sido}
@@ -805,11 +844,16 @@ export default function LocalCustomersPage() {
                           )}
                         >
                           <span className="font-medium">{sido}</span>
-                          {isSelected ? (
-                            <span className="text-xs text-brand-500">선택됨</span>
-                          ) : (
-                            <Plus className="w-4 h-4 text-neutral-400" />
-                          )}
+                          <div className="flex items-center gap-2">
+                            {count > 0 && !isSelected && (
+                              <span className="text-xs text-neutral-500">+{count.toLocaleString()}명</span>
+                            )}
+                            {isSelected ? (
+                              <span className="text-xs text-brand-500">선택됨</span>
+                            ) : (
+                              <Plus className="w-4 h-4 text-neutral-400" />
+                            )}
+                          </div>
                         </button>
                       );
                     })
@@ -922,6 +966,7 @@ export default function LocalCustomersPage() {
                             {filteredSigungus.length > 0 ? (
                               filteredSigungus.map((sigungu) => {
                                 const isSelected = selectedSigunguList.includes(sigungu);
+                                const sigunguCount = regionCounts.sigunguCounts[sido]?.[sigungu] || 0;
                                 return (
                                   <button
                                     key={sigungu}
@@ -943,7 +988,17 @@ export default function LocalCustomersPage() {
                                         : "hover:bg-neutral-50 text-neutral-700"
                                     )}
                                   >
-                                    <span>{sigungu}</span>
+                                    <span className="flex items-center gap-1.5">
+                                      {sigungu}
+                                      {sigunguCount > 0 && (
+                                        <span className={cn(
+                                          "text-[10px]",
+                                          isSelected ? "text-blue-400" : "text-neutral-400"
+                                        )}>
+                                          +{sigunguCount.toLocaleString()}명
+                                        </span>
+                                      )}
+                                    </span>
                                     {isSelected ? (
                                       <span className="text-[10px] text-blue-500">선택됨</span>
                                     ) : (

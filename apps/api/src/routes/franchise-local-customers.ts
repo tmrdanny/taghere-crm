@@ -133,6 +133,67 @@ router.get('/total-count', franchiseAuthMiddleware, async (req: FranchiseAuthReq
   }
 });
 
+// GET /api/franchise/local-customers/region-counts - 지역별 고객 수 조회
+router.get('/region-counts', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
+  try {
+    // 1. ExternalCustomer 시/도별 카운트
+    const externalSidoCounts = await prisma.externalCustomer.groupBy({
+      by: ['regionSido'],
+      where: { consentMarketing: true, regionSido: { not: null } },
+      _count: { id: true },
+    });
+
+    // 2. Customer 시/도별 카운트
+    const customerSidoCounts = await prisma.customer.groupBy({
+      by: ['regionSido'],
+      where: { consentMarketing: true, regionSido: { not: null } },
+      _count: { id: true },
+    });
+
+    // 3. Customer 시/군/구별 카운트
+    const customerSigunguCounts = await prisma.customer.groupBy({
+      by: ['regionSido', 'regionSigungu'],
+      where: { consentMarketing: true, regionSido: { not: null }, regionSigungu: { not: null } },
+      _count: { id: true },
+    });
+
+    // 시/도별 통합 카운트 계산
+    const sidoCountMap: Record<string, number> = {};
+
+    externalSidoCounts.forEach((item) => {
+      if (item.regionSido) {
+        sidoCountMap[item.regionSido] = (sidoCountMap[item.regionSido] || 0) + item._count.id;
+      }
+    });
+
+    customerSidoCounts.forEach((item) => {
+      if (item.regionSido) {
+        sidoCountMap[item.regionSido] = (sidoCountMap[item.regionSido] || 0) + item._count.id;
+      }
+    });
+
+    // 시/군/구별 카운트 (Customer만 - ExternalCustomer는 sigungu 없음)
+    const sigunguCountMap: Record<string, Record<string, number>> = {};
+
+    customerSigunguCounts.forEach((item) => {
+      if (item.regionSido && item.regionSigungu) {
+        if (!sigunguCountMap[item.regionSido]) {
+          sigunguCountMap[item.regionSido] = {};
+        }
+        sigunguCountMap[item.regionSido][item.regionSigungu] = item._count.id;
+      }
+    });
+
+    res.json({
+      sidoCounts: sidoCountMap,
+      sigunguCounts: sigunguCountMap,
+    });
+  } catch (error) {
+    console.error('Region counts fetch error:', error);
+    res.status(500).json({ error: '지역별 고객 수 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 // GET /api/local-customers/count - 조건에 맞는 고객 수 조회 (ExternalCustomer + Customer 통합)
 router.get('/count', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
