@@ -84,7 +84,7 @@ async function processMessage(messageId: string): Promise<void> {
     const weekStart = getWeekStart(new Date());
 
     if (statusResult.status === 'SENT') {
-      // 발송 성공 - 트랜잭션으로 상태 업데이트 + 비용 차감 + 슬롯 증가
+      // 발송 성공 - 트랜잭션으로 상태 업데이트 + 비용 차감
       await prisma.$transaction(async (tx) => {
         // 1. 메시지 상태 업데이트
         await tx.externalSmsMessage.update({
@@ -95,26 +95,10 @@ async function processMessage(messageId: string): Promise<void> {
           },
         });
 
-        // 2. 지갑 잔액 차감
-        await tx.wallet.update({
-          where: { storeId: msg.storeId },
+        // 2. 프랜차이즈 지갑 잔액 차감
+        await tx.franchiseWallet.update({
+          where: { franchiseId: msg.campaign.franchiseId },
           data: { balance: { decrement: msg.cost } },
-        });
-
-        // 3. 결제 트랜잭션 로그 생성
-        await tx.paymentTransaction.create({
-          data: {
-            storeId: msg.storeId,
-            amount: -msg.cost,
-            type: 'ALIMTALK_SEND', // 외부 SMS도 동일 타입 사용
-            status: 'SUCCESS',
-            meta: {
-              messageId: messageId,
-              campaignId: msg.campaignId,
-              phone: phone,
-              type: 'EXTERNAL_SMS',
-            },
-          },
         });
 
         // 4. 캠페인 sentCount 및 totalCost 증가

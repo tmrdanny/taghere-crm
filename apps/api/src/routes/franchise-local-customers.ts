@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { SolapiMessageService } from 'solapi';
 import { prisma } from '../lib/prisma.js';
-import { franchiseAuthMiddleware, FranchiseFranchiseAuthRequest } from '../middleware/franchise-auth.js';
+import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
 import { SolapiService, BrandMessageButton } from '../services/solapi.js';
 
 const router = Router();
@@ -220,7 +220,7 @@ router.get('/count', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
 // GET /api/local-customers/estimate - 비용 예상
 router.get('/estimate', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
-    const franchiseId = req.franchise!.id;
+    const franchiseId = req.franchiseUser!.franchiseId;
     const { sendCount } = req.query;
 
     if (!sendCount) {
@@ -254,7 +254,7 @@ router.get('/estimate', franchiseAuthMiddleware, async (req: FranchiseAuthReques
 // POST /api/local-customers/send - 메시지 발송 (다중 지역 지원)
 router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
-    const franchiseId = req.franchise!.id;
+    const franchiseId = req.franchiseUser!.franchiseId;
     const { content, ageGroups, gender, regions, regionSidos, sendCount, categories, isAdMessage = true } = req.body;
 
     // 새 형식 (regions) 또는 구 형식 (regionSidos) 지원
@@ -471,7 +471,7 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
 // POST /api/local-customers/test - 테스트 발송
 router.post('/test', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
-    const franchiseId = req.franchise!.id;
+    const franchiseId = req.franchiseUser!.franchiseId;
     const { content, phone } = req.body;
 
     if (!content || !phone) {
@@ -531,7 +531,7 @@ router.get('/kakao/send-available', franchiseAuthMiddleware, async (req: Franchi
 // GET /api/local-customers/kakao/estimate - 카카오톡 비용 예상
 router.get('/kakao/estimate', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
-    const franchiseId = req.franchise!.id;
+    const franchiseId = req.franchiseUser!.franchiseId;
     const { sendCount, messageType = 'TEXT' } = req.query;
 
     if (!sendCount) {
@@ -587,7 +587,7 @@ router.get('/kakao/estimate', franchiseAuthMiddleware, async (req: FranchiseAuth
 // POST /api/local-customers/kakao/send - 카카오톡 브랜드 메시지 발송 (외부 고객)
 router.post('/kakao/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
-    const franchiseId = req.franchise!.id;
+    const franchiseId = req.franchiseUser!.franchiseId;
     const {
       content,
       messageType = 'TEXT',
@@ -762,7 +762,6 @@ router.post('/kakao/send', franchiseAuthMiddleware, async (req: FranchiseAuthReq
           await prisma.externalSmsMessage.create({
             data: {
               campaignId: campaign.id,
-              storeId,
               externalCustomerId: customer.id,
               content,
               status: 'PENDING',
@@ -825,7 +824,7 @@ router.post('/kakao/send', franchiseAuthMiddleware, async (req: FranchiseAuthReq
 // GET /api/local-customers/campaigns - 캠페인 목록 조회
 router.get('/campaigns', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
-    const franchiseId = req.franchise!.id;
+    const franchiseId = req.franchiseUser!.franchiseId;
     const { page = '1', limit = '20' } = req.query;
 
     const pageNum = parseInt(page as string);
