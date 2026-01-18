@@ -230,7 +230,7 @@ export default function FranchiseCustomersPage() {
       THIRTIES: '30대',
       FORTIES: '40대',
       FIFTIES: '50대',
-      SIXTIES_PLUS: '60대 이상',
+      SIXTY_PLUS: '60대 이상',
     };
     return labels[ageGroup] || ageGroup;
   };
@@ -588,6 +588,9 @@ export default function FranchiseCustomersPage() {
                   <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     포인트
                   </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    성별
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     연령대
                   </th>
@@ -602,11 +605,11 @@ export default function FranchiseCustomersPage() {
               <tbody className="divide-y divide-neutral-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7}>{renderSkeleton()}</td>
+                    <td colSpan={8}>{renderSkeleton()}</td>
                   </tr>
                 ) : customers.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>{renderEmptyState()}</td>
+                    <td colSpan={8}>{renderEmptyState()}</td>
                   </tr>
                 ) : (
                   customers.map((customer) => (
@@ -627,6 +630,9 @@ export default function FranchiseCustomersPage() {
                       <td className="px-6 py-4 text-sm text-neutral-600">{customer.store.name}</td>
                       <td className="px-6 py-4 text-sm text-neutral-900 text-right font-medium">
                         {customer.totalPoints.toLocaleString()}P
+                      </td>
+                      <td className="px-6 py-4 text-sm text-neutral-600 text-center">
+                        {customer.gender === 'MALE' ? '남성' : customer.gender === 'FEMALE' ? '여성' : '-'}
                       </td>
                       <td className="px-6 py-4 text-sm text-neutral-600">
                         {customer.ageGroup ? getAgeGroupLabel(customer.ageGroup) : '-'}

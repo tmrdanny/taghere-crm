@@ -792,6 +792,7 @@ router.get('/customers/:customerId', franchiseAuthMiddleware, async (req: Franch
       phone: maskPhone(customer.phone),
       totalPoints: customer.totalPoints,
       gender: customer.gender,
+      ageGroup: customer.ageGroup,
       birthday: customer.birthday,
       birthYear: customer.birthYear,
       visitCount: customer.visitCount,
