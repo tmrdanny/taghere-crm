@@ -731,7 +731,7 @@ export default function LocalCustomersPage() {
           </div>
         </div>
 
-        {/* 지역 + 업종 선택 - 2열 그리드 */}
+        {/* 지역 + 시/군/구 선택 - 2열 그리드 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* 좌측: 지역 선택 */}
           <div className="p-4 rounded-xl border border-neutral-200 bg-white">
@@ -827,88 +827,27 @@ export default function LocalCustomersPage() {
             )}
           </div>
 
-          {/* 우측: 고객 선호 업종 */}
+          {/* 우측: 시/군/구 상세 선택 */}
           <div className="p-4 rounded-xl border border-neutral-200 bg-white">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
-                <Store className="w-5 h-5 text-neutral-500" />
+                <MapPin className="w-5 h-5 text-neutral-500" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-neutral-900">고객 선호 업종</p>
-                <p className="text-xs text-neutral-500">여러 업종을 선택할 수 있습니다</p>
+                <p className="text-sm font-medium text-neutral-900">시/군/구 상세 선택</p>
+                <p className="text-xs text-neutral-500">선택한 지역의 시/군/구를 선택</p>
               </div>
             </div>
 
-            {/* 선택된 업종 태그 */}
-            {selectedPreferredCategories.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {selectedPreferredCategories.map((cat) => {
-                  const catLabel = CATEGORY_OPTIONS.find(c => c.value === cat)?.label || cat;
-                  return (
-                    <span
-                      key={cat}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-100 text-brand-700 rounded-full text-sm font-medium"
-                    >
-                      {catLabel}
-                      <button
-                        onClick={() => setSelectedPreferredCategories(prev => prev.filter(c => c !== cat))}
-                        className="hover:bg-brand-200 rounded-full p-0.5 transition-colors"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </span>
-                  );
-                })}
+            {/* 시/도가 선택되지 않았을 때 */}
+            {selectedSidos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <MapPin className="w-10 h-10 text-neutral-300 mb-2" />
+                <p className="text-sm text-neutral-500">먼저 지역(시/도)을 선택해주세요</p>
               </div>
-            )}
-
-            {/* 업종 버튼 (플랫 리스트) */}
-            <div className="flex flex-wrap gap-2">
-              {CATEGORY_OPTIONS.map((cat) => {
-                const isSelected = selectedPreferredCategories.includes(cat.value);
-                return (
-                  <button
-                    key={cat.value}
-                    onClick={() => {
-                      if (isSelected) {
-                        setSelectedPreferredCategories(prev => prev.filter(c => c !== cat.value));
-                      } else {
-                        setSelectedPreferredCategories(prev => [...prev, cat.value]);
-                      }
-                    }}
-                    className={cn(
-                      "px-4 py-2 rounded-full text-sm font-medium border transition-colors",
-                      isSelected
-                        ? "bg-brand-600 text-white border-brand-600"
-                        : "bg-white text-neutral-700 border-neutral-200 hover:border-brand-300"
-                    )}
-                  >
-                    {cat.label}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs text-neutral-500 mt-2">
-              * 선택한 업종을 선호하는 고객에게만 발송됩니다
-            </p>
-          </div>
-        </div>
-
-        {/* 시/군/구 선택 섹션 (선택된 시/도가 있을 때만 표시) */}
-        {selectedSidos.length > 0 && (
-          <div>
-            <h2 className="text-sm font-semibold text-neutral-900 mb-3">시/군/구 상세 선택 (선택사항)</h2>
-            <div className="p-4 rounded-xl border border-neutral-200 bg-white">
-              <div className="flex items-center gap-3 mb-3">
-                <MapPin className="w-5 h-5 text-neutral-500" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-neutral-900">세부 지역 선택</p>
-                  <p className="text-xs text-neutral-500">시/도를 선택한 후 상세 지역을 추가할 수 있습니다</p>
-                </div>
-              </div>
-
-              {/* 시/도별 시/군/구 선택 */}
-              <div className="space-y-4">
+            ) : (
+              /* 시/도별 시/군/구 선택 */
+              <div className="space-y-3 max-h-[280px] overflow-y-auto">
                 {selectedSidos.map((sido) => {
                   const sigungus = KOREA_SIGUNGU[sido] || [];
                   const selectedSigunguList = selectedSigungus[sido] || [];
@@ -923,17 +862,17 @@ export default function LocalCustomersPage() {
                         <span className="text-xs text-neutral-500">
                           {selectedSigunguList.length > 0
                             ? `${selectedSigunguList.length}개 선택`
-                            : '전체 선택'}
+                            : '전체'}
                         </span>
                       </div>
 
                       {/* 선택된 시/군/구 태그 */}
                       {selectedSigunguList.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-2">
+                        <div className="flex flex-wrap gap-1.5 mb-2">
                           {selectedSigunguList.map((sigungu) => (
                             <span
                               key={sigungu}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
                             >
                               {sigungu}
                               <button
@@ -945,7 +884,7 @@ export default function LocalCustomersPage() {
                                 }}
                                 className="hover:bg-blue-200 rounded-full p-0.5 transition-colors"
                               >
-                                <X className="w-3 h-3" />
+                                <X className="w-2.5 h-2.5" />
                               </button>
                             </span>
                           ))}
@@ -955,7 +894,7 @@ export default function LocalCustomersPage() {
                       {/* 시/군/구 검색 및 드롭다운 */}
                       <div className="relative">
                         <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
                           <input
                             type="text"
                             value={activeSidoForSigungu === sido ? sigunguSearchQuery : ''}
@@ -969,13 +908,13 @@ export default function LocalCustomersPage() {
                               setIsSigunguDropdownOpen(true);
                             }}
                             placeholder={`${sido} 시/군/구 검색...`}
-                            className="w-full pl-9 pr-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                            className="w-full pl-8 pr-3 py-1.5 border border-neutral-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                           />
                         </div>
 
                         {/* 드롭다운 */}
                         {isSigunguDropdownOpen && activeSidoForSigungu === sido && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                             {filteredSigungus.length > 0 ? (
                               filteredSigungus.map((sigungu) => {
                                 const isSelected = selectedSigunguList.includes(sigungu);
@@ -994,7 +933,7 @@ export default function LocalCustomersPage() {
                                     }}
                                     disabled={isSelected}
                                     className={cn(
-                                      "w-full px-4 py-2 text-left text-sm flex items-center justify-between transition-colors",
+                                      "w-full px-3 py-1.5 text-left text-xs flex items-center justify-between transition-colors",
                                       isSelected
                                         ? "bg-blue-50 text-blue-600 cursor-not-allowed"
                                         : "hover:bg-neutral-50 text-neutral-700"
@@ -1002,15 +941,15 @@ export default function LocalCustomersPage() {
                                   >
                                     <span>{sigungu}</span>
                                     {isSelected ? (
-                                      <span className="text-xs text-blue-500">선택됨</span>
+                                      <span className="text-[10px] text-blue-500">선택됨</span>
                                     ) : (
-                                      <Plus className="w-4 h-4 text-neutral-400" />
+                                      <Plus className="w-3.5 h-3.5 text-neutral-400" />
                                     )}
                                   </button>
                                 );
                               })
                             ) : (
-                              <div className="px-4 py-3 text-sm text-neutral-500">
+                              <div className="px-3 py-2 text-xs text-neutral-500">
                                 검색 결과가 없습니다
                               </div>
                             )}
@@ -1021,11 +960,13 @@ export default function LocalCustomersPage() {
                   );
                 })}
               </div>
+            )}
 
-              <p className="text-xs text-neutral-500 mt-3">
-                * 시/군/구를 선택하지 않으면 해당 시/도 전체로 발송됩니다
+            {selectedSidos.length > 0 && (
+              <p className="text-xs text-neutral-500 mt-2">
+                * 시/군/구 미선택 시 해당 시/도 전체로 발송
               </p>
-            </div>
+            )}
 
             {/* 드롭다운 닫기 */}
             {isSigunguDropdownOpen && (
@@ -1038,7 +979,43 @@ export default function LocalCustomersPage() {
               />
             )}
           </div>
-        )}
+        </div>
+
+        {/* 고객 선호 업종 (준비중) */}
+        <div className="relative p-4 rounded-xl border border-neutral-200 bg-neutral-50 overflow-hidden">
+          {/* 블러 오버레이 */}
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
+            <span className="px-3 py-1.5 bg-neutral-200 text-neutral-600 rounded-full text-sm font-medium">
+              준비중
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 mb-3 opacity-40">
+            <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
+              <Store className="w-5 h-5 text-neutral-500" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-neutral-900">고객 선호 업종</p>
+              <p className="text-xs text-neutral-500">여러 업종을 선택할 수 있습니다</p>
+            </div>
+          </div>
+
+          {/* 업종 버튼 (플랫 리스트) - 비활성화 상태 */}
+          <div className="flex flex-wrap gap-2 opacity-40 pointer-events-none">
+            {CATEGORY_OPTIONS.map((cat) => (
+              <button
+                key={cat.value}
+                disabled
+                className="px-4 py-2 rounded-full text-sm font-medium border bg-white text-neutral-700 border-neutral-200"
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-neutral-500 mt-2 opacity-40">
+            * 선택한 업종을 선호하는 고객에게만 발송됩니다
+          </p>
+        </div>
 
         {/* 상세 필터 */}
         <div>
