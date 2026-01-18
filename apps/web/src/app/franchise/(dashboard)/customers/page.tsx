@@ -20,113 +20,8 @@ import { cn } from '@/lib/utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-// Demo customers data (100명)
-const DEMO_CUSTOMERS = [
-  { id: '1', name: '김*호', phone: '010-****-5678', visitCount: 12, lastVisit: '2025-01-12', preferredCategories: ['한식', '구이'], region: '서울 강남구', age: '30대', gender: 'MALE' },
-  { id: '2', name: '이*영', phone: '010-****-1234', visitCount: 8, lastVisit: '2025-01-10', preferredCategories: ['한식'], region: '서울 마포구', age: '20대', gender: 'FEMALE' },
-  { id: '3', name: '박*진', phone: '010-****-9012', visitCount: 15, lastVisit: '2025-01-14', preferredCategories: ['한식', '일식'], region: '서울 강남구', age: '40대', gender: 'MALE' },
-  { id: '4', name: '최*아', phone: '010-****-3456', visitCount: 6, lastVisit: '2025-01-08', preferredCategories: ['카페'], region: '경기 성남시', age: '20대', gender: 'FEMALE' },
-  { id: '5', name: '정*수', phone: '010-****-7890', visitCount: 22, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이', '일식'], region: '서울 송파구', age: '50대', gender: 'MALE' },
-  { id: '6', name: '강*미', phone: '010-****-2345', visitCount: 4, lastVisit: '2025-01-05', preferredCategories: ['양식'], region: '인천 남동구', age: '30대', gender: 'FEMALE' },
-  { id: '7', name: '윤*현', phone: '010-****-6789', visitCount: 18, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식'], region: '부산 부산진구', age: '40대', gender: 'MALE' },
-  { id: '8', name: '임*서', phone: '010-****-0123', visitCount: 9, lastVisit: '2025-01-11', preferredCategories: ['카페', '디저트'], region: '서울 서대문구', age: '20대', gender: 'FEMALE' },
-  { id: '9', name: '한*우', phone: '010-****-4567', visitCount: 31, lastVisit: '2025-01-14', preferredCategories: ['한식', '구이'], region: '대구 중구', age: '60대', gender: 'MALE' },
-  { id: '10', name: '오*빈', phone: '010-****-8901', visitCount: 7, lastVisit: '2025-01-09', preferredCategories: ['일식'], region: '광주 서구', age: '30대', gender: 'FEMALE' },
-  { id: '11', name: '서*준', phone: '010-****-2346', visitCount: 14, lastVisit: '2025-01-13', preferredCategories: ['한식', '양식'], region: '대전 서구', age: '30대', gender: 'MALE' },
-  { id: '12', name: '신*은', phone: '010-****-6780', visitCount: 5, lastVisit: '2025-01-07', preferredCategories: ['카페'], region: '울산 남구', age: '20대', gender: 'FEMALE' },
-  { id: '13', name: '권*민', phone: '010-****-0124', visitCount: 11, lastVisit: '2025-01-12', preferredCategories: ['한식', '구이'], region: '경기 수원시', age: '40대', gender: 'MALE' },
-  { id: '14', name: '황*지', phone: '010-****-4568', visitCount: 3, lastVisit: '2025-01-04', preferredCategories: ['디저트'], region: '제주 제주시', age: '20대', gender: 'FEMALE' },
-  { id: '15', name: '안*석', phone: '010-****-8902', visitCount: 25, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식', '구이'], region: '서울 용산구', age: '50대', gender: 'MALE' },
-  { id: '16', name: '송*라', phone: '010-****-2347', visitCount: 8, lastVisit: '2025-01-10', preferredCategories: ['일식', '카페'], region: '서울 광진구', age: '30대', gender: 'FEMALE' },
-  { id: '17', name: '전*혁', phone: '010-****-6781', visitCount: 19, lastVisit: '2025-01-13', preferredCategories: ['한식'], region: '충남 천안시', age: '40대', gender: 'MALE' },
-  { id: '18', name: '홍*연', phone: '010-****-0125', visitCount: 6, lastVisit: '2025-01-06', preferredCategories: ['양식', '카페'], region: '충북 청주시', age: '20대', gender: 'FEMALE' },
-  { id: '19', name: '유*훈', phone: '010-****-4569', visitCount: 13, lastVisit: '2025-01-11', preferredCategories: ['한식', '구이'], region: '전북 전주시', age: '50대', gender: 'MALE' },
-  { id: '20', name: '조*희', phone: '010-****-8903', visitCount: 10, lastVisit: '2025-01-12', preferredCategories: ['디저트', '카페'], region: '경남 창원시', age: '30대', gender: 'FEMALE' },
-  { id: '21', name: '배*철', phone: '010-****-1357', visitCount: 16, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '서울 종로구', age: '40대', gender: 'MALE' },
-  { id: '22', name: '노*정', phone: '010-****-2468', visitCount: 7, lastVisit: '2025-01-09', preferredCategories: ['카페', '디저트'], region: '서울 성북구', age: '20대', gender: 'FEMALE' },
-  { id: '23', name: '하*근', phone: '010-****-3579', visitCount: 23, lastVisit: '2025-01-14', preferredCategories: ['한식', '일식'], region: '경기 고양시', age: '50대', gender: 'MALE' },
-  { id: '24', name: '양*윤', phone: '010-****-4680', visitCount: 4, lastVisit: '2025-01-05', preferredCategories: ['양식'], region: '경기 용인시', age: '30대', gender: 'FEMALE' },
-  { id: '25', name: '손*기', phone: '010-****-5791', visitCount: 28, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식', '구이'], region: '부산 해운대구', age: '60대', gender: 'MALE' },
-  { id: '26', name: '백*나', phone: '010-****-6802', visitCount: 9, lastVisit: '2025-01-10', preferredCategories: ['일식', '카페'], region: '서울 강서구', age: '20대', gender: 'FEMALE' },
-  { id: '27', name: '남*태', phone: '010-****-7913', visitCount: 17, lastVisit: '2025-01-12', preferredCategories: ['한식'], region: '대구 수성구', age: '40대', gender: 'MALE' },
-  { id: '28', name: '심*주', phone: '010-****-8024', visitCount: 5, lastVisit: '2025-01-06', preferredCategories: ['디저트', '카페'], region: '광주 북구', age: '20대', gender: 'FEMALE' },
-  { id: '29', name: '곽*성', phone: '010-****-9135', visitCount: 21, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '인천 연수구', age: '50대', gender: 'MALE' },
-  { id: '30', name: '문*린', phone: '010-****-0246', visitCount: 11, lastVisit: '2025-01-11', preferredCategories: ['양식', '일식'], region: '서울 동작구', age: '30대', gender: 'FEMALE' },
-  { id: '31', name: '장*원', phone: '010-****-1358', visitCount: 14, lastVisit: '2025-01-12', preferredCategories: ['한식', '중식'], region: '경기 안양시', age: '40대', gender: 'MALE' },
-  { id: '32', name: '류*하', phone: '010-****-2469', visitCount: 6, lastVisit: '2025-01-07', preferredCategories: ['카페'], region: '서울 노원구', age: '20대', gender: 'FEMALE' },
-  { id: '33', name: '차*용', phone: '010-****-3570', visitCount: 32, lastVisit: '2025-01-14', preferredCategories: ['한식', '구이', '일식'], region: '부산 사하구', age: '60대', gender: 'MALE' },
-  { id: '34', name: '구*선', phone: '010-****-4681', visitCount: 8, lastVisit: '2025-01-08', preferredCategories: ['디저트'], region: '대전 유성구', age: '30대', gender: 'FEMALE' },
-  { id: '35', name: '민*재', phone: '010-****-5792', visitCount: 19, lastVisit: '2025-01-13', preferredCategories: ['한식'], region: '울산 중구', age: '50대', gender: 'MALE' },
-  { id: '36', name: '추*예', phone: '010-****-6803', visitCount: 3, lastVisit: '2025-01-03', preferredCategories: ['카페', '양식'], region: '경기 부천시', age: '20대', gender: 'FEMALE' },
-  { id: '37', name: '도*환', phone: '010-****-7914', visitCount: 15, lastVisit: '2025-01-11', preferredCategories: ['한식', '구이'], region: '충남 아산시', age: '40대', gender: 'MALE' },
-  { id: '38', name: '성*림', phone: '010-****-8025', visitCount: 10, lastVisit: '2025-01-10', preferredCategories: ['일식', '디저트'], region: '서울 은평구', age: '30대', gender: 'FEMALE' },
-  { id: '39', name: '우*범', phone: '010-****-9136', visitCount: 26, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식'], region: '경북 포항시', age: '50대', gender: 'MALE' },
-  { id: '40', name: '탁*솔', phone: '010-****-0247', visitCount: 7, lastVisit: '2025-01-09', preferredCategories: ['카페'], region: '전남 여수시', age: '20대', gender: 'FEMALE' },
-  { id: '41', name: '봉*일', phone: '010-****-1359', visitCount: 20, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '서울 관악구', age: '40대', gender: 'MALE' },
-  { id: '42', name: '진*빈', phone: '010-****-2460', visitCount: 12, lastVisit: '2025-01-12', preferredCategories: ['양식', '카페'], region: '경기 의정부시', age: '30대', gender: 'FEMALE' },
-  { id: '43', name: '엄*찬', phone: '010-****-3571', visitCount: 29, lastVisit: '2025-01-14', preferredCategories: ['한식', '일식', '구이'], region: '부산 동래구', age: '60대', gender: 'MALE' },
-  { id: '44', name: '표*경', phone: '010-****-4682', visitCount: 4, lastVisit: '2025-01-04', preferredCategories: ['디저트'], region: '인천 계양구', age: '20대', gender: 'FEMALE' },
-  { id: '45', name: '길*완', phone: '010-****-5793', visitCount: 18, lastVisit: '2025-01-12', preferredCategories: ['한식'], region: '대구 달서구', age: '50대', gender: 'MALE' },
-  { id: '46', name: '변*담', phone: '010-****-6804', visitCount: 9, lastVisit: '2025-01-10', preferredCategories: ['카페', '일식'], region: '서울 중랑구', age: '30대', gender: 'FEMALE' },
-  { id: '47', name: '석*욱', phone: '010-****-7915', visitCount: 24, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '광주 광산구', age: '40대', gender: 'MALE' },
-  { id: '48', name: '맹*화', phone: '010-****-8026', visitCount: 6, lastVisit: '2025-01-06', preferredCategories: ['양식', '디저트'], region: '경기 안산시', age: '20대', gender: 'FEMALE' },
-  { id: '49', name: '피*혁', phone: '010-****-9137', visitCount: 33, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식', '구이'], region: '충북 충주시', age: '60대', gender: 'MALE' },
-  { id: '50', name: '금*슬', phone: '010-****-0248', visitCount: 11, lastVisit: '2025-01-11', preferredCategories: ['카페'], region: '서울 금천구', age: '20대', gender: 'FEMALE' },
-  { id: '51', name: '방*준', phone: '010-****-1360', visitCount: 16, lastVisit: '2025-01-12', preferredCategories: ['한식', '일식'], region: '경남 김해시', age: '40대', gender: 'MALE' },
-  { id: '52', name: '천*율', phone: '010-****-2461', visitCount: 8, lastVisit: '2025-01-08', preferredCategories: ['디저트', '카페'], region: '서울 도봉구', age: '30대', gender: 'FEMALE' },
-  { id: '53', name: '설*우', phone: '010-****-3572', visitCount: 27, lastVisit: '2025-01-14', preferredCategories: ['한식', '구이'], region: '전북 익산시', age: '50대', gender: 'MALE' },
-  { id: '54', name: '마*인', phone: '010-****-4683', visitCount: 5, lastVisit: '2025-01-05', preferredCategories: ['양식'], region: '경기 시흥시', age: '20대', gender: 'FEMALE' },
-  { id: '55', name: '제*동', phone: '010-****-5794', visitCount: 22, lastVisit: '2025-01-13', preferredCategories: ['한식', '중식'], region: '부산 북구', age: '40대', gender: 'MALE' },
-  { id: '56', name: '빈*아', phone: '010-****-6805', visitCount: 13, lastVisit: '2025-01-11', preferredCategories: ['카페', '일식'], region: '대전 동구', age: '30대', gender: 'FEMALE' },
-  { id: '57', name: '공*건', phone: '010-****-7916', visitCount: 30, lastVisit: '2025-01-14', preferredCategories: ['한식', '구이', '일식'], region: '서울 영등포구', age: '60대', gender: 'MALE' },
-  { id: '58', name: '염*비', phone: '010-****-8027', visitCount: 7, lastVisit: '2025-01-07', preferredCategories: ['디저트'], region: '인천 부평구', age: '20대', gender: 'FEMALE' },
-  { id: '59', name: '복*상', phone: '010-****-9138', visitCount: 17, lastVisit: '2025-01-12', preferredCategories: ['한식'], region: '경기 파주시', age: '50대', gender: 'MALE' },
-  { id: '60', name: '태*원', phone: '010-****-0249', visitCount: 10, lastVisit: '2025-01-10', preferredCategories: ['양식', '카페'], region: '울산 동구', age: '30대', gender: 'FEMALE' },
-  { id: '61', name: '음*승', phone: '010-****-1361', visitCount: 25, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '대구 동구', age: '40대', gender: 'MALE' },
-  { id: '62', name: '목*진', phone: '010-****-2462', visitCount: 4, lastVisit: '2025-01-04', preferredCategories: ['카페', '디저트'], region: '서울 구로구', age: '20대', gender: 'FEMALE' },
-  { id: '63', name: '소*택', phone: '010-****-3573', visitCount: 21, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식'], region: '광주 남구', age: '50대', gender: 'MALE' },
-  { id: '64', name: '어*름', phone: '010-****-4684', visitCount: 9, lastVisit: '2025-01-09', preferredCategories: ['일식'], region: '경기 광명시', age: '30대', gender: 'FEMALE' },
-  { id: '65', name: '명*오', phone: '010-****-5795', visitCount: 34, lastVisit: '2025-01-14', preferredCategories: ['한식', '구이', '일식'], region: '충남 논산시', age: '60대', gender: 'MALE' },
-  { id: '66', name: '현*미', phone: '010-****-6806', visitCount: 6, lastVisit: '2025-01-06', preferredCategories: ['양식', '카페'], region: '서울 동대문구', age: '20대', gender: 'FEMALE' },
-  { id: '67', name: '국*현', phone: '010-****-7917', visitCount: 14, lastVisit: '2025-01-11', preferredCategories: ['한식'], region: '부산 연제구', age: '40대', gender: 'MALE' },
-  { id: '68', name: '감*지', phone: '010-****-8028', visitCount: 11, lastVisit: '2025-01-10', preferredCategories: ['디저트', '일식'], region: '경기 군포시', age: '30대', gender: 'FEMALE' },
-  { id: '69', name: '경*로', phone: '010-****-9139', visitCount: 28, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '전남 순천시', age: '50대', gender: 'MALE' },
-  { id: '70', name: '계*별', phone: '010-****-0250', visitCount: 3, lastVisit: '2025-01-03', preferredCategories: ['카페'], region: '인천 서구', age: '20대', gender: 'FEMALE' },
-  { id: '71', name: '고*평', phone: '010-****-1362', visitCount: 19, lastVisit: '2025-01-12', preferredCategories: ['한식', '중식'], region: '대전 대덕구', age: '40대', gender: 'MALE' },
-  { id: '72', name: '관*정', phone: '010-****-2463', visitCount: 8, lastVisit: '2025-01-08', preferredCategories: ['양식', '디저트'], region: '서울 성동구', age: '30대', gender: 'FEMALE' },
-  { id: '73', name: '광*호', phone: '010-****-3574', visitCount: 35, lastVisit: '2025-01-14', preferredCategories: ['한식', '구이', '일식'], region: '경북 구미시', age: '60대', gender: 'MALE' },
-  { id: '74', name: '규*온', phone: '010-****-4685', visitCount: 5, lastVisit: '2025-01-05', preferredCategories: ['카페', '일식'], region: '경기 이천시', age: '20대', gender: 'FEMALE' },
-  { id: '75', name: '근*식', phone: '010-****-5796', visitCount: 23, lastVisit: '2025-01-13', preferredCategories: ['한식'], region: '울산 북구', age: '50대', gender: 'MALE' },
-  { id: '76', name: '기*향', phone: '010-****-6807', visitCount: 12, lastVisit: '2025-01-11', preferredCategories: ['디저트', '카페'], region: '서울 강동구', age: '30대', gender: 'FEMALE' },
-  { id: '77', name: '낙*빈', phone: '010-****-7918', visitCount: 20, lastVisit: '2025-01-12', preferredCategories: ['한식', '구이'], region: '부산 금정구', age: '40대', gender: 'MALE' },
-  { id: '78', name: '난*설', phone: '010-****-8029', visitCount: 7, lastVisit: '2025-01-07', preferredCategories: ['양식'], region: '경기 하남시', age: '20대', gender: 'FEMALE' },
-  { id: '79', name: '내*천', phone: '010-****-9140', visitCount: 31, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식', '구이'], region: '충북 제천시', age: '60대', gender: 'MALE' },
-  { id: '80', name: '다*름', phone: '010-****-0251', visitCount: 10, lastVisit: '2025-01-10', preferredCategories: ['일식', '카페'], region: '대구 북구', age: '30대', gender: 'FEMALE' },
-  { id: '81', name: '단*결', phone: '010-****-1363', visitCount: 15, lastVisit: '2025-01-11', preferredCategories: ['한식'], region: '광주 동구', age: '40대', gender: 'MALE' },
-  { id: '82', name: '달*봄', phone: '010-****-2464', visitCount: 4, lastVisit: '2025-01-04', preferredCategories: ['카페', '디저트'], region: '서울 서초구', age: '20대', gender: 'FEMALE' },
-  { id: '83', name: '대*수', phone: '010-****-3575', visitCount: 26, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '경남 양산시', age: '50대', gender: 'MALE' },
-  { id: '84', name: '덕*자', phone: '010-****-4686', visitCount: 9, lastVisit: '2025-01-09', preferredCategories: ['양식', '일식'], region: '인천 미추홀구', age: '30대', gender: 'FEMALE' },
-  { id: '85', name: '도*원', phone: '010-****-5797', visitCount: 36, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식', '일식'], region: '전북 군산시', age: '60대', gender: 'MALE' },
-  { id: '86', name: '동*천', phone: '010-****-6808', visitCount: 6, lastVisit: '2025-01-06', preferredCategories: ['디저트'], region: '경기 김포시', age: '20대', gender: 'FEMALE' },
-  { id: '87', name: '두*민', phone: '010-****-7919', visitCount: 18, lastVisit: '2025-01-12', preferredCategories: ['한식', '구이'], region: '대전 중구', age: '40대', gender: 'MALE' },
-  { id: '88', name: '라*희', phone: '010-****-8030', visitCount: 13, lastVisit: '2025-01-11', preferredCategories: ['카페'], region: '서울 양천구', age: '30대', gender: 'FEMALE' },
-  { id: '89', name: '래*준', phone: '010-****-9141', visitCount: 29, lastVisit: '2025-01-14', preferredCategories: ['한식', '일식'], region: '부산 사상구', age: '50대', gender: 'MALE' },
-  { id: '90', name: '려*운', phone: '010-****-0252', visitCount: 8, lastVisit: '2025-01-08', preferredCategories: ['양식', '카페'], region: '경기 남양주시', age: '20대', gender: 'FEMALE' },
-  { id: '91', name: '력*상', phone: '010-****-1364', visitCount: 22, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이'], region: '울산 울주군', age: '40대', gender: 'MALE' },
-  { id: '92', name: '련*화', phone: '010-****-2465', visitCount: 11, lastVisit: '2025-01-10', preferredCategories: ['디저트', '일식'], region: '대구 서구', age: '30대', gender: 'FEMALE' },
-  { id: '93', name: '렬*진', phone: '010-****-3576', visitCount: 33, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식', '구이'], region: '광주 서구', age: '60대', gender: 'MALE' },
-  { id: '94', name: '령*아', phone: '010-****-4687', visitCount: 5, lastVisit: '2025-01-05', preferredCategories: ['카페'], region: '서울 강북구', age: '20대', gender: 'FEMALE' },
-  { id: '95', name: '례*문', phone: '010-****-5798', visitCount: 17, lastVisit: '2025-01-12', preferredCategories: ['한식'], region: '경기 오산시', age: '50대', gender: 'MALE' },
-  { id: '96', name: '로*빈', phone: '010-****-6809', visitCount: 14, lastVisit: '2025-01-11', preferredCategories: ['양식', '디저트'], region: '충남 서산시', age: '30대', gender: 'FEMALE' },
-  { id: '97', name: '록*찬', phone: '010-****-7920', visitCount: 24, lastVisit: '2025-01-13', preferredCategories: ['한식', '구이', '일식'], region: '인천 강화군', age: '40대', gender: 'MALE' },
-  { id: '98', name: '론*희', phone: '010-****-8031', visitCount: 7, lastVisit: '2025-01-07', preferredCategories: ['카페', '일식'], region: '전남 목포시', age: '20대', gender: 'FEMALE' },
-  { id: '99', name: '롱*석', phone: '010-****-9142', visitCount: 38, lastVisit: '2025-01-14', preferredCategories: ['한식', '중식'], region: '경북 경주시', age: '60대', gender: 'MALE' },
-  { id: '100', name: '뢰*수', phone: '010-****-0253', visitCount: 10, lastVisit: '2025-01-10', preferredCategories: ['디저트', '양식'], region: '제주 서귀포시', age: '30대', gender: 'FEMALE' },
-];
-
 // Filter options
-const REGION_OPTIONS = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '충남', '충북', '전북', '전남', '경북', '경남', '강원', '제주'];
-const AGE_OPTIONS = ['20대', '30대', '40대', '50대', '60대 이상'];
+const AGE_GROUP_OPTIONS = ['TWENTIES', 'THIRTIES', 'FORTIES', 'FIFTIES', 'SIXTIES_PLUS'];
 const GENDER_OPTIONS = [
   { value: 'MALE', label: '남성' },
   { value: 'FEMALE', label: '여성' },
@@ -144,21 +39,62 @@ const LAST_VISIT_OPTIONS = [
   { value: '90+', label: '90일 이상' },
 ];
 
+// API response types
 interface Customer {
   id: string;
-  name: string;
-  phone: string;
+  name: string; // already masked
+  phone: string; // already masked
+  gender: string | null;
+  ageGroup: string | null;
   visitCount: number;
-  lastVisit: string;
-  preferredCategories: string[];
-  region: string;
-  age: string;
-  gender: string;
+  totalPoints: number;
+  lastVisitAt: string | null;
+  createdAt: string;
+  store: {
+    id: string;
+    name: string;
+  };
+}
+
+interface OrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number;
+}
+
+interface VisitOrOrderEntry {
+  id: string;
+  visitedAt: string;
+  totalAmount: number | null;
+  orderItems: OrderItem[];
+}
+
+interface CustomerFeedbackEntry {
+  id: string;
+  rating: number;
+  feedbackText: string | null;
+  createdAt: string;
+}
+
+interface PointLedgerEntry {
+  id: string;
+  amount: number;
+  type: string;
+  reason: string | null;
+  createdAt: string;
+}
+
+interface CustomerDetail extends Customer {
+  visitsOrOrders: VisitOrOrderEntry[];
+  feedbacks: CustomerFeedbackEntry[];
+  pointLedger: PointLedgerEntry[];
+  totalOrderAmount: number;
 }
 
 interface SegmentCondition {
   id: string;
-  field: 'region' | 'age' | 'gender' | 'visitCount' | 'lastVisit';
+  field: 'store' | 'ageGroup' | 'gender' | 'visitCount' | 'lastVisit';
   operator: 'equals' | 'in' | 'gt' | 'lt' | 'between';
   value: string | string[];
 }
@@ -177,6 +113,8 @@ export default function FranchiseCustomersPage() {
   const [segmentGroups, setSegmentGroups] = useState<SegmentGroup[]>([]);
   const [groupLogic, setGroupLogic] = useState<'AND' | 'OR'>('AND');
   const [estimatedTargetCount, setEstimatedTargetCount] = useState(0);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetail | null>(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
 
   // Auth token helper
   const getAuthToken = () => {
@@ -186,19 +124,70 @@ export default function FranchiseCustomersPage() {
     return '';
   };
 
-  // Fetch customers - 데모에서는 항상 DEMO_CUSTOMERS 사용
+  // Fetch customers from API
   const fetchCustomers = useCallback(async () => {
     setIsLoading(true);
-    // 데모 데이터 바로 사용
-    setTimeout(() => {
-      setCustomers(DEMO_CUSTOMERS);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        console.error('No auth token found');
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/api/franchise/customers`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch customers');
+      }
+
+      const data = await response.json();
+      setCustomers(data.customers || []);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      setCustomers([]);
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   }, []);
 
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
+
+  // Fetch customer detail
+  const fetchCustomerDetail = async (customerId: string) => {
+    setIsDetailLoading(true);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        console.error('No auth token found');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/api/franchise/customers/${customerId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch customer detail');
+      }
+
+      const data = await response.json();
+      setSelectedCustomer(data.customer);
+    } catch (error) {
+      console.error('Error fetching customer detail:', error);
+      setSelectedCustomer(null);
+    } finally {
+      setIsDetailLoading(false);
+    }
+  };
 
   // Calculate estimated target count based on segment conditions
   useEffect(() => {
@@ -207,21 +196,21 @@ export default function FranchiseCustomersPage() {
       return;
     }
 
-    // Simple filtering logic for demo
+    // Filter customers based on segment conditions
     const filtered = customers.filter((customer) => {
       const groupResults = segmentGroups.map((group) => {
         const conditionResults = group.conditions.map((condition) => {
           switch (condition.field) {
-            case 'region':
+            case 'store':
               if (Array.isArray(condition.value)) {
-                return condition.value.some((v) => customer.region.includes(v));
+                return condition.value.includes(customer.store.id);
               }
-              return customer.region.includes(condition.value as string);
-            case 'age':
+              return customer.store.id === condition.value;
+            case 'ageGroup':
               if (Array.isArray(condition.value)) {
-                return condition.value.includes(customer.age);
+                return customer.ageGroup ? condition.value.includes(customer.ageGroup) : false;
               }
-              return customer.age === condition.value;
+              return customer.ageGroup === condition.value;
             case 'gender':
               return customer.gender === condition.value;
             case 'visitCount':
@@ -232,7 +221,8 @@ export default function FranchiseCustomersPage() {
               if (condition.value === '10+') return vc > 10;
               return true;
             case 'lastVisit':
-              const daysDiff = Math.floor((Date.now() - new Date(customer.lastVisit).getTime()) / (1000 * 60 * 60 * 24));
+              if (!customer.lastVisitAt) return false;
+              const daysDiff = Math.floor((Date.now() - new Date(customer.lastVisitAt).getTime()) / (1000 * 60 * 60 * 24));
               if (condition.value === '7') return daysDiff <= 7;
               if (condition.value === '30') return daysDiff <= 30;
               if (condition.value === '90') return daysDiff <= 90;
@@ -261,7 +251,7 @@ export default function FranchiseCustomersPage() {
     const matchesSearch =
       customer.name.includes(searchQuery) ||
       customer.phone.includes(searchQuery) ||
-      customer.region.toLowerCase().includes(searchQuery.toLowerCase());
+      customer.store.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
 
@@ -293,7 +283,7 @@ export default function FranchiseCustomersPage() {
               ...group.conditions,
               {
                 id: Date.now().toString(),
-                field: 'region',
+                field: 'store',
                 operator: 'in',
                 value: [],
               },
@@ -355,6 +345,11 @@ export default function FranchiseCustomersPage() {
     );
   };
 
+  // Get unique stores from customers
+  const uniqueStores = Array.from(
+    new Map(customers.map((c) => [c.store.id, c.store])).values()
+  );
+
   // Format date
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -391,55 +386,67 @@ export default function FranchiseCustomersPage() {
     </div>
   );
 
+  // Helper to display age group label
+  const getAgeGroupLabel = (ageGroup: string) => {
+    const labels: Record<string, string> = {
+      TWENTIES: '20대',
+      THIRTIES: '30대',
+      FORTIES: '40대',
+      FIFTIES: '50대',
+      SIXTIES_PLUS: '60대 이상',
+    };
+    return labels[ageGroup] || ageGroup;
+  };
+
   // Render field options in segment builder
   const renderFieldOptions = (condition: SegmentCondition, groupId: string) => {
     switch (condition.field) {
-      case 'region':
+      case 'store':
         return (
           <div className="flex flex-wrap gap-2">
-            {REGION_OPTIONS.map((region) => (
+            {uniqueStores.map((store) => (
               <button
-                key={region}
+                key={store.id}
                 onClick={() => {
                   const currentValue = Array.isArray(condition.value) ? condition.value : [];
-                  const newValue = currentValue.includes(region)
-                    ? currentValue.filter((v) => v !== region)
-                    : [...currentValue, region];
+                  const newValue = currentValue.includes(store.id)
+                    ? currentValue.filter((v) => v !== store.id)
+                    : [...currentValue, store.id];
                   updateCondition(groupId, condition.id, { value: newValue });
                 }}
                 className={cn(
                   'px-3 py-1.5 text-xs font-medium rounded-full border transition-colors',
-                  Array.isArray(condition.value) && condition.value.includes(region)
+                  Array.isArray(condition.value) && condition.value.includes(store.id)
                     ? 'bg-franchise-100 border-franchise-300 text-franchise-700'
                     : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                 )}
               >
-                {region}
+                {store.name}
               </button>
             ))}
           </div>
         );
-      case 'age':
+      case 'ageGroup':
         return (
           <div className="flex flex-wrap gap-2">
-            {AGE_OPTIONS.map((age) => (
+            {AGE_GROUP_OPTIONS.map((ageGroup) => (
               <button
-                key={age}
+                key={ageGroup}
                 onClick={() => {
                   const currentValue = Array.isArray(condition.value) ? condition.value : [];
-                  const newValue = currentValue.includes(age)
-                    ? currentValue.filter((v) => v !== age)
-                    : [...currentValue, age];
+                  const newValue = currentValue.includes(ageGroup)
+                    ? currentValue.filter((v) => v !== ageGroup)
+                    : [...currentValue, ageGroup];
                   updateCondition(groupId, condition.id, { value: newValue });
                 }}
                 className={cn(
                   'px-3 py-1.5 text-xs font-medium rounded-full border transition-colors',
-                  Array.isArray(condition.value) && condition.value.includes(age)
+                  Array.isArray(condition.value) && condition.value.includes(ageGroup)
                     ? 'bg-franchise-100 border-franchise-300 text-franchise-700'
                     : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                 )}
               >
-                {age}
+                {getAgeGroupLabel(ageGroup)}
               </button>
             ))}
           </div>
@@ -563,31 +570,38 @@ export default function FranchiseCustomersPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     연락처
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    소속 매장
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    포인트
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    연령대
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                     방문횟수
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     최근방문
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    선호업종
-                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={5}>{renderSkeleton()}</td>
+                    <td colSpan={7}>{renderSkeleton()}</td>
                   </tr>
                 ) : filteredCustomers.length === 0 ? (
                   <tr>
-                    <td colSpan={5}>{renderEmptyState()}</td>
+                    <td colSpan={7}>{renderEmptyState()}</td>
                   </tr>
                 ) : (
                   filteredCustomers.map((customer) => (
                     <tr
                       key={customer.id}
-                      className="hover:bg-slate-50 transition-colors"
+                      onClick={() => fetchCustomerDetail(customer.id)}
+                      className="hover:bg-slate-50 transition-colors cursor-pointer"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -598,21 +612,18 @@ export default function FranchiseCustomersPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600 font-mono">{customer.phone}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600">{customer.store.name}</td>
+                      <td className="px-6 py-4 text-sm text-slate-900 text-right font-medium">
+                        {customer.totalPoints.toLocaleString()}P
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        {customer.ageGroup || '-'}
+                      </td>
                       <td className="px-6 py-4 text-sm text-slate-900 text-right font-medium">
                         {customer.visitCount}회
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-500">{formatDate(customer.lastVisit)}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {customer.preferredCategories.map((category) => (
-                            <span
-                              key={category}
-                              className="bg-slate-100 text-slate-700 px-2 py-0.5 text-xs font-medium rounded-full"
-                            >
-                              {category}
-                            </span>
-                          ))}
-                        </div>
+                      <td className="px-6 py-4 text-sm text-slate-500">
+                        {customer.lastVisitAt ? formatDate(customer.lastVisitAt) : '-'}
                       </td>
                     </tr>
                   ))
@@ -731,8 +742,8 @@ export default function FranchiseCustomersPage() {
                                     }
                                     className="text-sm font-medium text-slate-700 bg-transparent border-none focus:ring-0 cursor-pointer"
                                   >
-                                    <option value="region">지역</option>
-                                    <option value="age">연령대</option>
+                                    <option value="store">소속 매장</option>
+                                    <option value="ageGroup">연령대</option>
                                     <option value="gender">성별</option>
                                     <option value="visitCount">방문 횟수</option>
                                     <option value="lastVisit">최근 방문일</option>
@@ -787,6 +798,202 @@ export default function FranchiseCustomersPage() {
                 className="px-4 py-2 bg-franchise-500 text-white text-sm font-medium rounded-lg hover:bg-franchise-700 transition-colors"
               >
                 적용하기
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Customer Detail Modal */}
+      {selectedCustomer && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setSelectedCustomer(null)}
+          />
+
+          {/* Modal */}
+          <div className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-4xl md:max-h-[85vh] bg-white rounded-2xl shadow-xl z-50 flex flex-col">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">고객 상세 정보</h2>
+                <p className="text-sm text-slate-500">{selectedCustomer.store.name}</p>
+              </div>
+              <button
+                onClick={() => setSelectedCustomer(null)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {isDetailLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-6 h-6 border-2 border-franchise-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <>
+                  {/* Customer Info */}
+                  <div className="bg-slate-50 rounded-xl p-4 mb-6">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1">이름</p>
+                        <p className="text-sm font-medium text-slate-900">{selectedCustomer.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1">연락처</p>
+                        <p className="text-sm font-medium text-slate-900 font-mono">{selectedCustomer.phone}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1">성별</p>
+                        <p className="text-sm font-medium text-slate-900">
+                          {selectedCustomer.gender === 'MALE' ? '남성' : selectedCustomer.gender === 'FEMALE' ? '여성' : '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1">연령대</p>
+                        <p className="text-sm font-medium text-slate-900">
+                          {selectedCustomer.ageGroup ? getAgeGroupLabel(selectedCustomer.ageGroup) : '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1">방문 횟수</p>
+                        <p className="text-sm font-medium text-slate-900">{selectedCustomer.visitCount}회</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1">누적 포인트</p>
+                        <p className="text-sm font-medium text-slate-900">{selectedCustomer.totalPoints.toLocaleString()}P</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1">총 주문 금액</p>
+                        <p className="text-sm font-medium text-slate-900">
+                          {selectedCustomer.totalOrderAmount.toLocaleString()}원
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1">최근 방문</p>
+                        <p className="text-sm font-medium text-slate-900">
+                          {selectedCustomer.lastVisitAt ? formatDate(selectedCustomer.lastVisitAt) : '-'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tabs */}
+                  <div className="space-y-4">
+                    {/* Orders */}
+                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                      <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                        <h3 className="text-sm font-semibold text-slate-900">주문 내역 ({selectedCustomer.visitsOrOrders.length}건)</h3>
+                      </div>
+                      <div className="p-4">
+                        {selectedCustomer.visitsOrOrders.length === 0 ? (
+                          <p className="text-sm text-slate-500 text-center py-4">주문 내역이 없습니다</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {selectedCustomer.visitsOrOrders.map((order) => (
+                              <div key={order.id} className="bg-slate-50 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs text-slate-500">{formatDate(order.visitedAt)}</p>
+                                  <p className="text-sm font-semibold text-slate-900">
+                                    {order.totalAmount ? `${order.totalAmount.toLocaleString()}원` : '-'}
+                                  </p>
+                                </div>
+                                {order.orderItems.length > 0 && (
+                                  <div className="space-y-1">
+                                    {order.orderItems.map((item) => (
+                                      <div key={item.id} className="flex items-center justify-between text-xs">
+                                        <span className="text-slate-600">
+                                          {item.name} x{item.quantity}
+                                        </span>
+                                        <span className="text-slate-500">{item.price.toLocaleString()}원</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Feedback */}
+                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                      <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                        <h3 className="text-sm font-semibold text-slate-900">피드백 ({selectedCustomer.feedbacks.length}건)</h3>
+                      </div>
+                      <div className="p-4">
+                        {selectedCustomer.feedbacks.length === 0 ? (
+                          <p className="text-sm text-slate-500 text-center py-4">피드백이 없습니다</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {selectedCustomer.feedbacks.map((feedback) => (
+                              <div key={feedback.id} className="bg-slate-50 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-1">
+                                    {[...Array(5)].map((_, i) => (
+                                      <span key={i} className={i < feedback.rating ? 'text-yellow-400' : 'text-slate-300'}>
+                                        ★
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <p className="text-xs text-slate-500">{formatDate(feedback.createdAt)}</p>
+                                </div>
+                                {feedback.feedbackText && (
+                                  <p className="text-sm text-slate-700 mt-2">{feedback.feedbackText}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Points History */}
+                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                      <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                        <h3 className="text-sm font-semibold text-slate-900">포인트 내역 ({selectedCustomer.pointLedger.length}건)</h3>
+                      </div>
+                      <div className="p-4">
+                        {selectedCustomer.pointLedger.length === 0 ? (
+                          <p className="text-sm text-slate-500 text-center py-4">포인트 내역이 없습니다</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {selectedCustomer.pointLedger.map((entry) => (
+                              <div key={entry.id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                                <div>
+                                  <p className="text-sm text-slate-900">{entry.reason || entry.type}</p>
+                                  <p className="text-xs text-slate-500">{formatDate(entry.createdAt)}</p>
+                                </div>
+                                <p className={cn(
+                                  'text-sm font-semibold',
+                                  entry.amount > 0 ? 'text-green-600' : 'text-red-600'
+                                )}>
+                                  {entry.amount > 0 ? '+' : ''}{entry.amount.toLocaleString()}P
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setSelectedCustomer(null)}
+                className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                닫기
               </button>
             </div>
           </div>
