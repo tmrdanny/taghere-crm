@@ -713,7 +713,7 @@ export default function FranchiseCustomersPage() {
                       <div>
                         <p className="text-xs text-neutral-500 mb-1">총 주문 금액</p>
                         <p className="text-sm font-medium text-neutral-900">
-                          {selectedCustomer.totalOrderAmount.toLocaleString()}원
+                          {(selectedCustomer.totalOrderAmount ?? 0).toLocaleString()}원
                         </p>
                       </div>
                       <div>
