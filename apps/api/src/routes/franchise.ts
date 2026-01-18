@@ -213,7 +213,7 @@ router.post('/stores/connect', async (req: FranchiseAuthRequest, res) => {
 router.get('/customers', async (req: FranchiseAuthRequest, res) => {
   try {
     const franchiseId = req.franchiseUser!.franchiseId;
-    const { page = '1', limit = '20', search } = req.query;
+    const { page = '1', limit = '20', search, gender, visitCount, lastVisit, startDate, endDate, dateType } = req.query;
 
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
@@ -241,6 +241,40 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
         { name: { contains: search as string } },
         { phone: { contains: search as string } },
       ];
+    }
+
+    // 성별 필터
+    if (gender && gender !== 'all') {
+      whereCondition.gender = gender;
+    }
+
+    // 방문 횟수 필터
+    if (visitCount && visitCount !== 'all') {
+      const count = parseInt(visitCount as string, 10);
+      whereCondition.visitCount = { gte: count };
+    }
+
+    // 최근 방문 필터
+    if (lastVisit && lastVisit !== 'all') {
+      const days = parseInt(lastVisit as string, 10);
+      const daysAgo = new Date();
+      daysAgo.setDate(daysAgo.getDate() - days);
+      whereCondition.lastVisitAt = { gte: daysAgo };
+    }
+
+    // 날짜 범위 필터
+    if (startDate || endDate) {
+      const dateField = dateType === 'created' ? 'createdAt' : 'lastVisitAt';
+      whereCondition[dateField] = {};
+
+      if (startDate) {
+        whereCondition[dateField].gte = new Date(startDate as string);
+      }
+      if (endDate) {
+        const end = new Date(endDate as string);
+        end.setHours(23, 59, 59, 999);
+        whereCondition[dateField].lte = end;
+      }
     }
 
     const [customers, total] = await Promise.all([
@@ -679,8 +713,52 @@ router.get('/customers/:customerId', franchiseAuthMiddleware, async (req: Franch
       return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
     }
 
+    // visitsOrOrders의 items 정규화
+    const normalizedVisitsOrOrders = (customer.visitsOrOrders || []).map((visit) => {
+      let normalizedItems: any[] = [];
+      let tableNumber: string | null = null;
+
+      // items 필드의 구조에 따라 처리
+      const itemsData = visit.items as any;
+      if (itemsData) {
+        if (Array.isArray(itemsData)) {
+          // 기존 형식: 배열 직접
+          normalizedItems = itemsData.map((item: any) => ({
+            id: item.id || undefined,
+            name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
+            quantity: item.count || item.quantity || item.qty || item.amount || 1,
+            price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+            option: item.option || null,
+            cancelled: item.cancelled || false,
+            cancelledAt: item.cancelledAt || null,
+          }));
+        } else if (typeof itemsData === 'object') {
+          // 새로운 형식: { items: [], tableNumber: string }
+          tableNumber = itemsData.tableNumber || null;
+          const rawItems = itemsData.items || [];
+          normalizedItems = rawItems.map((item: any) => ({
+            id: item.id || undefined,
+            name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
+            quantity: item.count || item.quantity || item.qty || item.amount || 1,
+            price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+            option: item.option || null,
+            cancelled: item.cancelled || false,
+            cancelledAt: item.cancelledAt || null,
+          }));
+        }
+      }
+
+      return {
+        id: visit.id,
+        visitedAt: visit.visitedAt,
+        totalAmount: visit.totalAmount,
+        tableNumber,
+        orderItems: normalizedItems,
+      };
+    });
+
     // 총 주문금액 계산
-    const totalOrderAmount = customer.visitsOrOrders.reduce((sum, order) => {
+    const totalOrderAmount = normalizedVisitsOrOrders.reduce((sum, order) => {
       return sum + (order.totalAmount || 0);
     }, 0);
 
@@ -698,9 +776,9 @@ router.get('/customers/:customerId', franchiseAuthMiddleware, async (req: Franch
       createdAt: customer.createdAt,
       totalOrderAmount,
       store: customer.store,
-      visitsOrOrders: customer.visitsOrOrders,
-      feedbacks: customer.feedbacks,
-      pointLedger: customer.pointLedger,
+      visitsOrOrders: normalizedVisitsOrOrders,
+      feedbacks: customer.feedbacks || [],
+      pointLedger: customer.pointLedger || [],
     };
 
     res.json({ customer: maskedCustomer });

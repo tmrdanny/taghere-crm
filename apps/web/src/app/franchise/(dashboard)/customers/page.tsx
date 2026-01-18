@@ -135,6 +135,7 @@ export default function FranchiseCustomersPage() {
       }
 
       const params = new URLSearchParams();
+      params.append('limit', '10000'); // 전체 고객 조회
       if (searchQuery) params.append('search', searchQuery);
       if (genderFilter !== 'all') params.append('gender', genderFilter);
       if (visitFilter !== 'all') params.append('visitCount', visitFilter);
