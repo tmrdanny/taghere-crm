@@ -289,20 +289,43 @@ router.get('/estimate', franchiseAuthMiddleware, async (req: FranchiseAuthReques
 router.get('/customers/selectable', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
     const franchiseId = req.franchiseUser!.franchiseId;
-    const { search, limit = '100' } = req.query;
+    const { search, limit = '100', storeId } = req.query;
 
     console.log('[Selectable Customers] franchiseId:', franchiseId);
+    console.log('[Selectable Customers] storeId:', storeId);
     console.log('[Selectable Customers] search:', search);
 
-    // 프랜차이즈의 모든 매장 조회
-    const stores = await prisma.store.findMany({
-      where: { franchiseId },
-      select: { id: true }
-    });
-    const storeIds = stores.map(s => s.id);
+    // storeId가 제공된 경우: 해당 가맹점만
+    // storeId가 없는 경우: 모든 가맹점 (하위 호환성 유지)
+    let storeIds: string[] = [];
 
-    console.log('[Selectable Customers] Found stores:', storeIds.length);
-    console.log('[Selectable Customers] storeIds:', storeIds);
+    if (storeId) {
+      // 특정 가맹점의 고객만 조회
+      // 보안: 해당 가맹점이 이 프랜차이즈 소유인지 검증
+      const store = await prisma.store.findFirst({
+        where: {
+          id: storeId as string,
+          franchiseId
+        },
+        select: { id: true }
+      });
+
+      if (!store) {
+        console.log('[Selectable Customers] Access denied: store not owned by franchise');
+        return res.status(403).json({ error: '접근 권한이 없는 가맹점입니다.' });
+      }
+
+      storeIds = [store.id];
+      console.log('[Selectable Customers] Using specific store:', storeId);
+    } else {
+      // 프랜차이즈의 모든 매장 조회 (기존 동작)
+      const stores = await prisma.store.findMany({
+        where: { franchiseId },
+        select: { id: true }
+      });
+      storeIds = stores.map(s => s.id);
+      console.log('[Selectable Customers] Found stores:', storeIds.length);
+    }
 
     if (storeIds.length === 0) {
       console.log('[Selectable Customers] No stores found for franchise');
@@ -326,7 +349,9 @@ router.get('/customers/selectable', franchiseAuthMiddleware, async (req: Franchi
         phone: true,
         visitCount: true,
         totalPoints: true,
-        createdAt: true
+        createdAt: true,
+        gender: true,
+        messageCount: true
       },
       take: parseInt(limit as string),
       orderBy: { createdAt: 'desc' }

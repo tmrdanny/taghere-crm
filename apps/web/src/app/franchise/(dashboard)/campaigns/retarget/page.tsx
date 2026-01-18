@@ -34,6 +34,8 @@ import {
   Clock,
   MessageSquare,
   TrendingUp,
+  Store,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -47,6 +49,33 @@ const AGE_GROUP_OPTIONS = [
   { value: 'FIFTIES', label: '50대' },
   { value: 'SIXTY_PLUS', label: '60대 이상' },
 ];
+
+// 카테고리 레이블 매핑
+const getCategoryLabel = (category: string): string => {
+  const labels: Record<string, string> = {
+    KOREAN: '한식',
+    CHINESE: '중식',
+    JAPANESE: '일식',
+    WESTERN: '양식',
+    ASIAN: '아시안',
+    BUNSIK: '분식',
+    FAST_FOOD: '패스트푸드',
+    MEAT: '고기구이',
+    CHICKEN: '치킨',
+    PIZZA: '피자',
+    CAFE: '카페',
+    DESSERT: '디저트',
+    BAKERY: '베이커리',
+    SOJU_BAR: '소주바',
+    BEER_BAR: '맥주바',
+    COCKTAIL_BAR: '칵테일바',
+    POCHA: '포차',
+    KOREAN_PUB: '한식주점',
+    COOK_PUB: '요리주점',
+    OTHER: '기타',
+  };
+  return labels[category] || category;
+};
 
 interface TargetCounts {
   all: number;
@@ -141,6 +170,16 @@ interface CustomerListItem {
   messageCount?: number;
 }
 
+interface StoreInfo {
+  id: string;
+  name: string;
+  slug: string;
+  category?: string;
+  address?: string;
+  customerCount: number;
+  createdAt: string;
+}
+
 export default function MessagesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -190,6 +229,13 @@ export default function MessagesPage() {
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [tempSelectedCustomers, setTempSelectedCustomers] = useState<SelectedCustomer[]>([]);
   const [customerTotalCount, setCustomerTotalCount] = useState(0);
+
+  // Store selection modal states
+  const [showStoreModal, setShowStoreModal] = useState(false);
+  const [storeList, setStoreList] = useState<StoreInfo[]>([]);
+  const [selectedStore, setSelectedStore] = useState<StoreInfo | null>(null);
+  const [isLoadingStores, setIsLoadingStores] = useState(false);
+  const [storeSearch, setStoreSearch] = useState('');
 
   // Test send modal states
   const [showTestModal, setShowTestModal] = useState(false);
@@ -701,11 +747,36 @@ export default function MessagesPage() {
     img.src = objectUrl;
   };
 
-  // Fetch customers for modal
-  const fetchCustomers = useCallback(async (search?: string) => {
+  // Fetch stores for selection modal
+  const fetchStores = useCallback(async (search?: string) => {
+    setIsLoadingStores(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) {
+        params.set('search', search);
+      }
+
+      const res = await fetch(`${API_BASE}/api/franchise/stores?${params}`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setStoreList(data.stores || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch stores:', error);
+    } finally {
+      setIsLoadingStores(false);
+    }
+  }, []);
+
+  // Fetch customers for modal (특정 가맹점의 고객만)
+  const fetchCustomers = useCallback(async (storeId: string, search?: string) => {
     setIsLoadingCustomers(true);
     try {
       const params = new URLSearchParams();
+      params.set('storeId', storeId); // 추가: 특정 가맹점만 조회
       if (search) {
         params.set('search', search);
       }
@@ -718,9 +789,9 @@ export default function MessagesPage() {
       if (res.ok) {
         const data = await res.json();
         // 전화번호 있는 고객만 필터링
-        const customersWithPhone = (data.customers || []).filter((c: CustomerListItem) => c.phone);
+        const customersWithPhone = (data || []).filter((c: CustomerListItem) => c.phone);
         setCustomerList(customersWithPhone);
-        setCustomerTotalCount(data.total || 0);
+        setCustomerTotalCount(customersWithPhone.length);
       }
     } catch (error) {
       console.error('Failed to fetch customers:', error);
@@ -729,12 +800,36 @@ export default function MessagesPage() {
     }
   }, []);
 
-  // Open customer modal
-  const openCustomerModal = () => {
+  // Open store selection modal
+  const openStoreModal = () => {
+    setStoreSearch('');
+    setShowStoreModal(true);
+    fetchStores();
+  };
+
+  // Select store and proceed to customer selection
+  const selectStoreAndOpenCustomerModal = (store: StoreInfo) => {
+    setSelectedStore(store);
+    setShowStoreModal(false);
+
+    // 고객 선택 모달 오픈
     setTempSelectedCustomers([...selectedCustomers]);
     setCustomerSearch('');
     setShowCustomerModal(true);
-    fetchCustomers();
+    fetchCustomers(store.id); // 선택한 가맹점의 고객만 조회
+  };
+
+  // Reset store selection
+  const resetStoreSelection = () => {
+    setSelectedStore(null);
+    setSelectedCustomers([]);
+    setSelectedTarget('ALL');
+    router.replace('/franchise/campaigns/retarget');
+  };
+
+  // Open customer modal - NOW opens store selection first
+  const openCustomerModal = () => {
+    openStoreModal(); // 가맹점 선택 모달 먼저 오픈
   };
 
   // Toggle customer selection in modal
@@ -775,16 +870,27 @@ export default function MessagesPage() {
     setShowCustomerModal(false);
   };
 
-  // Search customers with debounce
+  // Search stores with debounce
   useEffect(() => {
-    if (!showCustomerModal) return;
+    if (!showStoreModal) return;
 
     const debounce = setTimeout(() => {
-      fetchCustomers(customerSearch);
+      fetchStores(storeSearch);
     }, 300);
 
     return () => clearTimeout(debounce);
-  }, [customerSearch, showCustomerModal, fetchCustomers]);
+  }, [storeSearch, showStoreModal, fetchStores]);
+
+  // Search customers with debounce
+  useEffect(() => {
+    if (!showCustomerModal || !selectedStore) return;
+
+    const debounce = setTimeout(() => {
+      fetchCustomers(selectedStore.id, customerSearch);
+    }, 300);
+
+    return () => clearTimeout(debounce);
+  }, [customerSearch, showCustomerModal, selectedStore, fetchCustomers]);
 
   // Image delete handler
   const handleImageDelete = async () => {
@@ -1012,7 +1118,7 @@ export default function MessagesPage() {
             onClick={openCustomerModal}
             className={cn(
               'p-3 rounded-lg border text-left transition-all flex items-center gap-2',
-              selectedTarget === 'CUSTOM' && selectedCustomers.length > 0
+              selectedStore && selectedCustomers.length > 0
                 ? 'border-[#3b82f6] bg-[#eff6ff]'
                 : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
             )}
@@ -1021,22 +1127,20 @@ export default function MessagesPage() {
               <UserPlus className="w-4 h-4 text-[#64748b]" />
             </div>
             <div className="flex-1">
-              <span className="text-xs text-[#64748b]">고객 직접 선택</span>
+              <span className="text-xs text-[#64748b]">가맹점별 고객 선택</span>
               <div className="text-base font-bold text-[#1e293b]">
-                {selectedTarget === 'CUSTOM' && selectedCustomers.length > 0
-                  ? `${formatNumber(selectedCustomers.length)}명 선택됨`
-                  : '고객 선택하기'}
+                {selectedStore && selectedCustomers.length > 0
+                  ? `${selectedStore.name} · ${formatNumber(selectedCustomers.length)}명`
+                  : '가맹점 선택하기'}
               </div>
             </div>
-            {selectedTarget === 'CUSTOM' && selectedCustomers.length > 0 && (
+            {selectedStore && selectedCustomers.length > 0 && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setSelectedCustomers([]);
-                  setSelectedTarget('ALL');
-                  router.replace('/franchise/campaigns/retarget');
+                  resetStoreSelection();
                 }}
               >
                 선택 해제
@@ -1816,11 +1920,100 @@ export default function MessagesPage() {
         </ModalContent>
       </Modal>
 
+      {/* Store Selection Modal */}
+      <Modal open={showStoreModal} onOpenChange={setShowStoreModal}>
+        <ModalContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
+          <ModalHeader>
+            <ModalTitle>가맹점 선택</ModalTitle>
+            <p className="text-sm text-[#64748b] mt-1">
+              SMS를 발송할 가맹점을 선택해주세요
+            </p>
+          </ModalHeader>
+
+          <div className="flex flex-col gap-4 flex-1 min-h-0">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
+              <input
+                type="text"
+                value={storeSearch}
+                onChange={(e) => setStoreSearch(e.target.value)}
+                placeholder="가맹점명으로 검색..."
+                className="w-full pl-10 pr-4 py-2.5 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+              />
+            </div>
+
+            {/* Store list */}
+            <div className="flex-1 overflow-y-auto border border-[#e5e7eb] rounded-xl min-h-[300px]">
+              {isLoadingStores ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="w-6 h-6 animate-spin text-[#3b82f6]" />
+                </div>
+              ) : storeList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-[#94a3b8]">
+                  <Store className="w-12 h-12 mb-2" />
+                  <p>가맹점이 없습니다.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-[#e5e7eb]">
+                  {storeList.map((store) => (
+                    <button
+                      key={store.id}
+                      onClick={() => selectStoreAndOpenCustomerModal(store)}
+                      className="w-full px-4 py-4 flex items-center gap-3 text-left transition-colors hover:bg-[#f8fafc]"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-[#f1f5f9] flex items-center justify-center flex-shrink-0">
+                        <Store className="w-5 h-5 text-[#64748b]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-[#1e293b]">
+                            {store.name}
+                          </span>
+                          {store.category && (
+                            <Badge variant="secondary" className="text-xs">
+                              {getCategoryLabel(store.category)}
+                            </Badge>
+                          )}
+                        </div>
+                        {store.address && (
+                          <div className="text-sm text-[#64748b]">
+                            {store.address}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-sm text-[#64748b]">고객 수</div>
+                        <div className="text-lg font-bold text-[#3b82f6]">
+                          {formatNumber(store.customerCount)}명
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-[#94a3b8]" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <ModalFooter>
+            <Button variant="outline" onClick={() => setShowStoreModal(false)}>
+              취소
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
       {/* Customer Selection Modal */}
       <Modal open={showCustomerModal} onOpenChange={setShowCustomerModal}>
         <ModalContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
           <ModalHeader>
             <ModalTitle>고객 선택</ModalTitle>
+            {selectedStore && (
+              <p className="text-sm text-[#64748b] mt-1">
+                {selectedStore.name} · 총 {selectedStore.customerCount}명
+              </p>
+            )}
           </ModalHeader>
 
           <div className="flex flex-col gap-4 flex-1 min-h-0">
