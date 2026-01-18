@@ -44,7 +44,8 @@ const sidoToSigungu = {
 };
 
 async function main() {
-  const workbook = XLSX.readFile('/Users/zeroclasslab_1/Desktop/Code/taghere-crm/docs/태그히어 우리동네 손님 찾기 1차 DB.xlsx');
+  const filePath = process.argv[2] || '/Users/zeroclasslab_1/Desktop/Code/taghere-crm/docs/태그히어 우리동네 손님 찾기 1차 DB.xlsx';
+  const workbook = XLSX.readFile(filePath);
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
@@ -69,19 +70,8 @@ async function main() {
       continue;
     }
 
-    // 전화번호 포맷팅
-    const phoneStr = String(phoneRaw);
-    let phone;
-    if (phoneStr.length === 10 && phoneStr.startsWith('10')) {
-      // 이미 "10"으로 시작하는 10자리 (예: 1036301992) -> 앞에 "0"만 추가
-      phone = `0${phoneStr}`;
-    } else if (phoneStr.length === 11 && phoneStr.startsWith('010')) {
-      // 이미 완전한 11자리 (예: 01036301992)
-      phone = phoneStr;
-    } else {
-      // 8자리 뒷번호만 있는 경우 (예: 36301992) -> "010" 추가
-      phone = `010${phoneStr.padStart(8, '0')}`;
-    }
+    // 전화번호: 엑셀 데이터를 그대로 사용 (변환하지 않음)
+    const phone = String(phoneRaw);
 
     // 성별 변환
     const gender = genderRaw === '여' ? 'FEMALE' : genderRaw === '남' ? 'MALE' : null;

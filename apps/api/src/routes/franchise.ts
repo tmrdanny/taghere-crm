@@ -2,29 +2,12 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
+import { maskName, maskPhone } from '../utils/masking.js';
 
 const router = Router();
 
 // 토스페이먼츠 시크릿 키
 const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || '';
-
-// 마스킹 함수
-function maskName(name: string): string {
-  if (!name) return '';
-  if (name.length <= 1) return '*';
-  if (name.length === 2) return name[0] + '*';
-  return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
-}
-
-function maskPhone(phone: string): string {
-  if (!phone) return '';
-  // 010-1234-5678 -> 010-****-5678
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length === 11) {
-    return digits.slice(0, 3) + '-****-' + digits.slice(7);
-  }
-  return phone.slice(0, 3) + '****' + phone.slice(-4);
-}
 
 // 금액에 따른 보너스율 계산
 const getBonusRate = (amount: number): number => {
@@ -639,6 +622,91 @@ router.post('/payments/confirm', async (req: FranchiseAuthRequest, res) => {
   } catch (error) {
     console.error('Franchise payment confirm error:', error);
     res.status(500).json({ error: '결제 처리 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/franchise/customers/:customerId - 고객 상세 조회 (읽기 전용)
+router.get('/customers/:customerId', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
+  try {
+    const { customerId } = req.params;
+    const franchiseId = req.franchiseUser!.franchiseId;
+
+    // 프랜차이즈 소속 매장 확인
+    const stores = await prisma.store.findMany({
+      where: { franchiseId },
+      select: { id: true },
+    });
+    const storeIds = stores.map(s => s.id);
+
+    if (storeIds.length === 0) {
+      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
+    }
+
+    // 고객이 프랜차이즈 소속 매장의 고객인지 확인
+    const customer = await prisma.customer.findFirst({
+      where: {
+        id: customerId,
+        storeId: { in: storeIds },
+      },
+      include: {
+        store: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        visitsOrOrders: {
+          orderBy: {
+            visitedAt: 'desc',
+          },
+          take: 50,
+        },
+        feedbacks: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+        pointLedger: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 100,
+        },
+      },
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
+    }
+
+    // 총 주문금액 계산
+    const totalOrderAmount = customer.visitsOrOrders.reduce((sum, order) => {
+      return sum + (order.totalAmount || 0);
+    }, 0);
+
+    // 민감 정보 마스킹
+    const maskedCustomer = {
+      id: customer.id,
+      name: maskName(customer.name),
+      phone: maskPhone(customer.phone),
+      totalPoints: customer.totalPoints,
+      gender: customer.gender,
+      birthday: customer.birthday,
+      birthYear: customer.birthYear,
+      visitCount: customer.visitCount,
+      lastVisitAt: customer.lastVisitAt,
+      createdAt: customer.createdAt,
+      totalOrderAmount,
+      store: customer.store,
+      visitsOrOrders: customer.visitsOrOrders,
+      feedbacks: customer.feedbacks,
+      pointLedger: customer.pointLedger,
+    };
+
+    res.json({ customer: maskedCustomer });
+  } catch (error: any) {
+    console.error('Failed to fetch customer detail:', error);
+    res.status(500).json({ error: '고객 조회에 실패했습니다.' });
   }
 });
 

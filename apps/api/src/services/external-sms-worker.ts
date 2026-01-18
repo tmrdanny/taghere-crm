@@ -95,11 +95,13 @@ async function processMessage(messageId: string): Promise<void> {
           },
         });
 
-        // 2. 프랜차이즈 지갑 잔액 차감
-        await tx.franchiseWallet.update({
-          where: { franchiseId: msg.campaign.franchiseId },
-          data: { balance: { decrement: msg.cost } },
-        });
+        // 2. 프랜차이즈 지갑 잔액 차감 (franchiseId가 있는 경우에만)
+        if (msg.campaign.franchiseId) {
+          await tx.franchiseWallet.update({
+            where: { franchiseId: msg.campaign.franchiseId },
+            data: { balance: { decrement: msg.cost } },
+          });
+        }
 
         // 4. 캠페인 sentCount 및 totalCost 증가
         await tx.externalSmsCampaign.update({

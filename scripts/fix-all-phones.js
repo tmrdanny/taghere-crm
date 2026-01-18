@@ -58,16 +58,29 @@ async function fixAllPhones() {
     // 정상적으로 수정된 경우 업데이트
     if (fixedPhone !== phone) {
       try {
-        await prisma.externalCustomer.update({
-          where: { id: customer.id },
-          data: { phone: fixedPhone }
+        // 중복 체크: 수정하려는 번호가 이미 존재하는지 확인
+        const existing = await prisma.externalCustomer.findUnique({
+          where: { phone: fixedPhone }
         });
-        fixedCount++;
-        if (fixedCount % 10 === 0) {
-          console.log(`수정 진행: ${fixedCount} / ${wrongOnes.length}`);
+
+        if (existing) {
+          // 이미 존재하면 현재 레코드 삭제
+          console.log(`중복 삭제: ${phone} -> ${fixedPhone} (이미 존재)`);
+          await prisma.externalCustomer.delete({ where: { id: customer.id } });
+          deletedCount++;
+        } else {
+          // 존재하지 않으면 업데이트
+          await prisma.externalCustomer.update({
+            where: { id: customer.id },
+            data: { phone: fixedPhone }
+          });
+          fixedCount++;
+          if (fixedCount % 10 === 0) {
+            console.log(`수정 진행: ${fixedCount} / ${wrongOnes.length}`);
+          }
         }
       } catch (err) {
-        console.error(`수정 실패 ${phone} -> ${fixedPhone}:`, err.message);
+        console.error(`처리 실패 ${phone} -> ${fixedPhone}:`, err.message);
       }
     }
   }
