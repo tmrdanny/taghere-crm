@@ -139,22 +139,22 @@ router.get('/region-counts', franchiseAuthMiddleware, async (req: FranchiseAuthR
     // 1. ExternalCustomer 시/도별 카운트
     const externalSidoCounts = await prisma.externalCustomer.groupBy({
       by: ['regionSido'],
-      where: { consentMarketing: true, regionSido: { not: null } },
-      _count: { id: true },
+      where: { consentMarketing: true, regionSido: { not: '' } },
+      _count: { _all: true },
     });
 
     // 2. Customer 시/도별 카운트
     const customerSidoCounts = await prisma.customer.groupBy({
       by: ['regionSido'],
-      where: { consentMarketing: true, regionSido: { not: null } },
-      _count: { id: true },
+      where: { consentMarketing: true, regionSido: { not: '' } },
+      _count: { _all: true },
     });
 
     // 3. Customer 시/군/구별 카운트
     const customerSigunguCounts = await prisma.customer.groupBy({
       by: ['regionSido', 'regionSigungu'],
-      where: { consentMarketing: true, regionSido: { not: null }, regionSigungu: { not: null } },
-      _count: { id: true },
+      where: { consentMarketing: true, regionSido: { not: '' }, regionSigungu: { not: '' } },
+      _count: { _all: true },
     });
 
     // 시/도별 통합 카운트 계산
@@ -162,13 +162,13 @@ router.get('/region-counts', franchiseAuthMiddleware, async (req: FranchiseAuthR
 
     externalSidoCounts.forEach((item) => {
       if (item.regionSido) {
-        sidoCountMap[item.regionSido] = (sidoCountMap[item.regionSido] || 0) + item._count.id;
+        sidoCountMap[item.regionSido] = (sidoCountMap[item.regionSido] || 0) + (item._count?._all || 0);
       }
     });
 
     customerSidoCounts.forEach((item) => {
       if (item.regionSido) {
-        sidoCountMap[item.regionSido] = (sidoCountMap[item.regionSido] || 0) + item._count.id;
+        sidoCountMap[item.regionSido] = (sidoCountMap[item.regionSido] || 0) + (item._count?._all || 0);
       }
     });
 
@@ -180,7 +180,7 @@ router.get('/region-counts', franchiseAuthMiddleware, async (req: FranchiseAuthR
         if (!sigunguCountMap[item.regionSido]) {
           sigunguCountMap[item.regionSido] = {};
         }
-        sigunguCountMap[item.regionSido][item.regionSigungu] = item._count.id;
+        sigunguCountMap[item.regionSido][item.regionSigungu] = item._count?._all || 0;
       }
     });
 
