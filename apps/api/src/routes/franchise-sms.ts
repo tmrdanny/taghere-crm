@@ -291,6 +291,9 @@ router.get('/customers/selectable', franchiseAuthMiddleware, async (req: Franchi
     const franchiseId = req.franchiseUser!.franchiseId;
     const { search, limit = '100' } = req.query;
 
+    console.log('[Selectable Customers] franchiseId:', franchiseId);
+    console.log('[Selectable Customers] search:', search);
+
     // 프랜차이즈의 모든 매장 조회
     const stores = await prisma.store.findMany({
       where: { franchiseId },
@@ -298,7 +301,11 @@ router.get('/customers/selectable', franchiseAuthMiddleware, async (req: Franchi
     });
     const storeIds = stores.map(s => s.id);
 
+    console.log('[Selectable Customers] Found stores:', storeIds.length);
+    console.log('[Selectable Customers] storeIds:', storeIds);
+
     if (storeIds.length === 0) {
+      console.log('[Selectable Customers] No stores found for franchise');
       return res.json([]);
     }
 
@@ -324,6 +331,8 @@ router.get('/customers/selectable', franchiseAuthMiddleware, async (req: Franchi
       take: parseInt(limit as string),
       orderBy: { createdAt: 'desc' }
     });
+
+    console.log('[Selectable Customers] Found customers:', customers.length);
 
     // 마스킹 적용
     const masked = customers.map(c => ({
