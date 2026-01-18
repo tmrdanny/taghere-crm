@@ -1098,4 +1098,133 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
   }
 });
 
+// ============================================
+// 고객 피드백 관련
+// ============================================
+
+// GET /api/franchise/feedbacks - 프랜차이즈 고객 피드백 조회
+router.get('/feedbacks', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const {
+      limit = '20',
+      offset = '0',
+      storeId,      // 매장 필터 (선택)
+      rating,       // 별점 필터 (선택)
+      hasText       // 텍스트 유무 (선택)
+    } = req.query;
+
+    // 1. 프랜차이즈 소속 매장 ID 목록 조회
+    const stores = await prisma.store.findMany({
+      where: { franchiseId },
+      select: { id: true, name: true }
+    });
+    const storeIds = stores.map(s => s.id);
+
+    if (storeIds.length === 0) {
+      return res.json({ feedbacks: [], total: 0, hasMore: false, stores: [] });
+    }
+
+    // 2. 필터 조건 구성
+    const where: any = {
+      customer: {
+        storeId: storeId ? (storeId as string) : { in: storeIds }
+      }
+    };
+
+    if (rating) {
+      where.rating = parseInt(rating as string);
+    }
+
+    if (hasText === 'true') {
+      where.text = { not: null };
+      where.NOT = { text: '' };
+    }
+
+    // 3. 총 개수 조회
+    const total = await prisma.customerFeedback.count({ where });
+
+    // 4. 피드백 조회
+    const feedbacks = await prisma.customerFeedback.findMany({
+      where,
+      include: {
+        customer: {
+          select: {
+            name: true,
+            phone: true,
+            store: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit as string),
+      skip: parseInt(offset as string)
+    });
+
+    // 5. 응답 (개인정보 마스킹)
+    res.json({
+      feedbacks: feedbacks.map(f => ({
+        id: f.id,
+        rating: f.rating,
+        text: f.text,
+        createdAt: f.createdAt.toISOString(),
+        customerName: maskName(f.customer.name),
+        customerPhone: f.customer.phone ? maskPhone(f.customer.phone) : null,
+        storeName: f.customer.store.name,
+        storeId: f.customer.store.id
+      })),
+      total,
+      hasMore: feedbacks.length === parseInt(limit as string),
+      stores: stores.map(s => ({ id: s.id, name: s.name }))
+    });
+  } catch (error) {
+    console.error('Failed to fetch franchise feedbacks:', error);
+    res.status(500).json({ error: '피드백 조회에 실패했습니다.' });
+  }
+});
+
+// GET /api/franchise/feedbacks/summary - 프랜차이즈 피드백 통계
+router.get('/feedbacks/summary', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+
+    const stores = await prisma.store.findMany({
+      where: { franchiseId },
+      select: { id: true }
+    });
+    const storeIds = stores.map(s => s.id);
+
+    if (storeIds.length === 0) {
+      return res.json({ totalCount: 0, averageRating: 0 });
+    }
+
+    const feedbacks = await prisma.customerFeedback.findMany({
+      where: {
+        customer: {
+          storeId: { in: storeIds }
+        }
+      },
+      select: { rating: true }
+    });
+
+    const totalCount = feedbacks.length;
+    const averageRating = totalCount > 0
+      ? feedbacks.reduce((sum, f) => sum + f.rating, 0) / totalCount
+      : 0;
+
+    res.json({
+      totalCount,
+      averageRating: Math.round(averageRating * 10) / 10 // 소수점 1자리
+    });
+  } catch (error) {
+    console.error('Failed to fetch feedback summary:', error);
+    res.status(500).json({ error: '피드백 통계 조회에 실패했습니다.' });
+  }
+});
+
 export default router;

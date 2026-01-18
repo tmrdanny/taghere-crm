@@ -47,7 +47,15 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/franchise/home', label: '홈', icon: Home },
   { href: '/franchise/stores', label: '가맹점', icon: Store },
-  { href: '/franchise/customers', label: '고객', icon: Users },
+  {
+    href: '#customers',
+    label: '고객',
+    icon: Users,
+    children: [
+      { href: '/franchise/customers', label: '고객 목록', icon: Users },
+      { href: '/franchise/customers/feedback', label: '고객 피드백', icon: MessageSquare },
+    ],
+  },
   {
     href: '#campaigns',
     label: '캠페인',
@@ -77,6 +85,9 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
   const isActive = (href: string) => {
     if (href === '#campaigns') {
       return pathname.startsWith('/franchise/campaigns');
+    }
+    if (href === '#customers') {
+      return pathname.startsWith('/franchise/customers');
     }
     return pathname === href || pathname.startsWith(href + '/');
   };

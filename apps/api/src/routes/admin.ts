@@ -1109,7 +1109,7 @@ router.post('/alimtalk/low-balance-bulk', adminAuthMiddleware, async (req: Admin
       // #{상호명} 변수에 매장명 + 안내 문구 (줄바꿈 포함)
       const storeNameVariable = `${store.name}
 
-현재 충전금이 부족하여 손님께 네이버 리뷰 요청과 포인트 적립 완료 알림톡이 전달되지 않고 있어요.
+현재 충전금이 부족하여 손님께 네이버 리뷰 안내와 포인트 적립 완료 알림톡이 전달되지 않고 있어요.
 
 알림톡을 끄시려면 '설정 > 알림톡 발송 OFF'를 클릭해주세요.`;
 
