@@ -811,4 +811,231 @@ router.get('/customers/:customerId', franchiseAuthMiddleware, async (req: Franch
   }
 });
 
+// ============================================
+// 인사이트 관련
+// ============================================
+
+// GET /api/franchise/insights - 프랜차이즈 인사이트 데이터
+router.get('/insights', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { period = '30days' } = req.query;
+
+    console.log('[Franchise Insights] franchiseId:', franchiseId, 'period:', period);
+
+    // 1. 프랜차이즈의 모든 가맹점 조회
+    const stores = await prisma.store.findMany({
+      where: { franchiseId },
+      select: { id: true, name: true }
+    });
+    const storeIds = stores.map(s => s.id);
+
+    console.log('[Franchise Insights] Found stores:', storeIds.length);
+
+    if (storeIds.length === 0) {
+      return res.json({
+        ageDistribution: [],
+        genderDistribution: { male: 0, female: 0, total: 0 },
+        retention: { day7: 0, day30: 0 },
+        monthlyTrend: [],
+        topStores: []
+      });
+    }
+
+    // 2. 기간 계산
+    const now = new Date();
+    let startDate: Date;
+
+    switch (period) {
+      case '7days':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30days':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90days':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case 'all':
+      default:
+        startDate = new Date(0); // 전체 기간
+        break;
+    }
+
+    // 3. 연령대별 고객 분포
+    const allCustomers = await prisma.customer.findMany({
+      where: {
+        storeId: { in: storeIds },
+        createdAt: { gte: startDate }
+      },
+      select: { ageGroup: true, gender: true, id: true }
+    });
+
+    const totalCustomers = allCustomers.length;
+    console.log('[Franchise Insights] Total customers:', totalCustomers);
+
+    // 연령대 집계
+    const ageMap = new Map<string, number>();
+    allCustomers.forEach(c => {
+      if (c.ageGroup) {
+        ageMap.set(c.ageGroup, (ageMap.get(c.ageGroup) || 0) + 1);
+      }
+    });
+
+    const ageDistribution = Array.from(ageMap.entries()).map(([ageGroup, count]) => {
+      let ageLabel = '';
+      switch (ageGroup) {
+        case 'TWENTIES': ageLabel = '20대'; break;
+        case 'THIRTIES': ageLabel = '30대'; break;
+        case 'FORTIES': ageLabel = '40대'; break;
+        case 'FIFTIES': ageLabel = '50대'; break;
+        case 'SIXTY_PLUS': ageLabel = '60대 이상'; break;
+      }
+      return {
+        age: ageLabel,
+        count,
+        percentage: totalCustomers > 0 ? Math.round((count / totalCustomers) * 100) : 0
+      };
+    }).sort((a, b) => {
+      const order = { '20대': 1, '30대': 2, '40대': 3, '50대': 4, '60대 이상': 5 };
+      return (order[a.age as keyof typeof order] || 999) - (order[b.age as keyof typeof order] || 999);
+    });
+
+    // 4. 성별 분포
+    let maleCount = 0;
+    let femaleCount = 0;
+    allCustomers.forEach(c => {
+      if (c.gender === 'MALE') maleCount++;
+      else if (c.gender === 'FEMALE') femaleCount++;
+    });
+
+    const genderDistribution = {
+      male: maleCount,
+      female: femaleCount,
+      total: maleCount + femaleCount
+    };
+
+    // 5. 재방문율 계산
+    const date7DaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const date30DaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // 7일 전에 방문한 고객 중 재방문한 고객 비율
+    const customers7DaysAgo = await prisma.customer.findMany({
+      where: {
+        storeId: { in: storeIds },
+        lastVisitAt: { gte: date7DaysAgo }
+      },
+      select: { id: true }
+    });
+
+    const revisits7Days = await prisma.visitOrOrder.groupBy({
+      by: ['customerId'],
+      where: {
+        storeId: { in: storeIds },
+        customerId: { in: customers7DaysAgo.map(c => c.id) },
+        visitedAt: { gte: date7DaysAgo }
+      },
+      _count: { id: true },
+      having: {
+        id: { _count: { gt: 1 } }
+      }
+    });
+
+    const retention7Days = customers7DaysAgo.length > 0
+      ? Math.round((revisits7Days.length / customers7DaysAgo.length) * 100)
+      : 0;
+
+    // 30일 재방문율 (동일 로직)
+    const customers30DaysAgo = await prisma.customer.findMany({
+      where: {
+        storeId: { in: storeIds },
+        lastVisitAt: { gte: date30DaysAgo }
+      },
+      select: { id: true }
+    });
+
+    const revisits30Days = await prisma.visitOrOrder.groupBy({
+      by: ['customerId'],
+      where: {
+        storeId: { in: storeIds },
+        customerId: { in: customers30DaysAgo.map(c => c.id) },
+        visitedAt: { gte: date30DaysAgo }
+      },
+      _count: { id: true },
+      having: {
+        id: { _count: { gt: 1 } }
+      }
+    });
+
+    const retention30Days = customers30DaysAgo.length > 0
+      ? Math.round((revisits30Days.length / customers30DaysAgo.length) * 100)
+      : 0;
+
+    console.log('[Franchise Insights] Retention - 7days:', retention7Days, '30days:', retention30Days);
+
+    // 6. 월별 고객 추이 (최근 6개월)
+    const monthlyTrend = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+
+      const customerCount = await prisma.customer.count({
+        where: {
+          storeId: { in: storeIds },
+          createdAt: {
+            gte: monthStart,
+            lte: monthEnd
+          }
+        }
+      });
+
+      const monthName = `${monthStart.getMonth() + 1}월`;
+      monthlyTrend.push({
+        month: monthName,
+        customers: customerCount
+      });
+    }
+
+    // 7. 가맹점별 고객 수 Top 5
+    const storeStats = await Promise.all(
+      stores.map(async (store) => {
+        const customerCount = await prisma.customer.count({
+          where: {
+            storeId: store.id,
+            createdAt: { gte: startDate }
+          }
+        });
+
+        return {
+          name: store.name,
+          customers: customerCount
+        };
+      })
+    );
+
+    const topStores = storeStats
+      .sort((a, b) => b.customers - a.customers)
+      .slice(0, 5);
+
+    console.log('[Franchise Insights] Monthly trend length:', monthlyTrend.length);
+    console.log('[Franchise Insights] Top stores:', topStores.length);
+
+    // 응답 반환
+    res.json({
+      ageDistribution,
+      genderDistribution,
+      retention: {
+        day7: retention7Days,
+        day30: retention30Days
+      },
+      monthlyTrend,
+      topStores
+    });
+
+  } catch (error) {
+    console.error('Franchise insights error:', error);
+    res.status(500).json({ error: '인사이트 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;

@@ -7,11 +7,9 @@ import {
   BarChart3,
   PieChart,
   Calendar,
-  MapPin,
   RefreshCw,
   ArrowUp,
   ArrowDown,
-  Target,
   MessageSquare,
   ChevronDown,
 } from 'lucide-react';
@@ -29,29 +27,21 @@ const DEMO_INSIGHTS = {
     { age: '60대 이상', count: 300, percentage: 6 },
   ],
   genderDistribution: { male: 2400, female: 2600, total: 5000 },
-  retention: { day7: 42, day30: 28, day90: 18 },
-  campaignConversion: 3.2,
-  regionDistribution: [
-    { region: '서울', count: 2100, percentage: 42 },
-    { region: '경기', count: 1200, percentage: 24 },
-    { region: '부산', count: 650, percentage: 13 },
-    { region: '대구', count: 400, percentage: 8 },
-    { region: '기타', count: 650, percentage: 13 },
-  ],
+  retention: { day7: 42, day30: 28 },
   monthlyTrend: [
-    { month: '8월', customers: 4200, campaigns: 12 },
-    { month: '9월', customers: 4450, campaigns: 15 },
-    { month: '10월', customers: 4680, campaigns: 18 },
-    { month: '11월', customers: 4820, campaigns: 14 },
-    { month: '12월', customers: 4950, campaigns: 20 },
-    { month: '1월', customers: 5000, campaigns: 16 },
+    { month: '8월', customers: 4200 },
+    { month: '9월', customers: 4450 },
+    { month: '10월', customers: 4680 },
+    { month: '11월', customers: 4820 },
+    { month: '12월', customers: 4950 },
+    { month: '1월', customers: 5000 },
   ],
   topStores: [
-    { name: '철길부산집 잠실점', customers: 423, growth: 12.5 },
-    { name: '철길부산집 부산서면점', customers: 445, growth: 8.3 },
-    { name: '철길부산집 분당점', customers: 356, growth: 15.2 },
-    { name: '철길부산집 강남점', customers: 342, growth: 5.1 },
-    { name: '철길부산집 건대점', customers: 312, growth: -2.3 },
+    { name: '철길부산집 잠실점', customers: 423 },
+    { name: '철길부산집 부산서면점', customers: 445 },
+    { name: '철길부산집 분당점', customers: 356 },
+    { name: '철길부산집 강남점', customers: 342 },
+    { name: '철길부산집 건대점', customers: 312 },
   ],
 };
 
@@ -61,30 +51,20 @@ interface AgeDistribution {
   percentage: number;
 }
 
-interface RegionDistribution {
-  region: string;
-  count: number;
-  percentage: number;
-}
-
 interface MonthlyTrend {
   month: string;
   customers: number;
-  campaigns: number;
 }
 
 interface TopStore {
   name: string;
   customers: number;
-  growth: number;
 }
 
 interface Insights {
   ageDistribution: AgeDistribution[];
   genderDistribution: { male: number; female: number; total: number };
-  retention: { day7: number; day30: number; day90: number };
-  campaignConversion: number;
-  regionDistribution: RegionDistribution[];
+  retention: { day7: number; day30: number };
   monthlyTrend: MonthlyTrend[];
   topStores: TopStore[];
 }
@@ -157,34 +137,6 @@ export default function FranchiseInsightsPage() {
               {item.count.toLocaleString()}
             </span>
             <span className="text-xs text-slate-500 w-12 text-right">{item.percentage}%</span>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // Render horizontal region chart
-  const renderRegionChart = (data: RegionDistribution[]) => {
-    return (
-      <div className="space-y-3">
-        {data.map((item, index) => (
-          <div key={item.region} className="flex items-center gap-3">
-            <span className="text-sm text-slate-600 w-16">{item.region}</span>
-            <div className="flex-1 h-6 bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className={cn(
-                  'h-full rounded-full transition-all duration-500',
-                  index === 0 ? 'bg-franchise-500' :
-                    index === 1 ? 'bg-franchise-400' :
-                      index === 2 ? 'bg-franchise-300' :
-                        'bg-slate-300'
-                )}
-                style={{ width: `${item.percentage}%` }}
-              />
-            </div>
-            <span className="text-sm font-medium text-slate-900 w-20 text-right">
-              {item.count.toLocaleString()}명
-            </span>
           </div>
         ))}
       </div>
@@ -320,7 +272,7 @@ export default function FranchiseInsightsPage() {
         ) : (
           <>
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               {/* Retention Cards */}
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
                 <div className="flex items-center gap-2 mb-3">
@@ -342,17 +294,6 @@ export default function FranchiseInsightsPage() {
                 </div>
                 <p className="text-3xl font-bold text-slate-900">{insights.retention.day30}%</p>
                 <p className="text-xs text-slate-500 mt-1">최근 30일 내 재방문한 고객 비율</p>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 bg-amber-100 rounded-lg">
-                    <Target className="w-5 h-5 text-amber-600" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">캠페인 전환율</span>
-                </div>
-                <p className="text-3xl font-bold text-slate-900">{insights.campaignConversion}%</p>
-                <p className="text-xs text-slate-500 mt-1">캠페인 발송 후 방문 전환율</p>
               </div>
             </div>
 
@@ -379,34 +320,21 @@ export default function FranchiseInsightsPage() {
               </div>
             </div>
 
-            {/* Charts Row 2 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              {/* Region Distribution */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <MapPin className="w-5 h-5 text-emerald-600" />
-                  <h3 className="text-lg font-semibold text-slate-900">지역별 고객 분포</h3>
-                </div>
-                <p className="text-sm text-slate-500 mb-4">지역별 고객 수를 보여줍니다</p>
-                {renderRegionChart(insights.regionDistribution)}
+            {/* Monthly Trend - Full Width */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-5 h-5 text-blue-600" />
+                <h3 className="text-lg font-semibold text-slate-900">월별 고객 추이</h3>
               </div>
-
-              {/* Monthly Trend */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp className="w-5 h-5 text-blue-600" />
-                  <h3 className="text-lg font-semibold text-slate-900">월별 고객 추이</h3>
-                </div>
-                <p className="text-sm text-slate-500 mb-4">최근 6개월간 누적 고객 수 변화입니다</p>
-                {renderTrendChart()}
-                <div className="mt-4 grid grid-cols-3 gap-4">
-                  {insights.monthlyTrend.slice(-3).map((item) => (
-                    <div key={item.month} className="text-center">
-                      <p className="text-xs text-slate-500">{item.month}</p>
-                      <p className="text-sm font-medium text-slate-900">{item.customers.toLocaleString()}</p>
-                    </div>
-                  ))}
-                </div>
+              <p className="text-sm text-slate-500 mb-4">최근 6개월간 누적 고객 수 변화입니다</p>
+              {renderTrendChart()}
+              <div className="mt-4 grid grid-cols-3 gap-4">
+                {insights.monthlyTrend.slice(-3).map((item) => (
+                  <div key={item.month} className="text-center">
+                    <p className="text-xs text-slate-500">{item.month}</p>
+                    <p className="text-sm font-medium text-slate-900">{item.customers.toLocaleString()}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -416,14 +344,13 @@ export default function FranchiseInsightsPage() {
                 <Users className="w-5 h-5 text-slate-600" />
                 <h3 className="text-lg font-semibold text-slate-900">가맹점별 고객 현황</h3>
               </div>
-              <p className="text-sm text-slate-500 mb-4">가맹점별 고객 수와 성장률을 보여줍니다</p>
+              <p className="text-sm text-slate-500 mb-4">가맹점별 고객 수를 보여줍니다</p>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200">
                       <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">가맹점명</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">고객 수</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">전월 대비</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -445,15 +372,6 @@ export default function FranchiseInsightsPage() {
                         </td>
                         <td className="px-4 py-3 text-right text-sm font-medium text-slate-900">
                           {store.customers.toLocaleString()}명
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className={cn(
-                            'inline-flex items-center gap-1 text-sm font-medium',
-                            store.growth >= 0 ? 'text-emerald-600' : 'text-red-600'
-                          )}>
-                            {store.growth >= 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                            {Math.abs(store.growth)}%
-                          </span>
                         </td>
                       </tr>
                     ))}
