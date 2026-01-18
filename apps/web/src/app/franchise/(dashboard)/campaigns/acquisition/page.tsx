@@ -784,7 +784,7 @@ export default function LocalCustomersPage() {
 
               {/* 드롭다운 */}
               {isRegionDropdownOpen && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
+                <div className="absolute z-20 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
                   {filteredSidos.length > 0 ? (
                     filteredSidos.map((sido) => {
                       const isSelected = selectedSidos.includes(sido);
@@ -914,7 +914,7 @@ export default function LocalCustomersPage() {
 
                         {/* 드롭다운 */}
                         {isSigunguDropdownOpen && activeSidoForSigungu === sido && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                          <div className="absolute z-20 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                             {filteredSigungus.length > 0 ? (
                               filteredSigungus.map((sigungu) => {
                                 const isSelected = selectedSigunguList.includes(sigungu);
@@ -983,14 +983,14 @@ export default function LocalCustomersPage() {
 
         {/* 고객 선호 업종 (준비중) */}
         <div className="relative p-4 rounded-xl border border-neutral-200 bg-neutral-50 overflow-hidden">
-          {/* 블러 오버레이 */}
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
-            <span className="px-3 py-1.5 bg-neutral-200 text-neutral-600 rounded-full text-sm font-medium">
+          {/* 블러 오버레이 - 약하게 */}
+          <div className="absolute inset-0 bg-white/40 backdrop-blur-[0.5px] z-[5] flex items-center justify-center">
+            <span className="px-3 py-1.5 bg-neutral-300 text-neutral-700 rounded-full text-sm font-medium shadow-sm">
               준비중
             </span>
           </div>
 
-          <div className="flex items-center gap-3 mb-3 opacity-40">
+          <div className="flex items-center gap-3 mb-3 opacity-60">
             <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
               <Store className="w-5 h-5 text-neutral-500" />
             </div>
@@ -1001,7 +1001,7 @@ export default function LocalCustomersPage() {
           </div>
 
           {/* 업종 버튼 (플랫 리스트) - 비활성화 상태 */}
-          <div className="flex flex-wrap gap-2 opacity-40 pointer-events-none">
+          <div className="flex flex-wrap gap-2 opacity-60 pointer-events-none">
             {CATEGORY_OPTIONS.map((cat) => (
               <button
                 key={cat.value}
@@ -1012,7 +1012,7 @@ export default function LocalCustomersPage() {
               </button>
             ))}
           </div>
-          <p className="text-xs text-neutral-500 mt-2 opacity-40">
+          <p className="text-xs text-neutral-500 mt-2 opacity-60">
             * 선택한 업종을 선호하는 고객에게만 발송됩니다
           </p>
         </div>
