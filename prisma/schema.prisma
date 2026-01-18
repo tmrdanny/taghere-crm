@@ -19,7 +19,13 @@ model Store {
   ownerName              String?        // 대표자명
   phone                  String?        // 연락처
   businessRegNumber      String?        @unique // 사업자등록번호
-  address                String?
+  address                String?        // 전체 주소 (하위 호환성 유지)
+
+  // 정규화된 주소 필드
+  addressSido            String?        // 시/도
+  addressSigungu         String?        // 시/군/구
+  addressDetail          String?        // 상세 주소
+
   naverPlaceId           String?        // 네이버 플레이스 ID (리뷰 연동용)
   naverPlaceUrl          String?  // 네이버 플레이스 공유 링크
   pointsAlimtalkEnabled  Boolean  @default(true) // 포인트 적립/사용 알림톡 자동 발송
@@ -132,6 +138,11 @@ model Customer {
   ageGroup         AgeGroup? // 연령대 (태블릿 포인트 적립 시 수집)
   birthday         String?   // 생일 (MM-DD 형식)
   birthYear        Int?      // 출생연도 (YYYY)
+
+  // 지역 정보 (매장 주소 기반)
+  regionSido       String?   // 시/도 (예: 서울특별시)
+  regionSigungu    String?   // 시/군/구 (예: 강남구)
+
   memo             String?   @db.Text
 
   // 고객 피드백
@@ -169,6 +180,7 @@ model Customer {
   @@index([phoneLastDigits])
   @@index([kakaoId])
   @@index([naverId])
+  @@index([regionSido, regionSigungu, ageGroup, gender])
   @@map("customers")
 }
 
@@ -683,7 +695,7 @@ model ExternalSmsMessage {
   campaignId         String
   storeId            String?          // Store ID (nullable for franchise campaigns)
   franchiseId        String?          // Franchise ID (nullable for store campaigns)
-  externalCustomerId String
+  externalCustomerId String?          // External Customer ID (nullable for CRM customer campaigns)
   content            String           @db.Text
   status             SmsMessageStatus @default(PENDING)
   solapiGroupId      String?
@@ -695,7 +707,7 @@ model ExternalSmsMessage {
 
   // Relations
   campaign           ExternalSmsCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  externalCustomer   ExternalCustomer    @relation(fields: [externalCustomerId], references: [id], onDelete: Cascade)
+  externalCustomer   ExternalCustomer?   @relation(fields: [externalCustomerId], references: [id], onDelete: Cascade)
 
   @@index([campaignId])
   @@index([storeId])

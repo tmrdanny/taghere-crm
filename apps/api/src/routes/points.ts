@@ -33,6 +33,12 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
 
       // Create new customer if not found
       if (!customer) {
+        // 매장 정보 조회 (지역 정보)
+        const store = await prisma.store.findUnique({
+          where: { id: storeId },
+          select: { addressSido: true, addressSigungu: true },
+        });
+
         customer = await prisma.customer.create({
           data: {
             storeId,
@@ -40,6 +46,8 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
             phone: `010-${phoneLastDigits.slice(0, 4)}-${phoneLastDigits.slice(4)}`,
             totalPoints: 0,
             visitCount: 0,
+            regionSido: store?.addressSido || null,
+            regionSigungu: store?.addressSigungu || null,
           },
         });
       }
@@ -310,10 +318,17 @@ router.post('/tablet-earn', authMiddleware, async (req: AuthRequest, res) => {
       ? `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 7)}-${phoneDigits.slice(7)}`
       : `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
 
-    // 매장 정보 조회 (적립률, 이름, 알림톡 설정)
+    // 매장 정보 조회 (적립률, 이름, 알림톡 설정, 지역 정보)
     const store = await prisma.store.findUnique({
       where: { id: storeId },
-      select: { name: true, pointRatePercent: true, pointsAlimtalkEnabled: true, pointsAlimtalkFrequency: true },
+      select: {
+        name: true,
+        pointRatePercent: true,
+        pointsAlimtalkEnabled: true,
+        pointsAlimtalkFrequency: true,
+        addressSido: true,
+        addressSigungu: true,
+      },
     });
 
     if (!store) {
@@ -344,6 +359,8 @@ router.post('/tablet-earn', authMiddleware, async (req: AuthRequest, res) => {
           consentAt: new Date(),
           totalPoints: 0,
           visitCount: 0,
+          regionSido: store.addressSido || null,
+          regionSigungu: store.addressSigungu || null,
         },
       });
     } else {
@@ -629,10 +646,16 @@ router.post('/session/:id/complete', authMiddleware, async (req: AuthRequest, re
       ? `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 7)}-${phoneDigits.slice(7)}`
       : `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
 
-    // 매장 정보 조회
+    // 매장 정보 조회 (지역 정보 포함)
     const store = await prisma.store.findUnique({
       where: { id: storeId },
-      select: { name: true, pointsAlimtalkEnabled: true, pointsAlimtalkFrequency: true },
+      select: {
+        name: true,
+        pointsAlimtalkEnabled: true,
+        pointsAlimtalkFrequency: true,
+        addressSido: true,
+        addressSigungu: true,
+      },
     });
 
     // 고객 조회 또는 생성
@@ -655,6 +678,8 @@ router.post('/session/:id/complete', authMiddleware, async (req: AuthRequest, re
           consentAt: new Date(),
           totalPoints: 0,
           visitCount: 0,
+          regionSido: store?.addressSido || null,
+          regionSigungu: store?.addressSigungu || null,
         },
       });
     } else {
