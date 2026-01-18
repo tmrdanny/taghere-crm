@@ -5,9 +5,9 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "prisma generate && prisma db push --accept-data-loss && tsc",
+    "build": "prisma generate --schema=../../prisma/schema.prisma && prisma db push --schema=../../prisma/schema.prisma --accept-data-loss && tsc",
     "start": "node dist/index.js",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate --schema=../../prisma/schema.prisma"
   },
   "dependencies": {
     "@prisma/client": "^5.7.0",
