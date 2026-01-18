@@ -350,8 +350,7 @@ router.get('/customers/selectable', franchiseAuthMiddleware, async (req: Franchi
         visitCount: true,
         totalPoints: true,
         createdAt: true,
-        gender: true,
-        messageCount: true
+        gender: true
       },
       take: parseInt(limit as string),
       orderBy: { createdAt: 'desc' }
