@@ -89,7 +89,14 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
     if (href === '#customers') {
       return pathname.startsWith('/franchise/customers');
     }
-    return pathname === href || pathname.startsWith(href + '/');
+    // 정확히 일치하거나, 서브 경로인 경우 (단, 다른 서브메뉴 항목은 제외)
+    if (pathname === href) return true;
+    // 서브메뉴가 있는 항목의 경우: 정확히 일치할 때만 활성화
+    // 예: /franchise/customers는 /franchise/customers/feedback와 구분
+    if (href === '/franchise/customers') {
+      return pathname === '/franchise/customers';
+    }
+    return pathname.startsWith(href + '/');
   };
 
   const handleLogout = () => {
