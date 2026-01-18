@@ -660,9 +660,13 @@ export default function LocalCustomersPage() {
           </div>
           <div className="flex bg-[#f1f5f9] rounded-lg p-1 self-start sm:self-auto">
             <button
-              disabled
-              className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all text-[#94a3b8] cursor-not-allowed"
-              title="카카오톡 발송은 준비 중입니다"
+              onClick={() => setActiveTab('kakao')}
+              className={cn(
+                'px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all',
+                activeTab === 'kakao'
+                  ? 'bg-white shadow-sm text-[#1e293b]'
+                  : 'text-[#64748b] hover:text-[#1e293b]'
+              )}
             >
               카카오톡
             </button>
@@ -828,7 +832,7 @@ export default function LocalCustomersPage() {
           </div>
 
           {/* 우측: 시/군/구 상세 선택 */}
-          <div className="p-4 rounded-xl border border-neutral-200 bg-white">
+          <div className="p-4 rounded-xl border border-neutral-200 bg-white overflow-visible">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
                 <MapPin className="w-5 h-5 text-neutral-500" />
@@ -847,7 +851,7 @@ export default function LocalCustomersPage() {
               </div>
             ) : (
               /* 시/도별 시/군/구 선택 */
-              <div className="space-y-3 max-h-[280px] overflow-y-auto">
+              <div className="space-y-3 max-h-[280px] overflow-visible">
                 {selectedSidos.map((sido) => {
                   const sigungus = KOREA_SIGUNGU[sido] || [];
                   const selectedSigunguList = selectedSigungus[sido] || [];
@@ -914,7 +918,7 @@ export default function LocalCustomersPage() {
 
                         {/* 드롭다운 */}
                         {isSigunguDropdownOpen && activeSidoForSigungu === sido && (
-                          <div className="absolute z-20 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                          <div className="absolute z-50 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                             {filteredSigungus.length > 0 ? (
                               filteredSigungus.map((sigungu) => {
                                 const isSelected = selectedSigunguList.includes(sigungu);
