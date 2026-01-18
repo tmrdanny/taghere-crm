@@ -714,7 +714,7 @@ export default function FranchiseCustomersPage() {
                       </div>
                       <div>
                         <p className="text-xs text-neutral-500 mb-1">누적 포인트</p>
-                        <p className="text-sm font-medium text-neutral-900">{selectedCustomer.totalPoints.toLocaleString()}P</p>
+                        <p className="text-sm font-medium text-neutral-900">{(selectedCustomer.totalPoints ?? 0).toLocaleString()}P</p>
                       </div>
                       <div>
                         <p className="text-xs text-neutral-500 mb-1">총 주문 금액</p>
@@ -753,12 +753,12 @@ export default function FranchiseCustomersPage() {
                                 </div>
                                 {order.orderItems.length > 0 && (
                                   <div className="space-y-1">
-                                    {order.orderItems.map((item) => (
-                                      <div key={item.id} className="flex items-center justify-between text-xs">
+                                    {order.orderItems.map((item, idx) => (
+                                      <div key={item.id || `item-${idx}`} className="flex items-center justify-between text-xs">
                                         <span className="text-neutral-600">
-                                          {item.name} x{item.quantity}
+                                          {item.name || '메뉴'} x{item.quantity || 1}
                                         </span>
-                                        <span className="text-neutral-500">{item.price.toLocaleString()}원</span>
+                                        <span className="text-neutral-500">{(item.price ?? 0).toLocaleString()}원</span>
                                       </div>
                                     ))}
                                   </div>
@@ -820,9 +820,9 @@ export default function FranchiseCustomersPage() {
                                 </div>
                                 <p className={cn(
                                   'text-sm font-semibold',
-                                  entry.amount > 0 ? 'text-green-600' : 'text-red-600'
+                                  (entry.amount ?? 0) > 0 ? 'text-green-600' : 'text-red-600'
                                 )}>
-                                  {entry.amount > 0 ? '+' : ''}{entry.amount.toLocaleString()}P
+                                  {(entry.amount ?? 0) > 0 ? '+' : ''}{(entry.amount ?? 0).toLocaleString()}P
                                 </p>
                               </div>
                             ))}
