@@ -105,7 +105,7 @@ router.get('/stores/:id', async (req: FranchiseAuthRequest, res) => {
     }
 
     // 통계 데이터
-    const [recentOrders, totalPoints] = await Promise.all([
+    const [recentOrders, totalPoints, revisitCustomers, avgVisitsResult] = await Promise.all([
       prisma.visitOrOrder.count({
         where: {
           storeId: id,
@@ -121,7 +121,28 @@ router.get('/stores/:id', async (req: FranchiseAuthRequest, res) => {
         },
         _sum: { delta: true },
       }),
+      // 재방문 고객 수 (방문 2회 이상)
+      prisma.customer.count({
+        where: {
+          storeId: id,
+          visitCount: { gte: 2 },
+        },
+      }),
+      // 평균 방문 횟수
+      prisma.customer.aggregate({
+        where: { storeId: id },
+        _avg: { visitCount: true },
+      }),
     ]);
+
+    // 재방문율 계산
+    const totalCustomers = store._count.customers;
+    const revisitRate = totalCustomers > 0
+      ? (revisitCustomers / totalCustomers) * 100
+      : 0;
+
+    // 평균 방문 횟수
+    const averageVisits = avgVisitsResult._avg.visitCount || 0;
 
     res.json({
       id: store.id,
@@ -133,11 +154,13 @@ router.get('/stores/:id', async (req: FranchiseAuthRequest, res) => {
       address: store.address,
       createdAt: store.createdAt,
       stats: {
-        customerCount: store._count.customers,
+        customerCount: totalCustomers,
         totalOrders: store._count.visitsOrOrders,
         recentOrders,
         totalPointsEarned: totalPoints._sum.delta || 0,
         walletBalance: store.wallet?.balance || 0,
+        revisitRate,
+        averageVisits,
       },
     });
   } catch (error) {

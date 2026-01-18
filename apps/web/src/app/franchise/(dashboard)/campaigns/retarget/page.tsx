@@ -711,7 +711,7 @@ export default function MessagesPage() {
       }
       params.set('limit', '100'); // 최대 100명
 
-      const res = await fetch(`${API_BASE}/api/franchise/customers/selectable?${params}`, {
+      const res = await fetch(`${API_BASE}/api/franchise/sms/customers/selectable?${params}`, {
         headers: { Authorization: `Bearer ${getAuthToken()}` },
       });
 
