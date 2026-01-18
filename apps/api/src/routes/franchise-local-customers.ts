@@ -104,14 +104,29 @@ router.get('/regions', franchiseAuthMiddleware, async (req: FranchiseAuthRequest
   }
 });
 
-// GET /api/local-customers/total-count - 전체 외부 고객 수 조회 (지역 선택 전 표시용)
+// GET /api/local-customers/total-count - 전체 고객 수 조회 (ExternalCustomer + 전체 CRM 고객)
 router.get('/total-count', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
-    const totalCount = await prisma.externalCustomer.count({
+    // 1. ExternalCustomer 수 조회
+    const externalCount = await prisma.externalCustomer.count({
       where: { consentMarketing: true },
     });
 
-    res.json({ totalCount });
+    // 2. 전체 CRM 고객 수 조회 (모든 매장의 고객)
+    const customerCount = await prisma.customer.count({
+      where: { consentMarketing: true },
+    });
+
+    // 3. 통합 카운트 반환
+    const totalCount = externalCount + customerCount;
+
+    res.json({
+      totalCount,
+      breakdown: {
+        external: externalCount,
+        customer: customerCount,
+      },
+    });
   } catch (error) {
     console.error('Total count fetch error:', error);
     res.status(500).json({ error: '전체 고객 수 조회 중 오류가 발생했습니다.' });
@@ -183,42 +198,32 @@ router.get('/count', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       externalCount = await prisma.externalCustomer.count({ where: externalWhere });
     }
 
-    // 2. Customer 조회 (전체 매장)
-    const stores = await prisma.store.findMany({
-      where: { franchiseId },
-      select: { id: true },
+    // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
+    const customerRegionOrConditions = regionFilters.map((r) => {
+      if (r.sigungu) {
+        return { regionSido: r.sido, regionSigungu: r.sigungu };
+      } else {
+        return { regionSido: r.sido };
+      }
     });
-    const storeIds = stores.map((s) => s.id);
 
-    if (storeIds.length > 0) {
-      const customerWhere: any = {
-        storeId: { in: storeIds },
-        consentMarketing: true,
-      };
+    const customerWhere: any = {
+      OR: customerRegionOrConditions,
+      consentMarketing: true,
+    };
 
-      // 지역 필터
-      const regionOrConditions = regionFilters.map((r) => {
-        if (r.sigungu) {
-          return { regionSido: r.sido, regionSigungu: r.sigungu };
-        } else {
-          return { regionSido: r.sido };
-        }
-      });
-      customerWhere.OR = regionOrConditions;
-
-      // 연령대 필터
-      if (ageGroups) {
-        const ageGroupList = (ageGroups as string).split(',');
-        customerWhere.ageGroup = { in: ageGroupList };
-      }
-
-      // 성별 필터
-      if (gender && gender !== 'all') {
-        customerWhere.gender = gender as string;
-      }
-
-      customerCount = await prisma.customer.count({ where: customerWhere });
+    // 연령대 필터
+    if (ageGroups) {
+      const ageGroupList = (ageGroups as string).split(',');
+      customerWhere.ageGroup = { in: ageGroupList };
     }
+
+    // 성별 필터
+    if (gender && gender !== 'all') {
+      customerWhere.gender = gender as string;
+    }
+
+    customerCount = await prisma.customer.count({ where: customerWhere });
 
     // 3. ExternalCustomer 슬롯 여유 확인 (hasSigunguFilter가 false일 때만)
     let availableExternalCount = externalCount;
@@ -403,48 +408,42 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       externalCustomers = externalResult.map((c) => ({ id: c.id, phone: c.phone, source: 'external' as const }));
     }
 
-    // 2. Customer 조회 (전체 프랜차이즈 매장)
+    // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
     let customers: Array<{ id: string; phone: string; source: 'customer' }> = [];
 
-    const stores = await prisma.store.findMany({
-      where: { franchiseId },
-      select: { id: true },
+    const customerRegionOrConditions = regionFilters.map((r) => {
+      if (r.sigungu) {
+        return { regionSido: r.sido, regionSigungu: r.sigungu };
+      } else {
+        return { regionSido: r.sido };
+      }
     });
-    const storeIds = stores.map((s) => s.id);
 
-    if (storeIds.length > 0) {
-      const regionOrConditions = regionFilters.map((r) => {
-        if (r.sigungu) {
-          return { regionSido: r.sido, regionSigungu: r.sigungu };
-        } else {
-          return { regionSido: r.sido };
-        }
-      });
+    const customerWhere: any = {
+      OR: customerRegionOrConditions,
+      consentMarketing: true,
+      phone: { not: null }, // 전화번호 있는 고객만
+    };
 
-      const customerWhere: any = {
-        storeId: { in: storeIds },
-        OR: regionOrConditions,
-        consentMarketing: true,
-      };
-
-      if (ageGroups && ageGroups.length > 0) {
-        customerWhere.ageGroup = { in: ageGroups };
-      }
-
-      if (gender && gender !== 'all') {
-        customerWhere.gender = gender;
-      }
-
-      const customerResult = await prisma.customer.findMany({
-        where: customerWhere,
-        select: {
-          id: true,
-          phone: true,
-        },
-      });
-
-      customers = customerResult.map((c) => ({ id: c.id, phone: c.phone || '', source: 'customer' as const }));
+    if (ageGroups && ageGroups.length > 0) {
+      customerWhere.ageGroup = { in: ageGroups };
     }
+
+    if (gender && gender !== 'all') {
+      customerWhere.gender = gender;
+    }
+
+    const customerResult = await prisma.customer.findMany({
+      where: customerWhere,
+      select: {
+        id: true,
+        phone: true,
+      },
+    });
+
+    customers = customerResult
+      .filter((c) => c.phone) // 전화번호 있는 고객만
+      .map((c) => ({ id: c.id, phone: c.phone!, source: 'customer' as const }));
 
     // 3. 두 소스 통합
     const allCustomers = [...externalCustomers, ...customers];
