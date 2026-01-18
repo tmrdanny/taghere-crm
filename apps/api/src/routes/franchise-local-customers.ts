@@ -9,28 +9,6 @@ const router = Router();
 // 건당 비용 (외부 고객 SMS)
 const EXTERNAL_SMS_COST = 150;
 
-// 시/도 줄임말 → 전체 이름 매핑 (Customer DB용)
-// ExternalCustomer는 줄임말(서울, 경기), Customer는 전체 이름(서울특별시, 경기도) 사용
-const SIDO_SHORT_TO_FULL: Record<string, string> = {
-  서울: '서울특별시',
-  경기: '경기도',
-  인천: '인천광역시',
-  부산: '부산광역시',
-  대구: '대구광역시',
-  광주: '광주광역시',
-  대전: '대전광역시',
-  울산: '울산광역시',
-  세종: '세종특별자치시',
-  강원: '강원특별자치도',
-  충북: '충청북도',
-  충남: '충청남도',
-  전북: '전북특별자치도',
-  전남: '전라남도',
-  경북: '경상북도',
-  경남: '경상남도',
-  제주: '제주특별자치도',
-};
-
 // 카카오톡 브랜드 메시지 비용 (건당)
 const EXTERNAL_KAKAO_TEXT_COST = 200;
 const EXTERNAL_KAKAO_IMAGE_COST = 230;
@@ -228,13 +206,12 @@ router.get('/count', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
     }
 
     // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
-    // Customer DB는 전체 이름 사용 (서울특별시, 경기도)
+    // Customer DB도 줄임말 사용 (서울, 경기) - ExternalCustomer와 동일
     const customerRegionOrConditions = regionFilters.map((r) => {
-      const fullSido = SIDO_SHORT_TO_FULL[r.sido] || r.sido;
       if (r.sigungu) {
-        return { regionSido: fullSido, regionSigungu: r.sigungu };
+        return { regionSido: r.sido, regionSigungu: r.sigungu };
       } else {
-        return { regionSido: fullSido };
+        return { regionSido: r.sido };
       }
     });
 
@@ -448,13 +425,12 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
     // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
     let customers: Array<{ id: string; phone: string; source: 'customer' }> = [];
 
-    // Customer DB는 전체 이름 사용 (서울특별시, 경기도)
+    // Customer DB도 줄임말 사용 (서울, 경기) - ExternalCustomer와 동일
     const customerRegionOrConditions = regionFilters.map((r) => {
-      const fullSido = SIDO_SHORT_TO_FULL[r.sido] || r.sido;
       if (r.sigungu) {
-        return { regionSido: fullSido, regionSigungu: r.sigungu };
+        return { regionSido: r.sido, regionSigungu: r.sigungu };
       } else {
-        return { regionSido: fullSido };
+        return { regionSido: r.sido };
       }
     });
 
