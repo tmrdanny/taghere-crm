@@ -15,6 +15,11 @@ interface PaymentStats {
   totalTransactions: number;
 }
 
+interface PointStats {
+  totalEarnedPoints: number;
+  monthlyEarnedPoints: number;
+}
+
 interface TrendData {
   date: string;
   count: number;
@@ -32,6 +37,7 @@ type PeriodType = '1' | '7' | '30' | '90' | 'all';
 export default function AdminHomePage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [paymentStats, setPaymentStats] = useState<PaymentStats | null>(null);
+  const [pointStats, setPointStats] = useState<PointStats | null>(null);
   const [customerTrend, setCustomerTrend] = useState<CustomerTrend | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('30');
   const [isLoading, setIsLoading] = useState(true);
@@ -50,11 +56,14 @@ export default function AdminHomePage() {
     if (!token) return;
 
     try {
-      const [statsRes, paymentStatsRes] = await Promise.all([
+      const [statsRes, paymentStatsRes, pointStatsRes] = await Promise.all([
         fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stats`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
         fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/payment-stats`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/point-stats`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -67,6 +76,11 @@ export default function AdminHomePage() {
       if (paymentStatsRes.ok) {
         const paymentData = await paymentStatsRes.json();
         setPaymentStats(paymentData);
+      }
+
+      if (pointStatsRes.ok) {
+        const pointData = await pointStatsRes.json();
+        setPointStats(pointData);
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -115,7 +129,7 @@ export default function AdminHomePage() {
           <p className="text-[14px] text-neutral-500 mt-0.5">{currentMonth} 기준</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Total Real Payments */}
           <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
@@ -136,6 +150,21 @@ export default function AdminHomePage() {
             <p className="text-[28px] font-semibold text-neutral-900">
               {formatNumber(paymentStats?.monthlyRealPayments || 0)}
               <span className="text-[16px] font-normal text-neutral-500 ml-1">원</span>
+            </p>
+          </div>
+
+          {/* Total Earned Points */}
+          <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[14px] text-neutral-500">누적 적립 포인트</p>
+              <span className="text-[12px] text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded">포인트</span>
+            </div>
+            <p className="text-[28px] font-semibold text-neutral-900">
+              {formatNumber(pointStats?.totalEarnedPoints || 0)}
+              <span className="text-[16px] font-normal text-neutral-500 ml-1">P</span>
+            </p>
+            <p className="text-[13px] text-neutral-400 mt-2">
+              이번 달 +{formatNumber(pointStats?.monthlyEarnedPoints || 0)}P
             </p>
           </div>
         </div>

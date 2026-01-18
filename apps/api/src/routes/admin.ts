@@ -485,6 +485,44 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
   }
 });
 
+// GET /api/admin/point-stats - 누적 적립 포인트 통계
+router.get('/point-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    // 전체 누적 적립 포인트 (EARN 타입만)
+    const result = await prisma.pointLedger.aggregate({
+      where: {
+        type: 'EARN',
+      },
+      _sum: {
+        delta: true,
+      },
+    });
+
+    // 이번 달 적립 포인트
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthlyResult = await prisma.pointLedger.aggregate({
+      where: {
+        type: 'EARN',
+        createdAt: {
+          gte: startOfMonth,
+        },
+      },
+      _sum: {
+        delta: true,
+      },
+    });
+
+    res.json({
+      totalEarnedPoints: result._sum.delta || 0,
+      monthlyEarnedPoints: monthlyResult._sum.delta || 0,
+    });
+  } catch (error) {
+    console.error('Admin point stats error:', error);
+    res.status(500).json({ error: '포인트 통계 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 // GET /api/admin/stores/:storeId/wallet - 매장 충전금 조회
 router.get('/stores/:storeId/wallet', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
