@@ -876,11 +876,15 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
 
     // 연령대 집계
     const ageMap = new Map<string, number>();
+    let customersWithoutAgeGroup = 0;
     allCustomers.forEach(c => {
       if (c.ageGroup) {
         ageMap.set(c.ageGroup, (ageMap.get(c.ageGroup) || 0) + 1);
+      } else {
+        customersWithoutAgeGroup++;
       }
     });
+    console.log('[Franchise Insights] Customers without ageGroup:', customersWithoutAgeGroup, '/', totalCustomers);
 
     const ageDistribution = Array.from(ageMap.entries()).map(([ageGroup, count]) => {
       let ageLabel = '';
@@ -896,10 +900,13 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
         count,
         percentage: totalCustomers > 0 ? Math.round((count / totalCustomers) * 100) : 0
       };
-    }).sort((a, b) => {
-      const order = { '20대': 1, '30대': 2, '40대': 3, '50대': 4, '60대 이상': 5 };
-      return (order[a.age as keyof typeof order] || 999) - (order[b.age as keyof typeof order] || 999);
-    });
+    }).filter(item => item.age !== '') // 빈 라벨 제외
+      .sort((a, b) => {
+        const order = { '20대': 1, '30대': 2, '40대': 3, '50대': 4, '60대 이상': 5 };
+        return (order[a.age as keyof typeof order] || 999) - (order[b.age as keyof typeof order] || 999);
+      });
+
+    console.log('[Franchise Insights] Age distribution length:', ageDistribution.length);
 
     // 4. 성별 분포
     let maleCount = 0;

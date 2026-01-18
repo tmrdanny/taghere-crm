@@ -121,6 +121,18 @@ export default function FranchiseInsightsPage() {
 
   // Render bar chart (simple CSS-based)
   const renderBarChart = (data: AgeDistribution[]) => {
+    if (!data || data.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <BarChart3 className="w-12 h-12 text-slate-300 mb-3" />
+          <p className="text-sm text-slate-500">연령대별 데이터가 없습니다</p>
+          <p className="text-xs text-slate-400 mt-1">
+            고객 정보에 생년월일이 등록되면 자동으로 집계됩니다
+          </p>
+        </div>
+      );
+    }
+
     const maxCount = Math.max(...data.map((d) => d.count));
     return (
       <div className="space-y-3">
