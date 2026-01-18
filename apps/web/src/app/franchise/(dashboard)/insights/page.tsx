@@ -191,18 +191,37 @@ export default function FranchiseInsightsPage() {
 
   // Render mini trend chart
   const renderTrendChart = () => {
-    const maxCustomers = Math.max(...insights.monthlyTrend.map((d) => d.customers));
+    if (!insights.monthlyTrend || insights.monthlyTrend.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <p className="text-sm text-slate-500">월별 추이 데이터가 없습니다</p>
+        </div>
+      );
+    }
+
+    const maxCustomers = Math.max(...insights.monthlyTrend.map((d) => d.customers), 1); // 최소값 1로 설정
+
     return (
-      <div className="flex items-end gap-2 h-24">
-        {insights.monthlyTrend.map((item) => (
-          <div key={item.month} className="flex-1 flex flex-col items-center gap-1">
-            <div
-              className="w-full bg-franchise-500 rounded-t-sm transition-all duration-500"
-              style={{ height: `${(item.customers / maxCustomers) * 100}%` }}
-            />
-            <span className="text-[10px] text-slate-500">{item.month}</span>
-          </div>
-        ))}
+      <div className="flex items-end gap-2 h-32">
+        {insights.monthlyTrend.map((item) => {
+          const heightPercentage = maxCustomers > 0 ? (item.customers / maxCustomers) * 100 : 0;
+          const minVisibleHeight = item.customers > 0 ? 8 : 0; // 값이 있으면 최소 8px
+          const barHeight = item.customers > 0 ? Math.max(heightPercentage, minVisibleHeight) : 0;
+
+          return (
+            <div key={item.month} className="flex-1 flex flex-col items-center gap-2">
+              <div className="relative w-full flex items-end justify-center" style={{ height: '96px' }}>
+                {item.customers > 0 && (
+                  <div
+                    className="w-full bg-franchise-500 rounded-t-sm transition-all duration-500"
+                    style={{ height: `${barHeight}%` }}
+                  />
+                )}
+              </div>
+              <span className="text-[10px] text-slate-500">{item.month}</span>
+            </div>
+          );
+        })}
       </div>
     );
   };
