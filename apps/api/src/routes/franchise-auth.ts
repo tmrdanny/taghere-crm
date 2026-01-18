@@ -196,7 +196,18 @@ router.post('/login', async (req, res) => {
 
     const user = await prisma.franchiseUser.findUnique({
       where: { email },
-      include: { franchise: true },
+      include: {
+        franchise: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            logoUrl: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -248,7 +259,18 @@ router.get('/me', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res
   try {
     const user = await prisma.franchiseUser.findUnique({
       where: { id: req.franchiseUser!.id },
-      include: { franchise: true },
+      include: {
+        franchise: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            logoUrl: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
     });
 
     if (!user) {
