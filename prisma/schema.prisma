@@ -846,6 +846,8 @@ model Franchise {
   name          String   // 브랜드명
   slug          String   @unique
   logoUrl       String?
+  logo          Bytes?   // 로고 이미지 파일 (DB 저장)
+  logoMimeType  String?  // 로고 MIME 타입 (image/png, image/jpeg 등)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

@@ -274,4 +274,30 @@ router.get('/me', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res
   }
 });
 
+// GET /api/franchise/auth/logo - 프랜차이즈 로고 이미지 제공
+router.get('/logo', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+
+    const franchise = await prisma.franchise.findUnique({
+      where: { id: franchiseId },
+      select: {
+        logo: true,
+        logoMimeType: true,
+      },
+    });
+
+    if (!franchise || !franchise.logo || !franchise.logoMimeType) {
+      return res.status(404).json({ error: '로고를 찾을 수 없습니다.' });
+    }
+
+    res.set('Content-Type', franchise.logoMimeType);
+    res.set('Cache-Control', 'public, max-age=86400'); // 1일 캐시
+    res.send(franchise.logo);
+  } catch (error) {
+    console.error('Failed to fetch franchise logo:', error);
+    res.status(500).json({ error: '로고 조회에 실패했습니다.' });
+  }
+});
+
 export default router;

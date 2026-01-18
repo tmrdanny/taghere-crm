@@ -40,6 +40,20 @@ const bannerUpload = multer({
   },
 });
 
+// Multer 설정 - 프랜차이즈 로고용 (메모리 저장)
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      cb(new Error('JPG, PNG, GIF, WebP 파일만 업로드 가능합니다.'));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
 // 어드민 계정 (환경변수 필수)
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'taghere';
 // 비밀번호는 bcrypt 해시로 저장 (ADMIN_PASSWORD_HASH 환경변수 사용)
@@ -1095,7 +1109,7 @@ router.post('/alimtalk/low-balance-bulk', adminAuthMiddleware, async (req: Admin
       // #{상호명} 변수에 매장명 + 안내 문구 (줄바꿈 포함)
       const storeNameVariable = `${store.name}
 
-현재 충전금이 부족하여 손님께 포인트 적립 완료 알림톡이 전달되지 않고 있어요.
+현재 충전금이 부족하여 손님께 네이버 리뷰 요청과 포인트 적립 완료 알림톡이 전달되지 않고 있어요.
 
 알림톡을 끄시려면 '설정 > 알림톡 발송 OFF'를 클릭해주세요.`;
 
@@ -1417,6 +1431,40 @@ router.delete('/franchises/:franchiseId/stores/:storeId', adminAuthMiddleware, a
   } catch (error: any) {
     console.error('Failed to disconnect store from franchise:', error);
     res.status(500).json({ error: '매장 연결 해제에 실패했습니다.' });
+  }
+});
+
+// POST /api/admin/franchises/:franchiseId/logo - 프랜차이즈 로고 업로드
+router.post('/franchises/:franchiseId/logo', adminAuthMiddleware, logoUpload.single('logo'), async (req: AdminRequest, res: Response) => {
+  try {
+    const { franchiseId } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ error: '로고 파일을 업로드해주세요.' });
+    }
+
+    // 프랜차이즈 존재 확인
+    const franchise = await prisma.franchise.findUnique({
+      where: { id: franchiseId },
+    });
+
+    if (!franchise) {
+      return res.status(404).json({ error: '프랜차이즈를 찾을 수 없습니다.' });
+    }
+
+    // 로고를 DB에 저장
+    await prisma.franchise.update({
+      where: { id: franchiseId },
+      data: {
+        logo: req.file.buffer,
+        logoMimeType: req.file.mimetype,
+      },
+    });
+
+    res.json({ success: true, message: '로고가 업로드되었습니다.' });
+  } catch (error: any) {
+    console.error('Failed to upload franchise logo:', error);
+    res.status(500).json({ error: '로고 업로드에 실패했습니다.' });
   }
 });
 

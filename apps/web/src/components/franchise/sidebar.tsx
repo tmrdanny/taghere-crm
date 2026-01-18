@@ -167,7 +167,20 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
       <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-slate-200">
         <div className="flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-slate-900">TagHere CRM</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/api/franchise/auth/logo"
+              alt={user.franchise.name}
+              className="h-7 w-auto object-contain"
+              onError={(e) => {
+                // 로고 로드 실패 시 기본 텍스트로 폴백
+                e.currentTarget.style.display = 'none';
+                const fallbackText = document.createElement('span');
+                fallbackText.className = 'text-lg font-bold text-slate-900';
+                fallbackText.textContent = user.franchise.name;
+                e.currentTarget.parentElement?.appendChild(fallbackText);
+              }}
+            />
             <span className="px-1.5 py-0.5 bg-franchise-100 text-franchise-700 text-[10px] font-medium rounded">
               Franchise
             </span>
@@ -199,7 +212,20 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
         {/* Mobile Menu Header */}
         <div className="flex items-center justify-between h-14 px-4 border-b border-slate-200">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-slate-900">TagHere CRM</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/api/franchise/auth/logo"
+              alt={user.franchise.name}
+              className="h-7 w-auto object-contain"
+              onError={(e) => {
+                // 로고 로드 실패 시 기본 텍스트로 폴백
+                e.currentTarget.style.display = 'none';
+                const fallbackText = document.createElement('span');
+                fallbackText.className = 'text-lg font-bold text-slate-900';
+                fallbackText.textContent = user.franchise.name;
+                e.currentTarget.parentElement?.appendChild(fallbackText);
+              }}
+            />
             <span className="px-1.5 py-0.5 bg-franchise-100 text-franchise-700 text-[10px] font-medium rounded">
               Franchise
             </span>
@@ -261,7 +287,22 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
       <aside className="hidden lg:flex flex-col w-60 bg-white border-r border-slate-200 h-screen sticky top-0">
         {/* Logo */}
         <div className="flex items-center gap-2 h-16 px-5 border-b border-slate-200">
-          <span className="text-lg font-bold text-slate-900">TagHere CRM</span>
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/api/franchise/auth/logo"
+              alt={user.franchise.name}
+              className="h-8 w-auto object-contain"
+              onError={(e) => {
+                // 로고 로드 실패 시 기본 텍스트로 폴백
+                e.currentTarget.style.display = 'none';
+                const fallbackText = document.createElement('span');
+                fallbackText.className = 'text-lg font-bold text-slate-900';
+                fallbackText.textContent = user.franchise.name;
+                e.currentTarget.parentElement?.appendChild(fallbackText);
+              }}
+            />
+          </div>
           <span className="px-1.5 py-0.5 bg-franchise-100 text-franchise-700 text-[10px] font-medium rounded">
             Franchise
           </span>

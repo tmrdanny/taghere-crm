@@ -61,6 +61,7 @@ export default function FranchisesPage() {
     phone: '',
     logoUrl: '',
   });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -133,6 +134,24 @@ export default function FranchisesPage() {
         throw new Error(data.error || '프랜차이즈 생성에 실패했습니다.');
       }
 
+      // 로고 파일이 있으면 업로드
+      if (logoFile) {
+        const logoFormData = new FormData();
+        logoFormData.append('logo', logoFile);
+
+        const logoRes = await fetch(`${API_URL}/api/admin/franchises/${data.franchise.id}/logo`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: logoFormData,
+        });
+
+        if (!logoRes.ok) {
+          console.error('로고 업로드 실패');
+        }
+      }
+
       alert('프랜차이즈가 생성되었습니다.');
       setShowCreateModal(false);
       setFormData({
@@ -144,6 +163,7 @@ export default function FranchisesPage() {
         phone: '',
         logoUrl: '',
       });
+      setLogoFile(null);
       fetchFranchises();
     } catch (error: any) {
       alert(error.message);
@@ -393,15 +413,29 @@ export default function FranchisesPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  로고 URL (선택)
+                  로고 파일 (선택)
                 </label>
                 <input
-                  type="url"
-                  value={formData.logoUrl}
-                  onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                  placeholder="https://example.com/logo.png"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 2 * 1024 * 1024) {
+                        alert('로고 파일은 2MB 이하만 업로드 가능합니다.');
+                        e.target.value = '';
+                        return;
+                      }
+                      setLogoFile(file);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-neutral-50 file:text-neutral-700 hover:file:bg-neutral-100"
                 />
+                {logoFile && (
+                  <p className="mt-1 text-xs text-neutral-500">
+                    선택된 파일: {logoFile.name}
+                  </p>
+                )}
               </div>
               <div className="flex gap-2 pt-2">
                 <button
@@ -417,6 +451,7 @@ export default function FranchisesPage() {
                       phone: '',
                       logoUrl: '',
                     });
+                    setLogoFile(null);
                   }}
                   className="flex-1 px-4 py-2 border border-[#EAEAEA] rounded-lg hover:bg-neutral-50 transition-colors text-sm font-medium"
                 >
