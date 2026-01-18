@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { SolapiMessageService } from 'solapi';
 import multer from 'multer';
 import sharp from 'sharp';
 import path from 'path';
@@ -55,6 +56,18 @@ const upload = multer({
     cb(null, true);
   },
 });
+
+// 전화번호 정규화
+function normalizePhoneNumber(phone: string): string {
+  let digits = phone.replace(/[^0-9]/g, '');
+  if (digits.startsWith('82')) {
+    digits = '0' + digits.slice(2);
+  }
+  if (!digits.startsWith('0')) {
+    digits = '0' + digits;
+  }
+  return digits;
+}
 
 // 바이트 길이 계산
 function getByteLength(str: string): number {
@@ -116,7 +129,7 @@ function buildFilterConditions(genderFilter?: string, ageGroups?: string[]): any
 // 1. GET /api/franchise/sms/target-counts - 타겟 그룹별 고객 수 조회
 router.get('/target-counts', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
-    const franchiseId = req.franchise!.id;
+    const franchiseId = req.franchiseUser!.franchiseId;
     const { genderFilter, ageGroups } = req.query;
 
     // 프랜차이즈의 모든 매장 조회
@@ -175,7 +188,7 @@ router.get('/target-counts', franchiseAuthMiddleware, async (req: FranchiseAuthR
 // 2. GET /api/franchise/sms/estimate - 비용 견적
 router.get('/estimate', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
-    const franchiseId = req.franchise!.id;
+    const franchiseId = req.franchiseUser!.franchiseId;
     const { targetType, content, customerIds, genderFilter, ageGroups, hasImage } = req.query;
 
     // 프랜차이즈의 모든 매장 조회
@@ -275,7 +288,7 @@ router.get('/estimate', franchiseAuthMiddleware, async (req: FranchiseAuthReques
 // 3. GET /api/franchise/customers/selectable - 고객 선택 모달용 (마스킹)
 router.get('/customers/selectable', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
-    const franchiseId = req.franchise!.id;
+    const franchiseId = req.franchiseUser!.franchiseId;
     const { search, limit = '100' } = req.query;
 
     // 프랜차이즈의 모든 매장 조회
@@ -333,119 +346,253 @@ router.post('/upload-image', franchiseAuthMiddleware, upload.single('image'), as
       return res.status(400).json({ error: '이미지 파일이 필요합니다.' });
     }
 
-    const franchiseId = req.franchise!.id;
+    const franchiseId = req.franchiseUser!.franchiseId;
 
-    // Sharp로 이미지 처리 및 검증
-    const imageBuffer = req.file.buffer;
-    const metadata = await sharp(imageBuffer).metadata();
+    // 이미지 메타데이터 확인
+    const metadata = await sharp(req.file.buffer).metadata();
 
     if (!metadata.width || !metadata.height) {
-      return res.status(400).json({ error: '이미지 메타데이터를 읽을 수 없습니다.' });
+      return res.status(400).json({ error: '이미지 정보를 읽을 수 없습니다.' });
     }
 
-    if (metadata.width > IMAGE_MAX_WIDTH || metadata.height > IMAGE_MAX_HEIGHT) {
+    // 크기 검증
+    if (metadata.width > IMAGE_MAX_WIDTH) {
       return res.status(400).json({
-        error: `이미지 크기는 최대 ${IMAGE_MAX_WIDTH}x${IMAGE_MAX_HEIGHT}px입니다.`
+        error: `이미지 가로 크기가 너무 큽니다. (최대 ${IMAGE_MAX_WIDTH}px, 현재 ${metadata.width}px)`,
+        width: metadata.width,
+        maxWidth: IMAGE_MAX_WIDTH,
       });
     }
 
-    // 파일 저장
-    const filename = `${franchiseId}-${Date.now()}.jpg`;
+    if (metadata.height > IMAGE_MAX_HEIGHT) {
+      return res.status(400).json({
+        error: `이미지 세로 크기가 너무 큽니다. (최대 ${IMAGE_MAX_HEIGHT}px, 현재 ${metadata.height}px)`,
+        height: metadata.height,
+        maxHeight: IMAGE_MAX_HEIGHT,
+      });
+    }
+
+    // 용량 검증
+    if (req.file.size > IMAGE_MAX_SIZE) {
+      return res.status(400).json({
+        error: `이미지 용량이 너무 큽니다. (최대 200KB, 현재 ${Math.round(req.file.size / 1024)}KB)`,
+        size: req.file.size,
+        maxSize: IMAGE_MAX_SIZE,
+      });
+    }
+
+    // 먼저 로컬에 파일 저장 (SOLAPI 업로드 및 미리보기용)
+    const filename = `${franchiseId}_${Date.now()}.jpg`;
     const filepath = path.join(uploadDir, filename);
 
-    await sharp(imageBuffer)
-      .jpeg({ quality: 90 })
-      .toFile(filepath);
+    await fs.promises.writeFile(filepath, req.file.buffer);
 
-    // DB에 이미지 정보 저장
-    const smsImage = await prisma.smsImage.create({
-      data: {
-        filename,
-        imageUrl: `/uploads/franchise-mms/${filename}`,
-        storeId: null // 프랜차이즈 이미지는 storeId null
-      }
-    });
+    // SOLAPI에 이미지 업로드하여 imageId 획득
+    const apiKey = process.env.SOLAPI_API_KEY;
+    const apiSecret = process.env.SOLAPI_API_SECRET;
+
+    if (!apiKey || !apiSecret) {
+      // 로컬 파일 삭제
+      await fs.promises.unlink(filepath).catch(() => {});
+      return res.status(400).json({ error: 'SMS 발송 설정이 되어있지 않습니다.' });
+    }
+
+    const messageService = new SolapiMessageService(apiKey, apiSecret);
+
+    console.log('[Franchise SMS] Uploading image to SOLAPI, filepath:', filepath);
+
+    // SOLAPI 이미지 업로드 (파일 경로 전달)
+    const uploadResult = await messageService.uploadFile(filepath, 'MMS');
+
+    console.log('[Franchise SMS] SOLAPI upload result:', uploadResult);
+
+    if (!uploadResult?.fileId) {
+      // 로컬 파일 삭제
+      await fs.promises.unlink(filepath).catch(() => {});
+      return res.status(500).json({ error: 'SOLAPI 이미지 업로드에 실패했습니다.' });
+    }
+
+    // 이미지 URL 반환 (상대 경로) + SOLAPI imageId
+    const imageUrl = `/uploads/franchise-mms/${filename}`;
 
     res.json({
-      imageId: smsImage.id,
-      imageUrl: smsImage.imageUrl
+      success: true,
+      imageUrl,
+      filename,
+      imageId: uploadResult.fileId, // SOLAPI에서 받은 imageId
+      width: metadata.width,
+      height: metadata.height,
+      size: req.file.size,
     });
   } catch (error: any) {
     console.error('Image upload error:', error);
-    if (error.message && error.message.includes('JPG')) {
-      res.status(400).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: '이미지 업로드 중 오류가 발생했습니다.' });
+
+    // Multer 에러 처리
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: '이미지 용량이 너무 큽니다. (최대 200KB)' });
     }
+
+    res.status(500).json({ error: error.message || '이미지 업로드 중 오류가 발생했습니다.' });
   }
 });
 
 // 5. POST /api/franchise/sms/test-send - 테스트 발송
 router.post('/test-send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
-    const franchiseId = req.franchise!.id;
+    const franchiseId = req.franchiseUser!.franchiseId;
     const { phone, content, imageId } = req.body;
 
-    if (!phone || !content) {
-      return res.status(400).json({ error: '전화번호와 내용이 필요합니다.' });
+    if (!phone) {
+      return res.status(400).json({ error: '전화번호를 입력해주세요.' });
+    }
+
+    if (!content || content.trim() === '') {
+      return res.status(400).json({ error: '메시지 내용을 입력해주세요.' });
     }
 
     // 오늘 테스트 발송 횟수 확인
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const testCount = await prisma.franchiseSmsTestLog.count({
+    const todayTestCount = await prisma.franchiseSmsTestLog.count({
       where: {
         franchiseId,
-        createdAt: { gte: today }
-      }
+        createdAt: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
     });
 
-    if (testCount >= 5) {
-      return res.status(400).json({ error: '하루 5회까지만 테스트 발송 가능합니다.' });
-    }
-
-    // 이미지 URL 조회 (있으면)
-    let imageUrl: string | undefined = undefined;
-    if (imageId) {
-      const image = await prisma.smsImage.findUnique({
-        where: { id: imageId }
+    if (todayTestCount >= 5) {
+      return res.status(400).json({
+        error: '오늘 테스트 발송 횟수(5회)를 모두 사용했습니다.',
       });
-      imageUrl = image?.imageUrl;
     }
 
-    // SOLAPI로 발송
-    const solapiService = getSolapiService();
-    if (!solapiService) {
-      return res.status(500).json({ error: 'SMS 서비스가 설정되지 않았습니다.' });
+    // SOLAPI 설정 확인
+    const apiKey = process.env.SOLAPI_API_KEY;
+    const apiSecret = process.env.SOLAPI_API_SECRET;
+
+    if (!apiKey || !apiSecret) {
+      return res.status(400).json({ error: 'SMS 발송 설정이 되어있지 않습니다.' });
     }
 
-    await solapiService.sendOne({
-      to: phone,
+    // 메시지 유형 결정
+    const hasImage = !!imageId;
+    const byteLength = getByteLength(content);
+    const messageType = hasImage ? 'MMS' : (byteLength > 90 ? 'LMS' : 'SMS');
+
+    // SOLAPI 서비스 초기화
+    const messageService = new SolapiMessageService(apiKey, apiSecret);
+    const normalizedPhone = normalizePhoneNumber(phone);
+
+    // 발송 옵션
+    const sendOptions: any = {
+      to: normalizedPhone,
+      from: '07041380263', // 발신번호 고정
       text: content,
-      ...(imageUrl && { imageUrl: `${process.env.API_BASE_URL || 'http://localhost:4000'}${imageUrl}` })
-    });
+      type: messageType,
+    };
 
-    // 테스트 로그 기록
+    // MMS인 경우 이미지 추가
+    if (hasImage && imageId) {
+      sendOptions.imageId = imageId;
+    }
+
+    console.log('[Franchise SMS Test] Sending test message:', { phone: normalizedPhone, messageType, hasImage });
+
+    const result = await messageService.send(sendOptions);
+    const groupInfo = result.groupInfo;
+    const groupId = groupInfo?.groupId;
+
+    // 3초 대기 후 실제 발송 결과 조회 (SOLAPI 처리 시간 고려)
+    let success = false;
+    let failReason: string | null = null;
+
+    if (groupId) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      const solapiService = getSolapiService();
+      if (solapiService) {
+        const statusResult = await solapiService.getMessageStatus(groupId, normalizedPhone);
+        console.log('[Franchise SMS Test] Delivery status:', statusResult);
+
+        if (statusResult.success) {
+          if (statusResult.status === 'SENT') {
+            success = true;
+          } else if (statusResult.status === 'FAILED') {
+            success = false;
+            failReason = statusResult.failReason || '발송 실패';
+          } else {
+            // PENDING - 아직 처리 중
+            success = true;
+            console.log('[Franchise SMS Test] Message still PENDING after 3s, assuming success');
+          }
+        } else {
+          // 상태 조회 실패 - sentSuccess만 확인
+          console.log('[Franchise SMS Test] Status query failed, checking groupInfo:', statusResult.error);
+          const sentSuccess = groupInfo?.count?.sentSuccess || 0;
+          const sentFailed = groupInfo?.count?.sentFailed || 0;
+          if (sentSuccess > 0) {
+            success = true;
+          } else if (sentFailed > 0) {
+            success = false;
+            failReason = '발송 실패';
+          } else {
+            success = true;
+            console.log('[Franchise SMS Test] No sent status yet, assuming success');
+          }
+        }
+      } else {
+        // SolapiService 없음
+        const sentSuccess = groupInfo?.count?.sentSuccess || 0;
+        success = sentSuccess > 0;
+        if (!success) {
+          failReason = 'SOLAPI 서비스 오류';
+        }
+      }
+    } else {
+      success = false;
+      failReason = 'No group ID returned';
+    }
+
+    console.log('[Franchise SMS Test] Final result:', { success, groupId, failReason });
+
+    if (!success) {
+      return res.status(400).json({
+        error: failReason || '테스트 발송에 실패했습니다.',
+        details: { groupInfo },
+      });
+    }
+
+    // 테스트 발송 로그 저장
     await prisma.franchiseSmsTestLog.create({
       data: {
         franchiseId,
-        phone,
-        content
-      }
+        phone: normalizedPhone,
+        content,
+      },
     });
 
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Test send error:', error);
-    res.status(500).json({ error: '테스트 발송 중 오류가 발생했습니다.' });
+    res.json({
+      success: true,
+      message: '테스트 발송이 완료되었습니다.',
+      messageType,
+      groupId: groupInfo?.groupId,
+    });
+  } catch (error: any) {
+    console.error('Franchise SMS test send error:', error);
+    res.status(500).json({ error: error.message || '테스트 발송 중 오류가 발생했습니다.' });
   }
 });
 
 // 6. POST /api/franchise/sms/send - 실제 메시지 발송
 router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
-    const franchiseId = req.franchise!.id;
+    const franchiseId = req.franchiseUser!.franchiseId;
     const {
       content,
       targetType,
@@ -542,19 +689,51 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       // 5. SOLAPI 발송 (비동기)
       setImmediate(async () => {
         try {
-          const solapiService = getSolapiService();
-          if (!solapiService) {
+          const apiKey = process.env.SOLAPI_API_KEY;
+          const apiSecret = process.env.SOLAPI_API_SECRET;
+
+          if (!apiKey || !apiSecret) {
             console.error('SOLAPI service not configured');
             return;
           }
 
-          const messages = customers.map(c => ({
-            to: c.phone!,
-            text: content,
-            ...(imageUrl && { imageUrl: `${process.env.API_BASE_URL || 'http://localhost:4000'}${imageUrl}` })
-          }));
+          const messageService = new SolapiMessageService(apiKey, apiSecret);
+          const bytes = getByteLength(content);
+          const msgType = imageId ? 'MMS' : (bytes <= 90 ? 'SMS' : 'LMS');
 
-          await solapiService.sendMany(messages);
+          // 개별 발송 (병렬 처리)
+          const sendPromises = customers.map(async (customer) => {
+            const normalizedPhone = normalizePhoneNumber(customer.phone!);
+
+            try {
+              // SOLAPI 발송 옵션
+              const sendOptions: any = {
+                to: normalizedPhone,
+                from: '07041380263', // 발신번호 고정
+                text: content,
+                type: msgType,
+              };
+
+              // MMS인 경우 이미지 추가 (SOLAPI에서 받은 imageId 사용)
+              if (imageId) {
+                sendOptions.imageId = imageId;
+              }
+
+              const result = await messageService.send(sendOptions);
+              const groupInfo = result.groupInfo;
+              const groupId = groupInfo?.groupId;
+
+              console.log(`[Franchise SMS] Sent to ${normalizedPhone}, groupId: ${groupId}`);
+              return { success: true, phone: normalizedPhone };
+            } catch (error: any) {
+              console.error(`[Franchise SMS] Send error for ${normalizedPhone}:`, error.message);
+              return { success: false, phone: normalizedPhone };
+            }
+          });
+
+          const results = await Promise.all(sendPromises);
+          const sentCount = results.filter((r) => r.success).length;
+          const failedCount = results.filter((r) => !r.success).length;
 
           // 6. 개별 메시지 기록
           for (const customer of customers) {
@@ -603,7 +782,7 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
 // 7. GET /api/franchise/sms/test-count - 오늘 테스트 발송 횟수
 router.get('/test-count', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
-    const franchiseId = req.franchise!.id;
+    const franchiseId = req.franchiseUser!.franchiseId;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -629,34 +808,27 @@ router.get('/test-count', franchiseAuthMiddleware, async (req: FranchiseAuthRequ
 // 8. DELETE /api/franchise/sms/delete-image - 이미지 삭제
 router.delete('/delete-image', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
-    const { imageId } = req.query;
+    const { filename } = req.body;
+    const franchiseId = req.franchiseUser!.franchiseId;
 
-    if (!imageId) {
-      return res.status(400).json({ error: '이미지 ID가 필요합니다.' });
+    if (!filename) {
+      return res.status(400).json({ error: '파일명이 필요합니다.' });
     }
 
-    const image = await prisma.smsImage.findUnique({
-      where: { id: imageId as string }
-    });
-
-    if (!image) {
-      return res.status(404).json({ error: '이미지를 찾을 수 없습니다.' });
+    // 보안: 파일명이 해당 프랜차이즈의 것인지 확인
+    if (!filename.startsWith(franchiseId)) {
+      return res.status(403).json({ error: '권한이 없습니다.' });
     }
 
-    // 파일 삭제
-    const filepath = path.join(uploadDir, image.filename);
+    const filepath = path.join(uploadDir, filename);
+
     if (fs.existsSync(filepath)) {
-      fs.unlinkSync(filepath);
+      await fs.promises.unlink(filepath);
     }
-
-    // DB에서 삭제
-    await prisma.smsImage.delete({
-      where: { id: imageId as string }
-    });
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Delete image error:', error);
+    console.error('Image delete error:', error);
     res.status(500).json({ error: '이미지 삭제 중 오류가 발생했습니다.' });
   }
 });
