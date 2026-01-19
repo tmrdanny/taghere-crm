@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
+import { enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
 
 const router = Router();
 
@@ -392,36 +392,6 @@ router.post('/auto-earn', async (req, res) => {
         }).catch((err) => {
           console.error('[TagHere Auto-Earn] Points AlimTalk enqueue failed:', err);
         });
-      }
-
-      // 네이버 리뷰 요청 알림톡
-      const reviewSetting = await prisma.reviewAutomationSetting.findUnique({
-        where: { storeId: store.id },
-      });
-
-      if (reviewSetting?.enabled && reviewSetting?.naverReviewUrl) {
-        // sendFrequency가 'first_only'인 경우, 오늘 첫 방문일 때만 발송
-        let shouldSendReview = true;
-        if (reviewSetting.sendFrequency === 'first_only') {
-          shouldSendReview = isFirstVisitToday;
-          console.log('[TagHere Auto-Earn] first_only mode - isFirstVisitToday:', isFirstVisitToday);
-        }
-
-        if (shouldSendReview) {
-          enqueueNaverReviewAlimTalk({
-            storeId: store.id,
-            customerId: customer.id,
-            phone: phoneNumber,
-            variables: {
-              storeName: store.name,
-              benefitText: reviewSetting.benefitText || '',
-            },
-          }).catch((err) => {
-            console.error('[TagHere Auto-Earn] Review AlimTalk enqueue failed:', err);
-          });
-        } else {
-          console.log('[TagHere Auto-Earn] Skipping Naver review alimtalk - first_only mode and not first visit today');
-        }
       }
     }
 
