@@ -323,6 +323,8 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
           lastVisitAt: true,
           createdAt: true,
           storeId: true,
+          kakaoId: true,
+          naverId: true,
           store: {
             select: {
               id: true,
@@ -356,9 +358,12 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
       // ageGroup이 없으면 birthYear로부터 계산
       const ageGroup = customer.ageGroup || calculateAgeGroup(customer.birthYear);
 
+      // 직접 등록 고객 (kakaoId, naverId 모두 null)은 이름 마스킹 해제
+      const isManuallyRegistered = !customer.kakaoId && !customer.naverId;
+
       return {
         id: customer.id,
-        name: maskName(customer.name || ''),
+        name: isManuallyRegistered ? (customer.name || '') : maskName(customer.name || ''),
         phone: maskPhone(customer.phone || ''),
         gender: customer.gender,
         ageGroup,
@@ -837,10 +842,13 @@ router.get('/customers/:customerId', franchiseAuthMiddleware, async (req: Franch
     // ageGroup 계산 (없으면 birthYear로부터 계산)
     const ageGroup = customer.ageGroup || calculateAgeGroup(customer.birthYear);
 
+    // 직접 등록 고객 (kakaoId, naverId 모두 null)은 이름 마스킹 해제
+    const isManuallyRegistered = !customer.kakaoId && !customer.naverId;
+
     // 민감 정보 마스킹
     const maskedCustomer = {
       id: customer.id,
-      name: maskName(customer.name),
+      name: isManuallyRegistered ? customer.name : maskName(customer.name),
       phone: maskPhone(customer.phone),
       totalPoints: customer.totalPoints,
       gender: customer.gender,
