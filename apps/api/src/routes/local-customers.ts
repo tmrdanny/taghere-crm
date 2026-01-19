@@ -133,6 +133,98 @@ router.get('/total-count', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// 시/도 줄임말 → 전체 이름 매핑 (Customer DB용)
+const SIDO_SHORT_TO_FULL: Record<string, string> = {
+  서울: '서울특별시',
+  경기: '경기도',
+  인천: '인천광역시',
+  부산: '부산광역시',
+  대구: '대구광역시',
+  광주: '광주광역시',
+  대전: '대전광역시',
+  울산: '울산광역시',
+  세종: '세종특별자치시',
+  강원: '강원특별자치도',
+  충북: '충청북도',
+  충남: '충청남도',
+  전북: '전북특별자치도',
+  전남: '전라남도',
+  경북: '경상북도',
+  경남: '경상남도',
+  제주: '제주특별자치도',
+};
+
+// 전체 이름 → 시/도 줄임말 매핑 (역변환용)
+const SIDO_FULL_TO_SHORT: Record<string, string> = Object.fromEntries(
+  Object.entries(SIDO_SHORT_TO_FULL).map(([short, full]) => [full, short])
+);
+
+// GET /api/local-customers/region-counts - 지역별 고객 수 조회
+router.get('/region-counts', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // 1. ExternalCustomer 시/도별 카운트 (줄임말 사용: 서울, 경기)
+    const externalSidoCounts = await prisma.externalCustomer.groupBy({
+      by: ['regionSido'],
+      where: { consentMarketing: true, regionSido: { not: '' } },
+      _count: { _all: true },
+    });
+
+    // 2. Customer 시/도별 카운트 (전체 이름 사용: 서울특별시, 경기도)
+    const customerSidoCounts = await prisma.customer.groupBy({
+      by: ['regionSido'],
+      where: { consentMarketing: true, regionSido: { not: '' } },
+      _count: { _all: true },
+    });
+
+    // 3. Customer 시/군/구별 카운트
+    const customerSigunguCounts = await prisma.customer.groupBy({
+      by: ['regionSido', 'regionSigungu'],
+      where: { consentMarketing: true, regionSido: { not: '' }, regionSigungu: { not: '' } },
+      _count: { _all: true },
+    });
+
+    // 시/도별 통합 카운트 계산 (줄임말 키로 통합)
+    const sidoCountMap: Record<string, number> = {};
+
+    // ExternalCustomer 카운트 (이미 줄임말 사용)
+    externalSidoCounts.forEach((item) => {
+      if (item.regionSido) {
+        sidoCountMap[item.regionSido] = (sidoCountMap[item.regionSido] || 0) + (item._count?._all || 0);
+      }
+    });
+
+    // Customer 카운트 (전체 이름을 줄임말로 변환하여 합산)
+    customerSidoCounts.forEach((item) => {
+      if (item.regionSido) {
+        const shortName = SIDO_FULL_TO_SHORT[item.regionSido] || item.regionSido;
+        sidoCountMap[shortName] = (sidoCountMap[shortName] || 0) + (item._count?._all || 0);
+      }
+    });
+
+    // 시/군/구별 카운트 (Customer만 - ExternalCustomer는 sigungu 없음)
+    // 줄임말 키로 변환
+    const sigunguCountMap: Record<string, Record<string, number>> = {};
+
+    customerSigunguCounts.forEach((item) => {
+      if (item.regionSido && item.regionSigungu) {
+        const shortSido = SIDO_FULL_TO_SHORT[item.regionSido] || item.regionSido;
+        if (!sigunguCountMap[shortSido]) {
+          sigunguCountMap[shortSido] = {};
+        }
+        sigunguCountMap[shortSido][item.regionSigungu] = item._count?._all || 0;
+      }
+    });
+
+    res.json({
+      sidoCounts: sidoCountMap,
+      sigunguCounts: sigunguCountMap,
+    });
+  } catch (error) {
+    console.error('Region counts fetch error:', error);
+    res.status(500).json({ error: '지역별 고객 수 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 // GET /api/local-customers/count - 조건에 맞는 고객 수 조회 (ExternalCustomer + Customer 통합)
 router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
   try {

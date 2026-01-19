@@ -199,8 +199,13 @@ export default function LocalCustomersPage() {
         const res = await fetch(`${API_BASE}/api/local-customers/region-counts`, {
           headers: { Authorization: `Bearer ${getAuthToken()}` },
         });
-        const data = await res.json();
-        setRegionCounts(data);
+        if (res.ok) {
+          const data = await res.json();
+          setRegionCounts({
+            sidoCounts: data.sidoCounts || {},
+            sigunguCounts: data.sigunguCounts || {},
+          });
+        }
       } catch (err) {
         console.error('Failed to fetch region counts:', err);
       }
