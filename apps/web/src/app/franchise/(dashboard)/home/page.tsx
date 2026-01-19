@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import {
   Building2,
   Users2,
-  UserRoundPlus,
   Wallet,
   ArrowUpRight,
   ArrowDownRight,
@@ -199,7 +198,7 @@ export default function FranchiseHomePage() {
           <KpiCardSkeleton />
         </div>
       ) : data && (data.totalStores > 0 || data.totalCustomers > 0) ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <KpiCard
             title="총 가맹점 수"
             value={data.totalStores}
@@ -214,14 +213,6 @@ export default function FranchiseHomePage() {
             icon={Users2}
             accentColor="bg-emerald-500 text-white"
             growth={data.customerGrowth}
-            growthLabel="지난달 대비"
-          />
-          <KpiCard
-            title="이번 달 신규 고객"
-            value={data.newCustomersThisMonth}
-            icon={UserRoundPlus}
-            accentColor="bg-blue-500 text-white"
-            growth={data.newCustomerGrowth}
             growthLabel="지난달 대비"
           />
           <KpiCard

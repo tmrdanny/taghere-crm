@@ -10,6 +10,7 @@ import {
   Check,
   Calendar,
   Star,
+  Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -68,8 +69,14 @@ interface CustomerDetail extends Customer {
   totalOrderAmount: number;
 }
 
+interface Store {
+  id: string;
+  name: string;
+}
+
 export default function FranchiseCustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -77,6 +84,7 @@ export default function FranchiseCustomersPage() {
   const [isDetailLoading, setIsDetailLoading] = useState(false);
 
   // Filter states
+  const [storeFilter, setStoreFilter] = useState<string>('all');
   const [genderFilter, setGenderFilter] = useState<'all' | 'MALE' | 'FEMALE'>('all');
   const [visitFilter, setVisitFilter] = useState<'all' | '1' | '2' | '5' | '10' | '20'>('all');
   const [lastVisitFilter, setLastVisitFilter] = useState<'all' | '7' | '30' | '90'>('all');
@@ -85,6 +93,7 @@ export default function FranchiseCustomersPage() {
   const [dateFilterType, setDateFilterType] = useState<'created' | 'lastVisit'>('lastVisit');
 
   // Dropdown states
+  const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
   const [genderDropdownOpen, setGenderDropdownOpen] = useState(false);
   const [visitDropdownOpen, setVisitDropdownOpen] = useState(false);
   const [lastVisitDropdownOpen, setLastVisitDropdownOpen] = useState(false);
@@ -123,6 +132,31 @@ export default function FranchiseCustomersPage() {
     return '';
   };
 
+  // Fetch stores for filter
+  const fetchStores = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE}/api/franchise/stores`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setStores(data.stores || []);
+      }
+    } catch (error) {
+      console.error('Error fetching stores:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStores();
+  }, [fetchStores]);
+
   // Fetch customers from API
   const fetchCustomers = useCallback(async () => {
     setIsLoading(true);
@@ -137,6 +171,7 @@ export default function FranchiseCustomersPage() {
       const params = new URLSearchParams();
       params.append('limit', '10000'); // 전체 고객 조회
       if (searchQuery) params.append('search', searchQuery);
+      if (storeFilter !== 'all') params.append('storeId', storeFilter);
       if (genderFilter !== 'all') params.append('gender', genderFilter);
       if (visitFilter !== 'all') params.append('visitCount', visitFilter);
       if (lastVisitFilter !== 'all') params.append('lastVisit', lastVisitFilter);
@@ -162,7 +197,7 @@ export default function FranchiseCustomersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [searchQuery, genderFilter, visitFilter, lastVisitFilter, startDate, endDate, dateFilterType]);
+  }, [searchQuery, storeFilter, genderFilter, visitFilter, lastVisitFilter, startDate, endDate, dateFilterType]);
 
   useEffect(() => {
     fetchCustomers();
@@ -213,6 +248,7 @@ export default function FranchiseCustomersPage() {
         return;
       }
 
+      setStoreDropdownOpen(false);
       setGenderDropdownOpen(false);
       setVisitDropdownOpen(false);
       setLastVisitDropdownOpen(false);
@@ -257,6 +293,11 @@ export default function FranchiseCustomersPage() {
   };
 
   // Filter handlers
+  const handleStoreSelect = (value: string) => {
+    setStoreFilter(value);
+    setStoreDropdownOpen(false);
+  };
+
   const handleGenderSelect = (value: 'all' | 'MALE' | 'FEMALE') => {
     setGenderFilter(value);
     setGenderDropdownOpen(false);
@@ -336,12 +377,65 @@ export default function FranchiseCustomersPage() {
 
           {/* Filter buttons */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Store Filter */}
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setStoreDropdownOpen(!storeDropdownOpen);
+                  setGenderDropdownOpen(false);
+                  setVisitDropdownOpen(false);
+                  setLastVisitDropdownOpen(false);
+                  setDateRangeDropdownOpen(false);
+                }}
+                className={cn(
+                  "flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border transition-colors",
+                  storeFilter === 'all'
+                    ? 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50'
+                    : 'bg-brand-50 border-brand-200 text-brand-800'
+                )}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                {storeFilter === 'all' ? '전체 가맹점' : stores.find(s => s.id === storeFilter)?.name || '가맹점'}
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+              {storeDropdownOpen && (
+                <div
+                  className="absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 min-w-[180px] max-h-[300px] overflow-y-auto z-50"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-50 flex items-center justify-between"
+                    onClick={() => handleStoreSelect('all')}
+                  >
+                    전체 가맹점
+                    {storeFilter === 'all' && (
+                      <Check className="w-4 h-4 text-brand-800" />
+                    )}
+                  </button>
+                  {stores.map((store) => (
+                    <button
+                      key={store.id}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-50 flex items-center justify-between"
+                      onClick={() => handleStoreSelect(store.id)}
+                    >
+                      {store.name}
+                      {storeFilter === store.id && (
+                        <Check className="w-4 h-4 text-brand-800" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Gender Filter */}
             <div className="relative">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setGenderDropdownOpen(!genderDropdownOpen);
+                  setStoreDropdownOpen(false);
                   setVisitDropdownOpen(false);
                   setLastVisitDropdownOpen(false);
                   setDateRangeDropdownOpen(false);
@@ -383,6 +477,7 @@ export default function FranchiseCustomersPage() {
                 onClick={(e) => {
                   e.stopPropagation();
                   setVisitDropdownOpen(!visitDropdownOpen);
+                  setStoreDropdownOpen(false);
                   setGenderDropdownOpen(false);
                   setLastVisitDropdownOpen(false);
                   setDateRangeDropdownOpen(false);
@@ -424,6 +519,7 @@ export default function FranchiseCustomersPage() {
                 onClick={(e) => {
                   e.stopPropagation();
                   setLastVisitDropdownOpen(!lastVisitDropdownOpen);
+                  setStoreDropdownOpen(false);
                   setGenderDropdownOpen(false);
                   setVisitDropdownOpen(false);
                   setDateRangeDropdownOpen(false);
@@ -465,6 +561,7 @@ export default function FranchiseCustomersPage() {
                 onClick={(e) => {
                   e.stopPropagation();
                   setDateRangeDropdownOpen(!dateRangeDropdownOpen);
+                  setStoreDropdownOpen(false);
                   setGenderDropdownOpen(false);
                   setVisitDropdownOpen(false);
                   setLastVisitDropdownOpen(false);

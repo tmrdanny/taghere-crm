@@ -236,7 +236,7 @@ router.post('/stores/connect', async (req: FranchiseAuthRequest, res) => {
 router.get('/customers', async (req: FranchiseAuthRequest, res) => {
   try {
     const franchiseId = req.franchiseUser!.franchiseId;
-    const { page = '1', limit = '20', search, gender, visitCount, lastVisit, startDate, endDate, dateType } = req.query;
+    const { page = '1', limit = '20', search, storeId, gender, visitCount, lastVisit, startDate, endDate, dateType } = req.query;
 
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
@@ -258,6 +258,14 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
     const whereCondition: any = {
       storeId: { in: storeIds },
     };
+
+    // 특정 가맹점 필터
+    if (storeId && storeId !== 'all') {
+      // 요청한 storeId가 프랜차이즈 소속인지 확인
+      if (storeIds.includes(storeId as string)) {
+        whereCondition.storeId = storeId;
+      }
+    }
 
     if (search) {
       whereCondition.OR = [
