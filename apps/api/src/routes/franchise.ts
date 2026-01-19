@@ -518,6 +518,12 @@ router.get('/analytics/overview', async (req: FranchiseAuthRequest, res) => {
       }),
     ]);
 
+    // 지갑 잔액 조회
+    const wallet = await prisma.franchiseWallet.findUnique({
+      where: { franchiseId },
+      select: { balance: true },
+    });
+
     res.json({
       totalStores: stores.length,
       totalCustomers,
@@ -526,6 +532,7 @@ router.get('/analytics/overview', async (req: FranchiseAuthRequest, res) => {
       recentOrders,
       totalPointsEarned: totalPointsResult._sum.delta || 0,
       averageCustomersPerStore: stores.length > 0 ? Math.round(totalCustomers / stores.length) : 0,
+      walletBalance: wallet?.balance || 0,
     });
   } catch (error) {
     console.error('Get analytics overview error:', error);

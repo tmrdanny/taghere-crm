@@ -41,16 +41,6 @@ const getChargeAmountWithBonus = (amount: number): number => {
   return Math.floor(amount * (1 + bonusRate / 100));
 };
 
-// Demo transaction data
-const DEMO_TRANSACTIONS = [
-  { id: '1', amount: 5000000, bonusAmount: 200000, type: 'TOPUP', status: 'SUCCESS', createdAt: '2025-01-14T10:30:00Z' },
-  { id: '2', amount: 150000, type: 'CAMPAIGN', status: 'SUCCESS', description: '리타겟 캠페인 - 1월 신규 고객 환영', createdAt: '2025-01-13T15:20:00Z' },
-  { id: '3', amount: 3000000, bonusAmount: 90000, type: 'TOPUP', status: 'SUCCESS', createdAt: '2025-01-10T09:15:00Z' },
-  { id: '4', amount: 250000, type: 'CAMPAIGN', status: 'SUCCESS', description: '신규 고객 유치 - 서울 지역', createdAt: '2025-01-08T14:45:00Z' },
-  { id: '5', amount: 10000000, bonusAmount: 500000, type: 'TOPUP', status: 'SUCCESS', createdAt: '2025-01-05T11:00:00Z' },
-  { id: '6', amount: 180000, type: 'CAMPAIGN', status: 'SUCCESS', description: '리타겟 캠페인 - VIP 특별 할인', createdAt: '2025-01-03T16:30:00Z' },
-];
-
 interface Transaction {
   id: string;
   amount: number;
@@ -67,8 +57,8 @@ export default function FranchiseBillingPage() {
 
   const [amount, setAmount] = useState<number>(1000000);
   const [customAmount, setCustomAmount] = useState<string>('1,000,000');
-  const [balance, setBalance] = useState<number>(17120000);
-  const [transactions, setTransactions] = useState<Transaction[]>(DEMO_TRANSACTIONS);
+  const [balance, setBalance] = useState<number>(0);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
 
@@ -99,7 +89,7 @@ export default function FranchiseBillingPage() {
       });
       if (balanceRes.ok) {
         const data = await balanceRes.json();
-        setBalance(data.balance || 17120000);
+        setBalance(data.balance || 0);
       }
 
       const txRes = await fetch(`${API_BASE}/api/franchise/wallet/transactions?limit=10`, {
@@ -107,7 +97,7 @@ export default function FranchiseBillingPage() {
       });
       if (txRes.ok) {
         const data = await txRes.json();
-        setTransactions(data.transactions || DEMO_TRANSACTIONS);
+        setTransactions(data.transactions || []);
       }
     } catch (err) {
       console.error('Failed to fetch data:', err);
