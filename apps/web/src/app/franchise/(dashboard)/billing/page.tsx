@@ -376,21 +376,6 @@ export default function FranchiseBillingPage() {
           </p>
         </div>
 
-        {/* Info Callout */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-          <div className="flex gap-3">
-            <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="text-blue-800">
-                캠페인 발송 시 충전금에서 비용이 차감됩니다.
-              </p>
-              <p className="text-blue-600 mt-1">
-                SMS: 150원/건 | 카카오톡: 200원/건
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Balance Card */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
           <div className="flex items-center justify-between">
