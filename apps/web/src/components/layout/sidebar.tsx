@@ -25,6 +25,7 @@ import {
   TabletSmartphone,
   ListOrdered,
   HandCoins,
+  Stamp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -53,6 +54,7 @@ interface NavItem {
   isExternal?: boolean;
   isComingSoon?: boolean;
   comingSoonLink?: string;
+  subItems?: NavItem[]; // 하위 메뉴 지원
 }
 
 interface NavGroup {
@@ -73,8 +75,18 @@ const navGroups: NavGroup[] = [
     icon: Store,
     items: [
       { href: 'https://admin.tag-here.com', label: '주문/결제', icon: TabletSmartphone, isExternal: true },
-      { href: '#waiting', label: '웨이팅', icon: ListOrdered, isNew: true, isComingSoon: true, comingSoonLink: 'https://tally.so/r/Gxp0Lp' },
+      {
+        href: '/waiting',
+        label: '웨이팅',
+        icon: ListOrdered,
+        isNew: true,
+        subItems: [
+          { href: '/waiting', label: '대기 관리', icon: ListOrdered },
+          { href: '/waiting/settings', label: '설정', icon: Settings },
+        ]
+      },
       { href: '/points', label: '포인트 적립', icon: HandCoins },
+      { href: '/stamp-settings', label: '스탬프 설정', icon: Stamp, isNew: true },
     ],
   },
   {
@@ -195,6 +207,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
   const { canInstall, handleInstall } = useInstallPrompt();
   const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; link?: string }>({ open: false });
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   const isActive = (href: string) => {
     if (href.startsWith('http') || href.startsWith('#')) return false;
@@ -203,7 +216,20 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
 
   // 그룹 내 아이템 중 하나라도 활성화되어 있는지 확인
   const isGroupActive = (group: NavGroup) => {
-    return group.items.some(item => isActive(item.href));
+    return group.items.some(item => {
+      if (item.subItems) {
+        return item.subItems.some(subItem => isActive(subItem.href));
+      }
+      return isActive(item.href);
+    });
+  };
+
+  // 아이템 내 하위 메뉴가 활성화되어 있는지 확인
+  const isItemActive = (item: NavItem) => {
+    if (item.subItems) {
+      return item.subItems.some(subItem => isActive(subItem.href));
+    }
+    return isActive(item.href);
   };
 
   // 현재 경로에 따라 활성화된 그룹 자동 확장
@@ -212,6 +238,17 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
       .filter(group => isGroupActive(group))
       .map(group => group.title);
     setExpandedGroups(activeGroups);
+
+    // 하위 메뉴가 있는 아이템 중 활성화된 것 자동 확장
+    const activeItems: string[] = [];
+    navGroups.forEach(group => {
+      group.items.forEach(item => {
+        if (item.subItems && isItemActive(item)) {
+          activeItems.push(item.label);
+        }
+      });
+    });
+    setExpandedItems(activeItems);
   }, [pathname]);
 
   const toggleGroup = (title: string) => {
@@ -219,6 +256,14 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
       prev.includes(title)
         ? prev.filter(t => t !== title)
         : [...prev, title]
+    );
+  };
+
+  const toggleItem = (label: string) => {
+    setExpandedItems(prev =>
+      prev.includes(label)
+        ? prev.filter(l => l !== label)
+        : [...prev, label]
     );
   };
 
@@ -232,9 +277,55 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
     }
   };
 
-  const renderNavItem = (item: NavItem, isSubItem = false) => {
+  const renderNavItem = (item: NavItem, isSubItem = false, isNestedSubItem = false) => {
     const active = isActive(item.href);
+    const itemActive = isItemActive(item);
     const Icon = item.icon;
+    const hasSubItems = item.subItems && item.subItems.length > 0;
+    const isItemExpanded = expandedItems.includes(item.label);
+
+    // 하위 메뉴가 있는 아이템
+    if (hasSubItems && !isCollapsed) {
+      return (
+        <div key={item.label}>
+          <button
+            onClick={() => toggleItem(item.label)}
+            className={cn(
+              'flex items-center gap-3 w-full mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+              itemActive
+                ? 'bg-brand-50 text-brand-800'
+                : 'text-slate-800 hover:text-slate-900 hover:bg-slate-50',
+              isSubItem && 'ml-4'
+            )}
+            style={{ width: 'calc(100% - 16px)' }}
+          >
+            <Icon className={cn('w-5 h-5 flex-shrink-0', itemActive && 'text-brand-800')} />
+            <span className="flex-1 text-left">{item.label}</span>
+            {item.isNew && !isItemExpanded && (
+              <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                NEW
+              </span>
+            )}
+            <ChevronDown
+              className={cn(
+                'w-4 h-4 transition-transform duration-200',
+                isItemExpanded && 'rotate-180'
+              )}
+            />
+          </button>
+          <div
+            className={cn(
+              'overflow-hidden transition-all duration-200',
+              isItemExpanded ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'
+            )}
+          >
+            <div className="py-1 ml-6 pl-2 border-l border-slate-200 space-y-1">
+              {item.subItems!.map(subItem => renderNavItem(subItem, true, true))}
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <Link
@@ -247,7 +338,8 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
             ? 'bg-brand-50 text-brand-800'
             : 'text-slate-800 hover:text-slate-900 hover:bg-slate-50',
           isCollapsed && 'justify-center',
-          isSubItem && !isCollapsed && 'ml-4'
+          isSubItem && !isCollapsed && 'ml-4',
+          isNestedSubItem && !isCollapsed && 'ml-2'
         )}
         title={isCollapsed ? item.label : undefined}
       >
@@ -429,6 +521,7 @@ export function MobileHeader() {
   const { canInstall, handleInstall } = useInstallPrompt();
   const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; link?: string }>({ open: false });
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -445,7 +538,20 @@ export function MobileHeader() {
 
   // 그룹 내 아이템 중 하나라도 활성화되어 있는지 확인
   const isGroupActive = (group: NavGroup) => {
-    return group.items.some(item => isActive(item.href));
+    return group.items.some(item => {
+      if (item.subItems) {
+        return item.subItems.some(subItem => isActive(subItem.href));
+      }
+      return isActive(item.href);
+    });
+  };
+
+  // 아이템 내 하위 메뉴가 활성화되어 있는지 확인
+  const isItemActive = (item: NavItem) => {
+    if (item.subItems) {
+      return item.subItems.some(subItem => isActive(subItem.href));
+    }
+    return isActive(item.href);
   };
 
   // 현재 경로에 따라 활성화된 그룹 자동 확장
@@ -454,6 +560,17 @@ export function MobileHeader() {
       .filter(group => isGroupActive(group))
       .map(group => group.title);
     setExpandedGroups(activeGroups);
+
+    // 하위 메뉴가 있는 아이템 중 활성화된 것 자동 확장
+    const activeItems: string[] = [];
+    navGroups.forEach(group => {
+      group.items.forEach(item => {
+        if (item.subItems && isItemActive(item)) {
+          activeItems.push(item.label);
+        }
+      });
+    });
+    setExpandedItems(activeItems);
   }, [pathname]);
 
   const toggleGroup = (title: string) => {
@@ -461,6 +578,14 @@ export function MobileHeader() {
       prev.includes(title)
         ? prev.filter(t => t !== title)
         : [...prev, title]
+    );
+  };
+
+  const toggleItem = (label: string) => {
+    setExpandedItems(prev =>
+      prev.includes(label)
+        ? prev.filter(l => l !== label)
+        : [...prev, label]
     );
   };
 
@@ -478,9 +603,55 @@ export function MobileHeader() {
     }
   };
 
-  const renderMobileNavItem = (item: NavItem, isSubItem = false) => {
+  const renderMobileNavItem = (item: NavItem, isSubItem = false, isNestedSubItem = false) => {
     const active = isActive(item.href);
+    const itemActive = isItemActive(item);
     const Icon = item.icon;
+    const hasSubItems = item.subItems && item.subItems.length > 0;
+    const isItemExpanded = expandedItems.includes(item.label);
+
+    // 하위 메뉴가 있는 아이템
+    if (hasSubItems) {
+      return (
+        <div key={item.label}>
+          <button
+            onClick={() => toggleItem(item.label)}
+            className={cn(
+              'flex items-center gap-3 w-full mx-2 px-3 py-3 rounded-lg text-sm font-medium transition-colors',
+              itemActive
+                ? 'bg-brand-50 text-brand-800'
+                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50',
+              isSubItem && 'ml-4'
+            )}
+            style={{ width: 'calc(100% - 16px)' }}
+          >
+            <Icon className={cn('w-5 h-5 flex-shrink-0', itemActive && 'text-brand-800')} />
+            <span className="flex-1 text-left">{item.label}</span>
+            {item.isNew && !isItemExpanded && (
+              <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                NEW
+              </span>
+            )}
+            <ChevronDown
+              className={cn(
+                'w-4 h-4 transition-transform duration-200',
+                isItemExpanded && 'rotate-180'
+              )}
+            />
+          </button>
+          <div
+            className={cn(
+              'overflow-hidden transition-all duration-200',
+              isItemExpanded ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'
+            )}
+          >
+            <div className="py-1 ml-6 pl-2 border-l border-neutral-200 space-y-1">
+              {item.subItems!.map(subItem => renderMobileNavItem(subItem, true, true))}
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <Link
@@ -492,7 +663,8 @@ export function MobileHeader() {
           active
             ? 'bg-brand-50 text-brand-800'
             : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50',
-          isSubItem && 'ml-4'
+          isSubItem && 'ml-4',
+          isNestedSubItem && 'ml-2'
         )}
       >
         <Icon className={cn('w-5 h-5', active && 'text-brand-800')} />

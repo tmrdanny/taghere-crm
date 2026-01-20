@@ -46,6 +46,12 @@ import franchiseAuthRoutes from './routes/franchise-auth.js';
 import franchiseRoutes from './routes/franchise.js';
 import franchiseSmsRoutes from './routes/franchise-sms.js';
 import franchiseLocalCustomersRoutes from './routes/franchise-local-customers.js';
+import waitingRoutes from './routes/waiting.js';
+import waitingTypesRoutes from './routes/waiting-types.js';
+import waitingSettingsRoutes from './routes/waiting-settings.js';
+import publicWaitingRoutes from './routes/public-waiting.js';
+import stampSettingsRoutes from './routes/stamp-settings.js';
+import stampsRoutes from './routes/stamps.js';
 import { startAlimTalkWorker } from './services/alimtalk-worker.js';
 import { startSmsWorker } from './services/sms-worker.js';
 import { startExternalSmsWorker } from './services/external-sms-worker.js';
@@ -213,6 +219,16 @@ app.use('/api/sms', smsRoutes);
 app.use('/api/local-customers', localCustomersRoutes);
 app.use('/api/brand-message', brandMessageRoutes);
 app.use('/api/public', publicRoutes);
+
+// Waiting routes
+app.use('/api/waiting', waitingRoutes);
+app.use('/api/waiting/types', waitingTypesRoutes);
+app.use('/api/waiting/settings', waitingSettingsRoutes);
+app.use('/api/public/waiting', publicWaitingRoutes);
+
+// Stamp routes
+app.use('/api/stamp-settings', stampSettingsRoutes);
+app.use('/api/stamps', stampsRoutes);
 
 // Franchise routes
 app.use('/api/franchise/auth', franchiseAuthRoutes);

@@ -797,6 +797,268 @@ router.post('/webhook/verify', webhookAuthMiddleware, (req: WebhookRequest, res)
   });
 });
 
+// ============================================================
+// 스탬프 API
+// ============================================================
+
+// GET /api/taghere/stamp-info/:slug - 매장 스탬프 정보 조회 (공개 API)
+router.get('/stamp-info/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    // 매장 조회
+    const store = await prisma.store.findFirst({
+      where: { slug },
+      select: {
+        id: true,
+        name: true,
+        stampSetting: true,
+      },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    // 스탬프 설정이 없거나 비활성화된 경우
+    if (!store.stampSetting?.enabled) {
+      return res.status(400).json({
+        error: '스탬프 기능이 비활성화되어 있습니다.',
+        enabled: false,
+      });
+    }
+
+    res.json({
+      storeId: store.id,
+      storeName: store.name,
+      enabled: true,
+      reward5Description: store.stampSetting.reward5Description,
+      reward10Description: store.stampSetting.reward10Description,
+    });
+  } catch (error: any) {
+    console.error('[TagHere] Stamp info error:', error);
+    res.status(500).json({ error: '스탬프 정보 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/taghere/stamp-earn - 스탬프 자동 적립 (카카오 로그인 후)
+router.post('/stamp-earn', async (req, res) => {
+  try {
+    const { kakaoId, slug, ordersheetId, earnMethod = 'NFC_TAG' } = req.body;
+
+    // 1. 파라미터 검증
+    if (!kakaoId || !slug) {
+      return res.status(400).json({
+        success: false,
+        error: 'missing_params',
+        message: 'kakaoId와 slug가 필요합니다.',
+      });
+    }
+
+    // kakaoId 형식 검증 (숫자 문자열)
+    if (!/^\d+$/.test(kakaoId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'invalid_kakao_id',
+        message: '유효하지 않은 kakaoId입니다.',
+      });
+    }
+
+    console.log(`[TagHere Stamp-Earn] Request - kakaoId: ${kakaoId}, slug: ${slug}, earnMethod: ${earnMethod}`);
+
+    // 2. 매장 조회
+    const store = await prisma.store.findFirst({
+      where: { slug },
+      select: {
+        id: true,
+        name: true,
+        stampSetting: true,
+      },
+    });
+
+    if (!store) {
+      return res.status(404).json({
+        success: false,
+        error: 'store_not_found',
+        message: '매장을 찾을 수 없습니다.',
+      });
+    }
+
+    // 3. 스탬프 기능 활성화 확인
+    if (!store.stampSetting?.enabled) {
+      return res.status(400).json({
+        success: false,
+        error: 'stamp_disabled',
+        message: '스탬프 기능이 비활성화되어 있습니다.',
+      });
+    }
+
+    // 4. kakaoId로 해당 매장의 고객 조회
+    let customer = await prisma.customer.findFirst({
+      where: {
+        storeId: store.id,
+        kakaoId,
+      },
+    });
+
+    let isNewCustomer = false;
+
+    // 5. 고객 없으면 다른 매장에서 같은 kakaoId 고객 정보 찾아서 복사
+    if (!customer) {
+      isNewCustomer = true;
+
+      // 다른 매장에서 같은 kakaoId를 가진 고객 조회
+      const existingCustomer = await prisma.customer.findFirst({
+        where: {
+          kakaoId,
+          storeId: { not: store.id },
+        },
+        select: {
+          name: true,
+          phone: true,
+          phoneLastDigits: true,
+          gender: true,
+          birthday: true,
+          birthYear: true,
+        },
+      });
+
+      // phoneLastDigits 중복 체크
+      let phoneToUse = existingCustomer?.phone ?? null;
+      let phoneLastDigitsToUse = existingCustomer?.phoneLastDigits ?? null;
+
+      if (phoneLastDigitsToUse) {
+        const existingPhone = await prisma.customer.findFirst({
+          where: {
+            storeId: store.id,
+            phoneLastDigits: phoneLastDigitsToUse,
+          },
+        });
+        if (existingPhone) {
+          phoneToUse = null;
+          phoneLastDigitsToUse = null;
+          console.log(`[TagHere Stamp-Earn] Phone already exists in store, skipping phone copy - storeId: ${store.id}`);
+        }
+      }
+
+      customer = await prisma.customer.create({
+        data: {
+          storeId: store.id,
+          kakaoId,
+          name: existingCustomer?.name ?? null,
+          phone: phoneToUse,
+          phoneLastDigits: phoneLastDigitsToUse,
+          gender: existingCustomer?.gender ?? null,
+          birthday: existingCustomer?.birthday ?? null,
+          birthYear: existingCustomer?.birthYear ?? null,
+          totalPoints: 0,
+          totalStamps: 0,
+          visitCount: 0,
+          consentMarketing: true,
+          consentKakao: true,
+          consentAt: new Date(),
+        },
+      });
+
+      console.log(`[TagHere Stamp-Earn] New customer created - customerId: ${customer.id}, storeId: ${store.id}`);
+    }
+
+    // 6. 일일 적립 제한 확인 (1일 1회)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const todayEarn = await prisma.stampLedger.findFirst({
+      where: {
+        storeId: store.id,
+        customerId: customer.id,
+        type: 'EARN',
+        createdAt: { gte: todayStart },
+      },
+    });
+
+    if (todayEarn) {
+      return res.status(400).json({
+        success: false,
+        error: 'already_earned_today',
+        message: '오늘 이미 스탬프를 적립했습니다.',
+        alreadyEarned: true,
+        currentStamps: customer.totalStamps,
+        reward5Description: store.stampSetting.reward5Description,
+        reward10Description: store.stampSetting.reward10Description,
+      });
+    }
+
+    // 7. 태그히어 연동 시 중복 체크
+    if (ordersheetId) {
+      const existingEarn = await prisma.stampLedger.findFirst({
+        where: { ordersheetId },
+      });
+      if (existingEarn) {
+        return res.status(400).json({
+          success: false,
+          error: 'already_earned_order',
+          message: '이미 적립된 주문입니다.',
+        });
+      }
+    }
+
+    // 8. 스탬프 적립 (트랜잭션)
+    const result = await prisma.$transaction(async (tx) => {
+      const newBalance = customer!.totalStamps + 1;
+
+      // 고객 스탬프 업데이트
+      const updatedCustomer = await tx.customer.update({
+        where: { id: customer!.id },
+        data: {
+          totalStamps: newBalance,
+          lastVisitAt: new Date(),
+        },
+      });
+
+      // 거래 내역 기록
+      const ledger = await tx.stampLedger.create({
+        data: {
+          storeId: store.id,
+          customerId: customer!.id,
+          type: 'EARN',
+          delta: 1,
+          balance: newBalance,
+          ordersheetId: ordersheetId || null,
+          earnMethod: earnMethod as any,
+          reason: ordersheetId ? `태그히어 주문 적립 (${ordersheetId})` : '스탬프 적립',
+        },
+      });
+
+      return { customer: updatedCustomer, ledger };
+    });
+
+    console.log(`[TagHere Stamp-Earn] Stamp earned - customerId: ${customer.id}, newBalance: ${result.customer.totalStamps}`);
+
+    // 9. 알림톡 발송 (비동기) - 추후 구현
+    // if (store.stampSetting.alimtalkEnabled && customer.phone) {
+    //   enqueueStampEarnedAlimTalk({...});
+    // }
+
+    // 10. 성공 응답
+    res.json({
+      success: true,
+      currentStamps: result.customer.totalStamps,
+      customerId: customer.id,
+      storeName: store.name,
+      isNewCustomer,
+      reward5Description: store.stampSetting.reward5Description,
+      reward10Description: store.stampSetting.reward10Description,
+    });
+  } catch (error: any) {
+    console.error('[TagHere Stamp-Earn] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'server_error',
+      message: '스탬프 적립 중 오류가 발생했습니다.',
+    });
+  }
+});
+
 // GET /api/taghere/order-details - 주문 상세 정보 조회 (태그히어 모바일오더 API 호출)
 // 모든 매장의 성공 페이지에서 사용
 router.get('/order-details', async (req, res) => {

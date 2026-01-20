@@ -22,6 +22,7 @@ interface Customer {
   name: string;
   phone: string;
   totalPoints: number;
+  totalStamps: number;
   gender: string;
   birthday: string | null;   // MM-DD 형식
   birthYear: number | null;  // YYYY 형식
@@ -1146,6 +1147,9 @@ export default function CustomersPage() {
                   적립 포인트
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
+                  스탬프
+                </th>
+                <th className="p-4 text-left text-sm font-medium text-neutral-600">
                   생일 / 연령대
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
@@ -1162,21 +1166,21 @@ export default function CustomersPage() {
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-neutral-500">
+                  <td colSpan={8} className="p-8 text-center text-neutral-500">
                     불러오는 중...
                   </td>
                 </tr>
               )}
               {!isLoading && error && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-error">
+                  <td colSpan={8} className="p-8 text-center text-error">
                     {error}
                   </td>
                 </tr>
               )}
               {!isLoading && !error && customers.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-neutral-500">
+                  <td colSpan={8} className="p-8 text-center text-neutral-500">
                     결과가 없습니다.
                   </td>
                 </tr>
@@ -1218,6 +1222,9 @@ export default function CustomersPage() {
                       </td>
                       <td className="p-4 font-medium text-neutral-900">
                         {formatNumber(customer.totalPoints)} p
+                      </td>
+                      <td className="p-4 text-neutral-600">
+                        {customer.totalStamps || 0}
                       </td>
                       <td className="p-4 text-neutral-600">
                         <div className="flex flex-col gap-0.5">
@@ -1519,13 +1526,103 @@ export default function CustomersPage() {
                       {formatNumber(editingCustomer?.totalPoints || 0)} P
                     </p>
                   </div>
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <p className="text-xs text-blue-600 mb-1">총 주문금액</p>
-                    <p className="font-semibold text-blue-700">
-                      {formatNumber(customerTotalOrderAmount)}원
+                  <div className="p-3 bg-amber-50 rounded-lg">
+                    <p className="text-xs text-amber-600 mb-1">스탬프</p>
+                    <p className="font-semibold text-amber-700">
+                      {(editingCustomer as any)?.totalStamps || 0}개
                     </p>
                   </div>
                 </div>
+
+                {/* Stamp Use Section */}
+                {((editingCustomer as any)?.totalStamps || 0) > 0 && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
+                    <p className="text-sm font-medium text-amber-800">스탬프 보상 사용</p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={((editingCustomer as any)?.totalStamps || 0) < 5 || submittingEdit}
+                        onClick={async () => {
+                          if (!editingCustomer) return;
+                          setSubmittingEdit(true);
+                          try {
+                            const token = getAuthToken();
+                            const res = await fetch(`${apiUrl}/api/stamps/use`, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${token}`,
+                              },
+                              body: JSON.stringify({
+                                customerId: editingCustomer.id,
+                                amount: 5,
+                              }),
+                            });
+                            if (res.ok) {
+                              const data = await res.json();
+                              setEditingCustomer(prev => prev ? { ...prev, totalStamps: data.remainingStamps } as any : null);
+                              showToast('스탬프 5개가 사용되었습니다.', 'success');
+                              setRefreshKey(prev => prev + 1);
+                            } else {
+                              const error = await res.json();
+                              showToast(error.error || '스탬프 사용에 실패했습니다.', 'error');
+                            }
+                          } catch (error) {
+                            showToast('스탬프 사용 중 오류가 발생했습니다.', 'error');
+                          } finally {
+                            setSubmittingEdit(false);
+                          }
+                        }}
+                        className={`flex-1 ${((editingCustomer as any)?.totalStamps || 0) >= 5 ? 'border-amber-500 text-amber-700 hover:bg-amber-100' : ''}`}
+                      >
+                        5개 사용
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={((editingCustomer as any)?.totalStamps || 0) < 10 || submittingEdit}
+                        onClick={async () => {
+                          if (!editingCustomer) return;
+                          setSubmittingEdit(true);
+                          try {
+                            const token = getAuthToken();
+                            const res = await fetch(`${apiUrl}/api/stamps/use`, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${token}`,
+                              },
+                              body: JSON.stringify({
+                                customerId: editingCustomer.id,
+                                amount: 10,
+                              }),
+                            });
+                            if (res.ok) {
+                              const data = await res.json();
+                              setEditingCustomer(prev => prev ? { ...prev, totalStamps: data.remainingStamps } as any : null);
+                              showToast('스탬프 10개가 사용되었습니다.', 'success');
+                              setRefreshKey(prev => prev + 1);
+                            } else {
+                              const error = await res.json();
+                              showToast(error.error || '스탬프 사용에 실패했습니다.', 'error');
+                            }
+                          } catch (error) {
+                            showToast('스탬프 사용 중 오류가 발생했습니다.', 'error');
+                          } finally {
+                            setSubmittingEdit(false);
+                          }
+                        }}
+                        className={`flex-1 ${((editingCustomer as any)?.totalStamps || 0) >= 10 ? 'border-amber-500 text-amber-700 hover:bg-amber-100' : ''}`}
+                      >
+                        10개 사용
+                      </Button>
+                    </div>
+                    <p className="text-xs text-amber-600">
+                      고객이 보상을 요청하면 해당 버튼을 눌러주세요.
+                    </p>
+                  </div>
+                )}
 
                 {/* Nickname */}
                 <div className="space-y-2">

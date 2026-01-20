@@ -46,6 +46,8 @@ model Store {
   customers             Customer[]
   visitsOrOrders        VisitOrOrder[]
   pointLedger           PointLedger[]
+  stampLedger           StampLedger[]
+  stampSetting          StampSetting?
   pointPolicy           PointPolicy?
   reviewAutomationSetting ReviewAutomationSetting?
   reviewRequestLogs     ReviewRequestLog[]
@@ -58,6 +60,11 @@ model Store {
   externalSmsCampaigns  ExternalSmsCampaign[]
   brandMessageCampaigns BrandMessageCampaign[]
   pointSessions         PointSession[]
+
+  // 웨이팅 서비스
+  waitingTypes          WaitingType[]
+  waitingList           WaitingList[]
+  waitingSetting        WaitingSetting?
 
   @@index([franchiseId])
   @@map("stores")
@@ -159,6 +166,7 @@ model Customer {
   // 통계
   visitCount       Int       @default(0)
   totalPoints      Int       @default(0) // 현재 보유 포인트
+  totalStamps      Int       @default(0) // 현재 보유 스탬프
   lastVisitAt      DateTime?
 
   createdAt        DateTime  @default(now())
@@ -168,10 +176,12 @@ model Customer {
   store             Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
   visitsOrOrders    VisitOrOrder[]
   pointLedger       PointLedger[]
+  stampLedger       StampLedger[]
   reviewRequestLogs ReviewRequestLog[]
   feedbacks         CustomerFeedback[]
   pointSessions     PointSession[]
   franchiseSmsMessages FranchiseSmsMessage[]
+  waitingList       WaitingList[]
 
   @@unique([storeId, kakaoId])  // 매장별 카카오ID 유니크 (null 허용)
   // naverId 유니크 제약조건 제거 - null인 경우가 많아 부분 인덱스로 처리
@@ -975,4 +985,213 @@ model FranchiseSmsTestLog {
 
   @@index([franchiseId, createdAt])
   @@map("franchise_sms_test_logs")
+}
+
+// ============================================
+// 웨이팅 서비스
+// ============================================
+
+enum WaitingStatus {
+  WAITING     // 대기 중
+  CALLED      // 호출됨 (타이머 진행 중)
+  SEATED      // 착석 완료
+  CANCELLED   // 취소됨
+  NO_SHOW     // 노쇼
+}
+
+enum WaitingSource {
+  QR          // QR 코드 스캔
+  TABLET      // 태블릿
+  MANUAL      // 직원 수동 등록
+}
+
+enum CancelReason {
+  CUSTOMER_REQUEST   // 고객 요청
+  STORE_REASON       // 매장 사정
+  OUT_OF_STOCK       // 재고 소진
+  NO_SHOW            // 고객 미방문
+  AUTO_CANCELLED     // 자동 취소 (호출 후 미입장)
+}
+
+enum WaitingOperationStatus {
+  ACCEPTING       // 웨이팅 접수 중
+  WALK_IN         // 바로 입장 가능
+  PAUSED          // 일시정지
+  CLOSED          // 운영 종료
+}
+
+// 웨이팅 유형 (홀 2인석, 홀 4인석, 포장 등)
+model WaitingType {
+  id                  String          @id @default(cuid())
+  storeId             String
+
+  name                String          // "홀 2인석", "홀 4인석", "포장" 등
+  description         String?         // 설명 (선택)
+  avgWaitTimePerTeam  Int             @default(5)  // 1팀당 예상 대기 시간 (분)
+  sortOrder           Int             @default(0)  // 정렬 순서
+  isActive            Boolean         @default(true)
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  store               Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  waitingList         WaitingList[]
+
+  @@index([storeId, isActive])
+  @@map("waiting_types")
+}
+
+// 웨이팅 목록
+model WaitingList {
+  id                  String          @id @default(cuid())
+  storeId             String
+  customerId          String?         // CRM 고객 연결
+  waitingTypeId       String          // 웨이팅 유형 (홀2인석, 홀4인석, 포장 등)
+
+  // 웨이팅 정보
+  waitingNumber       Int             // 당일 웨이팅 번호 (324, 325...)
+  phone               String?         // 연락처 (수기 등록 시 없을 수 있음)
+  phoneLastDigits     String?         // 뒤 4자리 (마스킹용)
+  name                String?         // 이름 (수기 등록용)
+  partySize           Int             // 인원 수
+  memo                String?         @db.Text  // 요청사항/메모
+
+  // 상태 관리
+  status              WaitingStatus   @default(WAITING)
+
+  // 호출 관리
+  calledAt            DateTime?       // 최초 호출 시간
+  calledCount         Int             @default(0)  // 호출 횟수 (최대 2회)
+  callExpireAt        DateTime?       // 호출 만료 시간 (타이머 용)
+
+  // 완료 처리
+  seatedAt            DateTime?       // 착석 시간
+  cancelledAt         DateTime?       // 취소 시간
+  cancelReason        CancelReason?   // 취소 사유
+
+  // 예상 시간
+  estimatedWaitMinutes Int?           // 예상 대기 시간 (분)
+
+  // 등록 경로
+  source              WaitingSource   @default(QR)
+
+  // 마케팅 동의
+  consentMarketing    Boolean         @default(false)
+
+  // 순서 미루기 여부
+  isDeferred          Boolean         @default(false)
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  store               Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer            Customer?       @relation(fields: [customerId], references: [id])
+  waitingType         WaitingType     @relation(fields: [waitingTypeId], references: [id])
+
+  @@index([storeId, status])
+  @@index([storeId, createdAt])
+  @@index([storeId, waitingTypeId, status])
+  @@index([phone])
+  @@map("waiting_list")
+}
+
+// 웨이팅 설정
+model WaitingSetting {
+  id                      String                  @id @default(cuid())
+  storeId                 String                  @unique
+
+  // 운영 상태
+  operationStatus         WaitingOperationStatus  @default(CLOSED)
+  pauseMessage            String?                 // 일시정지 안내 문구
+  pauseEndTime            DateTime?               // 일시정지 종료 시간
+
+  // 기본 설정
+  enabled                 Boolean                 @default(true)
+  maxWaitingCount         Int                     @default(50)     // 최대 대기 인원
+  showEstimatedTime       Boolean                 @default(true)   // 예상 시간 노출 여부
+
+  // 호출 설정
+  callTimeoutMinutes      Int                     @default(3)      // 호출 후 대기 시간 (분)
+  maxCallCount            Int                     @default(2)      // 최대 호출 횟수
+  autoCancel              Boolean                 @default(true)   // 자동 취소 여부
+
+  // 자주 쓰는 메모
+  quickMemos              Json?                   // ["창가석", "유아동반", "휠체어", "VIP"]
+
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  store                   Store                   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("waiting_settings")
+}
+
+// ============================================
+// 스탬프 적립 시스템
+// ============================================
+
+// 스탬프 설정 (매장별)
+model StampSetting {
+  id                    String   @id @default(cuid())
+  storeId               String   @unique
+
+  // 기본 설정
+  enabled               Boolean  @default(true)
+
+  // 보상 설정 (5개, 10개 단위)
+  reward5Description    String?  // 5개 보상 설명 (예: "아메리카노 1잔 무료")
+  reward10Description   String?  // 10개 보상 설명 (예: "케이크 세트 무료")
+
+  // 알림톡 설정
+  alimtalkEnabled       Boolean  @default(true)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  store                 Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("stamp_settings")
+}
+
+// 스탬프 거래 내역
+model StampLedger {
+  id              String           @id @default(cuid())
+  storeId         String
+  customerId      String
+
+  type            StampLedgerType  // EARN, USE_5, USE_10, ADMIN_ADD, ADMIN_REMOVE
+  delta           Int              // 변동량 (+1, -5, -10 등)
+  balance         Int              // 변동 후 잔액
+
+  // 적립 시 추가 정보
+  ordersheetId    String?          // 태그히어 주문 연동 시
+  earnMethod      StampEarnMethod? // TAGHERE_ORDER, NFC_TAG, QR_CODE, MANUAL
+
+  reason          String?          // 관리자 메모 등
+  createdAt       DateTime         @default(now())
+
+  // Relations
+  store           Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer        Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, customerId])
+  @@index([customerId])
+  @@index([createdAt])
+  @@map("stamp_ledger")
+}
+
+enum StampLedgerType {
+  EARN          // 적립 (+1)
+  USE_5         // 5개 사용 (-5)
+  USE_10        // 10개 사용 (-10)
+  ADMIN_ADD     // 관리자 추가
+  ADMIN_REMOVE  // 관리자 차감
+}
+
+enum StampEarnMethod {
+  TAGHERE_ORDER   // 태그히어 주문 연동
+  NFC_TAG         // NFC 태그
+  QR_CODE         // QR 코드
+  MANUAL          // 수동 입력
 }
