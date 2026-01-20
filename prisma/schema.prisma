@@ -593,20 +593,26 @@ model Announcement {
 
 // 주문완료 배너 (바텀모달용, 어드민 전용)
 model OrderCompleteBanner {
-  id            String   @id @default(cuid())
-  title         String   // 배너 제목 (관리용)
-  imageUrl      String   // 배너 이미지 URL
-  linkUrl       String?  // 클릭 시 이동할 URL (선택)
-  isActive      Boolean  @default(true) // 활성화 여부
-  order         Int      @default(0) // 정렬 순서 (낮을수록 먼저)
-  autoSlide     Boolean  @default(true) // 자동 슬라이드 여부
-  slideInterval Int      @default(3000) // 슬라이드 간격 (ms)
-  targetSlugs   String[] // 표시할 매장 slug 목록 (빈 배열 = 전체)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id            String          @id @default(cuid())
+  title         String          // 배너 제목 (관리용)
+  imageUrl      String          // 배너 이미지/영상 URL
+  linkUrl       String?         // 클릭 시 이동할 URL (선택)
+  mediaType     BannerMediaType @default(IMAGE) // 미디어 타입
+  isActive      Boolean         @default(true) // 활성화 여부
+  order         Int             @default(0) // 정렬 순서 (낮을수록 먼저)
+  autoSlide     Boolean         @default(true) // 자동 슬라이드 여부
+  slideInterval Int             @default(3000) // 슬라이드 간격 (ms)
+  targetSlugs   String[]        // 표시할 매장 slug 목록 (빈 배열 = 전체)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   @@index([isActive, order])
   @@map("order_complete_banners")
+}
+
+enum BannerMediaType {
+  IMAGE
+  VIDEO
 }
 
 // ============================================

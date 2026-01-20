@@ -40,6 +40,34 @@ const bannerUpload = multer({
   },
 });
 
+// Multer 설정 - 배너 미디어(이미지/영상)용
+const bannerMediaStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, bannerUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname).toLowerCase();
+    const prefix = file.mimetype.startsWith('video/') ? 'banner-video' : 'banner';
+    cb(null, `${prefix}-${uniqueSuffix}${ext}`);
+  },
+});
+
+const bannerMediaUpload = multer({
+  storage: bannerMediaStorage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB (영상용)
+  fileFilter: (req, file, cb) => {
+    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const allowedVideoTypes = ['video/mp4', 'video/webm'];
+    const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
+    if (!allowedTypes.includes(file.mimetype)) {
+      cb(new Error('JPG, PNG, GIF, WebP, MP4, WebM 파일만 업로드 가능합니다.'));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
 // Multer 설정 - 프랜차이즈 로고용 (메모리 저장)
 const logoUpload = multer({
   storage: multer.memoryStorage(),
@@ -898,10 +926,10 @@ router.get('/banners', adminAuthMiddleware, async (req: AdminRequest, res: Respo
 // POST /api/admin/banners - 배너 생성
 router.post('/banners', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    const { title, imageUrl, linkUrl, isActive, order, autoSlide, slideInterval, targetSlugs } = req.body;
+    const { title, imageUrl, linkUrl, isActive, order, autoSlide, slideInterval, targetSlugs, mediaType } = req.body;
 
     if (!title || !imageUrl) {
-      return res.status(400).json({ error: '제목과 이미지 URL을 입력해주세요.' });
+      return res.status(400).json({ error: '제목과 미디어 URL을 입력해주세요.' });
     }
 
     const banner = await prisma.orderCompleteBanner.create({
@@ -914,6 +942,7 @@ router.post('/banners', adminAuthMiddleware, async (req: AdminRequest, res: Resp
         autoSlide: autoSlide ?? true,
         slideInterval: slideInterval ?? 3000,
         targetSlugs: targetSlugs || [],
+        mediaType: mediaType || 'IMAGE',
       },
     });
 
@@ -928,7 +957,7 @@ router.post('/banners', adminAuthMiddleware, async (req: AdminRequest, res: Resp
 router.put('/banners/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, imageUrl, linkUrl, isActive, order, autoSlide, slideInterval, targetSlugs } = req.body;
+    const { title, imageUrl, linkUrl, isActive, order, autoSlide, slideInterval, targetSlugs, mediaType } = req.body;
 
     const existing = await prisma.orderCompleteBanner.findUnique({
       where: { id },
@@ -949,6 +978,7 @@ router.put('/banners/:id', adminAuthMiddleware, async (req: AdminRequest, res: R
         autoSlide: autoSlide ?? existing.autoSlide,
         slideInterval: slideInterval ?? existing.slideInterval,
         targetSlugs: targetSlugs ?? existing.targetSlugs,
+        mediaType: mediaType ?? existing.mediaType,
       },
     });
 
@@ -1039,7 +1069,7 @@ function shuffleSameOrder<T extends { order: number }>(items: T[]): T[] {
   return result;
 }
 
-// POST /api/admin/banners/upload - 배너 이미지 업로드
+// POST /api/admin/banners/upload - 배너 이미지 업로드 (기존 API 유지)
 router.post('/banners/upload', adminAuthMiddleware, bannerUpload.single('image'), async (req: AdminRequest, res: Response) => {
   try {
     if (!req.file) {
@@ -1057,6 +1087,31 @@ router.post('/banners/upload', adminAuthMiddleware, bannerUpload.single('image')
   } catch (error: any) {
     console.error('Banner upload error:', error);
     res.status(500).json({ error: error.message || '이미지 업로드 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/banners/upload-media - 배너 미디어(이미지/영상) 업로드
+router.post('/banners/upload-media', adminAuthMiddleware, bannerMediaUpload.single('media'), async (req: AdminRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '파일을 선택해주세요.' });
+    }
+
+    // 업로드된 파일의 URL 생성
+    const mediaUrl = `/uploads/banners/${req.file.filename}`;
+    const isVideo = req.file.mimetype.startsWith('video/');
+
+    res.json({
+      success: true,
+      mediaUrl,
+      filename: req.file.filename,
+      mediaType: isVideo ? 'VIDEO' : 'IMAGE',
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+    });
+  } catch (error: any) {
+    console.error('Banner media upload error:', error);
+    res.status(500).json({ error: error.message || '파일 업로드 중 오류가 발생했습니다.' });
   }
 });
 

@@ -7,6 +7,7 @@ interface Banner {
   title: string;
   imageUrl: string;
   linkUrl: string | null;
+  mediaType: 'IMAGE' | 'VIDEO';
   isActive: boolean;
   order: number;
   autoSlide: boolean;
@@ -30,6 +31,7 @@ export default function AdminBannersPage() {
   const [formTitle, setFormTitle] = useState('');
   const [formImageUrl, setFormImageUrl] = useState('');
   const [formLinkUrl, setFormLinkUrl] = useState('');
+  const [formMediaType, setFormMediaType] = useState<'IMAGE' | 'VIDEO'>('IMAGE');
   const [formIsActive, setFormIsActive] = useState(true);
   const [formOrder, setFormOrder] = useState(0);
   const [formAutoSlide, setFormAutoSlide] = useState(true);
@@ -37,6 +39,7 @@ export default function AdminBannersPage() {
   const [formTargetSlugs, setFormTargetSlugs] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -74,11 +77,12 @@ export default function AdminBannersPage() {
     setFormTitle('');
     setFormImageUrl('');
     setFormLinkUrl('');
+    setFormMediaType('IMAGE');
     setFormIsActive(true);
     setFormOrder(0);
     setFormAutoSlide(true);
     setFormSlideInterval(3000);
-    setFormTargetSlugs('taghere-test');
+    setFormTargetSlugs('');
     setModal({ mode: 'create' });
   };
 
@@ -86,6 +90,7 @@ export default function AdminBannersPage() {
     setFormTitle(banner.title);
     setFormImageUrl(banner.imageUrl);
     setFormLinkUrl(banner.linkUrl || '');
+    setFormMediaType(banner.mediaType || 'IMAGE');
     setFormIsActive(banner.isActive);
     setFormOrder(banner.order);
     setFormAutoSlide(banner.autoSlide);
@@ -96,7 +101,7 @@ export default function AdminBannersPage() {
 
   const handleSubmit = async () => {
     if (!formTitle || !formImageUrl) {
-      setToast({ message: '제목과 이미지 URL을 입력해주세요.', type: 'error' });
+      setToast({ message: '제목과 미디어를 입력해주세요.', type: 'error' });
       return;
     }
 
@@ -114,6 +119,7 @@ export default function AdminBannersPage() {
       title: formTitle,
       imageUrl: formImageUrl,
       linkUrl: formLinkUrl || null,
+      mediaType: formMediaType,
       isActive: formIsActive,
       order: formOrder,
       autoSlide: formAutoSlide,
@@ -184,38 +190,77 @@ export default function AdminBannersPage() {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
 
+    // 파일 타입 확인
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+
+    if (!isVideo && !isImage) {
+      setToast({ message: '이미지 또는 MP4 영상 파일만 업로드 가능합니다.', type: 'error' });
+      return;
+    }
+
+    // 영상 용량 체크 (최대 20MB)
+    if (isVideo && file.size > 20 * 1024 * 1024) {
+      setToast({ message: '영상 파일은 20MB 이하만 업로드 가능합니다.', type: 'error' });
+      return;
+    }
+
+    // 이미지 용량 체크 (최대 5MB)
+    if (isImage && file.size > 5 * 1024 * 1024) {
+      setToast({ message: '이미지 파일은 5MB 이하만 업로드 가능합니다.', type: 'error' });
+      return;
+    }
+
     setIsUploading(true);
+    setUploadProgress(0);
 
     try {
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('media', file);
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/banners/upload`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
+      // XMLHttpRequest로 진행률 표시
+      const xhr = new XMLHttpRequest();
 
-      if (res.ok) {
-        const data = await res.json();
-        // API URL을 포함한 전체 URL로 설정
-        const fullImageUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${data.imageUrl}`;
-        setFormImageUrl(fullImageUrl);
-        setToast({ message: '이미지가 업로드되었습니다.', type: 'success' });
-      } else {
-        const data = await res.json();
-        throw new Error(data.error);
-      }
+      const uploadPromise = new Promise<{ mediaUrl: string; mediaType: 'IMAGE' | 'VIDEO' }>((resolve, reject) => {
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const progress = Math.round((event.loaded / event.total) * 100);
+            setUploadProgress(progress);
+          }
+        });
+
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            const data = JSON.parse(xhr.responseText);
+            resolve(data);
+          } else {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              reject(new Error(data.error || '업로드 실패'));
+            } catch {
+              reject(new Error('업로드 실패'));
+            }
+          }
+        });
+
+        xhr.addEventListener('error', () => reject(new Error('네트워크 오류')));
+        xhr.addEventListener('abort', () => reject(new Error('업로드 취소됨')));
+
+        xhr.open('POST', `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/banners/upload-media`);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.send(formData);
+      });
+
+      const data = await uploadPromise;
+      const fullMediaUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${data.mediaUrl}`;
+      setFormImageUrl(fullMediaUrl);
+      setFormMediaType(data.mediaType);
+      setToast({ message: isVideo ? '영상이 업로드되었습니다.' : '이미지가 업로드되었습니다.', type: 'success' });
     } catch (error: any) {
-      setToast({ message: error.message || '이미지 업로드 중 오류가 발생했습니다.', type: 'error' });
+      setToast({ message: error.message || '업로드 중 오류가 발생했습니다.', type: 'error' });
     } finally {
       setIsUploading(false);
-      // 파일 인풋 초기화
+      setUploadProgress(0);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -275,7 +320,7 @@ export default function AdminBannersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-white">주문완료 배너</h1>
-          <p className="text-neutral-500 mt-1">주문 완료 페이지에 표시되는 배너를 관리합니다</p>
+          <p className="text-neutral-500 mt-1">주문 완료 페이지에 표시되는 배너를 관리합니다 (이미지/영상)</p>
         </div>
         <button
           onClick={openCreateModal}
@@ -298,22 +343,47 @@ export default function AdminBannersPage() {
           <div className="divide-y divide-neutral-800">
             {banners.map((banner) => (
               <div key={banner.id} className="p-4 flex items-center gap-4">
-                {/* Preview Image */}
-                <div className="w-32 h-16 rounded-lg overflow-hidden bg-neutral-800 flex-shrink-0">
-                  <img
-                    src={banner.imageUrl}
-                    alt={banner.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><rect fill="%23333" width="100" height="50"/><text fill="%23666" x="50" y="28" text-anchor="middle" font-size="10">No Image</text></svg>';
-                    }}
-                  />
+                {/* Preview */}
+                <div className="w-32 h-16 rounded-lg overflow-hidden bg-neutral-800 flex-shrink-0 relative">
+                  {banner.mediaType === 'VIDEO' ? (
+                    <>
+                      <video
+                        src={banner.imageUrl}
+                        className="w-full h-full object-cover"
+                        muted
+                        playsInline
+                        onMouseEnter={(e) => e.currentTarget.play()}
+                        onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                      />
+                      <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-1 rounded">
+                        영상
+                      </div>
+                    </>
+                  ) : (
+                    <img
+                      src={banner.imageUrl}
+                      alt={banner.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><rect fill="%23333" width="100" height="50"/><text fill="%23666" x="50" y="28" text-anchor="middle" font-size="10">No Image</text></svg>';
+                      }}
+                    />
+                  )}
                 </div>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-medium text-white truncate">{banner.title}</h3>
+                    <span
+                      className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        banner.mediaType === 'VIDEO'
+                          ? 'bg-purple-500/10 text-purple-400'
+                          : 'bg-blue-500/10 text-blue-400'
+                      }`}
+                    >
+                      {banner.mediaType === 'VIDEO' ? '영상' : '이미지'}
+                    </span>
                     <span
                       className={`px-2 py-0.5 rounded text-xs font-medium ${
                         banner.isActive
@@ -386,7 +456,7 @@ export default function AdminBannersPage() {
 
               <div>
                 <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  배너 이미지 <span className="text-red-400">*</span>
+                  배너 미디어 <span className="text-red-400">*</span>
                 </label>
 
                 {/* 파일 업로드 버튼 */}
@@ -394,10 +464,10 @@ export default function AdminBannersPage() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
                     onChange={handleFileUpload}
                     className="hidden"
-                    id="banner-image-upload"
+                    id="banner-media-upload"
                   />
                   <button
                     type="button"
@@ -408,33 +478,59 @@ export default function AdminBannersPage() {
                     {isUploading ? (
                       <>
                         <div className="w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
-                        업로드 중...
+                        업로드 중... {uploadProgress}%
                       </>
                     ) : (
                       <>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
-                        이미지 업로드
+                        이미지/영상 업로드
                       </>
                     )}
                   </button>
                 </div>
 
-                {/* 이미지 미리보기 */}
+                {/* 업로드 진행률 바 */}
+                {isUploading && (
+                  <div className="mb-2">
+                    <div className="h-1 bg-neutral-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-500 transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* 미디어 미리보기 */}
                 {formImageUrl ? (
                   <div className="relative rounded-lg overflow-hidden bg-neutral-800">
-                    <img
-                      src={formImageUrl}
-                      alt="Preview"
-                      className="w-full h-40 object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><rect fill="%23333" width="100" height="50"/><text fill="%23666" x="50" y="28" text-anchor="middle" font-size="8">이미지 로드 실패</text></svg>';
-                      }}
-                    />
+                    {formMediaType === 'VIDEO' ? (
+                      <video
+                        src={formImageUrl}
+                        className="w-full h-40 object-cover"
+                        muted
+                        autoPlay
+                        loop
+                        playsInline
+                      />
+                    ) : (
+                      <img
+                        src={formImageUrl}
+                        alt="Preview"
+                        className="w-full h-40 object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><rect fill="%23333" width="100" height="50"/><text fill="%23666" x="50" y="28" text-anchor="middle" font-size="8">이미지 로드 실패</text></svg>';
+                        }}
+                      />
+                    )}
+                    <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/70 rounded text-xs text-white">
+                      {formMediaType === 'VIDEO' ? '영상' : '이미지'}
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setFormImageUrl('')}
+                      onClick={() => { setFormImageUrl(''); setFormMediaType('IMAGE'); }}
                       className="absolute top-2 right-2 w-6 h-6 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -446,10 +542,11 @@ export default function AdminBannersPage() {
                   <div className="h-40 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center">
                     <div className="text-center text-neutral-500">
                       <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
-                      <p className="text-xs">이미지를 업로드해주세요</p>
-                      <p className="text-xs mt-1">JPG, PNG, GIF, WebP (최대 5MB)</p>
+                      <p className="text-xs">이미지 또는 영상을 업로드해주세요</p>
+                      <p className="text-xs mt-1">이미지: JPG, PNG, GIF, WebP (최대 5MB)</p>
+                      <p className="text-xs">영상: MP4, WebM (최대 20MB)</p>
                     </div>
                   </div>
                 )}

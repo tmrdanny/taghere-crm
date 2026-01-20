@@ -18,6 +18,7 @@ interface Banner {
   linkUrl: string | null;
   autoSlide: boolean;
   slideInterval: number;
+  mediaType?: 'IMAGE' | 'VIDEO';
 }
 
 function CheckIcon() {
@@ -46,18 +47,57 @@ function getFullImageUrl(imageUrl: string): string {
   return `${apiUrl}${imageUrl}`;
 }
 
+// 배너 미디어 렌더링 컴포넌트
+function BannerMedia({ banner, onClick }: { banner: Banner; onClick: () => void }) {
+  const isVideo = banner.mediaType === 'VIDEO';
+  const mediaUrl = getFullImageUrl(banner.imageUrl);
+
+  if (isVideo) {
+    return (
+      <div
+        className="w-full flex-shrink-0 cursor-pointer"
+        onClick={onClick}
+      >
+        <video
+          src={mediaUrl}
+          className="w-full aspect-[2/1] object-cover rounded-[12px]"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="w-full flex-shrink-0 cursor-pointer"
+      onClick={onClick}
+    >
+      <img
+        src={mediaUrl}
+        alt={banner.title}
+        className="w-full aspect-[2/1] object-cover rounded-[12px]"
+      />
+    </div>
+  );
+}
+
 // 인라인 배너 캐러셀 컴포넌트
 function InlineBannerCarousel({ banners }: { banners: Banner[] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
 
-  // 자동 슬라이드
+  // 자동 슬라이드 - 영상인 경우 자동 슬라이드 비활성화
   useEffect(() => {
     if (banners.length <= 1) return;
 
     const currentBanner = banners[currentIndex];
-    if (!currentBanner?.autoSlide) return;
+    // 영상 배너는 자동 슬라이드 하지 않음
+    if (!currentBanner?.autoSlide || currentBanner.mediaType === 'VIDEO') return;
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % banners.length);
@@ -114,17 +154,11 @@ function InlineBannerCarousel({ banners }: { banners: Banner[] }) {
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
         >
           {banners.map((banner) => (
-            <div
+            <BannerMedia
               key={banner.id}
-              className="w-full flex-shrink-0 cursor-pointer"
+              banner={banner}
               onClick={() => handleBannerClick(banner)}
-            >
-              <img
-                src={getFullImageUrl(banner.imageUrl)}
-                alt={banner.title}
-                className="w-full aspect-[2/1] object-cover rounded-[12px]"
-              />
-            </div>
+            />
           ))}
         </div>
 
@@ -164,12 +198,13 @@ function BottomModal({
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
 
-  // 자동 슬라이드
+  // 자동 슬라이드 - 영상인 경우 자동 슬라이드 비활성화
   useEffect(() => {
     if (!isOpen || banners.length <= 1) return;
 
     const currentBanner = banners[currentIndex];
-    if (!currentBanner?.autoSlide) return;
+    // 영상 배너는 자동 슬라이드 하지 않음
+    if (!currentBanner?.autoSlide || currentBanner.mediaType === 'VIDEO') return;
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % banners.length);
@@ -255,17 +290,11 @@ function BottomModal({
                   style={{ transform: `translateX(-${currentIndex * 100}%)` }}
                 >
                   {banners.map((banner) => (
-                    <div
+                    <BannerMedia
                       key={banner.id}
-                      className="w-full flex-shrink-0 cursor-pointer"
+                      banner={banner}
                       onClick={() => handleBannerClick(banner)}
-                    >
-                      <img
-                        src={getFullImageUrl(banner.imageUrl)}
-                        alt={banner.title}
-                        className="w-full aspect-[2/1] object-cover rounded-[12px]"
-                      />
-                    </div>
+                    />
                   ))}
                 </div>
 
