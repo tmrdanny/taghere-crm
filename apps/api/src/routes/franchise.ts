@@ -999,62 +999,48 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
     };
 
     // 5. 재방문율 계산
+    // 재방문율 정의: 전체 고객 중 2회 이상 방문한 고객의 비율
+    // 7일 재방문율: 최근 7일 내 방문한 고객 중 해당 기간에 2회 이상 방문한 고객 비율
+    // 30일 재방문율: 최근 30일 내 방문한 고객 중 해당 기간에 2회 이상 방문한 고객 비율
+
     const date7DaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const date30DaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    // 7일 전에 방문한 고객 중 재방문한 고객 비율
-    const customers7DaysAgo = await prisma.customer.findMany({
-      where: {
-        storeId: { in: storeIds },
-        lastVisitAt: { gte: date7DaysAgo }
-      },
-      select: { id: true }
-    });
-
-    const revisits7Days = await prisma.visitOrOrder.groupBy({
+    // 7일 재방문율: 최근 7일 내 방문 기록이 있는 고유 고객 수와 그 중 2회 이상 방문한 고객 수
+    const visits7Days = await prisma.visitOrOrder.groupBy({
       by: ['customerId'],
       where: {
         storeId: { in: storeIds },
-        customerId: { in: customers7DaysAgo.map(c => c.id) },
         visitedAt: { gte: date7DaysAgo }
       },
-      _count: { id: true },
-      having: {
-        id: { _count: { gt: 1 } }
-      }
+      _count: { id: true }
     });
 
-    const retention7Days = customers7DaysAgo.length > 0
-      ? Math.round((revisits7Days.length / customers7DaysAgo.length) * 100)
+    const totalCustomers7Days = visits7Days.length; // 최근 7일 내 방문한 고유 고객 수
+    const revisitCustomers7Days = visits7Days.filter(v => v._count.id >= 2).length; // 2회 이상 방문한 고객 수
+
+    const retention7Days = totalCustomers7Days > 0
+      ? Math.round((revisitCustomers7Days / totalCustomers7Days) * 100)
       : 0;
 
-    // 30일 재방문율 (동일 로직)
-    const customers30DaysAgo = await prisma.customer.findMany({
-      where: {
-        storeId: { in: storeIds },
-        lastVisitAt: { gte: date30DaysAgo }
-      },
-      select: { id: true }
-    });
-
-    const revisits30Days = await prisma.visitOrOrder.groupBy({
+    // 30일 재방문율: 최근 30일 내 방문 기록이 있는 고유 고객 수와 그 중 2회 이상 방문한 고객 수
+    const visits30Days = await prisma.visitOrOrder.groupBy({
       by: ['customerId'],
       where: {
         storeId: { in: storeIds },
-        customerId: { in: customers30DaysAgo.map(c => c.id) },
         visitedAt: { gte: date30DaysAgo }
       },
-      _count: { id: true },
-      having: {
-        id: { _count: { gt: 1 } }
-      }
+      _count: { id: true }
     });
 
-    const retention30Days = customers30DaysAgo.length > 0
-      ? Math.round((revisits30Days.length / customers30DaysAgo.length) * 100)
+    const totalCustomers30Days = visits30Days.length; // 최근 30일 내 방문한 고유 고객 수
+    const revisitCustomers30Days = visits30Days.filter(v => v._count.id >= 2).length; // 2회 이상 방문한 고객 수
+
+    const retention30Days = totalCustomers30Days > 0
+      ? Math.round((revisitCustomers30Days / totalCustomers30Days) * 100)
       : 0;
 
-    console.log('[Franchise Insights] Retention - 7days:', retention7Days, '30days:', retention30Days);
+    console.log('[Franchise Insights] Retention - 7days:', retention7Days, '% (', revisitCustomers7Days, '/', totalCustomers7Days, '), 30days:', retention30Days, '% (', revisitCustomers30Days, '/', totalCustomers30Days, ')');
 
     // 6. 월별 고객 추이 (최근 6개월)
     const monthlyTrend = [];
