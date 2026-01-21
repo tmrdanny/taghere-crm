@@ -76,17 +76,15 @@ const navGroups: NavGroup[] = [
     items: [
       { href: 'https://admin.tag-here.com', label: '주문/결제', icon: TabletSmartphone, isExternal: true },
       {
-        href: '/waiting',
+        href: '#',
         label: '웨이팅',
         icon: ListOrdered,
         isNew: true,
-        subItems: [
-          { href: '/waiting', label: '대기 관리', icon: ListOrdered },
-          { href: '/waiting/settings', label: '설정', icon: Settings },
-        ]
+        isComingSoon: true,
+        comingSoonLink: '웨이팅',
       },
       { href: '/points', label: '포인트 적립', icon: HandCoins },
-      { href: '/stamp-settings', label: '스탬프 설정', icon: Stamp, isNew: true },
+      { href: '#', label: '스탬프 설정', icon: Stamp, isNew: true, isComingSoon: true, comingSoonLink: '스탬프' },
     ],
   },
   {
@@ -160,11 +158,11 @@ function useInstallPrompt() {
 function ComingSoonModal({
   isOpen,
   onClose,
-  link
+  featureName
 }: {
   isOpen: boolean;
   onClose: () => void;
-  link?: string;
+  featureName?: string;
 }) {
   if (!isOpen) return null;
 
@@ -173,25 +171,15 @@ function ComingSoonModal({
       <div className="bg-white rounded-xl p-8 w-[360px] max-w-[90vw] mx-4 shadow-xl">
         <h3 className="text-xl font-semibold text-neutral-900 mb-3">준비중입니다</h3>
         <p className="text-neutral-600 text-sm mb-6 leading-relaxed">
-          웨이팅 기능은 현재 준비중입니다.<br/>
-          사전 신청하시면 오픈 시 알려드립니다.
+          {featureName || '해당 기능'}은 현재 준비중입니다.<br/>
+          곧 오픈 예정이니 조금만 기다려주세요!
         </p>
-        <div className="flex gap-3">
-          <a
-            href={link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 bg-brand-600 text-white py-3 px-4 rounded-lg text-center text-sm font-medium hover:bg-brand-700 whitespace-nowrap"
-          >
-            사전 신청하기
-          </a>
-          <button
-            onClick={onClose}
-            className="flex-1 bg-neutral-100 text-neutral-700 py-3 px-4 rounded-lg text-sm font-medium hover:bg-neutral-200 whitespace-nowrap"
-          >
-            닫기
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          className="w-full bg-brand-600 text-white py-3 px-4 rounded-lg text-sm font-medium hover:bg-brand-700"
+        >
+          확인
+        </button>
       </div>
     </div>
   );
@@ -205,7 +193,7 @@ interface SidebarProps {
 export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
   const { canInstall, handleInstall } = useInstallPrompt();
-  const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; link?: string }>({ open: false });
+  const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; featureName?: string }>({ open: false });
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
@@ -273,7 +261,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
       window.open(item.href, '_blank');
     } else if (item.isComingSoon) {
       e.preventDefault();
-      setComingSoonModal({ open: true, link: item.comingSoonLink });
+      setComingSoonModal({ open: true, featureName: item.comingSoonLink });
     }
   };
 
@@ -508,7 +496,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
       <ComingSoonModal
         isOpen={comingSoonModal.open}
         onClose={() => setComingSoonModal({ open: false })}
-        link={comingSoonModal.link}
+        featureName={comingSoonModal.featureName}
       />
     </>
   );
@@ -519,7 +507,7 @@ export function MobileHeader() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { canInstall, handleInstall } = useInstallPrompt();
-  const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; link?: string }>({ open: false });
+  const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; featureName?: string }>({ open: false });
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
@@ -596,7 +584,7 @@ export function MobileHeader() {
       closeMobileMenu();
     } else if (item.isComingSoon) {
       e.preventDefault();
-      setComingSoonModal({ open: true, link: item.comingSoonLink });
+      setComingSoonModal({ open: true, featureName: item.comingSoonLink });
       closeMobileMenu();
     } else {
       closeMobileMenu();
@@ -827,7 +815,7 @@ export function MobileHeader() {
       <ComingSoonModal
         isOpen={comingSoonModal.open}
         onClose={() => setComingSoonModal({ open: false })}
-        link={comingSoonModal.link}
+        featureName={comingSoonModal.featureName}
       />
     </>
   );
