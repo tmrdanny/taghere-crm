@@ -160,16 +160,13 @@ function StampImage({ onClick, isOpening }: { onClick: () => void; isOpening: bo
       className={`stamp-image-wrapper ${isOpening ? 'opening' : ''}`}
       onClick={!isOpening ? onClick : undefined}
     >
-      {/* 스탬프 아이콘 (원형에 별) */}
-      <div className="stamp-icon">
-        <svg viewBox="0 0 100 100" className="w-full h-full">
-          <circle cx="50" cy="50" r="45" fill="#FFD541" stroke="#E5B800" strokeWidth="3"/>
-          <path
-            d="M50 20 L56 38 L75 38 L60 50 L66 68 L50 56 L34 68 L40 50 L25 38 L44 38 Z"
-            fill="#1d2022"
-          />
-        </svg>
-      </div>
+      {/* 스탬프 3D 이미지 */}
+      <img
+        src="/stamp-3d.webp"
+        alt="스탬프"
+        className="stamp-icon"
+        draggable={false}
+      />
 
       <style jsx>{`
         .stamp-image-wrapper {
@@ -188,6 +185,7 @@ function StampImage({ onClick, isOpening }: { onClick: () => void; isOpening: bo
         .stamp-icon {
           width: 200px;
           height: 200px;
+          object-fit: contain;
         }
 
         @keyframes gentleFloat {
@@ -293,7 +291,7 @@ function SuccessPopup({
         <div className="flex-1 flex flex-col px-5 py-6 overflow-y-auto">
           {/* Stamp Display */}
           <div className="text-center mb-4 mt-4">
-            <p className="text-[38px] font-bold text-[#61EB49] leading-none">
+            <p className="text-[30px] font-bold text-[#61EB49] leading-none">
               스탬프 적립 완료
             </p>
           </div>
@@ -726,9 +724,9 @@ function TaghereEnrollStampContent() {
             <div className="flex-1 flex flex-col justify-end pb-4">
               <div className="text-center">
                 <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
-                  매장 스탬프
+                  방문 스탬프
                   <br />
-                  <span className="text-[#FFD541]">찍어드릴게요?</span>
+                  <span className="text-[#FFD541]">찍어드릴게요!</span>
                 </p>
                 <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">
                   {rewardText}

@@ -84,7 +84,7 @@ const navGroups: NavGroup[] = [
         comingSoonLink: '웨이팅',
       },
       { href: '/points', label: '포인트 적립', icon: HandCoins },
-      { href: '#', label: '스탬프 설정', icon: Stamp, isNew: true, isComingSoon: true, comingSoonLink: '스탬프' },
+      { href: '/stamp-settings', label: '스탬프 설정', icon: Stamp, isNew: true },
     ],
   },
   {
