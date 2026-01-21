@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { formatNumber } from '@/lib/utils';
 
 interface Stats {
@@ -441,13 +441,12 @@ export default function AdminHomePage() {
   );
 }
 
-// Simple line chart component using SVG
+// Simple line chart component using SVG with hover tooltip
 function CustomerTrendChart({ data }: { data: TrendData[] }) {
-  if (data.length === 0) return null;
+  const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; data: TrendData } | null>(null);
+  const chartRef = React.useRef<HTMLDivElement>(null);
 
-  const padding = { top: 10, right: 10, bottom: 30, left: 50 };
-  const width = 100; // percentage
-  const height = 192; // h-48 = 12rem = 192px
+  if (data.length === 0) return null;
 
   const maxValue = Math.max(...data.map((d) => d.cumulative));
   const minValue = Math.min(...data.map((d) => d.cumulative));
@@ -480,6 +479,24 @@ function CustomerTrendChart({ data }: { data: TrendData[] }) {
         ]
       : data.map((d) => d.date.slice(5));
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!chartRef.current) return;
+    const rect = chartRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+
+    // Find closest point
+    let closestPoint = points[0];
+    let minDist = Math.abs(x - points[0].x);
+    for (const p of points) {
+      const dist = Math.abs(x - p.x);
+      if (dist < minDist) {
+        minDist = dist;
+        closestPoint = p;
+      }
+    }
+    setHoveredPoint(closestPoint);
+  };
+
   return (
     <div className="w-full h-full relative">
       {/* Y-axis labels */}
@@ -490,7 +507,12 @@ function CustomerTrendChart({ data }: { data: TrendData[] }) {
       </div>
 
       {/* Chart area */}
-      <div className="absolute left-12 right-0 top-0 bottom-6">
+      <div
+        ref={chartRef}
+        className="absolute left-12 right-0 top-0 bottom-6 cursor-crosshair"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setHoveredPoint(null)}
+      >
         <svg
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
@@ -513,6 +535,19 @@ function CustomerTrendChart({ data }: { data: TrendData[] }) {
             vectorEffect="non-scaling-stroke"
           />
 
+          {/* Hover point indicator */}
+          {hoveredPoint && (
+            <circle
+              cx={hoveredPoint.x}
+              cy={hoveredPoint.y}
+              r="3"
+              fill="#FFD541"
+              stroke="#fff"
+              strokeWidth="1.5"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+
           {/* Gradient definition */}
           <defs>
             <linearGradient id="gradient" x1="0" y1="0" x2="0" y2="1">
@@ -521,6 +556,22 @@ function CustomerTrendChart({ data }: { data: TrendData[] }) {
             </linearGradient>
           </defs>
         </svg>
+
+        {/* Tooltip */}
+        {hoveredPoint && (
+          <div
+            className="absolute pointer-events-none bg-neutral-900 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10"
+            style={{
+              left: `${hoveredPoint.x}%`,
+              top: `${hoveredPoint.y}%`,
+              transform: 'translate(-50%, -130%)',
+            }}
+          >
+            <div className="font-medium">{hoveredPoint.data.date.slice(5).replace('-', '/')}</div>
+            <div>누적: {hoveredPoint.data.cumulative.toLocaleString()}명</div>
+            <div>신규: +{hoveredPoint.data.count}명</div>
+          </div>
+        )}
       </div>
 
       {/* X-axis labels */}
@@ -533,8 +584,11 @@ function CustomerTrendChart({ data }: { data: TrendData[] }) {
   );
 }
 
-// Line chart component for External Customer stats
+// Line chart component for External Customer stats with hover tooltip
 function ExternalCustomerChart({ data, period }: { data: ExternalCustomerData[]; period: ExternalPeriodType }) {
+  const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; data: ExternalCustomerData } | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+
   if (data.length === 0) return null;
 
   const maxValue = Math.max(...data.map((d) => d.count), 1);
@@ -579,6 +633,24 @@ function ExternalCustomerChart({ data, period }: { data: ExternalCustomerData[];
         ]
       : data.map((d) => d.date);
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!chartRef.current) return;
+    const rect = chartRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+
+    // Find closest point
+    let closestPoint = points[0];
+    let minDist = Math.abs(x - points[0].x);
+    for (const p of points) {
+      const dist = Math.abs(x - p.x);
+      if (dist < minDist) {
+        minDist = dist;
+        closestPoint = p;
+      }
+    }
+    setHoveredPoint(closestPoint);
+  };
+
   return (
     <div className="w-full h-full relative">
       {/* Y-axis labels */}
@@ -589,7 +661,12 @@ function ExternalCustomerChart({ data, period }: { data: ExternalCustomerData[];
       </div>
 
       {/* Chart area */}
-      <div className="absolute left-10 right-0 top-0 bottom-6">
+      <div
+        ref={chartRef}
+        className="absolute left-10 right-0 top-0 bottom-6 cursor-crosshair"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setHoveredPoint(null)}
+      >
         <svg
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
@@ -612,6 +689,19 @@ function ExternalCustomerChart({ data, period }: { data: ExternalCustomerData[];
             vectorEffect="non-scaling-stroke"
           />
 
+          {/* Hover point indicator */}
+          {hoveredPoint && (
+            <circle
+              cx={hoveredPoint.x}
+              cy={hoveredPoint.y}
+              r="3"
+              fill="#10B981"
+              stroke="#fff"
+              strokeWidth="1.5"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+
           {/* Gradient definition */}
           <defs>
             <linearGradient id="externalGradient" x1="0" y1="0" x2="0" y2="1">
@@ -620,6 +710,21 @@ function ExternalCustomerChart({ data, period }: { data: ExternalCustomerData[];
             </linearGradient>
           </defs>
         </svg>
+
+        {/* Tooltip */}
+        {hoveredPoint && (
+          <div
+            className="absolute pointer-events-none bg-neutral-900 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10"
+            style={{
+              left: `${hoveredPoint.x}%`,
+              top: `${hoveredPoint.y}%`,
+              transform: 'translate(-50%, -130%)',
+            }}
+          >
+            <div className="font-medium">{formatLabel(hoveredPoint.data.date)}</div>
+            <div>수집: {hoveredPoint.data.count}명</div>
+          </div>
+        )}
       </div>
 
       {/* X-axis labels */}
