@@ -1657,26 +1657,23 @@ router.get('/external-customer-stats', adminAuthMiddleware, async (req: AdminReq
     const { period = 'daily' } = req.query;
 
     const now = new Date();
+    // 시작일: 2026년 1월 18일 고정
+    const fixedStartDate = new Date('2026-01-18T00:00:00');
     let startDate: Date;
-    let dateFormat: string;
-    let dataPoints: number;
 
     switch (period) {
       case 'weekly':
-        startDate = new Date(now);
-        startDate.setDate(startDate.getDate() - 12 * 7); // 최근 12주
-        dataPoints = 12;
+        // 1월 18일 이후 주별
+        startDate = fixedStartDate;
         break;
       case 'monthly':
-        startDate = new Date(now);
-        startDate.setMonth(startDate.getMonth() - 12); // 최근 12개월
-        dataPoints = 12;
+        // 1월 18일 이후 월별
+        startDate = fixedStartDate;
         break;
       case 'daily':
       default:
-        startDate = new Date(now);
-        startDate.setDate(startDate.getDate() - 30); // 최근 30일
-        dataPoints = 30;
+        // 1월 18일 이후 일별
+        startDate = fixedStartDate;
         break;
     }
 

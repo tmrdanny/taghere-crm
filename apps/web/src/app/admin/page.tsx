@@ -314,7 +314,7 @@ export default function AdminHomePage() {
                     {formatNumber(externalStats.summary.periodTotal)}
                   </p>
                   <p className="text-[13px] text-neutral-500 mt-1">
-                    {externalPeriod === 'daily' ? '최근 30일' : externalPeriod === 'weekly' ? '최근 12주' : '최근 12개월'}
+                    1/18 이후
                   </p>
                 </div>
                 <div className="text-center p-4 bg-purple-50 rounded-xl">
@@ -533,11 +533,12 @@ function CustomerTrendChart({ data }: { data: TrendData[] }) {
   );
 }
 
-// Bar chart component for External Customer stats
+// Line chart component for External Customer stats
 function ExternalCustomerChart({ data, period }: { data: ExternalCustomerData[]; period: ExternalPeriodType }) {
   if (data.length === 0) return null;
 
   const maxValue = Math.max(...data.map((d) => d.count), 1);
+  const minValue = 0;
 
   // Format date label based on period
   const formatLabel = (dateStr: string) => {
@@ -552,12 +553,31 @@ function ExternalCustomerChart({ data, period }: { data: ExternalCustomerData[];
   };
 
   // Y-axis labels
-  const yLabels = [maxValue, Math.round(maxValue / 2), 0];
+  const yLabels = [maxValue, Math.round(maxValue / 2), minValue];
+
+  // Generate line path points
+  const points = data.map((d, i) => {
+    const x = (i / (data.length - 1 || 1)) * 100;
+    const y = 100 - ((d.count - minValue) / (maxValue - minValue || 1)) * 100;
+    return { x, y, data: d };
+  });
+
+  const pathD = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+    .join(' ');
+
+  // Area fill path
+  const areaD = `${pathD} L 100 100 L 0 100 Z`;
 
   // X-axis labels (show a few labels to avoid overcrowding)
-  const labelIndices = data.length <= 7
-    ? data.map((_, i) => i)
-    : [0, Math.floor(data.length / 4), Math.floor(data.length / 2), Math.floor(3 * data.length / 4), data.length - 1];
+  const xLabels =
+    data.length > 2
+      ? [
+          data[0].date,
+          data[Math.floor(data.length / 2)].date,
+          data[data.length - 1].date,
+        ]
+      : data.map((d) => d.date);
 
   return (
     <div className="w-full h-full relative">
@@ -571,46 +591,42 @@ function ExternalCustomerChart({ data, period }: { data: ExternalCustomerData[];
       {/* Chart area */}
       <div className="absolute left-10 right-0 top-0 bottom-6">
         <svg
-          viewBox={`0 0 ${data.length * 20} 100`}
+          viewBox="0 0 100 100"
           preserveAspectRatio="none"
           className="w-full h-full"
         >
           {/* Grid lines */}
-          <line x1="0" y1="0" x2={data.length * 20} y2="0" stroke="#E5E5E5" strokeWidth="0.5" />
-          <line x1="0" y1="50" x2={data.length * 20} y2="50" stroke="#E5E5E5" strokeWidth="0.5" />
-          <line x1="0" y1="100" x2={data.length * 20} y2="100" stroke="#E5E5E5" strokeWidth="0.5" />
+          <line x1="0" y1="0" x2="100" y2="0" stroke="#E5E5E5" strokeWidth="0.5" />
+          <line x1="0" y1="50" x2="100" y2="50" stroke="#E5E5E5" strokeWidth="0.5" />
+          <line x1="0" y1="100" x2="100" y2="100" stroke="#E5E5E5" strokeWidth="0.5" />
 
-          {/* Bars */}
-          {data.map((d, i) => {
-            const barHeight = (d.count / maxValue) * 100;
-            const barWidth = 12;
-            const x = i * 20 + (20 - barWidth) / 2;
-            const y = 100 - barHeight;
+          {/* Area fill */}
+          <path d={areaD} fill="url(#externalGradient)" opacity="0.3" />
 
-            return (
-              <g key={i}>
-                <rect
-                  x={x}
-                  y={y}
-                  width={barWidth}
-                  height={barHeight}
-                  fill="#10B981"
-                  rx="2"
-                  className="hover:fill-emerald-400 transition-colors"
-                />
-                {/* Hover tooltip area */}
-                <title>{`${formatLabel(d.date)}: ${d.count}명`}</title>
-              </g>
-            );
-          })}
+          {/* Line */}
+          <path
+            d={pathD}
+            fill="none"
+            stroke="#10B981"
+            strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
+          />
+
+          {/* Gradient definition */}
+          <defs>
+            <linearGradient id="externalGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10B981" />
+              <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
+            </linearGradient>
+          </defs>
         </svg>
       </div>
 
       {/* X-axis labels */}
       <div className="absolute left-10 right-0 bottom-0 h-6 flex justify-between text-[10px] text-neutral-400 px-1">
-        {labelIndices.map((idx) => (
-          <span key={idx} className="truncate">
-            {formatLabel(data[idx].date)}
+        {xLabels.map((dateStr, i) => (
+          <span key={i} className="truncate">
+            {formatLabel(dateStr)}
           </span>
         ))}
       </div>
