@@ -15,6 +15,9 @@ import {
   TrendingUp,
   MessageSquare,
   BarChart3,
+  Wallet,
+  Send,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -106,6 +109,14 @@ export default function FranchiseStoresPage() {
   // Filter dropdowns
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
+  // Transfer state
+  const [franchiseWalletBalance, setFranchiseWalletBalance] = useState<number>(0);
+  const [transferAmount, setTransferAmount] = useState<string>('');
+  const [transferMemo, setTransferMemo] = useState<string>('');
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [transferError, setTransferError] = useState<string | null>(null);
+  const [transferSuccess, setTransferSuccess] = useState<string | null>(null);
+
   // Auth token helper
   const getAuthToken = () => {
     if (typeof window !== 'undefined') {
@@ -139,9 +150,29 @@ export default function FranchiseStoresPage() {
     }
   }, []);
 
+  // Fetch franchise wallet balance
+  const fetchFranchiseWallet = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE}/api/franchise/wallet`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setFranchiseWalletBalance(data.balance || 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch franchise wallet:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchStores();
-  }, [fetchStores]);
+    fetchFranchiseWallet();
+  }, [fetchStores, fetchFranchiseWallet]);
 
   // Fetch store detail
   const fetchStoreDetail = useCallback(async (storeId: string) => {
@@ -162,6 +193,75 @@ export default function FranchiseStoresPage() {
     }
   }, []);
 
+  // Transfer funds to store
+  const handleTransfer = async () => {
+    if (!selectedStore) return;
+
+    const amount = parseInt(transferAmount.replace(/,/g, ''), 10);
+    if (isNaN(amount) || amount <= 0) {
+      setTransferError('이체 금액을 입력해주세요.');
+      return;
+    }
+
+    if (amount > franchiseWalletBalance) {
+      setTransferError('본사 잔액이 부족합니다.');
+      return;
+    }
+
+    setIsTransferring(true);
+    setTransferError(null);
+    setTransferSuccess(null);
+
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE}/api/franchise/stores/${selectedStore.id}/transfer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amount,
+          memo: transferMemo || undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setTransferSuccess(`${amount.toLocaleString()}원이 이체되었습니다.`);
+        setTransferAmount('');
+        setTransferMemo('');
+        setFranchiseWalletBalance(data.franchiseNewBalance);
+        // Update store detail with new balance
+        if (storeDetail) {
+          setStoreDetail({
+            ...storeDetail,
+            stats: {
+              ...storeDetail.stats!,
+              walletBalance: data.storeNewBalance,
+            },
+          });
+        }
+        // Clear success message after 3 seconds
+        setTimeout(() => setTransferSuccess(null), 3000);
+      } else {
+        setTransferError(data.error || '이체에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('Transfer failed:', err);
+      setTransferError('이체 중 오류가 발생했습니다.');
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
+  // Format number with commas
+  const formatNumberInput = (value: string) => {
+    const num = value.replace(/[^\d]/g, '');
+    return num ? parseInt(num, 10).toLocaleString() : '';
+  };
+
   // Filter stores
   const filteredStores = stores.filter((store) => {
     const matchesSearch = store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -176,6 +276,11 @@ export default function FranchiseStoresPage() {
     setSelectedStore(store);
     setIsSlideoverOpen(true);
     fetchStoreDetail(store.id);
+    // Reset transfer state
+    setTransferAmount('');
+    setTransferMemo('');
+    setTransferError(null);
+    setTransferSuccess(null);
   };
 
   // Close slideover
@@ -429,6 +534,100 @@ export default function FranchiseStoresPage() {
                           ? `${storeDetail.stats.averageVisits.toFixed(1)}회`
                           : '-'}
                       </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Transfer Section */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-slate-900 mb-3">충전금 관리</h3>
+                  <div className="bg-slate-50 rounded-xl p-4 space-y-4">
+                    {/* Store Wallet Balance */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-500">가맹점 충전금 잔액</span>
+                      <span className="text-lg font-bold text-slate-900">
+                        {storeDetail?.stats?.walletBalance !== undefined
+                          ? `${storeDetail.stats.walletBalance.toLocaleString()}원`
+                          : '-'}
+                      </span>
+                    </div>
+
+                    <div className="border-t border-slate-200 pt-4">
+                      {/* Transfer Amount Input */}
+                      <div className="mb-3">
+                        <label className="block text-xs text-slate-500 mb-1">이체 금액</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={transferAmount}
+                            onChange={(e) => {
+                              setTransferAmount(formatNumberInput(e.target.value));
+                              setTransferError(null);
+                            }}
+                            placeholder="0"
+                            className="w-full px-3 py-2 pr-8 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">원</span>
+                        </div>
+                      </div>
+
+                      {/* Memo Input */}
+                      <div className="mb-3">
+                        <label className="block text-xs text-slate-500 mb-1">메모 (선택)</label>
+                        <input
+                          type="text"
+                          value={transferMemo}
+                          onChange={(e) => setTransferMemo(e.target.value)}
+                          placeholder="예: 1월 마케팅 지원금"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* Franchise Balance Display */}
+                      <div className="flex items-center justify-between mb-3 text-sm">
+                        <span className="text-slate-500">본사 잔액</span>
+                        <span className="font-medium text-slate-700">
+                          {franchiseWalletBalance.toLocaleString()}원
+                        </span>
+                      </div>
+
+                      {/* Error Message */}
+                      {transferError && (
+                        <div className="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                          {transferError}
+                        </div>
+                      )}
+
+                      {/* Success Message */}
+                      {transferSuccess && (
+                        <div className="mb-3 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-600">
+                          {transferSuccess}
+                        </div>
+                      )}
+
+                      {/* Transfer Button */}
+                      <button
+                        onClick={handleTransfer}
+                        disabled={isTransferring || !transferAmount}
+                        className={cn(
+                          'w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                          isTransferring || !transferAmount
+                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : 'bg-franchise-600 text-white hover:bg-franchise-700'
+                        )}
+                      >
+                        {isTransferring ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            이체 중...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            충전금 이체하기
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>

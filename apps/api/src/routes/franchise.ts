@@ -1197,6 +1197,122 @@ router.get('/feedbacks', async (req: FranchiseAuthRequest, res) => {
   }
 });
 
+// POST /api/franchise/stores/:storeId/transfer - 가맹점으로 충전금 이체
+router.post('/stores/:storeId/transfer', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { storeId } = req.params;
+    const { amount, memo } = req.body;
+
+    // 1. 이체 금액 검증
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ error: '이체 금액이 올바르지 않습니다.' });
+    }
+
+    // 2. 가맹점이 해당 프랜차이즈 소속인지 확인
+    const store = await prisma.store.findFirst({
+      where: {
+        id: storeId,
+        franchiseId,
+      },
+      include: {
+        wallet: true,
+      },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '가맹점을 찾을 수 없습니다.' });
+    }
+
+    // 3. 프랜차이즈 지갑 확인 및 잔액 검증
+    const franchiseWallet = await prisma.franchiseWallet.findUnique({
+      where: { franchiseId },
+    });
+
+    if (!franchiseWallet) {
+      return res.status(400).json({ error: '프랜차이즈 지갑이 없습니다.' });
+    }
+
+    if (franchiseWallet.balance < amount) {
+      return res.status(400).json({ error: '잔액이 부족합니다.' });
+    }
+
+    // 4. 트랜잭션으로 이체 처리
+    const result = await prisma.$transaction(async (tx) => {
+      // 4-1. 프랜차이즈 지갑에서 차감
+      const updatedFranchiseWallet = await tx.franchiseWallet.update({
+        where: { franchiseId },
+        data: {
+          balance: { decrement: amount },
+        },
+      });
+
+      // 4-2. 프랜차이즈 트랜잭션 기록 (TRANSFER_OUT)
+      await tx.franchiseTransaction.create({
+        data: {
+          walletId: franchiseWallet.id,
+          amount: -amount,
+          type: 'TRANSFER_OUT',
+          description: `${store.name}으로 충전금 이체${memo ? ` (${memo})` : ''}`,
+          meta: {
+            targetStoreId: storeId,
+            targetStoreName: store.name,
+            memo: memo || null,
+          },
+        },
+      });
+
+      // 4-3. 가맹점 지갑 생성 또는 업데이트
+      let storeWallet = store.wallet;
+      if (!storeWallet) {
+        storeWallet = await tx.wallet.create({
+          data: {
+            storeId,
+            balance: amount,
+          },
+        });
+      } else {
+        storeWallet = await tx.wallet.update({
+          where: { storeId },
+          data: {
+            balance: { increment: amount },
+          },
+        });
+      }
+
+      // 4-4. 가맹점 결제 트랜잭션 기록 (TOPUP)
+      await tx.paymentTransaction.create({
+        data: {
+          walletId: storeWallet.id,
+          amount,
+          type: 'TOPUP',
+          description: `프랜차이즈 본사로부터 충전금 이체${memo ? ` (${memo})` : ''}`,
+          meta: {
+            source: 'franchise_transfer',
+            franchiseId,
+            memo: memo || null,
+          },
+        },
+      });
+
+      return {
+        franchiseNewBalance: updatedFranchiseWallet.balance,
+        storeNewBalance: storeWallet.balance,
+      };
+    });
+
+    res.json({
+      success: true,
+      transferAmount: amount,
+      franchiseNewBalance: result.franchiseNewBalance,
+      storeNewBalance: result.storeNewBalance,
+    });
+  } catch (error) {
+    console.error('Transfer to store error:', error);
+    res.status(500).json({ error: '충전금 이체 중 오류가 발생했습니다.' });
+  }
+});
+
 // GET /api/franchise/feedbacks/summary - 프랜차이즈 피드백 통계
 router.get('/feedbacks/summary', async (req: FranchiseAuthRequest, res) => {
   try {
