@@ -1651,4 +1651,104 @@ router.get('/stores/available', adminAuthMiddleware, async (req: AdminRequest, r
   }
 });
 
+// GET /api/admin/external-customer-stats - 신규고객(ExternalCustomer) 수집 통계
+router.get('/external-customer-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { period = 'daily' } = req.query;
+
+    const now = new Date();
+    let startDate: Date;
+    let dateFormat: string;
+    let dataPoints: number;
+
+    switch (period) {
+      case 'weekly':
+        startDate = new Date(now);
+        startDate.setDate(startDate.getDate() - 12 * 7); // 최근 12주
+        dataPoints = 12;
+        break;
+      case 'monthly':
+        startDate = new Date(now);
+        startDate.setMonth(startDate.getMonth() - 12); // 최근 12개월
+        dataPoints = 12;
+        break;
+      case 'daily':
+      default:
+        startDate = new Date(now);
+        startDate.setDate(startDate.getDate() - 30); // 최근 30일
+        dataPoints = 30;
+        break;
+    }
+
+    // 전체 ExternalCustomer 수
+    const total = await prisma.externalCustomer.count({
+      where: { consentMarketing: true },
+    });
+
+    // 기간 내 ExternalCustomer 조회
+    const customers = await prisma.externalCustomer.findMany({
+      where: {
+        createdAt: { gte: startDate },
+        consentMarketing: true,
+      },
+      select: {
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    // 날짜별/주별/월별 그룹핑
+    const groupedData: Record<string, number> = {};
+
+    customers.forEach((customer) => {
+      const date = new Date(customer.createdAt);
+      let key: string;
+
+      if (period === 'weekly') {
+        // 주 시작일 (월요일) 기준
+        const weekStart = new Date(date);
+        const day = weekStart.getDay();
+        const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
+        weekStart.setDate(diff);
+        key = weekStart.toISOString().split('T')[0];
+      } else if (period === 'monthly') {
+        // 월별 (YYYY-MM)
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      } else {
+        // 일별 (YYYY-MM-DD)
+        key = date.toISOString().split('T')[0];
+      }
+
+      groupedData[key] = (groupedData[key] || 0) + 1;
+    });
+
+    // 데이터 배열로 변환 및 정렬
+    const data = Object.entries(groupedData)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // 기간 내 총 수집 수
+    const periodTotal = customers.length;
+
+    // 일평균 계산
+    const daysDiff = Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const averagePerDay = daysDiff > 0 ? Math.round((periodTotal / daysDiff) * 10) / 10 : 0;
+
+    res.json({
+      period,
+      data,
+      summary: {
+        total,
+        periodTotal,
+        averagePerDay,
+      },
+    });
+  } catch (error) {
+    console.error('Admin external customer stats error:', error);
+    res.status(500).json({ error: '신규고객 통계 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;

@@ -32,7 +32,23 @@ interface CustomerTrend {
   periodNew: number;
 }
 
+interface ExternalCustomerData {
+  date: string;
+  count: number;
+}
+
+interface ExternalCustomerStats {
+  period: 'daily' | 'weekly' | 'monthly';
+  data: ExternalCustomerData[];
+  summary: {
+    total: number;
+    periodTotal: number;
+    averagePerDay: number;
+  };
+}
+
 type PeriodType = '1' | '7' | '30' | '90' | 'all';
+type ExternalPeriodType = 'daily' | 'weekly' | 'monthly';
 
 export default function AdminHomePage() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -43,6 +59,11 @@ export default function AdminHomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isTrendLoading, setIsTrendLoading] = useState(false);
 
+  // External Customer Stats
+  const [externalStats, setExternalStats] = useState<ExternalCustomerStats | null>(null);
+  const [externalPeriod, setExternalPeriod] = useState<ExternalPeriodType>('daily');
+  const [isExternalLoading, setIsExternalLoading] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -50,6 +71,10 @@ export default function AdminHomePage() {
   useEffect(() => {
     fetchCustomerTrend(selectedPeriod);
   }, [selectedPeriod]);
+
+  useEffect(() => {
+    fetchExternalCustomerStats(externalPeriod);
+  }, [externalPeriod]);
 
   const fetchData = async () => {
     const token = localStorage.getItem('adminToken');
@@ -107,6 +132,27 @@ export default function AdminHomePage() {
       console.error('Failed to fetch customer trend:', error);
     } finally {
       setIsTrendLoading(false);
+    }
+  };
+
+  const fetchExternalCustomerStats = async (period: ExternalPeriodType) => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsExternalLoading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/external-customer-stats?period=${period}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setExternalStats(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch external customer stats:', error);
+    } finally {
+      setIsExternalLoading(false);
     }
   };
 
@@ -215,6 +261,80 @@ export default function AdminHomePage() {
               <div className="h-48 relative">
                 <CustomerTrendChart data={customerTrend.trend} />
               </div>
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-neutral-400">
+              데이터가 없습니다
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* External Customer Collection Stats */}
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-[18px] font-semibold text-neutral-900">신규고객 수집 현황</h2>
+            <p className="text-[13px] text-neutral-500 mt-0.5">gain_customer 페이지 수집 통계</p>
+          </div>
+          <div className="flex gap-1">
+            {(['daily', 'weekly', 'monthly'] as ExternalPeriodType[]).map((period) => (
+              <button
+                key={period}
+                onClick={() => setExternalPeriod(period)}
+                className={`px-3 py-1.5 text-[13px] rounded-lg transition-colors ${
+                  externalPeriod === period
+                    ? 'bg-neutral-900 text-white'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                }`}
+              >
+                {period === 'daily' ? '일별' : period === 'weekly' ? '주별' : '월별'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+          {isExternalLoading ? (
+            <div className="h-64 flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : externalStats ? (
+            <div>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="text-center p-4 bg-blue-50 rounded-xl">
+                  <p className="text-[28px] font-semibold text-blue-600">
+                    {formatNumber(externalStats.summary.total)}
+                  </p>
+                  <p className="text-[13px] text-neutral-500 mt-1">전체 수집</p>
+                </div>
+                <div className="text-center p-4 bg-green-50 rounded-xl">
+                  <p className="text-[28px] font-semibold text-green-600">
+                    {formatNumber(externalStats.summary.periodTotal)}
+                  </p>
+                  <p className="text-[13px] text-neutral-500 mt-1">
+                    {externalPeriod === 'daily' ? '최근 30일' : externalPeriod === 'weekly' ? '최근 12주' : '최근 12개월'}
+                  </p>
+                </div>
+                <div className="text-center p-4 bg-purple-50 rounded-xl">
+                  <p className="text-[28px] font-semibold text-purple-600">
+                    {externalStats.summary.averagePerDay}
+                  </p>
+                  <p className="text-[13px] text-neutral-500 mt-1">일평균</p>
+                </div>
+              </div>
+
+              {/* Bar Chart */}
+              {externalStats.data.length > 0 ? (
+                <div className="h-48 relative">
+                  <ExternalCustomerChart data={externalStats.data} period={externalPeriod} />
+                </div>
+              ) : (
+                <div className="h-48 flex items-center justify-center text-neutral-400">
+                  기간 내 데이터가 없습니다
+                </div>
+              )}
             </div>
           ) : (
             <div className="h-64 flex items-center justify-center text-neutral-400">
@@ -407,6 +527,91 @@ function CustomerTrendChart({ data }: { data: TrendData[] }) {
       <div className="absolute left-12 right-0 bottom-0 h-6 flex justify-between text-[11px] text-neutral-400">
         {xLabels.map((label, i) => (
           <span key={i}>{label}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Bar chart component for External Customer stats
+function ExternalCustomerChart({ data, period }: { data: ExternalCustomerData[]; period: ExternalPeriodType }) {
+  if (data.length === 0) return null;
+
+  const maxValue = Math.max(...data.map((d) => d.count), 1);
+
+  // Format date label based on period
+  const formatLabel = (dateStr: string) => {
+    if (period === 'monthly') {
+      // YYYY-MM -> M월
+      const [year, month] = dateStr.split('-');
+      return `${parseInt(month)}월`;
+    } else {
+      // YYYY-MM-DD -> MM/DD
+      return dateStr.slice(5).replace('-', '/');
+    }
+  };
+
+  // Y-axis labels
+  const yLabels = [maxValue, Math.round(maxValue / 2), 0];
+
+  // X-axis labels (show a few labels to avoid overcrowding)
+  const labelIndices = data.length <= 7
+    ? data.map((_, i) => i)
+    : [0, Math.floor(data.length / 4), Math.floor(data.length / 2), Math.floor(3 * data.length / 4), data.length - 1];
+
+  return (
+    <div className="w-full h-full relative">
+      {/* Y-axis labels */}
+      <div className="absolute left-0 top-0 bottom-6 w-8 flex flex-col justify-between text-[11px] text-neutral-400">
+        {yLabels.map((label, i) => (
+          <span key={i}>{label}</span>
+        ))}
+      </div>
+
+      {/* Chart area */}
+      <div className="absolute left-10 right-0 top-0 bottom-6">
+        <svg
+          viewBox={`0 0 ${data.length * 20} 100`}
+          preserveAspectRatio="none"
+          className="w-full h-full"
+        >
+          {/* Grid lines */}
+          <line x1="0" y1="0" x2={data.length * 20} y2="0" stroke="#E5E5E5" strokeWidth="0.5" />
+          <line x1="0" y1="50" x2={data.length * 20} y2="50" stroke="#E5E5E5" strokeWidth="0.5" />
+          <line x1="0" y1="100" x2={data.length * 20} y2="100" stroke="#E5E5E5" strokeWidth="0.5" />
+
+          {/* Bars */}
+          {data.map((d, i) => {
+            const barHeight = (d.count / maxValue) * 100;
+            const barWidth = 12;
+            const x = i * 20 + (20 - barWidth) / 2;
+            const y = 100 - barHeight;
+
+            return (
+              <g key={i}>
+                <rect
+                  x={x}
+                  y={y}
+                  width={barWidth}
+                  height={barHeight}
+                  fill="#10B981"
+                  rx="2"
+                  className="hover:fill-emerald-400 transition-colors"
+                />
+                {/* Hover tooltip area */}
+                <title>{`${formatLabel(d.date)}: ${d.count}명`}</title>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+
+      {/* X-axis labels */}
+      <div className="absolute left-10 right-0 bottom-0 h-6 flex justify-between text-[10px] text-neutral-400 px-1">
+        {labelIndices.map((idx) => (
+          <span key={idx} className="truncate">
+            {formatLabel(data[idx].date)}
+          </span>
         ))}
       </div>
     </div>
