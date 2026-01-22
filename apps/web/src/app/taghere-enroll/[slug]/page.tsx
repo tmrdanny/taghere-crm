@@ -273,9 +273,11 @@ function SuccessPopup({
     });
   };
 
-  // 방문 경로만 즉시 저장하는 함수
-  const saveVisitSource = async () => {
-    if (!successData.customerId || !selectedVisitSource) return;
+  // 방문 경로 즉시 저장하고 다음 단계로 이동하는 함수
+  const handleVisitSourceSelect = async (optionId: string) => {
+    setSelectedVisitSource(optionId);
+
+    if (!successData.customerId) return;
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -286,24 +288,27 @@ function SuccessPopup({
         },
         body: JSON.stringify({
           customerId: successData.customerId,
-          visitSource: selectedVisitSource,
+          visitSource: optionId,
         }),
       });
+
+      // 저장 후 다음 단계로 이동 또는 마지막 단계면 피드백 영역 표시
+      if (showCategoryStep) {
+        setCurrentStep(2);
+      }
+      // 선호 업종 단계가 없으면 현재 단계 유지 (피드백 입력 가능)
     } catch (error) {
       console.error('Visit source save error:', error);
     }
   };
 
-  // "다음" 버튼 클릭 시 - 방문 경로 저장 후 다음 단계로
-  const handleNextStep = async () => {
-    await saveVisitSource();
-    setCurrentStep(2);
-  };
-
-  // "건너뛰기" 버튼 클릭 시 - 방문 경로 저장 후 닫기
-  const handleSkip = async () => {
-    await saveVisitSource();
-    onClose();
+  // "건너뛰기" 버튼 클릭 시 - 다음 단계로 이동 또는 닫기
+  const handleSkip = () => {
+    if (showVisitSourceStep && currentStep === 1 && showCategoryStep) {
+      setCurrentStep(2);
+    } else {
+      onClose();
+    }
   };
 
   const handleSubmit = async () => {
@@ -337,9 +342,6 @@ function SuccessPopup({
           preferredCategories: expandedCategories.length > 0 ? expandedCategories : null,
         }),
       });
-
-      // 방문 경로 저장 (선택된 경우, 이미 저장되지 않았을 수 있으므로 다시 호출)
-      await saveVisitSource();
 
       // 제출 완료 후 팝업 없이 바로 order-success로 이동
       onClose();
@@ -408,11 +410,11 @@ function SuccessPopup({
                     <button
                       key={option.id}
                       type="button"
-                      onClick={() => setSelectedVisitSource(isSelected ? null : option.id)}
+                      onClick={() => handleVisitSourceSelect(option.id)}
                       className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
                         isSelected
                           ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
-                          : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
+                          : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-[#6BA3FF]'
                       }`}
                     >
                       {option.label}
@@ -552,22 +554,14 @@ function SuccessPopup({
 
           {/* Buttons - 단계에 따라 다른 버튼 표시 */}
           <div className="flex gap-3 pb-2">
-            {/* Step 1 (방문 경로) 버튼 - 다음 단계가 있을 때 */}
+            {/* Step 1 (방문 경로) 버튼 - 선택하면 자동으로 다음 단계로 이동, 건너뛰기만 표시 */}
             {showVisitSourceStep && showCategoryStep && currentStep === 1 ? (
-              <>
-                <button
-                  onClick={handleSkip}
-                  className="flex-1 py-3.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-semibold text-[15px] rounded-xl transition-colors"
-                >
-                  건너뛰기
-                </button>
-                <button
-                  onClick={handleNextStep}
-                  className="flex-1 py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-[15px] rounded-xl transition-colors"
-                >
-                  다음
-                </button>
-              </>
+              <button
+                onClick={handleSkip}
+                className="flex-1 py-3.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-500 font-medium text-[14px] rounded-xl transition-colors"
+              >
+                건너뛰기
+              </button>
             ) : (
               /* 마지막 단계 버튼 */
               <>
