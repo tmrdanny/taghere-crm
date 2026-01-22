@@ -455,11 +455,11 @@ router.get('/customer-trend', adminAuthMiddleware, async (req: AdminRequest, res
   }
 });
 
-// GET /api/admin/payment-stats - 실 결제 금액 통계 (admin 충전 제외)
+// GET /api/admin/payment-stats - 실 결제 금액 통계 (admin 충전 제외, 프랜차이즈 충전 포함)
 router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    // 토스페이먼츠 결제(TOPUP)와 환불(REFUND) 모두 조회
-    const allTransactions = await prisma.paymentTransaction.findMany({
+    // 1. Store 토스페이먼츠 결제(TOPUP)와 환불(REFUND) 조회
+    const allStoreTransactions = await prisma.paymentTransaction.findMany({
       where: {
         type: { in: ['TOPUP', 'REFUND'] },
         status: 'SUCCESS',
@@ -473,15 +473,14 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
     });
 
     // TossPayments 트랜잭션만 필터링 (source === 'tosspayments')
-    // REFUND는 웹훅으로 생성된 것만 포함 (webhookTransmissionId가 있는 경우)
-    const tossTransactions = allTransactions.filter((tx) => {
+    const tossStoreTransactions = allStoreTransactions.filter((tx) => {
       const meta = tx.meta as Record<string, unknown> | null;
       if (!meta || meta.source !== 'tosspayments') return false;
 
       // TOPUP은 모두 포함
       if (tx.type === 'TOPUP') return true;
 
-      // REFUND는 웹훅으로 생성된 것만 포함 (webhookTransmissionId가 있어야 함)
+      // REFUND는 웹훅으로 생성된 것만 포함
       if (tx.type === 'REFUND') {
         return !!meta.webhookTransmissionId;
       }
@@ -489,18 +488,51 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
       return false;
     });
 
-    // TOPUP과 REFUND 합산 (REFUND는 음수 금액으로 저장됨)
-    const totalRealPayments = tossTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+    // 2. 프랜차이즈 토스페이먼츠 충전 조회
+    const allFranchiseTransactions = await prisma.franchiseTransaction.findMany({
+      where: {
+        type: 'TOPUP',
+      },
+      select: {
+        amount: true,
+        createdAt: true,
+        meta: true,
+      },
+    });
 
-    // 이번 달 결제 금액 계산
+    // TossPayments 트랜잭션만 필터링
+    const tossFranchiseTransactions = allFranchiseTransactions.filter((tx) => {
+      const meta = tx.meta as Record<string, unknown> | null;
+      return meta && meta.source === 'tosspayments';
+    });
+
+    // 3. Store 매출 합산
+    const storeTotal = tossStoreTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+
+    // 4. 프랜차이즈 충전 합산
+    const franchiseTotal = tossFranchiseTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+
+    // 5. 전체 누적 매출
+    const totalRealPayments = storeTotal + franchiseTotal;
+
+    // 6. 이번 달 매출 계산
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthlyRealPayments = tossTransactions
+
+    const monthlyStorePayments = tossStoreTransactions
       .filter((tx) => tx.createdAt >= startOfMonth)
       .reduce((sum, tx) => sum + tx.amount, 0);
 
-    // 총 결제 건수 (TOPUP만 카운트, REFUND 제외)
-    const totalTransactions = tossTransactions.filter((tx) => tx.type === 'TOPUP').length;
+    const monthlyFranchisePayments = tossFranchiseTransactions
+      .filter((tx) => tx.createdAt >= startOfMonth)
+      .reduce((sum, tx) => sum + tx.amount, 0);
+
+    const monthlyRealPayments = monthlyStorePayments + monthlyFranchisePayments;
+
+    // 7. 총 결제 건수 (Store TOPUP + Franchise TOPUP)
+    const storeTransactionCount = tossStoreTransactions.filter((tx) => tx.type === 'TOPUP').length;
+    const franchiseTransactionCount = tossFranchiseTransactions.length;
+    const totalTransactions = storeTransactionCount + franchiseTransactionCount;
 
     res.json({
       totalRealPayments,
