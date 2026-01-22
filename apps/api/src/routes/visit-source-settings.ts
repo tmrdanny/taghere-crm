@@ -52,7 +52,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
     res.json({
       enabled: setting.enabled,
-      options: setting.options as VisitSourceOption[],
+      options: setting.options as unknown as VisitSourceOption[],
     });
   } catch (error) {
     console.error('Get visit source settings error:', error);
@@ -86,7 +86,7 @@ router.put('/', async (req: AuthRequest, res) => {
 
     res.json({
       enabled: setting.enabled,
-      options: setting.options as VisitSourceOption[],
+      options: setting.options as unknown as VisitSourceOption[],
     });
   } catch (error) {
     console.error('Update visit source settings error:', error);
@@ -118,7 +118,7 @@ router.get('/stats', async (req: AuthRequest, res) => {
     const setting = await prisma.visitSourceSetting.findUnique({
       where: { storeId },
     });
-    const options = (setting?.options as VisitSourceOption[]) || DEFAULT_OPTIONS;
+    const options = (setting?.options as unknown as VisitSourceOption[]) || DEFAULT_OPTIONS;
     const labelMap = Object.fromEntries(options.map(o => [o.id, o.label]));
 
     // 분포 데이터 변환
