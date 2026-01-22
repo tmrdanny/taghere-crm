@@ -373,8 +373,8 @@ function SuccessPopup({
             </div>
           )}
 
-          {/* Preferred Categories - 조건부 표시 */}
-          {!successData.hasExistingPreferences && (
+          {/* Preferred Categories - 조건부 표시: 방문 경로가 활성화되어 있으면 숨김 */}
+          {!successData.hasExistingPreferences && !visitSourceEnabled && (
             <div className="mb-4 mt-5">
               <p className="text-[15px] font-semibold text-neutral-900 mb-1.5 text-center">
                 어떤 업종을 선호하세요?
