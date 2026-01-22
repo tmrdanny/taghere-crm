@@ -718,16 +718,14 @@ function TaghereEnrollStampContent() {
   const handleCloseSuccessPopup = () => {
     setSuccessData(null);
 
-    // 스탬프 적립 완료 페이지로 이동 (order-success 대신 간단한 완료 화면)
+    // 스탬프 완료 페이지로 이동 (ordersheetId 유무와 관계없이)
+    const url = new URL(window.location.origin + '/taghere-enroll/order-success');
+    url.searchParams.set('type', 'stamp');
+    url.searchParams.set('slug', slug);
     if (ordersheetId) {
-      const url = new URL(window.location.origin + '/taghere-enroll/order-success');
       url.searchParams.set('ordersheetId', ordersheetId);
-      url.searchParams.set('slug', slug);
-      window.location.href = url.toString();
-    } else {
-      // ordersheetId가 없으면 홈으로
-      window.location.href = '/';
     }
+    window.location.href = url.toString();
   };
 
   if (isLoading || isAutoEarning) {
@@ -763,14 +761,13 @@ function TaghereEnrollStampContent() {
 
   // X 버튼 클릭 시 처리
   const handleSkipEarn = () => {
+    const url = new URL(window.location.origin + '/taghere-enroll/order-success');
+    url.searchParams.set('type', 'stamp');
+    url.searchParams.set('slug', slug);
     if (ordersheetId) {
-      const url = new URL(window.location.origin + '/taghere-enroll/order-success');
       url.searchParams.set('ordersheetId', ordersheetId);
-      url.searchParams.set('slug', slug);
-      window.location.href = url.toString();
-    } else {
-      window.location.href = '/';
     }
+    window.location.href = url.toString();
   };
 
   // 보상 텍스트 결정

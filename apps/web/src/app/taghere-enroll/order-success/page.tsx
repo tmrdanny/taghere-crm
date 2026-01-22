@@ -189,10 +189,12 @@ function BottomModal({
   isOpen,
   onClose,
   banners,
+  isStamp = false,
 }: {
   isOpen: boolean;
   onClose: () => void;
   banners: Banner[];
+  isStamp?: boolean;
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -269,7 +271,7 @@ function BottomModal({
           {/* Content */}
           <div className="px-5 pb-4 text-center">
             <h2 className="text-xl font-bold text-black leading-[1.3] tracking-[-0.08px]">
-              주문이 접수되었어요
+              {isStamp ? '스탬프가 적립되었어요' : '주문이 접수되었어요'}
             </h2>
             <p className="text-base text-[#91949a] mt-2 leading-[1.5]">
               매장을 이용해주셔서 감사합니다
@@ -358,6 +360,8 @@ function OrderSuccessContent() {
 
   const ordersheetId = searchParams.get('ordersheetId');
   const slug = searchParams.get('slug') || 'taghere-test';
+  const type = searchParams.get('type'); // 'stamp' or null
+  const isStamp = type === 'stamp';
 
   // 모든 매장에서 바텀 모달 표시
   const shouldShowModal = true;
@@ -366,7 +370,19 @@ function OrderSuccessContent() {
   const isValidOrdersheetId = ordersheetId && /^[a-f0-9]{24}$/i.test(ordersheetId);
 
   useEffect(() => {
-    // ordersheetId가 없으면 에러
+    // 스탬프 타입이면 ordersheetId 없어도 기본 UI 표시
+    if (isStamp && !ordersheetId) {
+      setOrderDetails({
+        storeName: '',
+        orderNumber: undefined,
+        items: [],
+        totalPrice: 0,
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    // ordersheetId가 없으면 에러 (포인트 타입)
     if (!ordersheetId) {
       setError('주문 정보가 없습니다.');
       setIsLoading(false);
@@ -498,7 +514,9 @@ function OrderSuccessContent() {
       <div className="w-full max-w-md h-full flex flex-col relative">
         {/* Header */}
         <div className="flex-shrink-0 h-[54px] border-b border-[#ebeced] flex items-center justify-center">
-          <span className="text-lg font-bold text-[#1d2022]">주문정보</span>
+          <span className="text-lg font-bold text-[#1d2022]">
+            {isStamp ? '스탬프 적립' : '주문정보'}
+          </span>
         </div>
 
         {/* Main Content */}
@@ -507,7 +525,7 @@ function OrderSuccessContent() {
           <div className="flex flex-col items-center mb-6">
             <CheckIcon />
             <h1 className="text-xl font-bold text-[#1d2022] mt-4 tracking-tight">
-              주문이 접수되었습니다
+              {isStamp ? '스탬프가 적립되었습니다' : '주문이 접수되었습니다'}
             </h1>
           </div>
 
@@ -590,11 +608,12 @@ function OrderSuccessContent() {
         }
       `}</style>
 
-      {/* 바텀 모달 (taghere-test만) */}
+      {/* 바텀 모달 */}
       <BottomModal
         isOpen={showBottomModal}
         onClose={() => setShowBottomModal(false)}
         banners={banners}
+        isStamp={isStamp}
       />
     </div>
   );
