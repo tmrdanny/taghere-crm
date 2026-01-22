@@ -184,42 +184,26 @@ export class SolapiService {
       // SOLAPI getMessages로 그룹 내 메시지 조회
       const result = await this.messageService.getMessages({ groupId });
 
-      console.log('[SOLAPI] Message status result:', JSON.stringify(result, null, 2));
-
       if (result.messageList && Object.keys(result.messageList).length > 0) {
         const messages = Object.values(result.messageList) as any[];
-
-        // 모든 메시지 정보 로깅
-        console.log('[SOLAPI] All messages in group:', messages.map((m: any) => ({
-          to: m.to,
-          statusCode: m.statusCode,
-          statusMessage: m.statusMessage,
-        })));
 
         // 특정 전화번호가 지정된 경우 해당 번호의 메시지만 찾기
         let targetMessage = messages[0];
         if (targetPhone) {
           const normalizedTarget = this.normalizePhoneNumber(targetPhone);
-          console.log('[SOLAPI] Looking for phone:', normalizedTarget);
 
           const foundMessage = messages.find((msg) => {
             const msgPhone = this.normalizePhoneNumber(msg.to || '');
-            console.log('[SOLAPI] Comparing:', { msgPhone, normalizedTarget, match: msgPhone === normalizedTarget });
             return msgPhone === normalizedTarget;
           });
 
           if (foundMessage) {
             targetMessage = foundMessage;
-            console.log('[SOLAPI] Found matching message for phone:', targetPhone);
-          } else {
-            console.log('[SOLAPI] No matching message found for phone:', targetPhone, '- using first message');
           }
         }
 
         const statusCode = targetMessage?.statusCode;
         const statusMessage = targetMessage?.statusMessage;
-
-        console.log('[SOLAPI] Target message status:', { phone: targetPhone, to: targetMessage?.to, statusCode, statusMessage, status: targetMessage?.status });
 
         // SOLAPI 상태 코드 매핑
         // 2xxx: 발송 대기/처리중
@@ -230,7 +214,6 @@ export class SolapiService {
           return { success: true, status: 'SENT' };
         } else if (statusCode === '3000') {
           // 3000은 이통사에 접수되어 리포트를 기다리는 중 - 아직 결과 없음
-          console.log('[SOLAPI] Status 3000 = waiting for carrier report, treating as PENDING');
           return { success: true, status: 'PENDING' };
         } else if (statusCode?.startsWith('3')) {
           return { success: true, status: 'FAILED', failReason: this.getFailReasonKorean(statusCode, statusMessage) };

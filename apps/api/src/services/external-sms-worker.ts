@@ -21,7 +21,6 @@ function getSolapiService(): SolapiService | null {
   const apiSecret = process.env.SOLAPI_API_SECRET;
 
   if (!apiKey || !apiSecret) {
-    console.log(`[External SMS Worker] No SOLAPI credentials configured`);
     return null;
   }
 
@@ -52,7 +51,6 @@ async function processMessage(messageId: string): Promise<void> {
 
   // groupId 없으면 처리 불가
   if (!msg.solapiGroupId) {
-    console.log(`[External SMS Worker] Message ${messageId} has no groupId, marking as FAILED`);
     await prisma.externalSmsMessage.update({
       where: { id: messageId },
       data: {
@@ -66,7 +64,6 @@ async function processMessage(messageId: string): Promise<void> {
 
   const solapiService = getSolapiService();
   if (!solapiService) {
-    console.log(`[External SMS Worker] SOLAPI service not available`);
     return;
   }
 
@@ -74,16 +71,13 @@ async function processMessage(messageId: string): Promise<void> {
     // SOLAPI에서 실제 발송 결과 조회
     // CRM 고객(externalCustomer가 null)인 경우 전화번호를 직접 가져올 수 없으므로 스킵
     if (!msg.externalCustomer) {
-      console.log(`[External SMS Worker] Skipping status check for CRM customer message ${messageId}`);
       return;
     }
 
     const phone = msg.externalCustomer.phone.replace(/-/g, '');
     const statusResult = await solapiService.getMessageStatus(msg.solapiGroupId, phone);
-    console.log(`[External SMS Worker] Status for ${phone}:`, statusResult);
 
     if (!statusResult.success) {
-      console.log(`[External SMS Worker] Status query failed for message ${messageId}:`, statusResult.error);
       return; // 다음 폴링에서 재시도
     }
 
@@ -137,7 +131,6 @@ async function processMessage(messageId: string): Promise<void> {
         }
       });
 
-      console.log(`[External SMS Worker] Message ${messageId} sent successfully, cost: ${msg.cost}원 차감`);
     } else if (statusResult.status === 'FAILED') {
       // 발송 실패 - 상태만 업데이트, 비용 차감 없음
       await prisma.$transaction(async (tx) => {
@@ -156,12 +149,8 @@ async function processMessage(messageId: string): Promise<void> {
           data: { failedCount: { increment: 1 } },
         });
       });
-
-      console.log(`[External SMS Worker] Message ${messageId} FAILED: ${statusResult.failReason}`);
-    } else {
-      // PENDING - 아직 결과 없음, 다음 폴링에서 재시도
-      console.log(`[External SMS Worker] Message ${messageId} still PENDING, will retry`);
     }
+    // PENDING - 아직 결과 없음, 다음 폴링에서 재시도
   } catch (error: any) {
     console.error(`[External SMS Worker] Error processing message ${messageId}:`, error.message);
   }
@@ -186,8 +175,6 @@ async function processBatch(): Promise<number> {
   if (messages.length === 0) {
     return 0;
   }
-
-  console.log(`[External SMS Worker] Processing ${messages.length} messages`);
 
   // 순차 처리 (SOLAPI API 호출 제한 고려)
   for (const msg of messages) {
@@ -216,7 +203,6 @@ async function updateCampaignStatus(): Promise<void> {
         where: { id: campaign.id },
         data: { status: 'COMPLETED' },
       });
-      console.log(`[External SMS Worker] Campaign ${campaign.id} completed`);
     }
   }
 }
@@ -224,22 +210,16 @@ async function updateCampaignStatus(): Promise<void> {
 // 워커 시작
 export function startExternalSmsWorker(): void {
   if (isRunning) {
-    console.log('[External SMS Worker] Worker already running');
     return;
   }
 
   isRunning = true;
-  console.log('[External SMS Worker] Starting External SMS worker...');
 
   const poll = async () => {
     if (!isRunning) return;
 
     try {
-      const processed = await processBatch();
-      if (processed > 0) {
-        console.log(`[External SMS Worker] Processed ${processed} messages`);
-      }
-
+      await processBatch();
       // 캠페인 상태 업데이트
       await updateCampaignStatus();
     } catch (error) {
@@ -263,8 +243,6 @@ export function stopExternalSmsWorker(): void {
     clearInterval(intervalId);
     intervalId = null;
   }
-
-  console.log('[External SMS Worker] Worker stopped');
 }
 
 // 캐시 초기화
