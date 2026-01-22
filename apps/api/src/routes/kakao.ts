@@ -826,6 +826,7 @@ router.get('/taghere-callback', async (req, res) => {
     let stateData = { storeId: '', ordersheetId: '', slug: '', isTaghere: true, isStamp: false, origin: PUBLIC_APP_URL };
     try {
       stateData = JSON.parse(Buffer.from(state as string, 'base64').toString());
+      console.log('[TagHere Kakao Callback] Parsed state:', JSON.stringify(stateData));
     } catch (e) {
       console.error('Failed to parse state:', e);
     }
@@ -833,8 +834,11 @@ router.get('/taghere-callback', async (req, res) => {
     // origin이 없으면 기본값 사용
     const redirectOrigin = stateData.origin || PUBLIC_APP_URL;
 
+    console.log(`[TagHere Kakao Callback] isStamp: ${stateData.isStamp}, redirectOrigin: ${redirectOrigin}`);
+
     // 스탬프 적립인 경우 스탬프 전용 콜백으로 처리
     if (stateData.isStamp) {
+      console.log('[TagHere Kakao Callback] Routing to stamp callback handler');
       return handleStampCallback(req, res, stateData, redirectOrigin);
     }
 
