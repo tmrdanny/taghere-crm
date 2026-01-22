@@ -559,7 +559,7 @@ router.get('/customer-trend', adminAuthMiddleware, async (req: AdminRequest, res
 // GET /api/admin/payment-stats - 실 결제 금액 통계 (admin 충전 제외, 프랜차이즈 충전 포함)
 router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    // 1. Store 토스페이먼츠 결제(TOPUP)와 환불(REFUND) 조회
+    // 1. Store 결제(TOPUP)와 환불(REFUND) 조회
     const allStoreTransactions = await prisma.paymentTransaction.findMany({
       where: {
         type: { in: ['TOPUP', 'REFUND'] },
@@ -573,23 +573,15 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
       },
     });
 
-    // TossPayments 트랜잭션만 필터링 (source === 'tosspayments')
-    const tossStoreTransactions = allStoreTransactions.filter((tx) => {
+    // 관리자 충전 제외 (paymentMethod === 'ADMIN' 제외)
+    const storeTransactions = allStoreTransactions.filter((tx) => {
       const meta = tx.meta as Record<string, unknown> | null;
-      if (!meta || meta.source !== 'tosspayments') return false;
-
-      // TOPUP은 모두 포함
-      if (tx.type === 'TOPUP') return true;
-
-      // REFUND는 웹훅으로 생성된 것만 포함
-      if (tx.type === 'REFUND') {
-        return !!meta.webhookTransmissionId;
-      }
-
-      return false;
+      // 관리자 충전은 제외
+      if (meta && meta.paymentMethod === 'ADMIN') return false;
+      return true;
     });
 
-    // 2. 프랜차이즈 토스페이먼츠 충전 조회
+    // 2. 프랜차이즈 충전 조회 (관리자 충전 제외)
     const allFranchiseTransactions = await prisma.franchiseTransaction.findMany({
       where: {
         type: 'TOPUP',
@@ -601,17 +593,18 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
       },
     });
 
-    // TossPayments 트랜잭션만 필터링
-    const tossFranchiseTransactions = allFranchiseTransactions.filter((tx) => {
+    // 관리자 충전 제외
+    const franchiseTransactions = allFranchiseTransactions.filter((tx) => {
       const meta = tx.meta as Record<string, unknown> | null;
-      return meta && meta.source === 'tosspayments';
+      if (meta && meta.paymentMethod === 'ADMIN') return false;
+      return true;
     });
 
     // 3. Store 매출 합산
-    const storeTotal = tossStoreTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+    const storeTotal = storeTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
     // 4. 프랜차이즈 충전 합산
-    const franchiseTotal = tossFranchiseTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+    const franchiseTotal = franchiseTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
     // 5. 전체 누적 매출
     const totalRealPayments = storeTotal + franchiseTotal;
@@ -620,19 +613,19 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const monthlyStorePayments = tossStoreTransactions
+    const monthlyStorePayments = storeTransactions
       .filter((tx) => tx.createdAt >= startOfMonth)
       .reduce((sum, tx) => sum + tx.amount, 0);
 
-    const monthlyFranchisePayments = tossFranchiseTransactions
+    const monthlyFranchisePayments = franchiseTransactions
       .filter((tx) => tx.createdAt >= startOfMonth)
       .reduce((sum, tx) => sum + tx.amount, 0);
 
     const monthlyRealPayments = monthlyStorePayments + monthlyFranchisePayments;
 
     // 7. 총 결제 건수 (Store TOPUP + Franchise TOPUP)
-    const storeTransactionCount = tossStoreTransactions.filter((tx) => tx.type === 'TOPUP').length;
-    const franchiseTransactionCount = tossFranchiseTransactions.length;
+    const storeTransactionCount = storeTransactions.filter((tx) => tx.type === 'TOPUP').length;
+    const franchiseTransactionCount = franchiseTransactions.length;
     const totalTransactions = storeTransactionCount + franchiseTransactionCount;
 
     res.json({
