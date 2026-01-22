@@ -189,12 +189,12 @@ function BottomModal({
   isOpen,
   onClose,
   banners,
-  isStamp = false,
+  hasOrder = false,
 }: {
   isOpen: boolean;
   onClose: () => void;
   banners: Banner[];
-  isStamp?: boolean;
+  hasOrder?: boolean;
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -271,7 +271,7 @@ function BottomModal({
           {/* Content */}
           <div className="px-5 pb-4 text-center">
             <h2 className="text-xl font-bold text-black leading-[1.3] tracking-[-0.08px]">
-              {isStamp ? '스탬프가 적립되었어요' : '주문이 접수되었어요'}
+              {hasOrder ? '주문이 완료되었어요' : '스탬프가 적립되었어요'}
             </h2>
             <p className="text-base text-[#91949a] mt-2 leading-[1.5]">
               매장을 이용해주셔서 감사합니다
@@ -362,6 +362,7 @@ function OrderSuccessContent() {
   const slug = searchParams.get('slug') || 'taghere-test';
   const type = searchParams.get('type'); // 'stamp' or null
   const isStamp = type === 'stamp';
+  const hasOrder = Boolean(ordersheetId); // 텍스트 결정용: ordersheetId 유무로 판단
 
   // 모든 매장에서 바텀 모달 표시
   const shouldShowModal = true;
@@ -515,7 +516,7 @@ function OrderSuccessContent() {
         {/* Header */}
         <div className="flex-shrink-0 h-[54px] border-b border-[#ebeced] flex items-center justify-center">
           <span className="text-lg font-bold text-[#1d2022]">
-            {isStamp ? '스탬프 적립' : '주문정보'}
+            {hasOrder ? '주문정보' : '스탬프 적립'}
           </span>
         </div>
 
@@ -525,7 +526,7 @@ function OrderSuccessContent() {
           <div className="flex flex-col items-center mb-6">
             <CheckIcon />
             <h1 className="text-xl font-bold text-[#1d2022] mt-4 tracking-tight">
-              {isStamp ? '스탬프가 적립되었습니다' : '주문이 접수되었습니다'}
+              {hasOrder ? '주문이 완료되었어요' : '스탬프가 적립되었어요'}
             </h1>
           </div>
 
@@ -613,7 +614,7 @@ function OrderSuccessContent() {
         isOpen={showBottomModal}
         onClose={() => setShowBottomModal(false)}
         banners={banners}
-        isStamp={isStamp}
+        hasOrder={hasOrder}
       />
     </div>
   );
