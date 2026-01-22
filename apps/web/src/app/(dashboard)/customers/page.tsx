@@ -1568,9 +1568,9 @@ export default function CustomersPage() {
                       {formatNumber(editingCustomer?.totalPoints || 0)} P
                     </p>
                   </div>
-                  <div className="p-3 bg-amber-50 rounded-lg">
-                    <p className="text-xs text-amber-600 mb-1">스탬프</p>
-                    <p className="font-semibold text-amber-700">
+                  <div className="p-3 bg-neutral-50 rounded-lg">
+                    <p className="text-xs text-neutral-500 mb-1">스탬프</p>
+                    <p className="font-semibold text-neutral-900">
                       {(editingCustomer as any)?.totalStamps || 0}개
                     </p>
                   </div>
@@ -1578,8 +1578,8 @@ export default function CustomersPage() {
 
                 {/* Stamp Use Section */}
                 {((editingCustomer as any)?.totalStamps || 0) > 0 && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
-                    <p className="text-sm font-medium text-amber-800">스탬프 보상 사용</p>
+                  <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-lg space-y-2">
+                    <p className="text-sm font-medium text-neutral-700">스탬프 보상 사용</p>
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
@@ -1616,7 +1616,7 @@ export default function CustomersPage() {
                             setSubmittingEdit(false);
                           }
                         }}
-                        className={`flex-1 ${((editingCustomer as any)?.totalStamps || 0) >= 5 ? 'border-amber-500 text-amber-700 hover:bg-amber-100' : ''}`}
+                        className="flex-1"
                       >
                         5개 사용
                       </Button>
@@ -1655,12 +1655,12 @@ export default function CustomersPage() {
                             setSubmittingEdit(false);
                           }
                         }}
-                        className={`flex-1 ${((editingCustomer as any)?.totalStamps || 0) >= 10 ? 'border-amber-500 text-amber-700 hover:bg-amber-100' : ''}`}
+                        className="flex-1"
                       >
                         10개 사용
                       </Button>
                     </div>
-                    <p className="text-xs text-amber-600">
+                    <p className="text-xs text-neutral-500">
                       고객이 보상을 요청하면 해당 버튼을 눌러주세요.
                     </p>
                   </div>

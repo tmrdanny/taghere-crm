@@ -173,7 +173,7 @@ export default function StampSettingsPage() {
                   <span className="text-xs font-medium">2</span>
                 </div>
                 <p>
-                  스탬프는 <strong>무제한 적립</strong>되며, 고객이 5개 또는 10개를 모으면 보상을 사용할 수 있습니다.
+                  스탬프는 <strong>하루 1개씩 적립</strong>되며, 고객이 5개 또는 10개를 모으면 보상을 사용할 수 있습니다.
                 </p>
               </div>
               <div className="flex items-start gap-3">
