@@ -600,22 +600,38 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
       return true;
     });
 
-    // 3. Store 매출 합산
-    const storeTotal = storeTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+    // 3. Store 매출 합산 (TOPUP은 더하고, REFUND는 빼기)
+    const storeTopups = storeTransactions.filter((tx) => tx.type === 'TOPUP');
+    const storeRefunds = storeTransactions.filter((tx) => tx.type === 'REFUND');
+    const storeTopupTotal = storeTopups.reduce((sum, tx) => sum + tx.amount, 0);
+    const storeRefundTotal = storeRefunds.reduce((sum, tx) => sum + tx.amount, 0);
+    const storeTotal = storeTopupTotal - storeRefundTotal;
 
     // 4. 프랜차이즈 충전 합산
     const franchiseTotal = franchiseTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
-    // 5. 전체 누적 매출
+    // 5. 전체 누적 매출 (TOPUP - REFUND)
     const totalRealPayments = storeTotal + franchiseTotal;
 
-    // 6. 이번 달 매출 계산
+    // 디버그 로그
+    console.log('[payment-stats] Store TOPUP:', storeTopups.length, '건,', storeTopupTotal, '원');
+    console.log('[payment-stats] Store REFUND:', storeRefunds.length, '건,', storeRefundTotal, '원');
+    console.log('[payment-stats] Franchise TOPUP:', franchiseTransactions.length, '건,', franchiseTotal, '원');
+    console.log('[payment-stats] Total:', totalRealPayments, '원');
+
+    // 6. 이번 달 매출 계산 (TOPUP - REFUND)
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const monthlyStorePayments = storeTransactions
+    const monthlyStoreTopups = storeTopups
       .filter((tx) => tx.createdAt >= startOfMonth)
       .reduce((sum, tx) => sum + tx.amount, 0);
+
+    const monthlyStoreRefunds = storeRefunds
+      .filter((tx) => tx.createdAt >= startOfMonth)
+      .reduce((sum, tx) => sum + tx.amount, 0);
+
+    const monthlyStorePayments = monthlyStoreTopups - monthlyStoreRefunds;
 
     const monthlyFranchisePayments = franchiseTransactions
       .filter((tx) => tx.createdAt >= startOfMonth)
