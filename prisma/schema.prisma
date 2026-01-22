@@ -255,6 +255,7 @@ model PointLedger {
   type        PointType
   reason      String?      // 사용 사유
   orderId     String?      // 관련 주문 ID
+  tableLabel  String?      // 테이블 번호/이름 (예: "A1", "테이블 3")
   createdAt   DateTime     @default(now())
 
   // Relations

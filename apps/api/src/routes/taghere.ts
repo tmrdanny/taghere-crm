@@ -55,11 +55,13 @@ const webhookAuthMiddleware = (req: WebhookRequest, res: Response, next: NextFun
 interface TaghereOrderData {
   resultPrice?: number | string;
   totalPrice?: number | string;
+  tableLabel?: string;
   orderItems?: any[];
   items?: any[];
   content?: {
     resultPrice?: number | string;
     totalPrice?: number | string;
+    tableLabel?: string;
     items?: any[];
   };
 }
@@ -148,6 +150,9 @@ router.get('/ordersheet', async (req, res) => {
       },
     });
 
+    // tableLabel 추출
+    const tableLabel = orderData.content?.tableLabel || orderData.tableLabel || (orderData as any).tableLabel || null;
+
     res.json({
       storeId: store.id,
       storeName: (orderData as any).storeName || store.name,
@@ -159,6 +164,7 @@ router.get('/ordersheet', async (req, res) => {
       orderItems: orderData.content?.items || orderData.orderItems || orderData.items || [],
       orderNumber: (orderData as any).displayOrderNumber || (orderData as any).orderNumber || null,
       menuLink: (orderData as any).menuLink || null,
+      tableLabel,
     });
   } catch (error: any) {
     console.error('[TagHere] Ordersheet error:', error);
@@ -320,7 +326,8 @@ router.post('/auto-earn', async (req, res) => {
       price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
       option: item.option || null,
     }));
-    const tableNumber = (orderData as any)?.content?.tableNumber || (orderData as any)?.tableNumber || null;
+    // tableLabel 추출 (tableLabel 또는 tableNumber)
+    const tableLabel = orderData?.content?.tableLabel || orderData?.tableLabel || (orderData as any)?.content?.tableNumber || (orderData as any)?.tableNumber || null;
 
     // 7. 포인트 계산
     const ratePercent = store.pointRatePercent || 5;
@@ -366,6 +373,7 @@ router.post('/auto-earn', async (req, res) => {
           type: 'EARN',
           reason: `TagHere 자동 적립 (ordersheetId: ${ordersheetId})`,
           orderId: ordersheetId,
+          tableLabel: tableLabel,
         },
       }),
       prisma.visitOrOrder.create({
@@ -375,15 +383,15 @@ router.post('/auto-earn', async (req, res) => {
           orderId: ordersheetId,
           visitedAt: new Date(),
           totalAmount: resultPrice > 0 ? resultPrice : null,
-          items: orderItems.length > 0 || tableNumber ? {
+          items: orderItems.length > 0 || tableLabel ? {
             items: orderItems,
-            tableNumber: tableNumber,
+            tableNumber: tableLabel,
           } : undefined,
         },
       }),
     ]);
 
-    console.log(`[TagHere Auto-Earn] Points earned - customerId: ${customer.id}, earnPoints: ${earnPoints}, newBalance: ${newBalance}, orderItemsCount: ${orderItems.length}, tableNumber: ${tableNumber}`);
+    console.log(`[TagHere Auto-Earn] Points earned - customerId: ${customer.id}, earnPoints: ${earnPoints}, newBalance: ${newBalance}, orderItemsCount: ${orderItems.length}, tableLabel: ${tableLabel}`);
 
     // 10. 알림톡 발송 (전화번호가 있는 경우만, 비동기)
     const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');

@@ -403,12 +403,14 @@ const DEV_API_STORE_SLUGS = ['zeroclasslab', 'taghere-test'];
 interface TaghereOrderData {
   resultPrice?: number | string;
   totalPrice?: number | string;
+  tableLabel?: string;
   tableNumber?: string;
   orderItems?: any[];
   items?: any[];
   content?: {
     resultPrice?: number | string;
     totalPrice?: number | string;
+    tableLabel?: string;
     tableNumber?: string;
     items?: any[];
   };
@@ -971,15 +973,15 @@ router.get('/taghere-callback', async (req, res) => {
     // TagHere API에서 주문 정보 조회 (slug 기반으로 Dev/Prod API 선택)
     let resultPrice = 0;
     let orderItems: any[] = [];
-    let tableNumber: string | null = null;
+    let tableLabel: string | null = null;
     if (stateData.ordersheetId) {
       const orderData = await fetchOrdersheetForCallback(stateData.ordersheetId, stateData.slug);
       if (orderData) {
         // resultPrice는 content.resultPrice에 있고, 문자열일 수 있음
         const rawPrice = orderData.content?.resultPrice || orderData.resultPrice || orderData.content?.totalPrice || orderData.totalPrice || 0;
         resultPrice = typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : rawPrice;
-        // 테이블 번호 추출
-        tableNumber = orderData.content?.tableNumber || orderData.tableNumber || null;
+        // 테이블 레이블 추출 (tableLabel 또는 tableNumber)
+        tableLabel = orderData.content?.tableLabel || orderData.tableLabel || orderData.content?.tableNumber || orderData.tableNumber || null;
         // 주문 아이템 정보 - TagHere API 응답 구조에 따라 추출
         const rawItems = orderData.content?.items || orderData.orderItems || orderData.items || [];
         // items 구조 로깅 (디버깅용)
@@ -992,7 +994,7 @@ router.get('/taghere-callback', async (req, res) => {
           option: item.option || null,
         }));
         console.log('[TagHere Kakao] Normalized items:', JSON.stringify(orderItems, null, 2));
-        console.log('[TagHere Kakao] Table number:', tableNumber);
+        console.log('[TagHere Kakao] Table label:', tableLabel);
       }
     }
 
@@ -1085,6 +1087,7 @@ router.get('/taghere-callback', async (req, res) => {
             ? `TagHere 주문 적립 (ordersheetId: ${stateData.ordersheetId})`
             : 'TagHere 적립',
           orderId: stateData.ordersheetId || null,
+          tableLabel: tableLabel,
         },
       }),
       // 주문 정보를 VisitOrOrder 테이블에 저장
@@ -1095,9 +1098,9 @@ router.get('/taghere-callback', async (req, res) => {
           orderId: stateData.ordersheetId || null,
           visitedAt: new Date(),
           totalAmount: resultPrice > 0 ? resultPrice : null,
-          items: orderItems.length > 0 || tableNumber ? {
+          items: orderItems.length > 0 || tableLabel ? {
             items: orderItems,
-            tableNumber: tableNumber,
+            tableNumber: tableLabel,
           } : undefined,
         },
       }),

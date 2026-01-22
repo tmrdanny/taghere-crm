@@ -43,6 +43,7 @@ interface PointLedgerEntry {
   balance: number;
   type: 'EARN' | 'USE' | 'EXPIRE' | 'ADJUST';
   reason: string | null;
+  tableLabel: string | null;
   createdAt: string;
 }
 
@@ -1914,6 +1915,11 @@ export default function CustomersPage() {
                                   <span className="text-sm font-medium text-neutral-900">
                                     {order.totalAmount ? `${formatNumber(order.totalAmount)}원` : '금액 미입력'}
                                   </span>
+                                  {order.tableNumber && (
+                                    <span className="text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+                                      {order.tableNumber}
+                                    </span>
+                                  )}
                                 </div>
                                 <span className="text-xs text-neutral-400">
                                   {formatDate(order.visitedAt)} {new Date(order.visitedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -2070,6 +2076,11 @@ export default function CustomersPage() {
                                     <span className="text-xs text-neutral-400">
                                       잔액 {formatNumber(entry.balance)} P
                                     </span>
+                                    {entry.tableLabel && (
+                                      <span className="text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+                                        {entry.tableLabel}
+                                      </span>
+                                    )}
                                   </div>
                                   <p className="text-xs text-neutral-500 mt-0.5">
                                     {displayReason}
