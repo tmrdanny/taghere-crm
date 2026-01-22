@@ -383,7 +383,7 @@ router.post('/auto-earn', async (req, res) => {
       }),
     ]);
 
-    console.log(`[TagHere Auto-Earn] Points earned - customerId: ${customer.id}, earnPoints: ${earnPoints}, newBalance: ${newBalance}`);
+    console.log(`[TagHere Auto-Earn] Points earned - customerId: ${customer.id}, earnPoints: ${earnPoints}, newBalance: ${newBalance}, orderItemsCount: ${orderItems.length}, tableNumber: ${tableNumber}`);
 
     // 10. 알림톡 발송 (전화번호가 있는 경우만, 비동기)
     const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');

@@ -173,6 +173,8 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
     }
 
+    console.log(`[Customer Detail] customerId: ${id}, visitsOrOrdersCount: ${customer.visitsOrOrders.length}`);
+
     // visitsOrOrders의 items 정규화 (다양한 API 응답 구조 지원)
     const normalizedVisitsOrOrders = customer.visitsOrOrders.map((visit) => {
       let normalizedItems: any[] = [];
