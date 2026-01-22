@@ -65,7 +65,7 @@ interface TaghereOrderData {
 }
 
 // TagHere API에서 주문 정보 조회 (운영 API 사용)
-async function fetchOrdersheet(ordersheetId: string): Promise<TaghereOrderData> {
+async function fetchOrdersheet(ordersheetId: string): Promise<TaghereOrderData | null> {
   const apiUrl = TAGHERE_API_URL;
   const apiToken = TAGHERE_API_TOKEN;
 
@@ -84,6 +84,10 @@ async function fetchOrdersheet(ordersheetId: string): Promise<TaghereOrderData> 
   if (!response.ok) {
     const errorText = await response.text();
     console.error('[TagHere] API error:', response.status, errorText);
+    // 404인 경우 null 반환 (주문서 없음)
+    if (response.status === 404) {
+      return null;
+    }
     throw new Error(`TagHere API error: ${response.status}`);
   }
 
@@ -119,6 +123,11 @@ router.get('/ordersheet', async (req, res) => {
 
     // TagHere API 호출
     const orderData = await fetchOrdersheet(ordersheetId as string);
+
+    // 주문서를 찾을 수 없는 경우
+    if (!orderData) {
+      return res.status(404).json({ error: '주문 정보를 찾을 수 없습니다.' });
+    }
 
     console.log('[TagHere] Ordersheet data:', JSON.stringify(orderData, null, 2));
 
@@ -294,18 +303,24 @@ router.post('/auto-earn', async (req, res) => {
 
     // 6. TagHere API에서 주문 금액 조회
     const orderData = await fetchOrdersheet(ordersheetId);
-    const rawPrice = orderData.content?.resultPrice || orderData.resultPrice || orderData.content?.totalPrice || orderData.totalPrice || 0;
+
+    // 주문서를 찾을 수 없는 경우 기본값 사용 (적립은 진행)
+    if (!orderData) {
+      console.log(`[TagHere Auto-Earn] Ordersheet not found, using default points - ordersheetId: ${ordersheetId}`);
+    }
+
+    const rawPrice = orderData?.content?.resultPrice || orderData?.resultPrice || orderData?.content?.totalPrice || orderData?.totalPrice || 0;
     const resultPrice = typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : rawPrice;
 
     // 주문 아이템 정보 추출
-    const rawItems = orderData.content?.items || orderData.orderItems || orderData.items || [];
+    const rawItems = orderData?.content?.items || orderData?.orderItems || orderData?.items || [];
     const orderItems = rawItems.map((item: any) => ({
       name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
       quantity: item.count || item.quantity || item.qty || item.amount || 1,
       price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
       option: item.option || null,
     }));
-    const tableNumber = (orderData as any).content?.tableNumber || (orderData as any).tableNumber || null;
+    const tableNumber = (orderData as any)?.content?.tableNumber || (orderData as any)?.tableNumber || null;
 
     // 7. 포인트 계산
     const ratePercent = store.pointRatePercent || 5;
