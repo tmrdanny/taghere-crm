@@ -328,7 +328,7 @@ function SuccessPopup({
           {/* Main Message */}
           <div className="text-center mb-5">
             <h2 className="text-[18px] font-bold text-neutral-900 mb-1">
-              알림톡으로 적립내용을 보내드렸어요!
+              알림톡으로 적립내역을 보내드렸어요!
             </h2>
             <p className="text-[14px] text-neutral-400">
               소중한 의견은 큰 도움이 돼요
