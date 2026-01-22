@@ -56,12 +56,14 @@ interface TaghereOrderData {
   resultPrice?: number | string;
   totalPrice?: number | string;
   tableLabel?: string;
+  tableID?: string;
   orderItems?: any[];
   items?: any[];
   content?: {
     resultPrice?: number | string;
     totalPrice?: number | string;
     tableLabel?: string;
+    tableID?: string;
     items?: any[];
   };
 }
