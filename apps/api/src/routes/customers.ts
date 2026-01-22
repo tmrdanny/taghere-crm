@@ -428,12 +428,7 @@ router.post('/visit-source', async (req, res) => {
       return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
     }
 
-    // 이미 방문 경로가 설정된 경우 덮어쓰지 않음
-    if (customer.visitSource) {
-      return res.json({ success: true, message: '이미 방문 경로가 설정되어 있습니다.', visitSource: customer.visitSource });
-    }
-
-    // Update visit source
+    // Update visit source (기존 값이 있어도 덮어씀)
     const updatedCustomer = await prisma.customer.update({
       where: { id: customerId },
       data: { visitSource },
