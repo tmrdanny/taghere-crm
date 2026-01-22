@@ -279,7 +279,7 @@ export default function FranchiseBillingPage() {
 
       await widgets.requestPayment({
         orderId,
-        orderName: '태그히어 프랜차이즈 CRM 충전',
+        orderName: '태그히어 프랜차이즈 CRM',
         successUrl: `${window.location.origin}/franchise/billing`,
         failUrl: `${window.location.origin}/franchise/billing?fail=true`,
         customerEmail: '',
