@@ -6,6 +6,41 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
+// 태그히어 서버 연동 설정
+const TAGHERE_CRM_BASE_URL = process.env.TAGHERE_CRM_BASE_URL || 'https://taghere-crm-web-dev.onrender.com';
+const TAGHERE_WEBHOOK_URL = 'https://api.d.tag-here.com/webhook/crm';
+const TAGHERE_DEV_API_TOKEN = process.env.TAGHERE_DEV_API_TOKEN || '';
+
+// 매장 생성 시 태그히어 서버에 CRM 활성화 알림
+async function notifyTaghereCrmOnStoreCreate(userId: string, slug: string): Promise<void> {
+  if (!TAGHERE_DEV_API_TOKEN) {
+    console.log('[TagHere CRM] TAGHERE_DEV_API_TOKEN not configured, skipping notification');
+    return;
+  }
+
+  // 기본값: 포인트 적립 URL
+  const redirectUrl = `${TAGHERE_CRM_BASE_URL}/taghere-enroll/${slug}?ordersheetId={ordersheetId}`;
+
+  try {
+    const response = await fetch(`${TAGHERE_WEBHOOK_URL}/onrequest`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TAGHERE_DEV_API_TOKEN}`,
+      },
+      body: JSON.stringify({ userId, redirectUrl }),
+    });
+
+    if (!response.ok) {
+      console.error('[TagHere CRM] Store create onrequest failed:', response.status, await response.text());
+    } else {
+      console.log(`[TagHere CRM] Store create onrequest success - userId: ${userId}, slug: ${slug}`);
+    }
+  } catch (error) {
+    console.error('[TagHere CRM] Store create onrequest error:', error);
+  }
+}
+
 // 한글을 로마자로 변환 (간단한 음차 테이블)
 const koreanToRoman: { [key: string]: string } = {
   'ㄱ': 'g', 'ㄲ': 'kk', 'ㄴ': 'n', 'ㄷ': 'd', 'ㄸ': 'tt', 'ㄹ': 'r', 'ㅁ': 'm',
@@ -172,6 +207,11 @@ router.post('/register', async (req, res) => {
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '7d' }
     );
+
+    // 태그히어 서버에 CRM 활성화 알림 (비동기, 에러가 발생해도 회원가입은 성공 처리)
+    notifyTaghereCrmOnStoreCreate(email, slug).catch((err) => {
+      console.error('[Auth] Failed to notify TagHere on store create:', err);
+    });
 
     res.status(201).json({
       token,

@@ -994,16 +994,16 @@ export default function AdminStoresPage() {
                   )}
                 </div>
 
-                {/* 스탬프 적립 링크 */}
+                {/* 스탬프 적립 링크 (태그히어 사용) */}
                 <div className="rounded-xl p-4 bg-amber-50">
-                  <label className="block text-[12px] text-amber-600 mb-1">스탬프 적립 링크</label>
+                  <label className="block text-[12px] text-amber-600 mb-1">스탬프 적립 링크 (태그히어 사용)</label>
                   {selectedStore.slug ? (
                     <div className="flex items-center gap-2">
                       <code className="text-[13px] text-amber-700 font-mono truncate flex-1">
-                        /taghere-enroll-stamp/{selectedStore.slug}
+                        /taghere-enroll-stamp/{selectedStore.slug}?ordersheetId={'{ordersheetId}'}
                       </code>
                       <button
-                        onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll-stamp/${selectedStore.slug}`, e)}
+                        onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll-stamp/${selectedStore.slug}?ordersheetId={ordersheetId}`, e)}
                         className="p-1 text-amber-500 hover:text-amber-700 transition-colors flex-shrink-0"
                         title="복사"
                       >

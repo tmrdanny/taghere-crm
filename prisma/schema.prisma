@@ -1142,7 +1142,7 @@ model StampSetting {
   storeId               String   @unique
 
   // 기본 설정
-  enabled               Boolean  @default(true)
+  enabled               Boolean  @default(false)
 
   // 보상 설정 (5개, 10개 단위)
   reward5Description    String?  // 5개 보상 설명 (예: "아메리카노 1잔 무료")
@@ -1200,4 +1200,44 @@ enum StampEarnMethod {
   NFC_TAG         // NFC 태그
   QR_CODE         // QR 코드
   MANUAL          // 수동 입력
+}
+
+// ============================================
+// 월별 무료 메시지 크레딧
+// ============================================
+
+// 월별 무료 크레딧 (매장별)
+model MonthlyCredit {
+  id              String   @id @default(cuid())
+  storeId         String
+  yearMonth       String   // "2026-01" 형식
+  totalCredits    Int      @default(30)   // 제공 크레딧 (기본 30건)
+  usedCredits     Int      @default(0)    // 사용한 크레딧
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  usageLogs       CreditUsageLog[]
+
+  @@unique([storeId, yearMonth])
+  @@index([storeId])
+  @@index([yearMonth])
+  @@map("monthly_credits")
+}
+
+// 크레딧 사용 내역
+model CreditUsageLog {
+  id              String   @id @default(cuid())
+  monthlyCreditId String
+  campaignId      String?  // SmsCampaign 또는 BrandMessageCampaign ID
+  messageType     String   // "SMS", "LMS", "MMS", "KAKAO_TEXT", "KAKAO_IMAGE"
+  usedCount       Int      // 사용 건수
+  createdAt       DateTime @default(now())
+
+  // Relations
+  monthlyCredit   MonthlyCredit @relation(fields: [monthlyCreditId], references: [id], onDelete: Cascade)
+
+  @@index([monthlyCreditId])
+  @@index([createdAt])
+  @@map("credit_usage_logs")
 }

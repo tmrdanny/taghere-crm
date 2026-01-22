@@ -88,6 +88,68 @@ const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'taghere';
 // 해시 생성: npx bcrypt-cli hash "비밀번호"
 const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
 
+// 태그히어 서버 연동 설정
+const TAGHERE_CRM_BASE_URL = process.env.TAGHERE_CRM_BASE_URL || 'https://taghere-crm-web-dev.onrender.com';
+const TAGHERE_WEBHOOK_URL = 'https://api.d.tag-here.com/webhook/crm';
+const TAGHERE_DEV_API_TOKEN = process.env.TAGHERE_DEV_API_TOKEN || '';
+
+// CRM 활성화 시 태그히어 서버에 알림
+async function notifyTaghereCrmOn(userId: string, slug: string, isStampMode: boolean = false): Promise<void> {
+  if (!TAGHERE_DEV_API_TOKEN) {
+    console.log('[TagHere CRM] TAGHERE_DEV_API_TOKEN not configured, skipping notification');
+    return;
+  }
+
+  const path = isStampMode ? 'taghere-enroll-stamp' : 'taghere-enroll';
+  const redirectUrl = `${TAGHERE_CRM_BASE_URL}/${path}/${slug}?ordersheetId={ordersheetId}`;
+
+  try {
+    const response = await fetch(`${TAGHERE_WEBHOOK_URL}/onrequest`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TAGHERE_DEV_API_TOKEN}`,
+      },
+      body: JSON.stringify({ userId, redirectUrl }),
+    });
+
+    if (!response.ok) {
+      console.error('[TagHere CRM] onrequest failed:', response.status, await response.text());
+    } else {
+      console.log(`[TagHere CRM] onrequest success - userId: ${userId}, isStampMode: ${isStampMode}`);
+    }
+  } catch (error) {
+    console.error('[TagHere CRM] onrequest error:', error);
+  }
+}
+
+// CRM 비활성화 시 태그히어 서버에 알림
+async function notifyTaghereCrmOff(redirectUrl: string = ''): Promise<void> {
+  if (!TAGHERE_DEV_API_TOKEN) {
+    console.log('[TagHere CRM] TAGHERE_DEV_API_TOKEN not configured, skipping notification');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${TAGHERE_WEBHOOK_URL}/offrequest`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TAGHERE_DEV_API_TOKEN}`,
+      },
+      body: JSON.stringify({ redirectUrl }),
+    });
+
+    if (!response.ok) {
+      console.error('[TagHere CRM] offrequest failed:', response.status, await response.text());
+    } else {
+      console.log('[TagHere CRM] offrequest success');
+    }
+  } catch (error) {
+    console.error('[TagHere CRM] offrequest error:', error);
+  }
+}
+
 interface AdminRequest extends Request {
   isAdmin?: boolean;
 }
