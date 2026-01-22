@@ -60,6 +60,8 @@ interface Store {
   pointRatePercent?: number;
   pointUsageRule?: string | null;
   pointsAlimtalkEnabled?: boolean;
+  // CRM settings
+  crmEnabled?: boolean;
 }
 
 interface TopupModalData {
@@ -245,6 +247,7 @@ export default function AdminStoresPage() {
       pointRatePercent: store.pointRatePercent ?? 5,
       pointUsageRule: store.pointUsageRule,
       pointsAlimtalkEnabled: store.pointsAlimtalkEnabled ?? true,
+      crmEnabled: store.crmEnabled ?? true,
     });
     setPointRateInput(String(store.pointRatePercent ?? 5));
     setIsEditMode(false);
@@ -1014,6 +1017,45 @@ export default function AdminStoresPage() {
                     </div>
                   ) : (
                     <span className="text-[14px] text-amber-400">slug 없음</span>
+                  )}
+                </div>
+
+                {/* CRM 연동 토글 */}
+                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
+                  <label className="block text-[12px] text-neutral-500 mb-2">태그히어 CRM 연동</label>
+                  {isEditMode ? (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, crmEnabled: true })}
+                        className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-lg border transition-all ${
+                          editForm.crmEnabled !== false
+                            ? 'bg-green-500 text-white border-green-500'
+                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        활성화
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, crmEnabled: false })}
+                        className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-lg border transition-all ${
+                          editForm.crmEnabled === false
+                            ? 'bg-neutral-700 text-white border-neutral-700'
+                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        비활성화
+                      </button>
+                    </div>
+                  ) : (
+                    <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-lg ${
+                      selectedStore.crmEnabled !== false
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-neutral-200 text-neutral-600'
+                    }`}>
+                      {selectedStore.crmEnabled !== false ? '활성화' : '비활성화'}
+                    </span>
                   )}
                 </div>
               </div>

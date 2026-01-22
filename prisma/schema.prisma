@@ -28,6 +28,7 @@ model Store {
 
   naverPlaceId           String?        // 네이버 플레이스 ID (리뷰 연동용)
   naverPlaceUrl          String?  // 네이버 플레이스 공유 링크
+  crmEnabled             Boolean  @default(true) // CRM 기능 활성화 여부 (태그히어 연동)
   pointsAlimtalkEnabled  Boolean  @default(true) // 포인트 적립/사용 알림톡 자동 발송
   pointsAlimtalkFrequency String  @default("EVERY_ORDER") // 알림톡 발송 빈도: "EVERY_ORDER" | "FIRST_ONLY"
   // 포인트 적립률 설정 (결제금액 기반) - 항상 활성화

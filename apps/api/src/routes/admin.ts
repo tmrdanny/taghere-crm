@@ -250,6 +250,7 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         pointRatePercent: true,
         pointUsageRule: true,
         pointsAlimtalkEnabled: true,
+        crmEnabled: true,
         staffUsers: {
           select: {
             id: true,
@@ -297,6 +298,7 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
       pointRatePercent: store.pointRatePercent,
       pointUsageRule: store.pointUsageRule,
       pointsAlimtalkEnabled: store.pointsAlimtalkEnabled,
+      crmEnabled: (store as any).crmEnabled ?? true,
       // Wallet balance 포함
       walletBalance: store.wallet?.balance || 0,
     }));
@@ -370,11 +372,20 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       pointRatePercent,
       pointUsageRule,
       pointsAlimtalkEnabled,
+      crmEnabled,
     } = req.body;
 
-    // 매장 확인
+    // 매장 확인 (스탬프 설정과 OWNER 이메일도 함께 조회)
     const existingStore = await prisma.store.findUnique({
       where: { id: storeId },
+      include: {
+        stampSetting: true,
+        staffUsers: {
+          where: { role: 'OWNER' },
+          select: { email: true },
+          take: 1,
+        },
+      },
     });
 
     if (!existingStore) {
@@ -409,8 +420,31 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
         ...(pointRatePercent !== undefined && { pointRatePercent }),
         ...(pointUsageRule !== undefined && { pointUsageRule: pointUsageRule || null }),
         ...(pointsAlimtalkEnabled !== undefined && { pointsAlimtalkEnabled }),
+        ...(crmEnabled !== undefined && { crmEnabled }),
       },
     });
+
+    // CRM 활성화 상태 변경 시 태그히어 서버에 알림
+    const wasCrmEnabled = (existingStore as any).crmEnabled ?? true;
+    if (crmEnabled !== undefined && crmEnabled !== wasCrmEnabled) {
+      const ownerEmail = existingStore.staffUsers?.[0]?.email;
+      const storeSlug = slug || existingStore.slug;
+
+      if (ownerEmail && storeSlug) {
+        if (crmEnabled) {
+          // CRM ON → 스탬프 모드 확인 후 적절한 URL 전송
+          const isStampMode = existingStore.stampSetting?.enabled ?? false;
+          await notifyTaghereCrmOn(ownerEmail, storeSlug, isStampMode);
+          console.log(`[Admin] CRM enabled for store ${storeId}, isStampMode: ${isStampMode}`);
+        } else {
+          // CRM OFF → offrequest 호출
+          await notifyTaghereCrmOff('');
+          console.log(`[Admin] CRM disabled for store ${storeId}`);
+        }
+      } else {
+        console.log(`[Admin] Store ${storeId} missing owner email or slug, skipped TagHere notification`);
+      }
+    }
 
     res.json({
       success: true,

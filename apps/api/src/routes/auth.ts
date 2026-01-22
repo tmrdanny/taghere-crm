@@ -13,6 +13,9 @@ const TAGHERE_DEV_API_TOKEN = process.env.TAGHERE_DEV_API_TOKEN || '';
 
 // 매장 생성 시 태그히어 서버에 CRM 활성화 알림
 async function notifyTaghereCrmOnStoreCreate(userId: string, slug: string): Promise<void> {
+  console.log(`[TagHere CRM] notifyTaghereCrmOnStoreCreate called - userId: ${userId}, slug: ${slug}`);
+  console.log(`[TagHere CRM] TAGHERE_DEV_API_TOKEN configured: ${!!TAGHERE_DEV_API_TOKEN}, length: ${TAGHERE_DEV_API_TOKEN.length}`);
+
   if (!TAGHERE_DEV_API_TOKEN) {
     console.log('[TagHere CRM] TAGHERE_DEV_API_TOKEN not configured, skipping notification');
     return;
@@ -20,6 +23,10 @@ async function notifyTaghereCrmOnStoreCreate(userId: string, slug: string): Prom
 
   // 기본값: 포인트 적립 URL
   const redirectUrl = `${TAGHERE_CRM_BASE_URL}/taghere-enroll/${slug}?ordersheetId={ordersheetId}`;
+  const requestBody = { userId, redirectUrl };
+
+  console.log(`[TagHere CRM] Sending request to ${TAGHERE_WEBHOOK_URL}/onrequest`);
+  console.log(`[TagHere CRM] Request body:`, JSON.stringify(requestBody));
 
   try {
     const response = await fetch(`${TAGHERE_WEBHOOK_URL}/onrequest`, {
@@ -28,13 +35,15 @@ async function notifyTaghereCrmOnStoreCreate(userId: string, slug: string): Prom
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${TAGHERE_DEV_API_TOKEN}`,
       },
-      body: JSON.stringify({ userId, redirectUrl }),
+      body: JSON.stringify(requestBody),
     });
 
+    const responseText = await response.text();
+
     if (!response.ok) {
-      console.error('[TagHere CRM] Store create onrequest failed:', response.status, await response.text());
+      console.error(`[TagHere CRM] Store create onrequest failed: status=${response.status}, body=${responseText}`);
     } else {
-      console.log(`[TagHere CRM] Store create onrequest success - userId: ${userId}, slug: ${slug}`);
+      console.log(`[TagHere CRM] Store create onrequest success - userId: ${userId}, slug: ${slug}, response: ${responseText}`);
     }
   } catch (error) {
     console.error('[TagHere CRM] Store create onrequest error:', error);
