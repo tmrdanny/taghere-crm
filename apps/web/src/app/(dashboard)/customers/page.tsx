@@ -35,6 +35,7 @@ interface Customer {
   isVip: boolean;
   isNew: boolean;
   visitSource: string | null;  // 방문 경로
+  lastTableLabel: string | null;  // 마지막 방문 좌석
 }
 
 interface PointLedgerEntry {
@@ -1192,6 +1193,9 @@ export default function CustomersPage() {
                   방문 경로
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
+                  좌석
+                </th>
+                <th className="p-4 text-left text-sm font-medium text-neutral-600">
                   방문 횟수
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
@@ -1202,21 +1206,21 @@ export default function CustomersPage() {
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-neutral-500">
+                  <td colSpan={11} className="p-8 text-center text-neutral-500">
                     불러오는 중...
                   </td>
                 </tr>
               )}
               {!isLoading && error && (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-error">
+                  <td colSpan={11} className="p-8 text-center text-error">
                     {error}
                   </td>
                 </tr>
               )}
               {!isLoading && !error && customers.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-neutral-500">
+                  <td colSpan={11} className="p-8 text-center text-neutral-500">
                     결과가 없습니다.
                   </td>
                 </tr>
@@ -1283,6 +1287,11 @@ export default function CustomersPage() {
                           {customer.visitSource
                             ? visitSourceLabelMap[customer.visitSource] || customer.visitSource
                             : '-'}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-neutral-600 text-sm">
+                          {customer.lastTableLabel || '-'}
                         </span>
                       </td>
                       <td className="p-4">

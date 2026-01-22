@@ -123,12 +123,31 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       messageCounts.map((mc) => [mc.customerId, mc._count.id])
     );
 
+    // Get last table label for each customer (from most recent PointLedger with tableLabel)
+    const lastTableLabels = await prisma.pointLedger.findMany({
+      where: {
+        storeId,
+        customerId: { in: customerIds },
+        tableLabel: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+      distinct: ['customerId'],
+      select: {
+        customerId: true,
+        tableLabel: true,
+      },
+    });
+    const tableLabelsMap = new Map(
+      lastTableLabels.map((l) => [l.customerId, l.tableLabel])
+    );
+
     // Determine VIP status and add message count
     const customersWithVip = customers.map((customer) => ({
       ...customer,
       isVip: customer.visitCount >= 20 || customer.totalPoints >= 5000,
       isNew: customer.visitCount <= 1,
       messageCount: messageCountMap.get(customer.id) || 0,
+      lastTableLabel: tableLabelsMap.get(customer.id) || null,
     }));
 
     res.json({

@@ -237,6 +237,12 @@ function SuccessPopup({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
 
+  // 단계별 UI: 방문 경로 활성화 시 1/2 → 2/2 단계로 진행
+  const showVisitSourceStep = visitSourceEnabled && !successData.hasVisitSource && visitSourceOptions.length > 0;
+  const showCategoryStep = !successData.hasExistingPreferences;
+  const totalSteps = (showVisitSourceStep ? 1 : 0) + (showCategoryStep ? 1 : 0);
+  const [currentStep, setCurrentStep] = useState(1); // 1 = 방문경로, 2 = 선호업종
+
   const toggleCategory = (categoryValue: string) => {
     setSelectedCategories(prev => {
       // "모든 업종" 클릭 시
@@ -350,8 +356,20 @@ function SuccessPopup({
             <StarRating rating={feedbackRating} onRatingChange={setFeedbackRating} />
           </div>
 
-          {/* Visit Source Selection - 조건부 표시 */}
-          {visitSourceEnabled && !successData.hasVisitSource && visitSourceOptions.length > 0 && (
+          {/* 단계 표시기 - 2단계 이상일 때만 표시 */}
+          {totalSteps >= 2 && (
+            <div className="flex justify-center gap-2 mb-4">
+              {showVisitSourceStep && (
+                <div className={`w-2 h-2 rounded-full transition-colors ${currentStep === 1 ? 'bg-[#6BA3FF]' : 'bg-neutral-200'}`} />
+              )}
+              {showCategoryStep && (
+                <div className={`w-2 h-2 rounded-full transition-colors ${currentStep === 2 || (!showVisitSourceStep && currentStep === 1) ? 'bg-[#6BA3FF]' : 'bg-neutral-200'}`} />
+              )}
+            </div>
+          )}
+
+          {/* Step 1: Visit Source Selection - 방문 경로 활성화 시 */}
+          {showVisitSourceStep && currentStep === 1 && (
             <div className="mb-4 mt-5">
               <p className="text-[15px] font-semibold text-neutral-900 mb-1.5 text-center">
                 어떻게 저희 매장을 알게 되셨나요?
@@ -383,8 +401,8 @@ function SuccessPopup({
             </div>
           )}
 
-          {/* Preferred Categories - 조건부 표시 */}
-          {!successData.hasExistingPreferences && (
+          {/* Step 2: Preferred Categories - 선호 업종 선택 */}
+          {showCategoryStep && ((showVisitSourceStep && currentStep === 2) || (!showVisitSourceStep && currentStep === 1)) && (
             <div className="mb-4 mt-5">
               <p className="text-[15px] font-semibold text-neutral-900 mb-1.5 text-center">
                 어떤 업종을 선호하세요?
@@ -492,35 +510,61 @@ function SuccessPopup({
             </div>
           )}
 
-          {/* Feedback Text */}
-          <div className="mb-4">
-            <textarea
-              value={feedbackText}
-              onChange={(e) => setFeedbackText(e.target.value)}
-              placeholder="매장 경험에 대한 솔직한 피드백을 남겨주시면 감사하겠습니다."
-              className="w-full h-[84px] px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg resize-none text-[14px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
-            />
-          </div>
+          {/* Feedback Text - 마지막 단계에서만 표시 */}
+          {((showVisitSourceStep && showCategoryStep && currentStep === 2) ||
+            (showVisitSourceStep && !showCategoryStep && currentStep === 1) ||
+            (!showVisitSourceStep && showCategoryStep && currentStep === 1) ||
+            (!showVisitSourceStep && !showCategoryStep)) && (
+            <div className="mb-4">
+              <textarea
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                placeholder="매장 경험에 대한 솔직한 피드백을 남겨주시면 감사하겠습니다."
+                className="w-full h-[84px] px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg resize-none text-[14px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+              />
+            </div>
+          )}
 
           {/* Spacer to push buttons to bottom */}
           <div className="flex-1 min-h-[12px]"></div>
 
-          {/* Buttons */}
+          {/* Buttons - 단계에 따라 다른 버튼 표시 */}
           <div className="flex gap-3 pb-2">
-            <button
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="flex-1 py-3.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-semibold text-[15px] rounded-xl transition-colors"
-            >
-              다음에 쓸게요
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="flex-1 py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-[15px] rounded-xl transition-colors"
-            >
-              {isSubmitting ? '제출 중...' : '제출할게요'}
-            </button>
+            {/* Step 1 (방문 경로) 버튼 - 다음 단계가 있을 때 */}
+            {showVisitSourceStep && showCategoryStep && currentStep === 1 ? (
+              <>
+                <button
+                  onClick={onClose}
+                  className="flex-1 py-3.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-semibold text-[15px] rounded-xl transition-colors"
+                >
+                  건너뛰기
+                </button>
+                <button
+                  onClick={() => setCurrentStep(2)}
+                  className="flex-1 py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-[15px] rounded-xl transition-colors"
+                >
+                  다음
+                </button>
+              </>
+            ) : (
+              /* 마지막 단계 버튼 */
+              <>
+                <button
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                  className="flex-1 py-3.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-semibold text-[15px] rounded-xl transition-colors"
+                >
+                  다음에 쓸게요
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="flex-1 py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-[15px] rounded-xl transition-colors"
+                >
+                  {isSubmitting ? '제출 중...' : '제출할게요'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

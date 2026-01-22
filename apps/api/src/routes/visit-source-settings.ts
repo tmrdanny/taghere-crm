@@ -39,12 +39,12 @@ router.get('/', async (req: AuthRequest, res) => {
       where: { storeId },
     });
 
-    // 설정이 없으면 기본값으로 생성 (enabled: false)
+    // 설정이 없으면 기본값으로 생성 (enabled: true - 기본 ON)
     if (!setting) {
       setting = await prisma.visitSourceSetting.create({
         data: {
           storeId,
-          enabled: false,
+          enabled: true,
           options: DEFAULT_OPTIONS,
         },
       });

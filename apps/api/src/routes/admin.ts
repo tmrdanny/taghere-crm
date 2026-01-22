@@ -2260,4 +2260,53 @@ router.get('/payments/summary', adminAuthMiddleware, async (req: AdminRequest, r
   }
 });
 
+// POST /api/admin/enable-all-visit-source - 모든 매장 방문 경로 활성화
+router.post('/enable-all-visit-source', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    // 기본 방문 경로 옵션
+    const DEFAULT_OPTIONS = [
+      { id: 'revisit', label: '단순 재방문', order: 1, enabled: true },
+      { id: 'friend', label: '지인 추천', order: 2, enabled: true },
+      { id: 'naver', label: '네이버', order: 3, enabled: true },
+      { id: 'youtube', label: '유튜브', order: 4, enabled: true },
+      { id: 'daangn', label: '당근', order: 5, enabled: true },
+      { id: 'instagram', label: '인스타그램', order: 6, enabled: true },
+      { id: 'sms', label: '문자', order: 7, enabled: true },
+      { id: 'kakao', label: '카카오톡', order: 8, enabled: true },
+      { id: 'passby', label: '지나가다 방문', order: 9, enabled: true },
+    ];
+
+    // 모든 매장 조회
+    const stores = await prisma.store.findMany({
+      select: { id: true },
+    });
+
+    // 각 매장에 대해 방문 경로 설정 upsert (활성화)
+    const results = await Promise.all(
+      stores.map(store =>
+        prisma.visitSourceSetting.upsert({
+          where: { storeId: store.id },
+          create: {
+            storeId: store.id,
+            enabled: true,
+            options: DEFAULT_OPTIONS,
+          },
+          update: {
+            enabled: true,
+          },
+        })
+      )
+    );
+
+    res.json({
+      success: true,
+      message: `${results.length}개 매장의 방문 경로가 활성화되었습니다.`,
+      count: results.length,
+    });
+  } catch (error) {
+    console.error('Enable all visit source error:', error);
+    res.status(500).json({ error: '방문 경로 활성화 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;
