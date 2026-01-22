@@ -45,25 +45,19 @@ export class SolapiService {
 
   // 전화번호 형식 정규화 (01012345678 형태로 변환)
   private normalizePhoneNumber(phone: string): string {
-    console.log(`[SOLAPI 정규화] 입력: ${phone}`);
-
     // 숫자만 추출
     let digits = phone.replace(/[^0-9]/g, '');
-    console.log(`[SOLAPI 정규화] 숫자만 추출: ${digits}`);
 
     // 82로 시작하면 국가코드 제거하고 0 추가
     if (digits.startsWith('82')) {
       digits = '0' + digits.slice(2);
-      console.log(`[SOLAPI 정규화] 국가코드 변환: ${digits}`);
     }
 
     // 0으로 시작하지 않으면 0 추가
     if (!digits.startsWith('0')) {
       digits = '0' + digits;
-      console.log(`[SOLAPI 정규화] 0 추가: ${digits}`);
     }
 
-    console.log(`[SOLAPI 정규화] 최종 출력: ${digits}`);
     return digits;
   }
 
