@@ -20,7 +20,7 @@ async function notifyTaghereCrmOn(userId: string, slug: string, isStampMode: boo
   const redirectUrl = `${TAGHERE_CRM_BASE_URL}/${path}/${slug}?ordersheetId={ordersheetId}`;
 
   try {
-    const response = await fetch(`${TAGHERE_WEBHOOK_URL}/onrequest`, {
+    const response = await fetch(`${TAGHERE_WEBHOOK_URL}/on`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -30,12 +30,12 @@ async function notifyTaghereCrmOn(userId: string, slug: string, isStampMode: boo
     });
 
     if (!response.ok) {
-      console.error('[TagHere CRM] onrequest failed:', response.status, await response.text());
+      console.error('[TagHere CRM] on failed:', response.status, await response.text());
     } else {
-      console.log(`[TagHere CRM] onrequest success - userId: ${userId}, isStampMode: ${isStampMode}, redirectUrl: ${redirectUrl}`);
+      console.log(`[TagHere CRM] on success - userId: ${userId}, isStampMode: ${isStampMode}, redirectUrl: ${redirectUrl}`);
     }
   } catch (error) {
-    console.error('[TagHere CRM] onrequest error:', error);
+    console.error('[TagHere CRM] on error:', error);
   }
 }
 

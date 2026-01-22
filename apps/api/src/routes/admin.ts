@@ -104,7 +104,7 @@ async function notifyTaghereCrmOn(userId: string, slug: string, isStampMode: boo
   const redirectUrl = `${TAGHERE_CRM_BASE_URL}/${path}/${slug}?ordersheetId={ordersheetId}`;
 
   try {
-    const response = await fetch(`${TAGHERE_WEBHOOK_URL}/onrequest`, {
+    const response = await fetch(`${TAGHERE_WEBHOOK_URL}/on`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -114,12 +114,12 @@ async function notifyTaghereCrmOn(userId: string, slug: string, isStampMode: boo
     });
 
     if (!response.ok) {
-      console.error('[TagHere CRM] onrequest failed:', response.status, await response.text());
+      console.error('[TagHere CRM] on failed:', response.status, await response.text());
     } else {
-      console.log(`[TagHere CRM] onrequest success - userId: ${userId}, isStampMode: ${isStampMode}`);
+      console.log(`[TagHere CRM] on success - userId: ${userId}, isStampMode: ${isStampMode}`);
     }
   } catch (error) {
-    console.error('[TagHere CRM] onrequest error:', error);
+    console.error('[TagHere CRM] on error:', error);
   }
 }
 
@@ -131,7 +131,7 @@ async function notifyTaghereCrmOff(redirectUrl: string = ''): Promise<void> {
   }
 
   try {
-    const response = await fetch(`${TAGHERE_WEBHOOK_URL}/offrequest`, {
+    const response = await fetch(`${TAGHERE_WEBHOOK_URL}/off`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -141,12 +141,12 @@ async function notifyTaghereCrmOff(redirectUrl: string = ''): Promise<void> {
     });
 
     if (!response.ok) {
-      console.error('[TagHere CRM] offrequest failed:', response.status, await response.text());
+      console.error('[TagHere CRM] off failed:', response.status, await response.text());
     } else {
-      console.log('[TagHere CRM] offrequest success');
+      console.log('[TagHere CRM] off success');
     }
   } catch (error) {
-    console.error('[TagHere CRM] offrequest error:', error);
+    console.error('[TagHere CRM] off error:', error);
   }
 }
 

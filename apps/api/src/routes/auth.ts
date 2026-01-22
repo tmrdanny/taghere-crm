@@ -25,11 +25,11 @@ async function notifyTaghereCrmOnStoreCreate(userId: string, slug: string): Prom
   const redirectUrl = `${TAGHERE_CRM_BASE_URL}/taghere-enroll/${slug}?ordersheetId={ordersheetId}`;
   const requestBody = { userId, redirectUrl };
 
-  console.log(`[TagHere CRM] Sending request to ${TAGHERE_WEBHOOK_URL}/onrequest`);
+  console.log(`[TagHere CRM] Sending request to ${TAGHERE_WEBHOOK_URL}/on`);
   console.log(`[TagHere CRM] Request body:`, JSON.stringify(requestBody));
 
   try {
-    const response = await fetch(`${TAGHERE_WEBHOOK_URL}/onrequest`, {
+    const response = await fetch(`${TAGHERE_WEBHOOK_URL}/on`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -41,12 +41,12 @@ async function notifyTaghereCrmOnStoreCreate(userId: string, slug: string): Prom
     const responseText = await response.text();
 
     if (!response.ok) {
-      console.error(`[TagHere CRM] Store create onrequest failed: status=${response.status}, body=${responseText}`);
+      console.error(`[TagHere CRM] Store create on failed: status=${response.status}, body=${responseText}`);
     } else {
-      console.log(`[TagHere CRM] Store create onrequest success - userId: ${userId}, slug: ${slug}, response: ${responseText}`);
+      console.log(`[TagHere CRM] Store create on success - userId: ${userId}, slug: ${slug}, response: ${responseText}`);
     }
   } catch (error) {
-    console.error('[TagHere CRM] Store create onrequest error:', error);
+    console.error('[TagHere CRM] Store create on error:', error);
   }
 }
 
