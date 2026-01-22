@@ -7,6 +7,7 @@ import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { SolapiService } from '../services/solapi.js';
+import { calculateCostWithCredits, useCredits } from '../services/credit-service.js';
 
 const router = Router();
 
@@ -221,12 +222,25 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
     const isImageAttached = hasImage === 'true';
     const costPerMessage = isImageAttached ? MMS_COST : (byteLength > 90 ? SMS_COST_LONG : SMS_COST_SHORT);
     const messageType = isImageAttached ? 'MMS' : (byteLength > 90 ? 'LMS' : 'SMS');
-    const totalCost = targetCount * costPerMessage;
+
+    // 리타겟 페이지 여부 확인 (/messages 페이지에서 호출 시 무료 크레딧 적용)
+    // isRetargetPage 파라미터가 없으면 기본적으로 true (기존 /messages 페이지 호환)
+    const isRetargetPage = req.query.isRetargetPage !== 'false';
+
+    // 무료 크레딧 적용 계산
+    const creditResult = await calculateCostWithCredits(
+      storeId,
+      targetCount,
+      costPerMessage,
+      isRetargetPage
+    );
 
     // 지갑 잔액 조회
     const wallet = await prisma.wallet.findUnique({
       where: { storeId },
     });
+
+    const walletBalance = wallet?.balance || 0;
 
     // 매장 평균 객단가 조회 (예상 매출 계산용)
     const avgOrderResult = await prisma.visitOrOrder.aggregate({
@@ -243,9 +257,16 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
       byteLength,
       messageType,
       costPerMessage,
-      totalCost,
-      walletBalance: wallet?.balance || 0,
-      canSend: (wallet?.balance || 0) >= totalCost,
+      totalCost: creditResult.totalCost,
+      walletBalance,
+      canSend: walletBalance >= creditResult.totalCost,
+      // 무료 크레딧 정보
+      freeCredits: {
+        remaining: creditResult.remainingCredits,
+        freeCount: creditResult.freeCount,
+        paidCount: creditResult.paidCount,
+        isRetargetPage,
+      },
       estimatedRevenue: {
         avgOrderValue,
         conversionRate: 0.045, // SMS 방문율 4.5%

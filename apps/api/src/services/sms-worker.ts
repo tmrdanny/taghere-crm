@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { SolapiService } from './solapi.js';
+import { useCredits, getRemainingCredits } from './credit-service.js';
 
 const BATCH_SIZE = 20;
 const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
@@ -70,7 +71,30 @@ async function processMessage(messageId: string): Promise<void> {
     }
 
     if (statusResult.status === 'SENT') {
-      // 발송 성공 - 트랜잭션으로 상태 업데이트 + 비용 차감
+      // 발송 성공 - 무료 크레딧 우선 사용 후 유료 비용 차감
+      // /messages 페이지(SmsCampaign)에서 발송한 모든 메시지는 무료 크레딧 적용 대상
+      let freeCreditUsed = 0;
+      let paidCost = msg.cost;
+
+      // 무료 크레딧 사용 시도 (비용이 있는 경우에만)
+      if (msg.cost > 0) {
+        const remainingCredits = await getRemainingCredits(msg.storeId);
+        if (remainingCredits > 0) {
+          // 1건에 대해 무료 크레딧 사용
+          // 메시지 타입 추론: 110원 = MMS, 70원 = LMS, 50원 = SMS
+          const messageType = msg.cost >= 110 ? 'MMS' : (msg.cost >= 70 ? 'LMS' : 'SMS');
+          freeCreditUsed = await useCredits(
+            msg.storeId,
+            1,
+            msg.campaignId,
+            messageType
+          );
+          if (freeCreditUsed > 0) {
+            paidCost = 0; // 무료 크레딧 사용 시 유료 비용 0
+          }
+        }
+      }
+
       await prisma.$transaction(async (tx) => {
         // 1. 메시지 상태 업데이트
         await tx.smsMessage.update({
@@ -81,39 +105,45 @@ async function processMessage(messageId: string): Promise<void> {
           },
         });
 
-        // 2. 지갑 잔액 차감
-        await tx.wallet.update({
-          where: { storeId: msg.storeId },
-          data: { balance: { decrement: msg.cost } },
-        });
+        // 2. 유료 비용이 있는 경우에만 지갑 잔액 차감
+        if (paidCost > 0) {
+          await tx.wallet.update({
+            where: { storeId: msg.storeId },
+            data: { balance: { decrement: paidCost } },
+          });
 
-        // 3. 결제 트랜잭션 로그 생성
-        await tx.paymentTransaction.create({
-          data: {
-            storeId: msg.storeId,
-            amount: -msg.cost,
-            type: 'ALIMTALK_SEND', // SMS_SEND enum 추가 필요시 변경
-            status: 'SUCCESS',
-            meta: {
-              messageId: messageId,
-              campaignId: msg.campaignId,
-              phone: msg.phone,
-              type: 'SMS',
+          // 결제 트랜잭션 로그 생성
+          await tx.paymentTransaction.create({
+            data: {
+              storeId: msg.storeId,
+              amount: -paidCost,
+              type: 'ALIMTALK_SEND', // SMS_SEND enum 추가 필요시 변경
+              status: 'SUCCESS',
+              meta: {
+                messageId: messageId,
+                campaignId: msg.campaignId,
+                phone: msg.phone,
+                type: 'SMS',
+              },
             },
-          },
-        });
+          });
+        }
 
-        // 4. 캠페인 sentCount 증가
+        // 3. 캠페인 sentCount 증가 (totalCost는 실제 유료 비용만)
         await tx.smsCampaign.update({
           where: { id: msg.campaignId },
           data: {
             sentCount: { increment: 1 },
-            totalCost: { increment: msg.cost },
+            totalCost: { increment: paidCost },
           },
         });
       });
 
-      console.log(`[SMS Worker] Message ${messageId} sent successfully, cost: ${msg.cost}원 차감`);
+      if (freeCreditUsed > 0) {
+        console.log(`[SMS Worker] Message ${messageId} sent successfully (무료 크레딧 사용)`);
+      } else {
+        console.log(`[SMS Worker] Message ${messageId} sent successfully, cost: ${paidCost}원 차감`);
+      }
     } else if (statusResult.status === 'FAILED') {
       // 발송 실패 - 상태만 업데이트, 비용 차감 없음
       await prisma.$transaction(async (tx) => {

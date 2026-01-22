@@ -52,6 +52,7 @@ import waitingSettingsRoutes from './routes/waiting-settings.js';
 import publicWaitingRoutes from './routes/public-waiting.js';
 import stampSettingsRoutes from './routes/stamp-settings.js';
 import stampsRoutes from './routes/stamps.js';
+import monthlyCreditRoutes from './routes/monthly-credit.js';
 import { startAlimTalkWorker } from './services/alimtalk-worker.js';
 import { startSmsWorker } from './services/sms-worker.js';
 import { startExternalSmsWorker } from './services/external-sms-worker.js';
@@ -229,6 +230,9 @@ app.use('/api/public/waiting', publicWaitingRoutes);
 // Stamp routes
 app.use('/api/stamp-settings', stampSettingsRoutes);
 app.use('/api/stamps', stampsRoutes);
+
+// Monthly credit routes
+app.use('/api/monthly-credit', monthlyCreditRoutes);
 
 // Franchise routes
 app.use('/api/franchise/auth', franchiseAuthRoutes);

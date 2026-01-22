@@ -61,6 +61,13 @@ interface EstimatedRevenue {
   expectedRevenue: number;
 }
 
+interface FreeCredits {
+  remaining: number;
+  freeCount: number;
+  paidCount: number;
+  isRetargetPage: boolean;
+}
+
 interface Estimate {
   targetCount: number;
   byteLength: number;
@@ -70,6 +77,7 @@ interface Estimate {
   walletBalance: number;
   canSend: boolean;
   estimatedRevenue?: EstimatedRevenue;
+  freeCredits?: FreeCredits;
 }
 
 interface UploadedImage {
@@ -122,6 +130,7 @@ interface KakaoEstimate {
   walletBalance: number;
   canSend: boolean;
   estimatedRevenue?: EstimatedRevenue;
+  freeCredits?: FreeCredits;
 }
 
 interface KakaoUploadedImage {
@@ -1180,14 +1189,49 @@ export default function MessagesPage() {
 
             {/* Cost Summary */}
             <div className="p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
+              {/* 무료 크레딧 안내 */}
+              {estimate?.freeCredits?.isRetargetPage && estimate.freeCredits.remaining > 0 && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-600 font-medium text-sm">이달의 무료 크레딧</span>
+                      <span className="text-green-700 font-bold">{estimate.freeCredits.remaining}건 남음</span>
+                    </div>
+                    {estimate.freeCredits.freeCount > 0 && (
+                      <span className="text-green-600 text-sm">
+                        무료 {estimate.freeCredits.freeCount}건 적용
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* 예상 비용 + 현재 잔액 */}
               <div className="flex items-center justify-between gap-4 mb-4">
                 <div>
                   <p className="text-xs sm:text-sm text-[#64748b]">예상 비용</p>
-                  <p className="text-lg sm:text-xl font-bold text-[#1e293b]">
-                    {formatNumber(estimate?.targetCount || getCurrentTargetCount())}명 × {formatNumber(estimate?.costPerMessage || (uploadedImage ? 110 : 50))}원 ={' '}
-                    <span className="text-[#3b82f6]">{formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원</span>
-                  </p>
+                  {estimate?.freeCredits?.freeCount && estimate.freeCredits.freeCount > 0 ? (
+                    <div>
+                      <p className="text-sm text-[#64748b]">
+                        <span className="line-through">
+                          {formatNumber(estimate.targetCount)}명 × {formatNumber(estimate.costPerMessage)}원
+                        </span>
+                      </p>
+                      <p className="text-lg sm:text-xl font-bold text-[#1e293b]">
+                        <span className="text-green-600">무료 {estimate.freeCredits.freeCount}건</span>
+                        {estimate.freeCredits.paidCount > 0 && (
+                          <span> + 유료 {estimate.freeCredits.paidCount}건</span>
+                        )}
+                        {' = '}
+                        <span className="text-[#3b82f6]">{formatNumber(estimate.totalCost)}원</span>
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-lg sm:text-xl font-bold text-[#1e293b]">
+                      {formatNumber(estimate?.targetCount || getCurrentTargetCount())}명 × {formatNumber(estimate?.costPerMessage || (uploadedImage ? 110 : 50))}원 ={' '}
+                      <span className="text-[#3b82f6]">{formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원</span>
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-xs sm:text-sm text-[#64748b]">현재 잔액</p>
@@ -1499,14 +1543,49 @@ export default function MessagesPage() {
 
             {/* Cost Summary */}
             <div className="p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
+              {/* 무료 크레딧 안내 */}
+              {kakaoEstimate?.freeCredits?.isRetargetPage && kakaoEstimate.freeCredits.remaining > 0 && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-600 font-medium text-sm">이달의 무료 크레딧</span>
+                      <span className="text-green-700 font-bold">{kakaoEstimate.freeCredits.remaining}건 남음</span>
+                    </div>
+                    {kakaoEstimate.freeCredits.freeCount > 0 && (
+                      <span className="text-green-600 text-sm">
+                        무료 {kakaoEstimate.freeCredits.freeCount}건 적용
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* 예상 비용 + 현재 잔액 */}
               <div className="flex items-center justify-between gap-4 mb-4">
                 <div>
                   <p className="text-xs sm:text-sm text-[#64748b]">예상 비용</p>
-                  <p className="text-lg sm:text-xl font-bold text-[#1e293b]">
-                    {formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명 × {kakaoMessageType === 'IMAGE' ? '230' : '200'}원 ={' '}
-                    <span className="text-[#3b82f6]">{formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 230 : 200)))}원</span>
-                  </p>
+                  {kakaoEstimate?.freeCredits?.freeCount && kakaoEstimate.freeCredits.freeCount > 0 ? (
+                    <div>
+                      <p className="text-sm text-[#64748b]">
+                        <span className="line-through">
+                          {formatNumber(kakaoEstimate.targetCount)}명 × {kakaoMessageType === 'IMAGE' ? '230' : '200'}원
+                        </span>
+                      </p>
+                      <p className="text-lg sm:text-xl font-bold text-[#1e293b]">
+                        <span className="text-green-600">무료 {kakaoEstimate.freeCredits.freeCount}건</span>
+                        {kakaoEstimate.freeCredits.paidCount > 0 && (
+                          <span> + 유료 {kakaoEstimate.freeCredits.paidCount}건</span>
+                        )}
+                        {' = '}
+                        <span className="text-[#3b82f6]">{formatNumber(kakaoEstimate.totalCost)}원</span>
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-lg sm:text-xl font-bold text-[#1e293b]">
+                      {formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명 × {kakaoMessageType === 'IMAGE' ? '230' : '200'}원 ={' '}
+                      <span className="text-[#3b82f6]">{formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 230 : 200)))}원</span>
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-xs sm:text-sm text-[#64748b]">현재 잔액</p>

@@ -282,7 +282,7 @@ export default function StampSettingsPage() {
                   <span className="text-xs font-medium">1</span>
                 </div>
                 <p>
-                  고객이 NFC 태그나 QR 코드를 스캔하면 <strong>1일 1회</strong> 스탬프가 적립됩니다.
+                  고객이 태그히어를 통해 로그인하면 스탬프가 적립됩니다.
                 </p>
               </div>
               <div className="flex items-start gap-3">
@@ -298,7 +298,7 @@ export default function StampSettingsPage() {
                   <span className="text-xs font-medium">3</span>
                 </div>
                 <p>
-                  고객이 보상을 요청하면, <strong>고객 목록</strong>에서 해당 고객을 찾아 &quot;5개 사용&quot; 또는 &quot;10개 사용&quot; 버튼을 눌러주세요.
+                  고객이 보상을 요청하면, <strong>고객 리스트</strong>에서 해당 고객을 찾아 &quot;5개 사용&quot; 또는 &quot;10개 사용&quot; 버튼을 눌러주세요.
                 </p>
               </div>
             </div>

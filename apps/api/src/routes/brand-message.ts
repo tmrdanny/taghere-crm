@@ -6,6 +6,7 @@ import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { SolapiService, BrandMessageButton } from '../services/solapi.js';
+import { calculateCostWithCredits } from '../services/credit-service.js';
 
 const router = Router();
 
@@ -229,7 +230,18 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     const costPerMessage = messageType === 'IMAGE' ? BRAND_MESSAGE_IMAGE_COST : BRAND_MESSAGE_TEXT_COST;
-    const totalCost = targetCount * costPerMessage;
+
+    // 리타겟 페이지 여부 확인 (/messages 페이지에서 호출 시 무료 크레딧 적용)
+    // isRetargetPage 파라미터가 없으면 기본적으로 true (기존 /messages 페이지 호환)
+    const isRetargetPage = req.query.isRetargetPage !== 'false';
+
+    // 무료 크레딧 적용 계산
+    const creditResult = await calculateCostWithCredits(
+      storeId,
+      targetCount,
+      costPerMessage,
+      isRetargetPage
+    );
 
     const wallet = await prisma.wallet.findUnique({ where: { storeId } });
 
@@ -247,9 +259,16 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
       targetCount,
       messageType: messageType || 'TEXT',
       costPerMessage,
-      totalCost,
+      totalCost: creditResult.totalCost,
       walletBalance: wallet?.balance || 0,
-      canSend: (wallet?.balance || 0) >= totalCost,
+      canSend: (wallet?.balance || 0) >= creditResult.totalCost,
+      // 무료 크레딧 정보
+      freeCredits: {
+        remaining: creditResult.remainingCredits,
+        freeCount: creditResult.freeCount,
+        paidCount: creditResult.paidCount,
+        isRetargetPage,
+      },
       estimatedRevenue: {
         avgOrderValue,
         conversionRate: 0.076, // 카카오톡 방문율 7.6%
