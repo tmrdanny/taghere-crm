@@ -1780,4 +1780,193 @@ router.get('/external-customer-stats', adminAuthMiddleware, async (req: AdminReq
   }
 });
 
+// ============================================
+// 프랜차이즈 충전금 관리
+// ============================================
+
+// POST /api/admin/franchises/:franchiseId/wallet/topup - 프랜차이즈 충전금 충전
+router.post('/franchises/:franchiseId/wallet/topup', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { franchiseId } = req.params;
+    const { amount, reason, adminPassword } = req.body;
+
+    // 비밀번호 검증
+    if (!adminPassword) {
+      return res.status(400).json({ error: '관리자 비밀번호를 입력해주세요.' });
+    }
+
+    if (!ADMIN_PASSWORD_HASH) {
+      return res.status(500).json({ error: '서버 설정 오류입니다.' });
+    }
+
+    const isValidPassword = await bcrypt.compare(adminPassword, ADMIN_PASSWORD_HASH);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: '비밀번호가 올바르지 않습니다.' });
+    }
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: '유효한 충전 금액을 입력해주세요.' });
+    }
+
+    // 프랜차이즈 확인
+    const franchise = await prisma.franchise.findUnique({
+      where: { id: franchiseId },
+    });
+
+    if (!franchise) {
+      return res.status(404).json({ error: '프랜차이즈를 찾을 수 없습니다.' });
+    }
+
+    // 지갑이 없으면 생성, 있으면 업데이트
+    const wallet = await prisma.franchiseWallet.upsert({
+      where: { franchiseId },
+      create: {
+        franchiseId,
+        balance: amount,
+      },
+      update: {
+        balance: { increment: amount },
+      },
+    });
+
+    // 프랜차이즈 트랜잭션 기록
+    await prisma.franchiseTransaction.create({
+      data: {
+        walletId: wallet.id,
+        amount,
+        type: 'TOPUP',
+        description: reason || '관리자 충전',
+        meta: {
+          source: 'admin',
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `${franchise.name} 프랜차이즈에 ${amount.toLocaleString()}원이 충전되었습니다.`,
+      newBalance: wallet.balance,
+    });
+  } catch (error) {
+    console.error('Admin franchise wallet topup error:', error);
+    res.status(500).json({ error: '충전 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/franchises/:franchiseId/wallet/deduct - 프랜차이즈 충전금 차감
+router.post('/franchises/:franchiseId/wallet/deduct', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { franchiseId } = req.params;
+    const { amount, reason, adminPassword } = req.body;
+
+    // 비밀번호 검증
+    if (!adminPassword) {
+      return res.status(400).json({ error: '관리자 비밀번호를 입력해주세요.' });
+    }
+
+    if (!ADMIN_PASSWORD_HASH) {
+      return res.status(500).json({ error: '서버 설정 오류입니다.' });
+    }
+
+    const isValidPassword = await bcrypt.compare(adminPassword, ADMIN_PASSWORD_HASH);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: '비밀번호가 올바르지 않습니다.' });
+    }
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: '유효한 차감 금액을 입력해주세요.' });
+    }
+
+    // 프랜차이즈 확인
+    const franchise = await prisma.franchise.findUnique({
+      where: { id: franchiseId },
+    });
+
+    if (!franchise) {
+      return res.status(404).json({ error: '프랜차이즈를 찾을 수 없습니다.' });
+    }
+
+    // 현재 지갑 잔액 확인
+    const currentWallet = await prisma.franchiseWallet.findUnique({
+      where: { franchiseId },
+    });
+
+    if (!currentWallet) {
+      return res.status(400).json({ error: '지갑이 존재하지 않습니다.' });
+    }
+
+    if (currentWallet.balance < amount) {
+      return res.status(400).json({ error: '잔액이 부족합니다.' });
+    }
+
+    // 잔액 차감
+    const wallet = await prisma.franchiseWallet.update({
+      where: { franchiseId },
+      data: {
+        balance: { decrement: amount },
+      },
+    });
+
+    // 프랜차이즈 트랜잭션 기록 (차감)
+    await prisma.franchiseTransaction.create({
+      data: {
+        walletId: wallet.id,
+        amount: -amount,
+        type: 'DEDUCT',
+        description: reason || '관리자 차감',
+        meta: {
+          source: 'admin',
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `${franchise.name} 프랜차이즈에서 ${amount.toLocaleString()}원이 차감되었습니다.`,
+      newBalance: wallet.balance,
+    });
+  } catch (error) {
+    console.error('Admin franchise wallet deduct error:', error);
+    res.status(500).json({ error: '차감 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/admin/franchises/:franchiseId/wallet - 프랜차이즈 지갑 정보 조회
+router.get('/franchises/:franchiseId/wallet', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { franchiseId } = req.params;
+
+    const wallet = await prisma.franchiseWallet.findUnique({
+      where: { franchiseId },
+      include: {
+        transactions: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        },
+      },
+    });
+
+    if (!wallet) {
+      return res.json({
+        balance: 0,
+        transactions: [],
+      });
+    }
+
+    res.json({
+      balance: wallet.balance,
+      transactions: wallet.transactions.map((t) => ({
+        id: t.id,
+        amount: t.amount,
+        type: t.type,
+        description: t.description,
+        createdAt: t.createdAt,
+      })),
+    });
+  } catch (error) {
+    console.error('Admin franchise wallet get error:', error);
+    res.status(500).json({ error: '지갑 정보 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;

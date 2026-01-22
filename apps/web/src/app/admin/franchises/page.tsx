@@ -52,6 +52,12 @@ export default function FranchisesPage() {
   const [showAddStoreModal, setShowAddStoreModal] = useState(false);
   const [showLogoUploadModal, setShowLogoUploadModal] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [walletAction, setWalletAction] = useState<'topup' | 'deduct'>('topup');
+  const [walletAmount, setWalletAmount] = useState('');
+  const [walletReason, setWalletReason] = useState('');
+  const [walletPassword, setWalletPassword] = useState('');
+  const [walletLoading, setWalletLoading] = useState(false);
 
   // 프랜차이즈 생성 폼 데이터
   const [formData, setFormData] = useState({
@@ -256,6 +262,66 @@ export default function FranchisesPage() {
     return amount.toLocaleString('ko-KR');
   };
 
+  const handleWalletAction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFranchise) return;
+
+    const amount = parseInt(walletAmount.replace(/,/g, ''), 10);
+    if (isNaN(amount) || amount <= 0) {
+      alert('유효한 금액을 입력해주세요.');
+      return;
+    }
+
+    if (!walletPassword) {
+      alert('관리자 비밀번호를 입력해주세요.');
+      return;
+    }
+
+    setWalletLoading(true);
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(
+        `${API_URL}/api/admin/franchises/${selectedFranchise.id}/wallet/${walletAction}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            amount,
+            reason: walletReason || undefined,
+            adminPassword: walletPassword,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || '처리에 실패했습니다.');
+      }
+
+      alert(data.message);
+      setShowWalletModal(false);
+      setWalletAmount('');
+      setWalletReason('');
+      setWalletPassword('');
+      setSelectedFranchise(null);
+      fetchFranchises();
+    } catch (error: any) {
+      alert(error.message);
+    } finally {
+      setWalletLoading(false);
+    }
+  };
+
+  const formatNumberInput = (value: string) => {
+    const num = value.replace(/[^\d]/g, '');
+    return num ? parseInt(num, 10).toLocaleString() : '';
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -357,6 +423,26 @@ export default function FranchisesPage() {
                           <button
                             onClick={() => {
                               setSelectedFranchise(franchise);
+                              setWalletAction('topup');
+                              setShowWalletModal(true);
+                            }}
+                            className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+                          >
+                            충전
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedFranchise(franchise);
+                              setWalletAction('deduct');
+                              setShowWalletModal(true);
+                            }}
+                            className="text-sm text-red-600 hover:text-red-700 font-medium"
+                          >
+                            차감
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedFranchise(franchise);
                               setShowAddStoreModal(true);
                             }}
                             className="text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -368,9 +454,9 @@ export default function FranchisesPage() {
                               setSelectedFranchise(franchise);
                               setShowLogoUploadModal(true);
                             }}
-                            className="text-sm text-green-600 hover:text-green-700 font-medium"
+                            className="text-sm text-neutral-600 hover:text-neutral-700 font-medium"
                           >
-                            로고 업로드
+                            로고
                           </button>
                         </div>
                       </td>
@@ -573,6 +659,91 @@ export default function FranchisesPage() {
                 닫기
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 충전/차감 모달 */}
+      {showWalletModal && selectedFranchise && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-neutral-900 mb-4">
+              {selectedFranchise.name} 충전금 {walletAction === 'topup' ? '충전' : '차감'}
+            </h2>
+            <div className="mb-4 p-3 bg-neutral-50 rounded-lg">
+              <div className="text-sm text-neutral-600">현재 잔액</div>
+              <div className="text-lg font-bold text-neutral-900">
+                {formatCurrency(selectedFranchise.wallet?.balance || 0)}원
+              </div>
+            </div>
+            <form onSubmit={handleWalletAction} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  {walletAction === 'topup' ? '충전' : '차감'} 금액 <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={walletAmount}
+                    onChange={(e) => setWalletAmount(formatNumberInput(e.target.value))}
+                    className="w-full px-3 py-2 pr-8 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 text-right"
+                    placeholder="0"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-500">원</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  사유 (선택)
+                </label>
+                <input
+                  type="text"
+                  value={walletReason}
+                  onChange={(e) => setWalletReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  placeholder={walletAction === 'topup' ? '예: 프로모션 지원금' : '예: 환불 처리'}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  관리자 비밀번호 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={walletPassword}
+                  onChange={(e) => setWalletPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  placeholder="관리자 비밀번호 입력"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowWalletModal(false);
+                    setWalletAmount('');
+                    setWalletReason('');
+                    setWalletPassword('');
+                    setSelectedFranchise(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-[#EAEAEA] rounded-lg hover:bg-neutral-50 transition-colors text-sm font-medium"
+                  disabled={walletLoading}
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors text-sm font-medium text-white disabled:cursor-not-allowed ${
+                    walletAction === 'topup'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400'
+                      : 'bg-red-600 hover:bg-red-700 disabled:bg-red-400'
+                  }`}
+                  disabled={walletLoading || !walletAmount || !walletPassword}
+                >
+                  {walletLoading ? '처리 중...' : walletAction === 'topup' ? '충전하기' : '차감하기'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
