@@ -1099,6 +1099,55 @@ router.post('/stamp-earn', async (req, res) => {
   }
 });
 
+// GET /api/taghere/visit-source-options/:slug - 매장의 활성화된 방문 경로 옵션 조회 (공개 API)
+router.get('/visit-source-options/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    // 매장 조회
+    const store = await prisma.store.findFirst({
+      where: { slug },
+      select: {
+        id: true,
+        visitSourceSetting: true,
+      },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    // 설정이 없거나 비활성화된 경우
+    if (!store.visitSourceSetting?.enabled) {
+      return res.json({
+        enabled: false,
+        options: [],
+      });
+    }
+
+    // 활성화된 옵션만 필터링하여 반환
+    const allOptions = store.visitSourceSetting.options as Array<{
+      id: string;
+      label: string;
+      order: number;
+      enabled: boolean;
+    }>;
+
+    const enabledOptions = allOptions
+      .filter(o => o.enabled)
+      .sort((a, b) => a.order - b.order)
+      .map(o => ({ id: o.id, label: o.label }));
+
+    res.json({
+      enabled: true,
+      options: enabledOptions,
+    });
+  } catch (error: any) {
+    console.error('[TagHere] Visit source options error:', error);
+    res.status(500).json({ error: '방문 경로 옵션 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 // GET /api/taghere/order-details - 주문 상세 정보 조회 (태그히어 모바일오더 API 호출)
 // 모든 매장의 성공 페이지에서 사용
 router.get('/order-details', async (req, res) => {

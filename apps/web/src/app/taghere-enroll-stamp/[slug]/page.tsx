@@ -121,11 +121,17 @@ interface StampInfo {
   enabled: boolean;
 }
 
+interface VisitSourceOption {
+  id: string;
+  label: string;
+}
+
 interface SuccessData {
   storeName: string;
   customerId: string;
   currentStamps: number;
   hasExistingPreferences: boolean;
+  hasVisitSource?: boolean;
   reward5Description: string | null;
   reward10Description: string | null;
 }
@@ -205,14 +211,19 @@ function StampImage({ onClick, isOpening }: { onClick: () => void; isOpening: bo
 
 function SuccessPopup({
   successData,
-  onClose
+  onClose,
+  visitSourceOptions,
+  visitSourceEnabled,
 }: {
   successData: SuccessData;
   onClose: () => void;
+  visitSourceOptions: VisitSourceOption[];
+  visitSourceEnabled: boolean;
 }) {
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackText, setFeedbackText] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedVisitSource, setSelectedVisitSource] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
 
@@ -254,6 +265,8 @@ function SuccessPopup({
 
     setIsSubmitting(true);
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
       // 선택된 카테고리를 세부 카테고리로 확장
       const expandedCategories = selectedCategories
         .filter(c => c !== ALL_CATEGORIES_VALUE)
@@ -262,7 +275,8 @@ function SuccessPopup({
           return option ? option.mappedCategories : [];
         });
 
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/customers/feedback`, {
+      // 피드백 저장
+      await fetch(`${apiUrl}/api/customers/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -274,6 +288,21 @@ function SuccessPopup({
           preferredCategories: expandedCategories.length > 0 ? expandedCategories : null,
         }),
       });
+
+      // 방문 경로 저장 (선택된 경우)
+      if (selectedVisitSource) {
+        await fetch(`${apiUrl}/api/customers/visit-source`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            customerId: successData.customerId,
+            visitSource: selectedVisitSource,
+          }),
+        });
+      }
+
       // 제출 완료 후 팝업 닫기
       onClose();
     } catch (error) {
@@ -310,6 +339,39 @@ function SuccessPopup({
           <div className="mb-11">
             <StarRating rating={feedbackRating} onRatingChange={setFeedbackRating} />
           </div>
+
+          {/* Visit Source Selection - 조건부 표시 */}
+          {visitSourceEnabled && !successData.hasVisitSource && visitSourceOptions.length > 0 && (
+            <div className="mb-4 mt-5">
+              <p className="text-[15px] font-semibold text-neutral-900 mb-1.5 text-center">
+                어떻게 저희 매장을 알게 되셨나요?
+              </p>
+              <p className="text-[13px] text-neutral-500 mb-3 text-center">
+                더 나은 서비스를 위해 알려주세요
+              </p>
+
+              {/* 방문 경로 선택 버튼 그리드 */}
+              <div className="grid grid-cols-3 gap-2">
+                {visitSourceOptions.map((option) => {
+                  const isSelected = selectedVisitSource === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setSelectedVisitSource(isSelected ? null : option.id)}
+                      className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
+                        isSelected
+                          ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
+                          : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Preferred Categories - 조건부 표시 */}
           {!successData.hasExistingPreferences && (
@@ -469,6 +531,8 @@ function TaghereEnrollStampContent() {
   const [showAgreementWarning, setShowAgreementWarning] = useState(false);
   const [isAutoEarning, setIsAutoEarning] = useState(false);
   const autoEarnAttemptedRef = useRef(false);
+  const [visitSourceOptions, setVisitSourceOptions] = useState<VisitSourceOption[]>([]);
+  const [visitSourceEnabled, setVisitSourceEnabled] = useState(false);
 
   const slug = params.slug as string;
   const ordersheetId = searchParams.get('ordersheetId');
@@ -561,6 +625,23 @@ function TaghereEnrollStampContent() {
       setIsLoading(false);
       return;
     }
+
+    // 방문 경로 옵션 조회
+    const fetchVisitSourceOptions = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${apiUrl}/api/taghere/visit-source-options/${slug}`);
+        if (res.ok) {
+          const data = await res.json();
+          setVisitSourceEnabled(data.enabled);
+          setVisitSourceOptions(data.options || []);
+        }
+      } catch (e) {
+        console.error('Failed to fetch visit source options:', e);
+      }
+    };
+
+    fetchVisitSourceOptions();
 
     const fetchStampInfo = async () => {
       try {
@@ -704,6 +785,8 @@ function TaghereEnrollStampContent() {
         <SuccessPopup
           successData={successData}
           onClose={handleCloseSuccessPopup}
+          visitSourceOptions={visitSourceOptions}
+          visitSourceEnabled={visitSourceEnabled}
         />
       ) : (
         // 스탬프 적립 전 → 기본 화면만 표시

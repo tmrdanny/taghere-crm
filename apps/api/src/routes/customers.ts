@@ -20,6 +20,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       startDate,
       endDate,
       dateType = 'lastVisit',
+      visitSource,
     } = req.query;
     const storeId = req.user!.storeId;
 
@@ -86,6 +87,11 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     // Filter by VIP (visit count > 20 or total points > 5000)
     if (isVip === 'true') {
       orConditions.push({ visitCount: { gte: 20 } }, { totalPoints: { gte: 5000 } });
+    }
+
+    // Filter by visit source
+    if (visitSource && visitSource !== 'all') {
+      where.AND.push({ visitSource: visitSource as string });
     }
 
     if (orConditions.length > 0) {
@@ -376,6 +382,46 @@ router.patch('/:id', authMiddleware, async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Customer update error:', error);
     res.status(500).json({ error: '고객 정보 수정 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/customers/visit-source - Public endpoint to save visit source (from enroll page)
+router.post('/visit-source', async (req, res) => {
+  try {
+    const { customerId, visitSource } = req.body;
+
+    if (!customerId) {
+      return res.status(400).json({ error: '고객 ID가 필요합니다.' });
+    }
+
+    if (!visitSource) {
+      return res.json({ success: true, message: '방문 경로 없음' });
+    }
+
+    // Verify customer exists
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
+    }
+
+    // 이미 방문 경로가 설정된 경우 덮어쓰지 않음
+    if (customer.visitSource) {
+      return res.json({ success: true, message: '이미 방문 경로가 설정되어 있습니다.', visitSource: customer.visitSource });
+    }
+
+    // Update visit source
+    const updatedCustomer = await prisma.customer.update({
+      where: { id: customerId },
+      data: { visitSource },
+    });
+
+    res.json({ success: true, visitSource: updatedCustomer.visitSource });
+  } catch (error) {
+    console.error('Customer visit source error:', error);
+    res.status(500).json({ error: '방문 경로 저장 중 오류가 발생했습니다.' });
   }
 });
 

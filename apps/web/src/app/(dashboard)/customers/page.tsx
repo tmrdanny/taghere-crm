@@ -34,6 +34,7 @@ interface Customer {
   lastVisitAt: string;
   isVip: boolean;
   isNew: boolean;
+  visitSource: string | null;  // 방문 경로
 }
 
 interface PointLedgerEntry {
@@ -228,6 +229,9 @@ export default function CustomersPage() {
   // Announcements
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
+  // 방문 경로 라벨 맵
+  const [visitSourceLabelMap, setVisitSourceLabelMap] = useState<Record<string, string>>({});
+
   const apiUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000', []);
   const userRole = 'OWNER';
 
@@ -268,6 +272,34 @@ export default function CustomersPage() {
     };
 
     fetchAnnouncements();
+  }, [apiUrl]);
+
+  // Fetch visit source settings for label mapping
+  useEffect(() => {
+    const fetchVisitSourceSettings = async () => {
+      try {
+        const token = getAuthToken();
+        const res = await fetch(`${apiUrl}/api/visit-source-settings`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const options = data.options as Array<{ id: string; label: string }>;
+          const labelMap: Record<string, string> = {};
+          options.forEach(opt => {
+            labelMap[opt.id] = opt.label;
+          });
+          setVisitSourceLabelMap(labelMap);
+        }
+      } catch (error) {
+        console.error('Failed to fetch visit source settings:', error);
+      }
+    };
+
+    fetchVisitSourceSettings();
   }, [apiUrl]);
 
   // Ref to track if component is mounted
@@ -1156,6 +1188,9 @@ export default function CustomersPage() {
                   메모
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
+                  방문 경로
+                </th>
+                <th className="p-4 text-left text-sm font-medium text-neutral-600">
                   방문 횟수
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-neutral-600">
@@ -1241,6 +1276,13 @@ export default function CustomersPage() {
                             <Edit2 className="w-3.5 h-3.5 text-neutral-400" />
                           </button>
                         </div>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-neutral-600 text-sm">
+                          {customer.visitSource
+                            ? visitSourceLabelMap[customer.visitSource] || customer.visitSource
+                            : '-'}
+                        </span>
                       </td>
                       <td className="p-4">
                         <div>
