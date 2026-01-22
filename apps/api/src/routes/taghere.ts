@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
+import { enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk } from '../services/solapi.js';
 
 const router = Router();
 
@@ -873,6 +873,9 @@ router.post('/stamp-earn', async (req, res) => {
         id: true,
         name: true,
         stampSetting: true,
+        reviewAutomationSetting: {
+          select: { benefitText: true },
+        },
       },
     });
 
@@ -1034,10 +1037,47 @@ router.post('/stamp-earn', async (req, res) => {
 
     console.log(`[TagHere Stamp-Earn] Stamp earned - customerId: ${customer.id}, newBalance: ${result.customer.totalStamps}`);
 
-    // 9. 알림톡 발송 (비동기) - 추후 구현
-    // if (store.stampSetting.alimtalkEnabled && customer.phone) {
-    //   enqueueStampEarnedAlimTalk({...});
-    // }
+    // 9. 알림톡 발송 (비동기)
+    const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
+    if (store.stampSetting.alimtalkEnabled && phoneNumber) {
+      // 스탬프 사용 규칙 생성
+      const reward5 = store.stampSetting.reward5Description;
+      const reward10 = store.stampSetting.reward10Description;
+      let stampUsageRule: string;
+
+      if (reward5 && reward10) {
+        // 둘 다 있는 경우
+        stampUsageRule = `5개 모을 시: ${reward5}, 10개 모을 시: ${reward10}`;
+      } else if (reward5) {
+        // 5개 보상만 있는 경우
+        stampUsageRule = `5개 모을 시: ${reward5}`;
+      } else if (reward10) {
+        // 10개 보상만 있는 경우
+        stampUsageRule = `10개 모을 시: ${reward10}`;
+      } else {
+        // 둘 다 없는 경우
+        stampUsageRule = '10개 모을시 매장 선물 증정!';
+      }
+
+      // 리뷰 작성 안내 문구
+      const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
+
+      enqueueStampEarnedAlimTalk({
+        storeId: store.id,
+        customerId: customer.id,
+        stampLedgerId: result.ledger.id,
+        phone: phoneNumber,
+        variables: {
+          storeName: store.name,
+          earnedStamps: 1,
+          totalStamps: result.customer.totalStamps,
+          stampUsageRule,
+          reviewGuide,
+        },
+      }).catch((err) => {
+        console.error('[TagHere Stamp-Earn] Stamp AlimTalk enqueue failed:', err);
+      });
+    }
 
     // 10. 성공 응답
     res.json({

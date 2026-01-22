@@ -21,6 +21,14 @@ export interface NaverReviewRequestVariables {
   benefitText: string;
 }
 
+export interface StampEarnedVariables {
+  storeName: string;
+  earnedStamps: number;
+  totalStamps: number;
+  stampUsageRule: string;
+  reviewGuide: string;
+}
+
 // SOLAPI 서비스 클래스
 export class SolapiService {
   private messageService: SolapiMessageService | null = null;
@@ -668,6 +676,71 @@ export interface BrandMessageButton {
   name: string; // 버튼명 (최대 14자)
   linkMo: string; // 모바일 URL (필수)
   linkPc?: string; // PC URL (선택)
+}
+
+// 스탬프 적립 알림톡 발송 요청
+export async function enqueueStampEarnedAlimTalk(params: {
+  storeId: string;
+  customerId: string;
+  stampLedgerId: string;
+  phone: string;
+  variables: StampEarnedVariables;
+}): Promise<{ success: boolean; error?: string }> {
+  console.log(`[AlimTalk] enqueueStampEarnedAlimTalk called:`, {
+    storeId: params.storeId,
+    customerId: params.customerId,
+    stampLedgerId: params.stampLedgerId,
+    phone: params.phone,
+    variables: params.variables,
+  });
+
+  // 매장 스탬프 알림톡 설정 확인
+  const stampSetting = await prisma.stampSetting.findUnique({
+    where: { storeId: params.storeId },
+    select: { alimtalkEnabled: true },
+  });
+
+  if (!stampSetting?.alimtalkEnabled) {
+    console.log(`[AlimTalk] Stamp alimtalk disabled for store: ${params.storeId}`);
+    return { success: false, error: 'Stamp alimtalk disabled' };
+  }
+
+  // 충전금 확인 - 5원 미만이면 발송 불가
+  const wallet = await prisma.wallet.findUnique({
+    where: { storeId: params.storeId },
+  });
+
+  if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
+    console.log(`[AlimTalk] Insufficient balance for store: ${params.storeId}, balance: ${wallet?.balance ?? 0}`);
+    return { success: false, error: 'Insufficient wallet balance' };
+  }
+
+  // 환경변수에서 스탬프 템플릿 ID 읽기
+  const templateId = process.env.KAKAO_STAMP_TEMPLATE_CODE;
+
+  if (!templateId) {
+    console.log(`[AlimTalk] Stamp earned notification disabled: no template ID configured (KAKAO_STAMP_TEMPLATE_CODE)`);
+    return { success: false, error: 'AlimTalk template not configured' };
+  }
+
+  // 멱등성 키: storeId + customerId + stampLedgerId
+  const idempotencyKey = `stamp_earned:${params.storeId}:${params.customerId}:${params.stampLedgerId}`;
+
+  return enqueueAlimTalk({
+    storeId: params.storeId,
+    customerId: params.customerId,
+    phone: params.phone,
+    messageType: 'STAMP_EARNED',
+    templateId,
+    variables: {
+      '#{매장명}': params.variables.storeName,
+      '#{적립스탬프}': String(params.variables.earnedStamps),
+      '#{모은스탬프}': String(params.variables.totalStamps),
+      '#{스탬프사용규칙}': params.variables.stampUsageRule,
+      '#{리뷰작성법안내}': params.variables.reviewGuide,
+    },
+    idempotencyKey,
+  });
 }
 
 // 충전금 부족 안내 알림톡 발송 요청 (매장 소유자에게)
