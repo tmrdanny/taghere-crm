@@ -273,6 +273,39 @@ function SuccessPopup({
     });
   };
 
+  // 방문 경로만 즉시 저장하는 함수
+  const saveVisitSource = async () => {
+    if (!successData.customerId || !selectedVisitSource) return;
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      await fetch(`${apiUrl}/api/customers/visit-source`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerId: successData.customerId,
+          visitSource: selectedVisitSource,
+        }),
+      });
+    } catch (error) {
+      console.error('Visit source save error:', error);
+    }
+  };
+
+  // "다음" 버튼 클릭 시 - 방문 경로 저장 후 다음 단계로
+  const handleNextStep = async () => {
+    await saveVisitSource();
+    setCurrentStep(2);
+  };
+
+  // "건너뛰기" 버튼 클릭 시 - 방문 경로 저장 후 닫기
+  const handleSkip = async () => {
+    await saveVisitSource();
+    onClose();
+  };
+
   const handleSubmit = async () => {
     if (!successData.customerId) {
       onClose();
@@ -305,19 +338,8 @@ function SuccessPopup({
         }),
       });
 
-      // 방문 경로 저장 (선택된 경우)
-      if (selectedVisitSource) {
-        await fetch(`${apiUrl}/api/customers/visit-source`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            customerId: successData.customerId,
-            visitSource: selectedVisitSource,
-          }),
-        });
-      }
+      // 방문 경로 저장 (선택된 경우, 이미 저장되지 않았을 수 있으므로 다시 호출)
+      await saveVisitSource();
 
       // 제출 완료 후 팝업 없이 바로 order-success로 이동
       onClose();
@@ -534,13 +556,13 @@ function SuccessPopup({
             {showVisitSourceStep && showCategoryStep && currentStep === 1 ? (
               <>
                 <button
-                  onClick={onClose}
+                  onClick={handleSkip}
                   className="flex-1 py-3.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-semibold text-[15px] rounded-xl transition-colors"
                 >
                   건너뛰기
                 </button>
                 <button
-                  onClick={() => setCurrentStep(2)}
+                  onClick={handleNextStep}
                   className="flex-1 py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-[15px] rounded-xl transition-colors"
                 >
                   다음
