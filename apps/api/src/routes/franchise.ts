@@ -1247,12 +1247,12 @@ router.post('/stores/:storeId/transfer', async (req: FranchiseAuthRequest, res) 
         },
       });
 
-      // 4-2. 프랜차이즈 트랜잭션 기록 (TRANSFER_OUT)
+      // 4-2. 프랜차이즈 트랜잭션 기록 (DEDUCT - 차감)
       await tx.franchiseTransaction.create({
         data: {
           walletId: franchiseWallet.id,
           amount: -amount,
-          type: 'TRANSFER_OUT',
+          type: 'DEDUCT',
           description: `${store.name}으로 충전금 이체${memo ? ` (${memo})` : ''}`,
           meta: {
             targetStoreId: storeId,
@@ -1283,14 +1283,15 @@ router.post('/stores/:storeId/transfer', async (req: FranchiseAuthRequest, res) 
       // 4-4. 가맹점 결제 트랜잭션 기록 (TOPUP)
       await tx.paymentTransaction.create({
         data: {
-          walletId: storeWallet.id,
+          storeId,
           amount,
           type: 'TOPUP',
-          description: `프랜차이즈 본사로부터 충전금 이체${memo ? ` (${memo})` : ''}`,
+          status: 'SUCCESS',
           meta: {
             source: 'franchise_transfer',
             franchiseId,
             memo: memo || null,
+            description: `프랜차이즈 본사로부터 충전금 이체${memo ? ` (${memo})` : ''}`,
           },
         },
       });
