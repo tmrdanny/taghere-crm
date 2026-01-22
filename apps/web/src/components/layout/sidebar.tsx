@@ -99,9 +99,9 @@ const navGroups: NavGroup[] = [
     title: '마케팅',
     icon: Send,
     items: [
-      { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
       { href: '/messages', label: '리타겟', icon: MessageSquareMore },
       { href: '/local-customers', label: '신규 고객 타겟', icon: UserPlus },
+      { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
     ],
   },
 ];
@@ -331,14 +331,17 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
         )}
         title={isCollapsed ? item.label : undefined}
       >
-        <div className="relative flex-shrink-0">
-          <Icon className={cn('w-5 h-5', active && 'text-brand-800')} />
-          {isCollapsed && item.isNew && (
-            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-[8px] font-bold leading-none">N</span>
-            </span>
-          )}
-        </div>
+        {/* 2번째 depth부터는 아이콘 숨김 */}
+        {!isSubItem && (
+          <div className="relative flex-shrink-0">
+            <Icon className={cn('w-5 h-5', active && 'text-brand-800')} />
+            {isCollapsed && item.isNew && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-[8px] font-bold leading-none">N</span>
+              </span>
+            )}
+          </div>
+        )}
         {!isCollapsed && (
           <>
             <span className="flex-1">{item.label}</span>
@@ -655,7 +658,8 @@ export function MobileHeader() {
           isNestedSubItem && 'ml-2'
         )}
       >
-        <Icon className={cn('w-5 h-5', active && 'text-brand-800')} />
+        {/* 2번째 depth부터는 아이콘 숨김 */}
+        {!isSubItem && <Icon className={cn('w-5 h-5', active && 'text-brand-800')} />}
         <span className="flex-1">{item.label}</span>
         {item.isNew && (
           <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
