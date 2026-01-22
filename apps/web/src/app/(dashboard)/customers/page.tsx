@@ -13,7 +13,7 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatPhone, formatNumber, formatDate, getRelativeTime, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
-import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Upload } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Upload, Settings2 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -112,6 +112,23 @@ interface MessageHistoryEntry {
   campaignTitle: string | null;
 }
 
+// 컬럼 정의 상수
+const COLUMN_DEFINITIONS = [
+  { id: 'nickname', label: '닉네임', required: true, defaultVisible: true },
+  { id: 'phone', label: '전화번호', required: false, defaultVisible: true },
+  { id: 'points', label: '적립 포인트', required: false, defaultVisible: true },
+  { id: 'stamps', label: '스탬프', required: false, defaultVisible: true },
+  { id: 'birthday', label: '생일/연령대', required: false, defaultVisible: true },
+  { id: 'memo', label: '메모', required: false, defaultVisible: true },
+  { id: 'visitSource', label: '방문 경로', required: false, defaultVisible: true },
+  { id: 'tableLabel', label: '좌석', required: false, defaultVisible: true },
+  { id: 'visitCount', label: '방문 횟수', required: false, defaultVisible: true },
+  { id: 'actions', label: '액션', required: true, defaultVisible: true },
+] as const;
+
+const DEFAULT_VISIBLE_COLUMNS = COLUMN_DEFINITIONS.filter(c => c.defaultVisible).map(c => c.id);
+const COLUMN_STORAGE_KEY = 'taghere-customer-list-columns';
+
 // 별점 컴포넌트
 function StarRating({ rating, onRatingChange, readonly = false }: { rating: number; onRatingChange?: (rating: number) => void; readonly?: boolean }) {
   return (
@@ -178,6 +195,11 @@ export default function CustomersPage() {
   const [visitDropdownOpen, setVisitDropdownOpen] = useState(false);
   const [lastVisitDropdownOpen, setLastVisitDropdownOpen] = useState(false);
   const [dateRangeDropdownOpen, setDateRangeDropdownOpen] = useState(false);
+  const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
+
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS as unknown as string[]);
+  const columnSettingsRef = useRef<HTMLDivElement>(null);
 
   // Date range filter states
   const [startDate, setStartDate] = useState('');
@@ -310,6 +332,54 @@ export default function CustomersPage() {
 
   // Refs for dropdown containers (to detect outside clicks)
   const dateRangeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Load column visibility from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem(COLUMN_STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setVisibleColumns(parsed);
+        }
+      } catch (e) {
+        // 파싱 실패 시 기본값 사용
+      }
+    }
+  }, []);
+
+  // Handle column settings dropdown outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnSettingsRef.current && !columnSettingsRef.current.contains(event.target as Node)) {
+        setColumnSettingsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Column visibility helpers
+  const isColumnVisible = (columnId: string) => visibleColumns.includes(columnId);
+  const visibleColumnCount = visibleColumns.length + 1; // +1 for checkbox
+
+  const toggleColumn = (columnId: string) => {
+    const column = COLUMN_DEFINITIONS.find(c => c.id === columnId);
+    if (column?.required) return;
+
+    const newColumns = visibleColumns.includes(columnId)
+      ? visibleColumns.filter(id => id !== columnId)
+      : [...visibleColumns, columnId];
+
+    setVisibleColumns(newColumns);
+    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(newColumns));
+  };
+
+  const resetColumnsToDefault = () => {
+    const defaultColumns = DEFAULT_VISIBLE_COLUMNS as unknown as string[];
+    setVisibleColumns(defaultColumns);
+    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(defaultColumns));
+  };
 
   // Fetch customers function (extracted for reuse)
   const fetchCustomers = useCallback(async (showLoading = true) => {
@@ -1148,6 +1218,61 @@ export default function CustomersPage() {
                 </div>
               )}
             </div>
+
+            {/* Column Settings Dropdown */}
+            <div className="relative" ref={columnSettingsRef}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setColumnSettingsOpen(!columnSettingsOpen);
+                  setGenderDropdownOpen(false);
+                  setVisitDropdownOpen(false);
+                  setLastVisitDropdownOpen(false);
+                  setDateRangeDropdownOpen(false);
+                }}
+                className="flex items-center gap-1"
+              >
+                <Settings2 className="w-3.5 h-3.5" />
+                컬럼
+                <ChevronDown className="w-3.5 h-3.5" />
+              </Button>
+              {columnSettingsOpen && (
+                <div
+                  className="absolute top-full right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-2 min-w-[180px] z-50"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="px-3 pb-2 border-b border-neutral-100 mb-2">
+                    <span className="text-xs font-medium text-neutral-500">표시할 컬럼</span>
+                  </div>
+                  {COLUMN_DEFINITIONS.map((column) => (
+                    <label
+                      key={column.id}
+                      className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-neutral-50 ${column.required ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns.includes(column.id)}
+                        disabled={column.required}
+                        onChange={() => toggleColumn(column.id)}
+                        className="rounded border-neutral-300"
+                      />
+                      <span className="text-sm text-neutral-700">{column.label}</span>
+                      {column.required && <span className="text-xs text-neutral-400">(필수)</span>}
+                    </label>
+                  ))}
+                  <div className="px-3 pt-2 mt-2 border-t border-neutral-100">
+                    <button
+                      onClick={resetColumnsToDefault}
+                      className="text-xs text-neutral-500 hover:text-neutral-700"
+                    >
+                      기본값으로 초기화
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </Card>
@@ -1171,56 +1296,76 @@ export default function CustomersPage() {
                     }}
                   />
                 </th>
-                <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  닉네임
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  전화번호
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  적립 포인트
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  스탬프
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  생일 / 연령대
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  메모
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  방문 경로
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  좌석
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  방문 횟수
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                  액션
-                </th>
+                {isColumnVisible('nickname') && (
+                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
+                    닉네임
+                  </th>
+                )}
+                {isColumnVisible('phone') && (
+                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
+                    전화번호
+                  </th>
+                )}
+                {isColumnVisible('points') && (
+                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
+                    적립 포인트
+                  </th>
+                )}
+                {isColumnVisible('stamps') && (
+                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
+                    스탬프
+                  </th>
+                )}
+                {isColumnVisible('birthday') && (
+                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
+                    생일 / 연령대
+                  </th>
+                )}
+                {isColumnVisible('memo') && (
+                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
+                    메모
+                  </th>
+                )}
+                {isColumnVisible('visitSource') && (
+                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
+                    방문 경로
+                  </th>
+                )}
+                {isColumnVisible('tableLabel') && (
+                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
+                    좌석
+                  </th>
+                )}
+                {isColumnVisible('visitCount') && (
+                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
+                    방문 횟수
+                  </th>
+                )}
+                {isColumnVisible('actions') && (
+                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
+                    액션
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={11} className="p-8 text-center text-neutral-500">
+                  <td colSpan={visibleColumnCount} className="p-8 text-center text-neutral-500">
                     불러오는 중...
                   </td>
                 </tr>
               )}
               {!isLoading && error && (
                 <tr>
-                  <td colSpan={11} className="p-8 text-center text-error">
+                  <td colSpan={visibleColumnCount} className="p-8 text-center text-error">
                     {error}
                   </td>
                 </tr>
               )}
               {!isLoading && !error && customers.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="p-8 text-center text-neutral-500">
+                  <td colSpan={visibleColumnCount} className="p-8 text-center text-neutral-500">
                     결과가 없습니다.
                   </td>
                 </tr>
@@ -1250,81 +1395,101 @@ export default function CustomersPage() {
                           }}
                         />
                       </td>
-                      <td className="p-4">
-                        <span className="font-medium text-neutral-900">
-                          {maskNickname(customer.name)}
-                        </span>
-                      </td>
-                      <td className="p-4 text-neutral-600">
-                        <div className="flex items-center gap-2">
-                          <span>{formatPhone(customer.phone)}</span>
-                        </div>
-                      </td>
-                      <td className="p-4 font-medium text-neutral-900">
-                        {formatNumber(customer.totalPoints)} p
-                      </td>
-                      <td className="p-4 text-neutral-600">
-                        {customer.totalStamps || 0}
-                      </td>
-                      <td className="p-4 text-neutral-600">
-                        <div className="flex flex-col gap-0.5">
-                          <span>{formatBirthdayMonth(customer.birthday)}</span>
-                          <span className="text-xs text-neutral-500">{getAgeGroup(customer.birthYear)}</span>
-                        </div>
-                      </td>
-                      <td className="p-4 max-w-[200px]">
-                        <div className="flex items-center gap-2">
-                          <span className="text-neutral-600 truncate text-sm">
-                            {customer.memo || '-'}
-                          </span>
-                          <button className="flex-shrink-0 p-1 hover:bg-neutral-100 rounded">
-                            <Edit2 className="w-3.5 h-3.5 text-neutral-400" />
-                          </button>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <span className="text-neutral-600 text-sm">
-                          {customer.visitSource
-                            ? visitSourceLabelMap[customer.visitSource] || customer.visitSource
-                            : '-'}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <span className="text-neutral-600 text-sm">
-                          {customer.lastTableLabel || '-'}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <div>
+                      {isColumnVisible('nickname') && (
+                        <td className="p-4">
                           <span className="font-medium text-neutral-900">
-                            {customer.visitCount}회
+                            {maskNickname(customer.name)}
                           </span>
-                          <p className="text-xs text-neutral-500">
-                            {getVisitDescription(customer)}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex flex-col gap-2">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => openUsePointsModal(customer)}
-                          >
-                            포인트 사용
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedCustomer(customer);
-                              setEarnPointsModal(true);
-                            }}
-                          >
-                            포인트 적립
-                          </Button>
-                        </div>
-                      </td>
+                        </td>
+                      )}
+                      {isColumnVisible('phone') && (
+                        <td className="p-4 text-neutral-600">
+                          <div className="flex items-center gap-2">
+                            <span>{formatPhone(customer.phone)}</span>
+                          </div>
+                        </td>
+                      )}
+                      {isColumnVisible('points') && (
+                        <td className="p-4 font-medium text-neutral-900">
+                          {formatNumber(customer.totalPoints)} p
+                        </td>
+                      )}
+                      {isColumnVisible('stamps') && (
+                        <td className="p-4 text-neutral-600">
+                          {customer.totalStamps || 0}
+                        </td>
+                      )}
+                      {isColumnVisible('birthday') && (
+                        <td className="p-4 text-neutral-600">
+                          <div className="flex flex-col gap-0.5">
+                            <span>{formatBirthdayMonth(customer.birthday)}</span>
+                            <span className="text-xs text-neutral-500">{getAgeGroup(customer.birthYear)}</span>
+                          </div>
+                        </td>
+                      )}
+                      {isColumnVisible('memo') && (
+                        <td className="p-4 max-w-[200px]">
+                          <div className="flex items-center gap-2">
+                            <span className="text-neutral-600 truncate text-sm">
+                              {customer.memo || '-'}
+                            </span>
+                            <button className="flex-shrink-0 p-1 hover:bg-neutral-100 rounded">
+                              <Edit2 className="w-3.5 h-3.5 text-neutral-400" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                      {isColumnVisible('visitSource') && (
+                        <td className="p-4">
+                          <span className="text-neutral-600 text-sm">
+                            {customer.visitSource
+                              ? visitSourceLabelMap[customer.visitSource] || customer.visitSource
+                              : '-'}
+                          </span>
+                        </td>
+                      )}
+                      {isColumnVisible('tableLabel') && (
+                        <td className="p-4">
+                          <span className="text-neutral-600 text-sm">
+                            {customer.lastTableLabel || '-'}
+                          </span>
+                        </td>
+                      )}
+                      {isColumnVisible('visitCount') && (
+                        <td className="p-4">
+                          <div>
+                            <span className="font-medium text-neutral-900">
+                              {customer.visitCount}회
+                            </span>
+                            <p className="text-xs text-neutral-500">
+                              {getVisitDescription(customer)}
+                            </p>
+                          </div>
+                        </td>
+                      )}
+                      {isColumnVisible('actions') && (
+                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => openUsePointsModal(customer)}
+                            >
+                              포인트 사용
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedCustomer(customer);
+                                setEarnPointsModal(true);
+                              }}
+                            >
+                              포인트 적립
+                            </Button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
