@@ -581,7 +581,7 @@ function TaghereEnrollStampContent() {
         if (data.error === 'invalid_kakao_id') {
           // 유효하지 않은 kakaoId → 로컬스토리지 삭제, 기존 흐름으로
           removeStoredKakaoId();
-        } else if (data.error === 'already_earned') {
+        } else if (data.error === 'already_earned_today' || data.error === 'already_earned') {
           // 오늘 이미 적립됨
           setShowAlreadyParticipated(true);
           setStampInfo(null);

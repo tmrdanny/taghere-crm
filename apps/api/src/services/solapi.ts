@@ -516,6 +516,7 @@ export async function enqueuePointsEarnedAlimTalk(params: {
       '#{잔여포인트}': String(params.variables.totalPoints),
       '#{사용방법안내}': usageRule,
       '#{리뷰작성법안내}': reviewGuide,
+      '#{포인트사용규칙}': usageRule,
     },
     idempotencyKey,
   });
