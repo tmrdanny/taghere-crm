@@ -153,6 +153,41 @@ export default function StampSettingsPage() {
       </div>
 
       <div className="space-y-6">
+        {/* 사용 안내 카드 */}
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">💡 스탬프 사용 안내</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3 text-sm text-neutral-600">
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-xs font-medium">1</span>
+                </div>
+                <p>
+                  고객이 태그히어를 통해 로그인하면 스탬프가 적립됩니다.
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-xs font-medium">2</span>
+                </div>
+                <p>
+                  스탬프는 <strong>무제한 적립</strong>되며, 고객이 5개 또는 10개를 모으면 보상을 사용할 수 있습니다.
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-xs font-medium">3</span>
+                </div>
+                <p>
+                  고객이 보상을 요청하면, <strong>고객 리스트</strong>에서 해당 고객을 찾아 &quot;5개 사용&quot; 또는 &quot;10개 사용&quot; 버튼을 눌러주세요.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* 스탬프 기능 활성화 카드 */}
         <Card>
           <CardHeader className="pb-4">
@@ -169,7 +204,7 @@ export default function StampSettingsPage() {
               <div>
                 <p className="font-medium text-neutral-900">스탬프 적립 활성화</p>
                 <p className="text-sm text-neutral-500 mt-1">
-                  고객이 매장 방문 시 스탬프를 적립할 수 있습니다. (1일 1회)
+                  토글 ON 하시면 고객이 태그히어를 통해 포인트 대신 스탬프를 적립할 수 있습니다.
                 </p>
               </div>
               <Switch
@@ -270,40 +305,6 @@ export default function StampSettingsPage() {
           </CardContent>
         </Card>
 
-        {/* 사용 안내 카드 */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg">💡 스탬프 사용 안내</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3 text-sm text-neutral-600">
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-xs font-medium">1</span>
-                </div>
-                <p>
-                  고객이 태그히어를 통해 로그인하면 스탬프가 적립됩니다.
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-xs font-medium">2</span>
-                </div>
-                <p>
-                  스탬프는 <strong>무제한 적립</strong>되며, 고객이 5개 또는 10개를 모으면 보상을 사용할 수 있습니다.
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-xs font-medium">3</span>
-                </div>
-                <p>
-                  고객이 보상을 요청하면, <strong>고객 리스트</strong>에서 해당 고객을 찾아 &quot;5개 사용&quot; 또는 &quot;10개 사용&quot; 버튼을 눌러주세요.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
