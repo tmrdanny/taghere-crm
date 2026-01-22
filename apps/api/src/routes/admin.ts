@@ -124,11 +124,15 @@ async function notifyTaghereCrmOn(userId: string, slug: string, isStampMode: boo
 }
 
 // CRM 비활성화 시 태그히어 서버에 알림
-async function notifyTaghereCrmOff(redirectUrl: string = ''): Promise<void> {
+async function notifyTaghereCrmOff(userId: string, slug: string, isStampMode: boolean): Promise<void> {
   if (!TAGHERE_DEV_API_TOKEN) {
     console.log('[TagHere CRM] TAGHERE_DEV_API_TOKEN not configured, skipping notification');
     return;
   }
+
+  // 해당 매장에서 사용했던 redirectUrl 생성
+  const path = isStampMode ? 'taghere-enroll-stamp' : 'taghere-enroll';
+  const redirectUrl = `${TAGHERE_CRM_BASE_URL}/${path}/${slug}?ordersheetId={ordersheetId}`;
 
   try {
     const response = await fetch(`${TAGHERE_WEBHOOK_URL}/off`, {
@@ -137,13 +141,13 @@ async function notifyTaghereCrmOff(redirectUrl: string = ''): Promise<void> {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${TAGHERE_DEV_API_TOKEN}`,
       },
-      body: JSON.stringify({ redirectUrl }),
+      body: JSON.stringify({ userId, redirectUrl }),
     });
 
     if (!response.ok) {
       console.error('[TagHere CRM] off failed:', response.status, await response.text());
     } else {
-      console.log('[TagHere CRM] off success');
+      console.log(`[TagHere CRM] off success - userId: ${userId}, redirectUrl: ${redirectUrl}`);
     }
   } catch (error) {
     console.error('[TagHere CRM] off error:', error);
@@ -437,9 +441,10 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
           await notifyTaghereCrmOn(ownerEmail, storeSlug, isStampMode);
           console.log(`[Admin] CRM enabled for store ${storeId}, isStampMode: ${isStampMode}`);
         } else {
-          // CRM OFF → offrequest 호출
-          await notifyTaghereCrmOff('');
-          console.log(`[Admin] CRM disabled for store ${storeId}`);
+          // CRM OFF → 해당 매장의 redirectUrl과 함께 전송
+          const isStampMode = existingStore.stampSetting?.enabled ?? false;
+          await notifyTaghereCrmOff(ownerEmail, storeSlug, isStampMode);
+          console.log(`[Admin] CRM disabled for store ${storeId}, isStampMode: ${isStampMode}`);
         }
       } else {
         console.log(`[Admin] Store ${storeId} missing owner email or slug, skipped TagHere notification`);
