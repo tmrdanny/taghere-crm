@@ -1,6 +1,6 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
+import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk } from '../services/solapi.js';
 
 const router = Router();
 
@@ -443,7 +443,7 @@ async function fetchOrdersheetForCallback(ordersheetId: string, slug?: string): 
 
 // GET /auth/kakao/taghere-start - TagHere 전용 카카오 로그인 시작
 router.get('/taghere-start', (req, res) => {
-  const { storeId, ordersheetId, slug, origin } = req.query;
+  const { storeId, ordersheetId, slug, origin, isStamp } = req.query;
 
   // origin 검증: 허용된 도메인만 허용 (보안)
   const allowedOrigins = [
@@ -469,6 +469,7 @@ router.get('/taghere-start', (req, res) => {
       ordersheetId: ordersheetId || '',
       slug: slug || '',
       isTaghere: true,
+      isStamp: isStamp === 'true',  // 스탬프 적립 여부
       origin: validOrigin,  // origin을 state에 포함
     })
   ).toString('base64');
@@ -480,6 +481,332 @@ router.get('/taghere-start', (req, res) => {
 
   res.redirect(kakaoAuthUrl);
 });
+
+// 스탬프 적립 전용 콜백 핸들러
+async function handleStampCallback(
+  req: Request,
+  res: Response,
+  stateData: { storeId: string; ordersheetId: string; slug: string; isStamp: boolean; origin: string },
+  redirectOrigin: string
+) {
+  const { code } = req.query;
+
+  // TagHere 전용 콜백 URL
+  const tagherRedirectUri = KAKAO_REDIRECT_URI.replace('/callback', '/taghere-callback');
+
+  // Exchange code for token
+  const tokenResponse = await fetch('https://kauth.kakao.com/oauth/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: KAKAO_CLIENT_ID,
+      client_secret: KAKAO_CLIENT_SECRET,
+      redirect_uri: tagherRedirectUri,
+      code: code as string,
+    }),
+  });
+
+  const tokenData = await tokenResponse.json() as {
+    error?: string;
+    access_token?: string;
+  };
+
+  if (tokenData.error) {
+    console.error('Kakao token error:', tokenData);
+    return res.redirect(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug}?error=token_error`);
+  }
+
+  // Get user info
+  const userResponse = await fetch('https://kapi.kakao.com/v2/user/me', {
+    headers: {
+      Authorization: `Bearer ${tokenData.access_token}`,
+    },
+  });
+
+  const userData = await userResponse.json() as {
+    id?: number;
+    kakao_account?: {
+      phone_number?: string;
+      profile?: { nickname?: string };
+      gender?: string;
+      birthday?: string;
+      birthyear?: string;
+    };
+  };
+
+  if (!userData.id) {
+    console.error('Kakao user error:', userData);
+    return res.redirect(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug}?error=user_error`);
+  }
+
+  const kakaoId = userData.id.toString();
+  const kakaoAccount = userData.kakao_account || {};
+  const profile = kakaoAccount.profile || {};
+
+  // Get store
+  let store = null;
+  const storeSelect = {
+    id: true,
+    name: true,
+    stampSetting: true,
+    reviewAutomationSetting: {
+      select: { benefitText: true },
+    },
+  };
+
+  if (stateData.storeId) {
+    store = await prisma.store.findUnique({
+      where: { id: stateData.storeId },
+      select: storeSelect,
+    });
+  }
+
+  if (!store && stateData.slug) {
+    store = await prisma.store.findFirst({
+      where: { slug: stateData.slug },
+      select: storeSelect,
+    });
+  }
+
+  if (!store) {
+    return res.redirect(`${redirectOrigin}/taghere-enroll-stamp?error=store_not_found`);
+  }
+
+  // 스탬프 기능 활성화 확인
+  if (!store.stampSetting?.enabled) {
+    return res.redirect(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug}?error=stamp_disabled`);
+  }
+
+  // 전화번호 정규화
+  const phoneLastDigits = kakaoAccount.phone_number
+    ? kakaoAccount.phone_number.replace(/[^0-9]/g, '').slice(-8)
+    : null;
+
+  // 고객 찾기
+  let customer = await prisma.customer.findFirst({
+    where: {
+      storeId: store.id,
+      kakaoId,
+    },
+  });
+
+  let isNewCustomer = false;
+
+  if (!customer && phoneLastDigits) {
+    customer = await prisma.customer.findFirst({
+      where: {
+        storeId: store.id,
+        phoneLastDigits,
+      },
+    });
+  }
+
+  // 같은 ordersheetId로 이미 적립했는지 확인
+  if (stateData.ordersheetId) {
+    const existingEarn = await prisma.stampLedger.findFirst({
+      where: {
+        ordersheetId: stateData.ordersheetId,
+      },
+    });
+
+    if (existingEarn) {
+      const alreadyUrl = new URL(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug || ''}`);
+      alreadyUrl.searchParams.set('error', 'already_participated');
+      if (stateData.ordersheetId) alreadyUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
+      return res.redirect(alreadyUrl.toString());
+    }
+  }
+
+  // 오늘 이미 적립했는지 확인 (1일 1회 제한)
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  if (customer) {
+    const todayEarn = await prisma.stampLedger.findFirst({
+      where: {
+        storeId: store.id,
+        customerId: customer.id,
+        type: 'EARN',
+        createdAt: { gte: todayStart },
+      },
+    });
+
+    if (todayEarn) {
+      const alreadyUrl = new URL(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug || ''}`);
+      alreadyUrl.searchParams.set('error', 'already_participated');
+      return res.redirect(alreadyUrl.toString());
+    }
+  }
+
+  if (!customer) {
+    isNewCustomer = true;
+
+    // 다른 매장에서 같은 kakaoId를 가진 고객 조회
+    const existingCustomer = await prisma.customer.findFirst({
+      where: {
+        kakaoId,
+        storeId: { not: store.id },
+      },
+      select: {
+        name: true,
+        phone: true,
+        phoneLastDigits: true,
+        gender: true,
+        birthday: true,
+        birthYear: true,
+      },
+    });
+
+    // phoneLastDigits 중복 체크
+    let phoneToUse = existingCustomer?.phone ?? kakaoAccount.phone_number ?? null;
+    let phoneLastDigitsToUse = existingCustomer?.phoneLastDigits ?? phoneLastDigits;
+
+    if (phoneLastDigitsToUse) {
+      const existingPhone = await prisma.customer.findFirst({
+        where: {
+          storeId: store.id,
+          phoneLastDigits: phoneLastDigitsToUse,
+        },
+      });
+      if (existingPhone) {
+        phoneToUse = null;
+        phoneLastDigitsToUse = null;
+      }
+    }
+
+    customer = await prisma.customer.create({
+      data: {
+        storeId: store.id,
+        kakaoId,
+        name: existingCustomer?.name ?? profile.nickname ?? null,
+        phone: phoneToUse,
+        phoneLastDigits: phoneLastDigitsToUse,
+        gender: existingCustomer?.gender ?? (kakaoAccount.gender === 'male' ? 'MALE' : kakaoAccount.gender === 'female' ? 'FEMALE' : null),
+        birthday: existingCustomer?.birthday ?? (kakaoAccount.birthday
+          ? `${kakaoAccount.birthday.slice(0, 2)}-${kakaoAccount.birthday.slice(2, 4)}`
+          : null),
+        birthYear: existingCustomer?.birthYear ?? (kakaoAccount.birthyear ? parseInt(kakaoAccount.birthyear) : null),
+        totalPoints: 0,
+        totalStamps: 0,
+        visitCount: 0,
+        consentMarketing: true,
+        consentKakao: true,
+        consentAt: new Date(),
+      },
+    });
+  } else {
+    // 기존 고객 정보 업데이트
+    customer = await prisma.customer.update({
+      where: { id: customer.id },
+      data: {
+        kakaoId: customer.kakaoId || kakaoId,
+        name: profile.nickname || customer.name,
+        phone: kakaoAccount.phone_number || customer.phone,
+        phoneLastDigits: phoneLastDigits || customer.phoneLastDigits,
+        gender: kakaoAccount.gender === 'male' ? 'MALE' : kakaoAccount.gender === 'female' ? 'FEMALE' : customer.gender,
+        birthday: customer.birthday || (kakaoAccount.birthday
+          ? `${kakaoAccount.birthday.slice(0, 2)}-${kakaoAccount.birthday.slice(2, 4)}`
+          : null),
+        birthYear: customer.birthYear || (kakaoAccount.birthyear ? parseInt(kakaoAccount.birthyear) : null),
+      },
+    });
+  }
+
+  // 스탬프 적립 (트랜잭션)
+  const result = await prisma.$transaction(async (tx) => {
+    const newBalance = customer!.totalStamps + 1;
+
+    // 고객 스탬프 업데이트
+    const updatedCustomer = await tx.customer.update({
+      where: { id: customer!.id },
+      data: {
+        totalStamps: newBalance,
+        lastVisitAt: new Date(),
+      },
+    });
+
+    // 거래 내역 기록
+    const ledger = await tx.stampLedger.create({
+      data: {
+        storeId: store!.id,
+        customerId: customer!.id,
+        type: 'EARN',
+        delta: 1,
+        balance: newBalance,
+        ordersheetId: stateData.ordersheetId || null,
+        earnMethod: 'NFC_TAG',
+        reason: stateData.ordersheetId ? `태그히어 주문 적립 (${stateData.ordersheetId})` : '카카오 로그인 스탬프 적립',
+      },
+    });
+
+    return { customer: updatedCustomer, ledger };
+  });
+
+  console.log(`[Kakao Stamp] Stamp earned - customerId: ${customer.id}, newBalance: ${result.customer.totalStamps}`);
+
+  // 알림톡 발송 (비동기)
+  const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
+  if (store.stampSetting?.alimtalkEnabled && phoneNumber) {
+    // 스탬프 사용 규칙 생성
+    const reward5 = store.stampSetting.reward5Description;
+    const reward10 = store.stampSetting.reward10Description;
+    let stampUsageRule: string;
+
+    if (reward5 && reward10) {
+      stampUsageRule = `5개 모을 시: ${reward5}, 10개 모을 시: ${reward10}`;
+    } else if (reward5) {
+      stampUsageRule = `5개 모을 시: ${reward5}`;
+    } else if (reward10) {
+      stampUsageRule = `10개 모을 시: ${reward10}`;
+    } else {
+      stampUsageRule = '10개 모을시 매장 선물 증정!';
+    }
+
+    // 리뷰 작성 안내 문구
+    const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
+
+    enqueueStampEarnedAlimTalk({
+      storeId: store.id,
+      customerId: customer.id,
+      stampLedgerId: result.ledger.id,
+      phone: phoneNumber,
+      variables: {
+        storeName: store.name,
+        earnedStamps: 1,
+        totalStamps: result.customer.totalStamps,
+        stampUsageRule,
+        reviewGuide,
+      },
+    }).catch((err) => {
+      console.error('[Kakao Stamp] Stamp AlimTalk enqueue failed:', err);
+    });
+  }
+
+  // Check if customer already has preferredCategories
+  const hasPreferences = !!(customer as any).preferredCategories;
+
+  // Redirect back to stamp enroll page with success data
+  const successUrl = new URL(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug || ''}`);
+  successUrl.searchParams.set('stamps', result.customer.totalStamps.toString());
+  successUrl.searchParams.set('successStoreName', store.name);
+  successUrl.searchParams.set('customerId', customer.id);
+  successUrl.searchParams.set('kakaoId', kakaoId);
+  successUrl.searchParams.set('hasPreferences', hasPreferences.toString());
+  if (store.stampSetting?.reward5Description) {
+    successUrl.searchParams.set('reward5', store.stampSetting.reward5Description);
+  }
+  if (store.stampSetting?.reward10Description) {
+    successUrl.searchParams.set('reward10', store.stampSetting.reward10Description);
+  }
+  if (stateData.ordersheetId) {
+    successUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
+  }
+
+  res.redirect(successUrl.toString());
+}
 
 // GET /auth/kakao/taghere-callback - TagHere 전용 카카오 로그인 콜백
 router.get('/taghere-callback', async (req, res) => {
@@ -496,7 +823,7 @@ router.get('/taghere-callback', async (req, res) => {
     }
 
     // Parse state
-    let stateData = { storeId: '', ordersheetId: '', slug: '', isTaghere: true, origin: PUBLIC_APP_URL };
+    let stateData = { storeId: '', ordersheetId: '', slug: '', isTaghere: true, isStamp: false, origin: PUBLIC_APP_URL };
     try {
       stateData = JSON.parse(Buffer.from(state as string, 'base64').toString());
     } catch (e) {
@@ -505,6 +832,11 @@ router.get('/taghere-callback', async (req, res) => {
 
     // origin이 없으면 기본값 사용
     const redirectOrigin = stateData.origin || PUBLIC_APP_URL;
+
+    // 스탬프 적립인 경우 스탬프 전용 콜백으로 처리
+    if (stateData.isStamp) {
+      return handleStampCallback(req, res, stateData, redirectOrigin);
+    }
 
     // TagHere 전용 콜백 URL
     const tagherRedirectUri = KAKAO_REDIRECT_URI.replace('/callback', '/taghere-callback');
