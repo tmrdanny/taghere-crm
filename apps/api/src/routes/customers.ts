@@ -123,23 +123,54 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       messageCounts.map((mc) => [mc.customerId, mc._count.id])
     );
 
-    // Get last table label for each customer (from most recent PointLedger with tableLabel)
-    const lastTableLabels = await prisma.pointLedger.findMany({
-      where: {
-        storeId,
-        customerId: { in: customerIds },
-        tableLabel: { not: null },
-      },
-      orderBy: { createdAt: 'desc' },
-      distinct: ['customerId'],
-      select: {
-        customerId: true,
-        tableLabel: true,
-      },
-    });
-    const tableLabelsMap = new Map(
-      lastTableLabels.map((l) => [l.customerId, l.tableLabel])
-    );
+    // Get last table label for each customer (from most recent PointLedger or StampLedger with tableLabel)
+    const [pointTableLabels, stampTableLabels] = await Promise.all([
+      prisma.pointLedger.findMany({
+        where: {
+          storeId,
+          customerId: { in: customerIds },
+          tableLabel: { not: null },
+        },
+        orderBy: { createdAt: 'desc' },
+        distinct: ['customerId'],
+        select: {
+          customerId: true,
+          tableLabel: true,
+          createdAt: true,
+        },
+      }),
+      prisma.stampLedger.findMany({
+        where: {
+          storeId,
+          customerId: { in: customerIds },
+          tableLabel: { not: null },
+        },
+        orderBy: { createdAt: 'desc' },
+        distinct: ['customerId'],
+        select: {
+          customerId: true,
+          tableLabel: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    // Merge results, using the most recent tableLabel for each customer
+    const tableLabelsMap = new Map<string, string>();
+    const timestampMap = new Map<string, Date>();
+
+    for (const entry of pointTableLabels) {
+      tableLabelsMap.set(entry.customerId, entry.tableLabel!);
+      timestampMap.set(entry.customerId, entry.createdAt);
+    }
+
+    for (const entry of stampTableLabels) {
+      const existingTime = timestampMap.get(entry.customerId);
+      if (!existingTime || entry.createdAt > existingTime) {
+        tableLabelsMap.set(entry.customerId, entry.tableLabel!);
+        timestampMap.set(entry.customerId, entry.createdAt);
+      }
+    }
 
     // Determine VIP status and add message count
     const customersWithVip = customers.map((customer) => ({
