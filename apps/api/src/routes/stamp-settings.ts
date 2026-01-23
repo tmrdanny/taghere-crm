@@ -7,7 +7,7 @@ const router = Router();
 // 태그히어 서버 연동 설정
 const TAGHERE_CRM_BASE_URL = process.env.TAGHERE_CRM_BASE_URL || 'https://taghere-crm-web-dev.onrender.com';
 const TAGHERE_WEBHOOK_URL = process.env.TAGHERE_WEBHOOK_URL || 'https://api.d.tag-here.com/webhook/crm';
-const TAGHERE_WEBHOOK_TOKEN = process.env.TAGHERE_WEBHOOK_TOKEN || process.env.TAGHERE_DEV_API_TOKEN || '';
+const TAGHERE_WEBHOOK_TOKEN = process.env.TAGHERE_API_TOKEN_FOR_CRM || process.env.TAGHERE_WEBHOOK_TOKEN || process.env.TAGHERE_DEV_API_TOKEN || '';
 
 // 태그히어 서버에 CRM 활성화 알림 (스탬프/포인트 모드)
 async function notifyTaghereCrmOn(userId: string, slug: string, isStampMode: boolean): Promise<void> {
