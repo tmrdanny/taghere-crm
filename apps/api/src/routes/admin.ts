@@ -90,13 +90,13 @@ const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
 
 // 태그히어 서버 연동 설정
 const TAGHERE_CRM_BASE_URL = process.env.TAGHERE_CRM_BASE_URL || 'https://taghere-crm-web-dev.onrender.com';
-const TAGHERE_WEBHOOK_URL = 'https://api.d.tag-here.com/webhook/crm';
-const TAGHERE_DEV_API_TOKEN = process.env.TAGHERE_DEV_API_TOKEN || '';
+const TAGHERE_WEBHOOK_URL = process.env.TAGHERE_WEBHOOK_URL || 'https://api.d.tag-here.com/webhook/crm';
+const TAGHERE_WEBHOOK_TOKEN = process.env.TAGHERE_WEBHOOK_TOKEN || process.env.TAGHERE_DEV_API_TOKEN || '';
 
 // CRM 활성화 시 태그히어 서버에 알림
 async function notifyTaghereCrmOn(userId: string, slug: string, isStampMode: boolean = false): Promise<void> {
-  if (!TAGHERE_DEV_API_TOKEN) {
-    console.log('[TagHere CRM] TAGHERE_DEV_API_TOKEN not configured, skipping notification');
+  if (!TAGHERE_WEBHOOK_TOKEN) {
+    console.log('[TagHere CRM] TAGHERE_WEBHOOK_TOKEN not configured, skipping notification');
     return;
   }
 
@@ -108,7 +108,7 @@ async function notifyTaghereCrmOn(userId: string, slug: string, isStampMode: boo
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${TAGHERE_DEV_API_TOKEN}`,
+        'Authorization': `Bearer ${TAGHERE_WEBHOOK_TOKEN}`,
       },
       body: JSON.stringify({ userId, redirectUrl }),
     });
@@ -125,8 +125,8 @@ async function notifyTaghereCrmOn(userId: string, slug: string, isStampMode: boo
 
 // CRM 비활성화 시 태그히어 서버에 알림
 async function notifyTaghereCrmOff(userId: string, slug: string, isStampMode: boolean): Promise<void> {
-  if (!TAGHERE_DEV_API_TOKEN) {
-    console.log('[TagHere CRM] TAGHERE_DEV_API_TOKEN not configured, skipping notification');
+  if (!TAGHERE_WEBHOOK_TOKEN) {
+    console.log('[TagHere CRM] TAGHERE_WEBHOOK_TOKEN not configured, skipping notification');
     return;
   }
 
@@ -139,7 +139,7 @@ async function notifyTaghereCrmOff(userId: string, slug: string, isStampMode: bo
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${TAGHERE_DEV_API_TOKEN}`,
+        'Authorization': `Bearer ${TAGHERE_WEBHOOK_TOKEN}`,
       },
       body: JSON.stringify({ userId, redirectUrl }),
     });
