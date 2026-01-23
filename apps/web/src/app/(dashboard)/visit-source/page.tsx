@@ -37,6 +37,10 @@ export default function VisitSourcePage() {
   // New option input
   const [newOptionLabel, setNewOptionLabel] = useState('');
 
+  // Drag and drop state
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
   // Fetch settings
   const fetchSettings = useCallback(async () => {
     try {
@@ -208,6 +212,69 @@ export default function VisitSourcePage() {
     }
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedId(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    if (id !== draggedId) {
+      setDragOverId(id);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverId(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const draggedIndex = options.findIndex((o) => o.id === draggedId);
+    const targetIndex = options.findIndex((o) => o.id === targetId);
+
+    const newOptions = [...options];
+    const [removed] = newOptions.splice(draggedIndex, 1);
+    newOptions.splice(targetIndex, 0, removed);
+
+    // order 필드 업데이트
+    const reorderedOptions = newOptions.map((opt, idx) => ({
+      ...opt,
+      order: idx + 1,
+    }));
+
+    setOptions(reorderedOptions);
+    setDraggedId(null);
+    setDragOverId(null);
+
+    // API에 저장
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`${apiUrl}/api/visit-source-settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ options: reorderedOptions }),
+      });
+    } catch (error) {
+      console.error('Failed to save reordered options:', error);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDragOverId(null);
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 lg:p-8 max-w-4xl mx-auto">
@@ -307,9 +374,17 @@ export default function VisitSourcePage() {
               {options.map((option) => (
                 <div
                   key={option.id}
-                  className="flex items-center gap-3 p-3 bg-neutral-50 rounded-lg"
+                  draggable={enabled}
+                  onDragStart={(e) => handleDragStart(e, option.id)}
+                  onDragOver={(e) => handleDragOver(e, option.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, option.id)}
+                  onDragEnd={handleDragEnd}
+                  className={`flex items-center gap-3 p-3 bg-neutral-50 rounded-lg transition-all
+                    ${draggedId === option.id ? 'opacity-50' : ''}
+                    ${dragOverId === option.id ? 'border-2 border-primary border-dashed' : ''}`}
                 >
-                  <GripVertical className="w-4 h-4 text-neutral-400 cursor-grab" />
+                  <GripVertical className={`w-4 h-4 text-neutral-400 ${enabled ? 'cursor-grab active:cursor-grabbing' : ''}`} />
                   <Input
                     value={option.label}
                     onChange={(e) => handleUpdateLabel(option.id, e.target.value)}
