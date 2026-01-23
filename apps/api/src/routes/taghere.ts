@@ -1030,6 +1030,42 @@ router.post('/stamp-earn', async (req, res) => {
       }
     }
 
+    // 7-1. ordersheetId가 있으면 TagHere API에서 주문 데이터 조회
+    let orderData: TaghereOrderData | null = null;
+    let tableLabel: string | null = null;
+    let orderItems: any[] = [];
+    let totalAmount: number | null = null;
+
+    if (ordersheetId) {
+      try {
+        orderData = await fetchOrdersheet(ordersheetId);
+        if (orderData) {
+          const rawPrice = orderData.content?.resultPrice || orderData.resultPrice ||
+                           orderData.content?.totalPrice || orderData.totalPrice || 0;
+          totalAmount = typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : rawPrice;
+          totalAmount = totalAmount > 0 ? totalAmount : null;
+
+          const rawItems = orderData.content?.items || orderData.orderItems || orderData.items || [];
+          orderItems = rawItems.map((item: any) => ({
+            name: item.label || item.name || item.menuName || item.productName ||
+                  item.title || item.itemName || item.menuTitle || null,
+            quantity: item.count || item.quantity || item.qty || item.amount || 1,
+            price: typeof item.price === 'string' ? parseInt(item.price, 10) :
+                   (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+            option: item.option || null,
+          }));
+
+          tableLabel = orderData.content?.tableLabel || orderData.tableLabel ||
+                       (orderData as any).content?.tableNumber || (orderData as any).tableNumber || null;
+
+          console.log(`[TagHere Stamp-Earn] Order data fetched - ordersheetId: ${ordersheetId}, tableLabel: ${tableLabel}, itemsCount: ${orderItems.length}`);
+        }
+      } catch (e) {
+        console.error('[TagHere Stamp-Earn] Failed to fetch ordersheet:', e);
+        // 조회 실패해도 스탬프 적립은 계속 진행
+      }
+    }
+
     // 8. 스탬프 적립 (트랜잭션)
     const result = await prisma.$transaction(async (tx) => {
       const newBalance = customer!.totalStamps + 1;
@@ -1053,14 +1089,32 @@ router.post('/stamp-earn', async (req, res) => {
           balance: newBalance,
           ordersheetId: ordersheetId || null,
           earnMethod: earnMethod as any,
+          tableLabel: tableLabel,
           reason: ordersheetId ? `태그히어 주문 적립 (${ordersheetId})` : '스탬프 적립',
         },
       });
 
+      // 주문 내역 생성 (ordersheetId가 있는 경우)
+      if (ordersheetId) {
+        await tx.visitOrOrder.create({
+          data: {
+            storeId: store.id,
+            customerId: customer!.id,
+            orderId: ordersheetId,
+            visitedAt: new Date(),
+            totalAmount: totalAmount,
+            items: orderItems.length > 0 || tableLabel ? {
+              items: orderItems,
+              tableNumber: tableLabel,
+            } : undefined,
+          },
+        });
+      }
+
       return { customer: updatedCustomer, ledger };
     });
 
-    console.log(`[TagHere Stamp-Earn] Stamp earned - customerId: ${customer.id}, newBalance: ${result.customer.totalStamps}`);
+    console.log(`[TagHere Stamp-Earn] Stamp earned - customerId: ${customer.id}, newBalance: ${result.customer.totalStamps}, orderItemsCount: ${orderItems.length}, tableLabel: ${tableLabel}`);
 
     // 9. 알림톡 발송 (비동기)
     const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
