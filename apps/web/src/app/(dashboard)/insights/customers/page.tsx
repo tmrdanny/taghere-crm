@@ -87,29 +87,30 @@ export default function CustomerInsightsPage() {
     fetchInsights();
   }, [fetchInsights]);
 
-  // 성별 파이차트 렌더링
+  // 성별 파이차트 렌더링 (미설정 제외)
   const renderGenderPie = () => {
     if (!insights) return null;
 
-    const { male, female, unknown, total } = insights.genderDistribution;
-    const malePercentage = total > 0 ? Math.round((male / total) * 100) : 0;
-    const femalePercentage = total > 0 ? Math.round((female / total) * 100) : 0;
-    const unknownPercentage = total > 0 ? Math.round((unknown / total) * 100) : 0;
+    const { male, female } = insights.genderDistribution;
+    const knownTotal = male + female;
+    const malePercentage = knownTotal > 0 ? Math.round((male / knownTotal) * 100) : 0;
+    const femalePercentage = knownTotal > 0 ? Math.round((female / knownTotal) * 100) : 0;
 
     return (
       <div className="flex items-center gap-8">
         <div
           className="relative w-32 h-32 rounded-full"
           style={{
-            background: `conic-gradient(
-              #6366f1 0% ${malePercentage}%,
-              #ec4899 ${malePercentage}% ${malePercentage + femalePercentage}%,
-              #94a3b8 ${malePercentage + femalePercentage}% 100%
-            )`,
+            background: knownTotal > 0
+              ? `conic-gradient(
+                  #6366f1 0% ${malePercentage}%,
+                  #ec4899 ${malePercentage}% 100%
+                )`
+              : '#e5e7eb',
           }}
         >
           <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-neutral-600">{total}명</span>
+            <span className="text-sm font-medium text-neutral-600">{knownTotal}명</span>
           </div>
         </div>
         <div className="space-y-2">
@@ -123,13 +124,6 @@ export default function CustomerInsightsPage() {
             <span className="text-sm text-neutral-600">여성 {femalePercentage}%</span>
             <span className="text-xs text-neutral-400">({female}명)</span>
           </div>
-          {unknown > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-slate-400" />
-              <span className="text-sm text-neutral-600">미설정 {unknownPercentage}%</span>
-              <span className="text-xs text-neutral-400">({unknown}명)</span>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -227,9 +221,13 @@ export default function CustomerInsightsPage() {
     );
   };
 
-  // 방문경로 파이차트
+  // 방문경로 파이차트 (미설정 제외)
   const renderVisitSourcePie = () => {
-    if (!insights || insights.visitSourceDistribution.length === 0) {
+    if (!insights) return <p className="text-sm text-neutral-500">데이터가 없습니다.</p>;
+
+    // 미설정(none) 제외
+    const filteredData = insights.visitSourceDistribution.filter((item) => item.source !== 'none');
+    if (filteredData.length === 0) {
       return <p className="text-sm text-neutral-500">데이터가 없습니다.</p>;
     }
 
@@ -238,10 +236,13 @@ export default function CustomerInsightsPage() {
       '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#94a3b8',
     ];
 
+    // 퍼센트 재계산
+    const totalCount = filteredData.reduce((sum, item) => sum + item.count, 0);
     let cumulative = 0;
-    const gradientParts = insights.visitSourceDistribution.map((item, idx) => {
+    const gradientParts = filteredData.map((item, idx) => {
       const start = cumulative;
-      cumulative += item.percentage;
+      const pct = totalCount > 0 ? Math.round((item.count / totalCount) * 100) : 0;
+      cumulative += pct;
       return `${colors[idx % colors.length]} ${start}% ${cumulative}%`;
     });
 
@@ -258,32 +259,39 @@ export default function CustomerInsightsPage() {
           </div>
         </div>
         <div className="space-y-1.5 max-h-32 overflow-y-auto">
-          {insights.visitSourceDistribution.slice(0, 6).map((item, idx) => (
-            <div key={item.source} className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: colors[idx % colors.length] }}
-              />
-              <span className="text-sm text-neutral-600">{item.label}</span>
-              <span className="text-xs text-neutral-400">({item.percentage}%)</span>
-            </div>
-          ))}
+          {filteredData.slice(0, 6).map((item, idx) => {
+            const pct = totalCount > 0 ? Math.round((item.count / totalCount) * 100) : 0;
+            return (
+              <div key={item.source} className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: colors[idx % colors.length] }}
+                />
+                <span className="text-sm text-neutral-600">{item.label}</span>
+                <span className="text-xs text-neutral-400">({pct}%)</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
   };
 
-  // 방문경로 막대차트
+  // 방문경로 막대차트 (미설정 제외)
   const renderVisitSourceBarChart = () => {
-    if (!insights || insights.visitSourceDistribution.length === 0) {
+    if (!insights) return <p className="text-sm text-neutral-500">데이터가 없습니다.</p>;
+
+    // 미설정(none) 제외
+    const filteredData = insights.visitSourceDistribution.filter((item) => item.source !== 'none');
+    if (filteredData.length === 0) {
       return <p className="text-sm text-neutral-500">데이터가 없습니다.</p>;
     }
 
-    const maxCount = Math.max(...insights.visitSourceDistribution.map((d) => d.count));
+    const maxCount = Math.max(...filteredData.map((d) => d.count));
 
     return (
       <div className="space-y-3">
-        {insights.visitSourceDistribution.map((item) => (
+        {filteredData.map((item) => (
           <div key={item.source} className="flex items-center gap-3">
             <span className="text-sm text-neutral-600 w-24 truncate">{item.label}</span>
             <div className="flex-1 h-6 bg-neutral-100 rounded-lg overflow-hidden">
