@@ -325,6 +325,7 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
           storeId: true,
           kakaoId: true,
           naverId: true,
+          visitSource: true,
           store: {
             select: {
               id: true,
@@ -338,6 +339,22 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
       }),
       prisma.customer.count({ where: whereCondition }),
     ]);
+
+    // Get last table label for each customer (from most recent PointLedger with tableLabel)
+    const customerIds = customers.map((c) => c.id);
+    const lastTableLabels = await prisma.pointLedger.findMany({
+      where: {
+        customerId: { in: customerIds },
+        tableLabel: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+      distinct: ['customerId'],
+      select: {
+        customerId: true,
+        tableLabel: true,
+      },
+    });
+    const tableLabelsMap = new Map(lastTableLabels.map((l) => [l.customerId, l.tableLabel]));
 
     // birthYear로부터 ageGroup 계산하는 헬퍼 함수
     const calculateAgeGroup = (birthYear: number | null): string | null => {
@@ -372,6 +389,8 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
         lastVisitAt: customer.lastVisitAt,
         createdAt: customer.createdAt,
         store: customer.store,
+        visitSource: customer.visitSource || null,
+        lastTableLabel: tableLabelsMap.get(customer.id) || null,
       };
     });
 
@@ -385,6 +404,52 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
   } catch (error) {
     console.error('Get franchise customers error:', error);
     res.status(500).json({ error: '고객 목록 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/franchise/visit-source-settings - 프랜차이즈 소속 매장들의 방문 경로 설정 통합 조회
+router.get('/visit-source-settings', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+
+    // 프랜차이즈 소속 매장 ID 목록
+    const stores = await prisma.store.findMany({
+      where: { franchiseId },
+      select: { id: true },
+    });
+
+    const storeIds = stores.map((s) => s.id);
+
+    if (storeIds.length === 0) {
+      return res.json({ options: [] });
+    }
+
+    // 모든 매장의 방문 경로 설정 조회
+    const visitSourceSettings = await prisma.visitSourceSetting.findMany({
+      where: { storeId: { in: storeIds } },
+      select: { options: true },
+    });
+
+    // 모든 옵션을 병합하고 중복 제거 (id 기준)
+    const allOptions: Array<{ id: string; label: string }> = [];
+    const seenIds = new Set<string>();
+
+    for (const setting of visitSourceSettings) {
+      const options = setting.options as Array<{ id: string; label: string }> | null;
+      if (options && Array.isArray(options)) {
+        for (const opt of options) {
+          if (!seenIds.has(opt.id)) {
+            seenIds.add(opt.id);
+            allOptions.push(opt);
+          }
+        }
+      }
+    }
+
+    res.json({ options: allOptions });
+  } catch (error) {
+    console.error('Get franchise visit source settings error:', error);
+    res.status(500).json({ error: '방문 경로 설정 조회 중 오류가 발생했습니다.' });
   }
 });
 

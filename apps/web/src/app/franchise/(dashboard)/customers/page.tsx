@@ -11,10 +11,33 @@ import {
   Calendar,
   Star,
   Building2,
+  Settings2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+// Column definitions for customization
+const COLUMN_DEFINITIONS = [
+  { id: 'name', label: '이름', required: true, defaultVisible: true },
+  { id: 'phone', label: '연락처', required: false, defaultVisible: true },
+  { id: 'store', label: '소속 매장', required: false, defaultVisible: true },
+  { id: 'points', label: '포인트', required: false, defaultVisible: true },
+  { id: 'gender', label: '성별', required: false, defaultVisible: false },
+  { id: 'ageGroup', label: '연령대', required: false, defaultVisible: false },
+  { id: 'visitSource', label: '방문 경로', required: false, defaultVisible: true },
+  { id: 'tableLabel', label: '좌석', required: false, defaultVisible: true },
+  { id: 'visitCount', label: '방문횟수', required: false, defaultVisible: true },
+  { id: 'lastVisit', label: '최근방문', required: false, defaultVisible: true },
+] as const;
+
+type ColumnId = (typeof COLUMN_DEFINITIONS)[number]['id'];
+
+const DEFAULT_VISIBLE_COLUMNS: ColumnId[] = COLUMN_DEFINITIONS.filter(
+  (c) => c.defaultVisible
+).map((c) => c.id);
+
+const COLUMN_STORAGE_KEY = 'taghere-franchise-customer-list-columns';
 
 // API response types
 interface Customer {
@@ -31,6 +54,8 @@ interface Customer {
     id: string;
     name: string;
   };
+  visitSource: string | null;
+  lastTableLabel: string | null;
 }
 
 interface OrderItem {
@@ -101,6 +126,12 @@ export default function FranchiseCustomersPage() {
 
   const dateRangeDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Column customization states
+  const [visibleColumns, setVisibleColumns] = useState<ColumnId[]>(DEFAULT_VISIBLE_COLUMNS);
+  const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
+  const columnSettingsRef = useRef<HTMLDivElement>(null);
+  const [visitSourceLabelMap, setVisitSourceLabelMap] = useState<Record<string, string>>({});
+
   // Filter options
   const genderOptions = [
     { value: 'all', label: '전체' },
@@ -156,6 +187,80 @@ export default function FranchiseCustomersPage() {
   useEffect(() => {
     fetchStores();
   }, [fetchStores]);
+
+  // Load visible columns from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem(COLUMN_STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setVisibleColumns(parsed as ColumnId[]);
+        }
+      } catch (e) {
+        // Use default if parsing fails
+      }
+    }
+  }, []);
+
+  // Fetch visit source settings for label mapping
+  useEffect(() => {
+    const fetchVisitSourceSettings = async () => {
+      try {
+        const token = getAuthToken();
+        if (!token) return;
+
+        const res = await fetch(`${API_BASE}/api/franchise/visit-source-settings`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const options = data.options as Array<{ id: string; label: string }>;
+          const labelMap: Record<string, string> = {};
+          options.forEach((opt) => {
+            labelMap[opt.id] = opt.label;
+          });
+          setVisitSourceLabelMap(labelMap);
+        }
+      } catch (error) {
+        console.error('Failed to fetch visit source settings:', error);
+      }
+    };
+
+    fetchVisitSourceSettings();
+  }, []);
+
+  // Close column settings dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnSettingsRef.current && !columnSettingsRef.current.contains(event.target as Node)) {
+        setColumnSettingsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Column toggle functions
+  const isColumnVisible = (columnId: ColumnId) => visibleColumns.includes(columnId);
+
+  const toggleColumn = (columnId: ColumnId) => {
+    const column = COLUMN_DEFINITIONS.find((c) => c.id === columnId);
+    if (column?.required) return;
+
+    const newColumns = visibleColumns.includes(columnId)
+      ? visibleColumns.filter((id) => id !== columnId)
+      : [...visibleColumns, columnId];
+
+    setVisibleColumns(newColumns as ColumnId[]);
+    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(newColumns));
+  };
+
+  const resetColumnsToDefault = () => {
+    setVisibleColumns(DEFAULT_VISIBLE_COLUMNS);
+    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(DEFAULT_VISIBLE_COLUMNS));
+  };
 
   // Fetch customers from API
   const fetchCustomers = useCallback(async () => {
@@ -664,6 +769,59 @@ export default function FranchiseCustomersPage() {
                 </div>
               )}
             </div>
+
+            {/* Column Settings */}
+            <div className="relative" ref={columnSettingsRef}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setColumnSettingsOpen(!columnSettingsOpen);
+                  setStoreDropdownOpen(false);
+                  setGenderDropdownOpen(false);
+                  setVisitDropdownOpen(false);
+                  setLastVisitDropdownOpen(false);
+                  setDateRangeDropdownOpen(false);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors"
+              >
+                <Settings2 className="w-3.5 h-3.5" />
+                컬럼
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+              {columnSettingsOpen && (
+                <div className="absolute top-full right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-2 min-w-[180px] z-50">
+                  {COLUMN_DEFINITIONS.map((column) => (
+                    <label
+                      key={column.id}
+                      className={cn(
+                        'flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-neutral-50',
+                        column.required && 'opacity-50 cursor-not-allowed'
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns.includes(column.id)}
+                        disabled={column.required}
+                        onChange={() => toggleColumn(column.id)}
+                        className="rounded border-neutral-300 text-brand-800 focus:ring-brand-800"
+                      />
+                      <span className="text-sm text-neutral-700">{column.label}</span>
+                      {column.required && (
+                        <span className="text-xs text-neutral-400">(필수)</span>
+                      )}
+                    </label>
+                  ))}
+                  <div className="px-3 pt-2 mt-2 border-t border-neutral-100">
+                    <button
+                      onClick={resetColumnsToDefault}
+                      className="text-xs text-neutral-500 hover:text-neutral-700"
+                    >
+                      기본값으로 초기화
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -673,40 +831,66 @@ export default function FranchiseCustomersPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-neutral-200 bg-neutral-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    이름
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    연락처
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    소속 매장
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    포인트
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    성별
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    연령대
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    방문횟수
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    최근방문
-                  </th>
+                  {isColumnVisible('name') && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      이름
+                    </th>
+                  )}
+                  {isColumnVisible('phone') && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      연락처
+                    </th>
+                  )}
+                  {isColumnVisible('store') && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      소속 매장
+                    </th>
+                  )}
+                  {isColumnVisible('points') && (
+                    <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      포인트
+                    </th>
+                  )}
+                  {isColumnVisible('gender') && (
+                    <th className="px-6 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      성별
+                    </th>
+                  )}
+                  {isColumnVisible('ageGroup') && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      연령대
+                    </th>
+                  )}
+                  {isColumnVisible('visitSource') && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      방문 경로
+                    </th>
+                  )}
+                  {isColumnVisible('tableLabel') && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      좌석
+                    </th>
+                  )}
+                  {isColumnVisible('visitCount') && (
+                    <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      방문횟수
+                    </th>
+                  )}
+                  {isColumnVisible('lastVisit') && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      최근방문
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={8}>{renderSkeleton()}</td>
+                    <td colSpan={visibleColumns.length}>{renderSkeleton()}</td>
                   </tr>
                 ) : customers.length === 0 ? (
                   <tr>
-                    <td colSpan={8}>{renderEmptyState()}</td>
+                    <td colSpan={visibleColumns.length}>{renderEmptyState()}</td>
                   </tr>
                 ) : (
                   customers.map((customer) => (
@@ -715,31 +899,59 @@ export default function FranchiseCustomersPage() {
                       onClick={() => fetchCustomerDetail(customer.id)}
                       className="hover:bg-neutral-50 transition-colors cursor-pointer"
                     >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-neutral-100 rounded-full flex items-center justify-center">
-                            <UserCircle className="w-5 h-5 text-neutral-400" />
+                      {isColumnVisible('name') && (
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-neutral-100 rounded-full flex items-center justify-center">
+                              <UserCircle className="w-5 h-5 text-neutral-400" />
+                            </div>
+                            <span className="text-sm font-medium text-neutral-900">{customer.name}</span>
                           </div>
-                          <span className="text-sm font-medium text-neutral-900">{customer.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-neutral-600 font-pretendard">{customer.phone}</td>
-                      <td className="px-6 py-4 text-sm text-neutral-600">{customer.store.name}</td>
-                      <td className="px-6 py-4 text-sm text-neutral-900 text-right font-medium">
-                        {customer.totalPoints.toLocaleString()}P
-                      </td>
-                      <td className="px-6 py-4 text-sm text-neutral-600 text-center">
-                        {customer.gender === 'MALE' ? '남성' : customer.gender === 'FEMALE' ? '여성' : '-'}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-neutral-600">
-                        {customer.ageGroup ? getAgeGroupLabel(customer.ageGroup) : '-'}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-neutral-900 text-right font-medium">
-                        {customer.visitCount}회
-                      </td>
-                      <td className="px-6 py-4 text-sm text-neutral-500">
-                        {customer.lastVisitAt ? formatDate(customer.lastVisitAt) : '-'}
-                      </td>
+                        </td>
+                      )}
+                      {isColumnVisible('phone') && (
+                        <td className="px-6 py-4 text-sm text-neutral-600 font-pretendard">{customer.phone}</td>
+                      )}
+                      {isColumnVisible('store') && (
+                        <td className="px-6 py-4 text-sm text-neutral-600">{customer.store.name}</td>
+                      )}
+                      {isColumnVisible('points') && (
+                        <td className="px-6 py-4 text-sm text-neutral-900 text-right font-medium">
+                          {customer.totalPoints.toLocaleString()}P
+                        </td>
+                      )}
+                      {isColumnVisible('gender') && (
+                        <td className="px-6 py-4 text-sm text-neutral-600 text-center">
+                          {customer.gender === 'MALE' ? '남성' : customer.gender === 'FEMALE' ? '여성' : '-'}
+                        </td>
+                      )}
+                      {isColumnVisible('ageGroup') && (
+                        <td className="px-6 py-4 text-sm text-neutral-600">
+                          {customer.ageGroup ? getAgeGroupLabel(customer.ageGroup) : '-'}
+                        </td>
+                      )}
+                      {isColumnVisible('visitSource') && (
+                        <td className="px-6 py-4 text-sm text-neutral-600">
+                          {customer.visitSource
+                            ? visitSourceLabelMap[customer.visitSource] || customer.visitSource
+                            : '-'}
+                        </td>
+                      )}
+                      {isColumnVisible('tableLabel') && (
+                        <td className="px-6 py-4 text-sm text-neutral-600">
+                          {customer.lastTableLabel || '-'}
+                        </td>
+                      )}
+                      {isColumnVisible('visitCount') && (
+                        <td className="px-6 py-4 text-sm text-neutral-900 text-right font-medium">
+                          {customer.visitCount}회
+                        </td>
+                      )}
+                      {isColumnVisible('lastVisit') && (
+                        <td className="px-6 py-4 text-sm text-neutral-500">
+                          {customer.lastVisitAt ? formatDate(customer.lastVisitAt) : '-'}
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
