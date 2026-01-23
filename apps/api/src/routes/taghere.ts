@@ -153,7 +153,16 @@ router.get('/ordersheet', async (req, res) => {
     });
 
     // tableLabel 추출
-    const tableLabel = orderData.content?.tableLabel || orderData.tableLabel || (orderData as any).tableLabel || null;
+    let tableLabel = orderData.content?.tableLabel || orderData.tableLabel || (orderData as any).tableLabel || null;
+
+    // tableLabel이 없으면 tableID 확인 (짧은 숫자면 테이블 번호로 사용)
+    if (!tableLabel) {
+      const tableID = (orderData as any).tableID || (orderData as any).content?.tableID;
+      // tableID가 짧은 문자열이면 테이블 번호로 사용 (MongoDB ObjectId는 24자)
+      if (tableID && typeof tableID === 'string' && tableID.length < 10) {
+        tableLabel = tableID;
+      }
+    }
 
     res.json({
       storeId: store.id,
@@ -329,7 +338,16 @@ router.post('/auto-earn', async (req, res) => {
       option: item.option || null,
     }));
     // tableLabel 추출 (tableLabel 또는 tableNumber)
-    const tableLabel = orderData?.content?.tableLabel || orderData?.tableLabel || (orderData as any)?.content?.tableNumber || (orderData as any)?.tableNumber || null;
+    let tableLabel = orderData?.content?.tableLabel || orderData?.tableLabel || (orderData as any)?.content?.tableNumber || (orderData as any)?.tableNumber || null;
+
+    // tableLabel이 없으면 tableID 확인 (짧은 숫자면 테이블 번호로 사용)
+    if (!tableLabel) {
+      const tableID = (orderData as any)?.tableID || (orderData as any)?.content?.tableID;
+      // tableID가 짧은 문자열이면 테이블 번호로 사용 (MongoDB ObjectId는 24자)
+      if (tableID && typeof tableID === 'string' && tableID.length < 10) {
+        tableLabel = tableID;
+      }
+    }
 
     // 7. 포인트 계산
     const ratePercent = store.pointRatePercent || 5;
@@ -1055,10 +1073,20 @@ router.post('/stamp-earn', async (req, res) => {
             option: item.option || null,
           }));
 
+          // tableLabel 추출 (여러 필드 확인)
           tableLabel = orderData.content?.tableLabel || orderData.tableLabel ||
                        (orderData as any).content?.tableNumber || (orderData as any).tableNumber || null;
 
-          console.log(`[TagHere Stamp-Earn] Order data fetched - ordersheetId: ${ordersheetId}, tableLabel: ${tableLabel}, itemsCount: ${orderItems.length}`);
+          // tableLabel이 없으면 tableID 확인 (짧은 숫자면 테이블 번호로 사용)
+          if (!tableLabel) {
+            const tableID = (orderData as any).tableID || (orderData as any).content?.tableID;
+            // tableID가 짧은 문자열이면 테이블 번호로 사용 (MongoDB ObjectId는 24자)
+            if (tableID && typeof tableID === 'string' && tableID.length < 10) {
+              tableLabel = tableID;
+            }
+          }
+
+          console.log(`[TagHere Stamp-Earn] Order data fetched - ordersheetId: ${ordersheetId}, tableLabel: ${tableLabel}, tableID: ${(orderData as any).tableID}, itemsCount: ${orderItems.length}`);
         }
       } catch (e) {
         console.error('[TagHere Stamp-Earn] Failed to fetch ordersheet:', e);
