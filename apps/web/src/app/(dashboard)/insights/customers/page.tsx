@@ -343,6 +343,27 @@ export default function CustomerInsightsPage() {
         </div>
       ) : insights ? (
         <>
+          {/* 방문경로 분석 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 방문경로 파이차트 */}
+            <div className="bg-white rounded-xl border border-neutral-200 p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <MapPin className="w-5 h-5 text-neutral-400" />
+                <h3 className="font-semibold text-neutral-900">방문 경로 분포</h3>
+              </div>
+              {renderVisitSourcePie()}
+            </div>
+
+            {/* 방문경로 막대차트 */}
+            <div className="bg-white rounded-xl border border-neutral-200 p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <MapPin className="w-5 h-5 text-neutral-400" />
+                <h3 className="font-semibold text-neutral-900">방문 경로별 고객 수</h3>
+              </div>
+              {renderVisitSourceBarChart()}
+            </div>
+          </div>
+
           {/* 재방문율 카드 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white rounded-xl border border-neutral-200 p-6">
@@ -399,27 +420,6 @@ export default function CustomerInsightsPage() {
                 <span className="text-xs text-neutral-400">(누적 포인트 기준)</span>
               </div>
               {renderGenderAgeSpendingChart()}
-            </div>
-          </div>
-
-          {/* 방문경로 분석 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 방문경로 파이차트 */}
-            <div className="bg-white rounded-xl border border-neutral-200 p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <MapPin className="w-5 h-5 text-neutral-400" />
-                <h3 className="font-semibold text-neutral-900">방문 경로 분포</h3>
-              </div>
-              {renderVisitSourcePie()}
-            </div>
-
-            {/* 방문경로 막대차트 */}
-            <div className="bg-white rounded-xl border border-neutral-200 p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <MapPin className="w-5 h-5 text-neutral-400" />
-                <h3 className="font-semibold text-neutral-900">방문 경로별 고객 수</h3>
-              </div>
-              {renderVisitSourceBarChart()}
             </div>
           </div>
         </>
