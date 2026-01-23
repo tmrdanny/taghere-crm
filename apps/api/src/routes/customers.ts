@@ -123,7 +123,13 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       messageCounts.map((mc) => [mc.customerId, mc._count.id])
     );
 
-    // Get last table label for each customer (from most recent VisitOrOrder with tableNumber in items)
+    // Get last table label for each customer from 3 sources:
+    // 1. VisitOrOrder.items.tableNumber
+    // 2. PointLedger.tableLabel
+    // 3. StampLedger.tableLabel
+    // Use the most recent value across all sources
+
+    // 1. VisitOrOrder에서 조회
     const lastVisitOrders = await prisma.visitOrOrder.findMany({
       where: {
         storeId,
@@ -134,14 +140,74 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       select: {
         customerId: true,
         items: true,
+        visitedAt: true,
       },
     });
 
+    // 2. PointLedger에서 tableLabel 조회
+    const pointTableLabels = await prisma.pointLedger.findMany({
+      where: {
+        storeId,
+        customerId: { in: customerIds },
+        tableLabel: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+      distinct: ['customerId'],
+      select: {
+        customerId: true,
+        tableLabel: true,
+        createdAt: true,
+      },
+    });
+
+    // 3. StampLedger에서 tableLabel 조회
+    const stampTableLabels = await prisma.stampLedger.findMany({
+      where: {
+        storeId,
+        customerId: { in: customerIds },
+        tableLabel: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+      distinct: ['customerId'],
+      select: {
+        customerId: true,
+        tableLabel: true,
+        createdAt: true,
+      },
+    });
+
+    // 4. 병합 (가장 최근 값 사용)
     const tableLabelsMap = new Map<string, string>();
+    const timestampMap = new Map<string, Date>();
+
+    // VisitOrOrder에서 먼저 처리
     for (const visit of lastVisitOrders) {
       const items = visit.items as { tableNumber?: string } | null;
       if (items?.tableNumber) {
         tableLabelsMap.set(visit.customerId, items.tableNumber);
+        timestampMap.set(visit.customerId, visit.visitedAt);
+      }
+    }
+
+    // PointLedger 처리 (더 최근 값이면 덮어쓰기)
+    for (const entry of pointTableLabels) {
+      if (entry.tableLabel) {
+        const existing = timestampMap.get(entry.customerId);
+        if (!existing || entry.createdAt > existing) {
+          tableLabelsMap.set(entry.customerId, entry.tableLabel);
+          timestampMap.set(entry.customerId, entry.createdAt);
+        }
+      }
+    }
+
+    // StampLedger 처리 (더 최근 값이면 덮어쓰기)
+    for (const entry of stampTableLabels) {
+      if (entry.tableLabel) {
+        const existing = timestampMap.get(entry.customerId);
+        if (!existing || entry.createdAt > existing) {
+          tableLabelsMap.set(entry.customerId, entry.tableLabel);
+          timestampMap.set(entry.customerId, entry.createdAt);
+        }
       }
     }
 
