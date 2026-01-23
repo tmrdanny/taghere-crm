@@ -8,7 +8,8 @@ const router = Router();
 
 // 태그히어 서버 연동 설정
 const TAGHERE_CRM_BASE_URL = process.env.TAGHERE_CRM_BASE_URL || 'https://taghere-crm-web-dev.onrender.com';
-const TAGHERE_WEBHOOK_URL = process.env.TAGHERE_WEBHOOK_URL || 'https://api.d.tag-here.com/webhook/crm';
+const TAGHERE_API_BASE = process.env.TAGHERE_API_URL || 'https://api.d.tag-here.com';
+const TAGHERE_WEBHOOK_URL = process.env.TAGHERE_WEBHOOK_URL || `${TAGHERE_API_BASE}/webhook/crm`;
 const TAGHERE_WEBHOOK_TOKEN = process.env.TAGHERE_API_TOKEN_FOR_CRM || process.env.TAGHERE_WEBHOOK_TOKEN || process.env.TAGHERE_DEV_API_TOKEN || '';
 
 // 매장 생성 시 태그히어 서버에 CRM 활성화 알림
