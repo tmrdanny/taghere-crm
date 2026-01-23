@@ -340,51 +340,25 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
       prisma.customer.count({ where: whereCondition }),
     ]);
 
-    // Get last table label for each customer (from most recent PointLedger or StampLedger with tableLabel)
+    // Get last table label for each customer (from most recent VisitOrOrder with tableNumber in items)
     const customerIds = customers.map((c) => c.id);
-    const [pointTableLabels, stampTableLabels] = await Promise.all([
-      prisma.pointLedger.findMany({
-        where: {
-          customerId: { in: customerIds },
-          tableLabel: { not: null },
-        },
-        orderBy: { createdAt: 'desc' },
-        distinct: ['customerId'],
-        select: {
-          customerId: true,
-          tableLabel: true,
-          createdAt: true,
-        },
-      }),
-      prisma.stampLedger.findMany({
-        where: {
-          customerId: { in: customerIds },
-          tableLabel: { not: null },
-        },
-        orderBy: { createdAt: 'desc' },
-        distinct: ['customerId'],
-        select: {
-          customerId: true,
-          tableLabel: true,
-          createdAt: true,
-        },
-      }),
-    ]);
+    const lastVisitOrders = await prisma.visitOrOrder.findMany({
+      where: {
+        customerId: { in: customerIds },
+      },
+      orderBy: { visitedAt: 'desc' },
+      distinct: ['customerId'],
+      select: {
+        customerId: true,
+        items: true,
+      },
+    });
 
-    // Merge results, using the most recent tableLabel for each customer
     const tableLabelsMap = new Map<string, string>();
-    const timestampMap = new Map<string, Date>();
-
-    for (const entry of pointTableLabels) {
-      tableLabelsMap.set(entry.customerId, entry.tableLabel!);
-      timestampMap.set(entry.customerId, entry.createdAt);
-    }
-
-    for (const entry of stampTableLabels) {
-      const existingTime = timestampMap.get(entry.customerId);
-      if (!existingTime || entry.createdAt > existingTime) {
-        tableLabelsMap.set(entry.customerId, entry.tableLabel!);
-        timestampMap.set(entry.customerId, entry.createdAt);
+    for (const visit of lastVisitOrders) {
+      const items = visit.items as { tableNumber?: string } | null;
+      if (items?.tableNumber) {
+        tableLabelsMap.set(visit.customerId, items.tableNumber);
       }
     }
 
