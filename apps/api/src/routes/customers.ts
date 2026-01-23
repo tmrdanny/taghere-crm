@@ -129,6 +129,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     // 3. StampLedger.tableLabel
     // Use the most recent value across all sources
 
+    console.log(`[Customers] tableLabel 조회 시작 - customerIds: ${customerIds.length}개`);
+
     // 1. VisitOrOrder에서 조회
     const lastVisitOrders = await prisma.visitOrOrder.findMany({
       where: {
@@ -143,6 +145,10 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
         visitedAt: true,
       },
     });
+    console.log(`[Customers] VisitOrOrder 조회 결과: ${lastVisitOrders.length}개`);
+    if (lastVisitOrders.length > 0) {
+      console.log(`[Customers] VisitOrOrder 샘플:`, JSON.stringify(lastVisitOrders[0], null, 2));
+    }
 
     // 2. PointLedger에서 tableLabel 조회
     const pointTableLabels = await prisma.pointLedger.findMany({
@@ -159,6 +165,10 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
         createdAt: true,
       },
     });
+    console.log(`[Customers] PointLedger tableLabel 조회 결과: ${pointTableLabels.length}개`);
+    if (pointTableLabels.length > 0) {
+      console.log(`[Customers] PointLedger 샘플:`, JSON.stringify(pointTableLabels.slice(0, 3), null, 2));
+    }
 
     // 3. StampLedger에서 tableLabel 조회
     const stampTableLabels = await prisma.stampLedger.findMany({
@@ -175,6 +185,10 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
         createdAt: true,
       },
     });
+    console.log(`[Customers] StampLedger tableLabel 조회 결과: ${stampTableLabels.length}개`);
+    if (stampTableLabels.length > 0) {
+      console.log(`[Customers] StampLedger 샘플:`, JSON.stringify(stampTableLabels.slice(0, 3), null, 2));
+    }
 
     // 4. 병합 (가장 최근 값 사용)
     const tableLabelsMap = new Map<string, string>();
@@ -188,6 +202,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
         timestampMap.set(visit.customerId, visit.visitedAt);
       }
     }
+    console.log(`[Customers] VisitOrOrder 처리 후 tableLabelsMap 크기: ${tableLabelsMap.size}`);
 
     // PointLedger 처리 (더 최근 값이면 덮어쓰기)
     for (const entry of pointTableLabels) {
@@ -199,6 +214,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
         }
       }
     }
+    console.log(`[Customers] PointLedger 처리 후 tableLabelsMap 크기: ${tableLabelsMap.size}`);
 
     // StampLedger 처리 (더 최근 값이면 덮어쓰기)
     for (const entry of stampTableLabels) {
@@ -209,6 +225,11 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
           timestampMap.set(entry.customerId, entry.createdAt);
         }
       }
+    }
+    console.log(`[Customers] 최종 tableLabelsMap 크기: ${tableLabelsMap.size}`);
+    if (tableLabelsMap.size > 0) {
+      const entries = Array.from(tableLabelsMap.entries()).slice(0, 3);
+      console.log(`[Customers] tableLabelsMap 샘플:`, JSON.stringify(entries, null, 2));
     }
 
     // Determine VIP status and add message count
