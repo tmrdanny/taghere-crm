@@ -94,7 +94,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/customers', label: '고객 리스트', icon: Users },
       { href: '/feedback', label: '고객 피드백', icon: MessageSquare },
-      { href: '/visit-source', label: '방문 경로', icon: MapPin },
+      { href: '/visit-source', label: '방문 경로', icon: MapPin, isNew: true },
     ],
   },
   {
