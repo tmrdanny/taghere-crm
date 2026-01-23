@@ -27,6 +27,7 @@ import {
   HandCoins,
   Stamp,
   MapPin,
+  BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -104,6 +105,13 @@ const navGroups: NavGroup[] = [
       { href: '/messages', label: '리타겟', icon: MessageSquareMore },
       { href: '/local-customers', label: '신규 고객 타겟', icon: UserPlus },
       { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
+    ],
+  },
+  {
+    title: '인사이트',
+    icon: BarChart3,
+    items: [
+      { href: '/insights/customers', label: '고객 통계', icon: Users, isNew: true },
     ],
   },
 ];
