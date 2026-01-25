@@ -78,14 +78,7 @@ const navGroups: NavGroup[] = [
     icon: Store,
     items: [
       { href: 'https://admin.tag-here.com', label: '주문/결제', icon: TabletSmartphone, isExternal: true },
-      {
-        href: '#',
-        label: '웨이팅',
-        icon: ListOrdered,
-        isNew: true,
-        isComingSoon: true,
-        comingSoonLink: '웨이팅',
-      },
+      { href: '/waiting', label: '웨이팅', icon: ListOrdered, isNew: true },
       { href: '/points', label: '포인트 적립', icon: HandCoins },
       { href: '/stamp-settings', label: '스탬프 설정', icon: Stamp },
     ],
