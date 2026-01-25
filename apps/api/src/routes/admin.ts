@@ -240,6 +240,10 @@ router.get('/me', adminAuthMiddleware, (req: AdminRequest, res: Response) => {
 // GET /api/admin/stores - 모든 매장 목록 조회
 router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
+    // 현재 연월 계산
+    const now = new Date();
+    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
     const stores = await prisma.store.findMany({
       select: {
         id: true,
@@ -285,28 +289,57 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
       },
     });
 
+    // 모든 매장의 이번 달 크레딧 한 번에 조회 (N+1 방지)
+    const monthlyCredits = await prisma.monthlyCredit.findMany({
+      where: {
+        storeId: { in: stores.map((s) => s.id) },
+        yearMonth: currentYearMonth,
+      },
+      select: {
+        storeId: true,
+        totalCredits: true,
+        usedCredits: true,
+      },
+    });
+
+    // storeId -> credit 맵 생성
+    const creditMap = new Map(monthlyCredits.map((c) => [c.storeId, c]));
+
     // 데이터 포맷팅
-    const formattedStores = stores.map((store) => ({
-      id: store.id,
-      name: store.name,
-      category: store.category,
-      slug: store.slug,
-      ownerName: store.ownerName,
-      phone: store.phone,
-      businessRegNumber: store.businessRegNumber,
-      address: store.address,
-      createdAt: store.createdAt,
-      ownerEmail: store.staffUsers[0]?.email || null,
-      ownerId: store.staffUsers[0]?.id || null,
-      customerCount: store._count.customers,
-      // Point settings
-      pointRatePercent: store.pointRatePercent,
-      pointUsageRule: store.pointUsageRule,
-      pointsAlimtalkEnabled: store.pointsAlimtalkEnabled,
-      crmEnabled: (store as any).crmEnabled ?? true,
-      // Wallet balance 포함
-      walletBalance: store.wallet?.balance || 0,
-    }));
+    const formattedStores = stores.map((store) => {
+      const credit = creditMap.get(store.id);
+      const totalCredits = credit?.totalCredits ?? 30;
+      const usedCredits = credit?.usedCredits ?? 0;
+      const remainingCredits = Math.max(0, totalCredits - usedCredits);
+
+      return {
+        id: store.id,
+        name: store.name,
+        category: store.category,
+        slug: store.slug,
+        ownerName: store.ownerName,
+        phone: store.phone,
+        businessRegNumber: store.businessRegNumber,
+        address: store.address,
+        createdAt: store.createdAt,
+        ownerEmail: store.staffUsers[0]?.email || null,
+        ownerId: store.staffUsers[0]?.id || null,
+        customerCount: store._count.customers,
+        // Point settings
+        pointRatePercent: store.pointRatePercent,
+        pointUsageRule: store.pointUsageRule,
+        pointsAlimtalkEnabled: store.pointsAlimtalkEnabled,
+        crmEnabled: (store as any).crmEnabled ?? true,
+        // Wallet balance 포함
+        walletBalance: store.wallet?.balance || 0,
+        // 월별 무료 크레딧 정보
+        monthlyCredit: {
+          total: totalCredits,
+          used: usedCredits,
+          remaining: remainingCredits,
+        },
+      };
+    });
 
     res.json(formattedStores);
   } catch (error) {

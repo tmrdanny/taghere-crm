@@ -62,6 +62,12 @@ interface Store {
   pointsAlimtalkEnabled?: boolean;
   // CRM settings
   crmEnabled?: boolean;
+  // Monthly credit
+  monthlyCredit?: {
+    total: number;
+    used: number;
+    remaining: number;
+  };
 }
 
 interface TopupModalData {
@@ -683,6 +689,12 @@ export default function AdminStoresPage() {
                 </span>
               </div>
               <div className="flex items-center justify-between">
+                <span className="text-[11px] sm:text-[12px] text-neutral-500">무료 크레딧</span>
+                <span className="text-[13px] sm:text-[14px] font-medium text-neutral-900">
+                  {store.monthlyCredit?.remaining ?? 30}/{store.monthlyCredit?.total ?? 30}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-[11px] sm:text-[12px] text-neutral-500">가입일</span>
                 <span className="text-[11px] sm:text-[12px] text-neutral-600">
                   {new Date(store.createdAt).toLocaleDateString('ko-KR')}
@@ -950,27 +962,39 @@ export default function AdminStoresPage() {
                   </div>
                 </div>
 
-                {/* 충전금 */}
-                <div className="rounded-xl p-4 bg-neutral-50">
-                  <label className="block text-[12px] text-neutral-500 mb-1">충전금</label>
-                  <div className="flex items-center gap-3">
-                    <p className="text-[20px] font-bold text-blue-600">
-                      {formatNumber(selectedStore.walletBalance || 0)}원
-                    </p>
-                    <button
-                      onClick={(e) => openTopupModal(selectedStore, e)}
-                      className="px-3 py-1.5 text-[12px] font-medium text-white bg-green-500 hover:bg-green-600 rounded-lg transition-colors"
-                    >
-                      충전
-                    </button>
-                    {(selectedStore.walletBalance || 0) > 0 && (
+                {/* 2-column: 충전금 & 무료 크레딧 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl p-4 bg-neutral-50">
+                    <label className="block text-[12px] text-neutral-500 mb-1">충전금</label>
+                    <div className="flex items-center gap-3">
+                      <p className="text-[20px] font-bold text-blue-600">
+                        {formatNumber(selectedStore.walletBalance || 0)}원
+                      </p>
                       <button
-                        onClick={(e) => openDeductModal(selectedStore, e)}
-                        className="px-3 py-1.5 text-[12px] font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+                        onClick={(e) => openTopupModal(selectedStore, e)}
+                        className="px-3 py-1.5 text-[12px] font-medium text-white bg-green-500 hover:bg-green-600 rounded-lg transition-colors"
                       >
-                        차감
+                        충전
                       </button>
-                    )}
+                      {(selectedStore.walletBalance || 0) > 0 && (
+                        <button
+                          onClick={(e) => openDeductModal(selectedStore, e)}
+                          className="px-3 py-1.5 text-[12px] font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+                        >
+                          차감
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="rounded-xl p-4 bg-neutral-50">
+                    <label className="block text-[12px] text-neutral-500 mb-1">이번 달 무료 크레딧</label>
+                    <p className="text-[20px] font-bold text-neutral-900">
+                      {selectedStore.monthlyCredit?.remaining ?? 30}/{selectedStore.monthlyCredit?.total ?? 30}
+                      <span className="text-[14px] font-normal text-neutral-500 ml-1">건</span>
+                    </p>
+                    <p className="text-[11px] text-neutral-400 mt-1">
+                      사용: {selectedStore.monthlyCredit?.used ?? 0}건
+                    </p>
                   </div>
                 </div>
 
