@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
@@ -32,7 +32,7 @@ export default function WaitingPage() {
   // Data states
   const [settings, setSettings] = useState<WaitingSetting | null>(null);
   const [types, setTypes] = useState<WaitingType[]>([]);
-  const [items, setItems] = useState<WaitingItem[]>([]);
+  const [allItems, setAllItems] = useState<WaitingItem[]>([]); // 전체 데이터 캐시
   const [stats, setStats] = useState<WaitingStats | null>(null);
   const [storeSlug, setStoreSlug] = useState<string | null>(null);
 
@@ -65,12 +65,8 @@ export default function WaitingPage() {
     restore: null,
   });
 
-  // Fetch data
-  const fetchData = useCallback(async (showLoadingIndicator = false) => {
-    if (showLoadingIndicator) {
-      setIsRefreshing(true);
-    }
-
+  // 초기 데이터 로드 (설정, 타입, 통계, 스토어, 전체 목록)
+  const fetchInitialData = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const headers = {
@@ -78,12 +74,14 @@ export default function WaitingPage() {
         'Content-Type': 'application/json',
       };
 
-      // Fetch settings, types, today's stats, and store info in parallel
-      const [settingsRes, typesRes, statsRes, storeRes] = await Promise.all([
+      // Fetch settings, types, today's stats, store info, and ALL items in parallel
+      const [settingsRes, typesRes, statsRes, storeRes, itemsRes] = await Promise.all([
         fetch(`${apiUrl}/api/waiting/settings`, { headers }),
         fetch(`${apiUrl}/api/waiting/types`, { headers }),
         fetch(`${apiUrl}/api/waiting/stats/today`, { headers }),
         fetch(`${apiUrl}/api/settings/store`, { headers }),
+        // 전체 상태 조회 (클라이언트 사이드 필터링용)
+        fetch(`${apiUrl}/api/waiting?status=WAITING,CALLED,SEATED,CANCELLED,NO_SHOW&limit=500`, { headers }),
       ]);
 
       if (settingsRes.ok) {
@@ -108,50 +106,83 @@ export default function WaitingPage() {
         }
       }
 
-      // Fetch waiting list with filters
-      const params = new URLSearchParams();
-      if (selectedTypeId) {
-        params.append('typeId', selectedTypeId);
-      }
-      // WAITING 필터는 WAITING + CALLED 상태 모두 포함 (호출된 고객도 리스트에 표시)
-      if (selectedStatus === 'WAITING') {
-        params.append('status', 'WAITING,CALLED');
-      } else {
-        params.append('status', selectedStatus);
-      }
-
-      const itemsRes = await fetch(`${apiUrl}/api/waiting?${params.toString()}`, { headers });
       if (itemsRes.ok) {
         const itemsData = await itemsRes.json();
-        setItems(itemsData.waitings || []);
+        setAllItems(itemsData.waitings || []);
       }
     } catch (error) {
       console.error('Failed to fetch waiting data:', error);
       showToast('데이터를 불러오는데 실패했습니다.', 'error');
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
-  }, [apiUrl, selectedTypeId, selectedStatus, showToast]);
+  }, [apiUrl, showToast]);
 
-  // Initial load
+  // 폴링용 - 목록과 통계만 갱신 (설정, 타입, 스토어는 갱신 안함)
+  const refreshData = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      };
+
+      const [statsRes, itemsRes] = await Promise.all([
+        fetch(`${apiUrl}/api/waiting/stats/today`, { headers }),
+        fetch(`${apiUrl}/api/waiting?status=WAITING,CALLED,SEATED,CANCELLED,NO_SHOW&limit=500`, { headers }),
+      ]);
+
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setStats(statsData);
+      }
+
+      if (itemsRes.ok) {
+        const itemsData = await itemsRes.json();
+        setAllItems(itemsData.waitings || []);
+      }
+    } catch (error) {
+      console.error('Failed to refresh waiting data:', error);
+    }
+  }, [apiUrl]);
+
+  // 수동 새로고침
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await refreshData();
+    setIsRefreshing(false);
+  }, [refreshData]);
+
+  // 클라이언트 사이드 필터링 (탭 전환 시 API 호출 없이 즉시 반영)
+  const filteredItems = useMemo(() => {
+    return allItems.filter((item) => {
+      // 상태 필터
+      if (selectedStatus === 'WAITING') {
+        if (!['WAITING', 'CALLED'].includes(item.status)) return false;
+      } else if (selectedStatus === 'CANCELLED') {
+        if (!['CANCELLED', 'NO_SHOW'].includes(item.status)) return false;
+      } else if (item.status !== selectedStatus) {
+        return false;
+      }
+      // 타입 필터
+      if (selectedTypeId && item.waitingTypeId !== selectedTypeId) return false;
+      return true;
+    });
+  }, [allItems, selectedStatus, selectedTypeId]);
+
+  // 초기 로드 (1회만)
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchInitialData();
+  }, [fetchInitialData]);
 
-  // Polling for real-time updates (every 5 seconds)
+  // 폴링 - 5초마다 목록과 통계만 갱신
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchData(false);
+      refreshData();
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [fetchData]);
-
-  // Refetch when filters change
-  useEffect(() => {
-    fetchData();
-  }, [selectedTypeId, selectedStatus, fetchData]);
+  }, [refreshData]);
 
   // Handle operation status change
   const handleOperationStatusChange = async (newStatus: WaitingOperationStatus) => {
@@ -212,7 +243,7 @@ export default function WaitingPage() {
       if (res.ok) {
         showToast('웨이팅이 등록되었습니다.', 'success');
         setAddModalOpen(false);
-        fetchData();
+        refreshData();
       } else {
         const error = await res.json();
         throw new Error(error.message || 'Failed to add waiting');
@@ -240,7 +271,7 @@ export default function WaitingPage() {
 
       if (res.ok) {
         showToast('호출되었습니다.', 'success');
-        fetchData();
+        refreshData();
       } else {
         throw new Error('Failed to call');
       }
@@ -267,7 +298,7 @@ export default function WaitingPage() {
 
       if (res.ok) {
         showToast('재호출되었습니다.', 'success');
-        fetchData();
+        refreshData();
       } else {
         throw new Error('Failed to recall');
       }
@@ -294,7 +325,7 @@ export default function WaitingPage() {
 
       if (res.ok) {
         showToast('착석 처리되었습니다.', 'success');
-        fetchData();
+        refreshData();
       } else {
         throw new Error('Failed to seat');
       }
@@ -308,7 +339,7 @@ export default function WaitingPage() {
 
   // Handle cancel - open modal
   const handleCancelClick = (id: string) => {
-    const item = items.find((i) => i.id === id);
+    const item = allItems.find((i) => i.id === id);
     setCancelTargetId(id);
     setCancelTargetNumber(item?.waitingNumber);
     setCancelModalOpen(true);
@@ -335,7 +366,7 @@ export default function WaitingPage() {
         setCancelModalOpen(false);
         setCancelTargetId(null);
         setCancelTargetNumber(undefined);
-        fetchData();
+        refreshData();
       } else {
         throw new Error('Failed to cancel');
       }
@@ -362,7 +393,7 @@ export default function WaitingPage() {
 
       if (res.ok) {
         showToast('되돌리기 처리되었습니다.', 'success');
-        fetchData();
+        refreshData();
       } else {
         throw new Error('Failed to restore');
       }
@@ -455,7 +486,7 @@ export default function WaitingPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fetchData(true)}
+            onClick={handleRefresh}
             disabled={isRefreshing}
           >
             <RefreshCw className={`w-4 h-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -541,7 +572,7 @@ export default function WaitingPage() {
 
         {/* Table */}
         <WaitingTable
-          items={items}
+          items={filteredItems}
           onCall={handleCall}
           onRecall={handleRecall}
           onSeat={handleSeat}
