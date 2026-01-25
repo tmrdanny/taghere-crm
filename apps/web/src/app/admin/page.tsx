@@ -47,6 +47,20 @@ interface ExternalCustomerStats {
   };
 }
 
+interface VisitSourceDistribution {
+  source: string;
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+interface VisitSourceStats {
+  totalCustomers: number;
+  totalWithSource: number;
+  noSourceCount: number;
+  distribution: VisitSourceDistribution[];
+}
+
 type PeriodType = '1' | '7' | '30' | '90' | 'all';
 type ExternalPeriodType = 'daily' | 'weekly' | 'monthly';
 
@@ -64,6 +78,10 @@ export default function AdminHomePage() {
   const [externalPeriod, setExternalPeriod] = useState<ExternalPeriodType>('daily');
   const [isExternalLoading, setIsExternalLoading] = useState(false);
 
+  // Visit Source Stats
+  const [visitSourceStats, setVisitSourceStats] = useState<VisitSourceStats | null>(null);
+  const [isVisitSourceLoading, setIsVisitSourceLoading] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -75,6 +93,10 @@ export default function AdminHomePage() {
   useEffect(() => {
     fetchExternalCustomerStats(externalPeriod);
   }, [externalPeriod]);
+
+  useEffect(() => {
+    fetchVisitSourceStats();
+  }, []);
 
   const fetchData = async () => {
     const token = localStorage.getItem('adminToken');
@@ -153,6 +175,27 @@ export default function AdminHomePage() {
       console.error('Failed to fetch external customer stats:', error);
     } finally {
       setIsExternalLoading(false);
+    }
+  };
+
+  const fetchVisitSourceStats = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsVisitSourceLoading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/visit-source-stats`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setVisitSourceStats(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch visit source stats:', error);
+    } finally {
+      setIsVisitSourceLoading(false);
     }
   };
 
@@ -335,6 +378,69 @@ export default function AdminHomePage() {
                   기간 내 데이터가 없습니다
                 </div>
               )}
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-neutral-400">
+              데이터가 없습니다
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Visit Source Stats */}
+      <section>
+        <div className="mb-4">
+          <h2 className="text-[18px] font-semibold text-neutral-900">전체 고객 방문경로 분포</h2>
+          <p className="text-[13px] text-neutral-500 mt-0.5">모든 매장의 고객 방문경로 통계</p>
+        </div>
+
+        <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+          {isVisitSourceLoading ? (
+            <div className="h-64 flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : visitSourceStats && visitSourceStats.distribution.length > 0 ? (
+            <div>
+              {/* Summary */}
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="text-center p-4 bg-blue-50 rounded-xl">
+                  <p className="text-[28px] font-semibold text-blue-600">
+                    {formatNumber(visitSourceStats.totalCustomers)}
+                  </p>
+                  <p className="text-[13px] text-neutral-500 mt-1">전체 고객</p>
+                </div>
+                <div className="text-center p-4 bg-green-50 rounded-xl">
+                  <p className="text-[28px] font-semibold text-green-600">
+                    {formatNumber(visitSourceStats.totalWithSource)}
+                  </p>
+                  <p className="text-[13px] text-neutral-500 mt-1">방문경로 있음</p>
+                </div>
+                <div className="text-center p-4 bg-neutral-100 rounded-xl">
+                  <p className="text-[28px] font-semibold text-neutral-600">
+                    {formatNumber(visitSourceStats.noSourceCount)}
+                  </p>
+                  <p className="text-[13px] text-neutral-500 mt-1">미입력</p>
+                </div>
+              </div>
+
+              {/* Charts */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Pie Chart */}
+                <div>
+                  <h3 className="text-[14px] font-medium text-neutral-700 mb-3">파이 차트</h3>
+                  <div className="h-64">
+                    <VisitSourcePieChart data={visitSourceStats.distribution} />
+                  </div>
+                </div>
+
+                {/* Bar Chart */}
+                <div>
+                  <h3 className="text-[14px] font-medium text-neutral-700 mb-3">막대 그래프</h3>
+                  <div className="h-64">
+                    <VisitSourceBarChart data={visitSourceStats.distribution} />
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="h-64 flex items-center justify-center text-neutral-400">
@@ -733,6 +839,190 @@ function ExternalCustomerChart({ data, period }: { data: ExternalCustomerData[];
           <span key={i} className="truncate">
             {formatLabel(dateStr)}
           </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Visit Source Pie Chart
+const CHART_COLORS = [
+  '#3B82F6', // blue-500
+  '#10B981', // emerald-500
+  '#F59E0B', // amber-500
+  '#EF4444', // red-500
+  '#8B5CF6', // violet-500
+  '#EC4899', // pink-500
+  '#06B6D4', // cyan-500
+  '#84CC16', // lime-500
+  '#F97316', // orange-500
+  '#6366F1', // indigo-500
+];
+
+function VisitSourcePieChart({ data }: { data: VisitSourceDistribution[] }) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  if (data.length === 0) return null;
+
+  const total = data.reduce((sum, d) => sum + d.count, 0);
+  let currentAngle = -90; // Start from top
+
+  const slices = data.map((d, i) => {
+    const angle = (d.count / total) * 360;
+    const startAngle = currentAngle;
+    const endAngle = currentAngle + angle;
+    currentAngle = endAngle;
+
+    // Calculate path
+    const startRad = (startAngle * Math.PI) / 180;
+    const endRad = (endAngle * Math.PI) / 180;
+    const largeArc = angle > 180 ? 1 : 0;
+
+    const x1 = 50 + 40 * Math.cos(startRad);
+    const y1 = 50 + 40 * Math.sin(startRad);
+    const x2 = 50 + 40 * Math.cos(endRad);
+    const y2 = 50 + 40 * Math.sin(endRad);
+
+    // For hover effect - slightly larger radius
+    const hoverX1 = 50 + 42 * Math.cos(startRad);
+    const hoverY1 = 50 + 42 * Math.sin(startRad);
+    const hoverX2 = 50 + 42 * Math.cos(endRad);
+    const hoverY2 = 50 + 42 * Math.sin(endRad);
+
+    const isHovered = hoveredIndex === i;
+    const pathD = isHovered
+      ? `M 50 50 L ${hoverX1} ${hoverY1} A 42 42 0 ${largeArc} 1 ${hoverX2} ${hoverY2} Z`
+      : `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+    // Label position (center of arc)
+    const midAngle = (startAngle + endAngle) / 2;
+    const midRad = (midAngle * Math.PI) / 180;
+    const labelRadius = 25;
+    const labelX = 50 + labelRadius * Math.cos(midRad);
+    const labelY = 50 + labelRadius * Math.sin(midRad);
+
+    return {
+      pathD,
+      color: CHART_COLORS[i % CHART_COLORS.length],
+      label: d.label,
+      count: d.count,
+      percentage: d.percentage,
+      labelX,
+      labelY,
+    };
+  });
+
+  return (
+    <div className="w-full h-full flex">
+      {/* Pie Chart */}
+      <div className="w-1/2 h-full relative">
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          {slices.map((slice, i) => (
+            <path
+              key={i}
+              d={slice.pathD}
+              fill={slice.color}
+              stroke="#fff"
+              strokeWidth="0.5"
+              opacity={hoveredIndex === null || hoveredIndex === i ? 1 : 0.5}
+              onMouseEnter={() => setHoveredIndex(i)}
+              onMouseLeave={() => setHoveredIndex(null)}
+              className="cursor-pointer transition-opacity"
+            />
+          ))}
+        </svg>
+      </div>
+
+      {/* Legend */}
+      <div className="w-1/2 h-full overflow-y-auto pl-4">
+        <div className="space-y-2">
+          {data.map((d, i) => (
+            <div
+              key={i}
+              className={`flex items-center gap-2 text-[12px] cursor-pointer transition-opacity ${
+                hoveredIndex === null || hoveredIndex === i ? 'opacity-100' : 'opacity-50'
+              }`}
+              onMouseEnter={() => setHoveredIndex(i)}
+              onMouseLeave={() => setHoveredIndex(null)}
+            >
+              <div
+                className="w-3 h-3 rounded-sm flex-shrink-0"
+                style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
+              />
+              <span className="text-neutral-700 truncate flex-1">{d.label}</span>
+              <span className="text-neutral-500 whitespace-nowrap">
+                {d.count}명 ({d.percentage.toFixed(1)}%)
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Visit Source Bar Chart
+function VisitSourceBarChart({ data }: { data: VisitSourceDistribution[] }) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  if (data.length === 0) return null;
+
+  const maxCount = Math.max(...data.map((d) => d.count));
+
+  return (
+    <div className="w-full h-full flex flex-col">
+      <div className="flex-1 flex items-end gap-2 pb-6">
+        {data.map((d, i) => {
+          const height = (d.count / maxCount) * 100;
+          const isHovered = hoveredIndex === i;
+
+          return (
+            <div
+              key={i}
+              className="flex-1 relative flex flex-col items-center"
+              onMouseEnter={() => setHoveredIndex(i)}
+              onMouseLeave={() => setHoveredIndex(null)}
+            >
+              {/* Tooltip */}
+              {isHovered && (
+                <div className="absolute bottom-full mb-2 bg-neutral-900 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
+                  <div className="font-medium">{d.label}</div>
+                  <div>{d.count}명 ({d.percentage.toFixed(1)}%)</div>
+                </div>
+              )}
+
+              {/* Bar */}
+              <div
+                className="w-full rounded-t-md transition-all cursor-pointer"
+                style={{
+                  height: `${height}%`,
+                  minHeight: '4px',
+                  backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
+                  opacity: hoveredIndex === null || isHovered ? 1 : 0.5,
+                  transform: isHovered ? 'scaleY(1.02)' : 'scaleY(1)',
+                  transformOrigin: 'bottom',
+                }}
+              />
+
+              {/* Count label */}
+              <span className="absolute bottom-[-20px] text-[10px] text-neutral-500">
+                {d.count}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* X-axis labels */}
+      <div className="flex gap-2 pt-2 border-t border-neutral-200">
+        {data.map((d, i) => (
+          <div
+            key={i}
+            className="flex-1 text-center text-[10px] text-neutral-500 truncate"
+            title={d.label}
+          >
+            {d.label.length > 6 ? d.label.slice(0, 5) + '…' : d.label}
+          </div>
         ))}
       </div>
     </div>

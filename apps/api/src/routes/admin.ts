@@ -696,6 +696,68 @@ router.get('/point-stats', adminAuthMiddleware, async (req: AdminRequest, res: R
   }
 });
 
+// GET /api/admin/visit-source-stats - 전체 고객 방문경로 통계
+router.get('/visit-source-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    // 모든 고객의 visitSource 조회
+    const customers = await prisma.customer.findMany({
+      select: {
+        visitSource: true,
+        storeId: true,
+      },
+    });
+
+    // visitSource별 카운트 집계
+    const visitSourceMap = new Map<string, number>();
+    let noSourceCount = 0;
+
+    customers.forEach((c) => {
+      if (c.visitSource) {
+        visitSourceMap.set(c.visitSource, (visitSourceMap.get(c.visitSource) || 0) + 1);
+      } else {
+        noSourceCount++;
+      }
+    });
+
+    // 모든 매장의 VisitSourceSetting에서 라벨 조회
+    const visitSourceSettings = await prisma.visitSourceSetting.findMany({
+      select: { options: true },
+    });
+
+    // 모든 옵션을 합쳐서 라벨 맵 생성
+    const labelMap = new Map<string, string>();
+    visitSourceSettings.forEach((setting) => {
+      const optionsArray = (setting.options as Array<{ id: string; label: string }>) || [];
+      optionsArray.forEach((opt) => {
+        if (!labelMap.has(opt.id)) {
+          labelMap.set(opt.id, opt.label);
+        }
+      });
+    });
+
+    // 결과 배열 생성
+    const totalWithSource = customers.length - noSourceCount;
+    const distribution = Array.from(visitSourceMap.entries())
+      .map(([source, count]) => ({
+        source,
+        label: labelMap.get(source) || source,
+        count,
+        percentage: totalWithSource > 0 ? Math.round((count / totalWithSource) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    res.json({
+      totalCustomers: customers.length,
+      totalWithSource,
+      noSourceCount,
+      distribution,
+    });
+  } catch (error) {
+    console.error('Admin visit source stats error:', error);
+    res.status(500).json({ error: '방문경로 통계 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 // GET /api/admin/stores/:storeId/wallet - 매장 충전금 조회
 router.get('/stores/:storeId/wallet', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
