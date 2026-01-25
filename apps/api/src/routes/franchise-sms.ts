@@ -8,6 +8,7 @@ import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
 import { SolapiService } from '../services/solapi.js';
 import { maskName, maskPhone } from '../utils/masking.js';
+import { calculateFranchiseCostWithCredits } from '../services/credit-service.js';
 
 const router = Router();
 
@@ -255,12 +256,20 @@ router.get('/estimate', franchiseAuthMiddleware, async (req: FranchiseAuthReques
     const isImageAttached = hasImage === 'true';
     const costPerMessage = isImageAttached ? MMS_COST : (byteLength > 90 ? SMS_COST_LONG : SMS_COST_SHORT);
     const messageType = isImageAttached ? 'MMS' : (byteLength > 90 ? 'LMS' : 'SMS');
-    const totalCost = targetCount * costPerMessage;
+
+    // 무료 크레딧 적용 계산 (프랜차이즈 소속 모든 매장 합산)
+    const creditResult = await calculateFranchiseCostWithCredits(
+      storeIds,
+      targetCount,
+      costPerMessage
+    );
 
     // 프랜차이즈 지갑 잔액 조회
     const wallet = await prisma.franchiseWallet.findUnique({
       where: { franchiseId }
     });
+
+    const walletBalance = wallet?.balance || 0;
 
     // 예상 수익 계산 (전환율 5%, 객단가 15,000원 가정)
     const expectedRevenue = Math.round(targetCount * 15000 * 0.05);
@@ -270,9 +279,16 @@ router.get('/estimate', franchiseAuthMiddleware, async (req: FranchiseAuthReques
       byteLength,
       messageType,
       costPerMessage,
-      totalCost,
-      walletBalance: wallet?.balance || 0,
-      canSend: (wallet?.balance || 0) >= totalCost,
+      totalCost: creditResult.totalCost,
+      walletBalance,
+      canSend: walletBalance >= creditResult.totalCost,
+      // 무료 크레딧 정보
+      freeCredits: {
+        remaining: creditResult.remainingCredits,
+        freeCount: creditResult.freeCount,
+        paidCount: creditResult.paidCount,
+        isRetargetPage: true,
+      },
       estimatedRevenue: {
         conversionRate: 5,
         avgOrderValue: 15000,

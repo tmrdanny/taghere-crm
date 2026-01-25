@@ -195,6 +195,55 @@ export async function getCreditUsageHistory(
 }
 
 /**
+ * 프랜차이즈용: 모든 가맹점의 무료 크레딧 합산 계산
+ *
+ * @param storeIds 프랜차이즈 소속 매장 ID 배열
+ * @param targetCount 발송 대상 수
+ * @param costPerMessage 건당 비용
+ * @returns { freeCount, paidCount, totalCost, remainingCredits }
+ */
+export async function calculateFranchiseCostWithCredits(
+  storeIds: string[],
+  targetCount: number,
+  costPerMessage: number
+): Promise<{
+  freeCount: number;
+  paidCount: number;
+  totalCost: number;
+  remainingCredits: number;
+}> {
+  if (storeIds.length === 0) {
+    return {
+      freeCount: 0,
+      paidCount: targetCount,
+      totalCost: targetCount * costPerMessage,
+      remainingCredits: 0,
+    };
+  }
+
+  const yearMonth = getCurrentYearMonth();
+
+  // 모든 매장의 크레딧을 한 번에 조회하고 없으면 생성
+  let totalRemaining = 0;
+
+  for (const storeId of storeIds) {
+    const credit = await getOrCreateMonthlyCredit(storeId);
+    totalRemaining += Math.max(0, credit.totalCredits - credit.usedCredits);
+  }
+
+  const freeCount = Math.min(totalRemaining, targetCount);
+  const paidCount = targetCount - freeCount;
+  const totalCost = paidCount * costPerMessage;
+
+  return {
+    freeCount,
+    paidCount,
+    totalCost,
+    remainingCredits: totalRemaining,
+  };
+}
+
+/**
  * 관리자: 특정 매장의 무료 크레딧 조정
  */
 export async function adjustCredits(
