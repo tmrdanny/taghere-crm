@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   MapPin,
   Users,
@@ -23,8 +24,10 @@ import {
   Menu,
   MessageSquare,
   Loader2,
+  Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ChargeModal } from '@/components/ChargeModal';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -117,6 +120,12 @@ interface EstimatedRevenue {
 }
 
 export default function LocalCustomersPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // 충전 모달 상태
+  const [isChargeModalOpen, setIsChargeModalOpen] = useState(false);
+
   // 탭 상태
   const [activeTab, setActiveTab] = useState<'kakao' | 'sms'>('sms');
 
@@ -234,6 +243,45 @@ export default function LocalCustomersPage() {
     const interval = setInterval(checkSendableTime, 60000);
     return () => clearInterval(interval);
   }, [activeTab]);
+
+  // 결제 완료 후 잔액 갱신
+  useEffect(() => {
+    const paymentKey = searchParams.get('paymentKey');
+    const orderId = searchParams.get('orderId');
+    const amountParam = searchParams.get('amount');
+
+    if (paymentKey && orderId && amountParam) {
+      const confirmPayment = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/payments/confirm`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${getAuthToken()}`,
+            },
+            body: JSON.stringify({
+              paymentKey,
+              orderId,
+              amount: parseInt(amountParam),
+            }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            setWalletBalance(data.newBalance || 0);
+            setSuccessMessage('충전이 완료되었습니다!');
+          }
+        } catch (err) {
+          console.error('Payment confirmation error:', err);
+        } finally {
+          // URL 파라미터 제거
+          router.replace('/local-customers');
+        }
+      };
+
+      confirmPayment();
+    }
+  }, [searchParams, router]);
 
   // Draft 저장/복원을 위한 localStorage 키
   const DRAFT_KEY = 'taghere-local-customers-draft';
@@ -806,7 +854,19 @@ export default function LocalCustomersPage() {
         <div className="border-t border-neutral-200 pt-4 mt-auto">
           <div className="flex items-center justify-between mb-4">
             <div><p className="text-sm text-neutral-600">예상 비용</p><p className="text-xl font-bold text-neutral-900">{sendCount.toLocaleString()}명 × {getCostPerMessage()}원 = <span className="text-brand-600">{estimatedCost.toLocaleString()}원</span></p></div>
-            <div className="text-right"><p className="text-sm text-neutral-600">현재 잔액</p><p className={cn('text-xl font-bold', canAfford ? 'text-green-600' : 'text-red-600')}>{walletBalance.toLocaleString()}원</p></div>
+            <div className="text-right">
+              <p className="text-sm text-neutral-600">현재 잔액</p>
+              <p className={cn('text-xl font-bold', canAfford ? 'text-green-600' : 'text-red-600')}>{walletBalance.toLocaleString()}원</p>
+              {!canAfford && estimatedCost > 0 && (
+                <button
+                  onClick={() => setIsChargeModalOpen(true)}
+                  className="mt-1 text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1 ml-auto"
+                >
+                  <Wallet className="w-4 h-4" />
+                  충전하기
+                </button>
+              )}
+            </div>
           </div>
 
           {/* 예상 마케팅 효과 */}
@@ -895,6 +955,19 @@ export default function LocalCustomersPage() {
           )}
         </div>
       </div>
+
+      {/* 충전 모달 */}
+      <ChargeModal
+        isOpen={isChargeModalOpen}
+        onClose={() => setIsChargeModalOpen(false)}
+        onSuccess={(newBalance) => {
+          setWalletBalance(newBalance);
+          setIsChargeModalOpen(false);
+        }}
+        currentBalance={walletBalance}
+        requiredAmount={estimatedCost}
+        successRedirectPath="/local-customers"
+      />
     </div>
   );
 }

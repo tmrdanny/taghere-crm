@@ -34,8 +34,10 @@ import {
   Clock,
   MessageSquare,
   TrendingUp,
+  Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ChargeModal } from '@/components/ChargeModal';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -224,6 +226,9 @@ export default function MessagesPage() {
   const [kakaoTestPhone, setKakaoTestPhone] = useState('');
   const [isKakaoTestSending, setIsKakaoTestSending] = useState(false);
 
+  // 충전 모달 상태
+  const [isChargeModalOpen, setIsChargeModalOpen] = useState(false);
+
   // Get auth token
   const getAuthToken = () => {
     if (typeof window === 'undefined') return 'dev-token';
@@ -245,6 +250,43 @@ export default function MessagesPage() {
       }
     }
   }, [searchParams]);
+
+  // 결제 완료 후 잔액 갱신
+  useEffect(() => {
+    const paymentKey = searchParams.get('paymentKey');
+    const orderId = searchParams.get('orderId');
+    const amountParam = searchParams.get('amount');
+
+    if (paymentKey && orderId && amountParam) {
+      const confirmPayment = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/payments/confirm`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${getAuthToken()}`,
+            },
+            body: JSON.stringify({
+              paymentKey,
+              orderId,
+              amount: parseInt(amountParam),
+            }),
+          });
+
+          if (res.ok) {
+            showToast('충전이 완료되었습니다!', 'success');
+          }
+        } catch (err) {
+          console.error('Payment confirmation error:', err);
+        } finally {
+          // URL 파라미터 제거
+          router.replace('/messages');
+        }
+      };
+
+      confirmPayment();
+    }
+  }, [searchParams, router, showToast]);
 
   // Draft 저장/복원을 위한 localStorage 키
   const DRAFT_KEY = 'taghere-message-draft';
@@ -1342,6 +1384,15 @@ export default function MessagesPage() {
                   <p className={`text-lg sm:text-xl font-bold ${estimate?.canSend !== false ? 'text-green-600' : 'text-red-600'}`}>
                     {formatNumber(estimate?.walletBalance || 0)}원
                   </p>
+                  {estimate?.canSend === false && (estimate?.totalCost || 0) > 0 && (
+                    <button
+                      onClick={() => setIsChargeModalOpen(true)}
+                      className="mt-1 text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1 ml-auto"
+                    >
+                      <Wallet className="w-4 h-4" />
+                      충전하기
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2 w-full sm:w-auto">
@@ -1696,6 +1747,15 @@ export default function MessagesPage() {
                   <p className={`text-lg sm:text-xl font-bold ${kakaoEstimate?.canSend !== false ? 'text-green-600' : 'text-red-600'}`}>
                     {formatNumber(kakaoEstimate?.walletBalance || 0)}원
                   </p>
+                  {kakaoEstimate?.canSend === false && (kakaoEstimate?.totalCost || 0) > 0 && (
+                    <button
+                      onClick={() => setIsChargeModalOpen(true)}
+                      className="mt-1 text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1 ml-auto"
+                    >
+                      <Wallet className="w-4 h-4" />
+                      충전하기
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2 w-full sm:w-auto">
@@ -2324,6 +2384,18 @@ export default function MessagesPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* 충전 모달 */}
+      <ChargeModal
+        isOpen={isChargeModalOpen}
+        onClose={() => setIsChargeModalOpen(false)}
+        onSuccess={() => {
+          setIsChargeModalOpen(false);
+        }}
+        currentBalance={activeTab === 'kakao' ? (kakaoEstimate?.walletBalance || 0) : (estimate?.walletBalance || 0)}
+        requiredAmount={activeTab === 'kakao' ? (kakaoEstimate?.totalCost || 0) : (estimate?.totalCost || 0)}
+        successRedirectPath="/messages"
+      />
     </div>
   );
 }
