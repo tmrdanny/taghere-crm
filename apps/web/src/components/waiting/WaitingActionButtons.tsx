@@ -56,7 +56,7 @@ export function WaitingActionButtons({
   // Waiting state - show Call, Seat, Cancel buttons
   if (isWaiting) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-2">
         <Button
           variant="default"
           size="sm"
@@ -110,7 +110,7 @@ export function WaitingActionButtons({
   // Called state - show Recall (if available), Seat, Cancel buttons
   if (isCalled) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-2">
         {canRecall && (
           <Button
             variant="outline"

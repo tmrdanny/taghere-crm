@@ -19,7 +19,7 @@ import {
   type WaitingStats,
   type CancelReason,
 } from '@/components/waiting';
-import { Plus, Users, Clock, Settings, RefreshCw, AlertCircle } from 'lucide-react';
+import { Plus, Users, Clock, Settings, RefreshCw, AlertCircle, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { formatNumber } from '@/lib/utils';
 
@@ -34,6 +34,7 @@ export default function WaitingPage() {
   const [types, setTypes] = useState<WaitingType[]>([]);
   const [items, setItems] = useState<WaitingItem[]>([]);
   const [stats, setStats] = useState<WaitingStats | null>(null);
+  const [storeSlug, setStoreSlug] = useState<string | null>(null);
 
   // Filter states
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
@@ -77,11 +78,12 @@ export default function WaitingPage() {
         'Content-Type': 'application/json',
       };
 
-      // Fetch settings, types, and today's stats in parallel
-      const [settingsRes, typesRes, statsRes] = await Promise.all([
+      // Fetch settings, types, today's stats, and store info in parallel
+      const [settingsRes, typesRes, statsRes, storeRes] = await Promise.all([
         fetch(`${apiUrl}/api/waiting/settings`, { headers }),
         fetch(`${apiUrl}/api/waiting/types`, { headers }),
         fetch(`${apiUrl}/api/waiting/stats/today`, { headers }),
+        fetch(`${apiUrl}/api/settings/store`, { headers }),
       ]);
 
       if (settingsRes.ok) {
@@ -97,6 +99,13 @@ export default function WaitingPage() {
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setStats(statsData);
+      }
+
+      if (storeRes.ok) {
+        const storeData = await storeRes.json();
+        if (storeData.slug) {
+          setStoreSlug(storeData.slug);
+        }
       }
 
       // Fetch waiting list with filters
@@ -447,6 +456,16 @@ export default function WaitingPage() {
             <RefreshCw className={`w-4 h-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
             새로고침
           </Button>
+          {storeSlug && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open(`/w/${storeSlug}/tablet`, '_blank')}
+            >
+              <ExternalLink className="w-4 h-4 mr-1" />
+              웨이팅 화면 켜기
+            </Button>
+          )}
           <Link href="/waiting/settings">
             <Button variant="outline" size="sm">
               <Settings className="w-4 h-4 mr-1" />

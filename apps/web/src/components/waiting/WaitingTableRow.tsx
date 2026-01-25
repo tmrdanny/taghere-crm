@@ -209,7 +209,7 @@ export function WaitingTableRow({
       </td>
 
       {/* Actions */}
-      <td className="py-4 px-4">
+      <td className="py-4 px-4 text-center">
         <WaitingActionButtons
           item={item}
           onCall={onCall}
