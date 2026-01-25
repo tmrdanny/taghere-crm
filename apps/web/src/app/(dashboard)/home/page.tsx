@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Modal, ModalContent } from '@/components/ui/modal';
 import { formatNumber, formatCurrency } from '@/lib/utils';
-import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare } from 'lucide-react';
+import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, X } from 'lucide-react';
 import {
   XAxis,
   YAxis,
@@ -74,8 +75,28 @@ export default function HomePage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [feedbackSummary, setFeedbackSummary] = useState<FeedbackSummary | null>(null);
   const [isRefreshingFeedback, setIsRefreshingFeedback] = useState(false);
+  const [showPromoPopup, setShowPromoPopup] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+  // Show promo popup on first visit
+  useEffect(() => {
+    const dismissed = localStorage.getItem('promo-popup-dismissed');
+    if (!dismissed) {
+      setShowPromoPopup(true);
+    }
+  }, []);
+
+  const handleClosePromoPopup = () => {
+    setShowPromoPopup(false);
+    localStorage.setItem('promo-popup-dismissed', 'true');
+  };
+
+  const handleGoToMessages = () => {
+    setShowPromoPopup(false);
+    localStorage.setItem('promo-popup-dismissed', 'true');
+    router.push('/messages');
+  };
 
   // Fetch announcements
   useEffect(() => {
@@ -568,6 +589,56 @@ export default function HomePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Promo Popup */}
+      <Modal open={showPromoPopup} onOpenChange={(open) => !open && handleClosePromoPopup()}>
+        <ModalContent className="max-w-[800px] p-0 overflow-hidden">
+          {/* Close button */}
+          <button
+            onClick={handleClosePromoPopup}
+            className="absolute right-4 top-4 z-10 p-1 rounded-full hover:bg-neutral-100 transition-colors"
+          >
+            <X className="w-5 h-5 text-neutral-500" />
+          </button>
+
+          <div className="flex flex-col md:flex-row">
+            {/* Left: Phone mockup image */}
+            <div className="w-full md:w-1/2 bg-[#f1f5f9] p-6 md:p-8 flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/sms-mockup.png"
+                alt="SMS 메시지 미리보기"
+                className="max-h-[300px] md:max-h-[400px] object-contain"
+              />
+            </div>
+
+            {/* Right: Text content */}
+            <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col justify-center">
+              <h2 className="text-xl md:text-2xl font-bold text-neutral-900 mb-3 md:mb-4">
+                30명에게 무료로 문자 메시지를 보낼 수 있어요
+              </h2>
+              <p className="text-sm md:text-base text-neutral-600 mb-6 md:mb-8">
+                태그히어 리타겟 메시지 마케팅을 매월 30명에게 무료로 보낼 수 있어요.
+                무료로 사용해보세요!
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleGoToMessages}
+                  className="w-full py-3 px-4 bg-neutral-900 text-white font-semibold rounded-lg hover:bg-neutral-800 transition-colors"
+                >
+                  무료로 시작하기
+                </button>
+                <button
+                  onClick={handleClosePromoPopup}
+                  className="w-full py-2 px-4 text-neutral-500 font-medium hover:text-neutral-700 transition-colors"
+                >
+                  다음에 할게요
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalContent>
+      </Modal>
     </div>
   );
 }
