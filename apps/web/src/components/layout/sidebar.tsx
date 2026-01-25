@@ -56,6 +56,7 @@ interface NavItem {
   isExternal?: boolean;
   isComingSoon?: boolean;
   comingSoonLink?: string;
+  badge?: string; // 커스텀 뱃지 텍스트
   subItems?: NavItem[]; // 하위 메뉴 지원
 }
 
@@ -102,7 +103,7 @@ const navGroups: NavGroup[] = [
     title: '마케팅',
     icon: Send,
     items: [
-      { href: '/messages', label: '리타겟', icon: MessageSquareMore },
+      { href: '/messages', label: '리타겟', icon: MessageSquareMore, badge: '30 크레딧' },
       { href: '/local-customers', label: '신규 고객 타겟', icon: UserPlus },
       { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
     ],
@@ -355,6 +356,11 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
         {!isCollapsed && (
           <>
             <span className="flex-1">{item.label}</span>
+            {item.badge && (
+              <span className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded font-medium">
+                {item.badge}
+              </span>
+            )}
             {item.isNew && (
               <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
                 NEW
@@ -671,6 +677,11 @@ export function MobileHeader() {
         {/* 2번째 depth부터는 아이콘 숨김 */}
         {!isSubItem && <Icon className={cn('w-5 h-5', active && 'text-brand-800')} />}
         <span className="flex-1">{item.label}</span>
+        {item.badge && (
+          <span className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded font-medium">
+            {item.badge}
+          </span>
+        )}
         {item.isNew && (
           <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
             NEW
