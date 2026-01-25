@@ -30,6 +30,7 @@ export function TabletPartySizeSelector({
   className,
 }: TabletPartySizeSelectorProps) {
   const [partySize, setPartySize] = useState<number>(2);
+  const [consentChecked, setConsentChecked] = useState<boolean>(false);
 
   const partySizeOptions = [1, 2, 3, 4, 5, 6];
 
@@ -84,11 +85,26 @@ export function TabletPartySizeSelector({
         </div>
       </div>
 
+      {/* Consent Checkbox */}
+      <div className="max-w-lg mx-auto pt-4">
+        <label className="flex items-center justify-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={consentChecked}
+            onChange={(e) => setConsentChecked(e.target.checked)}
+            className="w-5 h-5 rounded border-2 border-neutral-300 text-brand-800 focus:ring-brand-800 focus:ring-offset-0 cursor-pointer"
+          />
+          <span className="text-[15px] text-neutral-700">
+            개인정보 수집 및 알림 발송에 전체 동의합니다
+          </span>
+        </label>
+      </div>
+
       {/* Submit Button */}
       <div className="pt-6">
         <Button
           onClick={handleSubmit}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !consentChecked}
           size="xl"
           className="w-full max-w-lg mx-auto block h-16 text-xl"
         >
