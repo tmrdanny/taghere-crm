@@ -95,6 +95,7 @@ export default function WaitingSettingsPage() {
           maxWaitingCount: settings.maxWaitingCount,
           showEstimatedTime: settings.showEstimatedTime,
           waitingNote: settings.waitingNote,
+          waitingCallNote: settings.waitingCallNote,
         }),
       });
 

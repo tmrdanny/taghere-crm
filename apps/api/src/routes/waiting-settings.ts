@@ -48,6 +48,7 @@ router.put('/', authMiddleware, async (req: AuthRequest, res) => {
       autoCancel,
       quickMemos,
       waitingNote,
+      waitingCallNote,
     } = req.body;
 
     const updateData: any = {};
@@ -75,6 +76,7 @@ router.put('/', authMiddleware, async (req: AuthRequest, res) => {
     if (autoCancel !== undefined) updateData.autoCancel = autoCancel;
     if (quickMemos !== undefined) updateData.quickMemos = quickMemos;
     if (waitingNote !== undefined) updateData.waitingNote = waitingNote;
+    if (waitingCallNote !== undefined) updateData.waitingCallNote = waitingCallNote;
 
     const setting = await (prisma as any).waitingSetting.upsert({
       where: { storeId },

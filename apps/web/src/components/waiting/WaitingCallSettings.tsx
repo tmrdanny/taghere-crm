@@ -161,6 +161,23 @@ export function WaitingCallSettings({
               className="resize-none"
             />
           </div>
+
+          {/* Waiting Call Note */}
+          <div className="pt-4 border-t border-neutral-100">
+            <label className="text-sm font-medium text-neutral-900">
+              호출 시 매장 유의사항
+            </label>
+            <p className="text-xs text-neutral-500 mt-0.5 mb-2">
+              호출 알림톡에 포함할 매장 유의사항입니다.
+            </p>
+            <Textarea
+              value={settings.waitingCallNote || ''}
+              onChange={(e) => onChange('waitingCallNote', e.target.value)}
+              placeholder="예) 호출 후 3분 내 미입장 시 자동 취소됩니다."
+              rows={2}
+              className="resize-none"
+            />
+          </div>
         </Card>
       </div>
     </div>

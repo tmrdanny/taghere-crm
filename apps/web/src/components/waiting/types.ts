@@ -56,6 +56,7 @@ export interface WaitingSetting {
   autoCancel: boolean;
   quickMemos?: string[] | null;
   waitingNote?: string | null;
+  waitingCallNote?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -247,16 +247,17 @@ export async function callWaiting(
     if (waiting.phone) {
       const store = await prisma.store.findUnique({
         where: { id: storeId },
-        select: { name: true },
+        select: { name: true, slug: true },
       });
 
       await sendWaitingCalledAlimTalk({
         storeId,
         waitingId,
         phone: waiting.phone,
-        storeName: store?.name ?? '',
+        storeSlug: store?.slug ?? '',
         waitingNumber: waiting.waitingNumber,
         timeoutMinutes: callTimeoutMinutes,
+        waitingCallNote: setting?.waitingCallNote ?? '',
       });
     }
 
@@ -441,6 +442,11 @@ export async function cancelWaiting(
         select: { name: true },
       });
 
+      const setting = await prisma.waitingSetting.findUnique({
+        where: { storeId },
+        select: { callTimeoutMinutes: true },
+      });
+
       await sendWaitingCancelledAlimTalk({
         storeId,
         waitingId,
@@ -448,6 +454,7 @@ export async function cancelWaiting(
         storeName: store?.name ?? '',
         waitingNumber: waiting.waitingNumber,
         reason,
+        callTimeoutMinutes: setting?.callTimeoutMinutes ?? 3,
       });
     }
 
@@ -716,12 +723,16 @@ async function sendWaitingCalledAlimTalk(params: {
   storeId: string;
   waitingId: string;
   phone: string;
-  storeName: string;
+  storeSlug: string;
   waitingNumber: number;
   timeoutMinutes: number;
+  waitingCallNote: string;
 }): Promise<void> {
   const templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_CALLED;
   if (!templateId) return;
+
+  const publicUrl = process.env.PUBLIC_URL || 'https://taghere-crm-web-dev.onrender.com';
+  const cancelPageUrl = `${publicUrl}/w/${params.storeSlug}/cancel?phone=${params.phone}`;
 
   try {
     await enqueueAlimTalk({
@@ -730,9 +741,10 @@ async function sendWaitingCalledAlimTalk(params: {
       messageType: 'POINTS_EARNED',
       templateId,
       variables: {
-        '#{매장명}': params.storeName,
         '#{대기번호}': String(params.waitingNumber),
         '#{제한시간}': String(params.timeoutMinutes),
+        '#{매장유의사항}': params.waitingCallNote,
+        '#{웨이팅취소페이지}': cancelPageUrl,
       },
       idempotencyKey: `waiting_called:${params.waitingId}:${Date.now()}`,
     });
@@ -775,17 +787,44 @@ async function sendWaitingCancelledAlimTalk(params: {
   storeName: string;
   waitingNumber: number;
   reason: CancelReason;
+  callTimeoutMinutes: number;
 }): Promise<void> {
-  const templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_CANCELLED;
-  if (!templateId) return;
+  let templateId: string | undefined;
+  let variables: Record<string, string>;
 
-  const reasonText: Record<CancelReason, string> = {
-    CUSTOMER_REQUEST: '고객 요청',
-    STORE_REASON: '매장 사정',
-    OUT_OF_STOCK: '재고 소진',
-    NO_SHOW: '호출 후 미입장',
-    AUTO_CANCELLED: '호출 후 미입장',
-  };
+  switch (params.reason) {
+    case 'CUSTOMER_REQUEST':
+      // 고객님 사정으로 웨이팅 취소
+      templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_CANCELLED_CUSTOMER;
+      variables = {
+        '#{상호명}': params.storeName,
+      };
+      break;
+
+    case 'NO_SHOW':
+    case 'AUTO_CANCELLED':
+      // 웨이팅 지각으로 인한 취소 알림
+      templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_CANCELLED_TIMEOUT;
+      variables = {
+        '#{제한시간}': String(params.callTimeoutMinutes),
+        '#{매장명}': params.storeName,
+      };
+      break;
+
+    case 'STORE_REASON':
+    case 'OUT_OF_STOCK':
+      // 매장 사정으로 인한 웨이팅 취소 알림
+      templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_CANCELLED_STORE;
+      variables = {
+        '#{매장명}': params.storeName,
+      };
+      break;
+
+    default:
+      return;
+  }
+
+  if (!templateId) return;
 
   try {
     await enqueueAlimTalk({
@@ -793,11 +832,7 @@ async function sendWaitingCancelledAlimTalk(params: {
       phone: params.phone,
       messageType: 'POINTS_EARNED',
       templateId,
-      variables: {
-        '#{매장명}': params.storeName,
-        '#{대기번호}': String(params.waitingNumber),
-        '#{취소사유}': reasonText[params.reason],
-      },
+      variables,
       idempotencyKey: `waiting_cancelled:${params.waitingId}:${Date.now()}`,
     });
   } catch (error) {
