@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Modal, ModalContent } from '@/components/ui/modal';
 import { formatNumber, formatCurrency } from '@/lib/utils';
-import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin } from 'lucide-react';
+import { Users, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin, Mail } from 'lucide-react';
 import {
   XAxis,
   YAxis,
@@ -83,6 +83,7 @@ export default function HomePage() {
   const [isRefreshingFeedback, setIsRefreshingFeedback] = useState(false);
   const [showPromoPopup, setShowPromoPopup] = useState(false);
   const [visitSourceData, setVisitSourceData] = useState<VisitSourceItem[]>([]);
+  const [retargetCredits, setRetargetCredits] = useState<{ remainingCredits: number; totalCredits: number } | null>(null);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -195,6 +196,34 @@ export default function HomePage() {
     };
 
     fetchVisitSourceStats();
+  }, [apiUrl]);
+
+  // Fetch retarget credits
+  useEffect(() => {
+    const fetchRetargetCredits = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${apiUrl}/api/monthly-credit/status`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.data) {
+            setRetargetCredits({
+              remainingCredits: data.data.remainingCredits,
+              totalCredits: data.data.totalCredits,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch retarget credits:', error);
+      }
+    };
+
+    fetchRetargetCredits();
   }, [apiUrl]);
 
   // Refresh feedback summary
@@ -486,19 +515,24 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        {/* New Customers */}
-        <Card>
+        {/* Retarget Message Credits */}
+        <Card
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => router.push('/messages')}
+        >
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-neutral-500 mb-1">신규 등록 고객</p>
+                <p className="text-sm text-neutral-500 mb-1">리타겟 메시지 잔여 무료 발송 수</p>
                 <p className="text-3xl font-bold text-neutral-900">
-                  {formatNumber(stats?.newCustomers ?? 0)}
+                  {formatNumber(retargetCredits?.remainingCredits ?? 0)}
                 </p>
-                {renderGrowthIndicator(stats?.newCustomersGrowth ?? 0, '지난주 대비')}
+                <p className="text-sm text-neutral-400 mt-2">
+                  이번 달 {retargetCredits?.totalCredits ?? 30}건 중 잔여
+                </p>
               </div>
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <UserPlus className="w-6 h-6 text-blue-600" />
+              <div className="p-3 bg-emerald-50 rounded-lg">
+                <Mail className="w-6 h-6 text-emerald-600" />
               </div>
             </div>
           </CardContent>
