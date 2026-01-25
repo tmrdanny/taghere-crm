@@ -207,6 +207,31 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
   const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; featureName?: string }>({ open: false });
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [visitedPages, setVisitedPages] = useState<string[]>([]);
+
+  // Load visited pages from localStorage and mark current page as visited
+  useEffect(() => {
+    const stored = localStorage.getItem('visited-new-pages');
+    const visited = stored ? JSON.parse(stored) : [];
+    setVisitedPages(visited);
+
+    // Mark current page as visited if it has isNew flag
+    const allItems = [
+      ...topNavItems,
+      ...navGroups.flatMap(g => g.items.flatMap(i => i.subItems ? [i, ...i.subItems] : [i])),
+      ...bottomNavItems
+    ];
+    const currentItem = allItems.find(item => pathname === item.href || pathname.startsWith(item.href + '/'));
+    if (currentItem?.isNew && !visited.includes(currentItem.href)) {
+      const updated = [...visited, currentItem.href];
+      localStorage.setItem('visited-new-pages', JSON.stringify(updated));
+      setVisitedPages(updated);
+    }
+  }, [pathname]);
+
+  const shouldShowNew = (item: NavItem) => {
+    return item.isNew && !visitedPages.includes(item.href);
+  };
 
   const isActive = (href: string) => {
     if (href.startsWith('http') || href.startsWith('#')) return false;
@@ -300,7 +325,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
           >
             <Icon className={cn('w-5 h-5 flex-shrink-0', itemActive && 'text-brand-800')} />
             <span className="flex-1 text-left">{item.label}</span>
-            {item.isNew && !isItemExpanded && (
+            {shouldShowNew(item) && !isItemExpanded && (
               <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
                 NEW
               </span>
@@ -346,7 +371,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
         {!isSubItem && (
           <div className="relative flex-shrink-0">
             <Icon className={cn('w-5 h-5', active && 'text-brand-800')} />
-            {isCollapsed && item.isNew && (
+            {isCollapsed && shouldShowNew(item) && (
               <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center">
                 <span className="text-white text-[8px] font-bold leading-none">N</span>
               </span>
@@ -361,7 +386,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
                 {item.badge}
               </span>
             )}
-            {item.isNew && (
+            {shouldShowNew(item) && (
               <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
                 NEW
               </span>
@@ -379,7 +404,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
     const GroupIcon = group.icon;
     const isExpanded = expandedGroups.includes(group.title);
     const groupActive = isGroupActive(group);
-    const hasNewItem = group.items.some(item => item.isNew);
+    const hasNewItem = group.items.some(item => shouldShowNew(item));
 
     // 접힌 상태에서는 그룹의 첫 번째 아이템만 표시
     if (isCollapsed) {
@@ -529,6 +554,7 @@ export function MobileHeader() {
   const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; featureName?: string }>({ open: false });
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [visitedPages, setVisitedPages] = useState<string[]>([]);
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -559,6 +585,30 @@ export function MobileHeader() {
       return item.subItems.some(subItem => isActive(subItem.href));
     }
     return isActive(item.href);
+  };
+
+  // Load visited pages from localStorage and mark current page as visited
+  useEffect(() => {
+    const stored = localStorage.getItem('visited-new-pages');
+    const visited = stored ? JSON.parse(stored) : [];
+    setVisitedPages(visited);
+
+    // Mark current page as visited if it has isNew flag
+    const allItems = [
+      ...topNavItems,
+      ...navGroups.flatMap(g => g.items.flatMap(i => i.subItems ? [i, ...i.subItems] : [i])),
+      ...bottomNavItems
+    ];
+    const currentItem = allItems.find(item => pathname === item.href || pathname.startsWith(item.href + '/'));
+    if (currentItem?.isNew && !visited.includes(currentItem.href)) {
+      const updated = [...visited, currentItem.href];
+      localStorage.setItem('visited-new-pages', JSON.stringify(updated));
+      setVisitedPages(updated);
+    }
+  }, [pathname]);
+
+  const shouldShowNew = (item: NavItem) => {
+    return item.isNew && !visitedPages.includes(item.href);
   };
 
   // 현재 경로에 따라 활성화된 그룹 자동 확장
@@ -634,7 +684,7 @@ export function MobileHeader() {
           >
             <Icon className={cn('w-5 h-5 flex-shrink-0', itemActive && 'text-brand-800')} />
             <span className="flex-1 text-left">{item.label}</span>
-            {item.isNew && !isItemExpanded && (
+            {shouldShowNew(item) && !isItemExpanded && (
               <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
                 NEW
               </span>
@@ -682,7 +732,7 @@ export function MobileHeader() {
             {item.badge}
           </span>
         )}
-        {item.isNew && (
+        {shouldShowNew(item) && (
           <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
             NEW
           </span>
@@ -698,7 +748,7 @@ export function MobileHeader() {
     const GroupIcon = group.icon;
     const isExpanded = expandedGroups.includes(group.title);
     const groupActive = isGroupActive(group);
-    const hasNewItem = group.items.some(item => item.isNew);
+    const hasNewItem = group.items.some(item => shouldShowNew(item));
 
     return (
       <div key={group.title} className="mb-1">
