@@ -147,6 +147,12 @@ router.put('/status', authMiddleware, async (req: AuthRequest, res) => {
         operationStatus,
         pauseMessage: updateData.pauseMessage,
         pauseEndTime: updateData.pauseEndTime,
+        enabled: true,
+        maxWaitingCount: 50,
+        showEstimatedTime: true,
+        callTimeoutMinutes: 3,
+        maxCallCount: 2,
+        autoCancel: true,
       },
     });
 

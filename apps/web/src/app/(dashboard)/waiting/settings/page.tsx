@@ -52,13 +52,13 @@ export default function WaitingSettingsPage() {
 
       if (settingsRes.ok) {
         const settingsData = await settingsRes.json();
-        setSettings(settingsData);
-        setOriginalSettings(settingsData);
+        setSettings(settingsData.setting || {});
+        setOriginalSettings(settingsData.setting || {});
       }
 
       if (typesRes.ok) {
         const typesData = await typesRes.json();
-        setTypes(typesData);
+        setTypes(typesData.types || []);
       }
     } catch (error) {
       console.error('Failed to fetch settings:', error);
