@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Delete, List, ArrowRight } from 'lucide-react';
+import { Delete, List, ArrowRight, ArrowLeft } from 'lucide-react';
 import { TabletTypeSelector } from './TabletTypeSelector';
 import { TabletPartySizeSelector } from './TabletPartySizeSelector';
 
@@ -16,7 +16,7 @@ interface WaitingType {
   estimatedMinutes: number;
 }
 
-type TabletStep = 'phone' | 'type' | 'partySize';
+type TabletStep = 'type' | 'phone' | 'partySize';
 
 interface TabletWaitingFormProps {
   storeName: string;
@@ -45,9 +45,11 @@ export function TabletWaitingForm({
   isSubmitting = false,
   className,
 }: TabletWaitingFormProps) {
-  const [step, setStep] = useState<TabletStep>('phone');
+  // 웨이팅 유형이 1개면 유형 선택 스킵
+  const skipTypeSelection = waitingTypes.length === 1;
+  const [step, setStep] = useState<TabletStep>(skipTypeSelection ? 'phone' : 'type');
   const [phone, setPhone] = useState('');
-  const [selectedTypeId, setSelectedTypeId] = useState<string>('');
+  const [selectedTypeId, setSelectedTypeId] = useState<string>(skipTypeSelection ? waitingTypes[0]?.id || '' : '');
   const [error, setError] = useState<string | null>(null);
 
   const hiddenInputRef = useRef<HTMLInputElement>(null);
@@ -97,26 +99,19 @@ export function TabletWaitingForm({
     }
   };
 
-  // Proceed to next step
+  // Proceed to next step (phone → partySize)
   const handleProceed = () => {
     if (phone.length !== 8) {
       setError('전화번호 8자리를 모두 입력해주세요.');
       return;
     }
-
-    // If only one type, skip type selection
-    if (waitingTypes.length === 1) {
-      setSelectedTypeId(waitingTypes[0].id);
-      setStep('partySize');
-    } else {
-      setStep('type');
-    }
+    setStep('partySize');
   };
 
-  // Handle type selection
+  // Handle type selection (type → phone)
   const handleSelectType = (typeId: string) => {
     setSelectedTypeId(typeId);
-    setStep('partySize');
+    setStep('phone');
   };
 
   // Handle final submission
@@ -134,9 +129,9 @@ export function TabletWaitingForm({
 
   // Reset form
   const resetForm = () => {
-    setStep('phone');
+    setStep(skipTypeSelection ? 'phone' : 'type');
     setPhone('');
-    setSelectedTypeId('');
+    setSelectedTypeId(skipTypeSelection ? waitingTypes[0]?.id || '' : '');
     setError(null);
   };
 
@@ -196,29 +191,48 @@ export function TabletWaitingForm({
           {/* Divider */}
           <div className="w-16 h-0.5 bg-white/30 mx-auto mb-8" />
 
-          {/* Stats */}
-          <div className="flex justify-center gap-12">
-            <div className="text-center">
-              <p className="text-brand-200 text-sm mb-1">현재 웨이팅</p>
-              <p className="text-4xl lg:text-5xl font-bold">
-                {selectedType ? selectedType.waitingCount : totalWaiting}
-                <span className="text-xl font-normal ml-1">팀</span>
-              </p>
+          {/* Type Selection Step: Show all types with wait times */}
+          {step === 'type' && !skipTypeSelection && (
+            <div className="space-y-4">
+              {waitingTypes.map((type) => (
+                <div key={type.id} className="flex justify-between items-center bg-white/10 rounded-lg px-4 py-3">
+                  <span className="font-medium">{type.name}</span>
+                  <div className="flex gap-4 text-sm">
+                    <span className="text-brand-200">{type.waitingCount}팀</span>
+                    <span className="text-brand-100 font-bold">{type.estimatedMinutes}분</span>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="text-center">
-              <p className="text-brand-200 text-sm mb-1">예상 시간</p>
-              <p className="text-4xl lg:text-5xl font-bold">
-                {selectedType ? selectedType.estimatedMinutes : estimatedMinutes}
-                <span className="text-xl font-normal ml-1">분</span>
-              </p>
-            </div>
-          </div>
+          )}
 
-          {/* Selected Type Info */}
-          {selectedType && (
-            <div className="mt-8 bg-white/10 rounded-lg px-4 py-2 inline-block">
-              <span className="text-brand-100">{selectedType.name} 선택됨</span>
-            </div>
+          {/* Phone/PartySize Step: Show selected type stats */}
+          {(step !== 'type' || skipTypeSelection) && (
+            <>
+              <div className="flex justify-center gap-12">
+                <div className="text-center">
+                  <p className="text-brand-200 text-sm mb-1">현재 웨이팅</p>
+                  <p className="text-4xl lg:text-5xl font-bold">
+                    {selectedType ? selectedType.waitingCount : totalWaiting}
+                    <span className="text-xl font-normal ml-1">팀</span>
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-brand-200 text-sm mb-1">예상 시간</p>
+                  <p className="text-4xl lg:text-5xl font-bold">
+                    {selectedType ? selectedType.estimatedMinutes : estimatedMinutes}
+                    <span className="text-xl font-normal ml-1">분</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Selected Type Info */}
+              {selectedType && !skipTypeSelection && (
+                <div className="mt-8 bg-white/10 rounded-lg px-4 py-2 inline-block">
+                  <span className="text-brand-100">{selectedType.name} 선택됨</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -292,7 +306,20 @@ export function TabletWaitingForm({
 
               {/* Action Buttons */}
               <div className="flex gap-3 mt-8 max-w-[360px] mx-auto w-full">
-                {onViewWaitingList && (
+                {!skipTypeSelection && (
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    onClick={() => {
+                      setStep('type');
+                      setPhone('');
+                    }}
+                    className="h-14 px-4"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
+                )}
+                {onViewWaitingList && skipTypeSelection && (
                   <Button
                     variant="secondary"
                     size="lg"
@@ -309,7 +336,7 @@ export function TabletWaitingForm({
                   size="lg"
                   className="flex-1 h-14"
                 >
-                  웨이팅 시작
+                  다음
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </div>
@@ -328,13 +355,7 @@ export function TabletWaitingForm({
           {step === 'partySize' && selectedType && (
             <TabletPartySizeSelector
               selectedType={selectedType}
-              onBack={() => {
-                if (waitingTypes.length === 1) {
-                  resetForm();
-                } else {
-                  setStep('type');
-                }
-              }}
+              onBack={() => setStep('phone')}
               onSubmit={handleSubmit}
               isSubmitting={isSubmitting}
             />
