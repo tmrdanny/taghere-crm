@@ -463,7 +463,7 @@ export default function WaitingPage() {
             <br />
             현재 잔액: <span className="font-semibold text-red-500">0원</span>
           </p>
-          <Link href="/settings/wallet">
+          <Link href="/billing">
             <Button>
               충전하러 가기
             </Button>
@@ -565,7 +565,7 @@ export default function WaitingPage() {
               </p>
             </div>
           </div>
-          <Link href="/settings/wallet">
+          <Link href="/billing">
             <Button variant="outline" size="sm" className="border-red-300 text-red-700 hover:bg-red-100">
               충전하기
             </Button>
