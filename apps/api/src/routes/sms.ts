@@ -346,19 +346,42 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     const byteLength = getByteLength(content);
     const costPerMessage = hasImage ? MMS_COST : (byteLength > 90 ? SMS_COST_LONG : SMS_COST_SHORT);
     const messageType = hasImage ? 'MMS' : (byteLength > 90 ? 'LMS' : 'SMS');
-    const totalCost = customers.length * costPerMessage;
 
-    // 지갑 잔액 확인
+    // 무료 크레딧 적용 계산 (리타겟 페이지에서 발송하므로 isRetarget = true)
+    const creditResult = await calculateCostWithCredits(
+      storeId,
+      customers.length,
+      costPerMessage,
+      true // 리타겟 페이지
+    );
+
+    // 지갑 잔액 확인 - 무료 크레딧 적용 후 유료분만 확인
     const wallet = await prisma.wallet.findUnique({
       where: { storeId },
     });
 
-    if (!wallet || wallet.balance < totalCost) {
+    const walletBalance = wallet?.balance || 0;
+
+    // 유료분(paidCount)에 대해서만 잔액 확인
+    if (creditResult.paidCount > 0 && walletBalance < creditResult.totalCost) {
       return res.status(400).json({
         error: '충전금이 부족합니다.',
-        required: totalCost,
-        balance: wallet?.balance || 0,
+        required: creditResult.totalCost,
+        balance: walletBalance,
+        freeCount: creditResult.freeCount,
+        paidCount: creditResult.paidCount,
       });
+    }
+
+    // 무료 크레딧 사용 처리
+    let usedFreeCredits = 0;
+    if (creditResult.freeCount > 0) {
+      usedFreeCredits = await useCredits(
+        storeId,
+        creditResult.freeCount,
+        null, // campaignId는 아래에서 생성 후 설정
+        messageType
+      );
     }
 
     // 매장 정보 조회 (발신번호용)
@@ -372,7 +395,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       ? `(광고)\n${content}\n무료수신거부 080-500-4233`
       : content;
 
-    // 캠페인 생성
+    // 캠페인 생성 (유료분 비용만 저장)
     const campaign = await prisma.smsCampaign.create({
       data: {
         storeId,
@@ -380,10 +403,12 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
         content: formattedContent,
         targetType: targetType || 'ALL',
         targetCount: customers.length,
-        totalCost,
+        totalCost: creditResult.totalCost, // 무료 크레딧 적용 후 유료분만
         status: 'SENDING',
       },
     });
+
+    console.log(`[SMS] Campaign created with free credits: ${usedFreeCredits} free, ${creditResult.paidCount} paid, totalCost: ${creditResult.totalCost}`);
 
     // SOLAPI 서비스 초기화
     const messageService = new SolapiMessageService(apiKey, apiSecret);
@@ -392,10 +417,17 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     let sentCount = 0;
     let failedCount = 0;
 
+    // 무료 크레딧 한도 (순서대로 무료 적용)
+    const freeCreditsLimit = usedFreeCredits;
+
     // 개별 메시지 생성 및 발송 (병렬 처리, 대기 없이 즉시 응답)
-    const sendPromises = customers.map(async (customer) => {
+    const sendPromises = customers.map(async (customer, index) => {
       const personalizedContent = formattedContent.replace(/{고객명}/g, customer.name || '고객');
       const normalizedPhone = normalizePhoneNumber(customer.phone!);
+
+      // 순서대로 무료 크레딧 적용 (index 기준)
+      const isFreeMessage = index < freeCreditsLimit;
+      const messageCost = isFreeMessage ? 0 : costPerMessage;
 
       try {
         // SOLAPI 발송 옵션
@@ -415,7 +447,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
         const groupInfo = result.groupInfo;
         const groupId = groupInfo?.groupId;
 
-        console.log(`[SMS] Sent to ${normalizedPhone}, groupId: ${groupId}`);
+        console.log(`[SMS] Sent to ${normalizedPhone}, groupId: ${groupId}, free: ${isFreeMessage}`);
 
         // 즉시 PENDING 상태로 저장 (결과는 워커에서 확인)
         await prisma.smsMessage.create({
@@ -428,7 +460,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
             status: 'PENDING', // 워커에서 결과 확인 후 업데이트
             solapiGroupId: groupId, // 결과 조회용
             solapiMessageId: groupInfo?.groupId, // groupId를 messageId로도 사용
-            cost: costPerMessage, // 예상 비용 저장 (실패 시 워커에서 0으로 변경)
+            cost: messageCost, // 무료 크레딧이면 0, 유료면 실제 비용
           },
         });
 
@@ -479,7 +511,12 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       campaignId: campaign.id,
       pendingCount: sentCount, // PENDING 상태로 저장된 건수
       failedCount,             // API 호출 실패 건수
-      message: '발송 요청이 완료되었습니다. 결과는 발송내역에서 확인하세요.',
+      freeCreditsUsed: usedFreeCredits, // 사용된 무료 크레딧
+      paidCount: creditResult.paidCount, // 유료 발송 건수
+      totalCost: creditResult.totalCost, // 실제 차감될 비용
+      message: usedFreeCredits > 0
+        ? `발송 요청이 완료되었습니다. 무료 크레딧 ${usedFreeCredits}건 사용. 결과는 발송내역에서 확인하세요.`
+        : '발송 요청이 완료되었습니다. 결과는 발송내역에서 확인하세요.',
     });
   } catch (error) {
     console.error('SMS send error:', error);
