@@ -35,6 +35,7 @@ export default function WaitingPage() {
   const [allItems, setAllItems] = useState<WaitingItem[]>([]); // 전체 데이터 캐시
   const [stats, setStats] = useState<WaitingStats | null>(null);
   const [storeSlug, setStoreSlug] = useState<string | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   // Filter states
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
@@ -74,12 +75,13 @@ export default function WaitingPage() {
         'Content-Type': 'application/json',
       };
 
-      // Fetch settings, types, today's stats, store info, and ALL items in parallel
-      const [settingsRes, typesRes, statsRes, storeRes, itemsRes] = await Promise.all([
+      // Fetch settings, types, today's stats, store info, wallet, and ALL items in parallel
+      const [settingsRes, typesRes, statsRes, storeRes, walletRes, itemsRes] = await Promise.all([
         fetch(`${apiUrl}/api/waiting/settings`, { headers }),
         fetch(`${apiUrl}/api/waiting/types`, { headers }),
         fetch(`${apiUrl}/api/waiting/stats/today`, { headers }),
         fetch(`${apiUrl}/api/settings/store`, { headers }),
+        fetch(`${apiUrl}/api/wallet`, { headers }),
         // 전체 상태 조회 (클라이언트 사이드 필터링용)
         fetch(`${apiUrl}/api/waiting?status=WAITING,CALLED,SEATED,CANCELLED,NO_SHOW&limit=500`, { headers }),
       ]);
@@ -104,6 +106,11 @@ export default function WaitingPage() {
         if (storeData.slug) {
           setStoreSlug(storeData.slug);
         }
+      }
+
+      if (walletRes.ok) {
+        const walletData = await walletRes.json();
+        setWalletBalance(walletData.balance ?? 0);
       }
 
       if (itemsRes.ok) {
@@ -442,6 +449,30 @@ export default function WaitingPage() {
     );
   }
 
+  // 충전금 0원이면 웨이팅 서비스 사용 불가
+  if (walletBalance !== null && walletBalance <= 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-red-500" />
+          </div>
+          <h1 className="text-xl font-bold text-neutral-900 mb-2">웨이팅 서비스 이용 불가</h1>
+          <p className="text-neutral-600 mb-6">
+            웨이팅 서비스는 충전금이 10,000원 이상일 때 사용 가능합니다.
+            <br />
+            현재 잔액: <span className="font-semibold text-red-500">0원</span>
+          </p>
+          <Link href="/settings/wallet">
+            <Button>
+              충전하러 가기
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
       {ToastComponent}
@@ -519,6 +550,28 @@ export default function WaitingPage() {
           </Button>
         </div>
       </div>
+
+      {/* Warning if wallet balance is low */}
+      {walletBalance !== null && walletBalance > 0 && walletBalance < 10000 && (
+        <div className="flex items-center justify-between gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-red-800">
+                충전금이 부족합니다
+              </p>
+              <p className="text-sm text-red-700 mt-0.5">
+                웨이팅 서비스는 충전금이 10,000원 이상일 때 사용 가능합니다. (현재 잔액: {formatNumber(walletBalance)}원)
+              </p>
+            </div>
+          </div>
+          <Link href="/settings/wallet">
+            <Button variant="outline" size="sm" className="border-red-300 text-red-700 hover:bg-red-100">
+              충전하기
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {/* Warning if operation is not accepting */}
       {settings?.operationStatus !== 'ACCEPTING' && (
