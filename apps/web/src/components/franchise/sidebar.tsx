@@ -62,7 +62,7 @@ const navItems: NavItem[] = [
     label: '캠페인',
     icon: Megaphone,
     children: [
-      { href: '/franchise/campaigns/retarget', label: '리타겟', icon: MessageSquare, badge: '무료 발송' },
+      { href: '/franchise/campaigns/retarget', label: '리타겟', icon: MessageSquare },
       { href: '/franchise/campaigns/acquisition', label: '신규 고객 타겟', icon: UserPlus },
     ],
   },

@@ -36,7 +36,6 @@ import {
   TrendingUp,
   Store,
   ChevronRight,
-  Gift,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -100,12 +99,6 @@ interface Estimate {
   walletBalance: number;
   canSend: boolean;
   estimatedRevenue?: EstimatedRevenue;
-  freeCredits?: {
-    remaining: number;
-    freeCount: number;
-    paidCount: number;
-    isRetargetPage: boolean;
-  };
 }
 
 interface UploadedImage {
@@ -1062,23 +1055,9 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col p-4 md:p-6 gap-4 max-w-[1200px] mx-auto w-full">
+    <div className="flex-1 flex flex-col lg:flex-row lg:items-start p-4 md:p-6 gap-6 max-w-[1200px] mx-auto w-full lg:justify-center">
       {ToastComponent}
 
-      {/* 이달의 무료 크레딧 콜아웃 */}
-      {estimate?.freeCredits && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl">
-          <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
-            <Gift className="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-blue-900">이달의 무료 크레딧 {estimate.freeCredits.remaining}건 남음</p>
-            <p className="text-xs text-blue-600">매월 30건의 무료 문자 발송 크레딧이 제공됩니다</p>
-          </div>
-        </div>
-      )}
-
-      <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:justify-center">
       {/* Left Panel - Settings */}
       <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6">
         {/* Header */}
@@ -1336,36 +1315,13 @@ export default function MessagesPage() {
 
             {/* Cost Summary */}
             <div className="p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
-              {/* 무료 크레딧 적용 안내 */}
-              {estimate?.freeCredits && estimate.freeCredits.freeCount > 0 && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center gap-2 text-blue-700 text-sm">
-                    <Gift className="w-4 h-4 flex-shrink-0" />
-                    <span>
-                      무료 크레딧 <strong>{estimate.freeCredits.freeCount}건</strong> 적용 → 유료 <strong>{estimate.freeCredits.paidCount}건</strong>만 결제
-                    </span>
-                  </div>
-                </div>
-              )}
-
               {/* 예상 비용 + 현재 잔액 */}
               <div className="flex items-center justify-between gap-4 mb-4">
                 <div>
                   <p className="text-xs sm:text-sm text-[#64748b]">예상 비용</p>
                   <p className="text-lg sm:text-xl font-bold text-[#1e293b]">
-                    {estimate?.freeCredits && estimate.freeCredits.paidCount > 0 ? (
-                      <>
-                        {formatNumber(estimate.freeCredits.paidCount)}명 × {formatNumber(estimate?.costPerMessage || (uploadedImage ? 110 : 50))}원 ={' '}
-                        <span className="text-[#3b82f6]">{formatNumber(estimate?.totalCost || 0)}원</span>
-                      </>
-                    ) : estimate?.freeCredits && estimate.freeCredits.paidCount === 0 ? (
-                      <span className="text-green-600">무료 크레딧으로 전액 발송</span>
-                    ) : (
-                      <>
-                        {formatNumber(estimate?.targetCount || getCurrentTargetCount())}명 × {formatNumber(estimate?.costPerMessage || (uploadedImage ? 110 : 50))}원 ={' '}
-                        <span className="text-[#3b82f6]">{formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원</span>
-                      </>
-                    )}
+                    {formatNumber(estimate?.targetCount || getCurrentTargetCount())}명 × {formatNumber(estimate?.costPerMessage || (uploadedImage ? 110 : 50))}원 ={' '}
+                    <span className="text-[#3b82f6]">{formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원</span>
                   </p>
                 </div>
                 <div className="text-right">
@@ -1938,7 +1894,6 @@ export default function MessagesPage() {
             </div>
           </div>
         </div>
-      </div>
       </div>
 
       {/* Confirm Modal */}
