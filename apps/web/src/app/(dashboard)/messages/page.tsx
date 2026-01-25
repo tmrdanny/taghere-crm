@@ -246,6 +246,56 @@ export default function MessagesPage() {
     }
   }, [searchParams]);
 
+  // Draft 저장/복원을 위한 localStorage 키
+  const DRAFT_KEY = 'taghere-message-draft';
+
+  // Draft 복원 (페이지 로드 시)
+  useEffect(() => {
+    const savedDraft = localStorage.getItem(DRAFT_KEY);
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        if (draft.messageContent) setMessageContent(draft.messageContent);
+        if (draft.kakaoContent) setKakaoContent(draft.kakaoContent);
+        if (draft.activeTab) setActiveTab(draft.activeTab);
+        if (draft.selectedTarget && !searchParams.get('customers')) {
+          setSelectedTarget(draft.selectedTarget);
+        }
+        if (draft.genderFilter) setGenderFilter(draft.genderFilter);
+        if (draft.selectedAgeGroups) setSelectedAgeGroups(draft.selectedAgeGroups);
+        if (draft.isAdMessage !== undefined) setIsAdMessage(draft.isAdMessage);
+        if (draft.kakaoMessageType) setKakaoMessageType(draft.kakaoMessageType);
+        if (draft.kakaoButtons) setKakaoButtons(draft.kakaoButtons);
+      } catch (e) {
+        console.error('Failed to restore draft:', e);
+      }
+    }
+  }, []);
+
+  // Draft 자동 저장 (debounce 500ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const draft = {
+        messageContent,
+        kakaoContent,
+        activeTab,
+        selectedTarget,
+        genderFilter,
+        selectedAgeGroups,
+        isAdMessage,
+        kakaoMessageType,
+        kakaoButtons,
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [messageContent, kakaoContent, activeTab, selectedTarget, genderFilter, selectedAgeGroups, isAdMessage, kakaoMessageType, kakaoButtons]);
+
+  // Draft 삭제 함수
+  const clearDraft = () => {
+    localStorage.removeItem(DRAFT_KEY);
+  };
+
   // Fetch target counts (with filters)
   const fetchTargetCounts = useCallback(async () => {
     try {
@@ -562,6 +612,7 @@ export default function MessagesPage() {
         setKakaoMessageType('TEXT');
         setShowKakaoConfirmModal(false);
         setSelectedCustomers([]);
+        clearDraft();
         setSelectedTarget('ALL');
         fetchTargetCounts();
         router.replace('/messages');
@@ -906,6 +957,7 @@ export default function MessagesPage() {
         setShowConfirmModal(false);
         setSelectedCustomers([]);
         setSelectedTarget('ALL');
+        clearDraft();
         fetchTargetCounts();
         router.replace('/messages');
       } else {

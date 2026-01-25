@@ -235,6 +235,50 @@ export default function LocalCustomersPage() {
     return () => clearInterval(interval);
   }, [activeTab]);
 
+  // Draft 저장/복원을 위한 localStorage 키
+  const DRAFT_KEY = 'taghere-local-customers-draft';
+
+  // Draft 복원 (페이지 로드 시)
+  useEffect(() => {
+    const savedDraft = localStorage.getItem(DRAFT_KEY);
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        if (draft.content) setContent(draft.content);
+        if (draft.activeTab) setActiveTab(draft.activeTab);
+        if (draft.selectedSidos) setSelectedSidos(draft.selectedSidos);
+        if (draft.selectedAgeGroups) setSelectedAgeGroups(draft.selectedAgeGroups);
+        if (draft.gender) setGender(draft.gender);
+        if (draft.kakaoMessageType) setKakaoMessageType(draft.kakaoMessageType);
+        if (draft.kakaoButtons) setKakaoButtons(draft.kakaoButtons);
+      } catch (e) {
+        console.error('Failed to restore draft:', e);
+      }
+    }
+  }, []);
+
+  // Draft 자동 저장 (debounce 500ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const draft = {
+        content,
+        activeTab,
+        selectedSidos,
+        selectedAgeGroups,
+        gender,
+        kakaoMessageType,
+        kakaoButtons,
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [content, activeTab, selectedSidos, selectedAgeGroups, gender, kakaoMessageType, kakaoButtons]);
+
+  // Draft 삭제 함수
+  const clearDraft = () => {
+    localStorage.removeItem(DRAFT_KEY);
+  };
+
   // 고객 수 조회
   const fetchCount = useCallback(async () => {
     if (selectedSidos.length === 0) {
@@ -391,6 +435,7 @@ export default function LocalCustomersPage() {
 
       setSuccessMessage(`${data.pendingCount.toLocaleString()}건 발송 요청 완료! 결과는 발송 내역에서 확인하세요.`);
       setContent('');
+      clearDraft();
       fetchCount();
       fetchSmsEstimate();
     } catch (err: any) {
@@ -443,6 +488,7 @@ export default function LocalCustomersPage() {
       setSuccessMessage(`${data.pendingCount.toLocaleString()}건 발송 요청 완료! 결과는 발송 내역에서 확인하세요.`);
       setContent('');
       setKakaoButtons([]);
+      clearDraft();
       fetchCount();
       fetchKakaoEstimate();
     } catch (err: any) {
