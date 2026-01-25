@@ -2,7 +2,7 @@
 
 import { WaitingItem } from './types';
 import { WaitingTableRow } from './WaitingTableRow';
-import { Users, Clock } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 interface WaitingTableProps {
   items: WaitingItem[];
@@ -36,45 +36,42 @@ export function WaitingTable({
 }: WaitingTableProps) {
   if (!items || !Array.isArray(items) || items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-neutral-400">
-        <Users className="w-12 h-12 mb-4" />
-        <p className="text-lg font-medium">{emptyMessage}</p>
-        <p className="text-sm mt-1">새로운 웨이팅 등록을 기다리고 있습니다.</p>
+      <div className="flex flex-col items-center justify-center py-20 text-neutral-400">
+        <div className="w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center mb-4">
+          <Users className="w-8 h-8" />
+        </div>
+        <p className="text-base font-medium text-neutral-600">{emptyMessage}</p>
+        <p className="text-sm mt-1.5 text-neutral-400">새로운 웨이팅 등록을 기다리고 있습니다.</p>
       </div>
     );
   }
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[800px] table-fixed">
+      <table className="w-full min-w-[900px]">
         <thead>
-          <tr className="bg-neutral-50 border-y border-neutral-200">
-            <th className="py-3 px-4 text-center text-sm font-medium text-neutral-600" style={{ width: '60px' }}>
+          <tr className="bg-neutral-50/80 border-y border-neutral-200">
+            <th className="py-3 px-3 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider w-[60px]">
               순서
             </th>
-            <th className="py-3 px-4 text-center text-sm font-medium text-neutral-600" style={{ width: '100px' }}>
-              호출번호
+            <th className="py-3 px-3 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider w-[80px]">
+              번호
             </th>
-            <th className="py-3 px-4 text-left text-sm font-medium text-neutral-600" style={{ width: '120px' }}>
-              웨이팅 정보
+            <th className="py-3 px-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-[100px]">
+              정보
             </th>
-            <th className="py-3 px-4 text-left text-sm font-medium text-neutral-600" style={{ width: '150px' }}>
-              <div className="flex items-center gap-1">
-                웨이팅상태
-                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-neutral-200 text-neutral-500 text-xs cursor-help" title="경과 시간 및 호출 상태가 표시됩니다.">
-                  i
-                </span>
-              </div>
+            <th className="py-3 px-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-[140px]">
+              상태
             </th>
-            <th className="py-3 px-4 text-left text-sm font-medium text-neutral-600" style={{ width: '150px' }}>
-              고객정보
+            <th className="py-3 px-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-[130px]">
+              고객
             </th>
-            <th className="py-3 px-4 text-center text-sm font-medium text-neutral-600">
-              웨이팅 관리 기능
+            <th className="py-3 px-3 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+              관리
             </th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-neutral-100">
           {items.map((item, index) => (
             <WaitingTableRow
               key={item.id}

@@ -983,6 +983,9 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
       NAVER_REVIEW_REQUEST: '네이버 리뷰 요청',
       LOW_BALANCE: '충전금 부족 안내',
       POINTS_USED: '포인트 사용',
+      WAITING_REGISTERED: '웨이팅 등록',
+      WAITING_CALLED: '웨이팅 호출',
+      WAITING_CANCELLED: '웨이팅 취소',
     };
 
     // Normalize SMS messages

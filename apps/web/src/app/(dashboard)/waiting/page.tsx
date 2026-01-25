@@ -21,11 +21,13 @@ import {
 } from '@/components/waiting';
 import { Plus, Users, Clock, Settings, RefreshCw, AlertCircle, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { formatNumber } from '@/lib/utils';
 
 type StatusFilter = 'WAITING' | 'SEATED' | 'CANCELLED';
 
 export default function WaitingPage() {
+  const router = useRouter();
   const { showToast, ToastComponent } = useToast();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -193,6 +195,16 @@ export default function WaitingPage() {
 
   // Handle operation status change
   const handleOperationStatusChange = async (newStatus: WaitingOperationStatus) => {
+    // 접수 중으로 변경 시 웨이팅 유형이 있는지 확인
+    if (newStatus === 'ACCEPTING') {
+      const activeTypes = types.filter((t) => t.isActive);
+      if (activeTypes.length === 0) {
+        showToast('웨이팅 설정 페이지에서 웨이팅 유형을 1개 이상 추가해주세요.', 'error');
+        router.push('/waiting/settings');
+        return;
+      }
+    }
+
     setIsStatusChanging(true);
     try {
       const token = localStorage.getItem('token');

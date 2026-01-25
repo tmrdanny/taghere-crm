@@ -216,6 +216,7 @@ async function processMessage(messageId: string): Promise<void> {
               solapiMessageId: result.messageId,
               sentAt: new Date(),
               updatedAt: new Date(),
+              failReason: null, // 성공 시 failReason 초기화
             },
           });
           console.log(`[Worker] Low balance notification ${messageId} sent successfully (free), SOLAPI ID: ${result.messageId}`);
@@ -230,6 +231,7 @@ async function processMessage(messageId: string): Promise<void> {
                 solapiMessageId: result.messageId,
                 sentAt: new Date(),
                 updatedAt: new Date(),
+                failReason: null, // 성공 시 failReason 초기화
               },
             });
 

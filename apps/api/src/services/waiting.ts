@@ -701,7 +701,7 @@ async function sendWaitingRegisteredAlimTalk(params: {
     await enqueueAlimTalk({
       storeId: params.storeId,
       phone: params.phone,
-      messageType: 'POINTS_EARNED',
+      messageType: 'WAITING_REGISTERED',
       templateId,
       variables: {
         '#{상호명}': params.storeName,
@@ -738,7 +738,7 @@ async function sendWaitingCalledAlimTalk(params: {
     await enqueueAlimTalk({
       storeId: params.storeId,
       phone: params.phone,
-      messageType: 'POINTS_EARNED',
+      messageType: 'WAITING_CALLED',
       templateId,
       variables: {
         '#{대기번호}': String(params.waitingNumber),
@@ -767,7 +767,7 @@ async function sendWaitingRecalledAlimTalk(params: {
     await enqueueAlimTalk({
       storeId: params.storeId,
       phone: params.phone,
-      messageType: 'POINTS_EARNED',
+      messageType: 'WAITING_CALLED',
       templateId,
       variables: {
         '#{매장명}': params.storeName,
@@ -830,7 +830,7 @@ async function sendWaitingCancelledAlimTalk(params: {
     await enqueueAlimTalk({
       storeId: params.storeId,
       phone: params.phone,
-      messageType: 'POINTS_EARNED',
+      messageType: 'WAITING_CANCELLED',
       templateId,
       variables,
       idempotencyKey: `waiting_cancelled:${params.waitingId}:${Date.now()}`,

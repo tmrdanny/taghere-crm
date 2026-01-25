@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn, formatPhone } from '@/lib/utils';
 import { WaitingItem, SOURCE_LABELS, CANCEL_REASON_LABELS } from './types';
@@ -24,7 +24,8 @@ interface WaitingTableRowProps {
   callTimeoutMinutes: number;
 }
 
-export function WaitingTableRow({
+// React.memo로 불필요한 리렌더 방지 (5초마다 폴링하므로 중요)
+export const WaitingTableRow = memo(function WaitingTableRow({
   item,
   index,
   onCall,
@@ -49,7 +50,7 @@ export function WaitingTableRow({
     };
 
     updateElapsedTime();
-    const interval = setInterval(updateElapsedTime, 60000); // Update every minute
+    const interval = setInterval(updateElapsedTime, 60000);
 
     return () => clearInterval(interval);
   }, [item.createdAt]);
@@ -74,15 +75,21 @@ export function WaitingTableRow({
     return () => clearInterval(interval);
   }, [item.status, item.callExpireAt]);
 
-  // Determine if waiting time is over threshold (e.g., 30 minutes)
+  // Memoized status checks
+  const isWaiting = item.status === 'WAITING';
+  const isCalled = item.status === 'CALLED';
+  const isSeated = item.status === 'SEATED';
+  const isCancelled = item.status === 'CANCELLED' || item.status === 'NO_SHOW';
+
+  // Determine if waiting time is over threshold (30 minutes)
   const isOverTime = elapsedMinutes >= 30;
   const overTimeMinutes = Math.max(0, elapsedMinutes - 30);
 
-  // Format time display
-  const formatCreatedTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  };
+  // Memoize formatted time to avoid recalculation
+  const formattedCreatedTime = useMemo(() => {
+    const date = new Date(item.createdAt);
+    return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  }, [item.createdAt]);
 
   // Format call remaining time
   const formatCallRemaining = (seconds: number) => {
@@ -92,45 +99,61 @@ export function WaitingTableRow({
   };
 
   // Get call count display text
-  const getCallCountText = () => {
+  const callCountText = useMemo(() => {
     if (item.calledCount === 0) return null;
-    if (item.calledCount === 1) return '(최초)';
-    return `(${item.calledCount}회)`;
-  };
-
-  const isWaiting = item.status === 'WAITING';
-  const isCalled = item.status === 'CALLED';
-  const isSeated = item.status === 'SEATED';
-  const isCancelled = item.status === 'CANCELLED' || item.status === 'NO_SHOW';
+    if (item.calledCount === 1) return '최초 호출';
+    return `${item.calledCount}회 호출`;
+  }, [item.calledCount]);
 
   return (
-    <tr className={cn(
-      'border-b border-neutral-100 hover:bg-neutral-50/50 transition-colors',
-      isCalled && 'bg-brand-50/30'
-    )}>
-      {/* Order */}
-      <td className="py-4 px-4 text-center">
-        <span className="font-semibold text-neutral-900">{index + 1}</span>
-      </td>
-
-      {/* Waiting Number */}
-      <td className="py-4 px-4">
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-lg font-bold text-neutral-900">
-            {item.waitingNumber}
-          </span>
-          <span className="text-xs text-neutral-500">
-            {SOURCE_LABELS[item.source]}
-          </span>
+    <tr
+      className={cn(
+        'border-b border-neutral-100 transition-colors',
+        // content-visibility로 오프스크린 렌더링 지연 (긴 리스트 성능 최적화)
+        '[content-visibility:auto] [contain-intrinsic-size:0_72px]',
+        // 상태별 배경색
+        isCalled && 'bg-amber-50/60 hover:bg-amber-50/80',
+        isWaiting && 'hover:bg-neutral-50',
+        isSeated && 'bg-green-50/30 hover:bg-green-50/50',
+        isCancelled && 'bg-neutral-50/50 hover:bg-neutral-100/50 opacity-70'
+      )}
+    >
+      {/* 순서 */}
+      <td className="py-3 px-3 text-center align-middle">
+        <div className={cn(
+          'inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold',
+          isCalled ? 'bg-amber-100 text-amber-800' : 'bg-neutral-100 text-neutral-700'
+        )}>
+          {index + 1}
         </div>
       </td>
 
-      {/* Waiting Info */}
-      <td className="py-4 px-4">
-        <div className="flex flex-col gap-1">
-          <span className="font-medium text-neutral-900">
-            {item.partySize}인
+      {/* 호출번호 */}
+      <td className="py-3 px-3 text-center align-middle">
+        <div className="flex flex-col items-center">
+          <span className={cn(
+            'text-xl font-bold tabular-nums',
+            isCalled ? 'text-amber-700' : 'text-neutral-900'
+          )}>
+            {item.waitingNumber}
           </span>
+          <Badge
+            variant={item.source === 'QR' ? 'info' : item.source === 'TABLET' ? 'default' : 'secondary'}
+            className="text-[10px] px-1.5 py-0 mt-0.5"
+          >
+            {SOURCE_LABELS[item.source]}
+          </Badge>
+        </div>
+      </td>
+
+      {/* 웨이팅 정보 (인원 + 유형) */}
+      <td className="py-3 px-3 align-middle">
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-base font-semibold text-neutral-900">
+              {item.partySize}명
+            </span>
+          </div>
           {item.waitingType && (
             <span className="text-xs text-neutral-500 truncate max-w-[100px]">
               {item.waitingType.name}
@@ -139,77 +162,83 @@ export function WaitingTableRow({
         </div>
       </td>
 
-      {/* Status */}
-      <td className="py-4 px-4">
+      {/* 웨이팅 상태 */}
+      <td className="py-3 px-3 align-middle">
         <div className="flex flex-col gap-1">
-          {/* Time over badge */}
-          {isWaiting && isOverTime && (
-            <Badge variant="error" className="text-xs w-fit">
-              {overTimeMinutes}분 초과
-            </Badge>
-          )}
-
-          {/* Elapsed time / Call countdown */}
-          {(isWaiting || isCalled) && (
-            <span className={cn(
-              'text-sm font-medium',
-              isCalled ? 'text-brand-800' : 'text-neutral-900'
-            )}>
-              {isCalled && callRemainingSeconds !== null ? (
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-2 h-2 rounded-full bg-brand-800 animate-pulse" />
+          {/* 상태 뱃지 */}
+          {isCalled && (
+            <div className="flex items-center gap-1.5">
+              <Badge variant="warning" className="text-xs px-2 py-0.5">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse mr-1" />
+                호출 중
+              </Badge>
+              {callRemainingSeconds !== null && (
+                <span className="text-sm font-bold tabular-nums text-amber-700">
                   {formatCallRemaining(callRemainingSeconds)}
                 </span>
-              ) : (
-                `${elapsedMinutes}분`
               )}
-            </span>
+            </div>
           )}
 
-          {/* Called status badge */}
-          {isCalled && (
-            <Badge variant="info" className="text-xs w-fit">
-              호출 중
-            </Badge>
+          {isWaiting && (
+            <div className="flex items-center gap-2">
+              <span className={cn(
+                'text-sm font-medium tabular-nums',
+                isOverTime ? 'text-red-600' : 'text-neutral-700'
+              )}>
+                {elapsedMinutes}분 대기
+              </span>
+              {isOverTime && (
+                <Badge variant="error" className="text-[10px] px-1.5 py-0">
+                  +{overTimeMinutes}분
+                </Badge>
+              )}
+            </div>
           )}
 
-          {/* Seated status */}
           {isSeated && (
-            <Badge variant="success" className="text-xs w-fit">
+            <Badge variant="success" className="text-xs px-2 py-0.5 w-fit">
               착석 완료
             </Badge>
           )}
 
-          {/* Cancelled status */}
           {isCancelled && (
-            <Badge variant="error" className="text-xs w-fit">
-              {item.cancelReason ? CANCEL_REASON_LABELS[item.cancelReason] : '취소'}
+            <Badge variant="error" className="text-xs px-2 py-0.5 w-fit">
+              {item.cancelReason ? CANCEL_REASON_LABELS[item.cancelReason] : '취소됨'}
             </Badge>
           )}
 
-          {/* Created time */}
-          <span className="text-xs text-neutral-400">
-            {formatCreatedTime(item.createdAt)}
+          {/* 등록 시간 */}
+          <span className="text-[11px] text-neutral-400">
+            {formattedCreatedTime} 등록
           </span>
         </div>
       </td>
 
-      {/* Customer Info */}
-      <td className="py-4 px-4">
-        <div className="flex flex-col gap-1">
-          <span className="text-sm text-neutral-900">
-            {item.phone ? formatPhone(item.phone) : (item.name || '번호 없음')}
+      {/* 고객 정보 */}
+      <td className="py-3 px-3 align-middle">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-medium text-neutral-900">
+            {item.phone ? formatPhone(item.phone) : (item.name || '-')}
           </span>
-          {item.calledCount > 0 && (
-            <span className="text-xs text-brand-700">
-              {getCallCountText()}
+          {callCountText && (
+            <span className={cn(
+              'text-[11px]',
+              isCalled ? 'text-amber-600 font-medium' : 'text-neutral-500'
+            )}>
+              {callCountText}
+            </span>
+          )}
+          {item.memo && (
+            <span className="text-[11px] text-neutral-400 truncate max-w-[120px]" title={item.memo}>
+              {item.memo}
             </span>
           )}
         </div>
       </td>
 
-      {/* Actions */}
-      <td className="py-4 px-4 text-center">
+      {/* 액션 버튼 */}
+      <td className="py-3 px-3 text-center align-middle">
         <WaitingActionButtons
           item={item}
           onCall={onCall}
@@ -226,4 +255,4 @@ export function WaitingTableRow({
       </td>
     </tr>
   );
-}
+});
