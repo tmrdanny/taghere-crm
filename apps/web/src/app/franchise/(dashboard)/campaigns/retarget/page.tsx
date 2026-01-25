@@ -1062,23 +1062,28 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row lg:items-start p-4 md:p-6 gap-6 max-w-[1200px] mx-auto w-full lg:justify-center">
+    <div className="flex-1 flex flex-col p-4 md:p-6 gap-4 max-w-[1200px] mx-auto w-full">
       {ToastComponent}
 
+      {/* 이달의 무료 크레딧 콜아웃 */}
+      {estimate?.freeCredits && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl">
+          <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
+            <Gift className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-blue-900">이달의 무료 크레딧 {estimate.freeCredits.remaining}건 남음</p>
+            <p className="text-xs text-blue-600">매월 30건의 무료 문자 발송 크레딧이 제공됩니다</p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:justify-center">
       {/* Left Panel - Settings */}
       <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e5e7eb]">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg sm:text-xl font-bold text-[#1e293b]">캠페인 메시지 만들기</h1>
-            {/* 무료 크레딧 배지 */}
-            {estimate?.freeCredits && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-xs sm:text-sm font-medium">
-                <Gift className="w-3.5 h-3.5" />
-                <span>무료 크레딧: <strong>{estimate.freeCredits.remaining}</strong>/30건</span>
-              </div>
-            )}
-          </div>
+          <h1 className="text-lg sm:text-xl font-bold text-[#1e293b]">캠페인 메시지 만들기</h1>
           <div className="flex bg-[#f1f5f9] rounded-lg p-1 self-start sm:self-auto">
             <button
               disabled
@@ -1812,9 +1817,7 @@ export default function MessagesPage() {
                             )}
                             {messageContent ? (
                               <span className="whitespace-pre-wrap break-words">
-                                {isAdMessage
-                                  ? `(광고)\n${messageContent.replace(/{고객명}/g, '{고객명}')}\n무료수신거부 080-500-4233`
-                                  : messageContent.replace(/{고객명}/g, '{고객명}')}
+                                {messageContent.replace(/{고객명}/g, '{고객명}')}
                               </span>
                             ) : (
                               <span className="text-[#94a3b8]">메시지 미리보기</span>
@@ -1935,6 +1938,7 @@ export default function MessagesPage() {
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Confirm Modal */}

@@ -41,7 +41,8 @@ interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
-  children?: { href: string; label: string; icon: React.ElementType }[];
+  badge?: string;
+  children?: { href: string; label: string; icon: React.ElementType; badge?: string }[];
 }
 
 const navItems: NavItem[] = [
@@ -61,7 +62,7 @@ const navItems: NavItem[] = [
     label: '캠페인',
     icon: Megaphone,
     children: [
-      { href: '/franchise/campaigns/retarget', label: '리타겟', icon: MessageSquare },
+      { href: '/franchise/campaigns/retarget', label: '리타겟', icon: MessageSquare, badge: '무료 발송' },
       { href: '/franchise/campaigns/acquisition', label: '신규 고객 타겟', icon: UserPlus },
     ],
   },
@@ -152,6 +153,11 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
                     >
                       <ChildIcon className="w-4 h-4" />
                       <span>{child.label}</span>
+                      {child.badge && (
+                        <span className="ml-auto px-1.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-medium rounded">
+                          {child.badge}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}
