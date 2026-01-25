@@ -120,11 +120,11 @@ export default function TabletWaitingPage() {
     }
   }, [storeSlug, fetchStoreInfo]);
 
-  // Poll for updates (every 10 seconds)
+  // Poll for updates (every 3 seconds for real-time feel)
   useEffect(() => {
     if (!storeSlug || registrationResult) return;
 
-    const interval = setInterval(fetchStoreInfo, 10000);
+    const interval = setInterval(fetchStoreInfo, 3000);
     return () => clearInterval(interval);
   }, [storeSlug, registrationResult, fetchStoreInfo]);
 
