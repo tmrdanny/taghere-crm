@@ -85,7 +85,28 @@ export default function TabletWaitingPage() {
       }
 
       const data = await res.json();
-      setStoreInfo(data);
+
+      // API 응답 구조를 프론트엔드 형식으로 변환
+      const transformedData: StoreInfo = {
+        id: data.store?.id || '',
+        name: data.store?.name || '',
+        slug: data.store?.slug || storeSlug,
+        logo: data.store?.logo || null,
+        operationStatus: data.operationStatus || 'CLOSED',
+        pauseMessage: data.pauseMessage || null,
+        totalWaiting: data.stats?.totalWaiting || 0,
+        estimatedMinutes: data.stats?.estimatedMinutes || 0,
+        waitingTypes: (data.types || []).map((type: any) => ({
+          id: type.id,
+          name: type.name,
+          description: type.description,
+          avgWaitTimePerTeam: type.avgWaitTimePerTeam || 5,
+          waitingCount: type.currentWaitingCount || 0,
+          estimatedMinutes: type.estimatedMinutes || 0,
+        })),
+      };
+
+      setStoreInfo(transformedData);
     } catch (err) {
       setError(err instanceof Error ? err.message : '오류가 발생했습니다.');
     } finally {
@@ -145,7 +166,15 @@ export default function TabletWaitingPage() {
         throw new Error(errData.error || '웨이팅 등록에 실패했습니다.');
       }
 
-      const result: RegistrationResult = await res.json();
+      const apiResult = await res.json();
+      // API 응답을 프론트엔드 형식으로 변환
+      const result: RegistrationResult = {
+        waitingId: apiResult.waitingId,
+        waitingNumber: apiResult.waitingNumber,
+        position: apiResult.position,
+        estimatedMinutes: apiResult.estimatedMinutes,
+        typeName: apiResult.waitingTypeName || apiResult.typeName || '',
+      };
       setRegistrationResult(result);
       setRegisteredPhone(data.phone);
 
