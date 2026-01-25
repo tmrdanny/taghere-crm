@@ -523,7 +523,7 @@ export default function HomePage() {
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-neutral-500 mb-1">리타겟 메시지 잔여 무료 발송 수</p>
+                <p className="text-sm text-neutral-500 mb-1">[무료 지원]리타겟 메시지 잔여 발송 수</p>
                 <p className="text-3xl font-bold text-neutral-900">
                   {formatNumber(retargetCredits?.remainingCredits ?? 0)}
                 </p>
