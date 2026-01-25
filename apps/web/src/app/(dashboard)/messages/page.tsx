@@ -1129,6 +1129,53 @@ export default function MessagesPage() {
                 className="w-full h-[160px] p-4 border border-[#e5e7eb] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent text-sm leading-relaxed"
               />
 
+              {/* Template Buttons */}
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs text-[#64748b] mr-1 self-center">템플릿:</span>
+                <button
+                  type="button"
+                  onClick={() => setMessageContent(`#{매장명}입니다.
+지난번 방문해주셔서 감사해요. 이번 주에만 재방문 혜택 드릴게요.
+• 혜택: #{재방문혜택}
+• 기간: #{이벤트기간}
+• 사용: 주문/결제 전에 "재방문 문자" 보여주세요
+
+길찾기: #{길찾기링크}`)}
+                  className="px-3 py-1.5 text-xs font-medium text-[#3b82f6] bg-[#eff6ff] hover:bg-[#dbeafe] rounded-lg transition-colors"
+                >
+                  재방문 이벤트
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMessageContent(`#{매장명}입니다.
+이번에 신메뉴 #{신메뉴명} 나왔습니다. 오셔서 한 번만 솔직하게 평가 부탁드릴게요!
+• 신메뉴: #{신메뉴명}
+• 이벤트: #{신메뉴이벤트혜택}
+• 기간: #{이벤트기간}
+• 방법: 주문 전에 이 문자 보여주시면 적용해드려요
+
+길찾기: #{길찾기링크}`)}
+                  className="px-3 py-1.5 text-xs font-medium text-[#3b82f6] bg-[#eff6ff] hover:bg-[#dbeafe] rounded-lg transition-colors"
+                >
+                  신메뉴 이벤트
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMessageContent(`#{손님이름}님, #{매장명}입니다.
+#{지역}에 새 매장 오픈했습니다. 집/회사랑 가까우시면 앞으로 편하게 들르세요.
+• 오픈일: #{오픈일}
+• 주소: #{신규매장주소}
+• 오픈 혜택: #{오픈혜택}
+• 기간: #{이벤트기간}
+• 사용: 방문해서 이 문자 보여주시면 됩니다
+
+길찾기: #{길찾기링크}`)}
+                  className="px-3 py-1.5 text-xs font-medium text-[#3b82f6] bg-[#eff6ff] hover:bg-[#dbeafe] rounded-lg transition-colors"
+                >
+                  신규 매장 오픈 알림
+                </button>
+              </div>
+
               {/* Image Upload */}
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
