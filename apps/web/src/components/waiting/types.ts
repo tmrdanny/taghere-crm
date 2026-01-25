@@ -55,6 +55,7 @@ export interface WaitingSetting {
   maxCallCount: number;
   autoCancel: boolean;
   quickMemos?: string[] | null;
+  waitingNote?: string | null;
   createdAt: string;
   updatedAt: string;
 }

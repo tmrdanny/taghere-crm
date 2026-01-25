@@ -1134,6 +1134,9 @@ model WaitingSetting {
   // 자주 쓰는 메모
   quickMemos              Json?                   // ["창가석", "유아동반", "휠체어", "VIP"]
 
+  // 알림톡 안내 메시지
+  waitingNote             String?                 // 웨이팅 등록 알림톡에 포함할 매장 안내 메시지
+
   createdAt               DateTime                @default(now())
   updatedAt               DateTime                @updatedAt
 

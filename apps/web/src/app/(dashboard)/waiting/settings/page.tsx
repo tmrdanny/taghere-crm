@@ -94,6 +94,7 @@ export default function WaitingSettingsPage() {
           autoCancel: settings.autoCancel,
           maxWaitingCount: settings.maxWaitingCount,
           showEstimatedTime: settings.showEstimatedTime,
+          waitingNote: settings.waitingNote,
         }),
       });
 

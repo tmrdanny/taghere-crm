@@ -3,6 +3,7 @@
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { WaitingSetting } from './types';
 
 interface WaitingCallSettingsProps {
@@ -135,6 +136,29 @@ export function WaitingCallSettings({
             <Switch
               checked={settings.showEstimatedTime ?? true}
               onCheckedChange={(checked) => onChange('showEstimatedTime', checked)}
+            />
+          </div>
+        </Card>
+      </div>
+
+      {/* Alimtalk Settings */}
+      <div>
+        <h3 className="text-lg font-semibold text-neutral-900 mb-4">알림톡 설정</h3>
+        <Card className="p-4 space-y-4">
+          {/* Waiting Note */}
+          <div>
+            <label className="text-sm font-medium text-neutral-900">
+              매장 안내 메시지
+            </label>
+            <p className="text-xs text-neutral-500 mt-0.5 mb-2">
+              웨이팅 등록 완료 알림톡에 포함할 매장 안내 메시지입니다.
+            </p>
+            <Textarea
+              value={settings.waitingNote || ''}
+              onChange={(e) => onChange('waitingNote', e.target.value)}
+              placeholder="예) 주차는 건물 지하 2층에서 가능합니다. 호출 시 3분 내로 입장해주세요."
+              rows={3}
+              className="resize-none"
             />
           </div>
         </Card>

@@ -180,7 +180,7 @@ export async function registerWaiting(
     if (params.phone) {
       const store = await prisma.store.findUnique({
         where: { id: params.storeId },
-        select: { name: true },
+        select: { name: true, slug: true },
       });
 
       await sendWaitingRegisteredAlimTalk({
@@ -188,9 +188,11 @@ export async function registerWaiting(
         waitingId: waiting.id,
         phone: params.phone,
         storeName: store?.name ?? '',
+        storeSlug: store?.slug ?? '',
         waitingNumber,
         position,
-        estimatedMinutes,
+        partySize: params.partySize,
+        waitingNote: setting?.waitingNote ?? '',
       });
     }
 
@@ -675,12 +677,18 @@ async function sendWaitingRegisteredAlimTalk(params: {
   waitingId: string;
   phone: string;
   storeName: string;
+  storeSlug: string;
   waitingNumber: number;
   position: number;
-  estimatedMinutes: number;
+  partySize: number;
+  waitingNote: string;
 }): Promise<void> {
   const templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_REGISTERED;
   if (!templateId) return;
+
+  const publicUrl = process.env.PUBLIC_URL || 'https://taghere-crm-web-dev.onrender.com';
+  const statusPageUrl = `${publicUrl}/w/${params.storeSlug}/status/${params.phone}`;
+  const cancelPageUrl = `${publicUrl}/w/${params.storeSlug}/cancel?phone=${params.phone}`;
 
   try {
     await enqueueAlimTalk({
@@ -689,10 +697,13 @@ async function sendWaitingRegisteredAlimTalk(params: {
       messageType: 'POINTS_EARNED',
       templateId,
       variables: {
-        '#{매장명}': params.storeName,
+        '#{상호명}': params.storeName,
+        '#{내순서}': String(params.position),
         '#{대기번호}': String(params.waitingNumber),
-        '#{순서}': String(params.position),
-        '#{예상시간}': String(params.estimatedMinutes),
+        '#{인원}': String(params.partySize),
+        '#{매장안내}': params.waitingNote,
+        '#{실시간순서확인페이지}': statusPageUrl,
+        '#{웨이팅취소페이지}': cancelPageUrl,
       },
       idempotencyKey: `waiting_registered:${params.waitingId}`,
     });
