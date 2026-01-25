@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Modal, ModalContent } from '@/components/ui/modal';
 import { formatNumber, formatCurrency } from '@/lib/utils';
-import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare } from 'lucide-react';
+import { Users, UserPlus, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin } from 'lucide-react';
 import {
   XAxis,
   YAxis,
@@ -62,6 +62,12 @@ interface FeedbackSummary {
   feedbacks: FeedbackItem[];
 }
 
+interface VisitSourceItem {
+  source: string;
+  label: string;
+  count: number;
+}
+
 type PeriodKey = '7일' | '30일' | '90일' | '전체';
 
 export default function HomePage() {
@@ -76,6 +82,7 @@ export default function HomePage() {
   const [feedbackSummary, setFeedbackSummary] = useState<FeedbackSummary | null>(null);
   const [isRefreshingFeedback, setIsRefreshingFeedback] = useState(false);
   const [showPromoPopup, setShowPromoPopup] = useState(false);
+  const [visitSourceData, setVisitSourceData] = useState<VisitSourceItem[]>([]);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -165,6 +172,29 @@ export default function HomePage() {
     };
 
     fetchFeedbackSummary();
+  }, [apiUrl]);
+
+  // Fetch visit source stats
+  useEffect(() => {
+    const fetchVisitSourceStats = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${apiUrl}/api/visit-source-settings/stats`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setVisitSourceData(data.distribution || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch visit source stats:', error);
+      }
+    };
+
+    fetchVisitSourceStats();
   }, [apiUrl]);
 
   // Refresh feedback summary
@@ -302,6 +332,96 @@ export default function HomePage() {
     );
   };
 
+  // 방문 경로 파이차트 색상
+  const visitSourceColors = [
+    '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6',
+    '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#94a3b8',
+  ];
+
+  // 방문 경로 파이차트 렌더링
+  const renderVisitSourcePie = () => {
+    // none 제외
+    const filteredData = visitSourceData.filter((item) => item.source !== 'none');
+    if (filteredData.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-32 text-neutral-400 text-sm">
+          데이터가 없습니다
+        </div>
+      );
+    }
+
+    const totalCount = filteredData.reduce((sum, item) => sum + item.count, 0);
+    let cumulative = 0;
+    const gradientParts = filteredData.map((item, idx) => {
+      const start = cumulative;
+      const pct = totalCount > 0 ? Math.round((item.count / totalCount) * 100) : 0;
+      cumulative += pct;
+      return `${visitSourceColors[idx % visitSourceColors.length]} ${start}% ${cumulative}%`;
+    });
+
+    return (
+      <div className="flex items-center gap-6">
+        <div
+          className="relative w-28 h-28 rounded-full flex-shrink-0"
+          style={{
+            background: `conic-gradient(${gradientParts.join(', ')})`,
+          }}
+        >
+          <div className="absolute inset-3 bg-white rounded-full flex items-center justify-center">
+            <span className="text-xs font-medium text-neutral-600 text-center">방문<br />경로</span>
+          </div>
+        </div>
+        <div className="space-y-1.5 flex-1 min-w-0">
+          {filteredData.slice(0, 5).map((item, idx) => {
+            const pct = totalCount > 0 ? Math.round((item.count / totalCount) * 100) : 0;
+            return (
+              <div key={item.source} className="flex items-center gap-2">
+                <div
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: visitSourceColors[idx % visitSourceColors.length] }}
+                />
+                <span className="text-sm text-neutral-700 truncate">{item.label}</span>
+                <span className="text-xs text-neutral-400 ml-auto">({pct}%)</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // 방문 경로 막대차트 렌더링
+  const renderVisitSourceBarChart = () => {
+    // none 제외
+    const filteredData = visitSourceData.filter((item) => item.source !== 'none');
+    if (filteredData.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-32 text-neutral-400 text-sm">
+          데이터가 없습니다
+        </div>
+      );
+    }
+
+    const maxCount = Math.max(...filteredData.map((d) => d.count));
+
+    return (
+      <div className="space-y-2.5">
+        {filteredData.slice(0, 5).map((item) => (
+          <div key={item.source} className="flex items-center gap-3">
+            <span className="text-sm text-neutral-600 w-20 truncate">{item.label}</span>
+            <div className="flex-1 h-5 bg-neutral-100 rounded overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 rounded transition-all duration-500"
+                style={{ width: maxCount > 0 ? `${(item.count / maxCount) * 100}%` : '0%' }}
+              />
+            </div>
+            <span className="text-sm text-neutral-600 w-12 text-right">{item.count}명</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   // Helper function to render growth indicator
   const renderGrowthIndicator = (growth: number, prefix: string, suffix: string = '%') => {
     if (growth >= 0) {
@@ -412,6 +532,37 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Visit Source Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* 방문 경로 분포 - 파이차트 */}
+        <Card
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => router.push('/insights/customers')}
+        >
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <MapPin className="w-4 h-4 text-neutral-400" />
+              <span className="text-sm font-medium text-neutral-900">방문 경로 분포</span>
+            </div>
+            {renderVisitSourcePie()}
+          </CardContent>
+        </Card>
+
+        {/* 방문 경로별 고객 수 - 막대차트 */}
+        <Card
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => router.push('/insights/customers')}
+        >
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <MapPin className="w-4 h-4 text-neutral-400" />
+              <span className="text-sm font-medium text-neutral-900">방문 경로별 고객 수</span>
+            </div>
+            {renderVisitSourceBarChart()}
           </CardContent>
         </Card>
       </div>
