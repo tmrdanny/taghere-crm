@@ -48,25 +48,25 @@ export function WaitingTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[900px] table-fixed">
+      <table className="w-full min-w-[900px]">
         <thead>
           <tr className="bg-neutral-50/80 border-y border-neutral-200">
-            <th className="py-3 px-4 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider w-1/6">
+            <th className="py-3 px-3 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider w-[60px]">
               순서
             </th>
-            <th className="py-3 px-4 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider w-1/6">
+            <th className="py-3 px-3 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider w-[80px]">
               번호
             </th>
-            <th className="py-3 px-4 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-1/6">
+            <th className="py-3 px-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-[100px]">
               정보
             </th>
-            <th className="py-3 px-4 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-1/6">
+            <th className="py-3 px-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-[140px]">
               상태
             </th>
-            <th className="py-3 px-4 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-1/6">
+            <th className="py-3 px-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-[130px]">
               고객
             </th>
-            <th className="py-3 px-4 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider w-1/6">
+            <th className="py-3 px-3 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider">
               관리
             </th>
           </tr>

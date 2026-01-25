@@ -119,7 +119,7 @@ export const WaitingTableRow = memo(function WaitingTableRow({
       )}
     >
       {/* 순서 */}
-      <td className="py-3 px-4 text-center align-middle">
+      <td className="py-3 px-3 text-center align-middle">
         <div className={cn(
           'inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold',
           isCalled ? 'bg-amber-100 text-amber-800' : 'bg-neutral-100 text-neutral-700'
@@ -129,7 +129,7 @@ export const WaitingTableRow = memo(function WaitingTableRow({
       </td>
 
       {/* 호출번호 */}
-      <td className="py-3 px-4 text-center align-middle">
+      <td className="py-3 px-3 text-center align-middle">
         <div className="flex flex-col items-center">
           <span className={cn(
             'text-xl font-bold tabular-nums',
@@ -147,7 +147,7 @@ export const WaitingTableRow = memo(function WaitingTableRow({
       </td>
 
       {/* 웨이팅 정보 (인원 + 유형) */}
-      <td className="py-3 px-4 align-middle">
+      <td className="py-3 px-3 align-middle">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-1.5">
             <span className="text-base font-semibold text-neutral-900">
@@ -163,7 +163,7 @@ export const WaitingTableRow = memo(function WaitingTableRow({
       </td>
 
       {/* 웨이팅 상태 */}
-      <td className="py-3 px-4 align-middle">
+      <td className="py-3 px-3 align-middle">
         <div className="flex flex-col gap-1">
           {/* 상태 뱃지 */}
           {isCalled && (
@@ -216,7 +216,7 @@ export const WaitingTableRow = memo(function WaitingTableRow({
       </td>
 
       {/* 고객 정보 */}
-      <td className="py-3 px-4 align-middle">
+      <td className="py-3 px-3 align-middle">
         <div className="flex flex-col gap-0.5">
           <span className="text-sm font-medium text-neutral-900">
             {item.phone ? formatPhone(item.phone) : (item.name || '-')}
@@ -238,7 +238,7 @@ export const WaitingTableRow = memo(function WaitingTableRow({
       </td>
 
       {/* 액션 버튼 */}
-      <td className="py-3 px-4 text-center align-middle">
+      <td className="py-3 px-3 text-center align-middle">
         <WaitingActionButtons
           item={item}
           onCall={onCall}
