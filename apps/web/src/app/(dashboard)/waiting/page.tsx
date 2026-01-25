@@ -113,7 +113,12 @@ export default function WaitingPage() {
       if (selectedTypeId) {
         params.append('typeId', selectedTypeId);
       }
-      params.append('status', selectedStatus);
+      // WAITING 필터는 WAITING + CALLED 상태 모두 포함 (호출된 고객도 리스트에 표시)
+      if (selectedStatus === 'WAITING') {
+        params.append('status', 'WAITING,CALLED');
+      } else {
+        params.append('status', selectedStatus);
+      }
 
       const itemsRes = await fetch(`${apiUrl}/api/waiting?${params.toString()}`, { headers });
       if (itemsRes.ok) {

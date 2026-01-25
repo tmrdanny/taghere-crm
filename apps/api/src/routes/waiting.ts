@@ -113,8 +113,38 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/stats/today', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const stats = await getTodayStats(storeId);
-    res.json(stats);
+    const [todayStats, waitingStats] = await Promise.all([
+      getTodayStats(storeId),
+      getWaitingStats(storeId),
+    ]);
+
+    // 프론트엔드가 기대하는 형식으로 변환
+    res.json({
+      // 현재 대기 중인 통계 (WAITING + CALLED 상태)
+      totalTeams: waitingStats.totalWaiting,
+      totalGuests: waitingStats.totalPartySize,
+      estimatedMinutes: waitingStats.estimatedMinutes,
+      byType: waitingStats.byType.map((t) => ({
+        typeId: t.typeId,
+        typeName: t.typeName,
+        teams: t.waitingCount,
+        guests: 0, // TODO: partySize per type if needed
+        estimatedMinutes: t.estimatedMinutes,
+      })),
+      byStatus: {
+        waiting: waitingStats.totalWaiting,
+        seated: todayStats.totalSeated,
+        cancelled: todayStats.totalCancelled + todayStats.totalNoShow,
+      },
+      // 오늘 전체 통계
+      todayStats: {
+        totalRegistered: todayStats.totalRegistered,
+        totalSeated: todayStats.totalSeated,
+        totalCancelled: todayStats.totalCancelled,
+        totalNoShow: todayStats.totalNoShow,
+        avgWaitTime: todayStats.avgWaitTime,
+      },
+    });
   } catch (error) {
     console.error('Today stats error:', error);
     res.status(500).json({ error: '오늘 통계 조회 중 오류가 발생했습니다.' });
