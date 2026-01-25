@@ -481,10 +481,13 @@ model AlimTalkOutbox {
 }
 
 enum AlimTalkType {
-  POINTS_EARNED       // 포인트 적립 알림
-  STAMP_EARNED        // 스탬프 적립 알림
-  NAVER_REVIEW_REQUEST // 네이버 리뷰 요청
-  LOW_BALANCE         // 충전금 부족 안내
+  POINTS_EARNED         // 포인트 적립 알림
+  STAMP_EARNED          // 스탬프 적립 알림
+  NAVER_REVIEW_REQUEST  // 네이버 리뷰 요청
+  LOW_BALANCE           // 충전금 부족 안내
+  WAITING_REGISTERED    // 웨이팅 등록 완료 알림
+  WAITING_CALLED        // 웨이팅 호출 알림
+  WAITING_CANCELLED     // 웨이팅 취소 알림
 }
 
 enum AlimTalkStatus {
