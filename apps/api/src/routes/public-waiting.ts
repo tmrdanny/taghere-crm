@@ -283,7 +283,7 @@ router.post('/:storeSlug/cancel', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '이미 처리된 웨이팅입니다.' });
     }
 
-    const result = await cancelWaiting(store.id, waiting.id, 'CUSTOMER_REQUEST', false);
+    const result = await cancelWaiting(store.id, waiting.id, 'CUSTOMER_REQUEST', true);
 
     if (!result.success) {
       return res.status(400).json({ error: result.error });

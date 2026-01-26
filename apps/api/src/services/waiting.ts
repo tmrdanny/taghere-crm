@@ -743,7 +743,7 @@ async function sendWaitingCalledAlimTalk(params: {
       messageType: 'WAITING_CALLED',
       templateId,
       variables: {
-        '#{대기번호}': `${params.waitingNumber}번`,
+        '#{대기번호}': String(params.waitingNumber),
         '#{제한시간}': String(params.timeoutMinutes),
         '#{매장유의사항}': params.waitingCallNote,
         '#{웨이팅취소페이지}': cancelPageUrl,
@@ -773,7 +773,7 @@ async function sendWaitingRecalledAlimTalk(params: {
       templateId,
       variables: {
         '#{매장명}': params.storeName,
-        '#{대기번호}': `${params.waitingNumber}번`,
+        '#{대기번호}': String(params.waitingNumber),
       },
       idempotencyKey: `waiting_recalled:${params.waitingId}:${Date.now()}`,
     });
@@ -799,7 +799,7 @@ async function sendWaitingCancelledAlimTalk(params: {
       // 고객님 사정으로 웨이팅 취소
       templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_CANCELLED_CUSTOMER;
       variables = {
-        '#{상호명}': params.storeName,
+        '#{매장명}': params.storeName,
       };
       break;
 
