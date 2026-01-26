@@ -64,6 +64,7 @@ interface NavGroup {
   title: string;
   icon: React.ElementType;
   items: NavItem[];
+  badge?: string; // 그룹 헤더 뱃지
 }
 
 // 상단 독립 메뉴
@@ -95,6 +96,7 @@ const navGroups: NavGroup[] = [
   {
     title: '마케팅',
     icon: Send,
+    badge: '30 크레딧',
     items: [
       { href: '/messages', label: '리타겟', icon: MessageSquareMore, badge: '30 크레딧' },
       { href: '/local-customers', label: '신규 고객 타겟', icon: UserPlus },
@@ -423,6 +425,11 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
         >
           <GroupIcon className={cn('w-5 h-5 flex-shrink-0', groupActive && 'text-brand-800')} />
           <span className="flex-1 text-left">{group.title}</span>
+          {group.badge && (
+            <span className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded font-medium">
+              {group.badge}
+            </span>
+          )}
           {hasNewItem && !isExpanded && (
             <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
               NEW
@@ -758,6 +765,11 @@ export function MobileHeader() {
         >
           <GroupIcon className={cn('w-5 h-5 flex-shrink-0', groupActive && 'text-brand-800')} />
           <span className="flex-1 text-left">{group.title}</span>
+          {group.badge && (
+            <span className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded font-medium">
+              {group.badge}
+            </span>
+          )}
           {hasNewItem && !isExpanded && (
             <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
               NEW
