@@ -22,11 +22,31 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
           enabled: true,
           maxWaitingCount: 50,
           showEstimatedTime: true,
-          callTimeoutMinutes: 3,
+          callTimeoutMinutes: 5,
           maxCallCount: 2,
           autoCancel: true,
         },
       });
+
+      // 기본 웨이팅 유형 "홀" 자동 생성
+      const existingType = await (prisma as any).waitingType.findFirst({
+        where: { storeId },
+      });
+
+      if (!existingType) {
+        await (prisma as any).waitingType.create({
+          data: {
+            storeId,
+            name: '홀',
+            description: '일반 홀 좌석',
+            minPartySize: 1,
+            maxPartySize: 10,
+            avgWaitTimePerTeam: 5,
+            isActive: true,
+            sortOrder: 0,
+          },
+        });
+      }
     }
 
     res.json({ setting });
@@ -123,7 +143,7 @@ router.put('/status', authMiddleware, async (req: AuthRequest, res) => {
             description: '일반 홀 좌석',
             minPartySize: 1,
             maxPartySize: 10,
-            avgWaitTimePerTeam: 10,
+            avgWaitTimePerTeam: 5,
             isActive: true,
             sortOrder: 0,
           },
@@ -154,7 +174,7 @@ router.put('/status', authMiddleware, async (req: AuthRequest, res) => {
         enabled: true,
         maxWaitingCount: 50,
         showEstimatedTime: true,
-        callTimeoutMinutes: 3,
+        callTimeoutMinutes: 5,
         maxCallCount: 2,
         autoCancel: true,
       },
