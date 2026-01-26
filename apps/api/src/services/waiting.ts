@@ -693,7 +693,8 @@ async function sendWaitingRegisteredAlimTalk(params: {
   const templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_REGISTERED;
   if (!templateId) return;
 
-  const publicUrl = process.env.PUBLIC_URL || 'https://taghere-crm-web-dev.onrender.com';
+  // 솔라피에서 https://를 자동 추가하므로 프로토콜 제거
+  const publicUrl = (process.env.PUBLIC_URL || 'https://taghere-crm-web-dev.onrender.com').replace(/^https?:\/\//, '');
   const statusPageUrl = `${publicUrl}/w/${params.storeSlug}/status/${params.phone}`;
   const cancelPageUrl = `${publicUrl}/w/${params.storeSlug}/cancel?phone=${params.phone}`;
 
@@ -731,7 +732,8 @@ async function sendWaitingCalledAlimTalk(params: {
   const templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_CALLED;
   if (!templateId) return;
 
-  const publicUrl = process.env.PUBLIC_URL || 'https://taghere-crm-web-dev.onrender.com';
+  // 솔라피에서 https://를 자동 추가하므로 프로토콜 제거
+  const publicUrl = (process.env.PUBLIC_URL || 'https://taghere-crm-web-dev.onrender.com').replace(/^https?:\/\//, '');
   const cancelPageUrl = `${publicUrl}/w/${params.storeSlug}/cancel?phone=${params.phone}`;
 
   try {
