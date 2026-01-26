@@ -706,9 +706,9 @@ async function sendWaitingRegisteredAlimTalk(params: {
       templateId,
       variables: {
         '#{상호명}': params.storeName,
-        '#{내순서}': String(params.position),
-        '#{대기번호}': String(params.waitingNumber),
-        '#{인원}': String(params.partySize),
+        '#{내순서}': `${params.position}번째`,
+        '#{대기번호}': `${params.waitingNumber}번`,
+        '#{인원}': `${params.partySize}명`,
         '#{매장안내}': params.waitingNote,
         '#{실시간순서확인페이지}': statusPageUrl,
         '#{웨이팅취소페이지}': cancelPageUrl,
@@ -743,7 +743,7 @@ async function sendWaitingCalledAlimTalk(params: {
       messageType: 'WAITING_CALLED',
       templateId,
       variables: {
-        '#{대기번호}': String(params.waitingNumber),
+        '#{대기번호}': `${params.waitingNumber}번`,
         '#{제한시간}': String(params.timeoutMinutes),
         '#{매장유의사항}': params.waitingCallNote,
         '#{웨이팅취소페이지}': cancelPageUrl,
@@ -773,7 +773,7 @@ async function sendWaitingRecalledAlimTalk(params: {
       templateId,
       variables: {
         '#{매장명}': params.storeName,
-        '#{대기번호}': String(params.waitingNumber),
+        '#{대기번호}': `${params.waitingNumber}번`,
       },
       idempotencyKey: `waiting_recalled:${params.waitingId}:${Date.now()}`,
     });
