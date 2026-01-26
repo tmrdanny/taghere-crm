@@ -59,7 +59,6 @@ export default function TabletWaitingPage() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [registeredPhone, setRegisteredPhone] = useState<string>('');
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-  const [popupProgress, setPopupProgress] = useState(100);
 
   const { showToast, ToastComponent } = useToast();
 
@@ -181,26 +180,10 @@ export default function TabletWaitingPage() {
 
       // Show success popup with auto-dismiss
       setShowSuccessPopup(true);
-      setPopupProgress(100);
-
-      // Start progress bar animation
-      const startTime = Date.now();
-      const duration = 5000; // 5 seconds
-
-      const progressInterval = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
-        setPopupProgress(remaining);
-
-        if (remaining <= 0) {
-          clearInterval(progressInterval);
-        }
-      }, 50);
 
       // Auto reset after 5 seconds
       setTimeout(() => {
         setShowSuccessPopup(false);
-        clearInterval(progressInterval);
         resetForm();
       }, 5000);
     } catch (err) {
@@ -307,60 +290,6 @@ export default function TabletWaitingPage() {
     return <TabletModeSelector onSelectMode={handleSelectMode} />;
   }
 
-  // Success Popup Component
-  const SuccessPopup = () => {
-    if (!showSuccessPopup || !registrationResult) return null;
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-        <div className="bg-white rounded-3xl p-10 shadow-2xl max-w-sm w-full mx-6 text-center animate-in fade-in zoom-in duration-300">
-          {/* Success Icon */}
-          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 className="w-10 h-10 text-emerald-600" />
-          </div>
-
-          {/* Message */}
-          <h2 className="text-2xl font-bold text-neutral-900 mb-2">
-            웨이팅 등록이 완료되었어요
-          </h2>
-
-          {/* Waiting Number */}
-          <div className="mt-6 mb-6">
-            <p className="text-sm text-neutral-500 mb-1">대기번호</p>
-            <p className="text-5xl font-bold text-neutral-900">
-              #{registrationResult.waitingNumber}
-            </p>
-          </div>
-
-          {/* Info */}
-          <div className="flex justify-center gap-6 text-sm text-neutral-500 mb-6">
-            <div>
-              <span className="font-medium text-neutral-700">{registrationResult.position}번째</span>
-              <span className="ml-1">순서</span>
-            </div>
-            <div>
-              <span className="font-medium text-neutral-700">약 {registrationResult.estimatedMinutes}분</span>
-              <span className="ml-1">예상</span>
-            </div>
-          </div>
-
-          {/* Kakao Info */}
-          <p className="text-sm text-neutral-500 mb-6">
-            카카오톡으로 호출 알림을 보내드릴게요
-          </p>
-
-          {/* Progress Bar */}
-          <div className="h-1 bg-neutral-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-emerald-500 transition-all duration-100 ease-linear"
-              style={{ width: `${popupProgress}%` }}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // Render based on operation status
   switch (storeInfo.operationStatus) {
     case 'WALK_IN':
@@ -383,7 +312,60 @@ export default function TabletWaitingPage() {
       return (
         <>
           {ToastComponent}
-          <SuccessPopup />
+
+          {/* Success Popup - 인라인 렌더링 */}
+          {showSuccessPopup && registrationResult && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+              <div className="bg-white rounded-3xl p-10 shadow-2xl max-w-sm w-full mx-6 text-center animate-in fade-in zoom-in duration-300">
+                {/* Success Icon */}
+                <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+                </div>
+
+                {/* Message */}
+                <h2 className="text-2xl font-bold text-neutral-900 mb-2">
+                  웨이팅 등록이 완료되었어요
+                </h2>
+
+                {/* Waiting Number */}
+                <div className="mt-6 mb-6">
+                  <p className="text-sm text-neutral-500 mb-1">대기번호</p>
+                  <p className="text-5xl font-bold text-neutral-900">
+                    #{registrationResult.waitingNumber}
+                  </p>
+                </div>
+
+                {/* Info */}
+                <div className="flex justify-center gap-6 text-sm text-neutral-500 mb-6">
+                  <div>
+                    <span className="font-medium text-neutral-700">{registrationResult.position}번째</span>
+                    <span className="ml-1">순서</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-neutral-700">약 {registrationResult.estimatedMinutes}분</span>
+                    <span className="ml-1">예상</span>
+                  </div>
+                </div>
+
+                {/* Kakao Info */}
+                <p className="text-sm text-neutral-500 mb-6">
+                  카카오톡으로 호출 알림을 보내드릴게요
+                </p>
+
+                {/* Progress Bar - CSS 애니메이션 */}
+                <div className="h-1 bg-neutral-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500"
+                    style={{
+                      width: '100%',
+                      animation: 'shrink-width 5s linear forwards'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           <TabletWaitingForm
             storeName={storeInfo.name}
             storeLogo={storeInfo.logo}

@@ -64,3 +64,13 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Progress bar shrink animation */
+@keyframes shrink-width {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
