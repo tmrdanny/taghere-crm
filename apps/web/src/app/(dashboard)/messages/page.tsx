@@ -34,11 +34,9 @@ import {
   Trash2,
   Link,
   Clock,
-  MessageSquare,
   TrendingUp,
   Wallet,
   Sparkles,
-  Gift,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChargeModal } from '@/components/ChargeModal';
@@ -1285,7 +1283,6 @@ export default function MessagesPage() {
                       : 'border-[#e5e7eb] bg-white'
                   )}
                 >
-                  <Gift className="w-6 h-6 text-[#3b82f6] mx-auto mb-2" />
                   <div className="text-sm font-semibold text-[#1e293b]">재방문</div>
                   <div className="text-xs text-[#64748b]">이벤트</div>
                 </button>
@@ -1305,7 +1302,6 @@ export default function MessagesPage() {
                       : 'border-[#e5e7eb] bg-white'
                   )}
                 >
-                  <MessageSquare className="w-6 h-6 text-[#3b82f6] mx-auto mb-2" />
                   <div className="text-sm font-semibold text-[#1e293b]">신메뉴</div>
                   <div className="text-xs text-[#64748b]">안내</div>
                 </button>
@@ -1325,7 +1321,6 @@ export default function MessagesPage() {
                       : 'border-[#e5e7eb] bg-white'
                   )}
                 >
-                  <Sparkles className="w-6 h-6 text-[#3b82f6] mx-auto mb-2" />
                   <div className="text-sm font-semibold text-[#1e293b]">오픈</div>
                   <div className="text-xs text-[#64748b]">알림</div>
                 </button>
@@ -1554,16 +1549,15 @@ export default function MessagesPage() {
             </div>
 
             {/* Step 3: Expected Effect & CTA */}
-            <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-100">
+            <div className="p-5 bg-neutral-50 rounded-2xl border border-neutral-200">
               {/* ROI 강조 메시지 */}
-              <div className="flex items-center gap-2 mb-4">
-                <Gift className="w-5 h-5 text-amber-600" />
-                <span className="text-base font-bold text-amber-800">3. 쿠폰을 보내면 이런 효과가 예상돼요</span>
+              <div className="mb-4">
+                <span className="text-base font-semibold text-neutral-800">3. 쿠폰을 보내면 이런 효과가 예상돼요</span>
               </div>
 
               {/* 효과 예측 카드 */}
               <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="bg-white/80 rounded-xl p-3 text-center">
+                <div className="bg-white rounded-xl p-3 text-center border border-neutral-100">
                   <p className="text-xs text-[#64748b]">발송 비용</p>
                   <p className="text-lg font-bold text-[#1e293b]">
                     {formatNumber(getCurrentTargetCount() * 50)}원
@@ -1572,16 +1566,16 @@ export default function MessagesPage() {
                     {formatNumber(getCurrentTargetCount())}명 × 50원
                   </p>
                 </div>
-                <div className="bg-white/80 rounded-xl p-3 text-center">
+                <div className="bg-white rounded-xl p-3 text-center border border-neutral-100">
                   <p className="text-xs text-[#64748b]">예상 사용</p>
-                  <p className="text-lg font-bold text-amber-600">
+                  <p className="text-lg font-bold text-brand-600">
                     {Math.max(1, Math.round(getCurrentTargetCount() * 0.05))}명
                   </p>
                   <p className="text-[10px] text-[#94a3b8]">사용율 5%</p>
                 </div>
-                <div className="bg-white/80 rounded-xl p-3 text-center">
+                <div className="bg-white rounded-xl p-3 text-center border border-neutral-100">
                   <p className="text-xs text-[#64748b]">예상 매출</p>
-                  <p className="text-lg font-bold text-amber-600">
+                  <p className="text-lg font-bold text-brand-600">
                     {formatNumber(Math.max(1, Math.round(getCurrentTargetCount() * 0.05)) * 25000)}원
                   </p>
                   <p className="text-[10px] text-[#94a3b8]">객단가 2.5만원</p>
@@ -1589,10 +1583,10 @@ export default function MessagesPage() {
               </div>
 
               {/* ROI 강조 */}
-              <div className="bg-amber-100/50 rounded-lg px-4 py-2 mb-4 text-center">
-                <p className="text-sm text-amber-800">
+              <div className="bg-brand-50 rounded-lg px-4 py-2 mb-4 text-center">
+                <p className="text-sm text-brand-700">
                   <span className="font-bold">1명만 사용해도</span> 투자 대비{' '}
-                  <span className="font-bold text-amber-700">
+                  <span className="font-bold text-brand-600">
                     {Math.round(25000 / Math.max(1, getCurrentTargetCount() * 50))}배
                   </span>{' '}
                   효과!
@@ -1603,7 +1597,7 @@ export default function MessagesPage() {
               <div className="flex items-center justify-between mb-4 text-sm">
                 <span className="text-[#64748b]">현재 잔액</span>
                 <div className="flex items-center gap-2">
-                  <span className={`font-bold ${(estimate?.walletBalance || 0) >= (getCurrentTargetCount() * 50) ? 'text-amber-600' : 'text-red-600'}`}>
+                  <span className={`font-bold ${(estimate?.walletBalance || 0) >= (getCurrentTargetCount() * 50) ? 'text-brand-600' : 'text-red-600'}`}>
                     {formatNumber(estimate?.walletBalance || 0)}원
                   </span>
                   {(estimate?.walletBalance || 0) < (getCurrentTargetCount() * 50) && (
