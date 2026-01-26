@@ -2405,4 +2405,185 @@ router.post('/enable-all-visit-source', adminAuthMiddleware, async (req: AdminRe
   }
 });
 
+// ==================== 스토어 상품 관리 API ====================
+
+// GET /api/admin/store-products - 전체 상품 목록
+router.get('/store-products', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const products = await prisma.storeProduct.findMany({
+      orderBy: [
+        { sortOrder: 'asc' },
+        { createdAt: 'desc' },
+      ],
+    });
+
+    res.json({
+      success: true,
+      products,
+    });
+  } catch (error) {
+    console.error('Admin get store products error:', error);
+    res.status(500).json({ error: '상품 목록 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/store-products - 상품 등록
+router.post('/store-products', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { name, description, price, imageUrl, isActive, sortOrder } = req.body;
+
+    if (!name || price === undefined) {
+      return res.status(400).json({ error: '상품명과 가격은 필수입니다.' });
+    }
+
+    const product = await prisma.storeProduct.create({
+      data: {
+        name,
+        description: description || null,
+        price: Number(price),
+        imageUrl: imageUrl || null,
+        isActive: isActive !== false,
+        sortOrder: sortOrder || 0,
+      },
+    });
+
+    res.json({
+      success: true,
+      product,
+    });
+  } catch (error) {
+    console.error('Admin create store product error:', error);
+    res.status(500).json({ error: '상품 등록 중 오류가 발생했습니다.' });
+  }
+});
+
+// PUT /api/admin/store-products/:id - 상품 수정
+router.put('/store-products/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, description, price, imageUrl, isActive, sortOrder } = req.body;
+
+    const existing = await prisma.storeProduct.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: '상품을 찾을 수 없습니다.' });
+    }
+
+    const product = await prisma.storeProduct.update({
+      where: { id },
+      data: {
+        name: name !== undefined ? name : existing.name,
+        description: description !== undefined ? description : existing.description,
+        price: price !== undefined ? Number(price) : existing.price,
+        imageUrl: imageUrl !== undefined ? imageUrl : existing.imageUrl,
+        isActive: isActive !== undefined ? isActive : existing.isActive,
+        sortOrder: sortOrder !== undefined ? sortOrder : existing.sortOrder,
+      },
+    });
+
+    res.json({
+      success: true,
+      product,
+    });
+  } catch (error) {
+    console.error('Admin update store product error:', error);
+    res.status(500).json({ error: '상품 수정 중 오류가 발생했습니다.' });
+  }
+});
+
+// DELETE /api/admin/store-products/:id - 상품 삭제
+router.delete('/store-products/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.storeProduct.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: '상품을 찾을 수 없습니다.' });
+    }
+
+    // 주문 내역이 있는 상품은 비활성화만 가능
+    const orderCount = await prisma.storeOrderItem.count({
+      where: { productId: id },
+    });
+
+    if (orderCount > 0) {
+      // 주문 내역이 있으면 비활성화만 처리
+      await prisma.storeProduct.update({
+        where: { id },
+        data: { isActive: false },
+      });
+
+      return res.json({
+        success: true,
+        message: '주문 내역이 있어 비활성화 처리되었습니다.',
+        deactivated: true,
+      });
+    }
+
+    await prisma.storeProduct.delete({
+      where: { id },
+    });
+
+    res.json({
+      success: true,
+      message: '상품이 삭제되었습니다.',
+    });
+  } catch (error) {
+    console.error('Admin delete store product error:', error);
+    res.status(500).json({ error: '상품 삭제 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/admin/store-orders - 전체 주문 목록
+router.get('/store-orders', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { status, page = '1', limit = '50' } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const where = status ? { status: status as 'PENDING' | 'PAID' | 'CANCELLED' } : {};
+
+    const [orders, total] = await Promise.all([
+      prisma.storeOrder.findMany({
+        where,
+        include: {
+          store: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: Number(limit),
+      }),
+      prisma.storeOrder.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      orders,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        totalPages: Math.ceil(total / Number(limit)),
+      },
+    });
+  } catch (error) {
+    console.error('Admin get store orders error:', error);
+    res.status(500).json({ error: '주문 목록 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;
