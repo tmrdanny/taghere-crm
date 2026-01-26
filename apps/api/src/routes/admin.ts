@@ -15,6 +15,12 @@ if (!fs.existsSync(bannerUploadDir)) {
   fs.mkdirSync(bannerUploadDir, { recursive: true });
 }
 
+// 스토어 상품 이미지 업로드 디렉토리 설정
+const productUploadDir = path.join(process.cwd(), 'uploads', 'products');
+if (!fs.existsSync(productUploadDir)) {
+  fs.mkdirSync(productUploadDir, { recursive: true });
+}
+
 // Multer 설정 - 배너 이미지용
 const bannerStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -29,6 +35,31 @@ const bannerStorage = multer.diskStorage({
 
 const bannerUpload = multer({
   storage: bannerStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      cb(new Error('JPG, PNG, GIF, WebP 파일만 업로드 가능합니다.'));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+// Multer 설정 - 스토어 상품 이미지용
+const productStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, productUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `product-${uniqueSuffix}${ext}`);
+  },
+});
+
+const productUpload = multer({
+  storage: productStorage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -2424,6 +2455,27 @@ router.get('/store-products', adminAuthMiddleware, async (req: AdminRequest, res
   } catch (error) {
     console.error('Admin get store products error:', error);
     res.status(500).json({ error: '상품 목록 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/store-products/upload - 상품 이미지 업로드
+router.post('/store-products/upload', adminAuthMiddleware, productUpload.single('image'), async (req: AdminRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '이미지 파일을 선택해주세요.' });
+    }
+
+    // 업로드된 파일의 URL 생성
+    const imageUrl = `/uploads/products/${req.file.filename}`;
+
+    res.json({
+      success: true,
+      imageUrl,
+      filename: req.file.filename,
+    });
+  } catch (error: any) {
+    console.error('Product image upload error:', error);
+    res.status(500).json({ error: error.message || '이미지 업로드 중 오류가 발생했습니다.' });
   }
 });
 

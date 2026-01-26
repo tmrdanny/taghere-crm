@@ -66,6 +66,8 @@ export default function StoreProductsPage() {
   const [formData, setFormData] = useState<ProductFormData>(emptyFormData);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -131,6 +133,7 @@ export default function StoreProductsPage() {
   const openCreateModal = () => {
     setEditingId(null);
     setFormData(emptyFormData);
+    setImagePreview(null);
     setShowModal(true);
   };
 
@@ -144,7 +147,58 @@ export default function StoreProductsPage() {
       isActive: product.isActive,
       sortOrder: product.sortOrder,
     });
+    setImagePreview(product.imageUrl || null);
     setShowModal(true);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 미리보기 생성
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // 서버에 업로드
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsUploading(true);
+
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append('image', file);
+
+      const res = await fetch(`${apiUrl}/api/admin/store-products/upload`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: uploadFormData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setFormData({ ...formData, imageUrl: data.imageUrl });
+        setToast({ message: '이미지가 업로드되었습니다.', type: 'success' });
+      } else {
+        const data = await res.json();
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      setToast({ message: error.message || '이미지 업로드에 실패했습니다.', type: 'error' });
+      setImagePreview(formData.imageUrl || null);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeImage = () => {
+    setImagePreview(null);
+    setFormData({ ...formData, imageUrl: '' });
   };
 
   const handleSave = async () => {
@@ -573,16 +627,72 @@ export default function StoreProductsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                  이미지 URL (선택)
+                  상품 이미지 (선택)
                 </label>
-                <input
-                  type="text"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  placeholder="/images/product.png"
-                  className="w-full h-10 px-3 bg-white border border-neutral-300 rounded-lg text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 focus:border-neutral-900"
-                />
-                <p className="text-xs text-neutral-500 mt-1">이미지 경로 또는 URL을 입력하세요</p>
+
+                {/* 이미지 미리보기 */}
+                {imagePreview ? (
+                  <div className="relative mb-3">
+                    <img
+                      src={imagePreview}
+                      alt="상품 이미지 미리보기"
+                      className="w-full h-40 object-cover rounded-lg border border-neutral-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-neutral-300 rounded-lg cursor-pointer hover:border-neutral-400 hover:bg-neutral-50 transition-colors mb-3">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <svg className="w-8 h-8 mb-3 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-sm text-neutral-500">
+                        클릭하여 이미지 업로드
+                      </p>
+                      <p className="text-xs text-neutral-400 mt-1">
+                        JPG, PNG, GIF, WebP (최대 5MB)
+                      </p>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={isUploading}
+                    />
+                  </label>
+                )}
+
+                {/* 업로드 중 표시 */}
+                {isUploading && (
+                  <div className="flex items-center gap-2 text-sm text-neutral-500">
+                    <div className="w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+                    이미지 업로드 중...
+                  </div>
+                )}
+
+                {/* URL 직접 입력 옵션 */}
+                <div className="mt-2">
+                  <p className="text-xs text-neutral-500 mb-1">또는 URL 직접 입력</p>
+                  <input
+                    type="text"
+                    value={formData.imageUrl}
+                    onChange={(e) => {
+                      setFormData({ ...formData, imageUrl: e.target.value });
+                      setImagePreview(e.target.value || null);
+                    }}
+                    placeholder="https://example.com/image.jpg"
+                    className="w-full h-9 px-3 bg-white border border-neutral-300 rounded-lg text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 focus:border-neutral-900"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
