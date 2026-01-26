@@ -14,6 +14,7 @@ import {
   CreditCard,
   CheckCircle2,
   Package,
+  ImageIcon,
 } from 'lucide-react';
 import { loadTossPayments, TossPaymentsWidgets } from '@tosspayments/tosspayments-sdk';
 import { useToast } from '@/components/ui/toast';
@@ -348,48 +349,48 @@ export default function StorePage() {
 
   if (isLoading || isConfirmingPayment) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
-          <p className="text-neutral-500">
-            {isConfirmingPayment ? '결제 확인 중...' : '상품 로딩 중...'}
-          </p>
-        </div>
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)]">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        <p className="mt-4 text-sm text-neutral-500">
+          {isConfirmingPayment ? '결제 처리 중...' : '상품 로딩 중...'}
+        </p>
       </div>
     );
   }
 
   if (orderSuccess) {
     return (
-      <div className="max-w-md mx-auto py-12">
-        <Card>
-          <CardContent className="pt-8 pb-8 text-center">
-            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-semibold text-neutral-900 mb-2">
-              주문 완료
-            </h2>
-            <p className="text-neutral-600 mb-6">
-              주문이 성공적으로 완료되었습니다.<br />
-              담당자가 확인 후 연락드리겠습니다.
-            </p>
-            <Button
-              onClick={() => setOrderSuccess(false)}
-              className="w-full"
-            >
-              계속 쇼핑하기
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="p-4 lg:p-6 max-w-7xl mx-auto">
+        <div className="max-w-md mx-auto py-12">
+          <Card>
+            <CardContent className="pt-8 pb-8 text-center">
+              <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-semibold text-neutral-900 mb-2">
+                주문 완료
+              </h2>
+              <p className="text-neutral-600 mb-6">
+                주문이 성공적으로 완료되었습니다.<br />
+                담당자가 확인 후 연락드리겠습니다.
+              </p>
+              <Button
+                onClick={() => setOrderSuccess(false)}
+                className="w-full"
+              >
+                계속 쇼핑하기
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="p-4 lg:p-6 max-w-7xl mx-auto">
       {ToastComponent}
 
       {/* Header */}
-      <div>
+      <div className="mb-8">
         <h1 className="text-2xl font-semibold text-neutral-900 flex items-center gap-2">
           <ShoppingBag className="w-6 h-6" />
           스토어
@@ -397,9 +398,9 @@ export default function StorePage() {
         <p className="text-neutral-500 mt-1">태그히어 CRM에 필요한 장비를 구매하세요.</p>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-3 gap-8">
         {/* Product List */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-6">
           <h2 className="text-lg font-medium text-neutral-900">상품 목록</h2>
 
           {products.length === 0 ? (
@@ -410,29 +411,36 @@ export default function StorePage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid sm:grid-cols-2 gap-6">
               {products.map(product => (
-                <Card key={product.id} className="overflow-hidden">
-                  {product.imageUrl && (
-                    <div className="aspect-video bg-neutral-100 relative">
+                <Card key={product.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                  {/* 상품 이미지 또는 플레이스홀더 */}
+                  <div className="aspect-video bg-neutral-100 relative">
+                    {product.imageUrl ? (
                       <img
                         src={product.imageUrl}
                         alt={product.name}
                         className="w-full h-full object-cover"
                       />
-                    </div>
-                  )}
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ImageIcon className="w-12 h-12 text-neutral-300" />
+                      </div>
+                    )}
+                  </div>
                   <CardContent className="p-4">
-                    <h3 className="font-medium text-neutral-900 mb-1 line-clamp-2">
+                    <h3 className="font-medium text-neutral-900 mb-2 line-clamp-2">
                       {product.name}
                     </h3>
-                    {product.description && (
-                      <p className="text-sm text-neutral-500 mb-3 line-clamp-2">
+                    {product.description ? (
+                      <p className="text-sm text-neutral-500 mb-4 line-clamp-2">
                         {product.description}
                       </p>
+                    ) : (
+                      <div className="mb-4" />
                     )}
                     <div className="flex items-center justify-between">
-                      <span className="text-lg font-semibold text-neutral-900">
+                      <span className="text-lg font-bold text-neutral-900">
                         {formatPrice(product.price)}
                       </span>
                       <Button
@@ -452,7 +460,7 @@ export default function StorePage() {
         </div>
 
         {/* Cart & Checkout */}
-        <div className="space-y-4">
+        <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -478,12 +486,17 @@ export default function StorePage() {
                         key={item.product.id}
                         className="flex items-start gap-3 p-3 bg-neutral-50 rounded-lg"
                       >
-                        {item.product.imageUrl && (
+                        {/* 장바구니 아이템 이미지 또는 플레이스홀더 */}
+                        {item.product.imageUrl ? (
                           <img
                             src={item.product.imageUrl}
                             alt={item.product.name}
-                            className="w-12 h-12 object-cover rounded"
+                            className="w-12 h-12 object-cover rounded flex-shrink-0"
                           />
+                        ) : (
+                          <div className="w-12 h-12 bg-neutral-200 rounded flex items-center justify-center flex-shrink-0">
+                            <ImageIcon className="w-5 h-5 text-neutral-400" />
+                          </div>
                         )}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-neutral-900 truncate">
@@ -492,10 +505,10 @@ export default function StorePage() {
                           <p className="text-sm text-neutral-600">
                             {formatPrice(item.product.price)}
                           </p>
-                          <div className="flex items-center gap-2 mt-2">
+                          <div className="flex items-center gap-3 mt-2">
                             <button
                               onClick={() => updateQuantity(item.product.id, -1)}
-                              className="p-1 hover:bg-neutral-200 rounded"
+                              className="p-1.5 hover:bg-neutral-200 rounded transition-colors"
                             >
                               <Minus className="w-4 h-4" />
                             </button>
@@ -504,13 +517,13 @@ export default function StorePage() {
                             </span>
                             <button
                               onClick={() => updateQuantity(item.product.id, 1)}
-                              className="p-1 hover:bg-neutral-200 rounded"
+                              className="p-1.5 hover:bg-neutral-200 rounded transition-colors"
                             >
                               <Plus className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => removeFromCart(item.product.id)}
-                              className="p-1 text-red-500 hover:bg-red-50 rounded ml-auto"
+                              className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded ml-auto transition-colors"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -520,10 +533,10 @@ export default function StorePage() {
                     ))}
                   </div>
 
-                  <div className="border-t pt-3">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">총 결제금액</span>
-                      <span className="text-xl font-bold text-brand-600">
+                  <div className="border-t pt-4">
+                    <div className="flex justify-between items-center p-3 bg-brand-50 rounded-lg">
+                      <span className="font-semibold text-neutral-700">총 결제금액</span>
+                      <span className="text-2xl font-bold text-brand-600">
                         {formatPrice(totalAmount)}
                       </span>
                     </div>
