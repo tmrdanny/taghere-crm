@@ -55,6 +55,7 @@ import stampsRoutes from './routes/stamps.js';
 import monthlyCreditRoutes from './routes/monthly-credit.js';
 import visitSourceSettingsRoutes from './routes/visit-source-settings.js';
 import insightsRoutes from './routes/insights.js';
+import retargetCouponRoutes from './routes/retarget-coupon.js';
 import { startAlimTalkWorker } from './services/alimtalk-worker.js';
 import { startSmsWorker } from './services/sms-worker.js';
 import { startExternalSmsWorker } from './services/external-sms-worker.js';
@@ -241,6 +242,9 @@ app.use('/api/visit-source-settings', visitSourceSettingsRoutes);
 
 // Insights routes
 app.use('/api/insights', insightsRoutes);
+
+// Retarget coupon routes
+app.use('/api/retarget-coupon', retargetCouponRoutes);
 
 // Franchise routes
 app.use('/api/franchise/auth', franchiseAuthRoutes);

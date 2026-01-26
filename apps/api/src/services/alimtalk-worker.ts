@@ -11,6 +11,7 @@ const ALIMTALK_COSTS: Record<string, number> = {
   POINTS_EARNED: 20,      // 포인트 적립 알림톡: 20원
   POINTS_USED: 20,        // 포인트 사용 알림톡: 20원
   NAVER_REVIEW_REQUEST: 50, // 네이버 리뷰 요청 알림톡: 50원
+  RETARGET_COUPON: 50,    // 리타겟 쿠폰 알림톡: 50원
 };
 const DEFAULT_COST = 20; // 기본 비용
 

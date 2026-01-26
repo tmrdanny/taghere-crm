@@ -156,4 +156,102 @@ router.get('/regions', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/public/coupon/:code
+ * 쿠폰 정보 조회 (직원 확인 페이지용)
+ */
+router.get('/coupon/:code', async (req: Request, res: Response) => {
+  try {
+    const { code } = req.params;
+
+    if (!code) {
+      return res.status(400).json({ error: '쿠폰 코드가 필요합니다.' });
+    }
+
+    const coupon = await (prisma as any).retargetCoupon.findUnique({
+      where: { code },
+      include: {
+        store: {
+          select: { name: true },
+        },
+      },
+    });
+
+    if (!coupon) {
+      return res.status(404).json({ error: '존재하지 않는 쿠폰입니다.' });
+    }
+
+    // 전화번호 마스킹 (010-****-5678)
+    const phone = coupon.phone || '';
+    const maskedPhone = phone.length >= 8
+      ? `${phone.slice(0, 3)}-****-${phone.slice(-4)}`
+      : phone;
+
+    res.json({
+      code: coupon.code,
+      storeName: coupon.store.name,
+      couponContent: coupon.couponContent,
+      expiryDate: coupon.expiryDate,
+      phone: maskedPhone,
+      isUsed: !!coupon.usedAt,
+      usedAt: coupon.usedAt,
+      usedBy: coupon.usedBy,
+      createdAt: coupon.createdAt,
+    });
+  } catch (error) {
+    console.error('Error fetching coupon:', error);
+    res.status(500).json({ error: '쿠폰 정보를 불러오는 중 오류가 발생했습니다.' });
+  }
+});
+
+/**
+ * POST /api/public/coupon/:code/use
+ * 쿠폰 사용 완료 처리
+ */
+router.post('/coupon/:code/use', async (req: Request, res: Response) => {
+  try {
+    const { code } = req.params;
+
+    if (!code) {
+      return res.status(400).json({ error: '쿠폰 코드가 필요합니다.' });
+    }
+
+    const coupon = await (prisma as any).retargetCoupon.findUnique({
+      where: { code },
+    });
+
+    if (!coupon) {
+      return res.status(404).json({ error: '존재하지 않는 쿠폰입니다.' });
+    }
+
+    if (coupon.usedAt) {
+      return res.status(400).json({
+        error: '이미 사용된 쿠폰입니다.',
+        usedAt: coupon.usedAt,
+      });
+    }
+
+    // 직원명 가져오기
+    const { staffName } = req.body || {};
+
+    // 쿠폰 사용 처리
+    const updatedCoupon = await (prisma as any).retargetCoupon.update({
+      where: { code },
+      data: {
+        usedAt: new Date(),
+        usedBy: staffName || '직원 확인',
+      },
+    });
+
+    res.json({
+      success: true,
+      message: '쿠폰이 사용 처리되었습니다.',
+      usedAt: updatedCoupon.usedAt,
+    });
+  } catch (error) {
+    console.error('Error using coupon:', error);
+    res.status(500).json({ error: '쿠폰 사용 처리 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;

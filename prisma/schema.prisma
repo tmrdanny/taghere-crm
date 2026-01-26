@@ -70,6 +70,12 @@ model Store {
   // 방문 경로 추적
   visitSourceSetting    VisitSourceSetting?
 
+  // 리타겟 쿠폰
+  retargetCoupons       RetargetCoupon[]
+
+  // 스토어 주문
+  storeOrders           StoreOrder[]
+
   @@index([franchiseId])
   @@map("stores")
 }
@@ -189,6 +195,7 @@ model Customer {
   pointSessions     PointSession[]
   franchiseSmsMessages FranchiseSmsMessage[]
   waitingList       WaitingList[]
+  retargetCoupons   RetargetCoupon[]
 
   @@unique([storeId, kakaoId])  // 매장별 카카오ID 유니크 (null 허용)
   // naverId 유니크 제약조건 제거 - null인 경우가 많아 부분 인덱스로 처리
@@ -488,6 +495,7 @@ enum AlimTalkType {
   WAITING_REGISTERED    // 웨이팅 등록 완료 알림
   WAITING_CALLED        // 웨이팅 호출 알림
   WAITING_CANCELLED     // 웨이팅 취소 알림
+  RETARGET_COUPON       // 리타겟 쿠폰 발송
 }
 
 enum AlimTalkStatus {
@@ -1283,4 +1291,106 @@ model CreditUsageLog {
   @@index([monthlyCreditId])
   @@index([createdAt])
   @@map("credit_usage_logs")
+}
+
+// ============================================
+// 리타겟 쿠폰 (카카오톡 알림톡)
+// ============================================
+
+// 리타겟 쿠폰
+model RetargetCoupon {
+  id              String    @id @default(cuid())
+  code            String    @unique  // 고유 코드 (10자리)
+  storeId         String
+  customerId      String?
+  phone           String              // 수신자 전화번호
+  couponContent   String              // 쿠폰 내용
+  expiryDate      String              // 유효기간 텍스트
+  naverPlaceUrl   String?             // 네이버 플레이스 URL
+  usedAt          DateTime?           // 사용 완료 시간
+  usedBy          String?             // 사용 처리자 정보
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  store           Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer        Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([storeId])
+  @@index([code])
+  @@index([phone])
+  @@map("retarget_coupons")
+}
+
+// ============================================
+// 스토어 상품 판매
+// ============================================
+
+// 스토어 상품
+model StoreProduct {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Int      // 원 단위
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems  StoreOrderItem[]
+
+  @@map("store_products")
+}
+
+// 스토어 주문
+model StoreOrder {
+  id            String           @id @default(cuid())
+  orderNumber   String           @unique // 주문번호
+  storeId       String           // 구매한 매장 ID
+  store         Store            @relation(fields: [storeId], references: [id])
+
+  customerName  String
+  customerPhone String
+  customerEmail String?
+
+  totalAmount   Int
+  status        StoreOrderStatus @default(PENDING)
+
+  paymentKey    String?          // TossPayments 결제키
+  paidAt        DateTime?
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  items         StoreOrderItem[]
+
+  @@index([storeId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("store_orders")
+}
+
+// 스토어 주문 아이템
+model StoreOrderItem {
+  id          String       @id @default(cuid())
+  orderId     String
+  order       StoreOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     StoreProduct @relation(fields: [productId], references: [id])
+
+  productName String       // 주문 시점의 상품명
+  price       Int          // 주문 시점의 가격
+  quantity    Int          @default(1)
+
+  createdAt   DateTime     @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("store_order_items")
+}
+
+enum StoreOrderStatus {
+  PENDING     // 결제 대기
+  PAID        // 결제 완료
+  CANCELLED   // 취소됨
 }
