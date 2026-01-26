@@ -38,7 +38,7 @@ export interface TodayStats {
   avgWaitTime: number;
 }
 
-function getTodayStartEnd() {
+export function getTodayStartEnd() {
   const now = new Date();
   const kstOffset = 9 * 60 * 60 * 1000;
   const kstNow = new Date(now.getTime() + kstOffset);

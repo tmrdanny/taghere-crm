@@ -11,6 +11,7 @@ import {
   restoreWaiting,
   getWaitingStats,
   getTodayStats,
+  getTodayStartEnd,
 } from '../services/waiting.js';
 
 type WaitingStatus = 'WAITING' | 'CALLED' | 'SEATED' | 'CANCELLED' | 'NO_SHOW';
@@ -23,7 +24,16 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     const storeId = req.user!.storeId;
     const { status, typeId, page = '1', limit = '50' } = req.query;
 
-    const where: any = { storeId };
+    // 오늘 날짜 범위로 필터링 (KST 기준 00:00 ~ 23:59:59)
+    const { todayStart, todayEnd } = getTodayStartEnd();
+
+    const where: any = {
+      storeId,
+      createdAt: {
+        gte: todayStart,
+        lte: todayEnd,
+      },
+    };
 
     if (status) {
       const statuses = (status as string).split(',') as WaitingStatus[];
