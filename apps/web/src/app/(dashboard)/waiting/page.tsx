@@ -555,25 +555,22 @@ export default function WaitingPage() {
 
       {/* CTA: 웨이팅 화면 켜기 */}
       {storeSlug && (
-        <div
-          className="mb-6 p-5 rounded-xl shadow-lg"
-          style={{ background: 'linear-gradient(135deg, #FFD541 0%, #FFBA08 100%)' }}
-        >
+        <div className="mb-6 p-5 bg-gradient-to-r from-brand-800 to-brand-700 rounded-xl shadow-lg">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-neutral-900/10 rounded-xl flex items-center justify-center">
-                <Tablet className="w-6 h-6 text-neutral-900" />
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <Tablet className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-neutral-900 font-bold text-lg">태블릿에서 웨이팅 화면 켜기</h3>
-                <p className="text-neutral-700 text-sm mt-0.5">
+                <h3 className="text-white font-bold text-lg">태블릿에서 웨이팅 화면 켜기</h3>
+                <p className="text-white/80 text-sm mt-0.5">
                   고객이 직접 웨이팅을 등록할 수 있는 화면을 태블릿에서 띄워주세요
                 </p>
               </div>
             </div>
             <Button
               onClick={() => window.open(`/w/${storeSlug}/tablet`, '_blank')}
-              className="bg-neutral-900 text-white hover:bg-neutral-800 font-semibold px-6 h-11 shadow-md"
+              className="bg-white text-brand-800 hover:bg-white/90 font-semibold px-6 h-11 shadow-md"
             >
               <ExternalLink className="w-4 h-4 mr-2" />
               웨이팅 화면 열기
