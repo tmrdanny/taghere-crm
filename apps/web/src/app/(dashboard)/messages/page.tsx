@@ -18,6 +18,8 @@ import {
   Users,
   Loader2,
   ChevronLeft,
+  ChevronDown,
+  ChevronUp,
   Camera,
   ArrowUp,
   Wifi,
@@ -35,6 +37,8 @@ import {
   MessageSquare,
   TrendingUp,
   Wallet,
+  Sparkles,
+  Gift,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChargeModal } from '@/components/ChargeModal';
@@ -235,6 +239,9 @@ export default function MessagesPage() {
 
   // 충전 모달 상태
   const [isChargeModalOpen, setIsChargeModalOpen] = useState(false);
+
+  // 고급 설정 토글 상태
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
   // Get auth token
   const getAuthToken = () => {
@@ -1081,31 +1088,55 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        {/* Free Credit Callout */}
-        <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-700">
-          <span>매 월 무료로 30명에게 리타겟 메시지를 보낼 수 있어요</span>
+        {/* Value Proposition Banner */}
+        <div className="flex items-center gap-3 px-4 py-4 bg-gradient-to-r from-emerald-50 to-blue-50 border border-emerald-100 rounded-xl">
+          <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <Sparkles className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-emerald-800">
+              {formatNumber(getCurrentTargetCount())}명의 고객에게 메시지를 보내보세요
+            </p>
+            <p className="text-xs text-emerald-600 mt-0.5">
+              1명만 재방문해도 평균 25,000원 매출 발생
+            </p>
+          </div>
         </div>
 
-        {/* Target Selection */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-medium text-[#64748b]">발송 대상 선택</label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {/* Step 1: Target Selection */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-semibold text-[#1e293b]">1. 누구에게 보낼까요?</label>
+            <button
+              onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+              className="flex items-center gap-1 text-xs text-[#64748b] hover:text-[#3b82f6] transition-colors"
+            >
+              고급 설정
+              {showAdvancedSettings ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
             <button
               onClick={() => {
                 setSelectedTarget('ALL');
                 setSelectedCustomers([]);
               }}
               className={cn(
-                'p-3 rounded-lg border text-left transition-all',
+                'p-4 rounded-xl border-2 text-center transition-all',
                 selectedTarget === 'ALL'
                   ? 'border-[#3b82f6] bg-[#eff6ff]'
                   : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
               )}
             >
-              <span className="text-xs text-[#64748b]">전체 고객</span>
-              <div className="text-base font-bold text-[#1e293b] mt-0.5">
-                {formatNumber(targetCounts.all)}명
+              <div className="text-2xl font-bold text-[#1e293b]">
+                {formatNumber(targetCounts.all)}
               </div>
+              <span className="text-xs text-[#64748b]">전체</span>
             </button>
 
             <button
@@ -1114,16 +1145,16 @@ export default function MessagesPage() {
                 setSelectedCustomers([]);
               }}
               className={cn(
-                'p-3 rounded-lg border text-left transition-all',
+                'p-4 rounded-xl border-2 text-center transition-all',
                 selectedTarget === 'REVISIT'
                   ? 'border-[#3b82f6] bg-[#eff6ff]'
                   : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
               )}
             >
-              <span className="text-xs text-[#64748b]">재방문 고객 (2회 이상)</span>
-              <div className="text-base font-bold text-[#1e293b] mt-0.5">
-                {formatNumber(targetCounts.revisit)}명
+              <div className="text-2xl font-bold text-[#1e293b]">
+                {formatNumber(targetCounts.revisit)}
               </div>
+              <span className="text-xs text-[#64748b]">재방문</span>
             </button>
 
             <button
@@ -1132,533 +1163,461 @@ export default function MessagesPage() {
                 setSelectedCustomers([]);
               }}
               className={cn(
-                'p-3 rounded-lg border text-left transition-all',
+                'p-4 rounded-xl border-2 text-center transition-all',
                 selectedTarget === 'NEW'
                   ? 'border-[#3b82f6] bg-[#eff6ff]'
                   : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
               )}
             >
-              <span className="text-xs text-[#64748b]">신규 고객 (최근 30일)</span>
-              <div className="text-base font-bold text-[#1e293b] mt-0.5">
-                {formatNumber(targetCounts.new)}명
+              <div className="text-2xl font-bold text-[#1e293b]">
+                {formatNumber(targetCounts.new)}
               </div>
+              <span className="text-xs text-[#64748b]">신규</span>
             </button>
           </div>
 
-          {/* Custom selection button */}
-          <button
-            onClick={openCustomerModal}
-            className={cn(
-              'p-3 rounded-lg border text-left transition-all flex items-center gap-2',
-              selectedTarget === 'CUSTOM' && selectedCustomers.length > 0
-                ? 'border-[#3b82f6] bg-[#eff6ff]'
-                : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
-            )}
-          >
-            <div className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center flex-shrink-0">
-              <UserPlus className="w-4 h-4 text-[#64748b]" />
-            </div>
-            <div className="flex-1">
-              <span className="text-xs text-[#64748b]">고객 직접 선택</span>
-              <div className="text-base font-bold text-[#1e293b]">
-                {selectedTarget === 'CUSTOM' && selectedCustomers.length > 0
-                  ? `${formatNumber(selectedCustomers.length)}명 선택됨`
-                  : '고객 선택하기'}
-              </div>
-            </div>
-            {selectedTarget === 'CUSTOM' && selectedCustomers.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedCustomers([]);
-                  setSelectedTarget('ALL');
-                  router.replace('/messages');
-                }}
-              >
-                선택 해제
-              </Button>
-            )}
-          </button>
-
-          {/* Filters */}
-          <div className="mt-2">
-            <label className="text-xs font-medium text-[#64748b] mb-2 block">상세 필터</label>
-            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
-              <div className="flex flex-wrap gap-1.5">
-                {['all', 'FEMALE', 'MALE'].map((gender) => (
-                  <button
-                    key={gender}
-                    onClick={() => setGenderFilter(gender as any)}
-                    className={cn(
-                      'px-3 py-1.5 rounded-full text-xs border transition-all',
-                      genderFilter === gender
-                        ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
-                        : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
-                    )}
-                  >
-                    {gender === 'all' ? '전체 성별' : gender === 'FEMALE' ? '여성' : '남성'}
-                  </button>
-                ))}
+          {/* Advanced Settings (collapsed by default) */}
+          {showAdvancedSettings && (
+            <div className="mt-3 p-4 bg-[#f8fafc] rounded-xl border border-[#e5e7eb] space-y-4">
+              {/* Custom selection button */}
+              <div>
+                <label className="text-xs font-medium text-[#64748b] mb-2 block">고객 직접 선택</label>
+                <button
+                  onClick={openCustomerModal}
+                  className={cn(
+                    'w-full p-3 rounded-lg border text-left transition-all flex items-center gap-2',
+                    selectedTarget === 'CUSTOM' && selectedCustomers.length > 0
+                      ? 'border-[#3b82f6] bg-[#eff6ff]'
+                      : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
+                  )}
+                >
+                  <div className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center flex-shrink-0">
+                    <UserPlus className="w-4 h-4 text-[#64748b]" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-[#1e293b]">
+                      {selectedTarget === 'CUSTOM' && selectedCustomers.length > 0
+                        ? `${formatNumber(selectedCustomers.length)}명 선택됨`
+                        : '고객 선택하기'}
+                    </div>
+                  </div>
+                  {selectedTarget === 'CUSTOM' && selectedCustomers.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCustomers([]);
+                        setSelectedTarget('ALL');
+                        router.replace('/messages');
+                      }}
+                    >
+                      해제
+                    </Button>
+                  )}
+                </button>
               </div>
 
-              <div className="hidden sm:block w-px bg-[#e5e7eb] mx-1" />
-
-              <div className="flex flex-wrap gap-1.5">
-                {AGE_GROUP_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => toggleAgeGroup(option.value)}
-                    className={cn(
-                      'px-3 py-1.5 rounded-full text-xs border transition-all',
-                      selectedAgeGroups.includes(option.value)
-                        ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
-                        : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+              {/* Filters */}
+              <div>
+                <label className="text-xs font-medium text-[#64748b] mb-2 block">성별/연령대 필터</label>
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {['all', 'FEMALE', 'MALE'].map((gender) => (
+                      <button
+                        key={gender}
+                        onClick={() => setGenderFilter(gender as any)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-full text-xs border transition-all',
+                          genderFilter === gender
+                            ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
+                            : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
+                        )}
+                      >
+                        {gender === 'all' ? '전체' : gender === 'FEMALE' ? '여성' : '남성'}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {AGE_GROUP_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => toggleAgeGroup(option.value)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-full text-xs border transition-all',
+                          selectedAgeGroups.includes(option.value)
+                            ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
+                            : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-            {selectedAgeGroups.length === 0 && (
-              <p className="text-xs text-[#64748b] mt-1.5">연령대 미선택 시 전체 연령대로 발송됩니다</p>
-            )}
-          </div>
+          )}
         </div>
 
         {/* SMS 탭 콘텐츠 */}
         {activeTab === 'sms' && (
           <>
-            {/* Message Content */}
-            <div className="flex flex-col gap-3 flex-1">
-              <label className="text-sm font-semibold text-[#1e293b]">
-                메시지 내용 입력
-                <span className="font-normal text-[#64748b] text-xs ml-1">(단문/장문 자동 전환)</span>
-              </label>
-              <textarea
-                value={messageContent}
-                onChange={(e) => setMessageContent(e.target.value)}
-                placeholder={`[태그히어] 4월 봄맞이 이벤트 안내
+            {/* Step 2: Message Content */}
+            <div className="flex flex-col gap-4">
+              <label className="text-sm font-semibold text-[#1e293b]">2. 어떤 메시지를 보낼까요?</label>
 
-안녕하세요 {고객명}님,
-따뜻한 봄을 맞아 태그히어 강남본점에서 특별한 혜택을 준비했습니다.
-
-[이벤트 혜택]
-기간 내 방문 시 모든 메뉴 10% 할인
-
-- 기간: 4/1 ~ 4/30
-- 문의: 02-555-1234`}
-                className="w-full h-[160px] p-4 border border-[#e5e7eb] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent text-sm leading-relaxed"
-              />
-
-              {/* Template Buttons */}
-              <div className="flex flex-wrap gap-2">
-                <span className="text-xs text-[#64748b] mr-1 self-center">템플릿:</span>
+              {/* Template Selection - More Prominent */}
+              <div className="grid grid-cols-3 gap-3">
                 <button
                   type="button"
                   onClick={() => setMessageContent(`#{매장명}입니다.
-지난번 방문해주셔서 감사해요. 이번 주에만 재방문 혜택 드릴게요.
+지난번 방문해주셔서 감사해요! 이번 주에만 재방문 혜택 드릴게요.
 • 혜택: #{재방문혜택}
 • 기간: #{이벤트기간}
-• 사용: 주문/결제 전에 "재방문 문자" 보여주세요
+• 사용: 결제 전에 이 문자 보여주세요
 
 길찾기: #{길찾기링크}`)}
-                  className="px-3 py-1.5 text-xs font-medium text-[#3b82f6] bg-[#eff6ff] hover:bg-[#dbeafe] rounded-lg transition-colors"
+                  className={cn(
+                    'p-4 rounded-xl border-2 text-center transition-all hover:border-[#3b82f6] hover:bg-[#eff6ff]',
+                    messageContent.includes('재방문 혜택')
+                      ? 'border-[#3b82f6] bg-[#eff6ff]'
+                      : 'border-[#e5e7eb] bg-white'
+                  )}
                 >
-                  재방문 이벤트
+                  <Gift className="w-6 h-6 text-[#3b82f6] mx-auto mb-2" />
+                  <div className="text-sm font-semibold text-[#1e293b]">재방문</div>
+                  <div className="text-xs text-[#64748b]">이벤트</div>
                 </button>
                 <button
                   type="button"
                   onClick={() => setMessageContent(`#{매장명}입니다.
-이번에 신메뉴 #{신메뉴명} 나왔습니다. 오셔서 한 번만 솔직하게 평가 부탁드릴게요!
+신메뉴 #{신메뉴명} 나왔어요! 솔직한 평가 부탁드려요.
 • 신메뉴: #{신메뉴명}
-• 이벤트: #{신메뉴이벤트혜택}
+• 혜택: #{신메뉴이벤트혜택}
 • 기간: #{이벤트기간}
-• 방법: 주문 전에 이 문자 보여주시면 적용해드려요
 
 길찾기: #{길찾기링크}`)}
-                  className="px-3 py-1.5 text-xs font-medium text-[#3b82f6] bg-[#eff6ff] hover:bg-[#dbeafe] rounded-lg transition-colors"
+                  className={cn(
+                    'p-4 rounded-xl border-2 text-center transition-all hover:border-[#3b82f6] hover:bg-[#eff6ff]',
+                    messageContent.includes('신메뉴')
+                      ? 'border-[#3b82f6] bg-[#eff6ff]'
+                      : 'border-[#e5e7eb] bg-white'
+                  )}
                 >
-                  신메뉴 이벤트
+                  <MessageSquare className="w-6 h-6 text-[#3b82f6] mx-auto mb-2" />
+                  <div className="text-sm font-semibold text-[#1e293b]">신메뉴</div>
+                  <div className="text-xs text-[#64748b]">안내</div>
                 </button>
                 <button
                   type="button"
                   onClick={() => setMessageContent(`#{손님이름}님, #{매장명}입니다.
-#{지역}에 새 매장 오픈했습니다. 집/회사랑 가까우시면 앞으로 편하게 들르세요.
+#{지역}에 새 매장 오픈했어요!
 • 오픈일: #{오픈일}
 • 주소: #{신규매장주소}
-• 오픈 혜택: #{오픈혜택}
-• 기간: #{이벤트기간}
-• 사용: 방문해서 이 문자 보여주시면 됩니다
+• 혜택: #{오픈혜택}
 
 길찾기: #{길찾기링크}`)}
-                  className="px-3 py-1.5 text-xs font-medium text-[#3b82f6] bg-[#eff6ff] hover:bg-[#dbeafe] rounded-lg transition-colors"
+                  className={cn(
+                    'p-4 rounded-xl border-2 text-center transition-all hover:border-[#3b82f6] hover:bg-[#eff6ff]',
+                    messageContent.includes('새 매장 오픈')
+                      ? 'border-[#3b82f6] bg-[#eff6ff]'
+                      : 'border-[#e5e7eb] bg-white'
+                  )}
                 >
-                  신규 매장 오픈 알림
+                  <Sparkles className="w-6 h-6 text-[#3b82f6] mx-auto mb-2" />
+                  <div className="text-sm font-semibold text-[#1e293b]">오픈</div>
+                  <div className="text-xs text-[#64748b]">알림</div>
                 </button>
               </div>
 
-              {/* Image Upload */}
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-semibold text-[#1e293b]">이미지 첨부</label>
-                  <span className="text-xs text-[#64748b]">(JPG, 최대 200KB, 1500×1440px 이하)</span>
+              {/* Direct Input */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-[#64748b]">또는 직접 작성</span>
+                  <span className="text-xs text-[#94a3b8]">
+                    {messageContent.length > 0 && (uploadedImage ? 'MMS' : messageContent.length > 90 ? 'LMS' : 'SMS')}
+                  </span>
                 </div>
+                <textarea
+                  value={messageContent}
+                  onChange={(e) => setMessageContent(e.target.value)}
+                  placeholder="메시지를 입력하세요..."
+                  className="w-full h-[120px] p-4 border border-[#e5e7eb] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent text-sm leading-relaxed"
+                />
+              </div>
 
+              {/* Image Upload - Simplified */}
+              <div className="flex items-center gap-3">
                 {!uploadedImage ? (
-                  <div className="flex items-center gap-3">
-                    <label className="cursor-pointer">
-                      <input
-                        type="file"
-                        accept=".jpg,.jpeg"
-                        className="hidden"
-                        onChange={handleImageUpload}
-                        disabled={isUploading}
-                      />
-                      <div className={cn(
-                        "flex items-center gap-2 px-4 py-2.5 border border-dashed border-[#d1d5db] rounded-xl text-sm text-[#64748b] hover:border-[#3b82f6] hover:text-[#3b82f6] transition-colors",
-                        isUploading && "opacity-50 cursor-not-allowed"
-                      )}>
-                        {isUploading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <ImagePlus className="w-4 h-4" />
-                        )}
-                        <span>{isUploading ? '업로드 중...' : '이미지 추가'}</span>
-                      </div>
-                    </label>
-                    <span className="text-xs text-[#94a3b8]">이미지 첨부 시 MMS로 발송 (건당 120원)</span>
-                  </div>
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                      disabled={isUploading}
+                    />
+                    <div className={cn(
+                      "flex items-center gap-2 px-4 py-2.5 border border-dashed border-[#d1d5db] rounded-xl text-sm text-[#64748b] hover:border-[#3b82f6] hover:text-[#3b82f6] transition-colors",
+                      isUploading && "opacity-50 cursor-not-allowed"
+                    )}>
+                      {isUploading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <ImagePlus className="w-4 h-4" />
+                      )}
+                      <span>{isUploading ? '업로드 중...' : '이미지 추가'}</span>
+                    </div>
+                  </label>
                 ) : (
-                  <div className="flex items-start gap-3 p-3 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
+                  <div className="flex items-center gap-3 p-2 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
                     <img
                       src={`${API_BASE}${uploadedImage.imageUrl}`}
                       alt="첨부 이미지"
-                      className="w-16 h-16 object-cover rounded-lg"
+                      className="w-10 h-10 object-cover rounded-lg"
                     />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#1e293b] truncate">{uploadedImage.filename}</p>
-                      <p className="text-xs text-[#64748b] mt-1">
-                        {uploadedImage.width} × {uploadedImage.height}px · {Math.round(uploadedImage.size / 1024)}KB
-                      </p>
-                      <Badge variant="secondary" className="mt-1.5">MMS (120원/건)</Badge>
-                    </div>
+                    <span className="text-sm text-[#1e293b]">이미지 첨부됨</span>
                     <button
                       onClick={handleImageDelete}
-                      className="p-1.5 text-[#94a3b8] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-1 text-[#94a3b8] hover:text-red-500 transition-colors"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                 )}
-
-                {imageError && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    <span>{imageError}</span>
-                  </div>
+                {uploadedImage && (
+                  <span className="text-xs text-[#64748b]">MMS로 발송됩니다</span>
                 )}
               </div>
-            </div>
 
-            {/* Cost Summary */}
-            <div className="p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
-              {/* 무료 크레딧 안내 */}
-              {estimate?.freeCredits?.isRetargetPage && estimate.freeCredits.remaining > 0 && (
-                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-green-600 font-medium text-sm">이달의 무료 크레딧</span>
-                      <span className="text-green-700 font-bold">{estimate.freeCredits.remaining}건 남음</span>
-                    </div>
-                    {estimate.freeCredits.freeCount > 0 && (
-                      <span className="text-green-600 text-sm">
-                        무료 {estimate.freeCredits.freeCount}건 적용
-                      </span>
-                    )}
-                  </div>
+              {imageError && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{imageError}</span>
                 </div>
               )}
+            </div>
 
-              {/* 예상 비용 + 현재 잔액 */}
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <div>
-                  <p className="text-xs sm:text-sm text-[#64748b]">예상 비용</p>
-                  {estimate?.freeCredits?.freeCount && estimate.freeCredits.freeCount > 0 ? (
-                    <div>
-                      <p className="text-sm text-[#64748b]">
-                        <span className="line-through">
-                          {formatNumber(estimate.targetCount)}명 × {formatNumber(estimate.costPerMessage)}원
-                        </span>
-                      </p>
-                      <p className="text-lg sm:text-xl font-bold text-[#1e293b]">
-                        <span className="text-green-600">무료 {estimate.freeCredits.freeCount}건</span>
-                        {estimate.freeCredits.paidCount > 0 && (
-                          <span> + 유료 {estimate.freeCredits.paidCount}건</span>
-                        )}
-                        {' = '}
-                        <span className="text-[#3b82f6]">{formatNumber(estimate.totalCost)}원</span>
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-lg sm:text-xl font-bold text-[#1e293b]">
-                      {formatNumber(estimate?.targetCount || getCurrentTargetCount())}명 × {formatNumber(estimate?.costPerMessage || (uploadedImage ? 110 : 50))}원 ={' '}
-                      <span className="text-[#3b82f6]">{formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원</span>
-                    </p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <p className="text-xs sm:text-sm text-[#64748b]">현재 잔액</p>
-                  <p className={`text-lg sm:text-xl font-bold ${estimate?.canSend !== false ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatNumber(estimate?.walletBalance || 0)}원
+            {/* Step 3: Expected Effect & CTA */}
+            <div className="p-5 bg-gradient-to-br from-emerald-50 to-blue-50 rounded-2xl border border-emerald-100">
+              {/* ROI 강조 메시지 */}
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-5 h-5 text-emerald-600" />
+                <span className="text-base font-bold text-emerald-800">3. 발송하면 이런 효과가 예상돼요</span>
+              </div>
+
+              {/* 효과 예측 카드 */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="bg-white/80 rounded-xl p-3 text-center">
+                  <p className="text-xs text-[#64748b]">발송 비용</p>
+                  <p className="text-lg font-bold text-[#1e293b]">
+                    {formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원
                   </p>
-                  {estimate?.canSend === false && (estimate?.totalCost || 0) > 0 && (
+                  <p className="text-[10px] text-[#94a3b8]">
+                    {formatNumber(getCurrentTargetCount())}명 × {uploadedImage ? 110 : 50}원
+                  </p>
+                </div>
+                <div className="bg-white/80 rounded-xl p-3 text-center">
+                  <p className="text-xs text-[#64748b]">예상 방문</p>
+                  <p className="text-lg font-bold text-emerald-600">
+                    {Math.max(1, Math.round(getCurrentTargetCount() * 0.032))}명
+                  </p>
+                  <p className="text-[10px] text-[#94a3b8]">방문율 3.2%</p>
+                </div>
+                <div className="bg-white/80 rounded-xl p-3 text-center">
+                  <p className="text-xs text-[#64748b]">예상 매출</p>
+                  <p className="text-lg font-bold text-emerald-600">
+                    {formatNumber(Math.max(1, Math.round(getCurrentTargetCount() * 0.032)) * 25000)}원
+                  </p>
+                  <p className="text-[10px] text-[#94a3b8]">객단가 2.5만원</p>
+                </div>
+              </div>
+
+              {/* ROI 강조 */}
+              <div className="bg-emerald-100/50 rounded-lg px-4 py-2 mb-4 text-center">
+                <p className="text-sm text-emerald-800">
+                  <span className="font-bold">1명만 방문해도</span> 투자 대비{' '}
+                  <span className="font-bold text-emerald-700">
+                    {Math.round(25000 / Math.max(1, (estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))))}배
+                  </span>{' '}
+                  효과!
+                </p>
+              </div>
+
+              {/* 잔액 + 충전 */}
+              <div className="flex items-center justify-between mb-4 text-sm">
+                <span className="text-[#64748b]">현재 잔액</span>
+                <div className="flex items-center gap-2">
+                  <span className={`font-bold ${(estimate?.walletBalance || 0) >= (estimate?.totalCost || 0) ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {formatNumber(estimate?.walletBalance || 0)}원
+                  </span>
+                  {(estimate?.walletBalance || 0) < (estimate?.totalCost || (getCurrentTargetCount() * 50)) && (
                     <button
                       onClick={() => setIsChargeModalOpen(true)}
-                      className="mt-1 text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1 ml-auto"
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium"
                     >
-                      <Wallet className="w-4 h-4" />
                       충전하기
                     </button>
                   )}
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2 w-full sm:w-auto">
-                  <button
-                    disabled={!messageContent.trim()}
-                    onClick={() => setShowTestModal(true)}
-                    className="w-full sm:w-auto px-4 py-3 sm:py-3.5 border border-[#3b82f6] text-[#3b82f6] bg-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#eff6ff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    테스트 발송
-                  </button>
-                  <button
-                    disabled={
-                      !messageContent.trim() ||
-                      getCurrentTargetCount() === 0 ||
-                      (estimate !== null && !estimate.canSend)
-                    }
-                    onClick={() => setShowConfirmModal(true)}
-                    className="w-full sm:w-auto px-6 py-3 sm:py-3.5 bg-[#2a2d62] text-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    메시지 발송하기
-                  </button>
-              </div>
 
-              {/* 광고 메시지 여부 체크박스 */}
-              <div className="mt-4 pt-4 border-t border-[#e5e7eb]">
-                <label className="flex items-center gap-2 cursor-pointer">
+              {/* CTA 버튼 */}
+              <button
+                disabled={
+                  !messageContent.trim() ||
+                  getCurrentTargetCount() === 0 ||
+                  (estimate !== null && !estimate.canSend)
+                }
+                onClick={() => setShowConfirmModal(true)}
+                className="w-full py-4 bg-[#2a2d62] text-white rounded-xl text-lg font-bold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Send className="w-5 h-5" />
+                메시지 발송하기 ({formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원)
+              </button>
+
+              {/* 테스트 발송 링크 */}
+              <button
+                disabled={!messageContent.trim()}
+                onClick={() => setShowTestModal(true)}
+                className="w-full mt-2 py-2 text-sm text-[#64748b] hover:text-[#3b82f6] transition-colors disabled:opacity-50"
+              >
+                내 번호로 테스트 발송해보기
+              </button>
+
+              {/* 광고 메시지 체크박스 - 간소화 */}
+              <div className="mt-4 pt-4 border-t border-emerald-200/50">
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-[#64748b]">
                   <input
                     type="checkbox"
                     checked={isAdMessage}
                     onChange={(e) => setIsAdMessage(e.target.checked)}
                     className="w-4 h-4 rounded border-[#d1d5db] text-[#3b82f6] focus:ring-[#3b82f6]"
                   />
-                  <span className="text-sm text-[#64748b]">
-                    광고 메시지로 발송 (체크 시 (광고) 표기 및 무료수신거부 자동 추가)
-                  </span>
+                  광고 메시지로 발송 (자동 표기 추가)
                 </label>
-                {!isAdMessage && (
-                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <div className="flex items-start gap-2 text-amber-700">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs">
-                        광고 문자임에도 광고 표기 가이드라인을 지키지 않은 경우, 이용 약관에 의거해 예고 없이 계정이 차단될 수 있으며, 환불 또한 불가능합니다.
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
-
-              {/* 예상 마케팅 효과 */}
-              {(estimate?.targetCount || getCurrentTargetCount()) > 0 && (
-                <div className="mt-4 pt-4 border-t border-[#e5e7eb]">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-5 h-5 text-green-600" />
-                    <span className="text-base font-semibold text-green-700">예상 마케팅 효과</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-sm text-[#64748b]">예상 방문율</p>
-                      <p className="text-base font-bold text-green-700">3.2%</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-[#64748b]">예상 방문</p>
-                      <p className="text-base font-bold text-green-700">
-                        {Math.round((estimate?.targetCount || getCurrentTargetCount()) * 0.032).toLocaleString()}명
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-[#64748b]">예상 매출</p>
-                      <p className="text-base font-bold text-green-700">
-                        {(Math.round((estimate?.targetCount || getCurrentTargetCount()) * 0.032) * (estimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-[#94a3b8] mt-2">
-                    * 업계 평균 방문율 3.2% 및 매장 평균 객단가 {(estimate?.estimatedRevenue?.avgOrderValue || 25000).toLocaleString()}원 기준
-                  </p>
-                </div>
-              )}
             </div>
-
-            {estimate && !estimate.canSend && (
-              <p className="text-sm text-red-600 text-center -mt-2">
-                충전금이 부족합니다. 충전 후 발송해주세요.
-              </p>
-            )}
           </>
         )}
 
         {/* 카카오톡 탭 콘텐츠 - 쿠폰 알림톡 */}
         {activeTab === 'kakao' && (
           <>
-            {/* 쿠폰 내용 입력 */}
-            <div className="flex flex-col gap-3">
-              <label className="text-sm font-semibold text-[#1e293b]">쿠폰 내용</label>
-              <input
-                type="text"
-                value={couponContent}
-                onChange={(e) => setCouponContent(e.target.value)}
-                placeholder="예: 아메리카노 1잔 무료"
-                className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-              />
-            </div>
+            {/* Step 2: 쿠폰 정보 입력 */}
+            <div className="flex flex-col gap-4">
+              <label className="text-sm font-semibold text-[#1e293b]">2. 어떤 쿠폰을 보낼까요?</label>
 
-            {/* 유효기간 입력 */}
-            <div className="flex flex-col gap-3">
-              <label className="text-sm font-semibold text-[#1e293b]">유효기간</label>
-              <input
-                type="text"
-                value={couponExpiryDate}
-                onChange={(e) => setCouponExpiryDate(e.target.value)}
-                placeholder="예: 2025년 2월 28일까지"
-                className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-              />
-            </div>
-
-            {/* 네이버 플레이스 URL */}
-            <div className="flex flex-col gap-3">
-              <label className="text-sm font-semibold text-[#1e293b]">
-                네이버 플레이스 URL
-                <span className="font-normal text-[#64748b] text-xs ml-1">(선택)</span>
-              </label>
-              <input
-                type="url"
-                value={couponNaverPlaceUrl}
-                onChange={(e) => setCouponNaverPlaceUrl(e.target.value)}
-                placeholder="https://naver.me/..."
-                className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-              />
-              <p className="text-xs text-[#64748b]">
-                설정 페이지에서 등록한 URL이 있으면 자동으로 사용됩니다.
-              </p>
-            </div>
-
-            {/* 발송 대상 선택 */}
-            <div className="flex flex-col gap-3">
-              <label className="text-sm font-semibold text-[#1e293b]">발송 대상</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <button
-                  onClick={() => setSelectedTarget('ALL')}
-                  className={cn(
-                    'px-4 py-3 rounded-xl text-sm font-medium transition-all',
-                    selectedTarget === 'ALL'
-                      ? 'bg-[#2a2d62] text-white'
-                      : 'bg-[#f1f5f9] text-[#64748b] hover:bg-[#e2e8f0]'
-                  )}
-                >
-                  전체 ({formatNumber(targetCounts.all)}명)
-                </button>
-                <button
-                  onClick={() => setSelectedTarget('REVISIT')}
-                  className={cn(
-                    'px-4 py-3 rounded-xl text-sm font-medium transition-all',
-                    selectedTarget === 'REVISIT'
-                      ? 'bg-[#2a2d62] text-white'
-                      : 'bg-[#f1f5f9] text-[#64748b] hover:bg-[#e2e8f0]'
-                  )}
-                >
-                  재방문 ({formatNumber(targetCounts.revisit)}명)
-                </button>
-                <button
-                  onClick={() => setSelectedTarget('NEW')}
-                  className={cn(
-                    'px-4 py-3 rounded-xl text-sm font-medium transition-all',
-                    selectedTarget === 'NEW'
-                      ? 'bg-[#2a2d62] text-white'
-                      : 'bg-[#f1f5f9] text-[#64748b] hover:bg-[#e2e8f0]'
-                  )}
-                >
-                  신규 ({formatNumber(targetCounts.new)}명)
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedTarget('CUSTOM');
-                    setShowCustomerModal(true);
-                  }}
-                  className={cn(
-                    'px-4 py-3 rounded-xl text-sm font-medium transition-all',
-                    selectedTarget === 'CUSTOM'
-                      ? 'bg-[#2a2d62] text-white'
-                      : 'bg-[#f1f5f9] text-[#64748b] hover:bg-[#e2e8f0]'
-                  )}
-                >
-                  직접 선택 ({selectedCustomers.length}명)
-                </button>
+              {/* 쿠폰 내용 */}
+              <div>
+                <label className="text-xs text-[#64748b] mb-1.5 block">쿠폰 내용</label>
+                <input
+                  type="text"
+                  value={couponContent}
+                  onChange={(e) => setCouponContent(e.target.value)}
+                  placeholder="예: 아메리카노 1잔 무료"
+                  className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                />
               </div>
-            </div>
 
-            {/* 필터 */}
-            <div className="flex flex-col gap-3">
-              <label className="text-sm font-semibold text-[#1e293b]">필터 (선택)</label>
-              <div className="flex flex-wrap gap-2">
-                <select
-                  value={genderFilter}
-                  onChange={(e) => setGenderFilter(e.target.value as 'all' | 'MALE' | 'FEMALE')}
-                  className="px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
-                >
-                  <option value="all">성별 전체</option>
-                  <option value="MALE">남성</option>
-                  <option value="FEMALE">여성</option>
-                </select>
-                <div className="flex flex-wrap gap-1">
-                  {AGE_GROUP_OPTIONS.map((age) => (
-                    <button
-                      key={age.value}
-                      onClick={() => toggleAgeGroup(age.value)}
-                      className={cn(
-                        'px-3 py-2 rounded-lg text-sm transition-all',
-                        selectedAgeGroups.includes(age.value)
-                          ? 'bg-[#3b82f6] text-white'
-                          : 'bg-[#f1f5f9] text-[#64748b] hover:bg-[#e2e8f0]'
-                      )}
-                    >
-                      {age.label}
-                    </button>
-                  ))}
-                </div>
+              {/* 유효기간 */}
+              <div>
+                <label className="text-xs text-[#64748b] mb-1.5 block">유효기간</label>
+                <input
+                  type="text"
+                  value={couponExpiryDate}
+                  onChange={(e) => setCouponExpiryDate(e.target.value)}
+                  placeholder="예: 2025년 2월 28일까지"
+                  className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                />
               </div>
-            </div>
 
-            {/* 비용 및 발송 버튼 */}
-            <div className="p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
-              <div className="flex items-center justify-between gap-4 mb-4">
+              {/* 네이버 플레이스 URL - 선택사항 표시 */}
+              {showAdvancedSettings && (
                 <div>
-                  <p className="text-xs sm:text-sm text-[#64748b]">예상 비용</p>
-                  <p className="text-lg sm:text-xl font-bold text-[#1e293b]">
-                    {formatNumber(getCurrentTargetCount())}명 × 50원 ={' '}
-                    <span className="text-[#3b82f6]">{formatNumber(getCurrentTargetCount() * 50)}원</span>
+                  <label className="text-xs text-[#64748b] mb-1.5 block">
+                    네이버 플레이스 URL (선택)
+                  </label>
+                  <input
+                    type="url"
+                    value={couponNaverPlaceUrl}
+                    onChange={(e) => setCouponNaverPlaceUrl(e.target.value)}
+                    placeholder="https://naver.me/..."
+                    className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                  />
+                  <p className="text-xs text-[#94a3b8] mt-1">
+                    설정 페이지에서 등록한 URL이 자동으로 사용됩니다
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs sm:text-sm text-[#64748b]">현재 잔액</p>
-                  <p className="text-lg sm:text-xl font-bold text-green-600">
-                    {formatNumber(estimate?.walletBalance || 0)}원
+              )}
+            </div>
+
+            {/* Step 3: Expected Effect & CTA */}
+            <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-100">
+              {/* ROI 강조 메시지 */}
+              <div className="flex items-center gap-2 mb-4">
+                <Gift className="w-5 h-5 text-amber-600" />
+                <span className="text-base font-bold text-amber-800">3. 쿠폰을 보내면 이런 효과가 예상돼요</span>
+              </div>
+
+              {/* 효과 예측 카드 */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="bg-white/80 rounded-xl p-3 text-center">
+                  <p className="text-xs text-[#64748b]">발송 비용</p>
+                  <p className="text-lg font-bold text-[#1e293b]">
+                    {formatNumber(getCurrentTargetCount() * 50)}원
                   </p>
+                  <p className="text-[10px] text-[#94a3b8]">
+                    {formatNumber(getCurrentTargetCount())}명 × 50원
+                  </p>
+                </div>
+                <div className="bg-white/80 rounded-xl p-3 text-center">
+                  <p className="text-xs text-[#64748b]">예상 사용</p>
+                  <p className="text-lg font-bold text-amber-600">
+                    {Math.max(1, Math.round(getCurrentTargetCount() * 0.05))}명
+                  </p>
+                  <p className="text-[10px] text-[#94a3b8]">사용율 5%</p>
+                </div>
+                <div className="bg-white/80 rounded-xl p-3 text-center">
+                  <p className="text-xs text-[#64748b]">예상 매출</p>
+                  <p className="text-lg font-bold text-amber-600">
+                    {formatNumber(Math.max(1, Math.round(getCurrentTargetCount() * 0.05)) * 25000)}원
+                  </p>
+                  <p className="text-[10px] text-[#94a3b8]">객단가 2.5만원</p>
                 </div>
               </div>
+
+              {/* ROI 강조 */}
+              <div className="bg-amber-100/50 rounded-lg px-4 py-2 mb-4 text-center">
+                <p className="text-sm text-amber-800">
+                  <span className="font-bold">1명만 사용해도</span> 투자 대비{' '}
+                  <span className="font-bold text-amber-700">
+                    {Math.round(25000 / Math.max(1, getCurrentTargetCount() * 50))}배
+                  </span>{' '}
+                  효과!
+                </p>
+              </div>
+
+              {/* 잔액 + 충전 */}
+              <div className="flex items-center justify-between mb-4 text-sm">
+                <span className="text-[#64748b]">현재 잔액</span>
+                <div className="flex items-center gap-2">
+                  <span className={`font-bold ${(estimate?.walletBalance || 0) >= (getCurrentTargetCount() * 50) ? 'text-amber-600' : 'text-red-600'}`}>
+                    {formatNumber(estimate?.walletBalance || 0)}원
+                  </span>
+                  {(estimate?.walletBalance || 0) < (getCurrentTargetCount() * 50) && (
+                    <button
+                      onClick={() => setIsChargeModalOpen(true)}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      충전하기
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* CTA 버튼 */}
               <button
                 disabled={
                   !couponContent.trim() ||
@@ -1730,17 +1689,17 @@ export default function MessagesPage() {
                     setIsCouponSending(false);
                   }
                 }}
-                className="w-full px-6 py-3.5 bg-[#2a2d62] text-white rounded-xl text-base font-semibold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-4 bg-[#2a2d62] text-white rounded-xl text-lg font-bold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isCouponSending ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     발송 중...
                   </>
                 ) : (
                   <>
-                    <Send className="w-4 h-4" />
-                    쿠폰 알림톡 발송하기
+                    <Send className="w-5 h-5" />
+                    쿠폰 알림톡 발송하기 ({formatNumber(getCurrentTargetCount() * 50)}원)
                   </>
                 )}
               </button>
