@@ -415,7 +415,7 @@ export default function StorePage() {
               {products.map(product => (
                 <Card key={product.id} className="overflow-hidden hover:shadow-md transition-shadow">
                   {/* 상품 이미지 또는 플레이스홀더 */}
-                  <div className="aspect-video bg-neutral-100 relative">
+                  <div className="aspect-square bg-neutral-100 relative">
                     {product.imageUrl ? (
                       <img
                         src={product.imageUrl}
