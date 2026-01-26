@@ -59,6 +59,7 @@ export default function TabletWaitingPage() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [registeredPhone, setRegisteredPhone] = useState<string>('');
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [formResetKey, setFormResetKey] = useState(0);
 
   const { showToast, ToastComponent } = useToast();
 
@@ -229,6 +230,7 @@ export default function TabletWaitingPage() {
   const resetForm = () => {
     setRegistrationResult(null);
     setRegisteredPhone('');
+    setFormResetKey(prev => prev + 1); // 폼 컴포넌트 강제 리마운트
     fetchStoreInfo();
   };
 
@@ -367,6 +369,7 @@ export default function TabletWaitingPage() {
           )}
 
           <TabletWaitingForm
+            key={formResetKey}
             storeName={storeInfo.name}
             storeLogo={storeInfo.logo}
             totalWaiting={storeInfo.totalWaiting}
