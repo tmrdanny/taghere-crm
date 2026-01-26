@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, Phone } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -161,7 +161,9 @@ function CancelPageContent() {
           {/* Content */}
           <div className="flex-1 px-5 py-8 flex flex-col">
             <div className="text-center mb-8">
-              <span className="text-[48px]">📱</span>
+              <div className="w-16 h-16 bg-[#f8f9fa] rounded-full flex items-center justify-center mx-auto">
+                <Phone className="w-8 h-8 text-[#6BA3FF]" />
+              </div>
               <h2 className="text-[18px] font-bold text-[#1d2022] mt-4 mb-2">
                 웨이팅 취소를 위해
               </h2>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Bell, XCircle, Search } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -174,7 +174,9 @@ export default function WaitingStatusPage() {
       <div className="h-[100dvh] bg-white font-pretendard flex justify-center">
         <div className="w-full max-w-[430px] h-full flex items-center justify-center px-5">
           <div className="text-center">
-            <div className="text-[48px] mb-4">🔍</div>
+            <div className="w-16 h-16 bg-[#f8f9fa] rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="w-8 h-8 text-[#91949a]" />
+            </div>
             <h1 className="text-[18px] font-bold text-[#1d2022] mb-2">웨이팅 정보를 찾을 수 없습니다</h1>
             <p className="text-[14px] text-[#91949a] mb-6">오늘 등록한 웨이팅이 없습니다.</p>
             <a
@@ -207,7 +209,8 @@ export default function WaitingStatusPage() {
             <div className="text-center py-8 px-6 bg-[#f8f9fa] rounded-[16px] mb-6">
               <p className="text-[14px] text-[#91949a] mb-2">현재 내 순서</p>
               <p className="text-[48px] font-bold text-[#1d2022]">
-                🎫 <span className="text-[#6BA3FF]">{waiting.position ?? '-'}</span>번째
+                <span className="text-[#6BA3FF]">{waiting.position ?? '-'}</span>
+                <span className="text-[24px] font-normal ml-1">번째</span>
               </p>
               {waiting.estimatedWaitMinutes !== null && (
                 <>
@@ -221,7 +224,9 @@ export default function WaitingStatusPage() {
           {waiting.status === 'CALLED' && (
             <div className="text-center py-8 px-6 bg-[#FFD541] rounded-[16px] mb-6">
               <p className="text-[14px] text-[#1d2022] font-medium mb-2">지금 입장해주세요!</p>
-              <p className="text-[48px]">⏰</p>
+              <div className="w-16 h-16 mx-auto bg-[#1d2022] rounded-full flex items-center justify-center">
+                <Bell className="w-8 h-8 text-white" />
+              </div>
               {callRemainingSeconds !== null && (
                 <>
                   <p className="text-[32px] font-bold text-[#1d2022] mt-2 font-mono">
@@ -252,7 +257,9 @@ export default function WaitingStatusPage() {
 
           {(waiting.status === 'CANCELLED' || waiting.status === 'NO_SHOW') && (
             <div className="text-center py-8 px-6 bg-[#FFF0F3] rounded-[16px] mb-6">
-              <p className="text-[48px] mb-4">😢</p>
+              <div className="w-16 h-16 mx-auto bg-[#FF6B6B] rounded-full flex items-center justify-center mb-4">
+                <XCircle className="w-8 h-8 text-white" />
+              </div>
               <p className="text-[20px] font-bold text-[#1d2022]">웨이팅이 취소되었습니다</p>
               <p className="text-[14px] text-[#55595e] mt-2">
                 {waiting.cancelReason ? CANCEL_REASON_LABELS[waiting.cancelReason] || '취소됨' : '취소됨'}
