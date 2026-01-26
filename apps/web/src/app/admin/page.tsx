@@ -61,6 +61,31 @@ interface VisitSourceStats {
   distribution: VisitSourceDistribution[];
 }
 
+interface StoreOrderItem {
+  id: string;
+  productName: string;
+  quantity: number;
+  price: number;
+}
+
+interface StoreOrder {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string | null;
+  totalAmount: number;
+  status: 'PENDING' | 'PAID' | 'CANCELLED';
+  paymentKey: string | null;
+  paidAt: string | null;
+  createdAt: string;
+  store: {
+    id: string;
+    name: string;
+  };
+  items: StoreOrderItem[];
+}
+
 type PeriodType = '1' | '7' | '30' | '90' | 'all';
 type ExternalPeriodType = 'daily' | 'weekly' | 'monthly';
 
@@ -81,6 +106,10 @@ export default function AdminHomePage() {
   // Visit Source Stats
   const [visitSourceStats, setVisitSourceStats] = useState<VisitSourceStats | null>(null);
   const [isVisitSourceLoading, setIsVisitSourceLoading] = useState(false);
+
+  // Store Orders
+  const [storeOrders, setStoreOrders] = useState<StoreOrder[]>([]);
+  const [isOrdersLoading, setIsOrdersLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -198,6 +227,31 @@ export default function AdminHomePage() {
       setIsVisitSourceLoading(false);
     }
   };
+
+  const fetchStoreOrders = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsOrdersLoading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/store-orders?limit=20`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setStoreOrders(data.orders || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch store orders:', error);
+    } finally {
+      setIsOrdersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStoreOrders();
+  }, []);
 
   if (isLoading) {
     return (
@@ -483,6 +537,121 @@ export default function AdminHomePage() {
               <span className="text-[16px] font-normal text-neutral-500 ml-1">명</span>
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* Store Orders Table */}
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-[18px] font-semibold text-neutral-900">스토어 주문 내역</h2>
+            <p className="text-[13px] text-neutral-500 mt-0.5">최근 20개 주문</p>
+          </div>
+          <a
+            href="/admin/store-products"
+            className="text-[13px] text-blue-600 hover:text-blue-700 hover:underline"
+          >
+            전체 보기
+          </a>
+        </div>
+
+        <div className="bg-white border border-[#EAEAEA] rounded-xl overflow-hidden">
+          {isOrdersLoading ? (
+            <div className="h-64 flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : storeOrders.length === 0 ? (
+            <div className="h-64 flex items-center justify-center text-neutral-400">
+              주문 내역이 없습니다
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-neutral-50 border-b border-neutral-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-[12px] font-medium text-neutral-500 uppercase tracking-wider">
+                      주문번호
+                    </th>
+                    <th className="px-4 py-3 text-left text-[12px] font-medium text-neutral-500 uppercase tracking-wider">
+                      매장
+                    </th>
+                    <th className="px-4 py-3 text-left text-[12px] font-medium text-neutral-500 uppercase tracking-wider">
+                      고객정보
+                    </th>
+                    <th className="px-4 py-3 text-left text-[12px] font-medium text-neutral-500 uppercase tracking-wider">
+                      상품
+                    </th>
+                    <th className="px-4 py-3 text-right text-[12px] font-medium text-neutral-500 uppercase tracking-wider">
+                      금액
+                    </th>
+                    <th className="px-4 py-3 text-center text-[12px] font-medium text-neutral-500 uppercase tracking-wider">
+                      상태
+                    </th>
+                    <th className="px-4 py-3 text-left text-[12px] font-medium text-neutral-500 uppercase tracking-wider">
+                      주문일시
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {storeOrders.map((order) => (
+                    <tr key={order.id} className="hover:bg-neutral-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="text-[13px] font-mono text-neutral-900">
+                          {order.orderNumber}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-[13px] text-neutral-700">
+                          {order.store?.name || '-'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className="text-[13px] text-neutral-900">{order.customerName}</p>
+                          <p className="text-[12px] text-neutral-500">{order.customerPhone}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="max-w-[200px]">
+                          <p className="text-[13px] text-neutral-700 truncate">
+                            {order.items.map((item) => `${item.productName} x${item.quantity}`).join(', ')}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="text-[13px] font-medium text-neutral-900">
+                          {formatNumber(order.totalAmount)}원
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          className={`inline-flex px-2 py-1 text-[11px] font-medium rounded-full ${
+                            order.status === 'PAID'
+                              ? 'bg-green-100 text-green-700'
+                              : order.status === 'PENDING'
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}
+                        >
+                          {order.status === 'PAID' ? '결제완료' : order.status === 'PENDING' ? '대기중' : '취소됨'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className="text-[13px] text-neutral-700">
+                            {new Date(order.createdAt).toLocaleDateString('ko-KR')}
+                          </p>
+                          <p className="text-[12px] text-neutral-500">
+                            {new Date(order.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </section>
 
