@@ -1825,7 +1825,7 @@ export default function MessagesPage() {
 
                               {/* 알림톡 도착 배너 */}
                               <div className="bg-[#FEE500] rounded-t-md px-2 py-1.5">
-                                <span className="text-[10px] font-medium text-neutral-800">알림톡 도착</span>
+                                <span className="text-xs font-medium text-neutral-800">알림톡 도착</span>
                               </div>
 
                               <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
@@ -1837,33 +1837,33 @@ export default function MessagesPage() {
                                 />
 
                                 {/* Message body */}
-                                <div className="p-3 space-y-2">
-                                  <p className="text-[11px] font-semibold text-neutral-800">
+                                <div className="px-4 py-4">
+                                  <p className="text-xs font-semibold text-neutral-800 mb-4">
                                     태그히어 고객 대상 쿠폰
                                   </p>
-                                  <div className="space-y-1.5 text-[10px] text-neutral-700 leading-[1.5]">
+                                  <div className="space-y-1 text-xs text-neutral-700">
                                     <p>
                                       <span className="text-[#6BA3FF]">{couponStoreName || '매장명'}</span>에서 쿠폰을 보냈어요!
                                     </p>
-                                    <p className="text-neutral-500">
+                                    <p className="text-neutral-500 mb-4">
                                       태그히어 이용 고객에게만 제공되는 쿠폰이에요.
                                     </p>
-                                    <div className="pt-1">
-                                      <p>* {couponContent || '쿠폰 내용을 입력해주세요'}</p>
-                                      <p>* {couponExpiryDate || '유효기간을 입력해주세요'}</p>
+                                    <div className="space-y-1 mb-4">
+                                      <p>📌 {couponContent || '쿠폰 내용을 입력해주세요'}</p>
+                                      <p>📌 {couponExpiryDate || '유효기간을 입력해주세요'}</p>
                                     </div>
-                                    <p className="pt-1 text-neutral-500">
+                                    <p className="text-neutral-500">
                                       결제 시 직원 확인을 통해 사용할 수 있어요.
                                     </p>
                                   </div>
                                 </div>
 
                                 {/* 버튼 */}
-                                <div className="border-t border-neutral-200">
-                                  <button className="w-full py-2 text-center text-[10px] font-medium text-neutral-800 bg-white border-b border-neutral-200">
+                                <div className="px-4 pb-4 space-y-2">
+                                  <button className="w-full py-2.5 bg-white text-neutral-800 text-xs font-medium rounded border border-neutral-300">
                                     네이버 길찾기
                                   </button>
-                                  <button className="w-full py-2 text-center text-[10px] font-medium text-neutral-800 bg-white">
+                                  <button className="w-full py-2.5 bg-white text-neutral-800 text-xs font-medium rounded border border-neutral-300">
                                     직원 확인
                                   </button>
                                 </div>
