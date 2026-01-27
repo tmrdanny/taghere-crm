@@ -238,7 +238,7 @@ function SuccessPopup({
   const [showAllCategories, setShowAllCategories] = useState(false);
 
   // 단계별 UI: 방문 경로 활성화 시 1/2 → 2/2 단계로 진행
-  const showVisitSourceStep = visitSourceEnabled && !successData.hasVisitSource && visitSourceOptions.length > 0;
+  const showVisitSourceStep = visitSourceEnabled && visitSourceOptions.length > 0;
   const showCategoryStep = !successData.hasExistingPreferences;
   const totalSteps = (showVisitSourceStep ? 1 : 0) + (showCategoryStep ? 1 : 0);
   const [currentStep, setCurrentStep] = useState(1); // 1 = 방문경로, 2 = 선호업종
