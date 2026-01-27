@@ -99,7 +99,7 @@ const navGroups: NavGroup[] = [
     icon: Send,
     badge: '30 크레딧',
     items: [
-      { href: '/messages', label: '리타겟', icon: MessageSquareMore, badge: '30 크레딧' },
+      { href: '/messages', label: '메시지 발송', icon: MessageSquareMore, badge: '30 크레딧' },
       { href: '/local-customers', label: '신규 고객 타겟', icon: UserPlus },
       { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
     ],
