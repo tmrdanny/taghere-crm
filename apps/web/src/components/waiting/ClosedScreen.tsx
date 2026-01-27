@@ -21,23 +21,23 @@ export function ClosedScreen({ storeName, className }: ClosedScreenProps) {
       }}
     >
       <div className="text-center px-6 w-full max-w-4xl">
-        {/* Store Name Only */}
+        {/* Store Name */}
         {storeName && (
-          <p className="text-white/80 text-xl md:text-2xl mb-12">
+          <p className="text-white/80 text-lg md:text-xl mb-16">
             {storeName}
           </p>
         )}
 
         {/* Main Title */}
-        <h1 className="text-5xl md:text-6xl lg:text-[80px] xl:text-[100px] font-semibold text-white mb-2 md:mb-4 leading-tight">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-2 leading-tight">
           오늘 웨이팅이
         </h1>
-        <h1 className="text-5xl md:text-6xl lg:text-[80px] xl:text-[100px] font-semibold text-white mb-8 md:mb-12 leading-tight">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-8 leading-tight">
           마감되었습니다
         </h1>
 
         {/* Subtitle */}
-        <p className="text-xl md:text-2xl lg:text-3xl text-white/60">
+        <p className="text-lg md:text-xl text-neutral-400">
           다음 영업일에 방문해주세요
         </p>
       </div>
@@ -47,9 +47,9 @@ export function ClosedScreen({ storeName, className }: ClosedScreenProps) {
         <Image
           src="/images/taghere_logo_w.png"
           alt="TAG HERE"
-          width={120}
-          height={32}
-          className="opacity-80"
+          width={100}
+          height={26}
+          className="opacity-70"
         />
       </div>
     </div>

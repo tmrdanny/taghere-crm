@@ -30,32 +30,32 @@ export function PausedOverlay({
       }}
     >
       <div className="text-center px-6 w-full max-w-4xl">
-        {/* Store Name Only */}
+        {/* Store Name */}
         {storeName && (
-          <p className="text-white/80 text-xl md:text-2xl mb-12">
+          <p className="text-white/80 text-lg md:text-xl mb-16">
             {storeName}
           </p>
         )}
 
         {/* Main Title */}
-        <h1 className="text-5xl md:text-6xl lg:text-[80px] xl:text-[100px] font-semibold text-white mb-4 md:mb-6 leading-tight">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight">
           웨이팅이 잠시 정지되었어요
         </h1>
 
         {/* Subtitle */}
-        <p className="text-xl md:text-2xl lg:text-3xl text-white/60 mb-12 md:mb-16">
+        <p className="text-lg md:text-xl text-neutral-400 mb-12">
           {pauseMessage || '잠시만 기다려주세요'}
         </p>
 
         {/* Waiting Stats */}
-        <div className="flex justify-center gap-16 md:gap-24 mb-12 md:mb-16">
+        <div className="flex justify-center gap-16 mb-12">
           <div className="text-center">
-            <p className="text-white/60 text-lg md:text-xl mb-3">현재 웨이팅</p>
-            <p className="text-4xl md:text-5xl lg:text-6xl font-semibold text-[#FCD535]">{totalWaiting}팀</p>
+            <p className="text-neutral-400 text-base md:text-lg mb-2">현재 웨이팅</p>
+            <p className="text-3xl md:text-4xl font-bold text-[#FCD535]">{totalWaiting}팀</p>
           </div>
           <div className="text-center">
-            <p className="text-white/60 text-lg md:text-xl mb-3">예상 시간</p>
-            <p className="text-4xl md:text-5xl lg:text-6xl font-semibold text-white">?분</p>
+            <p className="text-neutral-400 text-base md:text-lg mb-2">예상 시간</p>
+            <p className="text-3xl md:text-4xl font-bold text-white">?분</p>
           </div>
         </div>
 
@@ -63,7 +63,7 @@ export function PausedOverlay({
         {onCheckWaiting && (
           <button
             onClick={onCheckWaiting}
-            className="w-full max-w-md mx-auto h-14 md:h-16 bg-white text-neutral-900 font-medium text-lg md:text-xl rounded-xl hover:bg-neutral-100 transition-colors"
+            className="w-full max-w-md mx-auto h-14 bg-white text-neutral-900 font-medium text-lg rounded-xl hover:bg-neutral-100 transition-colors"
           >
             웨이팅 목록 확인하기
           </button>
@@ -75,9 +75,9 @@ export function PausedOverlay({
         <Image
           src="/images/taghere_logo_w.png"
           alt="TAG HERE"
-          width={120}
-          height={32}
-          className="opacity-80"
+          width={100}
+          height={26}
+          className="opacity-70"
         />
       </div>
     </div>
