@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   TabletModeSelector,
@@ -9,8 +9,8 @@ import {
   PausedOverlay,
   ClosedScreen,
 } from '@/components/waiting';
-import { useToast, Toast } from '@/components/ui/toast';
-import { Loader2, CheckCircle2 } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
+import { Loader2 } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -43,6 +43,7 @@ interface RegistrationResult {
   position: number;
   estimatedMinutes: number;
   typeName: string;
+  totalWaiting: number;
 }
 
 export default function TabletWaitingPage() {
@@ -55,11 +56,8 @@ export default function TabletWaitingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [registrationResult, setRegistrationResult] = useState<RegistrationResult | null>(null);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [registeredPhone, setRegisteredPhone] = useState<string>('');
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [formResetKey, setFormResetKey] = useState(0);
+  const registeredPhoneRef = useRef<string>('');
 
   const { showToast, ToastComponent } = useToast();
 
@@ -123,11 +121,11 @@ export default function TabletWaitingPage() {
 
   // Poll for updates (every 3 seconds for real-time feel)
   useEffect(() => {
-    if (!storeSlug || registrationResult) return;
+    if (!storeSlug) return;
 
     const interval = setInterval(fetchStoreInfo, 3000);
     return () => clearInterval(interval);
-  }, [storeSlug, registrationResult, fetchStoreInfo]);
+  }, [storeSlug, fetchStoreInfo]);
 
   // Handle mode selection
   const handleSelectMode = (selectedMode: TabletMode) => {
@@ -143,8 +141,11 @@ export default function TabletWaitingPage() {
     phone: string;
     waitingTypeId: string;
     partySize: number;
-  }) => {
-    if (!storeInfo) return;
+    marketingConsent?: boolean;
+  }): Promise<RegistrationResult> => {
+    if (!storeInfo) {
+      throw new Error('매장 정보가 없습니다.');
+    }
 
     setIsSubmitting(true);
 
@@ -158,6 +159,7 @@ export default function TabletWaitingPage() {
           phone: data.phone,
           waitingTypeId: data.waitingTypeId,
           partySize: data.partySize,
+          marketingConsent: data.marketingConsent,
           source: 'TABLET',
         }),
       });
@@ -175,18 +177,13 @@ export default function TabletWaitingPage() {
         position: apiResult.position,
         estimatedMinutes: apiResult.estimatedMinutes,
         typeName: apiResult.waitingTypeName || apiResult.typeName || '',
+        totalWaiting: storeInfo.totalWaiting,
       };
-      setRegistrationResult(result);
-      setRegisteredPhone(data.phone);
 
-      // Show success popup with auto-dismiss
-      setShowSuccessPopup(true);
+      // 취소 시 사용할 전화번호 저장
+      registeredPhoneRef.current = data.phone;
 
-      // Auto reset after 5 seconds
-      setTimeout(() => {
-        setShowSuccessPopup(false);
-        resetForm();
-      }, 5000);
+      return result;
     } catch (err) {
       showToast(err instanceof Error ? err.message : '등록 중 오류가 발생했습니다.', 'error');
       throw err;
@@ -196,40 +193,34 @@ export default function TabletWaitingPage() {
   };
 
   // Handle cancellation
-  const handleCancel = async () => {
-    if (!registrationResult || !registeredPhone) return;
-
-    setIsCancelling(true);
-
-    try {
-      const res = await fetch(`${API_BASE}/api/public/waiting/${storeSlug}/cancel`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phone: registeredPhone,
-        }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || '취소에 실패했습니다.');
-      }
-
-      showToast('웨이팅이 취소되었습니다.', 'success');
-      resetForm();
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : '취소 중 오류가 발생했습니다.', 'error');
-    } finally {
-      setIsCancelling(false);
+  const handleCancel = async (): Promise<void> => {
+    const phone = registeredPhoneRef.current;
+    if (!phone) {
+      throw new Error('전화번호 정보가 없습니다.');
     }
+
+    const res = await fetch(`${API_BASE}/api/public/waiting/${storeSlug}/cancel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        phone,
+      }),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || '취소에 실패했습니다.');
+    }
+
+    showToast('웨이팅이 취소되었습니다.', 'success');
+    resetForm();
   };
 
   // Reset form
   const resetForm = () => {
-    setRegistrationResult(null);
-    setRegisteredPhone('');
+    registeredPhoneRef.current = '';
     setFormResetKey(prev => prev + 1); // 폼 컴포넌트 강제 리마운트
     fetchStoreInfo();
   };
@@ -315,59 +306,6 @@ export default function TabletWaitingPage() {
         <>
           {ToastComponent}
 
-          {/* Success Popup - 인라인 렌더링 */}
-          {showSuccessPopup && registrationResult && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-              <div className="bg-white rounded-3xl p-10 shadow-2xl max-w-sm w-full mx-6 text-center animate-in fade-in zoom-in duration-300">
-                {/* Success Icon */}
-                <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle2 className="w-10 h-10 text-emerald-600" />
-                </div>
-
-                {/* Message */}
-                <h2 className="text-2xl font-bold text-neutral-900 mb-2">
-                  웨이팅 등록이 완료되었어요
-                </h2>
-
-                {/* Waiting Number */}
-                <div className="mt-6 mb-6">
-                  <p className="text-sm text-neutral-500 mb-1">대기번호</p>
-                  <p className="text-5xl font-bold text-neutral-900">
-                    #{registrationResult.waitingNumber}
-                  </p>
-                </div>
-
-                {/* Info */}
-                <div className="flex justify-center gap-6 text-sm text-neutral-500 mb-6">
-                  <div>
-                    <span className="font-medium text-neutral-700">{registrationResult.position}번째</span>
-                    <span className="ml-1">순서</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-neutral-700">약 {registrationResult.estimatedMinutes}분</span>
-                    <span className="ml-1">예상</span>
-                  </div>
-                </div>
-
-                {/* Kakao Info */}
-                <p className="text-sm text-neutral-500 mb-6">
-                  카카오톡으로 호출 알림을 보내드릴게요
-                </p>
-
-                {/* Progress Bar - CSS 애니메이션 */}
-                <div className="h-1 bg-neutral-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500"
-                    style={{
-                      width: '100%',
-                      animation: 'shrink-width 5s linear forwards'
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
           <TabletWaitingForm
             key={formResetKey}
             storeName={storeInfo.name}
@@ -377,6 +315,7 @@ export default function TabletWaitingPage() {
             waitingTypes={storeInfo.waitingTypes}
             onSubmit={handleSubmit}
             onViewWaitingList={handleViewWaitingList}
+            onCancel={handleCancel}
             isSubmitting={isSubmitting}
           />
         </>
