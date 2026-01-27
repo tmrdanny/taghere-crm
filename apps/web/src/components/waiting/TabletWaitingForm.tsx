@@ -247,19 +247,19 @@ export function TabletWaitingForm({
         <div className="flex-1 flex flex-col justify-center px-8 lg:px-16">
           {/* Phone Input Step */}
           {step === 'phone' && (
-            <div className="max-w-md mx-auto w-full">
+            <div className="w-full">
               {/* Phone Display */}
-              <div className="text-center mb-8">
+              <div className="flex flex-col items-center mb-8">
                 <div className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-neutral-900 whitespace-nowrap">
                   {formatPhoneDisplay(phone)}
                 </div>
-                <p className="text-neutral-500 mt-4 text-lg">
+                <p className="text-neutral-500 mt-4 text-lg text-center">
                   실시간 웨이팅 안내를 받을 수 있는<br />번호를 입력해주세요
                 </p>
               </div>
 
               {/* Keypad */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="max-w-md mx-auto grid grid-cols-3 gap-3">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                   <button
                     key={num}
@@ -294,7 +294,7 @@ export function TabletWaitingForm({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 mt-8">
+              <div className="max-w-md mx-auto flex gap-3 mt-8">
                 <button
                   type="button"
                   onClick={onViewWaitingList}
