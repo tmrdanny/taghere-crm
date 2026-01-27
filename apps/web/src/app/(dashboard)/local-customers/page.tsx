@@ -189,39 +189,34 @@ export default function LocalCustomersPage() {
   const [testPhone, setTestPhone] = useState('');
   const [isTestSending, setIsTestSending] = useState(false);
 
-  // 전체 고객 수 및 지역별 카운트 로드
+  // 전체 고객 수 및 지역별 카운트 로드 (병렬 실행)
   useEffect(() => {
-    const fetchGlobalCount = async () => {
+    const fetchInitialData = async () => {
+      const token = getAuthToken();
+      const headers = { Authorization: `Bearer ${token}` };
+
       try {
-        const res = await fetch(`${API_BASE}/api/local-customers/total-count`, {
-          headers: { Authorization: `Bearer ${getAuthToken()}` },
+        const [globalCountRes, regionCountsRes] = await Promise.all([
+          fetch(`${API_BASE}/api/local-customers/total-count`, { headers }),
+          fetch(`${API_BASE}/api/local-customers/region-counts`, { headers }),
+        ]);
+
+        const [globalCountData, regionCountsData] = await Promise.all([
+          globalCountRes.json(),
+          regionCountsRes.ok ? regionCountsRes.json() : { sidoCounts: {}, sigunguCounts: {} },
+        ]);
+
+        setGlobalTotalCount(globalCountData.totalCount || 0);
+        setRegionCounts({
+          sidoCounts: regionCountsData.sidoCounts || {},
+          sigunguCounts: regionCountsData.sigunguCounts || {},
         });
-        const data = await res.json();
-        setGlobalTotalCount(data.totalCount || 0);
       } catch (err) {
-        console.error('Failed to fetch global count:', err);
+        console.error('Failed to fetch initial data:', err);
       }
     };
 
-    const fetchRegionCounts = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/local-customers/region-counts`, {
-          headers: { Authorization: `Bearer ${getAuthToken()}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setRegionCounts({
-            sidoCounts: data.sidoCounts || {},
-            sigunguCounts: data.sigunguCounts || {},
-          });
-        }
-      } catch (err) {
-        console.error('Failed to fetch region counts:', err);
-      }
-    };
-
-    fetchGlobalCount();
-    fetchRegionCounts();
+    fetchInitialData();
   }, []);
 
   // 카카오톡 발송 가능 시간 체크
@@ -408,23 +403,29 @@ export default function LocalCustomersPage() {
     else fetchKakaoEstimate();
   }, [fetchSmsEstimate, fetchKakaoEstimate, activeTab]);
 
-  // 시/도 추가/제거
-  const addSido = (sido: string) => {
-    if (!selectedSidos.includes(sido)) setSelectedSidos([...selectedSidos, sido]);
+  // 시/도 추가/제거 (functional setState로 안정적인 콜백)
+  const addSido = useCallback((sido: string) => {
+    setSelectedSidos(prev => prev.includes(sido) ? prev : [...prev, sido]);
     setRegionSearchQuery('');
     setIsRegionDropdownOpen(false);
-  };
+  }, []);
 
-  const removeSido = (sido: string) => {
-    setSelectedSidos(selectedSidos.filter((s) => s !== sido));
-  };
+  const removeSido = useCallback((sido: string) => {
+    setSelectedSidos(prev => prev.filter(s => s !== sido));
+    // 해당 시도의 시군구 선택도 함께 제거
+    setSelectedSigungus(prev => {
+      const next = { ...prev };
+      delete next[sido];
+      return next;
+    });
+  }, []);
 
-  // 연령대 토글
-  const toggleAgeGroup = (value: string) => {
-    setSelectedAgeGroups((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+  // 연령대 토글 (functional setState로 최적화)
+  const toggleAgeGroup = useCallback((value: string) => {
+    setSelectedAgeGroups(prev =>
+      prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]
     );
-  };
+  }, []);
 
   // 검색어로 필터링된 시/도 목록
   const filteredSidos = regionSearchQuery.trim()
@@ -869,18 +870,52 @@ export default function LocalCustomersPage() {
             </div>
           </div>
 
-          {/* 예상 마케팅 효과 */}
-          {sendCount > 0 && (
-            <div className="mb-4 p-4 bg-green-50 rounded-xl">
-              <div className="flex items-center gap-2 mb-2"><TrendingUp className="w-5 h-5 text-green-600" /><span className="text-base font-semibold text-green-700">예상 마케팅 효과</span></div>
-              <div className="grid grid-cols-3 gap-4">
-                <div><p className="text-sm text-[#64748b]">예상 방문율</p><p className="text-base font-bold text-green-700">{activeTab === 'kakao' ? '3.4%' : '2.7%'}</p></div>
-                <div><p className="text-sm text-[#64748b]">예상 방문</p><p className="text-base font-bold text-green-700">{Math.round(sendCount * (activeTab === 'kakao' ? 0.034 : 0.027)).toLocaleString()}명</p></div>
-                <div><p className="text-sm text-[#64748b]">예상 매출</p><p className="text-base font-bold text-green-700">{(Math.round(sendCount * (activeTab === 'kakao' ? 0.034 : 0.027)) * (kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원</p></div>
+          {/* 예상 마케팅 효과 - 시각적으로 강조된 ROI 카드 */}
+          {sendCount > 0 && (() => {
+            const conversionRate = activeTab === 'kakao' ? 0.034 : 0.027;
+            const estimatedVisitors = Math.round(sendCount * conversionRate);
+            const avgOrderValue = kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000;
+            const estimatedRevenue = estimatedVisitors * avgOrderValue;
+            const roi = estimatedCost > 0 ? Math.round((estimatedRevenue / estimatedCost) * 100) : 0;
+
+            return (
+              <div className="relative overflow-hidden mb-4 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl p-5 text-white shadow-lg">
+                {/* 배경 장식 */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16" />
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12" />
+
+                <div className="relative z-10">
+                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" />
+                    예상 마케팅 효과
+                  </h3>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="bg-white/10 rounded-xl p-3">
+                      <p className="text-sm text-white/80 mb-1">예상 방문율</p>
+                      <p className="text-2xl font-bold">{(conversionRate * 100).toFixed(1)}%</p>
+                    </div>
+                    <div className="bg-white/10 rounded-xl p-3">
+                      <p className="text-sm text-white/80 mb-1">예상 방문</p>
+                      <p className="text-2xl font-bold">{estimatedVisitors.toLocaleString()}명</p>
+                    </div>
+                    <div className="bg-white/10 rounded-xl p-3">
+                      <p className="text-sm text-white/80 mb-1">예상 매출</p>
+                      <p className="text-2xl font-bold">{estimatedRevenue.toLocaleString()}원</p>
+                    </div>
+                    <div className="bg-white/20 rounded-xl p-3 ring-2 ring-white/30">
+                      <p className="text-sm text-white/80 mb-1">예상 ROI</p>
+                      <p className="text-2xl font-bold">{roi.toLocaleString()}%</p>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-white/70 mt-3">
+                    * 업계 평균 방문율 {(conversionRate * 100).toFixed(1)}% 및 {activeTab === 'kakao' ? '매장 평균' : '기본'} 객단가 {avgOrderValue.toLocaleString()}원 기준
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-[#94a3b8] mt-2">* 업계 평균 방문율 {activeTab === 'kakao' ? '3.4%' : '2.7%'} 및 {activeTab === 'kakao' ? '매장 평균' : '기본'} 객단가 {(kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000).toLocaleString()}원 기준</p>
-            </div>
-          )}
+            );
+          })()}
 
           {/* 테스트 발송 (SMS만) */}
           {activeTab === 'sms' && (
