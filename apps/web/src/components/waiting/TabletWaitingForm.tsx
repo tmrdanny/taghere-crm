@@ -76,6 +76,16 @@ export function TabletWaitingForm({
     }
   }, [step]);
 
+  // Auto return to first screen after 3 seconds on complete
+  useEffect(() => {
+    if (step === 'complete') {
+      const timer = setTimeout(() => {
+        resetForm();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [step]);
+
   // Format phone for display
   const formatPhoneDisplay = (value: string) => {
     if (value.length === 0) return '010';
@@ -489,16 +499,6 @@ export function TabletWaitingForm({
                   </div>
                 </div>
               </div>
-
-              {/* Cancel Button */}
-              <button
-                type="button"
-                onClick={handleCancel}
-                disabled={isCancelling}
-                className="w-full h-14 rounded-xl border border-neutral-300 bg-white text-neutral-700 font-medium text-lg hover:bg-neutral-50 transition-colors disabled:opacity-50"
-              >
-                {isCancelling ? '취소 중...' : '웨이팅 취소하기'}
-              </button>
             </div>
           )}
         </div>
