@@ -14,7 +14,6 @@ interface PausedOverlayProps {
 
 export function PausedOverlay({
   storeName,
-  storeLogo,
   totalWaiting = 0,
   pauseMessage,
   onCheckWaiting,
@@ -23,49 +22,40 @@ export function PausedOverlay({
   return (
     <div
       className={cn(
-        'min-h-screen flex flex-col items-center justify-center',
-        'bg-[#343434]',
+        'min-h-screen flex flex-col items-center justify-center relative',
         className
       )}
+      style={{
+        backgroundImage: 'linear-gradient(118.716deg, rgb(29, 32, 34) 0%, rgb(49, 56, 60) 100%)',
+      }}
     >
-      <div className="text-center px-6 w-full max-w-2xl">
-        {/* Store Logo & Name */}
-        <div className="flex items-center justify-center gap-3 mb-12">
-          {storeLogo ? (
-            <img
-              src={storeLogo}
-              alt={storeName || '매장 로고'}
-              className="w-10 h-10 rounded-full object-cover"
-            />
-          ) : (
-            <div className="w-10 h-10 bg-[#FCD535] rounded-full flex items-center justify-center">
-              <span className="text-black text-lg">🍺</span>
-            </div>
-          )}
-          {storeName && (
-            <span className="text-white text-lg font-medium">{storeName}</span>
-          )}
-        </div>
+      <div className="text-center px-6 w-full max-w-4xl">
+        {/* Store Name Only */}
+        {storeName && (
+          <p className="text-white/80 text-xl md:text-2xl mb-12">
+            {storeName}
+          </p>
+        )}
 
         {/* Main Title */}
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4">
+        <h1 className="text-5xl md:text-6xl lg:text-[80px] xl:text-[100px] font-semibold text-white mb-4 md:mb-6 leading-tight">
           웨이팅이 잠시 정지되었어요
         </h1>
 
         {/* Subtitle */}
-        <p className="text-lg md:text-xl text-neutral-400 mb-12">
+        <p className="text-xl md:text-2xl lg:text-3xl text-white/60 mb-12 md:mb-16">
           {pauseMessage || '잠시만 기다려주세요'}
         </p>
 
         {/* Waiting Stats */}
-        <div className="flex justify-center gap-16 mb-12">
+        <div className="flex justify-center gap-16 md:gap-24 mb-12 md:mb-16">
           <div className="text-center">
-            <p className="text-neutral-400 text-lg mb-2">현재 웨이팅</p>
-            <p className="text-4xl font-bold text-[#FCD535]">{totalWaiting}팀</p>
+            <p className="text-white/60 text-lg md:text-xl mb-3">현재 웨이팅</p>
+            <p className="text-4xl md:text-5xl lg:text-6xl font-semibold text-[#FCD535]">{totalWaiting}팀</p>
           </div>
           <div className="text-center">
-            <p className="text-neutral-400 text-lg mb-2">예상 시간</p>
-            <p className="text-4xl font-bold text-white">?분</p>
+            <p className="text-white/60 text-lg md:text-xl mb-3">예상 시간</p>
+            <p className="text-4xl md:text-5xl lg:text-6xl font-semibold text-white">?분</p>
           </div>
         </div>
 
@@ -73,7 +63,7 @@ export function PausedOverlay({
         {onCheckWaiting && (
           <button
             onClick={onCheckWaiting}
-            className="w-full max-w-md mx-auto h-14 bg-white text-neutral-900 font-medium text-lg rounded-xl hover:bg-neutral-100 transition-colors"
+            className="w-full max-w-md mx-auto h-14 md:h-16 bg-white text-neutral-900 font-medium text-lg md:text-xl rounded-xl hover:bg-neutral-100 transition-colors"
           >
             웨이팅 목록 확인하기
           </button>
@@ -81,13 +71,13 @@ export function PausedOverlay({
       </div>
 
       {/* TAG HERE Logo - Bottom */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
+      <div className="absolute bottom-8 md:bottom-12 left-1/2 -translate-x-1/2">
         <Image
           src="/images/taghere_logo_w.png"
           alt="TAG HERE"
-          width={100}
-          height={26}
-          className="opacity-70"
+          width={120}
+          height={32}
+          className="opacity-80"
         />
       </div>
     </div>
