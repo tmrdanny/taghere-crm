@@ -705,14 +705,85 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
     // 8. 총 결제 건수 (토스페이먼츠만)
     const totalTransactions = tossStoreTopups.length + tossFranchiseTopups.length;
 
+    // 9. 외부 매출 (계좌이체 등) 합산
+    const externalRevenues = await prisma.externalRevenue.findMany({
+      select: {
+        amount: true,
+        revenueDate: true,
+      },
+    });
+
+    const totalExternalRevenue = externalRevenues.reduce((sum, r) => sum + r.amount, 0);
+    const monthlyExternalRevenue = externalRevenues
+      .filter((r) => r.revenueDate >= startOfMonth)
+      .reduce((sum, r) => sum + r.amount, 0);
+
     res.json({
-      totalRealPayments,
-      monthlyRealPayments,
+      totalRealPayments: totalRealPayments + totalExternalRevenue,
+      monthlyRealPayments: monthlyRealPayments + monthlyExternalRevenue,
       totalTransactions,
+      // 분리된 값도 제공
+      tossPayments: totalRealPayments,
+      externalRevenue: totalExternalRevenue,
     });
   } catch (error) {
     console.error('Admin payment stats error:', error);
     res.status(500).json({ error: '결제 통계 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/admin/external-revenue - 외부 매출 목록 조회
+router.get('/external-revenue', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const revenues = await prisma.externalRevenue.findMany({
+      orderBy: { revenueDate: 'desc' },
+      take: 50,
+    });
+
+    res.json({ revenues });
+  } catch (error) {
+    console.error('Admin external revenue list error:', error);
+    res.status(500).json({ error: '외부 매출 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/external-revenue - 외부 매출 추가
+router.post('/external-revenue', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { amount, description, revenueDate } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: '금액을 입력해주세요.' });
+    }
+
+    const revenue = await prisma.externalRevenue.create({
+      data: {
+        amount: Number(amount),
+        description: description || '계좌이체',
+        revenueDate: revenueDate ? new Date(revenueDate) : new Date(),
+      },
+    });
+
+    res.json({ success: true, revenue });
+  } catch (error) {
+    console.error('Admin external revenue create error:', error);
+    res.status(500).json({ error: '외부 매출 추가 중 오류가 발생했습니다.' });
+  }
+});
+
+// DELETE /api/admin/external-revenue/:id - 외부 매출 삭제
+router.delete('/external-revenue/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.externalRevenue.delete({
+      where: { id },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Admin external revenue delete error:', error);
+    res.status(500).json({ error: '외부 매출 삭제 중 오류가 발생했습니다.' });
   }
 });
 

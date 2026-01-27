@@ -1101,6 +1101,18 @@ export default function MessagesPage() {
           </div>
         </div>
 
+        {/* Free Credits Banner */}
+        {estimate?.freeCredits && estimate.freeCredits.remaining > 0 && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+            <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-xs">🎁</span>
+            </div>
+            <p className="text-sm text-amber-800">
+              <span className="font-semibold">무료 크레딧 {estimate.freeCredits.remaining}건</span> 남았어요!
+            </p>
+          </div>
+        )}
+
         {/* Step 1: Target Selection */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -1409,9 +1421,15 @@ export default function MessagesPage() {
                   <p className="text-lg font-bold text-[#1e293b]">
                     {formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원
                   </p>
-                  <p className="text-[10px] text-[#94a3b8]">
-                    {formatNumber(getCurrentTargetCount())}명 × {uploadedImage ? 110 : 50}원
-                  </p>
+                  {estimate?.freeCredits && estimate.freeCredits.freeCount > 0 ? (
+                    <p className="text-[10px] text-emerald-600 font-medium">
+                      무료 {estimate.freeCredits.freeCount}건 + 유료 {estimate.freeCredits.paidCount}건
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-[#94a3b8]">
+                      {formatNumber(getCurrentTargetCount())}명 × {uploadedImage ? 110 : 50}원
+                    </p>
+                  )}
                 </div>
                 <div className="bg-white/80 rounded-xl p-3 text-center">
                   <p className="text-xs text-[#64748b]">예상 방문</p>

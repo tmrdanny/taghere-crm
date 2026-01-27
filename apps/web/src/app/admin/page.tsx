@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { formatNumber } from '@/lib/utils';
+import { Plus, X, Loader2 } from 'lucide-react';
 
 interface Stats {
   storeCount: number;
@@ -110,6 +111,12 @@ export default function AdminHomePage() {
   // Store Orders
   const [storeOrders, setStoreOrders] = useState<StoreOrder[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
+
+  // External Revenue Modal
+  const [showRevenueModal, setShowRevenueModal] = useState(false);
+  const [revenueAmount, setRevenueAmount] = useState('');
+  const [revenueDescription, setRevenueDescription] = useState('계좌이체');
+  const [isAddingRevenue, setIsAddingRevenue] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -249,6 +256,53 @@ export default function AdminHomePage() {
     }
   };
 
+  // 외부 매출 추가
+  const addExternalRevenue = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    const amount = parseInt(revenueAmount.replace(/,/g, ''), 10);
+    if (!amount || amount <= 0) {
+      alert('금액을 입력해주세요.');
+      return;
+    }
+
+    setIsAddingRevenue(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/external-revenue`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount,
+            description: revenueDescription || '계좌이체',
+            revenueDate: new Date().toISOString(),
+          }),
+        }
+      );
+
+      if (res.ok) {
+        // 성공 시 통계 새로고침
+        fetchData();
+        setShowRevenueModal(false);
+        setRevenueAmount('');
+        setRevenueDescription('계좌이체');
+      } else {
+        const data = await res.json();
+        alert(data.error || '추가에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Failed to add external revenue:', error);
+      alert('외부 매출 추가 중 오류가 발생했습니다.');
+    } finally {
+      setIsAddingRevenue(false);
+    }
+  };
+
   useEffect(() => {
     fetchStoreOrders();
   }, []);
@@ -277,7 +331,16 @@ export default function AdminHomePage() {
           <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
               <p className="text-[14px] text-neutral-500">누적 CRM 매출액</p>
-              <span className="text-[12px] text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded">TossPayments</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded">Toss + 외부</span>
+                <button
+                  onClick={() => setShowRevenueModal(true)}
+                  className="w-6 h-6 flex items-center justify-center rounded-full bg-[#FCD535] hover:bg-[#e5c130] text-neutral-900 transition-colors"
+                  title="외부 매출 추가"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             <p className="text-[28px] font-semibold text-neutral-900">
               {formatNumber(paymentStats?.totalRealPayments || 0)}
@@ -712,6 +775,84 @@ export default function AdminHomePage() {
           </div>
         </div>
       </section>
+
+      {/* External Revenue Modal */}
+      {showRevenueModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl w-full max-w-md mx-4">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-neutral-900">외부 매출 추가</h3>
+              <button
+                onClick={() => setShowRevenueModal(false)}
+                className="p-1 hover:bg-neutral-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-neutral-500" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                  금액 (원)
+                </label>
+                <input
+                  type="text"
+                  value={revenueAmount}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9]/g, '');
+                    setRevenueAmount(value ? Number(value).toLocaleString() : '');
+                  }}
+                  placeholder="예: 1,000,000"
+                  className="w-full h-11 px-4 border border-neutral-300 rounded-lg text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FCD535]/50 focus:border-[#FCD535]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                  설명 (선택)
+                </label>
+                <input
+                  type="text"
+                  value={revenueDescription}
+                  onChange={(e) => setRevenueDescription(e.target.value)}
+                  placeholder="예: 계좌이체, 현금"
+                  className="w-full h-11 px-4 border border-neutral-300 rounded-lg text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FCD535]/50 focus:border-[#FCD535]"
+                />
+              </div>
+
+              <p className="text-sm text-neutral-500">
+                오늘 날짜({new Date().toLocaleDateString('ko-KR')})로 기록됩니다.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowRevenueModal(false)}
+                className="flex-1 h-11 border border-neutral-300 rounded-lg text-neutral-700 font-medium hover:bg-neutral-50 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={addExternalRevenue}
+                disabled={isAddingRevenue || !revenueAmount}
+                className="flex-1 h-11 bg-[#FCD535] text-neutral-900 font-semibold rounded-lg hover:bg-[#e5c130] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isAddingRevenue ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    추가 중...
+                  </>
+                ) : (
+                  '추가'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -198,15 +198,9 @@ export function TabletWaitingForm({
 
       {/* Left Panel - 40% - Dark Background */}
       <div className="w-[40%] h-full bg-[#1A1A1A] text-white flex flex-col">
-        {/* Store Name - Top */}
+        {/* Store Name - Top Center */}
         <div className="pt-8 px-8">
-          <div className="flex items-center gap-3">
-            {/* Store Logo placeholder - circular yellow with icon */}
-            <div className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center">
-              <span className="text-black text-lg">🍺</span>
-            </div>
-            <h1 className="text-xl font-semibold text-white">{storeName}</h1>
-          </div>
+          <h1 className="text-xl font-semibold text-white text-center">{storeName}</h1>
         </div>
 
         {/* Center Content */}
@@ -256,7 +250,7 @@ export function TabletWaitingForm({
             <div className="max-w-md mx-auto w-full">
               {/* Phone Display */}
               <div className="text-center mb-8">
-                <div className="text-5xl lg:text-6xl font-bold tracking-wide text-neutral-900">
+                <div className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-neutral-900 whitespace-nowrap">
                   {formatPhoneDisplay(phone)}
                 </div>
                 <p className="text-neutral-500 mt-4 text-lg">

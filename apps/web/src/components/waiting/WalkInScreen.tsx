@@ -1,45 +1,60 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 interface WalkInScreenProps {
   storeName?: string;
+  storeLogo?: string | null;
   className?: string;
 }
 
-export function WalkInScreen({ storeName, className }: WalkInScreenProps) {
+export function WalkInScreen({ storeName, storeLogo, className }: WalkInScreenProps) {
   return (
     <div
       className={cn(
-        'fixed inset-0 z-50 flex flex-col items-center justify-center',
-        'bg-gradient-to-br from-orange-400 to-orange-500',
+        'min-h-screen flex flex-col items-center justify-center',
+        'bg-[#343434]',
         className
       )}
     >
-      <div className="text-center text-white px-6">
-        {storeName && (
-          <p className="text-lg md:text-xl font-medium mb-6 opacity-90">
-            {storeName}
-          </p>
-        )}
+      <div className="text-center px-6 w-full max-w-2xl">
+        {/* Store Logo & Name */}
+        <div className="flex items-center justify-center gap-3 mb-16">
+          {storeLogo ? (
+            <img
+              src={storeLogo}
+              alt={storeName || '매장 로고'}
+              className="w-10 h-10 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-10 h-10 bg-[#FCD535] rounded-full flex items-center justify-center">
+              <span className="text-black text-lg">🍺</span>
+            </div>
+          )}
+          {storeName && (
+            <span className="text-white text-lg font-medium">{storeName}</span>
+          )}
+        </div>
 
-        <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold mb-4">
+        {/* Main Title */}
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-2 leading-tight">
           웨이팅 없이
         </h1>
-        <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold mb-8">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
           지금 바로 입장해주세요!
-        </h2>
+        </h1>
+      </div>
 
-        {/* Smile Icon */}
-        <div className="mt-8">
-          <svg
-            className="w-24 h-24 md:w-32 md:h-32 mx-auto text-white/90"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-6c.78 2.34 2.72 4 5 4s4.22-1.66 5-4H7zm1-4c.55 0 1-.45 1-1s-.45-1-1-1-1 .45-1 1 .45 1 1 1zm8 0c.55 0 1-.45 1-1s-.45-1-1-1-1 .45-1 1 .45 1 1 1z" />
-          </svg>
-        </div>
+      {/* TAG HERE Logo - Bottom */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
+        <Image
+          src="/images/taghere_logo_w.png"
+          alt="TAG HERE"
+          width={100}
+          height={26}
+          className="opacity-70"
+        />
       </div>
     </div>
   );

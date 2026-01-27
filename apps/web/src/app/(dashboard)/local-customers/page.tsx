@@ -16,7 +16,6 @@ import {
   X,
   Search,
   Plus,
-  Store,
   TrendingUp,
   ImagePlus,
   Link,
@@ -37,27 +36,6 @@ const KOREA_SIDOS = [
   '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'
 ];
 
-// 시/도별 시/군/구 목록
-const KOREA_SIGUNGU: Record<string, string[]> = {
-  '서울': ['강남구', '강동구', '강북구', '강서구', '관악구', '광진구', '구로구', '금천구', '노원구', '도봉구', '동대문구', '동작구', '마포구', '서대문구', '서초구', '성동구', '성북구', '송파구', '양천구', '영등포구', '용산구', '은평구', '종로구', '중구', '중랑구'],
-  '경기': ['가평군', '고양시', '과천시', '광명시', '광주시', '구리시', '군포시', '김포시', '남양주시', '동두천시', '부천시', '성남시', '수원시', '시흥시', '안산시', '안성시', '안양시', '양주시', '양평군', '여주시', '연천군', '오산시', '용인시', '의왕시', '의정부시', '이천시', '파주시', '평택시', '포천시', '하남시', '화성시'],
-  '인천': ['강화군', '계양구', '남동구', '동구', '미추홀구', '부평구', '서구', '연수구', '옹진군', '중구'],
-  '부산': ['강서구', '금정구', '기장군', '남구', '동구', '동래구', '부산진구', '북구', '사상구', '사하구', '서구', '수영구', '연제구', '영도구', '중구', '해운대구'],
-  '대구': ['남구', '달서구', '달성군', '동구', '북구', '서구', '수성구', '중구'],
-  '광주': ['광산구', '남구', '동구', '북구', '서구'],
-  '대전': ['대덕구', '동구', '서구', '유성구', '중구'],
-  '울산': ['남구', '동구', '북구', '울주군', '중구'],
-  '세종': ['세종시'],
-  '강원': ['강릉시', '고성군', '동해시', '삼척시', '속초시', '양구군', '양양군', '영월군', '원주시', '인제군', '정선군', '철원군', '춘천시', '태백시', '평창군', '홍천군', '화천군', '횡성군'],
-  '충북': ['괴산군', '단양군', '보은군', '영동군', '옥천군', '음성군', '제천시', '증평군', '진천군', '청주시', '충주시'],
-  '충남': ['계룡시', '공주시', '금산군', '논산시', '당진시', '보령시', '부여군', '서산시', '서천군', '아산시', '예산군', '천안시', '청양군', '태안군', '홍성군'],
-  '전북': ['고창군', '군산시', '김제시', '남원시', '무주군', '부안군', '순창군', '완주군', '익산시', '임실군', '장수군', '전주시', '정읍시', '진안군'],
-  '전남': ['강진군', '고흥군', '곡성군', '광양시', '구례군', '나주시', '담양군', '목포시', '무안군', '보성군', '순천시', '신안군', '여수시', '영광군', '영암군', '완도군', '장성군', '장흥군', '진도군', '함평군', '해남군', '화순군'],
-  '경북': ['경산시', '경주시', '고령군', '구미시', '군위군', '김천시', '문경시', '봉화군', '상주시', '성주군', '안동시', '영덕군', '영양군', '영주시', '영천시', '예천군', '울릉군', '울진군', '의성군', '청도군', '청송군', '칠곡군', '포항시'],
-  '경남': ['거제시', '거창군', '고성군', '김해시', '남해군', '밀양시', '사천시', '산청군', '양산시', '의령군', '진주시', '창녕군', '창원시', '통영시', '하동군', '함안군', '함양군', '합천군'],
-  '제주': ['서귀포시', '제주시']
-};
-
 // 연령대 옵션
 const AGE_GROUP_OPTIONS = [
   { value: 'TWENTIES', label: '20대' },
@@ -72,24 +50,6 @@ const GENDER_OPTIONS = [
   { value: 'all', label: '전체 성별' },
   { value: 'FEMALE', label: '여성' },
   { value: 'MALE', label: '남성' },
-];
-
-// 업종 카테고리 (플랫 리스트)
-const CATEGORY_OPTIONS = [
-  { value: 'KOREAN', label: '한식' },
-  { value: 'CHINESE', label: '중식' },
-  { value: 'JAPANESE', label: '일식' },
-  { value: 'WESTERN', label: '양식' },
-  { value: 'ASIAN', label: '아시안' },
-  { value: 'MEAT', label: '고기/구이' },
-  { value: 'SEAFOOD', label: '해산물' },
-  { value: 'CAFE', label: '카페' },
-  { value: 'BAKERY', label: '베이커리' },
-  { value: 'DESSERT', label: '디저트' },
-  { value: 'BEER', label: '호프/맥주' },
-  { value: 'IZAKAYA', label: '이자카야' },
-  { value: 'WINE_BAR', label: '와인바' },
-  { value: 'POCHA', label: '포차' },
 ];
 
 // 비용 상수
@@ -672,9 +632,8 @@ export default function LocalCustomersPage() {
           </div>
         </div>
 
-        {/* 지역 + 시/군/구 선택 - 2열 그리드 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* 좌측: 지역 선택 */}
+        {/* 지역 선택 */}
+        <div>
           <div className="p-4 rounded-xl border border-neutral-200 bg-white">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center"><MapPin className="w-5 h-5 text-neutral-500" /></div>
@@ -724,30 +683,6 @@ export default function LocalCustomersPage() {
             </div>
             {isRegionDropdownOpen && <div className="fixed inset-0 z-0" onClick={() => setIsRegionDropdownOpen(false)} />}
           </div>
-
-          {/* 우측: 시/군/구 상세 선택 (준비중) */}
-          <div className="relative p-4 rounded-xl border border-neutral-200 bg-neutral-50 overflow-hidden">
-            <div className="absolute inset-0 bg-white/40 backdrop-blur-[0.5px] z-[5] flex items-center justify-center"><span className="px-3 py-1.5 bg-neutral-300 text-neutral-700 rounded-full text-sm font-medium shadow-sm">준비중</span></div>
-            <div className="flex items-center gap-3 mb-3 opacity-60">
-              <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center"><MapPin className="w-5 h-5 text-neutral-500" /></div>
-              <div className="flex-1"><p className="text-sm font-medium text-neutral-900">시/군/구 상세 선택</p><p className="text-xs text-neutral-500">선택한 지역의 시/군/구를 선택</p></div>
-            </div>
-            <div className="flex flex-col items-center justify-center py-8 text-center opacity-60 pointer-events-none"><MapPin className="w-10 h-10 text-neutral-300 mb-2" /><p className="text-sm text-neutral-500">먼저 지역(시/도)을 선택해주세요</p></div>
-            <p className="text-xs text-neutral-500 mt-2 opacity-60">* 시/군/구 미선택 시 해당 시/도 전체로 발송</p>
-          </div>
-        </div>
-
-        {/* 고객 선호 업종 (준비중) */}
-        <div className="relative p-4 rounded-xl border border-neutral-200 bg-neutral-50 overflow-hidden">
-          <div className="absolute inset-0 bg-white/40 backdrop-blur-[0.5px] z-[5] flex items-center justify-center"><span className="px-3 py-1.5 bg-neutral-300 text-neutral-700 rounded-full text-sm font-medium shadow-sm">준비중</span></div>
-          <div className="flex items-center gap-3 mb-3 opacity-60">
-            <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center"><Store className="w-5 h-5 text-neutral-500" /></div>
-            <div className="flex-1"><p className="text-sm font-medium text-neutral-900">고객 선호 업종</p><p className="text-xs text-neutral-500">여러 업종을 선택할 수 있습니다</p></div>
-          </div>
-          <div className="flex flex-wrap gap-2 opacity-60 pointer-events-none">
-            {CATEGORY_OPTIONS.map((cat) => (<button key={cat.value} disabled className="px-4 py-2 rounded-full text-sm font-medium border bg-white text-neutral-700 border-neutral-200">{cat.label}</button>))}
-          </div>
-          <p className="text-xs text-neutral-500 mt-2 opacity-60">* 선택한 업종을 선호하는 고객에게만 발송됩니다</p>
         </div>
 
         {/* 상세 필터 */}
@@ -928,7 +863,7 @@ export default function LocalCustomersPage() {
             </div>
           )}
 
-          <button onClick={handleSend} disabled={!canSend} className={cn('w-full py-3.5 rounded-xl text-white font-semibold flex items-center justify-center gap-2 transition-colors', canSend ? 'bg-brand-600 hover:bg-brand-700' : 'bg-neutral-300 cursor-not-allowed')}><Send className="w-5 h-5" />{isSending ? '발송 중...' : '발송하기'}</button>
+          <button onClick={handleSend} disabled={!canSend} className={cn('w-full py-3.5 rounded-xl text-white font-semibold flex items-center justify-center gap-2 transition-colors', canSend ? 'bg-[#2a2d62] hover:bg-[#1d1f45]' : 'bg-neutral-300 cursor-not-allowed')}><Send className="w-5 h-5" />{isSending ? '발송 중...' : '발송하기'}</button>
           {activeTab === 'kakao' && <p className="text-xs text-neutral-500 text-center mt-2">* KST 기준 20:50 이후 발송 시, 다음날 08:00에 발송됩니다.</p>}
         </div>
       </div>

@@ -286,11 +286,13 @@ export default function TabletWaitingPage() {
   // Render based on operation status
   switch (storeInfo.operationStatus) {
     case 'WALK_IN':
-      return <WalkInScreen storeName={storeInfo.name} />;
+      return <WalkInScreen storeName={storeInfo.name} storeLogo={storeInfo.logo} />;
 
     case 'PAUSED':
       return (
         <PausedOverlay
+          storeName={storeInfo.name}
+          storeLogo={storeInfo.logo}
           totalWaiting={storeInfo.totalWaiting}
           pauseMessage={storeInfo.pauseMessage}
           onCheckWaiting={handleCheckWaiting}
@@ -298,7 +300,7 @@ export default function TabletWaitingPage() {
       );
 
     case 'CLOSED':
-      return <ClosedScreen storeName={storeInfo.name} />;
+      return <ClosedScreen storeName={storeInfo.name} storeLogo={storeInfo.logo} />;
 
     case 'ACCEPTING':
     default:

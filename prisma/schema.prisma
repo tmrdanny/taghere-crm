@@ -1394,3 +1394,21 @@ enum StoreOrderStatus {
   PAID        // 결제 완료
   CANCELLED   // 취소됨
 }
+
+// ============================================
+// 외부 매출 (계좌이체 등)
+// ============================================
+
+// 외부 매출 기록
+model ExternalRevenue {
+  id          String   @id @default(cuid())
+  amount      Int      // 금액
+  description String?  // 설명 (예: "계좌이체", "현금")
+  revenueDate DateTime // 매출 발생일
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([revenueDate])
+  @@index([createdAt])
+  @@map("external_revenues")
+}

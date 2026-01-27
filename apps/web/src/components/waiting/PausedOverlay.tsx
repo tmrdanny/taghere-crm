@@ -1,10 +1,11 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Clock, Pause } from 'lucide-react';
+import Image from 'next/image';
 
 interface PausedOverlayProps {
+  storeName?: string;
+  storeLogo?: string | null;
   totalWaiting?: number;
   pauseMessage?: string | null;
   onCheckWaiting?: () => void;
@@ -12,6 +13,8 @@ interface PausedOverlayProps {
 }
 
 export function PausedOverlay({
+  storeName,
+  storeLogo,
   totalWaiting = 0,
   pauseMessage,
   onCheckWaiting,
@@ -20,54 +23,72 @@ export function PausedOverlay({
   return (
     <div
       className={cn(
-        'fixed inset-0 z-50 flex items-center justify-center',
-        'bg-black/60 backdrop-blur-sm',
+        'min-h-screen flex flex-col items-center justify-center',
+        'bg-[#343434]',
         className
       )}
     >
-      <div className="bg-white rounded-2xl p-8 md:p-12 max-w-md mx-4 text-center shadow-2xl">
-        {/* Pause Icon */}
-        <div className="w-16 h-16 md:w-20 md:h-20 bg-warning-light rounded-full flex items-center justify-center mx-auto mb-6">
-          <Pause className="w-8 h-8 md:w-10 md:h-10 text-warning" />
+      <div className="text-center px-6 w-full max-w-2xl">
+        {/* Store Logo & Name */}
+        <div className="flex items-center justify-center gap-3 mb-12">
+          {storeLogo ? (
+            <img
+              src={storeLogo}
+              alt={storeName || '매장 로고'}
+              className="w-10 h-10 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-10 h-10 bg-[#FCD535] rounded-full flex items-center justify-center">
+              <span className="text-black text-lg">🍺</span>
+            </div>
+          )}
+          {storeName && (
+            <span className="text-white text-lg font-medium">{storeName}</span>
+          )}
         </div>
 
-        <h2 className="text-xl md:text-2xl font-bold text-neutral-900 mb-2">
+        {/* Main Title */}
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4">
           웨이팅이 잠시 정지되었어요
-        </h2>
+        </h1>
 
-        <p className="text-neutral-600 mb-6">
-          {pauseMessage || '잠시만 기다려주세요.'}
+        {/* Subtitle */}
+        <p className="text-lg md:text-xl text-neutral-400 mb-12">
+          {pauseMessage || '잠시만 기다려주세요'}
         </p>
 
         {/* Waiting Stats */}
-        <div className="flex justify-center gap-8 mb-8">
+        <div className="flex justify-center gap-16 mb-12">
           <div className="text-center">
-            <p className="text-sm text-neutral-500 mb-1">현재 웨이팅</p>
-            <p className="text-2xl font-bold text-neutral-900">{totalWaiting}팀</p>
+            <p className="text-neutral-400 text-lg mb-2">현재 웨이팅</p>
+            <p className="text-4xl font-bold text-[#FCD535]">{totalWaiting}팀</p>
           </div>
           <div className="text-center">
-            <p className="text-sm text-neutral-500 mb-1">예상 시간</p>
-            <p className="text-2xl font-bold text-neutral-400">?분</p>
+            <p className="text-neutral-400 text-lg mb-2">예상 시간</p>
+            <p className="text-4xl font-bold text-white">?분</p>
           </div>
         </div>
 
-        {/* Info Message */}
-        <p className="text-sm text-neutral-500 mb-6">
-          이전에 등록하셨던 분이라면
-        </p>
-
         {/* Action Button */}
         {onCheckWaiting && (
-          <Button
+          <button
             onClick={onCheckWaiting}
-            variant="outline"
-            size="lg"
-            className="w-full"
+            className="w-full max-w-md mx-auto h-14 bg-white text-neutral-900 font-medium text-lg rounded-xl hover:bg-neutral-100 transition-colors"
           >
-            <Clock className="w-5 h-5 mr-2" />
             웨이팅 목록 확인하기
-          </Button>
+          </button>
         )}
+      </div>
+
+      {/* TAG HERE Logo - Bottom */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
+        <Image
+          src="/images/taghere_logo_w.png"
+          alt="TAG HERE"
+          width={100}
+          height={26}
+          className="opacity-70"
+        />
       </div>
     </div>
   );
