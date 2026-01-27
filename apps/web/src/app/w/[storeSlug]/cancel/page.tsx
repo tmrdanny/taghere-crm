@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Loader2, ArrowLeft, Phone } from 'lucide-react';
 
@@ -51,7 +51,7 @@ function CancelPageContent() {
   };
 
   // Fetch waiting status
-  const fetchWaitingStatus = async (phoneNumber: string) => {
+  const fetchWaitingStatus = useCallback(async (phoneNumber: string) => {
     const cleanPhone = phoneNumber.replace(/\D/g, '');
     if (cleanPhone.length < 10) {
       setError('올바른 전화번호를 입력해주세요.');
@@ -91,14 +91,14 @@ function CancelPageContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [storeSlug]);
 
   // Auto fetch if phone is in URL
   useEffect(() => {
     if (phoneFromUrl) {
       fetchWaitingStatus(phoneFromUrl);
     }
-  }, [phoneFromUrl, storeSlug]);
+  }, [phoneFromUrl, fetchWaitingStatus]);
 
   // Handle form submit
   const handleSearch = (e: React.FormEvent) => {
