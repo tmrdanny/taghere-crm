@@ -205,7 +205,7 @@ export function TabletWaitingForm({
 
         {/* Center Content */}
         <div className="flex-1 flex flex-col items-center justify-center px-8">
-          <p className="text-neutral-400 text-lg mb-4">현재 대기중</p>
+          <p className="text-neutral-400 text-2xl md:text-3xl mb-4">현재 대기중</p>
 
           {/* Waiting Count - Large Yellow Number */}
           <div className="flex items-baseline">
