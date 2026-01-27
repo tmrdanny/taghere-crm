@@ -2,8 +2,11 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { customAlphabet } from 'nanoid';
+import { calculateCostWithCredits, useCredits } from '../services/credit-service.js';
 
 const router = Router();
+
+const COUPON_COST_PER_MESSAGE = 50; // 건당 50원
 
 // 쿠폰 코드 생성기 (10자리, 헷갈리는 문자 제외)
 const generateCouponCode = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 10);
@@ -35,6 +38,47 @@ router.get('/settings', authMiddleware, async (req: AuthRequest, res: Response) 
   } catch (error) {
     console.error('Failed to fetch retarget coupon settings:', error);
     res.status(500).json({ error: '설정을 불러오는데 실패했습니다.' });
+  }
+});
+
+// GET /api/retarget-coupon/estimate - 비용 예상 (무료 크레딧 포함)
+router.get('/estimate', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const storeId = req.user?.storeId;
+    if (!storeId) {
+      return res.status(401).json({ error: '인증이 필요합니다.' });
+    }
+
+    const targetCount = parseInt(req.query.targetCount as string) || 0;
+
+    // 무료 크레딧 적용 계산 (isRetarget = true)
+    const creditResult = await calculateCostWithCredits(
+      storeId,
+      targetCount,
+      COUPON_COST_PER_MESSAGE,
+      true // 리타겟 쿠폰이므로 무료 크레딧 적용
+    );
+
+    // 지갑 잔액 조회
+    const wallet = await prisma.wallet.findUnique({
+      where: { storeId },
+    });
+
+    res.json({
+      targetCount,
+      costPerMessage: COUPON_COST_PER_MESSAGE,
+      totalCost: creditResult.totalCost,
+      walletBalance: wallet?.balance || 0,
+      canSend: (wallet?.balance || 0) >= creditResult.totalCost,
+      freeCredits: {
+        remaining: creditResult.remainingCredits,
+        freeCount: creditResult.freeCount,
+        paidCount: creditResult.paidCount,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to estimate retarget coupon cost:', error);
+    res.status(500).json({ error: '비용 예상 중 오류가 발생했습니다.' });
   }
 });
 
@@ -70,17 +114,22 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res: Response) => 
       return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
     }
 
-    // 지갑 잔액 확인
+    // 무료 크레딧 적용 비용 계산
+    const creditResult = await calculateCostWithCredits(
+      storeId,
+      customerIds.length,
+      COUPON_COST_PER_MESSAGE,
+      true // 리타겟 쿠폰이므로 무료 크레딧 적용
+    );
+
+    // 지갑 잔액 확인 (유료분만 확인)
     const wallet = await prisma.wallet.findUnique({
       where: { storeId },
     });
 
-    const costPerMessage = 50; // 건당 50원
-    const totalCost = customerIds.length * costPerMessage;
-
-    if (!wallet || wallet.balance < totalCost) {
+    if (creditResult.paidCount > 0 && (!wallet || wallet.balance < creditResult.totalCost)) {
       return res.status(400).json({
-        error: `충전금이 부족합니다. 필요: ${totalCost.toLocaleString()}원, 잔액: ${(wallet?.balance || 0).toLocaleString()}원`,
+        error: `충전금이 부족합니다. 필요: ${creditResult.totalCost.toLocaleString()}원, 잔액: ${(wallet?.balance || 0).toLocaleString()}원`,
       });
     }
 

@@ -168,6 +168,13 @@ export default function MessagesPage() {
   const [couponNaverPlaceUrl, setCouponNaverPlaceUrl] = useState('');
   const [couponStoreName, setCouponStoreName] = useState('');
   const [isCouponSending, setIsCouponSending] = useState(false);
+  const [couponEstimate, setCouponEstimate] = useState<{
+    targetCount: number;
+    totalCost: number;
+    walletBalance: number;
+    canSend: boolean;
+    freeCredits: { remaining: number; freeCount: number; paidCount: number };
+  } | null>(null);
 
   // Target counts
   const [targetCounts, setTargetCounts] = useState<TargetCounts>({ all: 0, revisit: 0, new: 0 });
@@ -503,6 +510,37 @@ export default function MessagesPage() {
       console.error('Failed to fetch kakao estimate:', error);
     }
   }, [kakaoContent, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, kakaoMessageType]);
+
+  // 쿠폰 알림톡 비용 예상 조회
+  const fetchCouponEstimate = useCallback(async () => {
+    const targetCount = getCurrentTargetCount();
+    if (targetCount === 0) {
+      setCouponEstimate(null);
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams({ targetCount: String(targetCount) });
+
+      const res = await fetch(`${API_BASE}/api/retarget-coupon/estimate?${params}`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setCouponEstimate(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch coupon estimate:', error);
+    }
+  }, [selectedTarget, selectedCustomers, targetCounts, genderFilter, selectedAgeGroups]);
+
+  // 쿠폰 탭에서 타겟 변경 시 estimate 조회
+  useEffect(() => {
+    if (activeTab === 'kakao') {
+      fetchCouponEstimate();
+    }
+  }, [activeTab, fetchCouponEstimate]);
 
   // 카카오톡 이미지 업로드
   const handleKakaoImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1578,11 +1616,17 @@ export default function MessagesPage() {
                 <div className="bg-white rounded-xl p-3 text-center border border-neutral-100">
                   <p className="text-xs text-[#64748b]">발송 비용</p>
                   <p className="text-lg font-bold text-[#1e293b]">
-                    {formatNumber(getCurrentTargetCount() * 50)}원
+                    {formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원
                   </p>
-                  <p className="text-[10px] text-[#94a3b8]">
-                    {formatNumber(getCurrentTargetCount())}명 × 50원
-                  </p>
+                  {couponEstimate?.freeCredits && couponEstimate.freeCredits.freeCount > 0 ? (
+                    <p className="text-[10px] text-emerald-600 font-medium">
+                      무료 {couponEstimate.freeCredits.freeCount}건 + 유료 {couponEstimate.freeCredits.paidCount}건
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-[#94a3b8]">
+                      {formatNumber(getCurrentTargetCount())}명 × 50원
+                    </p>
+                  )}
                 </div>
                 <div className="bg-white rounded-xl p-3 text-center border border-neutral-100">
                   <p className="text-xs text-[#64748b]">예상 사용</p>
@@ -1605,7 +1649,7 @@ export default function MessagesPage() {
                 <p className="text-sm text-brand-700">
                   <span className="font-bold">1명만 사용해도</span> 투자 대비{' '}
                   <span className="font-bold text-brand-600">
-                    {Math.round(25000 / Math.max(1, getCurrentTargetCount() * 50))}배
+                    {Math.round(25000 / Math.max(1, couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)))}배
                   </span>{' '}
                   효과!
                 </p>
@@ -1615,10 +1659,10 @@ export default function MessagesPage() {
               <div className="flex items-center justify-between mb-4 text-sm">
                 <span className="text-[#64748b]">현재 잔액</span>
                 <div className="flex items-center gap-2">
-                  <span className={`font-bold ${(estimate?.walletBalance || 0) >= (getCurrentTargetCount() * 50) ? 'text-brand-600' : 'text-red-600'}`}>
-                    {formatNumber(estimate?.walletBalance || 0)}원
+                  <span className={`font-bold ${(couponEstimate?.walletBalance ?? estimate?.walletBalance ?? 0) >= (couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)) ? 'text-brand-600' : 'text-red-600'}`}>
+                    {formatNumber(couponEstimate?.walletBalance ?? estimate?.walletBalance ?? 0)}원
                   </span>
-                  {(estimate?.walletBalance || 0) < (getCurrentTargetCount() * 50) && (
+                  {(couponEstimate?.walletBalance ?? estimate?.walletBalance ?? 0) < (couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)) && (
                     <button
                       onClick={() => setIsChargeModalOpen(true)}
                       className="text-xs text-blue-600 hover:text-blue-700 font-medium"
@@ -1711,7 +1755,7 @@ export default function MessagesPage() {
                 ) : (
                   <>
                     <Send className="w-5 h-5" />
-                    쿠폰 알림톡 발송하기 ({formatNumber(getCurrentTargetCount() * 50)}원)
+                    쿠폰 알림톡 발송하기 ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
                   </>
                 )}
               </button>

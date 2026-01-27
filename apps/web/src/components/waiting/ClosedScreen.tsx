@@ -33,7 +33,7 @@ export function ClosedScreen({ storeName, className }: ClosedScreenProps) {
           오늘 웨이팅이
         </h1>
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-8 leading-tight">
-          마감되었습니다
+          마감 되었습니다.
         </h1>
 
         {/* Subtitle */}

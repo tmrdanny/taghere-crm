@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { SolapiService, sendLowBalanceAlimTalk } from './solapi.js';
+import { getRemainingCredits, useCredits } from './credit-service.js';
 
 const BATCH_SIZE = 10;
 const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
@@ -134,30 +135,39 @@ async function processMessage(messageId: string): Promise<void> {
     const cost = isLowBalanceMessage ? 0 : (ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST);
 
     // LOW_BALANCE가 아닌 경우에만 잔액 확인
-    if (!isLowBalanceMessage) {
-      const wallet = await prisma.wallet.findUnique({
-        where: { storeId: msg.storeId },
-      });
+    // RETARGET_COUPON은 무료 크레딧 적용 가능
+    const isRetargetCoupon = msg.messageType === 'RETARGET_COUPON';
+    let useFreeCredit = false;
 
-      if (!wallet || wallet.balance < cost) {
-        console.log(`[Worker] Insufficient balance for message ${messageId}, balance: ${wallet?.balance ?? 0}, required: ${cost}`);
-        // 메시지 상태를 FAILED로 변경
-        await prisma.alimTalkOutbox.update({
-          where: { id: messageId },
-          data: {
-            status: 'FAILED',
-            failReason: 'Insufficient wallet balance',
-            updatedAt: new Date(),
-          },
+    if (!isLowBalanceMessage) {
+      // 리타겟 쿠폰이면 무료 크레딧 확인
+      if (isRetargetCoupon) {
+        const remainingCredits = await getRemainingCredits(msg.storeId);
+        if (remainingCredits > 0) {
+          useFreeCredit = true;
+          console.log(`[Worker] Using free credit for RETARGET_COUPON message ${messageId}, remaining: ${remainingCredits}`);
+        }
+      }
+
+      // 무료 크레딧을 사용하지 않는 경우에만 지갑 잔액 확인
+      if (!useFreeCredit) {
+        const wallet = await prisma.wallet.findUnique({
+          where: { storeId: msg.storeId },
         });
-        // 잔액이 400원 미만이면 충전금 부족 안내 알림톡 발송
-        // NOTE: 자동 발송 비활성화 - 관리자 페이지에서 수동 발송으로 대체
-        // if (!wallet || wallet.balance < LOW_BALANCE_THRESHOLD) {
-        //   sendLowBalanceAlimTalk({ storeId: msg.storeId, reason: '알림톡 발송' }).catch((err) => {
-        //     console.error(`[Worker] Failed to send low balance notification:`, err);
-        //   });
-        // }
-        return;
+
+        if (!wallet || wallet.balance < cost) {
+          console.log(`[Worker] Insufficient balance for message ${messageId}, balance: ${wallet?.balance ?? 0}, required: ${cost}`);
+          // 메시지 상태를 FAILED로 변경
+          await prisma.alimTalkOutbox.update({
+            where: { id: messageId },
+            data: {
+              status: 'FAILED',
+              failReason: 'Insufficient wallet balance',
+              updatedAt: new Date(),
+            },
+          });
+          return;
+        }
       }
     }
 
@@ -221,6 +231,23 @@ async function processMessage(messageId: string): Promise<void> {
             },
           });
           console.log(`[Worker] Low balance notification ${messageId} sent successfully (free), SOLAPI ID: ${result.messageId}`);
+        } else if (useFreeCredit) {
+          // 무료 크레딧 사용 - 지갑 차감 없이 크레딧만 사용
+          await prisma.alimTalkOutbox.update({
+            where: { id: messageId },
+            data: {
+              status: 'SENT',
+              solapiMessageId: result.messageId,
+              sentAt: new Date(),
+              updatedAt: new Date(),
+              failReason: null,
+            },
+          });
+
+          // 무료 크레딧 차감
+          await useCredits(msg.storeId, 1, null, msg.messageType);
+
+          console.log(`[Worker] Message ${messageId} (${msg.messageType}) sent successfully with FREE CREDIT, SOLAPI ID: ${result.messageId}`);
         } else {
           // 일반 메시지 - 트랜잭션으로 상태 업데이트 + 지갑 차감
           await prisma.$transaction(async (tx) => {
@@ -260,18 +287,6 @@ async function processMessage(messageId: string): Promise<void> {
           });
 
           console.log(`[Worker] Message ${messageId} (${msg.messageType}) sent successfully, SOLAPI ID: ${result.messageId}, cost: ${cost}원 차감`);
-
-          // 차감 후 잔액 확인 - 400원 미만이면 충전금 부족 알림톡 발송
-          // NOTE: 자동 발송 비활성화 - 관리자 페이지에서 수동 발송으로 대체
-          // const updatedWallet = await prisma.wallet.findUnique({
-          //   where: { storeId: msg.storeId },
-          // });
-          // if (updatedWallet && updatedWallet.balance < LOW_BALANCE_THRESHOLD) {
-          //   console.log(`[Worker] Low balance detected for store ${msg.storeId}: ${updatedWallet.balance}원`);
-          //   sendLowBalanceAlimTalk({ storeId: msg.storeId, reason: '알림톡 발송 후 잔액 부족' }).catch((err) => {
-          //     console.error(`[Worker] Failed to send low balance notification:`, err);
-          //   });
-          // }
         }
       } else {
         // PENDING 상태 - 아직 결과가 안 나옴, 재시도 대기열에 넣기

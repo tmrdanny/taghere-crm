@@ -814,40 +814,34 @@ export default function LocalCustomersPage() {
             const roi = estimatedCost > 0 ? Math.round((estimatedRevenue / estimatedCost) * 100) : 0;
 
             return (
-              <div className="relative overflow-hidden mb-4 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl p-5 text-white shadow-lg">
-                {/* 배경 장식 */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16" />
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12" />
+              <div className="mb-4 bg-gradient-to-r from-emerald-50 to-blue-50 border border-emerald-100 rounded-xl p-5">
+                <h3 className="text-base font-semibold text-emerald-800 mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-emerald-600" />
+                  예상 마케팅 효과
+                </h3>
 
-                <div className="relative z-10">
-                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5" />
-                    예상 마케팅 효과
-                  </h3>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div className="bg-white/10 rounded-xl p-3">
-                      <p className="text-sm text-white/80 mb-1">예상 방문율</p>
-                      <p className="text-2xl font-bold">{(conversionRate * 100).toFixed(1)}%</p>
-                    </div>
-                    <div className="bg-white/10 rounded-xl p-3">
-                      <p className="text-sm text-white/80 mb-1">예상 방문</p>
-                      <p className="text-2xl font-bold">{estimatedVisitors.toLocaleString()}명</p>
-                    </div>
-                    <div className="bg-white/10 rounded-xl p-3">
-                      <p className="text-sm text-white/80 mb-1">예상 매출</p>
-                      <p className="text-2xl font-bold">{estimatedRevenue.toLocaleString()}원</p>
-                    </div>
-                    <div className="bg-white/20 rounded-xl p-3 ring-2 ring-white/30">
-                      <p className="text-sm text-white/80 mb-1">예상 ROI</p>
-                      <p className="text-2xl font-bold">{roi.toLocaleString()}%</p>
-                    </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-white/60 rounded-lg p-3">
+                    <p className="text-xs text-emerald-600 mb-1">예상 방문율</p>
+                    <p className="text-xl font-bold text-emerald-800">{(conversionRate * 100).toFixed(1)}%</p>
                   </div>
-
-                  <p className="text-xs text-white/70 mt-3">
-                    * 업계 평균 방문율 {(conversionRate * 100).toFixed(1)}% 및 {activeTab === 'kakao' ? '매장 평균' : '기본'} 객단가 {avgOrderValue.toLocaleString()}원 기준
-                  </p>
+                  <div className="bg-white/60 rounded-lg p-3">
+                    <p className="text-xs text-emerald-600 mb-1">예상 방문</p>
+                    <p className="text-xl font-bold text-emerald-800">{estimatedVisitors.toLocaleString()}명</p>
+                  </div>
+                  <div className="bg-white/60 rounded-lg p-3">
+                    <p className="text-xs text-emerald-600 mb-1">예상 매출</p>
+                    <p className="text-xl font-bold text-emerald-800">{estimatedRevenue.toLocaleString()}원</p>
+                  </div>
+                  <div className="bg-emerald-100/80 rounded-lg p-3 ring-1 ring-emerald-200">
+                    <p className="text-xs text-emerald-600 mb-1">예상 ROI</p>
+                    <p className="text-xl font-bold text-emerald-800">{roi.toLocaleString()}%</p>
+                  </div>
                 </div>
+
+                <p className="text-xs text-emerald-600/70 mt-3">
+                  * 업계 평균 방문율 {(conversionRate * 100).toFixed(1)}% 및 {activeTab === 'kakao' ? '매장 평균' : '기본'} 객단가 {avgOrderValue.toLocaleString()}원 기준
+                </p>
               </div>
             );
           })()}
