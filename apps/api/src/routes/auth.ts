@@ -190,6 +190,25 @@ router.post('/register', async (req, res) => {
         },
       });
 
+      // 기본 웨이팅 설정 생성 (접수 중 상태)
+      await tx.waitingSetting.create({
+        data: {
+          storeId: store.id,
+          operationStatus: 'ACCEPTING',
+        },
+      });
+
+      // 기본 웨이팅 유형 생성 (홀, 5분)
+      await tx.waitingType.create({
+        data: {
+          storeId: store.id,
+          name: '홀',
+          avgWaitTimePerTeam: 5,
+          sortOrder: 0,
+          isActive: true,
+        },
+      });
+
       // StaffUser 생성 (OWNER 권한)
       const user = await tx.staffUser.create({
         data: {

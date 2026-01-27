@@ -1128,7 +1128,7 @@ model WaitingSetting {
   storeId                 String                  @unique
 
   // 운영 상태
-  operationStatus         WaitingOperationStatus  @default(CLOSED)
+  operationStatus         WaitingOperationStatus  @default(ACCEPTING)
   pauseMessage            String?                 // 일시정지 안내 문구
   pauseEndTime            DateTime?               // 일시정지 종료 시간
 
