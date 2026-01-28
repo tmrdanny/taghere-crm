@@ -193,7 +193,7 @@ export function TabletWaitingForm({
   const displayMinutes = selectedType ? selectedType.estimatedMinutes : estimatedMinutes;
 
   return (
-    <div className={cn('h-screen flex', className)}>
+    <div className={cn('min-h-screen flex flex-col lg:flex-row', className)}>
       {/* Hidden input for keyboard */}
       <input
         ref={hiddenInputRef}
@@ -211,34 +211,34 @@ export function TabletWaitingForm({
       />
 
       {/* Left Panel - 40% - Dark Background */}
-      <div className="w-[40%] h-full bg-[#1A1A1A] text-white flex flex-col">
+      <div className="w-full lg:w-[40%] lg:h-full bg-[#1A1A1A] text-white flex flex-col py-6 lg:py-0">
         {/* Store Name - Top Center */}
-        <div className="pt-8 px-8">
-          <h1 className="text-xl font-semibold text-white text-center">{storeName}</h1>
+        <div className="pt-4 lg:pt-8 px-6 lg:px-8">
+          <h1 className="text-lg lg:text-xl font-semibold text-white text-center">{storeName}</h1>
         </div>
 
         {/* Center Content */}
-        <div className="flex-1 flex flex-col items-center justify-center px-8">
-          <p className="text-white font-bold text-2xl md:text-3xl mb-4">현재 대기중</p>
+        <div className="flex-1 flex flex-col items-center justify-center px-6 lg:px-8 py-4 lg:py-0">
+          <p className="text-white font-bold text-xl lg:text-2xl xl:text-3xl mb-2 lg:mb-4">현재 대기중</p>
 
           {/* Waiting Count - Large Yellow Number */}
           <div className="flex items-baseline">
-            <span className="text-[120px] font-bold text-[#FCD535] leading-none">
+            <span className="text-[60px] lg:text-[100px] xl:text-[120px] font-bold text-[#FCD535] leading-none">
               {displayWaiting}
             </span>
-            <span className="text-3xl font-medium text-[#FCD535] ml-2">팀</span>
+            <span className="text-xl lg:text-2xl xl:text-3xl font-medium text-[#FCD535] ml-2">팀</span>
           </div>
 
           {/* Estimated Wait Time */}
-          <div className="flex items-center gap-2 mt-6 text-neutral-300">
-            <Clock className="w-5 h-5" />
+          <div className="flex items-center gap-2 mt-3 lg:mt-6 text-neutral-300 text-sm lg:text-base">
+            <Clock className="w-4 h-4 lg:w-5 lg:h-5" />
             <span>예상 대기시간</span>
             <span className="font-bold text-white ml-1">{displayMinutes}분</span>
           </div>
         </div>
 
-        {/* TAG HERE Logo - Bottom */}
-        <div className="pb-8 px-8 flex justify-center">
+        {/* TAG HERE Logo - Bottom - Hidden on mobile */}
+        <div className="hidden lg:flex pb-8 px-8 justify-center">
           <Image
             src="/images/taghere_logo_w.png"
             alt="TAG HERE"
@@ -250,36 +250,36 @@ export function TabletWaitingForm({
       </div>
 
       {/* Right Panel - 60% - White Background */}
-      <div className="w-[60%] h-full bg-white flex flex-col">
+      <div className="w-full lg:w-[60%] flex-1 lg:h-full bg-white flex flex-col">
         {/* Error Message */}
         {error && (
-          <div className="mx-8 mt-4 bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
+          <div className="mx-4 lg:mx-8 mt-4 bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
             {error}
           </div>
         )}
 
-        <div className="flex-1 flex flex-col justify-center px-8 lg:px-16">
+        <div className="flex-1 flex flex-col justify-center px-4 lg:px-8 xl:px-16 py-4 lg:py-0">
           {/* Phone Input Step */}
           {step === 'phone' && (
             <div className="w-full">
               {/* Phone Display */}
-              <div className="flex flex-col items-center mb-8">
-                <div className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-neutral-900 whitespace-nowrap">
+              <div className="flex flex-col items-center mb-4 lg:mb-8">
+                <div className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-neutral-900 whitespace-nowrap">
                   {formatPhoneDisplay(phone)}
                 </div>
-                <p className="text-neutral-500 mt-4 text-lg text-center">
+                <p className="text-neutral-500 mt-2 lg:mt-4 text-sm lg:text-lg text-center">
                   실시간 웨이팅 안내를 받을 수 있는<br />번호를 입력해주세요
                 </p>
               </div>
 
               {/* Keypad */}
-              <div className="max-w-md mx-auto grid grid-cols-3 gap-3">
+              <div className="max-w-md mx-auto grid grid-cols-3 gap-2 lg:gap-3">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                   <button
                     key={num}
                     type="button"
                     onClick={() => handleKeyPress(num.toString())}
-                    className="h-20 rounded-xl border border-neutral-200 bg-white text-3xl font-medium text-neutral-800 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                    className="h-12 lg:h-16 xl:h-20 rounded-xl border border-neutral-200 bg-white text-xl lg:text-2xl xl:text-3xl font-medium text-neutral-800 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
                   >
                     {num}
                   </button>
@@ -287,32 +287,32 @@ export function TabletWaitingForm({
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="h-20 rounded-xl bg-neutral-100 text-base font-medium text-neutral-600 hover:bg-neutral-200 active:bg-neutral-300 transition-colors"
+                  className="h-12 lg:h-16 xl:h-20 rounded-xl bg-neutral-100 text-sm lg:text-base font-medium text-neutral-600 hover:bg-neutral-200 active:bg-neutral-300 transition-colors"
                 >
                   초기화
                 </button>
                 <button
                   type="button"
                   onClick={() => handleKeyPress('0')}
-                  className="h-20 rounded-xl border border-neutral-200 bg-white text-3xl font-medium text-neutral-800 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                  className="h-12 lg:h-16 xl:h-20 rounded-xl border border-neutral-200 bg-white text-xl lg:text-2xl xl:text-3xl font-medium text-neutral-800 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
                 >
                   0
                 </button>
                 <button
                   type="button"
                   onClick={handleDelete}
-                  className="h-20 rounded-xl border border-neutral-200 bg-white flex items-center justify-center text-neutral-600 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                  className="h-12 lg:h-16 xl:h-20 rounded-xl border border-neutral-200 bg-white flex items-center justify-center text-neutral-600 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
                 >
-                  <Delete className="w-7 h-7" />
+                  <Delete className="w-5 h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7" />
                 </button>
               </div>
 
               {/* Action Buttons */}
-              <div className="max-w-md mx-auto flex gap-3 mt-8">
+              <div className="max-w-md mx-auto flex gap-2 lg:gap-3 mt-4 lg:mt-8">
                 <button
                   type="button"
                   onClick={onViewWaitingList}
-                  className="flex-1 h-16 rounded-xl border border-neutral-300 bg-white text-neutral-700 font-medium text-lg hover:bg-neutral-50 transition-colors"
+                  className="flex-1 h-12 lg:h-14 xl:h-16 rounded-xl border border-neutral-300 bg-white text-neutral-700 font-medium text-base lg:text-lg hover:bg-neutral-50 transition-colors"
                 >
                   웨이팅 목록
                 </button>
@@ -321,7 +321,7 @@ export function TabletWaitingForm({
                   onClick={handlePhoneProceed}
                   disabled={phone.length !== 8}
                   className={cn(
-                    'flex-1 h-16 rounded-xl font-semibold text-lg transition-colors',
+                    'flex-1 h-12 lg:h-14 xl:h-16 rounded-xl font-semibold text-base lg:text-lg transition-colors',
                     phone.length === 8
                       ? 'bg-[#FCD535] text-neutral-900 hover:bg-[#e5c130]'
                       : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
@@ -336,29 +336,29 @@ export function TabletWaitingForm({
           {/* Type Selection Step */}
           {step === 'type' && (
             <div className="max-w-lg mx-auto w-full">
-              <h2 className="text-3xl font-bold text-neutral-900 text-center mb-8">
+              <h2 className="text-xl lg:text-2xl xl:text-3xl font-bold text-neutral-900 text-center mb-4 lg:mb-8">
                 웨이팅 유형을 선택해주세요
               </h2>
 
-              <div className="space-y-4">
+              <div className="space-y-3 lg:space-y-4">
                 {waitingTypes.map((type) => (
                   <button
                     key={type.id}
                     type="button"
                     onClick={() => handleSelectType(type.id)}
-                    className="w-full flex items-center justify-between px-6 py-5 border border-neutral-200 rounded-xl hover:border-neutral-300 hover:bg-neutral-50 transition-colors"
+                    className="w-full flex items-center justify-between px-4 lg:px-6 py-4 lg:py-5 border border-neutral-200 rounded-xl hover:border-neutral-300 hover:bg-neutral-50 transition-colors"
                   >
-                    <span className="text-xl font-medium text-neutral-900">{type.name}</span>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-1 text-neutral-500">
-                        <Clock className="w-4 h-4" />
+                    <span className="text-base lg:text-xl font-medium text-neutral-900">{type.name}</span>
+                    <div className="flex items-center gap-2 lg:gap-4">
+                      <div className="flex items-center gap-1 text-neutral-500 text-sm lg:text-base">
+                        <Clock className="w-3 h-3 lg:w-4 lg:h-4" />
                         <span>{type.estimatedMinutes}분</span>
                       </div>
-                      <div className="flex items-center gap-1 text-neutral-500">
-                        <Users className="w-4 h-4" />
+                      <div className="flex items-center gap-1 text-neutral-500 text-sm lg:text-base">
+                        <Users className="w-3 h-3 lg:w-4 lg:h-4" />
                         <span>{type.waitingCount}팀</span>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-neutral-400" />
+                      <ChevronRight className="w-4 h-4 lg:w-5 lg:h-5 text-neutral-400" />
                     </div>
                   </button>
                 ))}
@@ -371,60 +371,60 @@ export function TabletWaitingForm({
             <div className="max-w-md mx-auto w-full text-center">
               {/* Selected Type Badge */}
               {selectedType && !skipTypeSelection && (
-                <div className="inline-block mb-4">
-                  <span className="px-4 py-1.5 bg-neutral-100 text-neutral-600 text-sm font-medium rounded-full">
+                <div className="inline-block mb-2 lg:mb-4">
+                  <span className="px-3 lg:px-4 py-1 lg:py-1.5 bg-neutral-100 text-neutral-600 text-xs lg:text-sm font-medium rounded-full">
                     {selectedType.name} 선택됨
                   </span>
                 </div>
               )}
 
-              <h2 className="text-3xl font-bold text-neutral-900 mb-10">
+              <h2 className="text-xl lg:text-2xl xl:text-3xl font-bold text-neutral-900 mb-6 lg:mb-10">
                 인원을 선택해주세요
               </h2>
 
               {/* Party Size Selector */}
-              <div className="flex items-center justify-center gap-6 mb-8">
+              <div className="flex items-center justify-center gap-4 lg:gap-6 mb-6 lg:mb-8">
                 <button
                   type="button"
                   onClick={() => setPartySize(Math.max(1, partySize - 1))}
                   disabled={partySize <= 1}
-                  className="w-16 h-16 rounded-xl border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="w-12 h-12 lg:w-16 lg:h-16 rounded-xl border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  <Minus className="w-6 h-6" />
+                  <Minus className="w-5 h-5 lg:w-6 lg:h-6" />
                 </button>
-                <div className="w-32 text-center">
-                  <span className="text-5xl font-bold text-neutral-900">{partySize}</span>
-                  <span className="text-2xl font-medium text-neutral-600 ml-1">명</span>
+                <div className="w-24 lg:w-32 text-center">
+                  <span className="text-4xl lg:text-5xl font-bold text-neutral-900">{partySize}</span>
+                  <span className="text-xl lg:text-2xl font-medium text-neutral-600 ml-1">명</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setPartySize(Math.min(selectedType?.maxPartySize || 20, partySize + 1))}
                   disabled={partySize >= (selectedType?.maxPartySize || 20)}
-                  className="w-16 h-16 rounded-xl border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="w-12 h-12 lg:w-16 lg:h-16 rounded-xl border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  <Plus className="w-6 h-6" />
+                  <Plus className="w-5 h-5 lg:w-6 lg:h-6" />
                 </button>
               </div>
 
               {/* Max Party Size Info */}
-              <p className="text-sm text-neutral-500 mb-4">
+              <p className="text-xs lg:text-sm text-neutral-500 mb-4">
                 최대 {selectedType?.maxPartySize || 20}명까지 선택 가능합니다
               </p>
 
               {/* Privacy Consent */}
-              <label className="flex items-center justify-center gap-3 mb-8 cursor-pointer">
+              <label className="flex items-center justify-center gap-2 lg:gap-3 mb-6 lg:mb-8 cursor-pointer">
                 <div
                   className={cn(
-                    'w-6 h-6 rounded border-2 flex items-center justify-center transition-colors',
+                    'w-5 h-5 lg:w-6 lg:h-6 rounded border-2 flex items-center justify-center transition-colors',
                     privacyConsent
                       ? 'bg-[#FCD535] border-[#FCD535]'
                       : 'border-neutral-300 bg-white'
                   )}
                   onClick={() => setPrivacyConsent(!privacyConsent)}
                 >
-                  {privacyConsent && <Check className="w-4 h-4 text-neutral-900" />}
+                  {privacyConsent && <Check className="w-3 h-3 lg:w-4 lg:h-4 text-neutral-900" />}
                 </div>
-                <span className="text-neutral-600" onClick={() => setPrivacyConsent(!privacyConsent)}>
+                <span className="text-sm lg:text-base text-neutral-600" onClick={() => setPrivacyConsent(!privacyConsent)}>
                   (필수) 개인정보 수집 및 이용 동의
                 </span>
               </label>
@@ -435,7 +435,7 @@ export function TabletWaitingForm({
                 onClick={handleSubmit}
                 disabled={isSubmitting || !privacyConsent}
                 className={cn(
-                  'w-full h-16 rounded-xl font-semibold text-xl transition-colors',
+                  'w-full h-12 lg:h-14 xl:h-16 rounded-xl font-semibold text-lg lg:text-xl transition-colors',
                   isSubmitting || !privacyConsent
                     ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
                     : 'bg-[#FCD535] text-neutral-900 hover:bg-[#e5c130]'
@@ -450,59 +450,59 @@ export function TabletWaitingForm({
           {step === 'complete' && registrationResult && (
             <div className="max-w-md mx-auto w-full text-center">
               {/* Success Icon */}
-              <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Check className="w-10 h-10 text-white" strokeWidth={3} />
+              <div className="w-14 h-14 lg:w-20 lg:h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 lg:mb-6">
+                <Check className="w-7 h-7 lg:w-10 lg:h-10 text-white" strokeWidth={3} />
               </div>
 
-              <h2 className="text-2xl font-bold text-neutral-900 mb-2">
+              <h2 className="text-xl lg:text-2xl font-bold text-neutral-900 mb-2">
                 웨이팅이 등록되었어요!
               </h2>
-              <p className="text-neutral-600 mb-8">
+              <p className="text-sm lg:text-base text-neutral-600 mb-4 lg:mb-8">
                 카카오톡을 확인해 주세요
               </p>
 
               {/* Waiting Number Card */}
-              <div className="bg-neutral-50 rounded-2xl p-6 mb-6">
+              <div className="bg-neutral-50 rounded-2xl p-4 lg:p-6 mb-4 lg:mb-6">
                 {/* Type Badge */}
                 {registrationResult.typeName && (
                   <div className="inline-block mb-2">
-                    <span className="px-3 py-1 bg-white border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg">
+                    <span className="px-2 lg:px-3 py-1 bg-white border border-neutral-200 text-neutral-700 text-xs lg:text-sm font-medium rounded-lg">
                       {registrationResult.typeName}
                     </span>
                   </div>
                 )}
 
-                <p className="text-neutral-500 text-sm mb-1">대기번호</p>
-                <p className="text-6xl font-bold text-[#FCD535]">
+                <p className="text-neutral-500 text-xs lg:text-sm mb-1">대기번호</p>
+                <p className="text-4xl lg:text-6xl font-bold text-[#FCD535]">
                   {registrationResult.waitingNumber}
                 </p>
 
                 {/* Stats Row */}
-                <div className="flex justify-center gap-8 mt-6 pt-6 border-t border-neutral-200">
+                <div className="flex justify-center gap-4 lg:gap-8 mt-4 lg:mt-6 pt-4 lg:pt-6 border-t border-neutral-200">
                   <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 text-neutral-500 text-sm mb-1">
-                      <ListOrdered className="w-4 h-4" />
+                    <div className="flex items-center justify-center gap-1 text-neutral-500 text-xs lg:text-sm mb-1">
+                      <ListOrdered className="w-3 h-3 lg:w-4 lg:h-4" />
                       <span>내 순서</span>
                     </div>
-                    <p className="text-lg font-semibold text-neutral-900">
+                    <p className="text-sm lg:text-lg font-semibold text-neutral-900">
                       {registrationResult.position}번째
                     </p>
                   </div>
                   <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 text-neutral-500 text-sm mb-1">
-                      <Clock className="w-4 h-4" />
+                    <div className="flex items-center justify-center gap-1 text-neutral-500 text-xs lg:text-sm mb-1">
+                      <Clock className="w-3 h-3 lg:w-4 lg:h-4" />
                       <span>예상 대기</span>
                     </div>
-                    <p className="text-lg font-semibold text-neutral-900">
+                    <p className="text-sm lg:text-lg font-semibold text-neutral-900">
                       약 {registrationResult.estimatedMinutes}분
                     </p>
                   </div>
                   <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 text-neutral-500 text-sm mb-1">
-                      <Users className="w-4 h-4" />
+                    <div className="flex items-center justify-center gap-1 text-neutral-500 text-xs lg:text-sm mb-1">
+                      <Users className="w-3 h-3 lg:w-4 lg:h-4" />
                       <span>현재 대기</span>
                     </div>
-                    <p className="text-lg font-semibold text-neutral-900">
+                    <p className="text-sm lg:text-lg font-semibold text-neutral-900">
                       {registrationResult.totalWaiting || displayWaiting}팀
                     </p>
                   </div>
