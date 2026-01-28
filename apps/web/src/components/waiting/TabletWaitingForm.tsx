@@ -425,7 +425,7 @@ export function TabletWaitingForm({
                   {privacyConsent && <Check className="w-4 h-4 text-neutral-900" />}
                 </div>
                 <span className="text-neutral-600" onClick={() => setPrivacyConsent(!privacyConsent)}>
-                  <span className="text-red-500 font-medium">(필수)</span> 개인정보 수집 및 이용 동의
+                  (필수) 개인정보 수집 및 이용 동의
                 </span>
               </label>
 
