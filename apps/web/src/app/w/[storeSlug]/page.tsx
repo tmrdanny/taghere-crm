@@ -71,7 +71,29 @@ export default function WaitingQRPage() {
       }
 
       const data = await res.json();
-      setStoreInfo(data);
+
+      // API 응답 구조를 프론트엔드 형식으로 변환
+      const transformedData: StoreInfo = {
+        id: data.store?.id || '',
+        name: data.store?.name || '',
+        slug: data.store?.slug || storeSlug,
+        logo: data.store?.logo || null,
+        operationStatus: data.operationStatus || 'CLOSED',
+        pauseMessage: data.pauseMessage || null,
+        totalWaiting: data.stats?.totalWaiting || 0,
+        estimatedMinutes: data.stats?.estimatedMinutes || 0,
+        waitingTypes: (data.types || []).map((type: any) => ({
+          id: type.id,
+          name: type.name,
+          description: type.description,
+          avgWaitTimePerTeam: type.avgWaitTimePerTeam || 5,
+          maxPartySize: type.maxPartySize || 20,
+          waitingCount: type.currentWaitingCount || 0,
+          estimatedMinutes: type.estimatedMinutes || 0,
+        })),
+      };
+
+      setStoreInfo(transformedData);
     } catch (err) {
       setError(err instanceof Error ? err.message : '오류가 발생했습니다.');
     } finally {

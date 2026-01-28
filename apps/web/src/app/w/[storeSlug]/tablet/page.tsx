@@ -101,6 +101,7 @@ export default function TabletWaitingPage() {
           name: type.name,
           description: type.description,
           avgWaitTimePerTeam: type.avgWaitTimePerTeam || 5,
+          maxPartySize: type.maxPartySize || 20,
           waitingCount: type.currentWaitingCount || 0,
           estimatedMinutes: type.estimatedMinutes || 0,
         })),
