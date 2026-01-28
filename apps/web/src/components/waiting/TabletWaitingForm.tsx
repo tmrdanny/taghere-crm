@@ -1,9 +1,34 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Delete, Clock, Users, ChevronRight, Minus, Plus, Check, ListOrdered } from 'lucide-react';
 import Image from 'next/image';
+
+// 화면 크기에 따른 zoom 계산 (작은 화면에서 축소)
+function useAutoZoom(minWidth = 1024, minHeight = 768) {
+  const [zoom, setZoom] = useState(1);
+
+  const calculateZoom = useCallback(() => {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    // 기준 크기보다 작으면 zoom out
+    const zoomX = vw / minWidth;
+    const zoomY = vh / minHeight;
+    const newZoom = Math.min(zoomX, zoomY, 1); // 최대 1 (확대하지 않음)
+
+    setZoom(newZoom);
+  }, [minWidth, minHeight]);
+
+  useEffect(() => {
+    calculateZoom();
+    window.addEventListener('resize', calculateZoom);
+    return () => window.removeEventListener('resize', calculateZoom);
+  }, [calculateZoom]);
+
+  return zoom;
+}
 
 interface WaitingType {
   id: string;
@@ -192,8 +217,14 @@ export function TabletWaitingForm({
   const displayWaiting = selectedType ? selectedType.waitingCount : totalWaiting;
   const displayMinutes = selectedType ? selectedType.estimatedMinutes : estimatedMinutes;
 
+  // 화면이 작으면 자동으로 zoom out
+  const zoom = useAutoZoom(1024, 768);
+
   return (
-    <div className={cn('min-h-screen h-screen overflow-auto flex', className)}>
+    <div
+      className={cn('h-screen w-screen flex', className)}
+      style={{ zoom }}
+    >
       {/* Hidden input for keyboard */}
       <input
         ref={hiddenInputRef}
