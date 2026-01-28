@@ -664,6 +664,27 @@ function TaghereEnrollContent() {
     }
   };
 
+  // 방문 경로 옵션은 항상 조회 (별도 useEffect - 카카오 로그인 리다이렉트 시에도 실행되도록)
+  useEffect(() => {
+    const fetchVisitSourceOptions = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${apiUrl}/api/taghere/visit-source-options/${slug}`);
+        if (res.ok) {
+          const data = await res.json();
+          setVisitSourceEnabled(data.enabled);
+          setVisitSourceOptions(data.options || []);
+        }
+      } catch (e) {
+        console.error('Failed to fetch visit source options:', e);
+      }
+    };
+
+    if (slug) {
+      fetchVisitSourceOptions();
+    }
+  }, [slug]);
+
   useEffect(() => {
     // 디버그: URL 파라미터 확인
     console.log('[TagHere Enroll] URL params:', {
@@ -710,23 +731,6 @@ function TaghereEnrollContent() {
       setIsLoading(false);
       return;
     }
-
-    // 방문 경로 옵션 조회
-    const fetchVisitSourceOptions = async () => {
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-        const res = await fetch(`${apiUrl}/api/taghere/visit-source-options/${slug}`);
-        if (res.ok) {
-          const data = await res.json();
-          setVisitSourceEnabled(data.enabled);
-          setVisitSourceOptions(data.options || []);
-        }
-      } catch (e) {
-        console.error('Failed to fetch visit source options:', e);
-      }
-    };
-
-    fetchVisitSourceOptions();
 
     const fetchOrderInfo = async () => {
       try {
