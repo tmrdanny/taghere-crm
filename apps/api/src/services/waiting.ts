@@ -192,7 +192,7 @@ export async function registerWaiting(
         waitingNumber,
         position,
         partySize: params.partySize,
-        waitingNote: setting?.waitingNote ?? '',
+        waitingNote: setting?.waitingNote || '오늘도 행복한 하루 되세요.',
       });
     }
 
@@ -257,7 +257,7 @@ export async function callWaiting(
         storeSlug: store?.slug ?? '',
         waitingNumber: waiting.waitingNumber,
         timeoutMinutes: callTimeoutMinutes,
-        waitingCallNote: setting?.waitingCallNote ?? '',
+        waitingCallNote: setting?.waitingCallNote || '기다려주셔서 감사해요.',
       });
     }
 
