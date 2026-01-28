@@ -236,13 +236,12 @@ function CancelPageContent() {
             </svg>
           </div>
           <h2 className="text-[20px] font-bold text-[#1d2022] mb-2">웨이팅이 취소되었습니다</h2>
-          <p className="text-[14px] text-[#91949a] mb-8">다음에 또 방문해주세요!</p>
-          <a
-            href={`/w/${storeSlug}`}
-            className="px-8 py-4 bg-[#f8f9fa] text-[#55595e] rounded-[10px] text-[15px] font-semibold hover:bg-[#ebeced] transition-colors"
-          >
-            확인
-          </a>
+          <p className="text-[14px] text-[#91949a] text-center">
+            다음에 또 방문해주세요!
+          </p>
+          <p className="text-[13px] text-[#b1b5b8] mt-6 text-center">
+            이 페이지를 닫아주세요
+          </p>
         </div>
       </div>
     );
