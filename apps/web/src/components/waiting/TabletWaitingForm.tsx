@@ -1,36 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Delete, Clock, Users, ChevronRight, Minus, Plus, Check, ListOrdered } from 'lucide-react';
 import Image from 'next/image';
-
-// 화면 크기에 따른 스케일 계산 (화면을 꽉 채우면서 축소)
-function useAutoScale(baseWidth = 1024, baseHeight = 768) {
-  const [scale, setScale] = useState(1);
-
-  const calculateScale = useCallback(() => {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-
-    // 화면 비율과 기준 비율 비교하여 스케일 계산
-    const scaleX = vw / baseWidth;
-    const scaleY = vh / baseHeight;
-
-    // 화면을 꽉 채우기 위해 큰 값 사용 (잘리지 않게 작은 값 사용하되, 항상 꽉 참)
-    const newScale = Math.min(scaleX, scaleY);
-
-    setScale(newScale);
-  }, [baseWidth, baseHeight]);
-
-  useEffect(() => {
-    calculateScale();
-    window.addEventListener('resize', calculateScale);
-    return () => window.removeEventListener('resize', calculateScale);
-  }, [calculateScale]);
-
-  return scale;
-}
 
 interface WaitingType {
   id: string;
@@ -219,19 +192,8 @@ export function TabletWaitingForm({
   const displayWaiting = selectedType ? selectedType.waitingCount : totalWaiting;
   const displayMinutes = selectedType ? selectedType.estimatedMinutes : estimatedMinutes;
 
-  // 화면 크기에 맞춰 자동 스케일 (항상 꽉 참)
-  const scale = useAutoScale(1024, 768);
-
   return (
-    <div className={cn('h-screen w-screen overflow-hidden', className)}>
-      <div
-        className="flex origin-top-left"
-        style={{
-          width: '1024px',
-          height: '768px',
-          transform: `scale(${scale})`,
-        }}
-      >
+    <div className={cn('h-screen flex', className)}>
       {/* Hidden input for keyboard */}
       <input
         ref={hiddenInputRef}
@@ -549,7 +511,6 @@ export function TabletWaitingForm({
             </div>
           )}
         </div>
-      </div>
       </div>
     </div>
   );
