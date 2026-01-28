@@ -74,13 +74,21 @@ export function TabletWaitingForm({
 
   const hiddenInputRef = useRef<HTMLInputElement>(null);
 
-  // 줌 설정 불러오기/저장
+  // 줌 설정 불러오기
   useEffect(() => {
     const savedZoom = localStorage.getItem(ZOOM_STORAGE_KEY);
     if (savedZoom) {
       setZoom(parseInt(savedZoom, 10));
     }
   }, []);
+
+  // 브라우저 줌 적용 (document.body.style.zoom)
+  useEffect(() => {
+    document.body.style.zoom = `${zoom}%`;
+    return () => {
+      document.body.style.zoom = '100%';
+    };
+  }, [zoom]);
 
   const handleZoomChange = (newZoom: number) => {
     const clampedZoom = Math.min(150, Math.max(50, newZoom));
@@ -213,10 +221,7 @@ export function TabletWaitingForm({
   const displayMinutes = selectedType ? selectedType.estimatedMinutes : estimatedMinutes;
 
   return (
-    <div
-      className={cn('h-screen w-screen overflow-hidden', className)}
-      style={{ zoom: `${zoom}%` }}
-    >
+    <div className={cn('h-screen w-screen overflow-hidden', className)}>
       {/* 줌 조절 팝업 */}
       {showZoomPopup && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowZoomPopup(false)}>
