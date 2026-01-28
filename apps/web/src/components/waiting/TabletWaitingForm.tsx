@@ -82,11 +82,22 @@ export function TabletWaitingForm({
     }
   }, []);
 
-  // 브라우저 줌 적용 (document.body.style.zoom)
+  // 브라우저 줌처럼 적용 (transform scale + 확대된 컨테이너)
   useEffect(() => {
-    document.body.style.zoom = `${zoom}%`;
+    const scale = zoom / 100;
+    const inverseScale = 100 / zoom; // 80% 줌이면 125%
+
+    // html 요소에 스케일 적용
+    document.documentElement.style.transformOrigin = 'top left';
+    document.documentElement.style.transform = `scale(${scale})`;
+    document.documentElement.style.width = `${inverseScale * 100}%`;
+    document.documentElement.style.height = `${inverseScale * 100}%`;
+
     return () => {
-      document.body.style.zoom = '100%';
+      document.documentElement.style.transform = '';
+      document.documentElement.style.transformOrigin = '';
+      document.documentElement.style.width = '';
+      document.documentElement.style.height = '';
     };
   }, [zoom]);
 
