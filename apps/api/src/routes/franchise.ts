@@ -236,11 +236,13 @@ router.post('/stores/connect', async (req: FranchiseAuthRequest, res) => {
 router.get('/customers', async (req: FranchiseAuthRequest, res) => {
   try {
     const franchiseId = req.franchiseUser!.franchiseId;
-    const { page = '1', limit = '20', search, storeId, gender, visitCount, lastVisit, startDate, endDate, dateType } = req.query;
+    const { page = '1', limit = '50', search, storeId, gender, visitCount, lastVisit, startDate, endDate, dateType } = req.query;
 
     const pageNum = parseInt(page as string, 10);
-    const limitNum = parseInt(limit as string, 10);
+    const limitNum = Math.min(parseInt(limit as string, 10), 100); // 최대 100개로 제한
     const skip = (pageNum - 1) * limitNum;
+
+    console.log('[Franchise Customers] Query params:', { page, limit, storeId, gender, visitCount, lastVisit });
 
     // 프랜차이즈 소속 매장 ID 목록
     const stores = await prisma.store.findMany({
@@ -251,20 +253,19 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
     const storeIds = stores.map((s) => s.id);
 
     if (storeIds.length === 0) {
-      return res.json({ customers: [], total: 0, page: pageNum, limit: limitNum });
+      return res.json({ customers: [], total: 0, page: pageNum, limit: limitNum, totalPages: 0 });
     }
 
-    // 검색 조건
-    const whereCondition: any = {
-      storeId: { in: storeIds },
-    };
+    // 검색 조건 - 특정 가맹점 필터가 있으면 해당 매장만, 없으면 전체 매장
+    const whereCondition: any = {};
 
     // 특정 가맹점 필터
-    if (storeId && storeId !== 'all') {
-      // 요청한 storeId가 프랜차이즈 소속인지 확인
-      if (storeIds.includes(storeId as string)) {
-        whereCondition.storeId = storeId;
-      }
+    if (storeId && storeId !== 'all' && storeIds.includes(storeId as string)) {
+      whereCondition.storeId = storeId as string;
+      console.log('[Franchise Customers] Filtering by specific storeId:', storeId);
+    } else {
+      whereCondition.storeId = { in: storeIds };
+      console.log('[Franchise Customers] Filtering by all stores:', storeIds.length, 'stores');
     }
 
     if (search) {

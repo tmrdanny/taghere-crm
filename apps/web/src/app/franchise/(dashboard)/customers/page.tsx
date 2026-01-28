@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   X,
   Users,
   UserCircle,
@@ -107,6 +109,12 @@ export default function FranchiseCustomersPage() {
   const [searchInput, setSearchInput] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetail | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCustomers, setTotalCustomers] = useState(0);
+  const ITEMS_PER_PAGE = 50;
 
   // Filter states
   const [storeFilter, setStoreFilter] = useState<string>('all');
@@ -274,7 +282,8 @@ export default function FranchiseCustomersPage() {
       }
 
       const params = new URLSearchParams();
-      params.append('limit', '10000'); // 전체 고객 조회
+      params.append('page', currentPage.toString());
+      params.append('limit', ITEMS_PER_PAGE.toString());
       if (searchQuery) params.append('search', searchQuery);
       if (storeFilter !== 'all') params.append('storeId', storeFilter);
       if (genderFilter !== 'all') params.append('gender', genderFilter);
@@ -296,13 +305,17 @@ export default function FranchiseCustomersPage() {
 
       const data = await response.json();
       setCustomers(data.customers || []);
+      setTotalPages(data.totalPages || 1);
+      setTotalCustomers(data.total || 0);
     } catch (error) {
       console.error('Error fetching customers:', error);
       setCustomers([]);
+      setTotalPages(1);
+      setTotalCustomers(0);
     } finally {
       setIsLoading(false);
     }
-  }, [searchQuery, storeFilter, genderFilter, visitFilter, lastVisitFilter, startDate, endDate, dateFilterType]);
+  }, [currentPage, searchQuery, storeFilter, genderFilter, visitFilter, lastVisitFilter, startDate, endDate, dateFilterType]);
 
   useEffect(() => {
     fetchCustomers();
@@ -388,6 +401,7 @@ export default function FranchiseCustomersPage() {
 
   // Handle search
   const handleSearch = () => {
+    setCurrentPage(1); // Reset to first page on search
     setSearchQuery(searchInput);
   };
 
@@ -399,21 +413,25 @@ export default function FranchiseCustomersPage() {
 
   // Filter handlers
   const handleStoreSelect = (value: string) => {
+    setCurrentPage(1); // Reset to first page on filter change
     setStoreFilter(value);
     setStoreDropdownOpen(false);
   };
 
   const handleGenderSelect = (value: 'all' | 'MALE' | 'FEMALE') => {
+    setCurrentPage(1);
     setGenderFilter(value);
     setGenderDropdownOpen(false);
   };
 
   const handleVisitSelect = (value: 'all' | '1' | '2' | '5' | '10' | '20') => {
+    setCurrentPage(1);
     setVisitFilter(value);
     setVisitDropdownOpen(false);
   };
 
   const handleLastVisitSelect = (value: 'all' | '7' | '30' | '90') => {
+    setCurrentPage(1);
     setLastVisitFilter(value);
     setLastVisitDropdownOpen(false);
   };
@@ -452,7 +470,8 @@ export default function FranchiseCustomersPage() {
           <div>
             <h1 className="text-2xl font-semibold text-neutral-900">고객 통합 DB</h1>
             <p className="text-sm text-neutral-500 mt-1">
-              전체 {customers.length.toLocaleString()}명의 고객
+              전체 {totalCustomers.toLocaleString()}명의 고객
+              {totalPages > 1 && ` (${currentPage}/${totalPages} 페이지)`}
             </p>
           </div>
         </div>
@@ -724,7 +743,7 @@ export default function FranchiseCustomersPage() {
                       <input
                         type="date"
                         value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
+                        onChange={(e) => { setCurrentPage(1); setStartDate(e.target.value); }}
                         onClick={(e) => e.stopPropagation()}
                         onFocus={(e) => e.stopPropagation()}
                         className="flex-1 px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800"
@@ -735,7 +754,7 @@ export default function FranchiseCustomersPage() {
                       <input
                         type="date"
                         value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
+                        onChange={(e) => { setCurrentPage(1); setEndDate(e.target.value); }}
                         onClick={(e) => e.stopPropagation()}
                         onFocus={(e) => e.stopPropagation()}
                         className="flex-1 px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800"
@@ -748,6 +767,7 @@ export default function FranchiseCustomersPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        setCurrentPage(1);
                         setStartDate('');
                         setEndDate('');
                         setDateFilterType('lastVisit');
@@ -958,6 +978,73 @@ export default function FranchiseCustomersPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {!isLoading && totalPages > 1 && (
+            <div className="px-6 py-4 border-t border-neutral-200 flex items-center justify-between">
+              <p className="text-sm text-neutral-500">
+                {totalCustomers.toLocaleString()}명 중 {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCustomers)}명 표시
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  처음
+                </button>
+                <button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="p-1.5 text-neutral-600 hover:bg-neutral-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={cn(
+                          'w-8 h-8 text-sm rounded-lg transition-colors',
+                          currentPage === pageNum
+                            ? 'bg-brand-800 text-white'
+                            : 'text-neutral-600 hover:bg-neutral-100'
+                        )}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 text-neutral-600 hover:bg-neutral-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  마지막
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
