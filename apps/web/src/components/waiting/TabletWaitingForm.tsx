@@ -1,9 +1,35 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Delete, Clock, Users, ChevronRight, Minus, Plus, Check, ListOrdered } from 'lucide-react';
 import Image from 'next/image';
+
+// 화면 크기에 따른 스케일 계산 훅
+function useResponsiveScale(designWidth = 1024, designHeight = 768) {
+  const [scale, setScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const calculateScale = useCallback(() => {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // 가로/세로 비율 중 작은 것 기준으로 스케일 계산
+    const scaleX = viewportWidth / designWidth;
+    const scaleY = viewportHeight / designHeight;
+    const newScale = Math.min(scaleX, scaleY, 1); // 최대 1 (확대하지 않음)
+
+    setScale(newScale);
+  }, [designWidth, designHeight]);
+
+  useEffect(() => {
+    calculateScale();
+    window.addEventListener('resize', calculateScale);
+    return () => window.removeEventListener('resize', calculateScale);
+  }, [calculateScale]);
+
+  return { scale, containerRef };
+}
 
 interface WaitingType {
   id: string;
@@ -192,8 +218,11 @@ export function TabletWaitingForm({
   const displayWaiting = selectedType ? selectedType.waitingCount : totalWaiting;
   const displayMinutes = selectedType ? selectedType.estimatedMinutes : estimatedMinutes;
 
+  // 화면 크기에 따른 자동 스케일
+  const { scale, containerRef } = useResponsiveScale(1024, 768);
+
   return (
-    <div className={cn('h-screen flex', className)}>
+    <div className={cn('h-screen w-screen overflow-hidden bg-neutral-100 flex items-center justify-center', className)}>
       {/* Hidden input for keyboard */}
       <input
         ref={hiddenInputRef}
@@ -210,8 +239,19 @@ export function TabletWaitingForm({
         autoFocus
       />
 
-      {/* Left Panel - 40% - Dark Background */}
-      <div className="w-[40%] h-full bg-[#1A1A1A] text-white flex flex-col">
+      {/* Scaled Container */}
+      <div
+        ref={containerRef}
+        style={{
+          width: '1024px',
+          height: '768px',
+          transform: `scale(${scale})`,
+          transformOrigin: 'center center',
+        }}
+        className="flex shadow-2xl rounded-lg overflow-hidden"
+      >
+        {/* Left Panel - 40% - Dark Background */}
+        <div className="w-[40%] h-full bg-[#1A1A1A] text-white flex flex-col">
         {/* Store Name - Top Center */}
         <div className="pt-8 px-8">
           <h1 className="text-xl font-semibold text-white text-center">{storeName}</h1>
@@ -511,6 +551,7 @@ export function TabletWaitingForm({
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
