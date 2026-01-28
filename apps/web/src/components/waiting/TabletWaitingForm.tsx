@@ -61,7 +61,7 @@ export function TabletWaitingForm({
   const [phone, setPhone] = useState('');
   const [selectedTypeId, setSelectedTypeId] = useState<string>(skipTypeSelection ? waitingTypes[0]?.id || '' : '');
   const [partySize, setPartySize] = useState(1);
-  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [privacyConsent, setPrivacyConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registrationResult, setRegistrationResult] = useState<RegistrationResult | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -144,12 +144,15 @@ export function TabletWaitingForm({
 
   // Handle final submission
   const handleSubmit = async () => {
+    if (!privacyConsent) {
+      setError('개인정보 수집 및 이용에 동의해주세요.');
+      return;
+    }
     try {
       const result = await onSubmit({
         phone: `010${phone}`,
         waitingTypeId: selectedTypeId,
         partySize,
-        marketingConsent,
       });
       setRegistrationResult(result);
       setStep('complete');
@@ -178,7 +181,7 @@ export function TabletWaitingForm({
     setPhone('');
     setSelectedTypeId(skipTypeSelection ? waitingTypes[0]?.id || '' : '');
     setPartySize(1);
-    setMarketingConsent(false);
+    setPrivacyConsent(false);
     setError(null);
     setRegistrationResult(null);
   };
@@ -408,21 +411,21 @@ export function TabletWaitingForm({
                 최대 {selectedType?.maxPartySize || 20}명까지 선택 가능합니다
               </p>
 
-              {/* Marketing Consent */}
+              {/* Privacy Consent */}
               <label className="flex items-center justify-center gap-3 mb-8 cursor-pointer">
                 <div
                   className={cn(
                     'w-6 h-6 rounded border-2 flex items-center justify-center transition-colors',
-                    marketingConsent
+                    privacyConsent
                       ? 'bg-[#FCD535] border-[#FCD535]'
                       : 'border-neutral-300 bg-white'
                   )}
-                  onClick={() => setMarketingConsent(!marketingConsent)}
+                  onClick={() => setPrivacyConsent(!privacyConsent)}
                 >
-                  {marketingConsent && <Check className="w-4 h-4 text-neutral-900" />}
+                  {privacyConsent && <Check className="w-4 h-4 text-neutral-900" />}
                 </div>
-                <span className="text-neutral-600" onClick={() => setMarketingConsent(!marketingConsent)}>
-                  마케팅 정보 수신에 동의합니다 (선택)
+                <span className="text-neutral-600" onClick={() => setPrivacyConsent(!privacyConsent)}>
+                  <span className="text-red-500 font-medium">(필수)</span> 개인정보 수집 및 이용 동의
                 </span>
               </label>
 
@@ -430,10 +433,10 @@ export function TabletWaitingForm({
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !privacyConsent}
                 className={cn(
                   'w-full h-16 rounded-xl font-semibold text-xl transition-colors',
-                  isSubmitting
+                  isSubmitting || !privacyConsent
                     ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
                     : 'bg-[#FCD535] text-neutral-900 hover:bg-[#e5c130]'
                 )}
