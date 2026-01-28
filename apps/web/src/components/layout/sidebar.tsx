@@ -116,7 +116,7 @@ const navGroups: NavGroup[] = [
 // 하단 독립 메뉴
 const bottomNavItems: NavItem[] = [
   { href: '/message-history', label: '발송 내역', icon: History },
-  { href: '/store', label: '스토어', icon: ShoppingBag },
+  { href: '/store', label: '스토어', icon: ShoppingBag, badge: '태블릿' },
   { href: '/billing', label: '충전 관리', icon: CreditCard },
   { href: '/settings', label: '설정', icon: Settings },
 ];
