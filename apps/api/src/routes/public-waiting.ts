@@ -149,11 +149,6 @@ router.post('/:storeSlug/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: result.error });
     }
 
-    const waitingType = await (prisma as any).waitingType.findUnique({
-      where: { id: waitingTypeId },
-      select: { name: true },
-    });
-
     res.status(201).json({
       success: true,
       storeName: store.name,
