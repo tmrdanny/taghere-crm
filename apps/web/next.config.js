@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@taghere/ui'],
+  productionBrowserSourceMaps: false,
   experimental: {
     optimizePackageImports: ['lucide-react'],
   },
