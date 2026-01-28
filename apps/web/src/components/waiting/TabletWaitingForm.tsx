@@ -5,19 +5,18 @@ import { cn } from '@/lib/utils';
 import { Delete, Clock, Users, ChevronRight, Minus, Plus, Check, ListOrdered } from 'lucide-react';
 import Image from 'next/image';
 
-// 화면 크기에 따른 스케일 계산 훅
+// 화면 크기에 따른 스케일 계산 훅 (전체 화면 채움)
 function useResponsiveScale(designWidth = 1024, designHeight = 768) {
   const [scale, setScale] = useState(1);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const calculateScale = useCallback(() => {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    // 가로/세로 비율 중 작은 것 기준으로 스케일 계산
+    // 가로/세로 비율 중 작은 것 기준으로 스케일 계산 (확대 포함)
     const scaleX = viewportWidth / designWidth;
     const scaleY = viewportHeight / designHeight;
-    const newScale = Math.min(scaleX, scaleY, 1); // 최대 1 (확대하지 않음)
+    const newScale = Math.min(scaleX, scaleY);
 
     setScale(newScale);
   }, [designWidth, designHeight]);
@@ -28,7 +27,7 @@ function useResponsiveScale(designWidth = 1024, designHeight = 768) {
     return () => window.removeEventListener('resize', calculateScale);
   }, [calculateScale]);
 
-  return { scale, containerRef };
+  return { scale };
 }
 
 interface WaitingType {
@@ -219,10 +218,10 @@ export function TabletWaitingForm({
   const displayMinutes = selectedType ? selectedType.estimatedMinutes : estimatedMinutes;
 
   // 화면 크기에 따른 자동 스케일
-  const { scale, containerRef } = useResponsiveScale(1024, 768);
+  const { scale } = useResponsiveScale(1024, 768);
 
   return (
-    <div className={cn('h-screen w-screen overflow-hidden bg-neutral-100 flex items-center justify-center', className)}>
+    <div className={cn('h-screen w-screen overflow-hidden', className)}>
       {/* Hidden input for keyboard */}
       <input
         ref={hiddenInputRef}
@@ -239,16 +238,15 @@ export function TabletWaitingForm({
         autoFocus
       />
 
-      {/* Scaled Container */}
+      {/* Scaled Container - 화면 전체를 채움 */}
       <div
-        ref={containerRef}
         style={{
           width: '1024px',
           height: '768px',
           transform: `scale(${scale})`,
-          transformOrigin: 'center center',
+          transformOrigin: 'top left',
         }}
-        className="flex shadow-2xl rounded-lg overflow-hidden"
+        className="flex"
       >
         {/* Left Panel - 40% - Dark Background */}
         <div className="w-[40%] h-full bg-[#1A1A1A] text-white flex flex-col">
