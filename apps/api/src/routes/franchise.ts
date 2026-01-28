@@ -1034,7 +1034,8 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
         genderDistribution: { male: 0, female: 0, total: 0 },
         retention: { day7: 0, day30: 0 },
         monthlyTrend: [],
-        topStores: []
+        topStores: [],
+        visitSourceDistribution: []
       });
     }
 
@@ -1221,8 +1222,62 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
       .sort((a, b) => b.customers - a.customers)
       .slice(0, 5);
 
+    // 8. 방문경로별 통계
+    const visitSourceLabels: Record<string, string> = {
+      revisit: '단순 재방문',
+      friend: '지인 추천',
+      naver: '네이버',
+      youtube: '유튜브',
+      daangn: '당근',
+      instagram: '인스타그램',
+      sms: '문자',
+      kakao: '카카오톡',
+      passby: '지나가다'
+    };
+
+    // visitSource가 있는 고객만 집계
+    const visitSourceMap = new Map<string, number>();
+    let totalWithVisitSource = 0;
+
+    allCustomers.forEach(c => {
+      const customer = c as any;
+      if (customer.visitSource) {
+        totalWithVisitSource++;
+        visitSourceMap.set(customer.visitSource, (visitSourceMap.get(customer.visitSource) || 0) + 1);
+      }
+    });
+
+    // visitSource 필드를 가져오기 위해 다시 쿼리 (allCustomers에는 visitSource가 없음)
+    const customersWithVisitSource = await prisma.customer.findMany({
+      where: {
+        storeId: { in: storeIds },
+        createdAt: { gte: startDate },
+        visitSource: { not: null }
+      },
+      select: { visitSource: true }
+    });
+
+    visitSourceMap.clear();
+    totalWithVisitSource = customersWithVisitSource.length;
+
+    customersWithVisitSource.forEach(c => {
+      if (c.visitSource) {
+        visitSourceMap.set(c.visitSource, (visitSourceMap.get(c.visitSource) || 0) + 1);
+      }
+    });
+
+    const visitSourceDistribution = Array.from(visitSourceMap.entries())
+      .map(([source, count]) => ({
+        source,
+        label: visitSourceLabels[source] || source,
+        count,
+        percentage: totalWithVisitSource > 0 ? Math.round((count / totalWithVisitSource) * 100) : 0
+      }))
+      .sort((a, b) => b.count - a.count);
+
     console.log('[Franchise Insights] Monthly trend length:', monthlyTrend.length);
     console.log('[Franchise Insights] Top stores:', topStores.length);
+    console.log('[Franchise Insights] Visit source distribution:', visitSourceDistribution.length);
 
     // 응답 반환
     res.json({
@@ -1233,7 +1288,8 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
         day30: retention30Days
       },
       monthlyTrend,
-      topStores
+      topStores,
+      visitSourceDistribution
     });
 
   } catch (error) {

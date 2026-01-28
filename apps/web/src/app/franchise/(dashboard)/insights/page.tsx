@@ -12,6 +12,7 @@ import {
   ArrowDown,
   MessageSquare,
   ChevronDown,
+  Compass,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -43,6 +44,15 @@ const DEMO_INSIGHTS = {
     { name: '철길부산집 강남점', customers: 342 },
     { name: '철길부산집 건대점', customers: 312 },
   ],
+  visitSourceDistribution: [
+    { source: 'naver', label: '네이버', count: 1200, percentage: 30 },
+    { source: 'instagram', label: '인스타그램', count: 800, percentage: 20 },
+    { source: 'friend', label: '지인 추천', count: 600, percentage: 15 },
+    { source: 'revisit', label: '단순 재방문', count: 500, percentage: 13 },
+    { source: 'passby', label: '지나가다', count: 400, percentage: 10 },
+    { source: 'kakao', label: '카카오톡', count: 300, percentage: 8 },
+    { source: 'youtube', label: '유튜브', count: 200, percentage: 4 },
+  ],
 };
 
 interface AgeDistribution {
@@ -61,12 +71,20 @@ interface TopStore {
   customers: number;
 }
 
+interface VisitSourceData {
+  source: string;
+  label: string;
+  count: number;
+  percentage: number;
+}
+
 interface Insights {
   ageDistribution: AgeDistribution[];
   genderDistribution: { male: number; female: number; total: number };
   retention: { day7: number; day30: number };
   monthlyTrend: MonthlyTrend[];
   topStores: TopStore[];
+  visitSourceDistribution: VisitSourceData[];
 }
 
 export default function FranchiseInsightsPage() {
@@ -226,6 +244,122 @@ export default function FranchiseInsightsPage() {
     );
   };
 
+  // 방문경로 색상 매핑
+  const visitSourceColors: Record<string, string> = {
+    naver: '#03C75A',      // 네이버 초록
+    instagram: '#E4405F',  // 인스타그램 핑크
+    friend: '#6366f1',     // 지인 추천 보라
+    revisit: '#64748b',    // 단순 재방문 회색
+    passby: '#f59e0b',     // 지나가다 주황
+    kakao: '#FEE500',      // 카카오 노랑
+    youtube: '#FF0000',    // 유튜브 빨강
+    daangn: '#FF6F0F',     // 당근 주황
+    sms: '#0EA5E9',        // 문자 파랑
+  };
+
+  // 방문경로 막대 그래프 렌더링
+  const renderVisitSourceBarChart = (data: VisitSourceData[]) => {
+    if (!data || data.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <BarChart3 className="w-12 h-12 text-slate-300 mb-3" />
+          <p className="text-sm text-slate-500">방문경로 데이터가 없습니다</p>
+          <p className="text-xs text-slate-400 mt-1">
+            고객 등록 시 방문경로가 수집되면 자동으로 집계됩니다
+          </p>
+        </div>
+      );
+    }
+
+    const maxCount = Math.max(...data.map((d) => d.count));
+    return (
+      <div className="space-y-3">
+        {data.slice(0, 7).map((item) => (
+          <div key={item.source} className="flex items-center gap-3">
+            <span className="text-sm text-slate-600 w-24 truncate">{item.label}</span>
+            <div className="flex-1 h-8 bg-slate-100 rounded-lg overflow-hidden">
+              <div
+                className="h-full rounded-lg transition-all duration-500"
+                style={{
+                  width: `${(item.count / maxCount) * 100}%`,
+                  backgroundColor: visitSourceColors[item.source] || '#6366f1'
+                }}
+              />
+            </div>
+            <span className="text-sm font-medium text-slate-900 w-16 text-right">
+              {item.count.toLocaleString()}
+            </span>
+            <span className="text-xs text-slate-500 w-12 text-right">{item.percentage}%</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // 방문경로 파이 차트 렌더링
+  const renderVisitSourcePieChart = (data: VisitSourceData[]) => {
+    if (!data || data.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <PieChart className="w-12 h-12 text-slate-300 mb-3" />
+          <p className="text-sm text-slate-500">방문경로 데이터가 없습니다</p>
+        </div>
+      );
+    }
+
+    const total = data.reduce((sum, item) => sum + item.count, 0);
+
+    // conic-gradient 생성
+    let gradientParts: string[] = [];
+    let currentPercent = 0;
+
+    data.forEach((item) => {
+      const startPercent = currentPercent;
+      const endPercent = currentPercent + item.percentage;
+      const color = visitSourceColors[item.source] || '#6366f1';
+      gradientParts.push(`${color} ${startPercent}% ${endPercent}%`);
+      currentPercent = endPercent;
+    });
+
+    // 나머지 부분 채우기 (100%까지)
+    if (currentPercent < 100) {
+      gradientParts.push(`#e2e8f0 ${currentPercent}% 100%`);
+    }
+
+    return (
+      <div className="flex items-center gap-6">
+        <div
+          className="relative w-36 h-36 rounded-full shrink-0"
+          style={{
+            background: `conic-gradient(${gradientParts.join(', ')})`,
+          }}
+        >
+          <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center">
+            <div className="text-center">
+              <span className="text-lg font-bold text-slate-900">{total.toLocaleString()}</span>
+              <p className="text-[10px] text-slate-500">총 응답</p>
+            </div>
+          </div>
+        </div>
+        <div className="space-y-2 flex-1 min-w-0">
+          {data.slice(0, 5).map((item) => (
+            <div key={item.source} className="flex items-center gap-2">
+              <div
+                className="w-3 h-3 rounded-full shrink-0"
+                style={{ backgroundColor: visitSourceColors[item.source] || '#6366f1' }}
+              />
+              <span className="text-sm text-slate-600 truncate">{item.label}</span>
+              <span className="text-xs text-slate-500 ml-auto">{item.percentage}%</span>
+            </div>
+          ))}
+          {data.length > 5 && (
+            <p className="text-xs text-slate-400">외 {data.length - 5}개</p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // Loading skeleton
   const renderSkeleton = () => (
     <div className="animate-pulse space-y-6">
@@ -348,6 +482,29 @@ export default function FranchiseInsightsPage() {
                 </div>
                 <p className="text-sm text-slate-500 mb-4">전체 고객의 성별 비율을 보여줍니다</p>
                 {renderGenderPie()}
+              </div>
+            </div>
+
+            {/* Visit Source Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {/* Visit Source Pie Chart */}
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Compass className="w-5 h-5 text-emerald-600" />
+                  <h3 className="text-lg font-semibold text-slate-900">방문경로 분포</h3>
+                </div>
+                <p className="text-sm text-slate-500 mb-4">고객이 매장을 알게 된 경로입니다</p>
+                {renderVisitSourcePieChart(insights.visitSourceDistribution)}
+              </div>
+
+              {/* Visit Source Bar Chart */}
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart3 className="w-5 h-5 text-emerald-600" />
+                  <h3 className="text-lg font-semibold text-slate-900">방문경로별 고객 수</h3>
+                </div>
+                <p className="text-sm text-slate-500 mb-4">방문경로별 고객 수를 비교합니다</p>
+                {renderVisitSourceBarChart(insights.visitSourceDistribution)}
               </div>
             </div>
 
