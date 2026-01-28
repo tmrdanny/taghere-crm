@@ -1,38 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { Delete, Clock, Users, ChevronRight, Minus, Plus, Check, ListOrdered } from 'lucide-react';
+import { Delete, Clock, Users, ChevronRight, Minus, Plus, Check, ListOrdered, ZoomIn, ZoomOut, X } from 'lucide-react';
 import Image from 'next/image';
 
-// 기준 해상도 (1024x768 태블릿 기준)
-const BASE_WIDTH = 1024;
-const BASE_HEIGHT = 768;
-
-// 화면 크기에 맞춰 자동 스케일 계산 훅
-function useAutoScale() {
-  const [scale, setScale] = useState(1);
-
-  const calculateScale = useCallback(() => {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-
-    // 화면 비율에 맞춰 스케일 계산 (컨텐츠가 잘리지 않도록 작은 값 사용)
-    const scaleX = vw / BASE_WIDTH;
-    const scaleY = vh / BASE_HEIGHT;
-    const newScale = Math.min(scaleX, scaleY);
-
-    setScale(newScale);
-  }, []);
-
-  useEffect(() => {
-    calculateScale();
-    window.addEventListener('resize', calculateScale);
-    return () => window.removeEventListener('resize', calculateScale);
-  }, [calculateScale]);
-
-  return scale;
-}
+const ZOOM_STORAGE_KEY = 'tabletWaitingZoom';
 
 interface WaitingType {
   id: string;
@@ -95,7 +68,25 @@ export function TabletWaitingForm({
   const [registrationResult, setRegistrationResult] = useState<RegistrationResult | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
+  // 줌 관련 상태
+  const [zoom, setZoom] = useState(100);
+  const [showZoomPopup, setShowZoomPopup] = useState(false);
+
   const hiddenInputRef = useRef<HTMLInputElement>(null);
+
+  // 줌 설정 불러오기/저장
+  useEffect(() => {
+    const savedZoom = localStorage.getItem(ZOOM_STORAGE_KEY);
+    if (savedZoom) {
+      setZoom(parseInt(savedZoom, 10));
+    }
+  }, []);
+
+  const handleZoomChange = (newZoom: number) => {
+    const clampedZoom = Math.min(150, Math.max(50, newZoom));
+    setZoom(clampedZoom);
+    localStorage.setItem(ZOOM_STORAGE_KEY, clampedZoom.toString());
+  };
 
   // Auto focus hidden input for keyboard
   useEffect(() => {
@@ -221,20 +212,69 @@ export function TabletWaitingForm({
   const displayWaiting = selectedType ? selectedType.waitingCount : totalWaiting;
   const displayMinutes = selectedType ? selectedType.estimatedMinutes : estimatedMinutes;
 
-  // 화면 크기에 맞춰 자동 스케일
-  const scale = useAutoScale();
-
   return (
-    <div className={cn('h-screen w-screen overflow-hidden bg-[#1A1A1A]', className)}>
-      {/* 고정 크기 컨테이너 + 스케일 적용 */}
-      <div
-        className="flex origin-top-left"
-        style={{
-          width: `${BASE_WIDTH}px`,
-          height: `${BASE_HEIGHT}px`,
-          transform: `scale(${scale})`,
-        }}
-      >
+    <div
+      className={cn('h-screen w-screen overflow-hidden', className)}
+      style={{ zoom: `${zoom}%` }}
+    >
+      {/* 줌 조절 팝업 */}
+      {showZoomPopup && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowZoomPopup(false)}>
+          <div
+            className="bg-white rounded-2xl p-6 w-80 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-neutral-900">화면 크기 조절</h3>
+              <button
+                onClick={() => setShowZoomPopup(false)}
+                className="p-1 hover:bg-neutral-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-neutral-500" />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <button
+                onClick={() => handleZoomChange(zoom - 10)}
+                disabled={zoom <= 50}
+                className="w-12 h-12 rounded-xl bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ZoomOut className="w-6 h-6 text-neutral-700" />
+              </button>
+
+              <div className="text-3xl font-bold text-neutral-900 w-24 text-center">
+                {zoom}%
+              </div>
+
+              <button
+                onClick={() => handleZoomChange(zoom + 10)}
+                disabled={zoom >= 150}
+                className="w-12 h-12 rounded-xl bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ZoomIn className="w-6 h-6 text-neutral-700" />
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleZoomChange(100)}
+                className="flex-1 py-3 rounded-xl border border-neutral-200 text-neutral-700 font-medium hover:bg-neutral-50 transition-colors"
+              >
+                초기화
+              </button>
+              <button
+                onClick={() => setShowZoomPopup(false)}
+                className="flex-1 py-3 rounded-xl bg-[#1A1A1A] text-white font-medium hover:bg-neutral-800 transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="h-full w-full flex">
       {/* Hidden input for keyboard */}
       <input
         ref={hiddenInputRef}
@@ -278,15 +318,22 @@ export function TabletWaitingForm({
           </div>
         </div>
 
-        {/* TAG HERE Logo - Bottom */}
+        {/* TAG HERE Logo - Bottom (더블클릭으로 줌 조절) */}
         <div className="pb-8 px-8 flex justify-center">
-          <Image
-            src="/images/taghere_logo_w.png"
-            alt="TAG HERE"
-            width={120}
-            height={32}
-            className="opacity-80"
-          />
+          <button
+            type="button"
+            onDoubleClick={() => setShowZoomPopup(true)}
+            className="cursor-default focus:outline-none"
+            title="더블클릭하여 화면 크기 조절"
+          >
+            <Image
+              src="/images/taghere_logo_w.png"
+              alt="TAG HERE"
+              width={120}
+              height={32}
+              className="opacity-80"
+            />
+          </button>
         </div>
       </div>
 
