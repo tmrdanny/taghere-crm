@@ -5,29 +5,31 @@ import { cn } from '@/lib/utils';
 import { Delete, Clock, Users, ChevronRight, Minus, Plus, Check, ListOrdered } from 'lucide-react';
 import Image from 'next/image';
 
-// 화면 크기에 따른 zoom 계산 (작은 화면에서 축소)
-function useAutoZoom(minWidth = 1024, minHeight = 768) {
-  const [zoom, setZoom] = useState(1);
+// 화면 크기에 따른 스케일 계산 (화면을 꽉 채우면서 축소)
+function useAutoScale(baseWidth = 1024, baseHeight = 768) {
+  const [scale, setScale] = useState(1);
 
-  const calculateZoom = useCallback(() => {
+  const calculateScale = useCallback(() => {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    // 기준 크기보다 작으면 zoom out
-    const zoomX = vw / minWidth;
-    const zoomY = vh / minHeight;
-    const newZoom = Math.min(zoomX, zoomY, 1); // 최대 1 (확대하지 않음)
+    // 화면 비율과 기준 비율 비교하여 스케일 계산
+    const scaleX = vw / baseWidth;
+    const scaleY = vh / baseHeight;
 
-    setZoom(newZoom);
-  }, [minWidth, minHeight]);
+    // 화면을 꽉 채우기 위해 큰 값 사용 (잘리지 않게 작은 값 사용하되, 항상 꽉 참)
+    const newScale = Math.min(scaleX, scaleY);
+
+    setScale(newScale);
+  }, [baseWidth, baseHeight]);
 
   useEffect(() => {
-    calculateZoom();
-    window.addEventListener('resize', calculateZoom);
-    return () => window.removeEventListener('resize', calculateZoom);
-  }, [calculateZoom]);
+    calculateScale();
+    window.addEventListener('resize', calculateScale);
+    return () => window.removeEventListener('resize', calculateScale);
+  }, [calculateScale]);
 
-  return zoom;
+  return scale;
 }
 
 interface WaitingType {
@@ -217,14 +219,19 @@ export function TabletWaitingForm({
   const displayWaiting = selectedType ? selectedType.waitingCount : totalWaiting;
   const displayMinutes = selectedType ? selectedType.estimatedMinutes : estimatedMinutes;
 
-  // 화면이 작으면 자동으로 zoom out
-  const zoom = useAutoZoom(1024, 768);
+  // 화면 크기에 맞춰 자동 스케일 (항상 꽉 참)
+  const scale = useAutoScale(1024, 768);
 
   return (
-    <div
-      className={cn('h-screen w-screen flex', className)}
-      style={{ zoom }}
-    >
+    <div className={cn('h-screen w-screen overflow-hidden', className)}>
+      <div
+        className="flex origin-top-left"
+        style={{
+          width: '1024px',
+          height: '768px',
+          transform: `scale(${scale})`,
+        }}
+      >
       {/* Hidden input for keyboard */}
       <input
         ref={hiddenInputRef}
@@ -542,6 +549,7 @@ export function TabletWaitingForm({
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
