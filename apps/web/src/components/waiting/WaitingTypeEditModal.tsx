@@ -22,6 +22,7 @@ interface WaitingTypeEditModalProps {
     id?: string;
     name: string;
     avgWaitTimePerTeam: number;
+    maxPartySize: number;
     description: string | null;
     isActive: boolean;
   }) => Promise<void>;
@@ -43,6 +44,7 @@ export function WaitingTypeEditModal({
 }: WaitingTypeEditModalProps) {
   const [name, setName] = useState('');
   const [avgWaitTimePerTeam, setAvgWaitTimePerTeam] = useState(5);
+  const [maxPartySize, setMaxPartySize] = useState(20);
   const [description, setDescription] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -54,12 +56,14 @@ export function WaitingTypeEditModal({
     if (open && type) {
       setName(type.name);
       setAvgWaitTimePerTeam(type.avgWaitTimePerTeam);
+      setMaxPartySize(type.maxPartySize || 20);
       setDescription(type.description || '');
       setIsActive(type.isActive);
       setErrors({});
     } else if (open && !type) {
       setName('');
       setAvgWaitTimePerTeam(5);
+      setMaxPartySize(20);
       setDescription('');
       setIsActive(true);
       setErrors({});
@@ -77,6 +81,10 @@ export function WaitingTypeEditModal({
       newErrors.avgWaitTimePerTeam = '1~60분 사이로 입력해주세요.';
     }
 
+    if (maxPartySize < 1 || maxPartySize > 100) {
+      newErrors.maxPartySize = '1~100명 사이로 입력해주세요.';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -88,6 +96,7 @@ export function WaitingTypeEditModal({
       id: type?.id,
       name: name.trim(),
       avgWaitTimePerTeam,
+      maxPartySize,
       description: description.trim() || null,
       isActive,
     });
@@ -145,6 +154,28 @@ export function WaitingTypeEditModal({
             </div>
             {errors.avgWaitTimePerTeam && (
               <p className="text-xs text-error">{errors.avgWaitTimePerTeam}</p>
+            )}
+          </div>
+
+          {/* Max Party Size */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-neutral-900">
+              최대 인원 제한 <span className="text-error">*</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                value={maxPartySize}
+                onChange={(e) => setMaxPartySize(parseInt(e.target.value) || 1)}
+                className="w-24"
+              />
+              <span className="text-neutral-600">명</span>
+            </div>
+            <p className="text-xs text-neutral-500">고객이 이 인원 이상 선택할 수 없습니다.</p>
+            {errors.maxPartySize && (
+              <p className="text-xs text-error">{errors.maxPartySize}</p>
             )}
           </div>
 

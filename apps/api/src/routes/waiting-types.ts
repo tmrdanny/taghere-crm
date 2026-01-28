@@ -46,10 +46,14 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { name, description, avgWaitTimePerTeam } = req.body;
+    const { name, description, avgWaitTimePerTeam, maxPartySize } = req.body;
 
     if (!name || name.trim().length === 0) {
       return res.status(400).json({ error: '유형 이름을 입력해주세요.' });
+    }
+
+    if (!maxPartySize || maxPartySize < 1 || maxPartySize > 100) {
+      return res.status(400).json({ error: '최대 인원은 1~100명 사이로 입력해주세요.' });
     }
 
     const existingType = await (prisma as any).waitingType.findFirst({
@@ -71,6 +75,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         name: name.trim(),
         description: description || null,
         avgWaitTimePerTeam: avgWaitTimePerTeam || 5,
+        maxPartySize: maxPartySize,
         sortOrder: (maxSortOrder._max.sortOrder ?? -1) + 1,
         isActive: true,
       },
@@ -87,7 +92,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
     const { id } = req.params;
-    const { name, description, avgWaitTimePerTeam, isActive } = req.body;
+    const { name, description, avgWaitTimePerTeam, maxPartySize, isActive } = req.body;
 
     const existingType = await (prisma as any).waitingType.findFirst({
       where: { id, storeId },
@@ -107,10 +112,15 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
       }
     }
 
+    if (maxPartySize !== undefined && (maxPartySize < 1 || maxPartySize > 100)) {
+      return res.status(400).json({ error: '최대 인원은 1~100명 사이로 입력해주세요.' });
+    }
+
     const updateData: any = {};
     if (name !== undefined) updateData.name = name.trim();
     if (description !== undefined) updateData.description = description;
     if (avgWaitTimePerTeam !== undefined) updateData.avgWaitTimePerTeam = avgWaitTimePerTeam;
+    if (maxPartySize !== undefined) updateData.maxPartySize = maxPartySize;
     if (isActive !== undefined) updateData.isActive = isActive;
 
     const type = await (prisma as any).waitingType.update({

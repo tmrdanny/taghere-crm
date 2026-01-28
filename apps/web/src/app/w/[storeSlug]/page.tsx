@@ -18,6 +18,7 @@ interface WaitingType {
   name: string;
   description: string | null;
   avgWaitTimePerTeam: number;
+  maxPartySize?: number;
   waitingCount: number;
   estimatedMinutes: number;
 }

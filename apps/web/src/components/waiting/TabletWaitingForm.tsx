@@ -10,6 +10,7 @@ interface WaitingType {
   name: string;
   description?: string | null;
   avgWaitTimePerTeam: number;
+  maxPartySize?: number;
   waitingCount: number;
   estimatedMinutes: number;
 }
@@ -379,7 +380,7 @@ export function TabletWaitingForm({
               </h2>
 
               {/* Party Size Selector */}
-              <div className="flex items-center justify-center gap-6 mb-12">
+              <div className="flex items-center justify-center gap-6 mb-8">
                 <button
                   type="button"
                   onClick={() => setPartySize(Math.max(1, partySize - 1))}
@@ -394,13 +395,18 @@ export function TabletWaitingForm({
                 </div>
                 <button
                   type="button"
-                  onClick={() => setPartySize(Math.min(20, partySize + 1))}
-                  disabled={partySize >= 20}
+                  onClick={() => setPartySize(Math.min(selectedType?.maxPartySize || 20, partySize + 1))}
+                  disabled={partySize >= (selectedType?.maxPartySize || 20)}
                   className="w-16 h-16 rounded-xl border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   <Plus className="w-6 h-6" />
                 </button>
               </div>
+
+              {/* Max Party Size Info */}
+              <p className="text-sm text-neutral-500 mb-4">
+                최대 {selectedType?.maxPartySize || 20}명까지 선택 가능합니다
+              </p>
 
               {/* Marketing Consent */}
               <label className="flex items-center justify-center gap-3 mb-8 cursor-pointer">

@@ -51,6 +51,7 @@ router.get('/:storeSlug/info', async (req: Request, res: Response) => {
         name: true,
         description: true,
         avgWaitTimePerTeam: true,
+        maxPartySize: true,
       },
     });
 
@@ -109,6 +110,22 @@ router.post('/:storeSlug/register', async (req: Request, res: Response) => {
 
     if (!partySize || partySize < 1) {
       return res.status(400).json({ error: '인원 수를 입력해주세요.' });
+    }
+
+    // 웨이팅 유형의 최대 인원 제한 확인
+    const waitingType = await (prisma as any).waitingType.findUnique({
+      where: { id: waitingTypeId },
+      select: { maxPartySize: true, name: true },
+    });
+
+    if (!waitingType) {
+      return res.status(400).json({ error: '유효하지 않은 웨이팅 유형입니다.' });
+    }
+
+    if (partySize > waitingType.maxPartySize) {
+      return res.status(400).json({
+        error: `${waitingType.name}은(는) 최대 ${waitingType.maxPartySize}명까지 가능합니다.`
+      });
     }
 
     const normalizedPhone = phone.replace(/[^0-9]/g, '');

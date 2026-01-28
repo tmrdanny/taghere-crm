@@ -1055,6 +1055,7 @@ model WaitingType {
   name                String          // "홀 2인석", "홀 4인석", "포장" 등
   description         String?         // 설명 (선택)
   avgWaitTimePerTeam  Int             @default(5)  // 1팀당 예상 대기 시간 (분)
+  maxPartySize        Int             @default(20) // 최대 인원 제한
   sortOrder           Int             @default(0)  // 정렬 순서
   isActive            Boolean         @default(true)
 
