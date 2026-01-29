@@ -558,6 +558,23 @@ export function TabletWaitingForm({
               >
                 {isSubmitting ? '등록 중...' : '웨이팅 등록하기'}
               </button>
+
+              {/* Back Button */}
+              <div className="flex justify-end mt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!skipTypeSelection) {
+                      setStep('type');
+                    } else {
+                      setStep('phone');
+                    }
+                  }}
+                  className="px-6 py-3 text-neutral-500 hover:text-neutral-700 font-medium text-base transition-colors"
+                >
+                  뒤로가기
+                </button>
+              </div>
             </div>
           )}
 
