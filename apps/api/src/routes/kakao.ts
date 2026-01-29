@@ -824,13 +824,13 @@ async function handleStampCallback(
     let stampUsageRule: string;
 
     if (reward5 && reward10) {
-      stampUsageRule = `5개 모을 시: ${reward5}, 10개 모을 시: ${reward10}`;
+      stampUsageRule = `\n- 5개 모을 시: ${reward5}\n- 10개 모을 시: ${reward10}`;
     } else if (reward5) {
-      stampUsageRule = `5개 모을 시: ${reward5}`;
+      stampUsageRule = `\n- 5개 모을 시: ${reward5}`;
     } else if (reward10) {
-      stampUsageRule = `10개 모을 시: ${reward10}`;
+      stampUsageRule = `\n- 10개 모을 시: ${reward10}`;
     } else {
-      stampUsageRule = '10개 모을시 매장 선물 증정!';
+      stampUsageRule = `\n- 10개 모을시 매장 선물 증정!`;
     }
 
     // 리뷰 작성 안내 문구

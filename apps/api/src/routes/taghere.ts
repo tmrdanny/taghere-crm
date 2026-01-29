@@ -1164,17 +1164,13 @@ router.post('/stamp-earn', async (req, res) => {
       let stampUsageRule: string;
 
       if (reward5 && reward10) {
-        // 둘 다 있는 경우
-        stampUsageRule = `5개 모을 시: ${reward5}, 10개 모을 시: ${reward10}`;
+        stampUsageRule = `\n- 5개 모을 시: ${reward5}\n- 10개 모을 시: ${reward10}`;
       } else if (reward5) {
-        // 5개 보상만 있는 경우
-        stampUsageRule = `5개 모을 시: ${reward5}`;
+        stampUsageRule = `\n- 5개 모을 시: ${reward5}`;
       } else if (reward10) {
-        // 10개 보상만 있는 경우
-        stampUsageRule = `10개 모을 시: ${reward10}`;
+        stampUsageRule = `\n- 10개 모을 시: ${reward10}`;
       } else {
-        // 둘 다 없는 경우
-        stampUsageRule = '10개 모을시 매장 선물 증정!';
+        stampUsageRule = `\n- 10개 모을시 매장 선물 증정!`;
       }
 
       // 리뷰 작성 안내 문구
