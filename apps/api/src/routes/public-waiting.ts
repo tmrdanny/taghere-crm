@@ -51,6 +51,7 @@ router.get('/:storeSlug/info', async (req: Request, res: Response) => {
         name: true,
         description: true,
         avgWaitTimePerTeam: true,
+        minPartySize: true,
         maxPartySize: true,
       },
     });
