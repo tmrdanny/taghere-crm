@@ -618,6 +618,10 @@ async function handleStampCallback(
       const alreadyUrl = new URL(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug || ''}`);
       alreadyUrl.searchParams.set('error', 'already_participated');
       if (stateData.ordersheetId) alreadyUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
+      if (customer) alreadyUrl.searchParams.set('stamps', String(customer.totalStamps || 0));
+      alreadyUrl.searchParams.set('storeName', store.name);
+      if (store.stampSetting?.reward5Description) alreadyUrl.searchParams.set('reward5', store.stampSetting.reward5Description);
+      if (store.stampSetting?.reward10Description) alreadyUrl.searchParams.set('reward10', store.stampSetting.reward10Description);
       return res.redirect(alreadyUrl.toString());
     }
   }
@@ -639,6 +643,10 @@ async function handleStampCallback(
     if (todayEarn) {
       const alreadyUrl = new URL(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug || ''}`);
       alreadyUrl.searchParams.set('error', 'already_participated');
+      alreadyUrl.searchParams.set('stamps', String(customer.totalStamps || 0));
+      alreadyUrl.searchParams.set('storeName', store.name);
+      if (store.stampSetting?.reward5Description) alreadyUrl.searchParams.set('reward5', store.stampSetting.reward5Description);
+      if (store.stampSetting?.reward10Description) alreadyUrl.searchParams.set('reward10', store.stampSetting.reward10Description);
       return res.redirect(alreadyUrl.toString());
     }
   }

@@ -526,6 +526,7 @@ function TaghereEnrollStampContent() {
   const [isOpening, setIsOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAlreadyParticipated, setShowAlreadyParticipated] = useState(false);
+  const [alreadyParticipatedData, setAlreadyParticipatedData] = useState<{ stamps: number; storeName: string; reward5: string; reward10: string } | null>(null);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const [isAgreed, setIsAgreed] = useState(false);
   const [showAgreementWarning, setShowAgreementWarning] = useState(false);
@@ -606,6 +607,14 @@ function TaghereEnrollStampContent() {
           removeStoredKakaoId();
         } else if (data.error === 'already_earned_today' || data.error === 'already_earned') {
           // 오늘 이미 적립됨
+          if (data.currentStamps !== undefined) {
+            setAlreadyParticipatedData({
+              stamps: data.currentStamps,
+              storeName: data.storeName || storeData.storeName || '',
+              reward5: data.reward5Description || storeData.reward5Description || '',
+              reward10: data.reward10Description || storeData.reward10Description || '',
+            });
+          }
           setShowAlreadyParticipated(true);
           setStampInfo(null);
         }
@@ -641,6 +650,17 @@ function TaghereEnrollStampContent() {
     }
 
     if (urlError === 'already_participated') {
+      // URL에 스탬프 데이터가 있으면 저장 (stamp-success 이동용)
+      const urlStamps = searchParams.get('stamps');
+      const urlStoreName = searchParams.get('storeName');
+      if (urlStamps) {
+        setAlreadyParticipatedData({
+          stamps: parseInt(urlStamps),
+          storeName: urlStoreName || '',
+          reward5: reward5 || '',
+          reward10: reward10 || '',
+        });
+      }
       setShowAlreadyParticipated(true);
       setIsLoading(false);
       return;
@@ -912,7 +932,19 @@ function TaghereEnrollStampContent() {
               스탬프는 하루에 한 번만 적립 가능합니다.
             </p>
             <button
-              onClick={handleSkipEarn}
+              onClick={() => {
+                if (alreadyParticipatedData) {
+                  const url = new URL(window.location.origin + '/taghere-enroll-stamp/stamp-success');
+                  url.searchParams.set('slug', slug);
+                  url.searchParams.set('stamps', String(alreadyParticipatedData.stamps));
+                  url.searchParams.set('storeName', alreadyParticipatedData.storeName);
+                  if (alreadyParticipatedData.reward5) url.searchParams.set('reward5', alreadyParticipatedData.reward5);
+                  if (alreadyParticipatedData.reward10) url.searchParams.set('reward10', alreadyParticipatedData.reward10);
+                  window.location.href = url.toString();
+                } else {
+                  handleSkipEarn();
+                }
+              }}
               className="w-full py-3 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
             >
               확인
