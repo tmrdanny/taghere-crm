@@ -132,6 +132,7 @@ export default function WaitingSettingsPage() {
     id?: string;
     name: string;
     avgWaitTimePerTeam: number;
+    minPartySize: number;
     maxPartySize: number;
     description: string | null;
     isActive: boolean;
@@ -154,6 +155,7 @@ export default function WaitingSettingsPage() {
         body: JSON.stringify({
           name: data.name,
           avgWaitTimePerTeam: data.avgWaitTimePerTeam,
+          minPartySize: data.minPartySize,
           maxPartySize: data.maxPartySize,
           description: data.description,
           isActive: data.isActive,

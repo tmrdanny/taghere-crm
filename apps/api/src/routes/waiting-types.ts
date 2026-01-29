@@ -46,14 +46,22 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { name, description, avgWaitTimePerTeam, maxPartySize } = req.body;
+    const { name, description, avgWaitTimePerTeam, minPartySize, maxPartySize } = req.body;
 
     if (!name || name.trim().length === 0) {
       return res.status(400).json({ error: '유형 이름을 입력해주세요.' });
     }
 
+    if (minPartySize !== undefined && (minPartySize < 0 || minPartySize > 100)) {
+      return res.status(400).json({ error: '최소 인원은 0~100명 사이로 입력해주세요.' });
+    }
+
     if (!maxPartySize || maxPartySize < 1 || maxPartySize > 100) {
       return res.status(400).json({ error: '최대 인원은 1~100명 사이로 입력해주세요.' });
+    }
+
+    if (minPartySize && minPartySize > maxPartySize) {
+      return res.status(400).json({ error: '최소 인원은 최대 인원보다 클 수 없습니다.' });
     }
 
     const existingType = await (prisma as any).waitingType.findFirst({
@@ -75,6 +83,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         name: name.trim(),
         description: description || null,
         avgWaitTimePerTeam: avgWaitTimePerTeam || 5,
+        minPartySize: minPartySize ?? 0,
         maxPartySize: maxPartySize,
         sortOrder: (maxSortOrder._max.sortOrder ?? -1) + 1,
         isActive: true,
@@ -92,7 +101,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
     const { id } = req.params;
-    const { name, description, avgWaitTimePerTeam, maxPartySize, isActive } = req.body;
+    const { name, description, avgWaitTimePerTeam, minPartySize, maxPartySize, isActive } = req.body;
 
     const existingType = await (prisma as any).waitingType.findFirst({
       where: { id, storeId },
@@ -112,14 +121,25 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
       }
     }
 
+    if (minPartySize !== undefined && (minPartySize < 0 || minPartySize > 100)) {
+      return res.status(400).json({ error: '최소 인원은 0~100명 사이로 입력해주세요.' });
+    }
+
     if (maxPartySize !== undefined && (maxPartySize < 1 || maxPartySize > 100)) {
       return res.status(400).json({ error: '최대 인원은 1~100명 사이로 입력해주세요.' });
+    }
+
+    const effectiveMin = minPartySize ?? existingType.minPartySize ?? 0;
+    const effectiveMax = maxPartySize ?? existingType.maxPartySize;
+    if (effectiveMin > 0 && effectiveMin > effectiveMax) {
+      return res.status(400).json({ error: '최소 인원은 최대 인원보다 클 수 없습니다.' });
     }
 
     const updateData: any = {};
     if (name !== undefined) updateData.name = name.trim();
     if (description !== undefined) updateData.description = description;
     if (avgWaitTimePerTeam !== undefined) updateData.avgWaitTimePerTeam = avgWaitTimePerTeam;
+    if (minPartySize !== undefined) updateData.minPartySize = minPartySize;
     if (maxPartySize !== undefined) updateData.maxPartySize = maxPartySize;
     if (isActive !== undefined) updateData.isActive = isActive;
 

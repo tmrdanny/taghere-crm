@@ -22,6 +22,7 @@ interface WaitingTypeEditModalProps {
     id?: string;
     name: string;
     avgWaitTimePerTeam: number;
+    minPartySize: number;
     maxPartySize: number;
     description: string | null;
     isActive: boolean;
@@ -44,6 +45,7 @@ export function WaitingTypeEditModal({
 }: WaitingTypeEditModalProps) {
   const [name, setName] = useState('');
   const [avgWaitTimePerTeam, setAvgWaitTimePerTeam] = useState(5);
+  const [minPartySize, setMinPartySize] = useState(0);
   const [maxPartySize, setMaxPartySize] = useState(20);
   const [description, setDescription] = useState('');
   const [isActive, setIsActive] = useState(true);
@@ -56,6 +58,7 @@ export function WaitingTypeEditModal({
     if (open && type) {
       setName(type.name);
       setAvgWaitTimePerTeam(type.avgWaitTimePerTeam);
+      setMinPartySize(type.minPartySize ?? 0);
       setMaxPartySize(type.maxPartySize || 20);
       setDescription(type.description || '');
       setIsActive(type.isActive);
@@ -63,6 +66,7 @@ export function WaitingTypeEditModal({
     } else if (open && !type) {
       setName('');
       setAvgWaitTimePerTeam(5);
+      setMinPartySize(0);
       setMaxPartySize(20);
       setDescription('');
       setIsActive(true);
@@ -81,8 +85,16 @@ export function WaitingTypeEditModal({
       newErrors.avgWaitTimePerTeam = '1~60분 사이로 입력해주세요.';
     }
 
+    if (minPartySize < 0 || minPartySize > 100) {
+      newErrors.minPartySize = '0~100명 사이로 입력해주세요.';
+    }
+
     if (maxPartySize < 1 || maxPartySize > 100) {
       newErrors.maxPartySize = '1~100명 사이로 입력해주세요.';
+    }
+
+    if (minPartySize > 0 && minPartySize > maxPartySize) {
+      newErrors.minPartySize = '최소 인원은 최대 인원보다 클 수 없습니다.';
     }
 
     setErrors(newErrors);
@@ -96,6 +108,7 @@ export function WaitingTypeEditModal({
       id: type?.id,
       name: name.trim(),
       avgWaitTimePerTeam,
+      minPartySize,
       maxPartySize,
       description: description.trim() || null,
       isActive,
@@ -154,6 +167,28 @@ export function WaitingTypeEditModal({
             </div>
             {errors.avgWaitTimePerTeam && (
               <p className="text-xs text-error">{errors.avgWaitTimePerTeam}</p>
+            )}
+          </div>
+
+          {/* Min Party Size */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-neutral-900">
+              최소 인원 제한
+            </label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={minPartySize}
+                onChange={(e) => setMinPartySize(parseInt(e.target.value) || 0)}
+                className="w-24"
+              />
+              <span className="text-neutral-600">명</span>
+            </div>
+            <p className="text-xs text-neutral-500">0이면 제한 없음. 고객이 이 인원 미만으로 선택할 수 없습니다.</p>
+            {errors.minPartySize && (
+              <p className="text-xs text-error">{errors.minPartySize}</p>
             )}
           </div>
 

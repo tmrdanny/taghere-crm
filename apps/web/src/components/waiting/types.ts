@@ -10,6 +10,7 @@ export interface WaitingType {
   name: string;
   description?: string | null;
   avgWaitTimePerTeam: number;
+  minPartySize: number;
   maxPartySize: number;
   sortOrder: number;
   isActive: boolean;
