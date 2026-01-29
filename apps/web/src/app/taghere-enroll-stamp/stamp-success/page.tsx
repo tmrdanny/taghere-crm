@@ -102,9 +102,13 @@ function StampSuccessContent() {
   const storeName = searchParams.get('storeName') || '';
   const reward5 = searchParams.get('reward5') || '';
   const reward10 = searchParams.get('reward10') || '';
+  const ordersheetId = searchParams.get('ordersheetId');
+  const hasOrder = Boolean(ordersheetId);
 
   // stamps can exceed 10; show modulo position within current card of 10
   const displayStamps = stamps % 10 || (stamps > 0 && stamps % 10 === 0 ? 10 : 0);
+
+  const [menuLink, setMenuLink] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -119,8 +123,35 @@ function StampSuccessContent() {
     if (slug) fetchBanners();
   }, [slug]);
 
+  // ordersheetId가 있으면 메뉴판 링크 조회
+  useEffect(() => {
+    if (!ordersheetId || !slug) return;
+    const fetchMenuLink = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${apiUrl}/api/taghere/ordersheet?ordersheetId=${ordersheetId}&slug=${slug}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.menuLink) setMenuLink(data.menuLink);
+        }
+      } catch (e) {
+        console.error('Failed to fetch menu link:', e);
+      }
+    };
+    fetchMenuLink();
+  }, [ordersheetId, slug]);
+
   const handleConfirm = () => {
-    window.history.back();
+    if (hasOrder && menuLink) {
+      // ordersheetId 있고 메뉴링크 있으면 메뉴판으로
+      window.location.href = menuLink;
+    } else if (hasOrder) {
+      // ordersheetId 있지만 메뉴링크 없으면 뒤로가기
+      window.history.back();
+    } else {
+      // ordersheetId 없으면 스탬프 적립 초기 화면으로
+      window.location.href = `/taghere-enroll-stamp/${slug}`;
+    }
   };
 
   return (
@@ -228,7 +259,7 @@ function StampSuccessContent() {
             onClick={handleConfirm}
             className="w-full py-4 bg-[#FFD541] text-[#1d2022] font-semibold text-base rounded-[10px]"
           >
-            확인
+            {hasOrder ? '메뉴판 돌아가기' : '확인'}
           </button>
         </div>
       </div>

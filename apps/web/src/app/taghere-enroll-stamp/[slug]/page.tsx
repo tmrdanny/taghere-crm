@@ -746,6 +746,7 @@ function TaghereEnrollStampContent() {
     // 스탬프 누적 현황 페이지로 이동
     const url = new URL(window.location.origin + '/taghere-enroll-stamp/stamp-success');
     url.searchParams.set('slug', slug);
+    if (ordersheetId) url.searchParams.set('ordersheetId', ordersheetId);
     if (successData) {
       url.searchParams.set('stamps', String(successData.currentStamps || 0));
       url.searchParams.set('storeName', successData.storeName || '');
