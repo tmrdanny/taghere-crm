@@ -237,6 +237,48 @@ function SuccessPopup({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string>>({});
+  const [showSurveyModal, setShowSurveyModal] = useState(false);
+  const [surveySubmitted, setSurveySubmitted] = useState(false);
+
+  // 설문 팝업: surveyQuestions가 있고 아직 제출/스킵 안 했으면 표시
+  useEffect(() => {
+    if (surveyQuestions.length > 0 && !surveySubmitted) {
+      setShowSurveyModal(true);
+    }
+  }, [surveyQuestions, surveySubmitted]);
+
+  const handleSurveySubmit = async () => {
+    const answersToSubmit = Object.entries(surveyAnswers)
+      .filter(([, value]) => value)
+      .map(([questionId, value]) => ({
+        questionId,
+        valueDate: value,
+      }));
+
+    if (answersToSubmit.length > 0 && successData?.customerId) {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        await fetch(`${apiUrl}/api/taghere/survey-answers`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId: successData.customerId,
+            answers: answersToSubmit,
+          }),
+        });
+      } catch (error) {
+        console.error('Survey submit error:', error);
+      }
+    }
+
+    setSurveySubmitted(true);
+    setShowSurveyModal(false);
+  };
+
+  const handleSurveySkip = () => {
+    setSurveySubmitted(true);
+    setShowSurveyModal(false);
+  };
 
   const toggleCategory = (categoryValue: string) => {
     setSelectedCategories(prev => {
@@ -314,25 +356,6 @@ function SuccessPopup({
         });
       }
 
-      // 설문 응답 저장
-      const answersToSubmit = Object.entries(surveyAnswers)
-        .filter(([, value]) => value)
-        .map(([questionId, value]) => ({
-          questionId,
-          valueDate: value,
-        }));
-
-      if (answersToSubmit.length > 0) {
-        await fetch(`${apiUrl}/api/taghere/survey-answers`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerId: successData.customerId,
-            answers: answersToSubmit,
-          }),
-        });
-      }
-
       // 제출 완료 후 팝업 닫기
       onClose();
     } catch (error) {
@@ -399,39 +422,6 @@ function SuccessPopup({
                     </button>
                   );
                 })}
-              </div>
-            </div>
-          )}
-
-          {/* Survey Questions - 날짜 타입 질문 */}
-          {surveyQuestions.length > 0 && (
-            <div className="mb-4 mt-5">
-              <p className="text-[15px] font-semibold text-neutral-900 mb-1.5 text-center">
-                추가 정보를 알려주세요
-              </p>
-              <p className="text-[13px] text-neutral-500 mb-3 text-center">
-                특별한 날에 혜택을 보내드릴게요
-              </p>
-              <div className="space-y-3">
-                {surveyQuestions.map((q) => (
-                  <div key={q.id} className="flex flex-col gap-1.5">
-                    <label className="text-[14px] font-medium text-neutral-700">
-                      {q.label}
-                      {q.required && <span className="text-red-400 ml-0.5">*</span>}
-                    </label>
-                    {q.description && (
-                      <p className="text-[12px] text-neutral-400">{q.description}</p>
-                    )}
-                    <input
-                      type="date"
-                      value={surveyAnswers[q.id] || ''}
-                      onChange={(e) =>
-                        setSurveyAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
-                      }
-                      className="w-full px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
-                    />
-                  </div>
-                ))}
               </div>
             </div>
           )}
@@ -557,6 +547,56 @@ function SuccessPopup({
 
           {/* Spacer to push buttons to bottom */}
           <div className="flex-1 min-h-[12px]"></div>
+
+          {/* Survey Modal */}
+          {showSurveyModal && surveyQuestions.length > 0 && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-5">
+              <div className="bg-white rounded-2xl w-full max-w-[390px] shadow-xl overflow-hidden">
+                <div className="px-5 py-6">
+                  <p className="text-[18px] font-bold text-neutral-900 mb-1 text-center">
+                    추가 정보를 알려주세요
+                  </p>
+                  <p className="text-[13px] text-neutral-500 mb-5 text-center">
+                    특별한 날에 혜택을 보내드릴게요
+                  </p>
+                  <div className="space-y-3 mb-6">
+                    {surveyQuestions.map((q) => (
+                      <div key={q.id} className="flex flex-col gap-1.5">
+                        <label className="text-[14px] font-medium text-neutral-700">
+                          {q.label}
+                        </label>
+                        {q.description && (
+                          <p className="text-[12px] text-neutral-400">{q.description}</p>
+                        )}
+                        <input
+                          type="date"
+                          value={surveyAnswers[q.id] || ''}
+                          onChange={(e) =>
+                            setSurveyAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
+                          }
+                          className="w-full px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleSurveySkip}
+                      className="flex-1 py-3.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-semibold text-[15px] rounded-xl transition-colors"
+                    >
+                      다음에 할래요
+                    </button>
+                    <button
+                      onClick={handleSurveySubmit}
+                      className="flex-1 py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-[15px] rounded-xl transition-colors"
+                    >
+                      제출하기
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Buttons */}
           <div className="flex gap-3 pb-2">
