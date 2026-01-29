@@ -1009,30 +1009,30 @@ router.post('/stamp-earn', async (req, res) => {
       console.log(`[TagHere Stamp-Earn] New customer created - customerId: ${customer.id}, storeId: ${store.id}`);
     }
 
-    // 6. 일일 적립 제한 확인 (1일 1회) - [DEV] 테스트를 위해 비활성화. 배포 시 주석 해제 필요
+    // 6. 일일 적립 제한 확인 (1일 1회)
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    // const todayEarn = await prisma.stampLedger.findFirst({
-    //   where: {
-    //     storeId: store.id,
-    //     customerId: customer.id,
-    //     type: 'EARN',
-    //     createdAt: { gte: todayStart },
-    //   },
-    // });
+    const todayEarn = await prisma.stampLedger.findFirst({
+      where: {
+        storeId: store.id,
+        customerId: customer.id,
+        type: 'EARN',
+        createdAt: { gte: todayStart },
+      },
+    });
 
-    // if (todayEarn) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     error: 'already_earned_today',
-    //     message: '오늘 이미 스탬프를 적립했습니다.',
-    //     alreadyEarned: true,
-    //     currentStamps: customer.totalStamps,
-    //     reward5Description: store.stampSetting.reward5Description,
-    //     reward10Description: store.stampSetting.reward10Description,
-    //   });
-    // }
+    if (todayEarn) {
+      return res.status(400).json({
+        success: false,
+        error: 'already_earned_today',
+        message: '오늘 이미 스탬프를 적립했습니다.',
+        alreadyEarned: true,
+        currentStamps: customer.totalStamps,
+        reward5Description: store.stampSetting.reward5Description,
+        reward10Description: store.stampSetting.reward10Description,
+      });
+    }
 
     // 7. 태그히어 연동 시 중복 체크
     if (ordersheetId) {
