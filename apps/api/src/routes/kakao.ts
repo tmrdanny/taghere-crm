@@ -610,6 +610,7 @@ async function handleStampCallback(
   if (stateData.ordersheetId) {
     const existingEarn = await prisma.stampLedger.findFirst({
       where: {
+        storeId: store.id,
         ordersheetId: stateData.ordersheetId,
       },
     });
