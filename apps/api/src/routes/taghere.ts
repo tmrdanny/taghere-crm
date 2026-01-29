@@ -1251,6 +1251,88 @@ router.get('/visit-source-options/:slug', async (req, res) => {
   }
 });
 
+// GET /api/taghere/survey-questions/:slug - 매장의 활성 설문 질문 목록 (공개)
+router.get('/survey-questions/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const store = await prisma.store.findFirst({
+      where: { slug },
+      select: { id: true },
+    });
+
+    if (!store) {
+      return res.json({ questions: [] });
+    }
+
+    const questions = await prisma.surveyQuestion.findMany({
+      where: { storeId: store.id, enabled: true },
+      orderBy: { order: 'asc' },
+      select: {
+        id: true,
+        type: true,
+        label: true,
+        description: true,
+        required: true,
+      },
+    });
+
+    res.json({ questions });
+  } catch (error: any) {
+    console.error('[TagHere] Survey questions error:', error);
+    res.status(500).json({ error: '설문 질문 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/taghere/survey-answers - 설문 답변 저장 (공개)
+router.post('/survey-answers', async (req, res) => {
+  try {
+    const { customerId, answers } = req.body;
+
+    if (!customerId || !Array.isArray(answers) || answers.length === 0) {
+      return res.status(400).json({ error: '고객 ID와 답변이 필요합니다.' });
+    }
+
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { id: true, storeId: true },
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
+    }
+
+    for (const answer of answers) {
+      if (!answer.questionId) continue;
+
+      await prisma.surveyAnswer.upsert({
+        where: {
+          questionId_customerId: {
+            questionId: answer.questionId,
+            customerId,
+          },
+        },
+        create: {
+          questionId: answer.questionId,
+          customerId,
+          storeId: customer.storeId,
+          valueDate: answer.valueDate ? new Date(answer.valueDate) : null,
+          valueText: answer.valueText || null,
+        },
+        update: {
+          valueDate: answer.valueDate ? new Date(answer.valueDate) : null,
+          valueText: answer.valueText || null,
+        },
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[TagHere] Survey answers save error:', error);
+    res.status(500).json({ error: '설문 답변 저장 중 오류가 발생했습니다.' });
+  }
+});
+
 // GET /api/taghere/order-details - 주문 상세 정보 조회 (태그히어 모바일오더 API 호출)
 // 모든 매장의 성공 페이지에서 사용
 router.get('/order-details', async (req, res) => {

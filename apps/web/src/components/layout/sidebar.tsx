@@ -29,6 +29,7 @@ import {
   MapPin,
   BarChart3,
   ShoppingBag,
+  ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -92,6 +93,7 @@ const navGroups: NavGroup[] = [
       { href: '/customers', label: '고객 리스트', icon: Users },
       { href: '/feedback', label: '고객 피드백', icon: MessageSquare },
       { href: '/visit-source', label: '방문 경로', icon: MapPin, isNew: true },
+      { href: '/survey', label: '고객 설문', icon: ClipboardList, isNew: true },
     ],
   },
   {

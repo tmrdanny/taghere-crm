@@ -58,6 +58,7 @@ import insightsRoutes from './routes/insights.js';
 import retargetCouponRoutes from './routes/retarget-coupon.js';
 import storeProductsRoutes from './routes/store-products.js';
 import storeOrdersRoutes from './routes/store-orders.js';
+import surveyQuestionsRoutes from './routes/survey-questions.js';
 import { startAlimTalkWorker } from './services/alimtalk-worker.js';
 import { startSmsWorker } from './services/sms-worker.js';
 import { startExternalSmsWorker } from './services/external-sms-worker.js';
@@ -251,6 +252,7 @@ app.use('/api/retarget-coupon', retargetCouponRoutes);
 // Store routes
 app.use('/api/store-products', storeProductsRoutes);
 app.use('/api/store-orders', storeOrdersRoutes);
+app.use('/api/survey-questions', surveyQuestionsRoutes);
 
 // Franchise routes
 app.use('/api/franchise/auth', franchiseAuthRoutes);

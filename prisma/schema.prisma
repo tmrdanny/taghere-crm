@@ -76,6 +76,10 @@ model Store {
   // 스토어 주문
   storeOrders           StoreOrder[]
 
+  // 고객 설문
+  surveyQuestions       SurveyQuestion[]
+  surveyAnswers         SurveyAnswer[]
+
   @@index([franchiseId])
   @@map("stores")
 }
@@ -196,6 +200,7 @@ model Customer {
   franchiseSmsMessages FranchiseSmsMessage[]
   waitingList       WaitingList[]
   retargetCoupons   RetargetCoupon[]
+  surveyAnswers     SurveyAnswer[]
 
   @@unique([storeId, kakaoId])  // 매장별 카카오ID 유니크 (null 허용)
   // naverId 유니크 제약조건 제거 - null인 경우가 많아 부분 인덱스로 처리
@@ -1413,4 +1418,56 @@ model ExternalRevenue {
   @@index([revenueDate])
   @@index([createdAt])
   @@map("external_revenues")
+}
+
+// ============================================
+// 고객 설문
+// ============================================
+
+enum SurveyQuestionType {
+  DATE
+}
+
+model SurveyQuestion {
+  id          String             @id @default(cuid())
+  storeId     String
+  type        SurveyQuestionType
+  label       String             // 질문 텍스트
+  description String?            // 보조 설명
+  enabled     Boolean            @default(true)
+  required    Boolean            @default(false)
+  order       Int                @default(0)
+  dateConfig  Json?              // { autoSendEnabled, autoSendDaysBefore, autoSendTemplateId }
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store       Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  answers     SurveyAnswer[]
+
+  @@index([storeId, enabled])
+  @@map("survey_questions")
+}
+
+model SurveyAnswer {
+  id          String   @id @default(cuid())
+  questionId  String
+  customerId  String
+  storeId     String
+  valueDate   DateTime?
+  valueText   String?
+  valueJson   Json?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  question    SurveyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  customer    Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  store       Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, customerId])
+  @@index([storeId, questionId])
+  @@index([customerId])
+  @@index([valueDate])
+  @@map("survey_answers")
 }

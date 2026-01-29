@@ -36,6 +36,13 @@ interface Customer {
   isNew: boolean;
   visitSource: string | null;  // 방문 경로
   lastTableLabel: string | null;  // 마지막 방문 좌석
+  surveyAnswers: Array<{
+    questionId: string;
+    label: string;
+    type: string;
+    valueDate: string | null;
+    valueText: string | null;
+  }>;
 }
 
 interface PointLedgerEntry {
@@ -256,6 +263,9 @@ export default function CustomersPage() {
   // 방문 경로 라벨 맵
   const [visitSourceLabelMap, setVisitSourceLabelMap] = useState<Record<string, string>>({});
 
+  // 설문 질문 목록 (컬럼 헤더용)
+  const [surveyQuestionLabels, setSurveyQuestionLabels] = useState<Array<{ id: string; label: string }>>([]);
+
   const apiUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000', []);
   const userRole = 'OWNER';
 
@@ -324,6 +334,23 @@ export default function CustomersPage() {
     };
 
     fetchVisitSourceSettings();
+
+    // 설문 질문 목록 조회 (컬럼 헤더용)
+    const fetchSurveyQuestions = async () => {
+      try {
+        const token = getAuthToken();
+        const res = await fetch(`${apiUrl}/api/survey-questions`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSurveyQuestionLabels(data.map((q: { id: string; label: string }) => ({ id: q.id, label: q.label })));
+        }
+      } catch (error) {
+        console.error('Failed to fetch survey questions:', error);
+      }
+    };
+    fetchSurveyQuestions();
   }, [apiUrl]);
 
   // Ref to track if component is mounted
@@ -1341,6 +1368,11 @@ export default function CustomersPage() {
                     방문 횟수
                   </th>
                 )}
+                {surveyQuestionLabels.map((sq) => (
+                  <th key={sq.id} className="p-4 text-left text-sm font-medium text-neutral-600">
+                    {sq.label}
+                  </th>
+                ))}
                 {isColumnVisible('actions') && (
                   <th className="p-4 text-left text-sm font-medium text-neutral-600">
                     액션
@@ -1467,6 +1499,18 @@ export default function CustomersPage() {
                           </div>
                         </td>
                       )}
+                      {surveyQuestionLabels.map((sq) => {
+                        const answer = customer.surveyAnswers?.find((a) => a.questionId === sq.id);
+                        return (
+                          <td key={sq.id} className="p-4">
+                            <span className="text-neutral-600 text-sm">
+                              {answer?.valueDate
+                                ? new Date(answer.valueDate).toLocaleDateString('ko-KR')
+                                : answer?.valueText || '-'}
+                            </span>
+                          </td>
+                        );
+                      })}
                       {isColumnVisible('actions') && (
                         <td className="p-4" onClick={(e) => e.stopPropagation()}>
                           <div className="flex flex-col gap-2">

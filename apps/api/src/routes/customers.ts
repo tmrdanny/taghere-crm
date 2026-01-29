@@ -232,6 +232,29 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       console.log(`[Customers] tableLabelsMap 샘플:`, JSON.stringify(entries, null, 2));
     }
 
+    // Survey answers 조회
+    const surveyAnswers = await prisma.surveyAnswer.findMany({
+      where: {
+        storeId,
+        customerId: { in: customerIds },
+      },
+      include: {
+        question: { select: { id: true, label: true, type: true } },
+      },
+    });
+    const surveyAnswerMap = new Map<string, Array<{ questionId: string; label: string; type: string; valueDate: Date | null; valueText: string | null }>>();
+    for (const answer of surveyAnswers) {
+      const existing = surveyAnswerMap.get(answer.customerId) || [];
+      existing.push({
+        questionId: answer.questionId,
+        label: answer.question.label,
+        type: answer.question.type,
+        valueDate: answer.valueDate,
+        valueText: answer.valueText,
+      });
+      surveyAnswerMap.set(answer.customerId, existing);
+    }
+
     // Determine VIP status and add message count
     const customersWithVip = customers.map((customer) => ({
       ...customer,
@@ -239,6 +262,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       isNew: customer.visitCount <= 1,
       messageCount: messageCountMap.get(customer.id) || 0,
       lastTableLabel: tableLabelsMap.get(customer.id) || null,
+      surveyAnswers: surveyAnswerMap.get(customer.id) || [],
     }));
 
     res.json({

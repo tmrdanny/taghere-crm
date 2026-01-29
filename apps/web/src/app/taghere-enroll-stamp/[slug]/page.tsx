@@ -136,6 +136,14 @@ interface SuccessData {
   reward10Description: string | null;
 }
 
+interface SurveyQuestion {
+  id: string;
+  type: 'DATE';
+  label: string;
+  description: string | null;
+  required: boolean;
+}
+
 function StarRating({ rating, onRatingChange }: { rating: number; onRatingChange: (rating: number) => void }) {
   return (
     <div className="flex gap-3 justify-center">
@@ -214,11 +222,13 @@ function SuccessPopup({
   onClose,
   visitSourceOptions,
   visitSourceEnabled,
+  surveyQuestions,
 }: {
   successData: SuccessData;
   onClose: () => void;
   visitSourceOptions: VisitSourceOption[];
   visitSourceEnabled: boolean;
+  surveyQuestions: SurveyQuestion[];
 }) {
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackText, setFeedbackText] = useState('');
@@ -226,6 +236,7 @@ function SuccessPopup({
   const [selectedVisitSource, setSelectedVisitSource] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
+  const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string>>({});
 
   const toggleCategory = (categoryValue: string) => {
     setSelectedCategories(prev => {
@@ -303,6 +314,25 @@ function SuccessPopup({
         });
       }
 
+      // 설문 응답 저장
+      const answersToSubmit = Object.entries(surveyAnswers)
+        .filter(([, value]) => value)
+        .map(([questionId, value]) => ({
+          questionId,
+          valueDate: value,
+        }));
+
+      if (answersToSubmit.length > 0) {
+        await fetch(`${apiUrl}/api/taghere/survey-answers`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId: successData.customerId,
+            answers: answersToSubmit,
+          }),
+        });
+      }
+
       // 제출 완료 후 팝업 닫기
       onClose();
     } catch (error) {
@@ -369,6 +399,39 @@ function SuccessPopup({
                     </button>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* Survey Questions - 날짜 타입 질문 */}
+          {surveyQuestions.length > 0 && (
+            <div className="mb-4 mt-5">
+              <p className="text-[15px] font-semibold text-neutral-900 mb-1.5 text-center">
+                추가 정보를 알려주세요
+              </p>
+              <p className="text-[13px] text-neutral-500 mb-3 text-center">
+                특별한 날에 혜택을 보내드릴게요
+              </p>
+              <div className="space-y-3">
+                {surveyQuestions.map((q) => (
+                  <div key={q.id} className="flex flex-col gap-1.5">
+                    <label className="text-[14px] font-medium text-neutral-700">
+                      {q.label}
+                      {q.required && <span className="text-red-400 ml-0.5">*</span>}
+                    </label>
+                    {q.description && (
+                      <p className="text-[12px] text-neutral-400">{q.description}</p>
+                    )}
+                    <input
+                      type="date"
+                      value={surveyAnswers[q.id] || ''}
+                      onChange={(e) =>
+                        setSurveyAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
+                      }
+                      className="w-full px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -534,6 +597,7 @@ function TaghereEnrollStampContent() {
   const autoEarnAttemptedRef = useRef(false);
   const [visitSourceOptions, setVisitSourceOptions] = useState<VisitSourceOption[]>([]);
   const [visitSourceEnabled, setVisitSourceEnabled] = useState(false);
+  const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[]>([]);
 
   const slug = params.slug as string;
   const ordersheetId = searchParams.get('ordersheetId');
@@ -565,8 +629,22 @@ function TaghereEnrollStampContent() {
       }
     };
 
+    const fetchSurveyQuestions = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${apiUrl}/api/taghere/survey-questions/${slug}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSurveyQuestions(data);
+        }
+      } catch (e) {
+        console.error('Failed to fetch survey questions:', e);
+      }
+    };
+
     if (slug) {
       fetchVisitSourceOptions();
+      fetchSurveyQuestions();
     }
   }, [slug]);
 
@@ -812,6 +890,7 @@ function TaghereEnrollStampContent() {
           onClose={handleCloseSuccessPopup}
           visitSourceOptions={visitSourceOptions}
           visitSourceEnabled={visitSourceEnabled}
+          surveyQuestions={surveyQuestions}
         />
       ) : (
         // 스탬프 적립 전 → 기본 화면만 표시
