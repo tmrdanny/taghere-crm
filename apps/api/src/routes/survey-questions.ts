@@ -20,7 +20,7 @@ router.get('/', async (req: AuthRequest, res) => {
       },
     });
 
-    res.json({ questions });
+    res.json(questions);
   } catch (error) {
     console.error('Get survey questions error:', error);
     res.status(500).json({ error: '설문 질문 조회 중 오류가 발생했습니다.' });
