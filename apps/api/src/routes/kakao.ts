@@ -751,22 +751,7 @@ async function handleStampCallback(
     }
   }
 
-  // 오늘 첫 방문인지 확인 (방문횟수 증가용)
-  const stampTodayStart = new Date();
-  stampTodayStart.setHours(0, 0, 0, 0);
-  const stampTodayEnd = new Date();
-  stampTodayEnd.setHours(23, 59, 59, 999);
-
-  const todayVisit = await prisma.visitOrOrder.findFirst({
-    where: {
-      customerId: customer!.id,
-      storeId: store!.id,
-      visitedAt: { gte: stampTodayStart, lte: stampTodayEnd },
-    },
-  });
-  const isFirstVisitToday = !todayVisit;
-
-  // 스탬프 적립 (트랜잭션)
+  // 스탬프 적립 (트랜잭션) - 스탬프 적립 시 무조건 방문횟수 +1
   const result = await prisma.$transaction(async (tx) => {
     const newBalance = customer!.totalStamps + 1;
 
@@ -776,7 +761,7 @@ async function handleStampCallback(
       data: {
         totalStamps: newBalance,
         lastVisitAt: new Date(),
-        ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
+        visitCount: { increment: 1 },
       },
     });
 
