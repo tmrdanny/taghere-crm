@@ -789,6 +789,7 @@ async function handleStampCallback(
 
   // Check if customer already has preferredCategories
   const hasPreferences = !!(customer as any).preferredCategories;
+  const hasVisitSource = !!(customer as any).visitSource;
 
   // Redirect back to stamp enroll page with success data
   const successUrl = new URL(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug || ''}`);
@@ -797,6 +798,7 @@ async function handleStampCallback(
   successUrl.searchParams.set('customerId', customer.id);
   successUrl.searchParams.set('kakaoId', kakaoId);
   successUrl.searchParams.set('hasPreferences', hasPreferences.toString());
+  successUrl.searchParams.set('hasVisitSource', hasVisitSource.toString());
   if (store.stampSetting?.reward5Description) {
     successUrl.searchParams.set('reward5', store.stampSetting.reward5Description);
   }
@@ -812,29 +814,29 @@ async function handleStampCallback(
 
 // GET /auth/kakao/taghere-callback - TagHere 전용 카카오 로그인 콜백
 router.get('/taghere-callback', async (req, res) => {
-  try {
-    const { code, state, error, error_description } = req.query;
+  // state를 try 바깥에서 파싱하여 catch에서도 접근 가능하도록
+  const { code, state, error: oauthError, error_description } = req.query;
 
-    if (error) {
-      console.error('Kakao OAuth error:', error, error_description);
-      return res.redirect(`${PUBLIC_APP_URL}/taghere-enroll?error=${error}`);
+  let stateData = { storeId: '', ordersheetId: '', slug: '', isTaghere: true, isStamp: false, origin: PUBLIC_APP_URL };
+  try {
+    stateData = JSON.parse(Buffer.from(state as string, 'base64').toString());
+    console.log('[TagHere Kakao Callback] Parsed state:', JSON.stringify(stateData));
+  } catch (e) {
+    console.error('Failed to parse state:', e);
+  }
+
+  // origin이 없으면 기본값 사용
+  const redirectOrigin = stateData.origin || PUBLIC_APP_URL;
+
+  try {
+    if (oauthError) {
+      console.error('Kakao OAuth error:', oauthError, error_description);
+      return res.redirect(`${PUBLIC_APP_URL}/taghere-enroll?error=${oauthError}`);
     }
 
     if (!code) {
       return res.redirect(`${PUBLIC_APP_URL}/taghere-enroll?error=no_code`);
     }
-
-    // Parse state
-    let stateData = { storeId: '', ordersheetId: '', slug: '', isTaghere: true, isStamp: false, origin: PUBLIC_APP_URL };
-    try {
-      stateData = JSON.parse(Buffer.from(state as string, 'base64').toString());
-      console.log('[TagHere Kakao Callback] Parsed state:', JSON.stringify(stateData));
-    } catch (e) {
-      console.error('Failed to parse state:', e);
-    }
-
-    // origin이 없으면 기본값 사용
-    const redirectOrigin = stateData.origin || PUBLIC_APP_URL;
 
     console.log(`[TagHere Kakao Callback] isStamp: ${stateData.isStamp}, redirectOrigin: ${redirectOrigin}`);
 
@@ -1181,8 +1183,12 @@ router.get('/taghere-callback', async (req, res) => {
     res.redirect(successUrl.toString());
   } catch (error) {
     console.error('TagHere Kakao callback error:', error);
-    // catch 블록에서는 stateData 접근 불가하므로 기본 URL 사용
-    res.redirect(`${PUBLIC_APP_URL}/taghere-enroll?error=callback_error`);
+    // 스탬프 모드일 때 스탬프 페이지로, 아니면 포인트 페이지로 리다이렉트
+    if (stateData.isStamp) {
+      res.redirect(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug || ''}?error=callback_error`);
+    } else {
+      res.redirect(`${redirectOrigin}/taghere-enroll/${stateData.slug || ''}?error=callback_error`);
+    }
   }
 });
 

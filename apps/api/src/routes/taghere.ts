@@ -1193,6 +1193,7 @@ router.post('/stamp-earn', async (req, res) => {
       customerId: customer.id,
       storeName: store.name,
       isNewCustomer,
+      hasVisitSource: !!customer.visitSource,
       reward5Description: store.stampSetting.reward5Description,
       reward10Description: store.stampSetting.reward10Description,
     });

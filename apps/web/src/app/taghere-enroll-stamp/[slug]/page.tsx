@@ -544,8 +544,30 @@ function TaghereEnrollStampContent() {
   const customerId = searchParams.get('customerId');
   const urlKakaoId = searchParams.get('kakaoId');
   const hasPreferences = searchParams.get('hasPreferences') === 'true';
+  const hasVisitSourceParam = searchParams.get('hasVisitSource') === 'true';
   const reward5 = searchParams.get('reward5');
   const reward10 = searchParams.get('reward10');
+
+  // 방문 경로 옵션은 항상 조회 (별도 useEffect - 카카오 로그인 리다이렉트 시에도 실행되도록)
+  useEffect(() => {
+    const fetchVisitSourceOptions = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${apiUrl}/api/taghere/visit-source-options/${slug}`);
+        if (res.ok) {
+          const data = await res.json();
+          setVisitSourceEnabled(data.enabled);
+          setVisitSourceOptions(data.options || []);
+        }
+      } catch (e) {
+        console.error('Failed to fetch visit source options:', e);
+      }
+    };
+
+    if (slug) {
+      fetchVisitSourceOptions();
+    }
+  }, [slug]);
 
   // 자동 적립 시도 함수
   const attemptAutoEarn = async (kakaoId: string, storeData: StampInfo) => {
@@ -572,6 +594,7 @@ function TaghereEnrollStampContent() {
           customerId: data.customerId,
           currentStamps: data.currentStamps,
           hasExistingPreferences: data.hasExistingPreferences || false,
+          hasVisitSource: data.hasVisitSource || false,
           reward5Description: data.reward5Description,
           reward10Description: data.reward10Description,
         });
@@ -609,6 +632,7 @@ function TaghereEnrollStampContent() {
         customerId,
         currentStamps: parseInt(successStamps),
         hasExistingPreferences: hasPreferences,
+        hasVisitSource: hasVisitSourceParam,
         reward5Description: reward5,
         reward10Description: reward10,
       });
@@ -625,23 +649,6 @@ function TaghereEnrollStampContent() {
       setIsLoading(false);
       return;
     }
-
-    // 방문 경로 옵션 조회
-    const fetchVisitSourceOptions = async () => {
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-        const res = await fetch(`${apiUrl}/api/taghere/visit-source-options/${slug}`);
-        if (res.ok) {
-          const data = await res.json();
-          setVisitSourceEnabled(data.enabled);
-          setVisitSourceOptions(data.options || []);
-        }
-      } catch (e) {
-        console.error('Failed to fetch visit source options:', e);
-      }
-    };
-
-    fetchVisitSourceOptions();
 
     const fetchStampInfo = async () => {
       try {
@@ -716,14 +723,14 @@ function TaghereEnrollStampContent() {
   };
 
   const handleCloseSuccessPopup = () => {
-    setSuccessData(null);
-
-    // 스탬프 완료 페이지로 이동 (ordersheetId 유무와 관계없이)
-    const url = new URL(window.location.origin + '/taghere-enroll/order-success');
-    url.searchParams.set('type', 'stamp');
+    // 스탬프 누적 현황 페이지로 이동
+    const url = new URL(window.location.origin + '/taghere-enroll-stamp/stamp-success');
     url.searchParams.set('slug', slug);
-    if (ordersheetId) {
-      url.searchParams.set('ordersheetId', ordersheetId);
+    if (successData) {
+      url.searchParams.set('stamps', String(successData.currentStamps || 0));
+      url.searchParams.set('storeName', successData.storeName || '');
+      if (successData.reward5Description) url.searchParams.set('reward5', successData.reward5Description);
+      if (successData.reward10Description) url.searchParams.set('reward10', successData.reward10Description);
     }
     window.location.href = url.toString();
   };
