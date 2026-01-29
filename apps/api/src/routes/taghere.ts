@@ -1135,22 +1135,20 @@ router.post('/stamp-earn', async (req, res) => {
         },
       });
 
-      // 주문 내역 생성 (ordersheetId가 있는 경우)
-      if (ordersheetId) {
-        await tx.visitOrOrder.create({
-          data: {
-            storeId: store.id,
-            customerId: customer!.id,
-            orderId: ordersheetId,
-            visitedAt: new Date(),
-            totalAmount: totalAmount,
-            items: orderItems.length > 0 || tableLabel ? {
-              items: orderItems,
-              tableNumber: tableLabel,
-            } : undefined,
-          },
-        });
-      }
+      // 방문/주문 내역 생성 (ordersheetId 유무와 관계없이 항상 생성)
+      await tx.visitOrOrder.create({
+        data: {
+          storeId: store.id,
+          customerId: customer!.id,
+          orderId: ordersheetId || null,
+          visitedAt: new Date(),
+          totalAmount: totalAmount,
+          items: orderItems.length > 0 || tableLabel ? {
+            items: orderItems,
+            tableNumber: tableLabel,
+          } : undefined,
+        },
+      });
 
       return { customer: updatedCustomer, ledger };
     });
