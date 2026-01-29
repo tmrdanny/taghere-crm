@@ -453,13 +453,14 @@ export default function VisitSourcePage() {
 
         {/* Right Panel - Preview Image */}
         <div className="hidden lg:block flex-none w-[300px] sticky top-8 self-start">
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-2">
             <img
               src="/images/방문경로.png"
               alt="방문 경로 미리보기"
               className="w-full shadow-lg"
               style={{ borderRadius: 20 }}
             />
+            <p className="text-xs text-neutral-400">미리보기</p>
           </div>
         </div>
       </div>
