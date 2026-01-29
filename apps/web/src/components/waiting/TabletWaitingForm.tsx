@@ -62,7 +62,12 @@ export function TabletWaitingForm({
   const [step, setStep] = useState<TabletStep>('phone');
   const [phone, setPhone] = useState('');
   const [selectedTypeId, setSelectedTypeId] = useState<string>(skipTypeSelection ? waitingTypes[0]?.id || '' : '');
-  const [partySize, setPartySize] = useState(1);
+  const [partySize, setPartySize] = useState(() => {
+    if (skipTypeSelection && waitingTypes[0]?.minPartySize) {
+      return Math.max(1, waitingTypes[0].minPartySize);
+    }
+    return 1;
+  });
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registrationResult, setRegistrationResult] = useState<RegistrationResult | null>(null);
@@ -178,6 +183,9 @@ export function TabletWaitingForm({
   // Handle type selection
   const handleSelectType = (typeId: string) => {
     setSelectedTypeId(typeId);
+    const type = waitingTypes.find(t => t.id === typeId);
+    const min = type?.minPartySize || 1;
+    if (partySize < min) setPartySize(min);
     setStep('partySize');
   };
 
@@ -490,8 +498,8 @@ export function TabletWaitingForm({
               <div className="flex items-center justify-center gap-6 mb-8">
                 <button
                   type="button"
-                  onClick={() => setPartySize(Math.max(1, partySize - 1))}
-                  disabled={partySize <= 1}
+                  onClick={() => setPartySize(Math.max(selectedType?.minPartySize || 1, partySize - 1))}
+                  disabled={partySize <= (selectedType?.minPartySize || 1)}
                   className="w-16 h-16 rounded-xl border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   <Minus className="w-6 h-6" />
@@ -512,7 +520,9 @@ export function TabletWaitingForm({
 
               {/* Max Party Size Info */}
               <p className="text-sm text-neutral-500 mb-4">
-                최대 {selectedType?.maxPartySize || 20}명까지 선택 가능합니다
+                {(selectedType?.minPartySize || 0) > 1
+                  ? `${selectedType?.minPartySize}명 ~ ${selectedType?.maxPartySize || 20}명 선택 가능합니다`
+                  : `최대 ${selectedType?.maxPartySize || 20}명까지 선택 가능합니다`}
               </p>
 
               {/* Privacy Consent */}

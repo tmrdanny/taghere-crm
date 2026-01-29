@@ -52,12 +52,14 @@ export function CustomerWaitingForm({
   const [consentMarketing, setConsentMarketing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 유형 변경 시 인원 수 초과 방지
+  // 유형 변경 시 인원 수 범위 보정
   const handleTypeSelect = (typeId: string) => {
     setSelectedTypeId(typeId);
     const type = waitingTypes.find(t => t.id === typeId);
-    if (type?.maxPartySize && partySize > type.maxPartySize) {
-      setPartySize(type.maxPartySize);
+    if (type) {
+      const min = type.minPartySize || 1;
+      if (partySize < min) setPartySize(min);
+      if (type.maxPartySize && partySize > type.maxPartySize) setPartySize(type.maxPartySize);
     }
   };
 
@@ -112,15 +114,17 @@ export function CustomerWaitingForm({
 
   const selectedType = waitingTypes.find(t => t.id === selectedTypeId);
   const maxPartySize = selectedType?.maxPartySize || 20;
+  const minPartySize = selectedType?.minPartySize || 1;
 
-  // 인원 선택 옵션 동적 생성 (최대 인원에 맞춰서)
+  // 인원 선택 옵션 동적 생성 (최소~최대 인원에 맞춰서)
   const getPartySizeOptions = () => {
     const options: (number | string)[] = [];
-    const displayCount = Math.min(maxPartySize, 5);
-    for (let i = 1; i <= displayCount; i++) {
+    const start = Math.max(1, minPartySize);
+    const displayCount = Math.min(maxPartySize, start + 4);
+    for (let i = start; i <= displayCount; i++) {
       options.push(i);
     }
-    if (maxPartySize > 5) {
+    if (maxPartySize > displayCount) {
       options.push(`${displayCount + 1}+`);
     }
     return options;
@@ -230,11 +234,11 @@ export function CustomerWaitingForm({
           {/* Party Size */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-2">
-              인원 수 {selectedType && <span className="text-neutral-400 font-normal">(최대 {maxPartySize}명)</span>}
+              인원 수 {selectedType && <span className="text-neutral-400 font-normal">({minPartySize > 1 ? `${minPartySize}~${maxPartySize}명` : `최대 ${maxPartySize}명`})</span>}
             </label>
             <div className="grid grid-cols-6 gap-2">
               {getPartySizeOptions().map((size) => {
-                const numSize = typeof size === 'string' ? Math.min(6, maxPartySize) : size;
+                const numSize = typeof size === 'string' ? Math.min(Math.max(1, minPartySize) + 5, maxPartySize) : size;
                 const isSelected = partySize === numSize;
                 return (
                   <button

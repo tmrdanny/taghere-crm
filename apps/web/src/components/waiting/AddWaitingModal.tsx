@@ -56,7 +56,8 @@ export function AddWaitingModal({
       setPhone('');
       setNoPhone(false);
       setName('');
-      setPartySize(2);
+      const preType = types.find(t => t.id === preSelectedTypeId);
+      setPartySize(Math.max(2, preType?.minPartySize || 1));
       setConsentService(false);
       setConsentPrivacy(false);
       setConsentThirdParty(false);
@@ -134,7 +135,22 @@ export function AddWaitingModal({
   };
 
   const activeTypes = types.filter((t) => t.isActive);
-  const partySizeOptions = [1, 2, 3, 4, 5, '6+'];
+  const selectedType = activeTypes.find((t) => t.id === selectedTypeId);
+  const minPartySize = selectedType?.minPartySize || 1;
+  const maxPartySize = selectedType?.maxPartySize || 20;
+
+  const partySizeOptions: (number | string)[] = (() => {
+    const start = Math.max(1, minPartySize);
+    const options: (number | string)[] = [];
+    const displayCount = Math.min(maxPartySize, start + 4);
+    for (let i = start; i <= displayCount; i++) {
+      options.push(i);
+    }
+    if (maxPartySize > displayCount) {
+      options.push(`${displayCount + 1}+`);
+    }
+    return options;
+  })();
 
   return (
     <Modal open={open} onOpenChange={handleOpenChange}>
@@ -154,7 +170,12 @@ export function AddWaitingModal({
                 <button
                   key={type.id}
                   type="button"
-                  onClick={() => setSelectedTypeId(type.id)}
+                  onClick={() => {
+                    setSelectedTypeId(type.id);
+                    const min = type.minPartySize || 1;
+                    if (partySize < min) setPartySize(min);
+                    if (type.maxPartySize && partySize > type.maxPartySize) setPartySize(type.maxPartySize);
+                  }}
                   className={cn(
                     'px-4 py-2 rounded-lg border text-sm font-medium transition-colors',
                     selectedTypeId === type.id
@@ -267,7 +288,7 @@ export function AddWaitingModal({
             </label>
             <div className="flex gap-2">
               {partySizeOptions.map((size) => {
-                const sizeValue = typeof size === 'number' ? size : 6;
+                const sizeValue = typeof size === 'number' ? size : Math.min(Math.max(1, minPartySize) + 5, maxPartySize);
                 const isSelected = partySize === sizeValue || (size === '6+' && partySize >= 6);
 
                 return (
