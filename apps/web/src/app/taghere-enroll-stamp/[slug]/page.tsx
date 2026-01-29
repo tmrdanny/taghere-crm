@@ -675,7 +675,7 @@ function TaghereEnrollStampContent() {
         const res = await fetch(`${apiUrl}/api/taghere/survey-questions/${slug}`);
         if (res.ok) {
           const data = await res.json();
-          setSurveyQuestions(data);
+          setSurveyQuestions(data.questions || data);
         }
       } catch (e) {
         console.error('Failed to fetch survey questions:', e);
