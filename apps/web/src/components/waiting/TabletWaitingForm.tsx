@@ -354,7 +354,7 @@ export function TabletWaitingForm({
                       <p className="text-[48px] font-bold text-neutral-500 leading-none mb-1">
                         0<span className="text-xl font-medium ml-1">팀</span>
                       </p>
-                      <p className="text-[#FCD535] text-sm font-medium mt-2">바로 입장가능</p>
+                      <p className="text-[#4ADE80] text-sm font-medium mt-2">바로 입장가능</p>
                     </>
                   ) : (
                     <>
