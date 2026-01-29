@@ -18,6 +18,7 @@ interface WaitingType {
   name: string;
   description: string | null;
   avgWaitTimePerTeam: number;
+  minPartySize?: number;
   maxPartySize?: number;
   waitingCount: number;
   estimatedMinutes: number;
@@ -87,6 +88,7 @@ export default function WaitingQRPage() {
           name: type.name,
           description: type.description,
           avgWaitTimePerTeam: type.avgWaitTimePerTeam || 5,
+          minPartySize: type.minPartySize || 0,
           maxPartySize: type.maxPartySize || 20,
           waitingCount: type.currentWaitingCount || 0,
           estimatedMinutes: type.estimatedMinutes || 0,
