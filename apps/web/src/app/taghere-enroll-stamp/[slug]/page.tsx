@@ -561,12 +561,12 @@ function SuccessPopup({
                   </p>
                   <div className="space-y-3 mb-6">
                     {surveyQuestions.map((q) => (
-                      <div key={q.id} className="flex flex-col gap-1.5">
-                        <label className="text-[14px] font-medium text-neutral-700">
+                      <div key={q.id} className="flex flex-col gap-1.5 items-center">
+                        <label className="text-[14px] font-medium text-neutral-700 text-center whitespace-pre-line">
                           {q.label}
                         </label>
                         {q.description && (
-                          <p className="text-[12px] text-neutral-400">{q.description}</p>
+                          <p className="text-[12px] text-neutral-400 text-center whitespace-pre-line">{q.description}</p>
                         )}
                         <input
                           type="date"
@@ -574,7 +574,7 @@ function SuccessPopup({
                           onChange={(e) =>
                             setSurveyAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
                           }
-                          className="w-full px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+                          className="w-full max-w-[280px] px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[14px] text-neutral-900 text-center focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
                         />
                       </div>
                     ))}

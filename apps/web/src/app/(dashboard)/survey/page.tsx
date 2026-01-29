@@ -222,6 +222,14 @@ export default function SurveyPage() {
         <p className="text-neutral-500 mt-1">
           고객 등록 시 추가로 수집할 정보를 설정합니다. (예: 생년월일, 기념일)
         </p>
+        <div className="mt-4 flex justify-center">
+          <img
+            src="/images/고객설문.png"
+            alt="고객 설문 미리보기"
+            className="max-w-[280px] w-full shadow-lg"
+            style={{ borderRadius: 20 }}
+          />
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -293,7 +301,7 @@ export default function SurveyPage() {
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, question.id)}
                     onDragEnd={handleDragEnd}
-                    className={`flex items-center gap-3 p-3 bg-neutral-50 rounded-lg transition-all
+                    className={`flex items-start gap-3 p-3 bg-neutral-50 rounded-lg transition-all
                       ${draggedId === question.id ? 'opacity-50' : ''}
                       ${dragOverId === question.id ? 'border-2 border-primary border-dashed' : ''}`}
                   >
@@ -302,7 +310,7 @@ export default function SurveyPage() {
                       <Calendar className="w-4 h-4 text-blue-500" />
                       <span className="text-xs text-blue-600 font-medium">날짜</span>
                     </div>
-                    <Input
+                    <textarea
                       value={question.label}
                       onChange={(e) =>
                         setQuestions((prev) =>
@@ -315,7 +323,8 @@ export default function SurveyPage() {
                           handleUpdateQuestion(question.id, { label: e.target.value });
                         }
                       }}
-                      className="flex-1 bg-white"
+                      rows={2}
+                      className="flex-1 bg-white rounded-md border border-input px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                     <Switch
                       checked={question.enabled}

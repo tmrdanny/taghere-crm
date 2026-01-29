@@ -293,6 +293,14 @@ export default function VisitSourcePage() {
         <p className="text-neutral-500 mt-1">
           고객이 매장을 어떻게 알게 되었는지 추적하여 마케팅 효과를 분석합니다.
         </p>
+        <div className="mt-4 flex justify-center">
+          <img
+            src="/images/방문경로.png"
+            alt="방문 경로 미리보기"
+            className="max-w-[280px] w-full shadow-lg"
+            style={{ borderRadius: 20 }}
+          />
+        </div>
       </div>
 
       <div className="space-y-6">
