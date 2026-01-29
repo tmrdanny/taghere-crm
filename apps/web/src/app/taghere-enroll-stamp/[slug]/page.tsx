@@ -237,15 +237,15 @@ function SuccessPopup({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string>>({});
-  const [showSurveyModal, setShowSurveyModal] = useState(false);
+  const [showSurveyModal, setShowSurveyModal] = useState(() => surveyQuestions.length > 0);
   const [surveySubmitted, setSurveySubmitted] = useState(false);
 
-  // 설문 팝업: surveyQuestions가 있고 아직 제출/스킵 안 했으면 표시
+  // 설문 팝업: 비동기로 로드된 경우 대응
   useEffect(() => {
     if (surveyQuestions.length > 0 && !surveySubmitted) {
       setShowSurveyModal(true);
     }
-  }, [surveyQuestions, surveySubmitted]);
+  }, [surveyQuestions.length, surveySubmitted]);
 
   const handleSurveySubmit = async () => {
     const answersToSubmit = Object.entries(surveyAnswers)
