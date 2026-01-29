@@ -340,8 +340,8 @@ function SuccessPopup({
             <StarRating rating={feedbackRating} onRatingChange={setFeedbackRating} />
           </div>
 
-          {/* Visit Source Selection - 조건부 표시 */}
-          {visitSourceEnabled && !successData.hasVisitSource && visitSourceOptions.length > 0 && (
+          {/* Visit Source Selection - 방문경로 활성화 시 항상 표시 (첫방문/재방문 무관) */}
+          {visitSourceEnabled && visitSourceOptions.length > 0 && (
             <div className="mb-4 mt-5">
               <p className="text-[15px] font-semibold text-neutral-900 mb-1.5 text-center">
                 어떻게 저희 매장을 알게 되셨나요?
