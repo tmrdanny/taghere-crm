@@ -284,26 +284,21 @@ export default function VisitSourcePage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
       {ToastComponent}
 
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-neutral-900">방문 경로 추적</h1>
-        <p className="text-neutral-500 mt-1">
-          고객이 매장을 어떻게 알게 되었는지 추적하여 마케팅 효과를 분석합니다.
-        </p>
-        <div className="mt-4 flex justify-center">
-          <img
-            src="/images/방문경로.png"
-            alt="방문 경로 미리보기"
-            className="max-w-[280px] w-full shadow-lg"
-            style={{ borderRadius: 20 }}
-          />
-        </div>
-      </div>
+      <div className="flex flex-col lg:flex-row gap-8">
+        {/* Left Panel - Settings */}
+        <div className="flex-1 lg:max-w-3xl">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-semibold text-neutral-900">방문 경로 추적</h1>
+            <p className="text-neutral-500 mt-1">
+              고객이 매장을 어떻게 알게 되었는지 추적하여 마케팅 효과를 분석합니다.
+            </p>
+          </div>
 
-      <div className="space-y-6">
+          <div className="space-y-6">
         {/* 사용 안내 카드 */}
         <Card>
           <CardHeader className="pb-4">
@@ -453,6 +448,20 @@ export default function VisitSourcePage() {
             </div>
           </CardContent>
         </Card>
+          </div>
+        </div>
+
+        {/* Right Panel - Preview Image */}
+        <div className="hidden lg:block flex-none w-[300px] sticky top-8 self-start">
+          <div className="flex justify-center">
+            <img
+              src="/images/방문경로.png"
+              alt="방문 경로 미리보기"
+              className="w-full shadow-lg"
+              style={{ borderRadius: 20 }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

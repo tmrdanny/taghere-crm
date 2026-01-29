@@ -119,10 +119,13 @@ export default function SurveyPage() {
       if (!res.ok) {
         await fetchQuestions(); // rollback
         showToast('수정에 실패했습니다.', 'error');
+      } else {
+        showToast('저장되었습니다.', 'success');
       }
     } catch (error) {
       console.error('Failed to update question:', error);
       await fetchQuestions();
+      showToast('수정에 실패했습니다.', 'error');
     }
   };
 
@@ -213,26 +216,21 @@ export default function SurveyPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
       {ToastComponent}
 
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-neutral-900">고객 설문</h1>
-        <p className="text-neutral-500 mt-1">
-          고객 등록 시 추가로 수집할 정보를 설정합니다. (예: 생년월일, 기념일)
-        </p>
-        <div className="mt-4 flex justify-center">
-          <img
-            src="/images/고객설문.png"
-            alt="고객 설문 미리보기"
-            className="max-w-[280px] w-full shadow-lg"
-            style={{ borderRadius: 20 }}
-          />
-        </div>
-      </div>
+      <div className="flex flex-col lg:flex-row gap-8">
+        {/* Left Panel - Settings */}
+        <div className="flex-1 lg:max-w-3xl">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-semibold text-neutral-900">고객 설문</h1>
+            <p className="text-neutral-500 mt-1">
+              고객 등록 시 추가로 수집할 정보를 설정합니다. (예: 생년월일, 기념일)
+            </p>
+          </div>
 
-      <div className="space-y-6">
+          <div className="space-y-6">
         {/* 안내 카드 */}
         <Card>
           <CardHeader className="pb-4">
@@ -346,19 +344,18 @@ export default function SurveyPage() {
             )}
 
             {/* 새 질문 추가 */}
-            <div className="flex items-center gap-2 pt-2">
-              <div className="flex items-center gap-1.5 shrink-0 px-2">
+            <div className="flex items-start gap-2 pt-2">
+              <div className="flex items-center gap-1.5 shrink-0 px-2 mt-2">
                 <Calendar className="w-4 h-4 text-blue-500" />
                 <span className="text-xs text-blue-600 font-medium">날짜</span>
               </div>
-              <Input
+              <textarea
                 value={newLabel}
                 onChange={(e) => setNewLabel(e.target.value)}
                 placeholder="예: 생년월일, 결혼기념일"
                 disabled={questions.length >= MAX_QUESTIONS}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleAddQuestion();
-                }}
+                rows={2}
+                className="flex-1 bg-white rounded-md border border-input px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
               />
               <Button
                 onClick={handleAddQuestion}
@@ -376,6 +373,20 @@ export default function SurveyPage() {
             )}
           </CardContent>
         </Card>
+          </div>
+        </div>
+
+        {/* Right Panel - Preview Image */}
+        <div className="hidden lg:block flex-none w-[300px] sticky top-8 self-start">
+          <div className="flex justify-center">
+            <img
+              src="/images/고객설문.png"
+              alt="고객 설문 미리보기"
+              className="w-full shadow-lg"
+              style={{ borderRadius: 20 }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
