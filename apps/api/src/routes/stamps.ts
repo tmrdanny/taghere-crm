@@ -35,26 +35,26 @@ router.post('/earn', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
     }
 
-    // 오늘 이미 적립했는지 확인 (1일 1회 제한)
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    // 오늘 이미 적립했는지 확인 (1일 1회 제한) - [DEV] 테스트를 위해 비활성화. 배포 시 주석 해제 필요
+    // const todayStart = new Date();
+    // todayStart.setHours(0, 0, 0, 0);
 
-    const todayEarn = await prisma.stampLedger.findFirst({
-      where: {
-        storeId,
-        customerId,
-        type: 'EARN',
-        createdAt: { gte: todayStart },
-      },
-    });
+    // const todayEarn = await prisma.stampLedger.findFirst({
+    //   where: {
+    //     storeId,
+    //     customerId,
+    //     type: 'EARN',
+    //     createdAt: { gte: todayStart },
+    //   },
+    // });
 
-    if (todayEarn) {
-      return res.status(400).json({
-        error: '오늘 이미 스탬프를 적립했습니다.',
-        alreadyEarned: true,
-        currentStamps: customer.totalStamps,
-      });
-    }
+    // if (todayEarn) {
+    //   return res.status(400).json({
+    //     error: '오늘 이미 스탬프를 적립했습니다.',
+    //     alreadyEarned: true,
+    //     currentStamps: customer.totalStamps,
+    //   });
+    // }
 
     // 스탬프 적립 (트랜잭션)
     const result = await prisma.$transaction(async (tx) => {

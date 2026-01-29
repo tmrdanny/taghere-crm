@@ -626,30 +626,30 @@ async function handleStampCallback(
     }
   }
 
-  // 오늘 이미 적립했는지 확인 (1일 1회 제한)
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  // 오늘 이미 적립했는지 확인 (1일 1회 제한) - [DEV] 테스트를 위해 비활성화. 배포 시 주석 해제 필요
+  // const todayStart = new Date();
+  // todayStart.setHours(0, 0, 0, 0);
 
-  if (customer) {
-    const todayEarn = await prisma.stampLedger.findFirst({
-      where: {
-        storeId: store.id,
-        customerId: customer.id,
-        type: 'EARN',
-        createdAt: { gte: todayStart },
-      },
-    });
+  // if (customer) {
+  //   const todayEarn = await prisma.stampLedger.findFirst({
+  //     where: {
+  //       storeId: store.id,
+  //       customerId: customer.id,
+  //       type: 'EARN',
+  //       createdAt: { gte: todayStart },
+  //     },
+  //   });
 
-    if (todayEarn) {
-      const alreadyUrl = new URL(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug || ''}`);
-      alreadyUrl.searchParams.set('error', 'already_participated');
-      alreadyUrl.searchParams.set('stamps', String(customer.totalStamps || 0));
-      alreadyUrl.searchParams.set('storeName', store.name);
-      if (store.stampSetting?.reward5Description) alreadyUrl.searchParams.set('reward5', store.stampSetting.reward5Description);
-      if (store.stampSetting?.reward10Description) alreadyUrl.searchParams.set('reward10', store.stampSetting.reward10Description);
-      return res.redirect(alreadyUrl.toString());
-    }
-  }
+  //   if (todayEarn) {
+  //     const alreadyUrl = new URL(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug || ''}`);
+  //     alreadyUrl.searchParams.set('error', 'already_participated');
+  //     alreadyUrl.searchParams.set('stamps', String(customer.totalStamps || 0));
+  //     alreadyUrl.searchParams.set('storeName', store.name);
+  //     if (store.stampSetting?.reward5Description) alreadyUrl.searchParams.set('reward5', store.stampSetting.reward5Description);
+  //     if (store.stampSetting?.reward10Description) alreadyUrl.searchParams.set('reward10', store.stampSetting.reward10Description);
+  //     return res.redirect(alreadyUrl.toString());
+  //   }
+  // }
 
   if (!customer) {
     isNewCustomer = true;
