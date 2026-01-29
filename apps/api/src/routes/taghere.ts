@@ -1094,7 +1094,19 @@ router.post('/stamp-earn', async (req, res) => {
       }
     }
 
-    // 8. 스탬프 적립 (트랜잭션)
+    // 8. 오늘 첫 방문인지 확인 (방문횟수 증가용)
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    const todayVisit = await prisma.visitOrOrder.findFirst({
+      where: {
+        customerId: customer!.id,
+        storeId: store.id,
+        visitedAt: { gte: todayStart, lte: todayEnd },
+      },
+    });
+    const isFirstVisitToday = !todayVisit;
+
+    // 9. 스탬프 적립 (트랜잭션)
     const result = await prisma.$transaction(async (tx) => {
       const newBalance = customer!.totalStamps + 1;
 
@@ -1104,6 +1116,7 @@ router.post('/stamp-earn', async (req, res) => {
         data: {
           totalStamps: newBalance,
           lastVisitAt: new Date(),
+          ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
         },
       });
 

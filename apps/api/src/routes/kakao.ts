@@ -725,6 +725,47 @@ async function handleStampCallback(
     });
   }
 
+  // 주문 정보 조회 (ordersheetId가 있는 경우)
+  let orderItems: any[] = [];
+  let tableLabel: string | null = null;
+  let totalAmount: number | null = null;
+
+  if (stateData.ordersheetId) {
+    try {
+      const orderData = await fetchOrdersheetForCallback(stateData.ordersheetId, stateData.slug);
+      if (orderData) {
+        const rawPrice = orderData.content?.resultPrice || orderData.resultPrice || orderData.content?.totalPrice || orderData.totalPrice || 0;
+        totalAmount = typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : rawPrice;
+        tableLabel = orderData.content?.tableLabel || orderData.tableLabel || orderData.content?.tableNumber || orderData.tableNumber || null;
+        const rawItems = orderData.content?.items || orderData.orderItems || orderData.items || [];
+        orderItems = rawItems.map((item: any) => ({
+          name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
+          quantity: item.count || item.quantity || item.qty || item.amount || 1,
+          price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+          option: item.option || null,
+        }));
+        console.log(`[Kakao Stamp] Ordersheet fetched - items: ${orderItems.length}, tableLabel: ${tableLabel}, totalAmount: ${totalAmount}`);
+      }
+    } catch (e) {
+      console.error('[Kakao Stamp] Failed to fetch ordersheet:', e);
+    }
+  }
+
+  // 오늘 첫 방문인지 확인 (방문횟수 증가용)
+  const stampTodayStart = new Date();
+  stampTodayStart.setHours(0, 0, 0, 0);
+  const stampTodayEnd = new Date();
+  stampTodayEnd.setHours(23, 59, 59, 999);
+
+  const todayVisit = await prisma.visitOrOrder.findFirst({
+    where: {
+      customerId: customer!.id,
+      storeId: store!.id,
+      visitedAt: { gte: stampTodayStart, lte: stampTodayEnd },
+    },
+  });
+  const isFirstVisitToday = !todayVisit;
+
   // 스탬프 적립 (트랜잭션)
   const result = await prisma.$transaction(async (tx) => {
     const newBalance = customer!.totalStamps + 1;
@@ -735,6 +776,7 @@ async function handleStampCallback(
       data: {
         totalStamps: newBalance,
         lastVisitAt: new Date(),
+        ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
       },
     });
 
@@ -748,7 +790,23 @@ async function handleStampCallback(
         balance: newBalance,
         ordersheetId: stateData.ordersheetId || null,
         earnMethod: 'NFC_TAG',
+        tableLabel: tableLabel,
         reason: stateData.ordersheetId ? `태그히어 주문 적립 (${stateData.ordersheetId})` : '카카오 로그인 스탬프 적립',
+      },
+    });
+
+    // 주문 내역 생성
+    await tx.visitOrOrder.create({
+      data: {
+        storeId: store!.id,
+        customerId: customer!.id,
+        orderId: stateData.ordersheetId || null,
+        visitedAt: new Date(),
+        totalAmount: totalAmount,
+        items: orderItems.length > 0 || tableLabel ? {
+          items: orderItems,
+          tableNumber: tableLabel,
+        } : undefined,
       },
     });
 
