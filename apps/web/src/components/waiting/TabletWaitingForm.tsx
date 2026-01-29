@@ -318,29 +318,59 @@ export function TabletWaitingForm({
 
       {/* Left Panel - 40% - Dark Background */}
       <div className="w-[40%] h-full bg-[#1A1A1A] text-white flex flex-col">
-        {/* Store Name - Top Center */}
-        <div className="pt-8 px-8">
-          <h1 className="text-xl font-semibold text-white text-center">{storeName}</h1>
-        </div>
-
         {/* Center Content */}
-        <div className="flex-1 flex flex-col items-center justify-center px-8">
-          <p className="text-white font-bold text-2xl md:text-3xl mb-4">현재 대기중</p>
-
-          {/* Waiting Count - Large Yellow Number */}
-          <div className="flex items-baseline">
-            <span className="text-[120px] font-bold text-[#FCD535] leading-none">
-              {displayWaiting}
-            </span>
-            <span className="text-3xl font-medium text-[#FCD535] ml-2">팀</span>
-          </div>
-
-          {/* Estimated Wait Time */}
-          <div className="flex items-center gap-2 mt-6 text-neutral-300">
-            <Clock className="w-5 h-5" />
-            <span>예상 대기시간</span>
-            <span className="font-bold text-white ml-1">{displayMinutes}분</span>
-          </div>
+        <div className="flex-1 flex flex-col items-center justify-center px-6">
+          {waitingTypes.length === 1 ? (
+            /* 단일 유형: 기존 레이아웃 */
+            <>
+              <p className="text-white font-bold text-2xl md:text-3xl mb-4">현재 대기중</p>
+              <div className="flex items-baseline">
+                <span className="text-[120px] font-bold text-[#FCD535] leading-none">
+                  {displayWaiting}
+                </span>
+                <span className="text-3xl font-medium text-[#FCD535] ml-2">팀</span>
+              </div>
+              <div className="flex items-center gap-2 mt-6 text-neutral-300">
+                <Clock className="w-5 h-5" />
+                <span className="text-[#FCD535] font-medium">{displayMinutes}분 예상</span>
+              </div>
+            </>
+          ) : (
+            /* 다중 유형: 카드 그리드 */
+            <div className={cn(
+              'grid gap-3 w-full max-w-[480px]',
+              waitingTypes.length === 2 ? 'grid-cols-2' :
+              waitingTypes.length === 3 ? 'grid-cols-2' :
+              'grid-cols-2'
+            )}>
+              {waitingTypes.map((type) => (
+                <div
+                  key={type.id}
+                  className="bg-[#2A2A2A] rounded-xl p-5 text-center border border-[#3A3A3A]"
+                >
+                  <p className="text-white font-bold text-lg mb-3">{type.name}</p>
+                  {type.waitingCount === 0 ? (
+                    <>
+                      <p className="text-[48px] font-bold text-neutral-500 leading-none mb-1">
+                        0<span className="text-xl font-medium ml-1">팀</span>
+                      </p>
+                      <p className="text-[#FCD535] text-sm font-medium mt-2">바로 입장가능</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[48px] font-bold text-[#FCD535] leading-none mb-1">
+                        {type.waitingCount}<span className="text-xl font-medium ml-1">팀</span>
+                      </p>
+                      <div className="flex items-center justify-center gap-1.5 mt-2 text-[#FCD535]">
+                        <Clock className="w-4 h-4" />
+                        <span className="text-sm font-medium">{type.estimatedMinutes}분 예상</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* TAG HERE Logo - Bottom (더블클릭으로 줌 조절) */}
@@ -449,6 +479,15 @@ export function TabletWaitingForm({
           {/* Type Selection Step */}
           {step === 'type' && (
             <div className="max-w-lg mx-auto w-full">
+              <button
+                type="button"
+                onClick={() => setStep('phone')}
+                className="flex items-center gap-1.5 text-neutral-500 hover:text-neutral-700 font-medium mb-6 transition-colors"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                뒤로
+              </button>
+
               <h2 className="text-3xl font-bold text-neutral-900 text-center mb-8">
                 웨이팅 유형을 선택해주세요
               </h2>
@@ -482,6 +521,23 @@ export function TabletWaitingForm({
           {/* Party Size Step */}
           {step === 'partySize' && (
             <div className="max-w-md mx-auto w-full text-center">
+              <div className="flex justify-start w-full mb-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!skipTypeSelection) {
+                      setStep('type');
+                    } else {
+                      setStep('phone');
+                    }
+                  }}
+                  className="flex items-center gap-1.5 text-neutral-500 hover:text-neutral-700 font-medium transition-colors"
+                >
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  뒤로
+                </button>
+              </div>
+
               {/* Selected Type Badge */}
               {selectedType && !skipTypeSelection && (
                 <div className="inline-block mb-4">
@@ -559,22 +615,6 @@ export function TabletWaitingForm({
                 {isSubmitting ? '등록 중...' : '웨이팅 등록하기'}
               </button>
 
-              {/* Back Button */}
-              <div className="flex justify-end mt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!skipTypeSelection) {
-                      setStep('type');
-                    } else {
-                      setStep('phone');
-                    }
-                  }}
-                  className="px-6 py-3 text-neutral-500 hover:text-neutral-700 font-medium text-base transition-colors"
-                >
-                  뒤로가기
-                </button>
-              </div>
             </div>
           )}
 
