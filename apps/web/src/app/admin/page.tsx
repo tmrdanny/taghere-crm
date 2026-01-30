@@ -62,6 +62,19 @@ interface VisitSourceStats {
   distribution: VisitSourceDistribution[];
 }
 
+interface DemographicItem {
+  key: string;
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+interface DemographicStats {
+  totalCustomers: number;
+  genderDistribution: DemographicItem[];
+  ageGroupDistribution: DemographicItem[];
+}
+
 interface StoreOrderItem {
   id: string;
   productName: string;
@@ -108,6 +121,10 @@ export default function AdminHomePage() {
   const [visitSourceStats, setVisitSourceStats] = useState<VisitSourceStats | null>(null);
   const [isVisitSourceLoading, setIsVisitSourceLoading] = useState(false);
 
+  // Demographic Stats
+  const [demographicStats, setDemographicStats] = useState<DemographicStats | null>(null);
+  const [isDemographicLoading, setIsDemographicLoading] = useState(false);
+
   // Store Orders
   const [storeOrders, setStoreOrders] = useState<StoreOrder[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
@@ -132,6 +149,10 @@ export default function AdminHomePage() {
 
   useEffect(() => {
     fetchVisitSourceStats();
+  }, []);
+
+  useEffect(() => {
+    fetchDemographicStats();
   }, []);
 
   const fetchData = async () => {
@@ -232,6 +253,27 @@ export default function AdminHomePage() {
       console.error('Failed to fetch visit source stats:', error);
     } finally {
       setIsVisitSourceLoading(false);
+    }
+  };
+
+  const fetchDemographicStats = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsDemographicLoading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/demographic-stats`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setDemographicStats(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch demographic stats:', error);
+    } finally {
+      setIsDemographicLoading(false);
     }
   };
 
@@ -556,6 +598,44 @@ export default function AdminHomePage() {
                   <div className="h-64">
                     <VisitSourceBarChart data={visitSourceStats.distribution} />
                   </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-neutral-400">
+              데이터가 없습니다
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Demographic Stats */}
+      <section>
+        <div className="mb-4">
+          <h2 className="text-[18px] font-semibold text-neutral-900">전체 고객 성별 · 연령대 분포</h2>
+          <p className="text-[13px] text-neutral-500 mt-0.5">모든 매장의 고객 성별 및 연령대 통계</p>
+        </div>
+
+        <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+          {isDemographicLoading ? (
+            <div className="h-64 flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : demographicStats && demographicStats.totalCustomers > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Gender Chart */}
+              <div>
+                <h3 className="text-[14px] font-medium text-neutral-700 mb-3">성별 분포</h3>
+                <div className="h-64">
+                  <DemographicBarChart data={demographicStats.genderDistribution} colors={GENDER_COLORS} />
+                </div>
+              </div>
+
+              {/* Age Group Chart */}
+              <div>
+                <h3 className="text-[14px] font-medium text-neutral-700 mb-3">연령대 분포</h3>
+                <div className="h-64">
+                  <DemographicBarChart data={demographicStats.ageGroupDistribution} colors={AGE_COLORS} />
                 </div>
               </div>
             </div>
@@ -1266,6 +1346,74 @@ function VisitSourcePieChart({ data }: { data: VisitSourceDistribution[] }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+const GENDER_COLORS = ['#3B82F6', '#EC4899', '#9CA3AF'];
+const AGE_COLORS = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#9CA3AF'];
+
+// Demographic Bar Chart
+function DemographicBarChart({ data, colors }: { data: DemographicItem[]; colors: string[] }) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  if (data.length === 0) return null;
+
+  const maxCount = Math.max(...data.map((d) => d.count));
+  if (maxCount === 0) return <div className="h-full flex items-center justify-center text-neutral-400">데이터가 없습니다</div>;
+
+  return (
+    <div className="w-full h-full flex flex-col">
+      <div className="flex-1 flex items-end gap-3 pb-6">
+        {data.map((d, i) => {
+          const height = maxCount > 0 ? (d.count / maxCount) * 100 : 0;
+          const isHovered = hoveredIndex === i;
+
+          return (
+            <div
+              key={d.key}
+              className="flex-1 relative flex flex-col items-center"
+              onMouseEnter={() => setHoveredIndex(i)}
+              onMouseLeave={() => setHoveredIndex(null)}
+            >
+              {isHovered && (
+                <div className="absolute bottom-full mb-2 bg-neutral-900 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
+                  <div className="font-medium">{d.label}</div>
+                  <div>{formatNumber(d.count)}명 ({d.percentage}%)</div>
+                </div>
+              )}
+
+              <div
+                className="w-full rounded-t-md transition-all cursor-pointer"
+                style={{
+                  height: `${height}%`,
+                  minHeight: d.count > 0 ? '4px' : '0px',
+                  backgroundColor: colors[i % colors.length],
+                  opacity: hoveredIndex === null || isHovered ? 1 : 0.5,
+                  transform: isHovered ? 'scaleY(1.02)' : 'scaleY(1)',
+                  transformOrigin: 'bottom',
+                }}
+              />
+
+              <span className="absolute bottom-[-20px] text-[10px] text-neutral-500">
+                {formatNumber(d.count)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex gap-3 pt-2 border-t border-neutral-200">
+        {data.map((d, i) => (
+          <div
+            key={d.key}
+            className="flex-1 text-center text-[11px] text-neutral-600 font-medium truncate"
+            title={d.label}
+          >
+            {d.label}
+          </div>
+        ))}
       </div>
     </div>
   );

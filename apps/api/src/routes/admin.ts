@@ -893,6 +893,66 @@ router.get('/visit-source-stats', adminAuthMiddleware, async (req: AdminRequest,
   }
 });
 
+// GET /api/admin/demographic-stats - 전체 고객 성별/연령대 통계
+router.get('/demographic-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const customers = await prisma.customer.findMany({
+      select: {
+        gender: true,
+        ageGroup: true,
+      },
+    });
+
+    const total = customers.length;
+
+    // 성별 집계
+    const genderMap: Record<string, number> = { MALE: 0, FEMALE: 0, UNKNOWN: 0 };
+    customers.forEach((c) => {
+      if (c.gender === 'MALE' || c.gender === 'FEMALE') {
+        genderMap[c.gender]++;
+      } else {
+        genderMap['UNKNOWN']++;
+      }
+    });
+
+    const genderDistribution = [
+      { key: 'MALE', label: '남성', count: genderMap['MALE'], percentage: total > 0 ? Math.round((genderMap['MALE'] / total) * 1000) / 10 : 0 },
+      { key: 'FEMALE', label: '여성', count: genderMap['FEMALE'], percentage: total > 0 ? Math.round((genderMap['FEMALE'] / total) * 1000) / 10 : 0 },
+      { key: 'UNKNOWN', label: '미입력', count: genderMap['UNKNOWN'], percentage: total > 0 ? Math.round((genderMap['UNKNOWN'] / total) * 1000) / 10 : 0 },
+    ];
+
+    // 연령대 집계
+    const ageGroupMap: Record<string, number> = {
+      TWENTIES: 0, THIRTIES: 0, FORTIES: 0, FIFTIES: 0, SIXTY_PLUS: 0, UNKNOWN: 0,
+    };
+    customers.forEach((c) => {
+      if (c.ageGroup && ageGroupMap[c.ageGroup] !== undefined) {
+        ageGroupMap[c.ageGroup]++;
+      } else {
+        ageGroupMap['UNKNOWN']++;
+      }
+    });
+
+    const ageGroupDistribution = [
+      { key: 'TWENTIES', label: '20대', count: ageGroupMap['TWENTIES'], percentage: total > 0 ? Math.round((ageGroupMap['TWENTIES'] / total) * 1000) / 10 : 0 },
+      { key: 'THIRTIES', label: '30대', count: ageGroupMap['THIRTIES'], percentage: total > 0 ? Math.round((ageGroupMap['THIRTIES'] / total) * 1000) / 10 : 0 },
+      { key: 'FORTIES', label: '40대', count: ageGroupMap['FORTIES'], percentage: total > 0 ? Math.round((ageGroupMap['FORTIES'] / total) * 1000) / 10 : 0 },
+      { key: 'FIFTIES', label: '50대', count: ageGroupMap['FIFTIES'], percentage: total > 0 ? Math.round((ageGroupMap['FIFTIES'] / total) * 1000) / 10 : 0 },
+      { key: 'SIXTY_PLUS', label: '60대 이상', count: ageGroupMap['SIXTY_PLUS'], percentage: total > 0 ? Math.round((ageGroupMap['SIXTY_PLUS'] / total) * 1000) / 10 : 0 },
+      { key: 'UNKNOWN', label: '미입력', count: ageGroupMap['UNKNOWN'], percentage: total > 0 ? Math.round((ageGroupMap['UNKNOWN'] / total) * 1000) / 10 : 0 },
+    ];
+
+    res.json({
+      totalCustomers: total,
+      genderDistribution,
+      ageGroupDistribution,
+    });
+  } catch (error) {
+    console.error('Admin demographic stats error:', error);
+    res.status(500).json({ error: '성별/연령대 통계 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 // GET /api/admin/stores/:storeId/wallet - 매장 충전금 조회
 router.get('/stores/:storeId/wallet', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
