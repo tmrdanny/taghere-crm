@@ -221,7 +221,14 @@ export default function WaitingPage() {
         setSettings((prev) => prev ? { ...prev, operationStatus: newStatus } : null);
         showToast('운영 상태가 변경되었습니다.', 'success');
       } else {
-        throw new Error('Failed to change operation status');
+        const data = await res.json().catch(() => null);
+        if (res.status === 401) {
+          showToast('로그인이 만료되었습니다. 다시 로그인해주세요.', 'error');
+          localStorage.removeItem('token');
+          router.push('/login');
+          return;
+        }
+        throw new Error(data?.error || 'Failed to change operation status');
       }
     } catch (error) {
       console.error('Failed to change operation status:', error);
