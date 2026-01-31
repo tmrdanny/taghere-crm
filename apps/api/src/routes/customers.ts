@@ -521,6 +521,42 @@ router.patch('/:id', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// DELETE /api/customers/:id - Delete a customer and related data
+router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const storeId = req.user!.storeId;
+
+    const customer = await prisma.customer.findFirst({
+      where: { id, storeId },
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Nullify nullable foreign keys that don't have onDelete set
+      await tx.waitingList.updateMany({
+        where: { customerId: id },
+        data: { customerId: null },
+      });
+      await tx.franchiseSmsMessage.deleteMany({
+        where: { customerId: id },
+      });
+
+      // Customer delete will cascade: CustomerFeedback, VisitOrOrder, PointLedger, SurveyAnswer
+      // And SetNull: ReviewRequestLog, AlimTalkOutbox, PointSession, Coupon, SmsMessage (nullable)
+      await tx.customer.delete({ where: { id } });
+    });
+
+    res.json({ message: '고객이 삭제되었습니다.' });
+  } catch (error) {
+    console.error('Customer delete error:', error);
+    res.status(500).json({ error: '고객 삭제 중 오류가 발생했습니다.' });
+  }
+});
+
 // POST /api/customers/visit-source - Public endpoint to save visit source (from enroll page)
 router.post('/visit-source', async (req, res) => {
   try {

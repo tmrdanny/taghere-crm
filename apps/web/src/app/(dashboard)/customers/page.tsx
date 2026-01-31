@@ -800,6 +800,37 @@ export default function CustomersPage() {
     }
   };
 
+  const handleDeleteCustomer = async () => {
+    if (!editingCustomer) return;
+    if (!window.confirm('이 고객을 삭제하시겠습니까?\n삭제된 고객의 모든 데이터(포인트, 주문내역, 피드백 등)가 함께 삭제되며 복구할 수 없습니다.')) return;
+
+    setSubmittingEdit(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/customers/${editingCustomer.id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || '고객 삭제 중 오류가 발생했습니다.');
+      }
+
+      setEditModal(false);
+      setEditingCustomer(null);
+      setShowDateFilter(false);
+      setCancelMode(false);
+      setRefreshKey((key) => key + 1);
+      showToast('고객이 삭제되었습니다.', 'success');
+    } catch (err: any) {
+      showToast(err.message || '고객 삭제 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setSubmittingEdit(false);
+    }
+  };
+
   const handleAddCustomer = async () => {
     if (!addPhone) {
       showToast('전화번호는 필수입니다.', 'error');
@@ -2422,6 +2453,14 @@ export default function CustomersPage() {
           </div>
 
           <ModalFooter className="flex-shrink-0">
+            <Button
+              variant="ghost"
+              onClick={handleDeleteCustomer}
+              disabled={submittingEdit}
+              className="text-red-500 hover:text-red-600 hover:bg-red-50 mr-auto"
+            >
+              고객 삭제
+            </Button>
             <Button
               variant="secondary"
               onClick={() => {
