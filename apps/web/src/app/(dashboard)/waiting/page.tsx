@@ -583,6 +583,25 @@ export default function WaitingPage() {
               웨이팅 화면 열기
             </Button>
           </div>
+
+          {/* Preview Screenshots */}
+          <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+            {[
+              { src: '/images/웨이팅_전화입력.png', alt: '전화번호 입력' },
+              { src: '/images/웨이팅_전화입력완료.png', alt: '전화번호 입력 완료' },
+              { src: '/images/웨이팅_인원선택.png', alt: '인원 선택' },
+            ].map((img) => (
+              <div key={img.alt} className="flex-none">
+                <img
+                  src={img.src}
+                  alt={img.alt}
+                  className="h-[180px] w-auto shadow-md"
+                  style={{ borderRadius: 12 }}
+                />
+                <p className="text-xs text-white/60 text-center mt-1">{img.alt}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
