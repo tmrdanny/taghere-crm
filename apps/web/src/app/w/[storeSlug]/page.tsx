@@ -176,10 +176,10 @@ export default function WaitingQRPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 text-brand-800 animate-spin mx-auto mb-4" />
-          <p className="text-neutral-500">로딩 중...</p>
+          <div className="w-8 h-8 border-2 border-[#FFD541] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[#91949a]">로딩 중...</p>
         </div>
       </div>
     );
@@ -188,20 +188,20 @@ export default function WaitingQRPage() {
   // Error state
   if (error || !storeInfo) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50 p-6">
+      <div className="min-h-screen flex items-center justify-center bg-white p-6">
         <div className="text-center max-w-md">
-          <div className="w-16 h-16 bg-error-light rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-[#fff0f3] rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-3xl">!</span>
           </div>
-          <h1 className="text-xl font-bold text-neutral-900 mb-2">
+          <h1 className="text-xl font-bold text-[#1d2022] mb-2">
             {error || '매장 정보를 불러올 수 없습니다.'}
           </h1>
-          <p className="text-neutral-500 mb-6">
+          <p className="text-[#91949a] mb-6">
             잠시 후 다시 시도해주세요.
           </p>
           <button
             onClick={fetchStoreInfo}
-            className="px-6 py-3 bg-brand-800 text-white rounded-lg font-medium hover:bg-brand-900 transition-colors"
+            className="px-6 py-3 bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022] rounded-xl font-medium transition-colors"
           >
             다시 시도
           </button>

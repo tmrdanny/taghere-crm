@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Loader2, Users, Clock } from 'lucide-react';
 
 interface WaitingType {
@@ -132,8 +130,8 @@ export function CustomerWaitingForm({
   };
 
   return (
-    <div className={cn('min-h-screen bg-neutral-50', className)}>
-      <div className="max-w-md mx-auto px-4 py-8">
+    <div className={cn('min-h-screen bg-white font-pretendard', className)}>
+      <div className="max-w-[430px] mx-auto px-5 py-8">
         {/* Header */}
         <div className="text-center mb-8">
           {storeLogo ? (
@@ -143,63 +141,63 @@ export function CustomerWaitingForm({
               className="w-16 h-16 rounded-full mx-auto mb-3 object-cover"
             />
           ) : (
-            <div className="w-16 h-16 bg-brand-100 rounded-full mx-auto mb-3 flex items-center justify-center">
-              <span className="text-2xl font-bold text-brand-800">
+            <div className="w-16 h-16 bg-[#f8f9fa] rounded-full mx-auto mb-3 flex items-center justify-center">
+              <span className="text-2xl font-bold text-[#1d2022]">
                 {storeName.charAt(0)}
               </span>
             </div>
           )}
-          <h1 className="text-xl font-bold text-neutral-900">{storeName}</h1>
-          <p className="text-neutral-500 text-sm mt-1">웨이팅</p>
+          <h1 className="text-xl font-bold text-[#1d2022]">{storeName}</h1>
+          <p className="text-[#91949a] text-sm mt-1">웨이팅</p>
         </div>
 
         {/* Current Status */}
-        <div className="bg-white rounded-xl p-4 mb-6 shadow-sm">
+        <div className="bg-[#f8f9fa] rounded-xl p-4 mb-6">
           <div className="flex justify-center gap-8 text-center">
             <div>
-              <div className="flex items-center justify-center gap-1 text-neutral-500 text-sm mb-1">
+              <div className="flex items-center justify-center gap-1 text-[#91949a] text-sm mb-1">
                 <Users className="w-4 h-4" />
                 <span>현재 대기</span>
               </div>
-              <p className="text-xl font-bold text-neutral-900">{totalWaiting}팀</p>
+              <p className="text-xl font-bold text-[#1d2022]">{totalWaiting}팀</p>
             </div>
-            <div className="w-px bg-neutral-200" />
+            <div className="w-px bg-[#ebeced]" />
             <div>
-              <div className="flex items-center justify-center gap-1 text-neutral-500 text-sm mb-1">
+              <div className="flex items-center justify-center gap-1 text-[#91949a] text-sm mb-1">
                 <Clock className="w-4 h-4" />
                 <span>예상 시간</span>
               </div>
-              <p className="text-xl font-bold text-neutral-900">약 {estimatedMinutes}분</p>
+              <p className="text-xl font-bold text-[#1d2022]">약 {estimatedMinutes}분</p>
             </div>
           </div>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="bg-error-light text-error px-4 py-3 rounded-lg mb-4 text-sm">
+          <div className="bg-[#fff0f3] border border-[#ffb3c1] text-[#ff6b6b] px-4 py-3 rounded-xl mb-4 text-sm">
             {error}
           </div>
         )}
 
         {/* Form */}
-        <div className="bg-white rounded-xl p-6 shadow-sm space-y-6">
+        <div className="bg-[#f8f9fa] rounded-xl p-6 space-y-6">
           {/* Phone Number */}
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
+            <label className="block text-sm font-medium text-[#1d2022] mb-2">
               전화번호
             </label>
-            <Input
+            <input
               type="tel"
               value={phone}
               onChange={handlePhoneChange}
               placeholder="010-0000-0000"
-              className="text-lg"
+              className="w-full px-4 py-3 bg-white border border-[#ebeced] rounded-xl text-[16px] text-[#1d2022] placeholder:text-[#b1b5b8] focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
             />
           </div>
 
           {/* Waiting Type Selection */}
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
+            <label className="block text-sm font-medium text-[#1d2022] mb-2">
               웨이팅 유형
             </label>
             <div className="space-y-2">
@@ -209,22 +207,22 @@ export function CustomerWaitingForm({
                   type="button"
                   onClick={() => handleTypeSelect(type.id)}
                   className={cn(
-                    'w-full p-4 rounded-lg border-2 text-left transition-colors',
+                    'w-full p-4 rounded-xl border-2 text-left transition-colors',
                     selectedTypeId === type.id
-                      ? 'border-brand-800 bg-brand-50'
-                      : 'border-neutral-200 hover:border-neutral-300'
+                      ? 'border-[#FFD541] bg-[#FFFBEB]'
+                      : 'border-[#ebeced] bg-white hover:border-[#d1d5db]'
                   )}
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-medium text-neutral-900">{type.name}</p>
+                      <p className="font-medium text-[#1d2022]">{type.name}</p>
                       {type.description && (
-                        <p className="text-sm text-neutral-500 mt-0.5">{type.description}</p>
+                        <p className="text-sm text-[#91949a] mt-0.5">{type.description}</p>
                       )}
                     </div>
                     <div className="text-right text-sm">
-                      <p className="text-neutral-600">{type.waitingCount}팀 대기</p>
-                      <p className="text-neutral-500">약 {type.estimatedMinutes}분</p>
+                      <p className="text-[#55595e]">{type.waitingCount}팀 대기</p>
+                      <p className="text-[#91949a]">약 {type.estimatedMinutes}분</p>
                     </div>
                   </div>
                 </button>
@@ -234,8 +232,8 @@ export function CustomerWaitingForm({
 
           {/* Party Size */}
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              인원 수 {selectedType && <span className="text-neutral-400 font-normal">({minPartySize > 1 ? `${minPartySize}~${maxPartySize}명` : `최대 ${maxPartySize}명`})</span>}
+            <label className="block text-sm font-medium text-[#1d2022] mb-2">
+              인원 수 {selectedType && <span className="text-[#b1b5b8] font-normal">({minPartySize > 1 ? `${minPartySize}~${maxPartySize}명` : `최대 ${maxPartySize}명`})</span>}
             </label>
             <div className="grid grid-cols-6 gap-2">
               {getPartySizeOptions().map((size) => {
@@ -247,10 +245,10 @@ export function CustomerWaitingForm({
                     type="button"
                     onClick={() => setPartySize(numSize)}
                     className={cn(
-                      'h-12 rounded-lg font-medium transition-colors',
+                      'h-12 rounded-xl font-medium transition-colors',
                       isSelected
-                        ? 'bg-brand-800 text-white'
-                        : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                        ? 'bg-[#FFD541] text-[#1d2022]'
+                        : 'bg-white border border-[#ebeced] text-[#55595e] hover:border-[#d1d5db]'
                     )}
                   >
                     {size}
@@ -262,64 +260,89 @@ export function CustomerWaitingForm({
 
           {/* Memo */}
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              요청사항 <span className="text-neutral-400 font-normal">(선택)</span>
+            <label className="block text-sm font-medium text-[#1d2022] mb-2">
+              요청사항 <span className="text-[#b1b5b8] font-normal">(선택)</span>
             </label>
-            <Input
+            <input
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               placeholder="예: 창가석, 유아 동반"
               maxLength={100}
+              className="w-full px-4 py-3 bg-white border border-[#ebeced] rounded-xl text-[14px] text-[#1d2022] placeholder:text-[#b1b5b8] focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
             />
           </div>
 
           {/* Consent */}
           <div className="space-y-3 pt-2">
             <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={consentPrivacy}
-                onChange={(e) => setConsentPrivacy(e.target.checked)}
-                className="w-5 h-5 mt-0.5 rounded border-neutral-300 text-brand-800 focus:ring-brand-800"
-              />
-              <span className="text-sm text-neutral-700">
-                <span className="font-medium text-error">[필수]</span>{' '}
+              <div
+                className={cn(
+                  'w-5 h-5 mt-0.5 rounded flex items-center justify-center flex-shrink-0 border-2 transition-colors',
+                  consentPrivacy
+                    ? 'bg-[#FFD541] border-[#FFD541]'
+                    : 'border-[#d1d5db] bg-white'
+                )}
+                onClick={() => setConsentPrivacy(!consentPrivacy)}
+              >
+                {consentPrivacy && (
+                  <svg className="w-3 h-3 text-[#1d2022]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </div>
+              <span className="text-sm text-[#55595e]" onClick={() => setConsentPrivacy(!consentPrivacy)}>
+                <span className="font-medium text-[#ff6b6b]">[필수]</span>{' '}
                 개인정보 수집 및 이용에 동의합니다
               </span>
             </label>
 
             <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={consentMarketing}
-                onChange={(e) => setConsentMarketing(e.target.checked)}
-                className="w-5 h-5 mt-0.5 rounded border-neutral-300 text-brand-800 focus:ring-brand-800"
-              />
-              <span className="text-sm text-neutral-700">
-                <span className="font-medium text-neutral-500">[선택]</span>{' '}
+              <div
+                className={cn(
+                  'w-5 h-5 mt-0.5 rounded flex items-center justify-center flex-shrink-0 border-2 transition-colors',
+                  consentMarketing
+                    ? 'bg-[#FFD541] border-[#FFD541]'
+                    : 'border-[#d1d5db] bg-white'
+                )}
+                onClick={() => setConsentMarketing(!consentMarketing)}
+              >
+                {consentMarketing && (
+                  <svg className="w-3 h-3 text-[#1d2022]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </div>
+              <span className="text-sm text-[#55595e]" onClick={() => setConsentMarketing(!consentMarketing)}>
+                <span className="font-medium text-[#91949a]">[선택]</span>{' '}
                 마케팅 정보 수신에 동의합니다
               </span>
             </label>
           </div>
 
           {/* Submit Button */}
-          <Button
+          <button
             onClick={handleSubmit}
             disabled={isSubmitting || !consentPrivacy}
-            size="lg"
-            className="w-full h-14 text-lg"
+            className="w-full py-4 font-semibold text-base rounded-xl transition-colors bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-[#1d2022]"
           >
             {isSubmitting ? (
-              <>
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
                 등록 중...
-              </>
+              </span>
             ) : (
               '웨이팅 등록하기'
             )}
-          </Button>
+          </button>
         </div>
       </div>
+
+      <style jsx global>{`
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-jp.min.css');
+        .font-pretendard {
+          font-family: 'Pretendard JP Variable', 'Pretendard JP', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+      `}</style>
     </div>
   );
 }
