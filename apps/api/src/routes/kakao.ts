@@ -804,20 +804,19 @@ async function handleStampCallback(
   // 알림톡 발송 (비동기)
   const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
   if (store.stampSetting?.alimtalkEnabled && phoneNumber) {
-    // 스탬프 사용 규칙 생성
-    const reward5 = store.stampSetting.reward5Description;
-    const reward10 = store.stampSetting.reward10Description;
-    let stampUsageRule: string;
-
-    if (reward5 && reward10) {
-      stampUsageRule = `\n- 5개 모을 시: ${reward5}\n- 10개 모을 시: ${reward10}`;
-    } else if (reward5) {
-      stampUsageRule = `\n- 5개 모을 시: ${reward5}`;
-    } else if (reward10) {
-      stampUsageRule = `\n- 10개 모을 시: ${reward10}`;
-    } else {
-      stampUsageRule = `\n- 10개 모을시 매장 선물 증정!`;
-    }
+    // 스탬프 사용 규칙 생성 (보상이 설정된 단계만 포함)
+    const rewardTiers = [
+      { count: 5, desc: store.stampSetting.reward5Description },
+      { count: 10, desc: store.stampSetting.reward10Description },
+      { count: 15, desc: store.stampSetting.reward15Description },
+      { count: 20, desc: store.stampSetting.reward20Description },
+      { count: 25, desc: store.stampSetting.reward25Description },
+      { count: 30, desc: store.stampSetting.reward30Description },
+    ];
+    const rules = rewardTiers.filter(t => t.desc).map(t => `- ${t.count}개 모을 시: ${t.desc}`);
+    const stampUsageRule = rules.length > 0
+      ? '\n' + rules.join('\n')
+      : '\n- 10개 모을시 매장 선물 증정!';
 
     // 리뷰 작성 안내 문구
     const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
@@ -851,11 +850,12 @@ async function handleStampCallback(
   successUrl.searchParams.set('kakaoId', kakaoId);
   successUrl.searchParams.set('hasPreferences', hasPreferences.toString());
   successUrl.searchParams.set('hasVisitSource', hasVisitSource.toString());
-  if (store.stampSetting?.reward5Description) {
-    successUrl.searchParams.set('reward5', store.stampSetting.reward5Description);
-  }
-  if (store.stampSetting?.reward10Description) {
-    successUrl.searchParams.set('reward10', store.stampSetting.reward10Description);
+  for (const n of [5, 10, 15, 20, 25, 30] as const) {
+    const key = `reward${n}Description` as keyof typeof store.stampSetting;
+    const val = store.stampSetting?.[key];
+    if (val) {
+      successUrl.searchParams.set(`reward${n}`, val as string);
+    }
   }
   if (stateData.ordersheetId) {
     successUrl.searchParams.set('ordersheetId', stateData.ordersheetId);

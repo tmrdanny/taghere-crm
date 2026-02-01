@@ -103,9 +103,10 @@ router.post('/use', async (req: AuthRequest, res) => {
       return res.status(400).json({ error: '고객 ID가 필요합니다.' });
     }
 
-    // 5개 또는 10개만 사용 가능
-    if (amount !== 5 && amount !== 10) {
-      return res.status(400).json({ error: '5개 또는 10개 단위로만 사용 가능합니다.' });
+    // 5, 10, 15, 20, 25, 30개 단위로 사용 가능
+    const VALID_AMOUNTS = [5, 10, 15, 20, 25, 30];
+    if (!VALID_AMOUNTS.includes(amount)) {
+      return res.status(400).json({ error: '5, 10, 15, 20, 25, 30개 단위로만 사용 가능합니다.' });
     }
 
     // 고객 확인
@@ -127,7 +128,7 @@ router.post('/use', async (req: AuthRequest, res) => {
     // 스탬프 사용 (트랜잭션)
     const result = await prisma.$transaction(async (tx) => {
       const newBalance = customer.totalStamps - amount;
-      const ledgerType = amount === 5 ? 'USE_5' : 'USE_10';
+      const ledgerType = `USE_${amount}` as any;
 
       // 고객 스탬프 업데이트
       const updatedCustomer = await tx.customer.update({

@@ -877,6 +877,10 @@ router.get('/stamp-info/:slug', async (req, res) => {
       enabled: true,
       reward5Description: store.stampSetting.reward5Description,
       reward10Description: store.stampSetting.reward10Description,
+      reward15Description: store.stampSetting.reward15Description,
+      reward20Description: store.stampSetting.reward20Description,
+      reward25Description: store.stampSetting.reward25Description,
+      reward30Description: store.stampSetting.reward30Description,
     });
   } catch (error: any) {
     console.error('[TagHere] Stamp info error:', error);
@@ -1146,20 +1150,19 @@ router.post('/stamp-earn', async (req, res) => {
     // 9. 알림톡 발송 (비동기)
     const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
     if (store.stampSetting.alimtalkEnabled && phoneNumber) {
-      // 스탬프 사용 규칙 생성
-      const reward5 = store.stampSetting.reward5Description;
-      const reward10 = store.stampSetting.reward10Description;
-      let stampUsageRule: string;
-
-      if (reward5 && reward10) {
-        stampUsageRule = `\n- 5개 모을 시: ${reward5}\n- 10개 모을 시: ${reward10}`;
-      } else if (reward5) {
-        stampUsageRule = `\n- 5개 모을 시: ${reward5}`;
-      } else if (reward10) {
-        stampUsageRule = `\n- 10개 모을 시: ${reward10}`;
-      } else {
-        stampUsageRule = `\n- 10개 모을시 매장 선물 증정!`;
-      }
+      // 스탬프 사용 규칙 생성 (보상이 설정된 단계만 포함)
+      const rewardTiers = [
+        { count: 5, desc: store.stampSetting.reward5Description },
+        { count: 10, desc: store.stampSetting.reward10Description },
+        { count: 15, desc: store.stampSetting.reward15Description },
+        { count: 20, desc: store.stampSetting.reward20Description },
+        { count: 25, desc: store.stampSetting.reward25Description },
+        { count: 30, desc: store.stampSetting.reward30Description },
+      ];
+      const rules = rewardTiers.filter(t => t.desc).map(t => `- ${t.count}개 모을 시: ${t.desc}`);
+      const stampUsageRule = rules.length > 0
+        ? '\n' + rules.join('\n')
+        : '\n- 10개 모을시 매장 선물 증정!';
 
       // 리뷰 작성 안내 문구
       const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
@@ -1191,6 +1194,10 @@ router.post('/stamp-earn', async (req, res) => {
       hasVisitSource: !!customer.visitSource,
       reward5Description: store.stampSetting.reward5Description,
       reward10Description: store.stampSetting.reward10Description,
+      reward15Description: store.stampSetting.reward15Description,
+      reward20Description: store.stampSetting.reward20Description,
+      reward25Description: store.stampSetting.reward25Description,
+      reward30Description: store.stampSetting.reward30Description,
     });
   } catch (error: any) {
     console.error('[TagHere Stamp-Earn] Error:', error);

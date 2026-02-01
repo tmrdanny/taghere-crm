@@ -118,6 +118,10 @@ interface StampInfo {
   storeName: string;
   reward5Description: string | null;
   reward10Description: string | null;
+  reward15Description: string | null;
+  reward20Description: string | null;
+  reward25Description: string | null;
+  reward30Description: string | null;
   enabled: boolean;
 }
 
@@ -134,6 +138,10 @@ interface SuccessData {
   hasVisitSource?: boolean;
   reward5Description: string | null;
   reward10Description: string | null;
+  reward15Description: string | null;
+  reward20Description: string | null;
+  reward25Description: string | null;
+  reward30Description: string | null;
 }
 
 interface SurveyQuestion {
@@ -629,7 +637,7 @@ function TaghereEnrollStampContent() {
   const [isOpening, setIsOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAlreadyParticipated, setShowAlreadyParticipated] = useState(false);
-  const [alreadyParticipatedData, setAlreadyParticipatedData] = useState<{ stamps: number; storeName: string; reward5: string; reward10: string } | null>(null);
+  const [alreadyParticipatedData, setAlreadyParticipatedData] = useState<{ stamps: number; storeName: string; rewards: Record<number, string> } | null>(null);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const [isAgreed, setIsAgreed] = useState(false);
   const [showAgreementWarning, setShowAgreementWarning] = useState(false);
@@ -650,8 +658,10 @@ function TaghereEnrollStampContent() {
   const urlKakaoId = searchParams.get('kakaoId');
   const hasPreferences = searchParams.get('hasPreferences') === 'true';
   const hasVisitSourceParam = searchParams.get('hasVisitSource') === 'true';
-  const reward5 = searchParams.get('reward5');
-  const reward10 = searchParams.get('reward10');
+  const rewardParams: Record<number, string | null> = {};
+  for (const n of [5, 10, 15, 20, 25, 30]) {
+    rewardParams[n] = searchParams.get(`reward${n}`);
+  }
 
   // 방문 경로 옵션은 항상 조회 (별도 useEffect - 카카오 로그인 리다이렉트 시에도 실행되도록)
   useEffect(() => {
@@ -716,6 +726,10 @@ function TaghereEnrollStampContent() {
           hasVisitSource: data.hasVisitSource || false,
           reward5Description: data.reward5Description,
           reward10Description: data.reward10Description,
+          reward15Description: data.reward15Description,
+          reward20Description: data.reward20Description,
+          reward25Description: data.reward25Description,
+          reward30Description: data.reward30Description,
         });
         setStampInfo(null); // 기본 UI 숨김
       } else {
@@ -726,11 +740,16 @@ function TaghereEnrollStampContent() {
         } else if (data.error === 'already_earned_today' || data.error === 'already_earned') {
           // 오늘 이미 적립됨
           if (data.currentStamps !== undefined) {
+            const rw: Record<number, string> = {};
+            for (const n of [5, 10, 15, 20, 25, 30]) {
+              const key = `reward${n}Description` as keyof typeof data;
+              const storeKey = `reward${n}Description` as keyof typeof storeData;
+              rw[n] = (data[key] as string) || (storeData[storeKey] as string) || '';
+            }
             setAlreadyParticipatedData({
               stamps: data.currentStamps,
               storeName: data.storeName || storeData.storeName || '',
-              reward5: data.reward5Description || storeData.reward5Description || '',
-              reward10: data.reward10Description || storeData.reward10Description || '',
+              rewards: rw,
             });
           }
           setShowAlreadyParticipated(true);
@@ -760,8 +779,12 @@ function TaghereEnrollStampContent() {
         currentStamps: parseInt(successStamps),
         hasExistingPreferences: hasPreferences,
         hasVisitSource: hasVisitSourceParam,
-        reward5Description: reward5,
-        reward10Description: reward10,
+        reward5Description: rewardParams[5],
+        reward10Description: rewardParams[10],
+        reward15Description: rewardParams[15],
+        reward20Description: rewardParams[20],
+        reward25Description: rewardParams[25],
+        reward30Description: rewardParams[30],
       });
       setIsLoading(false);
       return;
@@ -772,11 +795,14 @@ function TaghereEnrollStampContent() {
       const urlStamps = searchParams.get('stamps');
       const urlStoreName = searchParams.get('storeName');
       if (urlStamps) {
+        const rw: Record<number, string> = {};
+        for (const n of [5, 10, 15, 20, 25, 30]) {
+          rw[n] = rewardParams[n] || '';
+        }
         setAlreadyParticipatedData({
           stamps: parseInt(urlStamps),
           storeName: urlStoreName || '',
-          reward5: reward5 || '',
-          reward10: reward10 || '',
+          rewards: rw,
         });
       }
       setShowAlreadyParticipated(true);
@@ -868,8 +894,11 @@ function TaghereEnrollStampContent() {
     if (successData) {
       url.searchParams.set('stamps', String(successData.currentStamps || 0));
       url.searchParams.set('storeName', successData.storeName || '');
-      if (successData.reward5Description) url.searchParams.set('reward5', successData.reward5Description);
-      if (successData.reward10Description) url.searchParams.set('reward10', successData.reward10Description);
+      for (const n of [5, 10, 15, 20, 25, 30]) {
+        const key = `reward${n}Description` as keyof SuccessData;
+        const val = successData[key] as string | null;
+        if (val) url.searchParams.set(`reward${n}`, val);
+      }
     }
     window.location.href = url.toString();
   };
@@ -916,10 +945,16 @@ function TaghereEnrollStampContent() {
     window.location.href = url.toString();
   };
 
-  // 보상 텍스트 결정
-  const rewardText = stampInfo?.reward10Description
-    ? `10개 모으면 ${stampInfo.reward10Description} 증정`
-    : '10개 모으면 선물이 있어요';
+  // 보상 텍스트 결정 (가장 높은 단계의 보상 표시)
+  const rewardText = (() => {
+    if (!stampInfo) return '10개 모으면 선물이 있어요';
+    for (const n of [30, 25, 20, 15, 10, 5] as const) {
+      const key = `reward${n}Description` as keyof StampInfo;
+      const desc = stampInfo[key];
+      if (desc) return `${n}개 모으면 ${desc} 증정`;
+    }
+    return '스탬프를 모아 보상을 받으세요';
+  })();
 
   return (
     <>
@@ -1058,8 +1093,9 @@ function TaghereEnrollStampContent() {
                   url.searchParams.set('slug', slug);
                   url.searchParams.set('stamps', String(alreadyParticipatedData.stamps));
                   url.searchParams.set('storeName', alreadyParticipatedData.storeName);
-                  if (alreadyParticipatedData.reward5) url.searchParams.set('reward5', alreadyParticipatedData.reward5);
-                  if (alreadyParticipatedData.reward10) url.searchParams.set('reward10', alreadyParticipatedData.reward10);
+                  for (const n of [5, 10, 15, 20, 25, 30]) {
+                    if (alreadyParticipatedData.rewards[n]) url.searchParams.set(`reward${n}`, alreadyParticipatedData.rewards[n]);
+                  }
                   window.location.href = url.toString();
                 } else {
                   handleSkipEarn();

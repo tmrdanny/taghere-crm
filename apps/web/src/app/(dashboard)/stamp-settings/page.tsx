@@ -12,6 +12,10 @@ interface StampSettings {
   enabled: boolean;
   reward5Description: string | null;
   reward10Description: string | null;
+  reward15Description: string | null;
+  reward20Description: string | null;
+  reward25Description: string | null;
+  reward30Description: string | null;
   alimtalkEnabled: boolean;
 }
 
@@ -24,9 +28,15 @@ export default function StampSettingsPage() {
 
   // Settings state
   const [enabled, setEnabled] = useState(true);
-  const [reward5Description, setReward5Description] = useState('');
-  const [reward10Description, setReward10Description] = useState('');
+  const [rewards, setRewards] = useState<Record<number, string>>({
+    5: '', 10: '', 15: '', 20: '', 25: '', 30: '',
+  });
   const [alimtalkEnabled, setAlimtalkEnabled] = useState(true);
+
+  const REWARD_TIERS = [5, 10, 15, 20, 25, 30];
+  const setRewardDesc = (tier: number, value: string) => {
+    setRewards(prev => ({ ...prev, [tier]: value }));
+  };
 
   // Fetch stamp settings
   useEffect(() => {
@@ -42,8 +52,14 @@ export default function StampSettingsPage() {
         if (res.ok) {
           const data: StampSettings = await res.json();
           setEnabled(data.enabled);
-          setReward5Description(data.reward5Description || '');
-          setReward10Description(data.reward10Description || '');
+          setRewards({
+            5: data.reward5Description || '',
+            10: data.reward10Description || '',
+            15: data.reward15Description || '',
+            20: data.reward20Description || '',
+            25: data.reward25Description || '',
+            30: data.reward30Description || '',
+          });
           setAlimtalkEnabled(data.alimtalkEnabled);
         }
       } catch (error) {
@@ -69,8 +85,12 @@ export default function StampSettingsPage() {
         },
         body: JSON.stringify({
           enabled,
-          reward5Description: reward5Description || null,
-          reward10Description: reward10Description || null,
+          reward5Description: rewards[5] || null,
+          reward10Description: rewards[10] || null,
+          reward15Description: rewards[15] || null,
+          reward20Description: rewards[20] || null,
+          reward25Description: rewards[25] || null,
+          reward30Description: rewards[30] || null,
           alimtalkEnabled,
         }),
       });
@@ -173,7 +193,7 @@ export default function StampSettingsPage() {
                   <span className="text-xs font-medium">2</span>
                 </div>
                 <p>
-                  스탬프는 <strong>하루 1개씩 적립</strong>되며, 고객이 5개 또는 10개를 모으면 보상을 사용할 수 있습니다.
+                  스탬프는 <strong>하루 1개씩 적립</strong>되며, 설정된 단계(5~30개)에 도달하면 보상을 사용할 수 있습니다.
                 </p>
               </div>
               <div className="flex items-start gap-3">
@@ -181,7 +201,7 @@ export default function StampSettingsPage() {
                   <span className="text-xs font-medium">3</span>
                 </div>
                 <p>
-                  고객이 보상을 요청하면, <strong>고객 리스트</strong>에서 해당 고객을 찾아 &quot;5개 사용&quot; 또는 &quot;10개 사용&quot; 버튼을 눌러주세요.
+                  고객이 보상을 요청하면, <strong>고객 리스트</strong>에서 해당 고객을 찾아 해당 단계의 &quot;사용&quot; 버튼을 눌러주세요.
                 </p>
               </div>
             </div>
@@ -223,51 +243,28 @@ export default function StampSettingsPage() {
               <CardTitle className="text-lg">보상 설정</CardTitle>
             </div>
             <p className="text-sm text-neutral-500 mt-1">
-              스탬프 5개, 10개 적립 시 제공할 보상을 설정하세요.
+              스탬프 단계별 보상을 설정하세요. 비워두면 해당 단계에 보상이 없습니다.
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* 5개 보상 */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-                  <span className="text-sm font-bold text-amber-700">5</span>
+            {REWARD_TIERS.map((tier) => (
+              <div key={tier} className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                    <span className="text-sm font-bold text-amber-700">{tier}</span>
+                  </div>
+                  <label className="text-sm font-medium text-neutral-700">
+                    스탬프 {tier}개 보상
+                  </label>
                 </div>
-                <label className="text-sm font-medium text-neutral-700">
-                  스탬프 5개 보상
-                </label>
+                <Input
+                  value={rewards[tier]}
+                  onChange={(e) => setRewardDesc(tier, e.target.value)}
+                  placeholder={tier === 5 ? '예: 아메리카노 1잔 무료' : tier === 10 ? '예: 케이크 세트 무료 (음료 포함)' : '비워두면 보상 없음'}
+                  disabled={!enabled}
+                />
               </div>
-              <Input
-                value={reward5Description}
-                onChange={(e) => setReward5Description(e.target.value)}
-                placeholder="예: 아메리카노 1잔 무료"
-                disabled={!enabled}
-              />
-              <p className="text-xs text-neutral-500">
-                고객이 스탬프 5개를 모으면 받을 수 있는 보상을 입력하세요.
-              </p>
-            </div>
-
-            {/* 10개 보상 */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-                  <span className="text-sm font-bold text-amber-700">10</span>
-                </div>
-                <label className="text-sm font-medium text-neutral-700">
-                  스탬프 10개 보상
-                </label>
-              </div>
-              <Input
-                value={reward10Description}
-                onChange={(e) => setReward10Description(e.target.value)}
-                placeholder="예: 케이크 세트 무료 (음료 포함)"
-                disabled={!enabled}
-              />
-              <p className="text-xs text-neutral-500">
-                고객이 스탬프 10개를 모으면 받을 수 있는 보상을 입력하세요.
-              </p>
-            </div>
+            ))}
 
             <div className="flex justify-end pt-2">
               <Button onClick={handleSave} disabled={isSaving || !enabled}>

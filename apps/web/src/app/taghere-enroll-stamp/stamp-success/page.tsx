@@ -100,10 +100,12 @@ function StampSuccessContent() {
   const slug = searchParams.get('slug') || '';
   const stamps = parseInt(searchParams.get('stamps') || '0');
   const storeName = searchParams.get('storeName') || '';
-  const reward5 = searchParams.get('reward5') || '';
-  const reward10 = searchParams.get('reward10') || '';
   const ordersheetId = searchParams.get('ordersheetId');
   const hasOrder = Boolean(ordersheetId);
+
+  const rewardList = [5, 10, 15, 20, 25, 30]
+    .map(n => ({ count: n, desc: searchParams.get(`reward${n}`) || '' }))
+    .filter(r => r.desc);
 
   // stamps can exceed 10; show modulo position within current card of 10
   const displayStamps = stamps % 10 || (stamps > 0 && stamps % 10 === 0 ? 10 : 0);
@@ -222,30 +224,22 @@ function StampSuccessContent() {
           </div>
 
           {/* Reward Info Card */}
-          {(reward5 || reward10) && (
+          {rewardList.length > 0 && (
             <div className="rounded-[10px] border border-[#ebeced] overflow-hidden mb-4">
-              {reward5 && (
-                <div className={`px-5 py-4 flex items-center gap-3 ${reward10 ? 'border-b border-[#ebeced]' : ''}`}>
+              {rewardList.map((reward, idx) => (
+                <div
+                  key={reward.count}
+                  className={`px-5 py-4 flex items-center gap-3 ${idx < rewardList.length - 1 ? 'border-b border-[#ebeced]' : ''}`}
+                >
                   <div className="w-8 h-8 rounded-full bg-[#FFF4D6] flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm">5</span>
+                    <span className="text-sm font-bold">{reward.count}</span>
                   </div>
                   <div>
-                    <p className="text-xs text-[#b1b5b8] font-medium">5개 달성 보상</p>
-                    <p className="text-sm font-semibold text-[#1d2022]">{reward5}</p>
+                    <p className="text-xs text-[#b1b5b8] font-medium">{reward.count}개 달성 보상</p>
+                    <p className="text-sm font-semibold text-[#1d2022]">{reward.desc}</p>
                   </div>
                 </div>
-              )}
-              {reward10 && (
-                <div className="px-5 py-4 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#FFE8A3] flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold">10</span>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#b1b5b8] font-medium">10개 달성 보상</p>
-                    <p className="text-sm font-semibold text-[#1d2022]">{reward10}</p>
-                  </div>
-                </div>
-              )}
+              ))}
             </div>
           )}
 

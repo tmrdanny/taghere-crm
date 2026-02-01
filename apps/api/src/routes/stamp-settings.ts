@@ -67,6 +67,10 @@ router.get('/', async (req: AuthRequest, res) => {
       enabled: setting.enabled,
       reward5Description: setting.reward5Description,
       reward10Description: setting.reward10Description,
+      reward15Description: setting.reward15Description,
+      reward20Description: setting.reward20Description,
+      reward25Description: setting.reward25Description,
+      reward30Description: setting.reward30Description,
       alimtalkEnabled: setting.alimtalkEnabled,
     });
   } catch (error) {
@@ -83,6 +87,10 @@ router.put('/', async (req: AuthRequest, res) => {
       enabled,
       reward5Description,
       reward10Description,
+      reward15Description,
+      reward20Description,
+      reward25Description,
+      reward30Description,
       alimtalkEnabled,
     } = req.body;
 
@@ -99,12 +107,20 @@ router.put('/', async (req: AuthRequest, res) => {
         enabled: enabled ?? false,
         reward5Description: reward5Description || null,
         reward10Description: reward10Description || null,
+        reward15Description: reward15Description || null,
+        reward20Description: reward20Description || null,
+        reward25Description: reward25Description || null,
+        reward30Description: reward30Description || null,
         alimtalkEnabled: alimtalkEnabled ?? true,
       },
       update: {
         ...(enabled !== undefined && { enabled }),
         ...(reward5Description !== undefined && { reward5Description: reward5Description || null }),
         ...(reward10Description !== undefined && { reward10Description: reward10Description || null }),
+        ...(reward15Description !== undefined && { reward15Description: reward15Description || null }),
+        ...(reward20Description !== undefined && { reward20Description: reward20Description || null }),
+        ...(reward25Description !== undefined && { reward25Description: reward25Description || null }),
+        ...(reward30Description !== undefined && { reward30Description: reward30Description || null }),
         ...(alimtalkEnabled !== undefined && { alimtalkEnabled }),
       },
     });
@@ -145,6 +161,10 @@ router.put('/', async (req: AuthRequest, res) => {
       enabled: setting.enabled,
       reward5Description: setting.reward5Description,
       reward10Description: setting.reward10Description,
+      reward15Description: setting.reward15Description,
+      reward20Description: setting.reward20Description,
+      reward25Description: setting.reward25Description,
+      reward30Description: setting.reward30Description,
       alimtalkEnabled: setting.alimtalkEnabled,
     });
   } catch (error) {

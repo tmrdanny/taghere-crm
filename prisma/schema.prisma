@@ -1201,9 +1201,13 @@ model StampSetting {
   // 기본 설정
   enabled               Boolean  @default(false)
 
-  // 보상 설정 (5개, 10개 단위)
+  // 보상 설정 (5개 단위, 최대 30개)
   reward5Description    String?  // 5개 보상 설명 (예: "아메리카노 1잔 무료")
   reward10Description   String?  // 10개 보상 설명 (예: "케이크 세트 무료")
+  reward15Description   String?  // 15개 보상 설명
+  reward20Description   String?  // 20개 보상 설명
+  reward25Description   String?  // 25개 보상 설명
+  reward30Description   String?  // 30개 보상 설명
 
   // 알림톡 설정
   alimtalkEnabled       Boolean  @default(true)
@@ -1249,6 +1253,10 @@ enum StampLedgerType {
   EARN          // 적립 (+1)
   USE_5         // 5개 사용 (-5)
   USE_10        // 10개 사용 (-10)
+  USE_15        // 15개 사용 (-15)
+  USE_20        // 20개 사용 (-20)
+  USE_25        // 25개 사용 (-25)
+  USE_30        // 30개 사용 (-30)
   ADMIN_ADD     // 관리자 추가
   ADMIN_REMOVE  // 관리자 차감
 }

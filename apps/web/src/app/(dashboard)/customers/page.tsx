@@ -1830,85 +1830,49 @@ export default function CustomersPage() {
                 {((editingCustomer as any)?.totalStamps || 0) > 0 && (
                   <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-lg space-y-2">
                     <p className="text-sm font-medium text-neutral-700">스탬프 보상 사용</p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={((editingCustomer as any)?.totalStamps || 0) < 5 || submittingEdit}
-                        onClick={async () => {
-                          if (!editingCustomer) return;
-                          setSubmittingEdit(true);
-                          try {
-                            const token = getAuthToken();
-                            const res = await fetch(`${apiUrl}/api/stamps/use`, {
-                              method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${token}`,
-                              },
-                              body: JSON.stringify({
-                                customerId: editingCustomer.id,
-                                amount: 5,
-                              }),
-                            });
-                            if (res.ok) {
-                              const data = await res.json();
-                              setEditingCustomer(prev => prev ? { ...prev, totalStamps: data.remainingStamps } as any : null);
-                              showToast('스탬프 5개가 사용되었습니다.', 'success');
-                              setRefreshKey(prev => prev + 1);
-                            } else {
-                              const error = await res.json();
-                              showToast(error.error || '스탬프 사용에 실패했습니다.', 'error');
+                    <div className="flex flex-wrap gap-2">
+                      {[5, 10, 15, 20, 25, 30].map((amount) => (
+                        <Button
+                          key={amount}
+                          variant="outline"
+                          size="sm"
+                          disabled={((editingCustomer as any)?.totalStamps || 0) < amount || submittingEdit}
+                          onClick={async () => {
+                            if (!editingCustomer) return;
+                            setSubmittingEdit(true);
+                            try {
+                              const token = getAuthToken();
+                              const res = await fetch(`${apiUrl}/api/stamps/use`, {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({
+                                  customerId: editingCustomer.id,
+                                  amount,
+                                }),
+                              });
+                              if (res.ok) {
+                                const data = await res.json();
+                                setEditingCustomer(prev => prev ? { ...prev, totalStamps: data.remainingStamps } as any : null);
+                                showToast(`스탬프 ${amount}개가 사용되었습니다.`, 'success');
+                                setRefreshKey(prev => prev + 1);
+                              } else {
+                                const error = await res.json();
+                                showToast(error.error || '스탬프 사용에 실패했습니다.', 'error');
+                              }
+                            } catch (error) {
+                              showToast('스탬프 사용 중 오류가 발생했습니다.', 'error');
+                            } finally {
+                              setSubmittingEdit(false);
                             }
-                          } catch (error) {
-                            showToast('스탬프 사용 중 오류가 발생했습니다.', 'error');
-                          } finally {
-                            setSubmittingEdit(false);
-                          }
-                        }}
-                        className="flex-1"
-                      >
-                        5개 사용
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={((editingCustomer as any)?.totalStamps || 0) < 10 || submittingEdit}
-                        onClick={async () => {
-                          if (!editingCustomer) return;
-                          setSubmittingEdit(true);
-                          try {
-                            const token = getAuthToken();
-                            const res = await fetch(`${apiUrl}/api/stamps/use`, {
-                              method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${token}`,
-                              },
-                              body: JSON.stringify({
-                                customerId: editingCustomer.id,
-                                amount: 10,
-                              }),
-                            });
-                            if (res.ok) {
-                              const data = await res.json();
-                              setEditingCustomer(prev => prev ? { ...prev, totalStamps: data.remainingStamps } as any : null);
-                              showToast('스탬프 10개가 사용되었습니다.', 'success');
-                              setRefreshKey(prev => prev + 1);
-                            } else {
-                              const error = await res.json();
-                              showToast(error.error || '스탬프 사용에 실패했습니다.', 'error');
-                            }
-                          } catch (error) {
-                            showToast('스탬프 사용 중 오류가 발생했습니다.', 'error');
-                          } finally {
-                            setSubmittingEdit(false);
-                          }
-                        }}
-                        className="flex-1"
-                      >
-                        10개 사용
-                      </Button>
+                          }}
+                          className="flex-1 min-w-[70px]"
+                        >
+                          {amount}개 사용
+                        </Button>
+                      ))}
                     </div>
                     <p className="text-xs text-neutral-500">
                       고객이 보상을 요청하면 해당 버튼을 눌러주세요.
