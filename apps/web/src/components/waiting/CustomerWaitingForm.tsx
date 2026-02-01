@@ -46,7 +46,6 @@ export function CustomerWaitingForm({
   const [phone, setPhone] = useState('');
   const [selectedTypeId, setSelectedTypeId] = useState<string>('');
   const [partySize, setPartySize] = useState<number>(2);
-  const [memo, setMemo] = useState('');
   const [consentPrivacy, setConsentPrivacy] = useState(false);
   const [consentMarketing, setConsentMarketing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,7 +101,6 @@ export function CustomerWaitingForm({
         phone: phoneNumbers,
         waitingTypeId: selectedTypeId,
         partySize: partySize,
-        memo: memo || undefined,
         consentPrivacy,
         consentMarketing,
       });
@@ -256,20 +254,6 @@ export function CustomerWaitingForm({
                 );
               })}
             </div>
-          </div>
-
-          {/* Memo */}
-          <div>
-            <label className="block text-sm font-medium text-[#1d2022] mb-2">
-              요청사항 <span className="text-[#b1b5b8] font-normal">(선택)</span>
-            </label>
-            <input
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              placeholder="예: 창가석, 유아 동반"
-              maxLength={100}
-              className="w-full px-4 py-3 bg-white border border-[#ebeced] rounded-xl text-[14px] text-[#1d2022] placeholder:text-[#b1b5b8] focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
-            />
           </div>
 
           {/* Consent */}
