@@ -13,8 +13,7 @@ const TOSS_WEBHOOK_SECRET = process.env.TOSS_WEBHOOK_SECRET || '';
 const getBonusRate = (amount: number): number => {
   if (amount >= 1000000) return 7;
   if (amount >= 500000) return 5;
-  if (amount >= 200000) return 4;
-  if (amount >= 100000) return 3;
+  if (amount >= 200000) return 3;
   return 0;
 };
 

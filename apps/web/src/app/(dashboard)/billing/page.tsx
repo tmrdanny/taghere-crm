@@ -23,9 +23,8 @@ const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || '';
 
 // 충전 금액 프리셋 및 보너스율
 const AMOUNT_PRESETS = [
-  { amount: 50000, bonusRate: 0 },
-  { amount: 100000, bonusRate: 3 },
-  { amount: 200000, bonusRate: 4 },
+  { amount: 100000, bonusRate: 0 },
+  { amount: 200000, bonusRate: 3 },
   { amount: 500000, bonusRate: 5 },
   { amount: 1000000, bonusRate: 7 },
 ];
@@ -34,8 +33,7 @@ const AMOUNT_PRESETS = [
 const getBonusRate = (amount: number): number => {
   if (amount >= 1000000) return 7;
   if (amount >= 500000) return 5;
-  if (amount >= 200000) return 4;
-  if (amount >= 100000) return 3;
+  if (amount >= 200000) return 3;
   return 0;
 };
 
@@ -60,8 +58,8 @@ export default function BillingPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { showToast, ToastComponent } = useToast();
-  const [amount, setAmount] = useState<number>(50000);
-  const [customAmount, setCustomAmount] = useState<string>('50,000');
+  const [amount, setAmount] = useState<number>(100000);
+  const [customAmount, setCustomAmount] = useState<string>('100,000');
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
