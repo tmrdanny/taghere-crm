@@ -84,6 +84,10 @@ export default function SettingsPage() {
   const MIN_BALANCE_FOR_ALIMTALK = 5;
   const canEnableAlimtalk = walletBalance >= MIN_BALANCE_FOR_ALIMTALK;
 
+  // Stamp alimtalk settings
+  const [stampAlimtalkEnabled, setStampAlimtalkEnabled] = useState(true);
+  const [isSavingStampAlimtalk, setIsSavingStampAlimtalk] = useState(false);
+
   // Point rate settings (결제금액 기반 적립률)
   const [pointRatePercent, setPointRatePercent] = useState('5');
   const [isSavingPointRate, setIsSavingPointRate] = useState(false);
@@ -198,11 +202,27 @@ export default function SettingsPage() {
       }
     };
 
+    const fetchStampAlimtalkSettings = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${apiUrl}/api/stamp-settings`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setStampAlimtalkEnabled(data.alimtalkEnabled ?? true);
+        }
+      } catch (error) {
+        console.error('Failed to fetch stamp alimtalk settings:', error);
+      }
+    };
+
     fetchStoreInfo();
     fetchUserInfo();
     fetchAlimtalkSettings();
     fetchPointRateSettings();
     fetchWalletBalance();
+    fetchStampAlimtalkSettings();
   }, [apiUrl]);
 
   const handleSaveStore = async () => {
@@ -251,6 +271,10 @@ export default function SettingsPage() {
   };
 
   const handleToggleAlimtalk = async (enabled: boolean) => {
+    if (!enabled) {
+      const confirmed = window.confirm('알림톡 발송을 하지 않을 경우 고객은 적립이 얼마나 되었는지 확인할 수 없습니다. 알림톡을 끄시겠습니까?');
+      if (!confirmed) return;
+    }
     setIsSavingAlimtalk(true);
     try {
       const token = localStorage.getItem('token');
@@ -277,6 +301,37 @@ export default function SettingsPage() {
       showToast('설정 저장 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsSavingAlimtalk(false);
+    }
+  };
+
+  const handleToggleStampAlimtalk = async (enabled: boolean) => {
+    if (!enabled) {
+      const confirmed = window.confirm('알림톡 발송을 하지 않을 경우 고객은 적립이 얼마나 되었는지 확인할 수 없습니다. 알림톡을 끄시겠습니까?');
+      if (!confirmed) return;
+    }
+    setIsSavingStampAlimtalk(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/api/stamp-settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ alimtalkEnabled: enabled }),
+      });
+
+      if (res.ok) {
+        setStampAlimtalkEnabled(enabled);
+        showToast(enabled ? '스탬프 알림톡이 활성화되었습니다.' : '스탬프 알림톡이 비활성화되었습니다.', 'success');
+      } else {
+        showToast('설정 저장 중 오류가 발생했습니다.', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to save stamp alimtalk settings:', error);
+      showToast('설정 저장 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setIsSavingStampAlimtalk(false);
     }
   };
 
@@ -671,6 +726,25 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
+
+            {/* 스탬프 적립 알림톡 */}
+            <div className="mt-4 pt-4 border-t border-neutral-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-neutral-900">
+                    스탬프 적립 알림톡 발송
+                  </p>
+                  <p className="text-sm text-neutral-500 mt-1">
+                    스탬프 적립 시 고객에게 현재 스탬프 수와 보상 정보를 알림톡으로 발송합니다.
+                  </p>
+                </div>
+                <Switch
+                  checked={stampAlimtalkEnabled && canEnableAlimtalk}
+                  onCheckedChange={handleToggleStampAlimtalk}
+                  disabled={isSavingStampAlimtalk || !canEnableAlimtalk}
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
 

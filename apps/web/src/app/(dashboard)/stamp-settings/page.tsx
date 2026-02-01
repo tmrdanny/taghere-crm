@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Stamp, Gift, MessageSquare } from 'lucide-react';
+import { Stamp, Gift } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
 interface StampSettings {
@@ -16,7 +16,6 @@ interface StampSettings {
   reward20Description: string | null;
   reward25Description: string | null;
   reward30Description: string | null;
-  alimtalkEnabled: boolean;
 }
 
 export default function StampSettingsPage() {
@@ -31,8 +30,6 @@ export default function StampSettingsPage() {
   const [rewards, setRewards] = useState<Record<number, string>>({
     5: '', 10: '', 15: '', 20: '', 25: '', 30: '',
   });
-  const [alimtalkEnabled, setAlimtalkEnabled] = useState(true);
-
   const REWARD_TIERS = [5, 10, 15, 20, 25, 30];
   const setRewardDesc = (tier: number, value: string) => {
     setRewards(prev => ({ ...prev, [tier]: value }));
@@ -60,7 +57,6 @@ export default function StampSettingsPage() {
             25: data.reward25Description || '',
             30: data.reward30Description || '',
           });
-          setAlimtalkEnabled(data.alimtalkEnabled);
         }
       } catch (error) {
         console.error('Failed to fetch stamp settings:', error);
@@ -91,7 +87,6 @@ export default function StampSettingsPage() {
           reward20Description: rewards[20] || null,
           reward25Description: rewards[25] || null,
           reward30Description: rewards[30] || null,
-          alimtalkEnabled,
         }),
       });
 
@@ -128,27 +123,6 @@ export default function StampSettingsPage() {
     } catch (error) {
       console.error('Failed to toggle stamp enabled:', error);
       setEnabled(!newEnabled); // 실패 시 롤백
-    }
-  };
-
-  const handleToggleAlimtalk = async (newEnabled: boolean) => {
-    setAlimtalkEnabled(newEnabled);
-    try {
-      const token = localStorage.getItem('token');
-      await fetch(`${apiUrl}/api/stamp-settings`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          alimtalkEnabled: newEnabled,
-        }),
-      });
-      showToast(newEnabled ? '알림톡 발송이 활성화되었습니다.' : '알림톡 발송이 비활성화되었습니다.', 'success');
-    } catch (error) {
-      console.error('Failed to toggle alimtalk:', error);
-      setAlimtalkEnabled(!newEnabled); // 실패 시 롤백
     }
   };
 
@@ -274,33 +248,7 @@ export default function StampSettingsPage() {
           </CardContent>
         </Card>
 
-        {/* 알림톡 설정 카드 */}
-        <Card className={!enabled ? 'opacity-50 pointer-events-none' : ''}>
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-neutral-600" />
-              <CardTitle className="text-lg">알림톡 설정</CardTitle>
-            </div>
-            <p className="text-sm text-neutral-500 mt-1">
-              스탬프 적립 시 고객에게 알림톡을 발송합니다.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-neutral-900">스탬프 적립 알림톡 발송</p>
-                <p className="text-sm text-neutral-500 mt-1">
-                  스탬프 적립 시 고객에게 현재 스탬프 수와 보상 정보를 알림톡으로 발송합니다.
-                </p>
-              </div>
-              <Switch
-                checked={alimtalkEnabled}
-                onCheckedChange={handleToggleAlimtalk}
-                disabled={!enabled}
-              />
-            </div>
-          </CardContent>
-        </Card>
+
 
       </div>
     </div>
