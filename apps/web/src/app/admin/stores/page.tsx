@@ -1044,6 +1044,75 @@ export default function AdminStoresPage() {
                   )}
                 </div>
 
+                {/* 스탬프 적립 링크 (태그히어 사용 X) */}
+                <div className="rounded-xl p-4 bg-neutral-50">
+                  <label className="block text-[12px] text-neutral-500 mb-1">스탬프 적립 링크 (태그히어 사용 X)</label>
+                  {selectedStore.slug ? (
+                    <div className="flex items-center gap-2">
+                      <code className="text-[13px] text-neutral-600 font-mono truncate flex-1">
+                        /taghere-enroll-stamp/{selectedStore.slug}
+                      </code>
+                      <button
+                        onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll-stamp/${selectedStore.slug}`, e)}
+                        className="p-1 text-neutral-400 hover:text-neutral-600 transition-colors flex-shrink-0"
+                        title="복사"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[14px] text-neutral-400">slug 없음</span>
+                  )}
+                </div>
+
+                {/* 웨이팅 태블릿 링크 */}
+                <div className="rounded-xl p-4 bg-blue-50">
+                  <label className="block text-[12px] text-blue-600 mb-1">웨이팅 태블릿 링크</label>
+                  {selectedStore.slug ? (
+                    <div className="flex items-center gap-2">
+                      <code className="text-[13px] text-blue-700 font-mono truncate flex-1">
+                        /w/{selectedStore.slug}/tablet
+                      </code>
+                      <button
+                        onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/w/${selectedStore.slug}/tablet`, e)}
+                        className="p-1 text-blue-400 hover:text-blue-600 transition-colors flex-shrink-0"
+                        title="복사"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[14px] text-blue-400">slug 없음</span>
+                  )}
+                </div>
+
+                {/* 웨이팅 QR/NFC 링크 */}
+                <div className="rounded-xl p-4 bg-blue-50">
+                  <label className="block text-[12px] text-blue-600 mb-1">웨이팅 QR/NFC 링크</label>
+                  {selectedStore.slug ? (
+                    <div className="flex items-center gap-2">
+                      <code className="text-[13px] text-blue-700 font-mono truncate flex-1">
+                        /w/{selectedStore.slug}
+                      </code>
+                      <button
+                        onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/w/${selectedStore.slug}`, e)}
+                        className="p-1 text-blue-400 hover:text-blue-600 transition-colors flex-shrink-0"
+                        title="복사"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[14px] text-blue-400">slug 없음</span>
+                  )}
+                </div>
+
                 {/* CRM 연동 토글 */}
                 <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
                   <label className="block text-[12px] text-neutral-500 mb-2">태그히어 CRM 연동</label>
