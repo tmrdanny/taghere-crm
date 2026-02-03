@@ -873,16 +873,37 @@ function TaghereEnrollStampContent() {
     setIsOpening(true);
 
     setTimeout(() => {
-      const params = new URLSearchParams();
-      params.set('storeId', stampInfo.storeId);
-      params.set('slug', slug);
-      params.set('isStamp', 'true'); // 스탬프 적립임을 표시
-      if (ordersheetId) params.set('ordersheetId', ordersheetId);
-      // 현재 웹 서버의 origin을 전달하여 카카오 로그인 후 동일 환경으로 리다이렉트
-      params.set('origin', window.location.origin);
-
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
+      const redirectUri = `${apiUrl}/auth/kakao/taghere-callback`;
+
+      // state 파라미터에 필요한 정보를 담아 전달
+      const stateData = {
+        storeId: stampInfo.storeId,
+        slug,
+        ordersheetId: ordersheetId || '',
+        isTaghere: true,
+        isStamp: true,
+        origin: window.location.origin,
+      };
+      const state = btoa(JSON.stringify(stateData));
+
+      // 카카오 SDK가 초기화되어 있으면 SDK 사용 (모바일에서 카카오톡 앱으로 로그인)
+      if (typeof window !== 'undefined' && window.Kakao && window.Kakao.isInitialized()) {
+        window.Kakao.Auth.authorize({
+          redirectUri,
+          state,
+          scope: 'profile_nickname,account_email,phone_number,gender,birthday,birthyear',
+        });
+      } else {
+        // SDK 초기화 실패 시 기존 REST API 방식으로 폴백
+        const params = new URLSearchParams();
+        params.set('storeId', stampInfo.storeId);
+        params.set('slug', slug);
+        params.set('isStamp', 'true');
+        if (ordersheetId) params.set('ordersheetId', ordersheetId);
+        params.set('origin', window.location.origin);
+        window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
+      }
     }, 500);
   };
 

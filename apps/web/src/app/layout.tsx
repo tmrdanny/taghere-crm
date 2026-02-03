@@ -24,6 +24,7 @@ export const viewport: Viewport = {
 }
 
 const GA_ID = 'G-ZPYVXVK1GJ'
+const KAKAO_JS_KEY = process.env.NEXT_PUBLIC_KAKAO_JS_KEY || ''
 
 export default function RootLayout({
   children,
@@ -43,6 +44,20 @@ export default function RootLayout({
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
             gtag('config', '${GA_ID}');
+          `}
+        </Script>
+        {/* 카카오 JavaScript SDK */}
+        <Script
+          src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"
+          integrity="sha384-DKYJZ8NLiK8MN4/C5P2dtSmLQ4KwPaoqAfyA/DfmEc1VDxu4yyC7wy6K1Ber2S5D"
+          crossOrigin="anonymous"
+          strategy="beforeInteractive"
+        />
+        <Script id="kakao-init" strategy="afterInteractive">
+          {`
+            if (typeof window !== 'undefined' && window.Kakao && !window.Kakao.isInitialized() && '${KAKAO_JS_KEY}') {
+              window.Kakao.init('${KAKAO_JS_KEY}');
+            }
           `}
         </Script>
       </head>
