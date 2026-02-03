@@ -1099,8 +1099,11 @@ router.post('/stamp-earn', async (req, res) => {
     }
 
     // 8. 스탬프 적립 (트랜잭션) - 스탬프 적립 시 무조건 방문횟수 +1
+    const previousStamps = customer!.totalStamps ?? 0;
+    console.log(`[TagHere Stamp-Earn] Before transaction - customerId: ${customer!.id}, previousStamps: ${previousStamps}`);
+
     const result = await prisma.$transaction(async (tx) => {
-      const newBalance = customer!.totalStamps + 1;
+      const newBalance = previousStamps + 1;
 
       // 고객 스탬프 업데이트
       const updatedCustomer = await tx.customer.update({
