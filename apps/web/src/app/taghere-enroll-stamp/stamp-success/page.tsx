@@ -93,15 +93,58 @@ function InlineBannerCarousel({ banners }: { banners: Banner[] }) {
   );
 }
 
+function RewardPopupModal({ reward, tier, onClose }: { reward: string; tier: number; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-xl">
+        {/* Gift Icon */}
+        <div className="w-16 h-16 rounded-full bg-[#FFF4D6] flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-[#FFB800]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+          </svg>
+        </div>
+
+        <h2 className="text-lg font-bold text-[#1d2022] mb-1">
+          축하합니다!
+        </h2>
+        <p className="text-sm text-[#91949a] mb-4">
+          {tier}개 달성 보상
+        </p>
+
+        {/* Reward Card */}
+        <div className="bg-[#FFF4D6] rounded-xl px-4 py-3 mb-4">
+          <p className="text-base font-bold text-[#1d2022]">{reward}</p>
+        </div>
+
+        <p className="text-sm text-[#55595e] mb-5">
+          직원에게 현재 화면을 보여주세요.
+        </p>
+
+        <button
+          onClick={onClose}
+          className="w-full py-3.5 bg-[#FFD541] text-[#1d2022] font-semibold text-base rounded-xl"
+        >
+          확인
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function StampSuccessContent() {
   const searchParams = useSearchParams();
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [showRewardPopup, setShowRewardPopup] = useState(false);
 
   const slug = searchParams.get('slug') || '';
   const stamps = parseInt(searchParams.get('stamps') || '0');
   const storeName = searchParams.get('storeName') || '';
   const ordersheetId = searchParams.get('ordersheetId');
   const hasOrder = Boolean(ordersheetId);
+
+  // 당첨 보상 정보
+  const drawnReward = searchParams.get('drawnReward') || '';
+  const drawnRewardTier = parseInt(searchParams.get('drawnRewardTier') || '0');
 
   const rewardList = [5, 10, 15, 20, 25, 30]
     .map(n => ({ count: n, desc: searchParams.get(`reward${n}`) || '' }))
@@ -111,6 +154,13 @@ function StampSuccessContent() {
   const displayStamps = stamps % 10 || (stamps > 0 && stamps % 10 === 0 ? 10 : 0);
 
   const [menuLink, setMenuLink] = useState<string | null>(null);
+
+  // 보상 당첨 시 팝업 자동 표시
+  useEffect(() => {
+    if (drawnReward && drawnRewardTier > 0) {
+      setShowRewardPopup(true);
+    }
+  }, [drawnReward, drawnRewardTier]);
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -257,6 +307,15 @@ function StampSuccessContent() {
           </button>
         </div>
       </div>
+
+      {/* Reward Popup Modal */}
+      {showRewardPopup && drawnReward && (
+        <RewardPopupModal
+          reward={drawnReward}
+          tier={drawnRewardTier}
+          onClose={() => setShowRewardPopup(false)}
+        />
+      )}
 
       <style jsx global>{`
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-jp.min.css');

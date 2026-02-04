@@ -1209,6 +1209,14 @@ model StampSetting {
   reward25Description   String?  // 25개 보상 설명
   reward30Description   String?  // 30개 보상 설명
 
+  // 랜덤 보상 옵션 (JSON: [{description: string, probability: number}])
+  reward5Options        Json?    // 5개 랜덤 보상 옵션
+  reward10Options       Json?    // 10개 랜덤 보상 옵션
+  reward15Options       Json?    // 15개 랜덤 보상 옵션
+  reward20Options       Json?    // 20개 랜덤 보상 옵션
+  reward25Options       Json?    // 25개 랜덤 보상 옵션
+  reward30Options       Json?    // 30개 랜덤 보상 옵션
+
   // 알림톡 설정
   alimtalkEnabled       Boolean  @default(true)
 
@@ -1237,6 +1245,11 @@ model StampLedger {
   tableLabel      String?          // 테이블 번호/이름 (예: "A1", "테이블 3")
 
   reason          String?          // 관리자 메모 등
+
+  // 보상 당첨 기록
+  drawnReward     String?          // 마일스톤 도달 시 당첨된 보상 설명
+  drawnRewardTier Int?             // 마일스톤 단계 (5, 10, 15, 20, 25, 30)
+
   createdAt       DateTime         @default(now())
 
   // Relations

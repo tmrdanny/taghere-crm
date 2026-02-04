@@ -39,6 +39,21 @@ export function formatPhone(phone: string | null | undefined): string {
   return normalized;
 }
 
+export function formatPhoneFull(phone: string | null | undefined): string {
+  if (!phone) return '-';
+
+  const normalized = normalizePhone(phone);
+  if (!normalized) return '-';
+
+  if (normalized.length >= 11) {
+    return `${normalized.slice(0, 3)}-${normalized.slice(3, 7)}-${normalized.slice(7)}`;
+  }
+  if (normalized.length === 8) {
+    return `010-${normalized.slice(0, 4)}-${normalized.slice(4)}`;
+  }
+  return normalized;
+}
+
 export function formatNumber(num: number): string {
   return num.toLocaleString('ko-KR');
 }

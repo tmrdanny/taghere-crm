@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk } from '../services/solapi.js';
+import { checkMilestoneAndDraw } from '../utils/random-reward.js';
 
 const router = Router();
 
@@ -1145,10 +1146,22 @@ router.post('/stamp-earn', async (req, res) => {
         },
       });
 
-      return { customer: updatedCustomer, ledger };
+      // 마일스톤 도달 시 보상 추첨
+      const milestoneResult = checkMilestoneAndDraw(previousStamps, newBalance, store.stampSetting!);
+      if (milestoneResult) {
+        await tx.stampLedger.update({
+          where: { id: ledger.id },
+          data: {
+            drawnReward: milestoneResult.reward,
+            drawnRewardTier: milestoneResult.tier,
+          },
+        });
+      }
+
+      return { customer: updatedCustomer, ledger, milestoneResult };
     });
 
-    console.log(`[TagHere Stamp-Earn] Stamp earned - customerId: ${customer.id}, newBalance: ${result.customer.totalStamps}, orderItemsCount: ${orderItems.length}, tableLabel: ${tableLabel}`);
+    console.log(`[TagHere Stamp-Earn] Stamp earned - customerId: ${customer.id}, newBalance: ${result.customer.totalStamps}, orderItemsCount: ${orderItems.length}, tableLabel: ${tableLabel}${result.milestoneResult ? `, milestone: ${result.milestoneResult.tier}개 - ${result.milestoneResult.reward}` : ''}`);
 
     // 9. 알림톡 발송 (비동기)
     const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
@@ -1201,6 +1214,8 @@ router.post('/stamp-earn', async (req, res) => {
       reward20Description: store.stampSetting.reward20Description,
       reward25Description: store.stampSetting.reward25Description,
       reward30Description: store.stampSetting.reward30Description,
+      drawnReward: result.milestoneResult?.reward || null,
+      drawnRewardTier: result.milestoneResult?.tier || null,
     });
   } catch (error: any) {
     console.error('[TagHere Stamp-Earn] Error:', error);

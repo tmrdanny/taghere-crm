@@ -142,6 +142,8 @@ interface SuccessData {
   reward20Description: string | null;
   reward25Description: string | null;
   reward30Description: string | null;
+  drawnReward?: string | null;
+  drawnRewardTier?: number | null;
 }
 
 interface SurveyQuestion {
@@ -662,6 +664,8 @@ function TaghereEnrollStampContent() {
   for (const n of [5, 10, 15, 20, 25, 30]) {
     rewardParams[n] = searchParams.get(`reward${n}`);
   }
+  const urlDrawnReward = searchParams.get('drawnReward');
+  const urlDrawnRewardTier = searchParams.get('drawnRewardTier');
 
   // 방문 경로 옵션은 항상 조회 (별도 useEffect - 카카오 로그인 리다이렉트 시에도 실행되도록)
   useEffect(() => {
@@ -730,6 +734,8 @@ function TaghereEnrollStampContent() {
           reward20Description: data.reward20Description,
           reward25Description: data.reward25Description,
           reward30Description: data.reward30Description,
+          drawnReward: data.drawnReward || null,
+          drawnRewardTier: data.drawnRewardTier || null,
         });
         setStampInfo(null); // 기본 UI 숨김
       } else {
@@ -785,6 +791,8 @@ function TaghereEnrollStampContent() {
         reward20Description: rewardParams[20],
         reward25Description: rewardParams[25],
         reward30Description: rewardParams[30],
+        drawnReward: urlDrawnReward,
+        drawnRewardTier: urlDrawnRewardTier ? parseInt(urlDrawnRewardTier) : null,
       });
       setIsLoading(false);
       return;
@@ -919,6 +927,12 @@ function TaghereEnrollStampContent() {
         const key = `reward${n}Description` as keyof SuccessData;
         const val = successData[key] as string | null;
         if (val) url.searchParams.set(`reward${n}`, val);
+      }
+      if (successData.drawnReward) {
+        url.searchParams.set('drawnReward', successData.drawnReward);
+      }
+      if (successData.drawnRewardTier) {
+        url.searchParams.set('drawnRewardTier', String(successData.drawnRewardTier));
       }
     }
     window.location.href = url.toString();

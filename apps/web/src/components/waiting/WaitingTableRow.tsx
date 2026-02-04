@@ -2,7 +2,7 @@
 
 import { useState, useEffect, memo, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { cn, formatPhone } from '@/lib/utils';
+import { cn, formatPhoneFull } from '@/lib/utils';
 import { WaitingItem, SOURCE_LABELS, CANCEL_REASON_LABELS } from './types';
 import { WaitingActionButtons } from './WaitingActionButtons';
 
@@ -219,7 +219,7 @@ export const WaitingTableRow = memo(function WaitingTableRow({
       <td className="py-3 px-3 align-middle">
         <div className="flex flex-col gap-0.5">
           <span className="text-sm font-medium text-neutral-900">
-            {item.phone ? formatPhone(item.phone) : (item.name || '-')}
+            {item.phone ? formatPhoneFull(item.phone) : (item.name || '-')}
           </span>
           {callCountText && (
             <span className={cn(

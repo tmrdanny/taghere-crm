@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk } from '../services/solapi.js';
+import { checkMilestoneAndDraw } from '../utils/random-reward.js';
 
 const router = Router();
 
@@ -799,10 +800,22 @@ async function handleStampCallback(
       },
     });
 
-    return { customer: updatedCustomer, ledger };
+    // 마일스톤 도달 시 보상 추첨
+    const milestoneResult = checkMilestoneAndDraw(previousStamps, newBalance, store!.stampSetting!);
+    if (milestoneResult) {
+      await tx.stampLedger.update({
+        where: { id: ledger.id },
+        data: {
+          drawnReward: milestoneResult.reward,
+          drawnRewardTier: milestoneResult.tier,
+        },
+      });
+    }
+
+    return { customer: updatedCustomer, ledger, milestoneResult };
   });
 
-  console.log(`[Kakao Stamp] Stamp earned - customerId: ${customer.id}, newBalance: ${result.customer.totalStamps}`);
+  console.log(`[Kakao Stamp] Stamp earned - customerId: ${customer.id}, newBalance: ${result.customer.totalStamps}${result.milestoneResult ? `, milestone: ${result.milestoneResult.tier}개 - ${result.milestoneResult.reward}` : ''}`);
 
   // 알림톡 발송 (비동기)
   const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
@@ -862,6 +875,10 @@ async function handleStampCallback(
   }
   if (stateData.ordersheetId) {
     successUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
+  }
+  if (result.milestoneResult) {
+    successUrl.searchParams.set('drawnReward', result.milestoneResult.reward);
+    successUrl.searchParams.set('drawnRewardTier', result.milestoneResult.tier.toString());
   }
 
   res.redirect(successUrl.toString());

@@ -5,8 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Stamp, Gift } from 'lucide-react';
+import { Stamp, Gift, Plus, X, Dice5 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+
+interface RewardOption {
+  description: string;
+  probability: number;
+}
 
 interface StampSettings {
   enabled: boolean;
@@ -16,6 +21,146 @@ interface StampSettings {
   reward20Description: string | null;
   reward25Description: string | null;
   reward30Description: string | null;
+  reward5Options: RewardOption[] | null;
+  reward10Options: RewardOption[] | null;
+  reward15Options: RewardOption[] | null;
+  reward20Options: RewardOption[] | null;
+  reward25Options: RewardOption[] | null;
+  reward30Options: RewardOption[] | null;
+}
+
+const REWARD_TIERS = [5, 10, 15, 20, 25, 30];
+
+function RewardTierEditor({
+  tier,
+  options,
+  onChange,
+  disabled,
+}: {
+  tier: number;
+  options: RewardOption[];
+  onChange: (options: RewardOption[]) => void;
+  disabled: boolean;
+}) {
+  const totalProbability = options.reduce((sum, opt) => sum + opt.probability, 0);
+  const isValid = options.length === 0 || Math.abs(totalProbability - 100) <= 0.1;
+  const isMultiple = options.length > 1;
+
+  const addOption = () => {
+    if (options.length === 0) {
+      onChange([{ description: '', probability: 100 }]);
+    } else {
+      onChange([...options, { description: '', probability: 0 }]);
+    }
+  };
+
+  const removeOption = (index: number) => {
+    const newOptions = options.filter((_, i) => i !== index);
+    // 1개 남으면 확률 100%로 고정
+    if (newOptions.length === 1) {
+      newOptions[0].probability = 100;
+    }
+    onChange(newOptions);
+  };
+
+  const updateOption = (index: number, field: keyof RewardOption, value: string | number) => {
+    const newOptions = [...options];
+    if (field === 'probability') {
+      newOptions[index] = { ...newOptions[index], probability: Number(value) || 0 };
+    } else {
+      newOptions[index] = { ...newOptions[index], description: String(value) };
+    }
+    onChange(newOptions);
+  };
+
+  const placeholder = tier === 5 ? '예: 아메리카노 1잔 무료' : tier === 10 ? '예: 케이크 세트 무료 (음료 포함)' : '보상 내용 입력';
+
+  return (
+    <div className="space-y-3">
+      {/* Tier Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+            <span className="text-sm font-bold text-amber-700">{tier}</span>
+          </div>
+          <label className="text-sm font-medium text-neutral-700">
+            스탬프 {tier}개 보상
+          </label>
+          {isMultiple && (
+            <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+              <Dice5 className="w-3 h-3" />
+              랜덤
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Options */}
+      {options.length === 0 ? (
+        <button
+          onClick={addOption}
+          disabled={disabled}
+          className="w-full py-2.5 border border-dashed border-neutral-300 rounded-lg text-sm text-neutral-500 hover:border-neutral-400 hover:text-neutral-600 transition-colors"
+        >
+          + 보상 추가
+        </button>
+      ) : (
+        <div className="space-y-2">
+          {options.map((opt, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <Input
+                value={opt.description}
+                onChange={(e) => updateOption(idx, 'description', e.target.value)}
+                placeholder={placeholder}
+                disabled={disabled}
+                className="flex-1"
+              />
+              {isMultiple && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <Input
+                    type="number"
+                    value={opt.probability || ''}
+                    onChange={(e) => updateOption(idx, 'probability', e.target.value)}
+                    disabled={disabled}
+                    className="w-20 text-right"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    placeholder="0"
+                  />
+                  <span className="text-sm text-neutral-500">%</span>
+                </div>
+              )}
+              <button
+                onClick={() => removeOption(idx)}
+                disabled={disabled}
+                className="p-1.5 text-neutral-400 hover:text-red-500 transition-colors shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+
+          {/* Add + Validation */}
+          <div className="flex items-center justify-between pt-1">
+            <button
+              onClick={addOption}
+              disabled={disabled}
+              className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {isMultiple ? '랜덤 보상 추가' : '랜덤 보상 추가 (확률 설정)'}
+            </button>
+            {isMultiple && (
+              <span className={`text-xs font-medium ${isValid ? 'text-emerald-600' : 'text-red-500'}`}>
+                합계: {totalProbability.toFixed(1)}%{isValid ? ' ✓' : ' (100% 필요)'}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function StampSettingsPage() {
@@ -27,12 +172,12 @@ export default function StampSettingsPage() {
 
   // Settings state
   const [enabled, setEnabled] = useState(true);
-  const [rewards, setRewards] = useState<Record<number, string>>({
-    5: '', 10: '', 15: '', 20: '', 25: '', 30: '',
+  const [rewardOptions, setRewardOptions] = useState<Record<number, RewardOption[]>>({
+    5: [], 10: [], 15: [], 20: [], 25: [], 30: [],
   });
-  const REWARD_TIERS = [5, 10, 15, 20, 25, 30];
-  const setRewardDesc = (tier: number, value: string) => {
-    setRewards(prev => ({ ...prev, [tier]: value }));
+
+  const setTierOptions = (tier: number, options: RewardOption[]) => {
+    setRewardOptions(prev => ({ ...prev, [tier]: options }));
   };
 
   // Fetch stamp settings
@@ -49,14 +194,25 @@ export default function StampSettingsPage() {
         if (res.ok) {
           const data: StampSettings = await res.json();
           setEnabled(data.enabled);
-          setRewards({
-            5: data.reward5Description || '',
-            10: data.reward10Description || '',
-            15: data.reward15Description || '',
-            20: data.reward20Description || '',
-            25: data.reward25Description || '',
-            30: data.reward30Description || '',
-          });
+
+          // 옵션 데이터 로드 (옵션 우선, 없으면 기존 description에서 변환)
+          const newOptions: Record<number, RewardOption[]> = {};
+          for (const tier of REWARD_TIERS) {
+            const optKey = `reward${tier}Options` as keyof StampSettings;
+            const descKey = `reward${tier}Description` as keyof StampSettings;
+            const opts = data[optKey] as RewardOption[] | null;
+            const desc = data[descKey] as string | null;
+
+            if (opts && Array.isArray(opts) && opts.length > 0) {
+              newOptions[tier] = opts;
+            } else if (desc) {
+              // 기존 단일 보상을 옵션 형태로 변환
+              newOptions[tier] = [{ description: desc, probability: 100 }];
+            } else {
+              newOptions[tier] = [];
+            }
+          }
+          setRewardOptions(newOptions);
         }
       } catch (error) {
         console.error('Failed to fetch stamp settings:', error);
@@ -69,25 +225,70 @@ export default function StampSettingsPage() {
     fetchSettings();
   }, [apiUrl]);
 
+  // 저장 전 유효성 검증
+  const validateBeforeSave = (): string | null => {
+    for (const tier of REWARD_TIERS) {
+      const opts = rewardOptions[tier];
+      if (opts.length === 0) continue;
+
+      // 빈 설명 확인
+      for (const opt of opts) {
+        if (!opt.description.trim()) {
+          return `${tier}개 보상에 빈 항목이 있습니다. 내용을 입력하거나 삭제해주세요.`;
+        }
+      }
+
+      // 다중 옵션일 때 확률 합 검증
+      if (opts.length > 1) {
+        const total = opts.reduce((sum, opt) => sum + opt.probability, 0);
+        if (Math.abs(total - 100) > 0.1) {
+          return `${tier}개 보상의 확률 합이 ${total.toFixed(1)}%입니다. 100%가 되어야 합니다.`;
+        }
+        // 0% 확률 확인
+        for (const opt of opts) {
+          if (opt.probability <= 0) {
+            return `${tier}개 보상에 확률이 0% 이하인 항목이 있습니다.`;
+          }
+        }
+      }
+    }
+    return null;
+  };
+
   const handleSave = async () => {
+    const validationError = validateBeforeSave();
+    if (validationError) {
+      showToast(validationError, 'error');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const token = localStorage.getItem('token');
+
+      // 요청 데이터 구성
+      const body: Record<string, any> = { enabled };
+      for (const tier of REWARD_TIERS) {
+        const opts = rewardOptions[tier];
+        const optKey = `reward${tier}Options`;
+        const descKey = `reward${tier}Description`;
+
+        if (opts.length === 0) {
+          body[optKey] = null;
+          body[descKey] = null;
+        } else {
+          body[optKey] = opts;
+          body[descKey] = opts[0].description; // 대표 설명
+        }
+      }
+
       const res = await fetch(`${apiUrl}/api/stamp-settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          enabled,
-          reward5Description: rewards[5] || null,
-          reward10Description: rewards[10] || null,
-          reward15Description: rewards[15] || null,
-          reward20Description: rewards[20] || null,
-          reward25Description: rewards[25] || null,
-          reward30Description: rewards[30] || null,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {
@@ -150,7 +351,7 @@ export default function StampSettingsPage() {
         {/* 사용 안내 카드 */}
         <Card>
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg">💡 스탬프 사용 안내</CardTitle>
+            <CardTitle className="text-lg">스탬프 사용 안내</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3 text-sm text-neutral-600">
@@ -176,6 +377,14 @@ export default function StampSettingsPage() {
                 </div>
                 <p>
                   고객이 보상을 요청하면, <strong>고객 리스트</strong>에서 해당 고객을 찾아 해당 단계의 &quot;사용&quot; 버튼을 눌러주세요.
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-amber-50 flex items-center justify-center shrink-0 mt-0.5">
+                  <Dice5 className="w-3.5 h-3.5 text-amber-600" />
+                </div>
+                <p>
+                  각 단계에 <strong>여러 보상을 등록</strong>하면 랜덤으로 하나가 추첨됩니다. 확률(%)을 설정하여 보상별 당첨 확률을 조절할 수 있습니다.
                 </p>
               </div>
             </div>
@@ -217,27 +426,18 @@ export default function StampSettingsPage() {
               <CardTitle className="text-lg">보상 설정</CardTitle>
             </div>
             <p className="text-sm text-neutral-500 mt-1">
-              스탬프 단계별 보상을 설정하세요. 비워두면 해당 단계에 보상이 없습니다.
+              스탬프 단계별 보상을 설정하세요. 여러 보상을 추가하면 랜덤으로 추첨됩니다.
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
             {REWARD_TIERS.map((tier) => (
-              <div key={tier} className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-                    <span className="text-sm font-bold text-amber-700">{tier}</span>
-                  </div>
-                  <label className="text-sm font-medium text-neutral-700">
-                    스탬프 {tier}개 보상
-                  </label>
-                </div>
-                <Input
-                  value={rewards[tier]}
-                  onChange={(e) => setRewardDesc(tier, e.target.value)}
-                  placeholder={tier === 5 ? '예: 아메리카노 1잔 무료' : tier === 10 ? '예: 케이크 세트 무료 (음료 포함)' : '비워두면 보상 없음'}
-                  disabled={!enabled}
-                />
-              </div>
+              <RewardTierEditor
+                key={tier}
+                tier={tier}
+                options={rewardOptions[tier]}
+                onChange={(opts) => setTierOptions(tier, opts)}
+                disabled={!enabled}
+              />
             ))}
 
             <div className="flex justify-end pt-2">
@@ -247,9 +447,6 @@ export default function StampSettingsPage() {
             </div>
           </CardContent>
         </Card>
-
-
-
       </div>
     </div>
   );
