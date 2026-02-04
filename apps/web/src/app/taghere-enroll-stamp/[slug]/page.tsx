@@ -142,6 +142,12 @@ interface SuccessData {
   reward20Description: string | null;
   reward25Description: string | null;
   reward30Description: string | null;
+  reward5IsRandom?: boolean;
+  reward10IsRandom?: boolean;
+  reward15IsRandom?: boolean;
+  reward20IsRandom?: boolean;
+  reward25IsRandom?: boolean;
+  reward30IsRandom?: boolean;
   drawnReward?: string | null;
   drawnRewardTier?: number | null;
 }
@@ -664,6 +670,10 @@ function TaghereEnrollStampContent() {
   for (const n of [5, 10, 15, 20, 25, 30]) {
     rewardParams[n] = searchParams.get(`reward${n}`);
   }
+  const rewardRandomParams: Record<number, boolean> = {};
+  for (const n of [5, 10, 15, 20, 25, 30]) {
+    rewardRandomParams[n] = searchParams.get(`reward${n}Random`) === 'true';
+  }
   const urlDrawnReward = searchParams.get('drawnReward');
   const urlDrawnRewardTier = searchParams.get('drawnRewardTier');
 
@@ -734,6 +744,12 @@ function TaghereEnrollStampContent() {
           reward20Description: data.reward20Description,
           reward25Description: data.reward25Description,
           reward30Description: data.reward30Description,
+          reward5IsRandom: data.reward5IsRandom || false,
+          reward10IsRandom: data.reward10IsRandom || false,
+          reward15IsRandom: data.reward15IsRandom || false,
+          reward20IsRandom: data.reward20IsRandom || false,
+          reward25IsRandom: data.reward25IsRandom || false,
+          reward30IsRandom: data.reward30IsRandom || false,
           drawnReward: data.drawnReward || null,
           drawnRewardTier: data.drawnRewardTier || null,
         });
@@ -791,6 +807,12 @@ function TaghereEnrollStampContent() {
         reward20Description: rewardParams[20],
         reward25Description: rewardParams[25],
         reward30Description: rewardParams[30],
+        reward5IsRandom: rewardRandomParams[5],
+        reward10IsRandom: rewardRandomParams[10],
+        reward15IsRandom: rewardRandomParams[15],
+        reward20IsRandom: rewardRandomParams[20],
+        reward25IsRandom: rewardRandomParams[25],
+        reward30IsRandom: rewardRandomParams[30],
         drawnReward: urlDrawnReward,
         drawnRewardTier: urlDrawnRewardTier ? parseInt(urlDrawnRewardTier) : null,
       });
@@ -927,6 +949,8 @@ function TaghereEnrollStampContent() {
         const key = `reward${n}Description` as keyof SuccessData;
         const val = successData[key] as string | null;
         if (val) url.searchParams.set(`reward${n}`, val);
+        const randomKey = `reward${n}IsRandom` as keyof SuccessData;
+        if (successData[randomKey]) url.searchParams.set(`reward${n}Random`, 'true');
       }
       if (successData.drawnReward) {
         url.searchParams.set('drawnReward', successData.drawnReward);

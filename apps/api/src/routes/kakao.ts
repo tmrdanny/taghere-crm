@@ -822,14 +822,14 @@ async function handleStampCallback(
   if (store.stampSetting?.alimtalkEnabled && phoneNumber) {
     // 스탬프 사용 규칙 생성 (보상이 설정된 단계만 포함)
     const rewardTiers = [
-      { count: 5, desc: store.stampSetting.reward5Description },
-      { count: 10, desc: store.stampSetting.reward10Description },
-      { count: 15, desc: store.stampSetting.reward15Description },
-      { count: 20, desc: store.stampSetting.reward20Description },
-      { count: 25, desc: store.stampSetting.reward25Description },
-      { count: 30, desc: store.stampSetting.reward30Description },
+      { count: 5, desc: store.stampSetting.reward5Description, isRandom: Array.isArray(store.stampSetting.reward5Options) && (store.stampSetting.reward5Options as any[]).length > 1 },
+      { count: 10, desc: store.stampSetting.reward10Description, isRandom: Array.isArray(store.stampSetting.reward10Options) && (store.stampSetting.reward10Options as any[]).length > 1 },
+      { count: 15, desc: store.stampSetting.reward15Description, isRandom: Array.isArray(store.stampSetting.reward15Options) && (store.stampSetting.reward15Options as any[]).length > 1 },
+      { count: 20, desc: store.stampSetting.reward20Description, isRandom: Array.isArray(store.stampSetting.reward20Options) && (store.stampSetting.reward20Options as any[]).length > 1 },
+      { count: 25, desc: store.stampSetting.reward25Description, isRandom: Array.isArray(store.stampSetting.reward25Options) && (store.stampSetting.reward25Options as any[]).length > 1 },
+      { count: 30, desc: store.stampSetting.reward30Description, isRandom: Array.isArray(store.stampSetting.reward30Options) && (store.stampSetting.reward30Options as any[]).length > 1 },
     ];
-    const rules = rewardTiers.filter(t => t.desc).map(t => `- ${t.count}개 모을 시: ${t.desc}`);
+    const rules = rewardTiers.filter(t => t.desc).map(t => `- ${t.count}개 모을 시: ${t.isRandom ? '랜덤 박스!' : t.desc}`);
     const stampUsageRule = rules.length > 0
       ? '\n' + rules.join('\n')
       : '\n- 10개 모을시 매장 선물 증정!';
@@ -871,6 +871,11 @@ async function handleStampCallback(
     const val = store.stampSetting?.[key];
     if (val) {
       successUrl.searchParams.set(`reward${n}`, val as string);
+    }
+    const optsKey = `reward${n}Options` as keyof typeof store.stampSetting;
+    const opts = store.stampSetting?.[optsKey];
+    if (Array.isArray(opts) && opts.length > 1) {
+      successUrl.searchParams.set(`reward${n}Random`, 'true');
     }
   }
   if (stateData.ordersheetId) {

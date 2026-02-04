@@ -147,7 +147,11 @@ function StampSuccessContent() {
   const drawnRewardTier = parseInt(searchParams.get('drawnRewardTier') || '0');
 
   const rewardList = [5, 10, 15, 20, 25, 30]
-    .map(n => ({ count: n, desc: searchParams.get(`reward${n}`) || '' }))
+    .map(n => ({
+      count: n,
+      desc: searchParams.get(`reward${n}`) || '',
+      isRandom: searchParams.get(`reward${n}Random`) === 'true',
+    }))
     .filter(r => r.desc);
 
   // stamps can exceed 10; show modulo position within current card of 10
@@ -286,7 +290,9 @@ function StampSuccessContent() {
                   </div>
                   <div>
                     <p className="text-xs text-[#b1b5b8] font-medium">{reward.count}개 달성 보상</p>
-                    <p className="text-sm font-semibold text-[#1d2022]">{reward.desc}</p>
+                    <p className="text-sm font-semibold text-[#1d2022]">
+                      {reward.isRandom ? '랜덤 박스!' : reward.desc}
+                    </p>
                   </div>
                 </div>
               ))}
