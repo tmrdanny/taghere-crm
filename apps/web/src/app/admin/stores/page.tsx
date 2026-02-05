@@ -1067,6 +1067,29 @@ export default function AdminStoresPage() {
                   )}
                 </div>
 
+                {/* 하이트진로 스탬프 적립 링크 */}
+                <div className="rounded-xl p-4 bg-green-50">
+                  <label className="block text-[12px] text-green-600 mb-1">하이트진로 스탬프 적립 링크 (바코드 스캔)</label>
+                  {selectedStore.slug ? (
+                    <div className="flex items-center gap-2">
+                      <code className="text-[13px] text-green-700 font-mono truncate flex-1">
+                        /taghere-enroll-stamp-hitejinro/{selectedStore.slug}
+                      </code>
+                      <button
+                        onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll-stamp-hitejinro/${selectedStore.slug}`, e)}
+                        className="p-1 text-green-400 hover:text-green-600 transition-colors flex-shrink-0"
+                        title="복사"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[14px] text-green-400">slug 없음</span>
+                  )}
+                </div>
+
                 {/* 웨이팅 태블릿 링크 */}
                 <div className="rounded-xl p-4 bg-blue-50">
                   <label className="block text-[12px] text-blue-600 mb-1">웨이팅 태블릿 링크</label>

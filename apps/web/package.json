@@ -23,6 +23,7 @@
     "@tosspayments/tosspayments-sdk": "^2.5.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
+    "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.562.0",
     "next": "^14.0.4",
     "react": "^18.2.0",
