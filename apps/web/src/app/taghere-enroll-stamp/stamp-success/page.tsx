@@ -97,11 +97,9 @@ function RewardPopupModal({ reward, tier, onClose }: { reward: string; tier: num
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6">
       <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-xl">
-        {/* Gift Icon */}
-        <div className="w-16 h-16 rounded-full bg-[#FFF4D6] flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-[#FFB800]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-          </svg>
+        {/* Gift Box Image */}
+        <div className="w-20 h-20 flex items-center justify-center mx-auto mb-4">
+          <img src="/images/gold-box.webp" alt="보상 상자" className="w-full h-full object-contain" />
         </div>
 
         <h2 className="text-lg font-bold text-[#1d2022] mb-1">
@@ -246,11 +244,10 @@ function StampSuccessContent() {
                 return (
                   <div key={num} className="flex flex-col items-center gap-1">
                     <div
-                      className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${
-                        isFilled
+                      className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isFilled
                           ? 'bg-[#FFD541] shadow-sm'
                           : 'border-2 border-[#d1d5db] bg-white'
-                      }`}
+                        }`}
                     >
                       {isFilled ? (
                         <svg className="w-5 h-5 text-[#1d2022]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

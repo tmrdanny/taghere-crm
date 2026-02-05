@@ -428,11 +428,10 @@ function SuccessPopup({
                       key={option.id}
                       type="button"
                       onClick={() => setSelectedVisitSource(isSelected ? null : option.id)}
-                      className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
-                        isSelected
+                      className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${isSelected
                           ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
                           : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
-                      }`}
+                        }`}
                     >
                       {option.label}
                     </button>
@@ -460,11 +459,10 @@ function SuccessPopup({
                     <button
                       type="button"
                       onClick={() => toggleCategory(ALL_CATEGORIES_VALUE)}
-                      className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
-                        selectedCategories.includes(ALL_CATEGORIES_VALUE)
+                      className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${selectedCategories.includes(ALL_CATEGORIES_VALUE)
                           ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
                           : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
-                      }`}
+                        }`}
                     >
                       모든 업종
                     </button>
@@ -477,11 +475,10 @@ function SuccessPopup({
                           key={category.value}
                           type="button"
                           onClick={() => toggleCategory(category.value)}
-                          className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
-                            isSelected
+                          className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${isSelected
                               ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
                               : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
-                          }`}
+                            }`}
                         >
                           {category.label}
                         </button>
@@ -494,11 +491,10 @@ function SuccessPopup({
                     <button
                       type="button"
                       onClick={() => toggleCategory(ALL_CATEGORIES_VALUE)}
-                      className={`flex-shrink-0 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
-                        selectedCategories.includes(ALL_CATEGORIES_VALUE)
+                      className={`flex-shrink-0 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${selectedCategories.includes(ALL_CATEGORIES_VALUE)
                           ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
                           : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
-                      }`}
+                        }`}
                     >
                       모든 업종
                     </button>
@@ -511,11 +507,10 @@ function SuccessPopup({
                           key={category.value}
                           type="button"
                           onClick={() => toggleCategory(category.value)}
-                          className={`flex-shrink-0 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
-                            isSelected
+                          className={`flex-shrink-0 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${isSelected
                               ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
                               : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
-                          }`}
+                            }`}
                         >
                           {category.label}
                         </button>
@@ -1070,9 +1065,8 @@ function TaghereEnrollStampContent() {
             <div className="flex-[1.2] flex flex-col justify-end px-5 pb-8">
               {/* 동의 안내 영역 */}
               <div
-                className={`rounded-[12px] mb-4 p-4 transition-colors ${
-                  showAgreementWarning && !isAgreed ? 'bg-[#fff0f3] border border-[#ffb3c1]' : 'bg-[#f8f9fa]'
-                }`}
+                className={`rounded-[12px] mb-4 p-4 transition-colors ${showAgreementWarning && !isAgreed ? 'bg-[#fff0f3] border border-[#ffb3c1]' : 'bg-[#f8f9fa]'
+                  }`}
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-start gap-1">
@@ -1101,9 +1095,8 @@ function TaghereEnrollStampContent() {
                   }}
                   className="flex items-center gap-2.5"
                 >
-                  <div className={`w-[20px] h-[20px] border-2 rounded flex items-center justify-center transition-colors flex-shrink-0 ${
-                    isAgreed ? 'bg-[#FFD541] border-[#FFD541]' : showAgreementWarning && !isAgreed ? 'border-[#ffb3c1] bg-white' : 'border-[#d1d5db] bg-white'
-                  }`}>
+                  <div className={`w-[20px] h-[20px] border-2 rounded flex items-center justify-center transition-colors flex-shrink-0 ${isAgreed ? 'bg-[#FFD541] border-[#FFD541]' : showAgreementWarning && !isAgreed ? 'border-[#ffb3c1] bg-white' : 'border-[#d1d5db] bg-white'
+                    }`}>
                     {isAgreed && (
                       <svg className="w-3 h-3 text-[#1d2022]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -1138,7 +1131,9 @@ function TaghereEnrollStampContent() {
       {showAlreadyParticipated && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
           <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-xl">
-            <div className="text-4xl mb-4">🎁</div>
+            <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <img src="/images/gold-box.webp" alt="보상 상자" className="w-full h-full object-contain" />
+            </div>
             <h2 className="text-lg font-bold text-neutral-900 mb-2">
               오늘 이미 스탬프를 적립했어요
             </h2>
