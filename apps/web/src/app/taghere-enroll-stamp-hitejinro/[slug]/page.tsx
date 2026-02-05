@@ -480,6 +480,19 @@ function HitejinroEnrollStampContent() {
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerRef = useRef<HTMLDivElement>(null);
 
+  // 바코드 처리를 위한 ref (콜백에서 최신 상태 접근용)
+  const stampInfoRef = useRef<StampInfo | null>(null);
+  const isAgreedRef = useRef(false);
+
+  // ref 동기화
+  useEffect(() => {
+    stampInfoRef.current = stampInfo;
+  }, [stampInfo]);
+
+  useEffect(() => {
+    isAgreedRef.current = isAgreed;
+  }, [isAgreed]);
+
   const slug = params.slug as string;
   const ordersheetId = searchParams.get('ordersheetId');
   const urlError = searchParams.get('error');
@@ -538,25 +551,41 @@ function HitejinroEnrollStampContent() {
         });
       }
 
+      // 처리 중복 방지용 플래그
+      let isHandlingBarcode = false;
+
       await html5QrCodeRef.current.start(
         { facingMode: 'environment' },
         {
-          fps: 10,
+          fps: 15,
           qrbox: { width: 280, height: 120 },
-          aspectRatio: 1.5,
+          aspectRatio: 1.33,
+          disableFlip: false,
         },
-        (decodedText) => {
+        async (decodedText) => {
+          // 중복 처리 방지
+          if (isHandlingBarcode) return;
+          isHandlingBarcode = true;
+
           // 바코드 인식 성공
           setScannedBarcode(decodedText);
 
           // 하이트진로 바코드 검증
           if (decodedText.startsWith(HITEJINRO_BARCODE_PREFIX)) {
             // 유효한 바코드 → 스캐너 정지 후 스탬프 적립 진행
-            stopScanner();
-            handleValidBarcode(decodedText);
+            await stopScanner();
+            // ref를 통해 최신 상태 접근
+            if (!stampInfoRef.current || !isAgreedRef.current) {
+              if (!isAgreedRef.current) {
+                setShowAgreementWarning(true);
+              }
+              isHandlingBarcode = false;
+              return;
+            }
+            handleValidBarcodeWithRef(decodedText);
           } else {
             // 유효하지 않은 바코드
-            stopScanner();
+            await stopScanner();
             setShowInvalidBarcodePopup(true);
           }
         },
@@ -580,6 +609,24 @@ function HitejinroEnrollStampContent() {
     }
   }, [stopScanner]);
 
+  // 유효한 바코드 처리 (ref 사용 - 스캐너 콜백에서 호출됨)
+  const handleValidBarcodeWithRef = async (barcode: string) => {
+    const currentStampInfo = stampInfoRef.current;
+    if (!currentStampInfo) return;
+
+    setIsProcessing(true);
+
+    // 저장된 kakaoId가 있으면 자동 적립 시도
+    const storedKakaoId = getStoredKakaoId();
+    if (storedKakaoId) {
+      await attemptAutoEarn(storedKakaoId, currentStampInfo, barcode);
+      return;
+    }
+
+    // 카카오 로그인으로 이동
+    proceedToKakaoLoginWithRef(barcode);
+  };
+
   // 유효한 바코드 처리 → 카카오 로그인으로 진행
   const handleValidBarcode = async (barcode: string) => {
     if (!stampInfo || !isAgreed) {
@@ -600,6 +647,47 @@ function HitejinroEnrollStampContent() {
 
     // 카카오 로그인으로 이동
     proceedToKakaoLogin(barcode);
+  };
+
+  // 카카오 로그인으로 이동 (ref 사용)
+  const proceedToKakaoLoginWithRef = (barcode: string) => {
+    const currentStampInfo = stampInfoRef.current;
+    if (!currentStampInfo) return;
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const redirectUri = `${apiUrl}/auth/kakao/taghere-callback`;
+
+    const stateData = {
+      storeId: currentStampInfo.storeId,
+      slug,
+      ordersheetId: ordersheetId || '',
+      isTaghere: true,
+      isStamp: true,
+      isHitejinro: true,
+      barcode,
+      origin: window.location.origin,
+      returnPath: `/taghere-enroll-stamp-hitejinro/${slug}`,
+    };
+    const state = btoa(JSON.stringify(stateData));
+
+    if (typeof window !== 'undefined' && window.Kakao && window.Kakao.isInitialized()) {
+      window.Kakao.Auth.authorize({
+        redirectUri,
+        state,
+        scope: 'profile_nickname,account_email,phone_number,gender,birthday,birthyear',
+      });
+    } else {
+      const params = new URLSearchParams();
+      params.set('storeId', currentStampInfo.storeId);
+      params.set('slug', slug);
+      params.set('isStamp', 'true');
+      params.set('isHitejinro', 'true');
+      params.set('barcode', barcode);
+      if (ordersheetId) params.set('ordersheetId', ordersheetId);
+      params.set('origin', window.location.origin);
+      params.set('returnPath', `/taghere-enroll-stamp-hitejinro/${slug}`);
+      window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
+    }
   };
 
   // 카카오 로그인으로 이동
@@ -1121,8 +1209,20 @@ function HitejinroEnrollStampContent() {
           font-family: 'Pretendard JP Variable', 'Pretendard JP', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
         }
 
+        #barcode-scanner {
+          position: relative;
+        }
+
         #barcode-scanner video {
           object-fit: cover !important;
+          width: 100% !important;
+          height: 100% !important;
+          filter: brightness(1.1) contrast(1.05);
+        }
+
+        /* 스캔 영역 표시 테두리 강조 */
+        #barcode-scanner #qr-shaded-region {
+          border-color: rgba(255, 255, 255, 0.8) !important;
         }
       `}</style>
     </>
