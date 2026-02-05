@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 // ============================================
 // 로컬스토리지 헬퍼 함수 (kakaoId 저장용)
@@ -525,15 +525,25 @@ function HitejinroEnrollStampContent() {
 
     try {
       if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode('barcode-scanner');
+        html5QrCodeRef.current = new Html5Qrcode('barcode-scanner', {
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+          ],
+          verbose: false,
+        });
       }
 
       await html5QrCodeRef.current.start(
         { facingMode: 'environment' },
         {
           fps: 10,
-          qrbox: { width: 280, height: 150 },
-          aspectRatio: 1.777778,
+          qrbox: { width: 280, height: 120 },
+          aspectRatio: 1.5,
         },
         (decodedText) => {
           // 바코드 인식 성공
