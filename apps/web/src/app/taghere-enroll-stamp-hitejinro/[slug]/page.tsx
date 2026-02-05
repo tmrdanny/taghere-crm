@@ -575,17 +575,12 @@ function HitejinroEnrollStampContent() {
       // 처리 중복 방지용 플래그
       let isHandlingBarcode = false;
 
-      // 컨테이너 크기 계산 (qrbox를 더 크게)
-      const containerWidth = scannerContainerRef.current?.clientWidth || 320;
-      const qrboxWidth = Math.min(containerWidth - 40, 300); // 패딩 20px 양쪽
-      const qrboxHeight = Math.min(180, qrboxWidth * 0.6); // 바코드는 가로로 긴 형태
-
       await html5QrCodeRef.current.start(
         { facingMode: 'environment' },
         {
-          fps: 20, // fps 증가
-          qrbox: { width: qrboxWidth, height: qrboxHeight },
-          aspectRatio: 1.0, // 정사각형에 가깝게
+          fps: 20,
+          // qrbox 제거 - 카메라 전체 영역에서 바코드 인식 가능
+          // 멀리서도 바코드 스캔 가능
           disableFlip: false,
         },
         async (decodedText) => {
@@ -1084,8 +1079,8 @@ function HitejinroEnrollStampContent() {
             </div>
 
             {/* 바코드 스캐너 영역 */}
-            <div className="flex-1 flex flex-col items-center justify-center px-4">
-              <div className="w-full max-w-[360px] aspect-square bg-neutral-900 rounded-2xl overflow-hidden relative" ref={scannerContainerRef}>
+            <div className="flex-1 flex flex-col items-center justify-center px-5">
+              <div className="w-full max-w-[320px] aspect-[4/3] bg-neutral-900 rounded-2xl overflow-hidden relative" ref={scannerContainerRef}>
                 <div id="barcode-scanner" className="w-full h-full" />
 
                 {!isScannerActive && !scannerError && !isProcessing && (
