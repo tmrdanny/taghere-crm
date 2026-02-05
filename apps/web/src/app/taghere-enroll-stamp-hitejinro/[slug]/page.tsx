@@ -409,16 +409,17 @@ function SuccessPopup({
                 <div className="px-5 py-6">
                   <p className="text-[18px] font-bold text-neutral-900 mb-1 text-center">추가 정보를 알려주세요</p>
                   <p className="text-[13px] text-neutral-500 mb-5 text-center">특별한 날에 혜택을 보내드릴게요</p>
-                  <div className="space-y-3 mb-6">
+                  <div className="space-y-4 mb-6">
                     {surveyQuestions.map((q) => (
-                      <div key={q.id} className="flex flex-col gap-1.5 items-center">
+                      <div key={q.id} className="flex flex-col gap-2 items-center">
                         <label className="text-[14px] font-medium text-neutral-700 text-center whitespace-pre-line">{q.label}</label>
                         {q.description && <p className="text-[12px] text-neutral-400 text-center whitespace-pre-line">{q.description}</p>}
                         <input
                           type="date"
                           value={surveyAnswers[q.id] || ''}
                           onChange={(e) => setSurveyAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                          className="w-full max-w-[280px] px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[14px] text-neutral-900 text-center focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+                          className="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl text-[16px] text-neutral-900 text-center focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent appearance-none"
+                          style={{ minHeight: '52px' }}
                         />
                       </div>
                     ))}
@@ -1117,7 +1118,7 @@ function HitejinroEnrollStampContent() {
 
               {/* 스캔 가이드 */}
               <div className="mt-4 text-center">
-                <p className="text-[13px] text-neutral-500">바코드를 사각형 안에 맞춰주세요</p>
+                <p className="text-[13px] text-neutral-500">바코드를 카메라에 비춰주세요</p>
               </div>
             </div>
 
@@ -1235,6 +1236,7 @@ function HitejinroEnrollStampContent() {
 
         #barcode-scanner {
           position: relative;
+          overflow: hidden;
         }
 
         #barcode-scanner video {
@@ -1242,11 +1244,28 @@ function HitejinroEnrollStampContent() {
           width: 100% !important;
           height: 100% !important;
           filter: brightness(1.1) contrast(1.05);
+          transform: scale(1.5);
+          transform-origin: center center;
         }
 
         /* 스캔 영역 표시 테두리 강조 */
         #barcode-scanner #qr-shaded-region {
           border-color: rgba(255, 255, 255, 0.8) !important;
+        }
+
+        /* 모바일 date input 스타일 개선 */
+        input[type="date"] {
+          -webkit-appearance: none;
+          -moz-appearance: none;
+        }
+
+        input[type="date"]::-webkit-date-and-time-value {
+          text-align: center;
+        }
+
+        input[type="date"]::-webkit-calendar-picker-indicator {
+          opacity: 0.6;
+          cursor: pointer;
         }
       `}</style>
     </>

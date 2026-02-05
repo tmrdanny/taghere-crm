@@ -570,9 +570,9 @@ function SuccessPopup({
                   <p className="text-[13px] text-neutral-500 mb-5 text-center">
                     특별한 날에 혜택을 보내드릴게요
                   </p>
-                  <div className="space-y-3 mb-6">
+                  <div className="space-y-4 mb-6">
                     {surveyQuestions.map((q) => (
-                      <div key={q.id} className="flex flex-col gap-1.5 items-center">
+                      <div key={q.id} className="flex flex-col gap-2 items-center">
                         <label className="text-[14px] font-medium text-neutral-700 text-center whitespace-pre-line">
                           {q.label}
                         </label>
@@ -585,7 +585,8 @@ function SuccessPopup({
                           onChange={(e) =>
                             setSurveyAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
                           }
-                          className="w-full max-w-[280px] px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[14px] text-neutral-900 text-center focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+                          className="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl text-[16px] text-neutral-900 text-center focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent appearance-none"
+                          style={{ minHeight: '52px' }}
                         />
                       </div>
                     ))}
