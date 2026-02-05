@@ -575,12 +575,16 @@ function HitejinroEnrollStampContent() {
       // 처리 중복 방지용 플래그
       let isHandlingBarcode = false;
 
+      // 바코드 스캔 영역 설정 (가로로 긴 바코드 형태에 맞게)
+      const containerWidth = scannerContainerRef.current?.clientWidth || 320;
+      const qrboxWidth = Math.floor(containerWidth * 0.85); // 컨테이너 가로의 85%
+      const qrboxHeight = Math.floor(qrboxWidth * 0.35); // 바코드는 가로로 긴 형태
+
       await html5QrCodeRef.current.start(
         { facingMode: 'environment' },
         {
           fps: 20,
-          // qrbox 제거 - 카메라 전체 영역에서 바코드 인식 가능
-          // 멀리서도 바코드 스캔 가능
+          qrbox: { width: qrboxWidth, height: qrboxHeight },
           disableFlip: false,
         },
         async (decodedText) => {
