@@ -530,6 +530,27 @@ function HitejinroEnrollStampContent() {
     setIsScannerActive(false);
   }, []);
 
+  // 바코드 스캔 성공 시 비프음 재생
+  const playBeepSound = useCallback(() => {
+    try {
+      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.value = 1800; // 높은 톤의 비프음
+      oscillator.type = 'sine';
+      gainNode.gain.value = 0.3;
+
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.15); // 0.15초 동안 재생
+    } catch (e) {
+      console.error('Failed to play beep sound:', e);
+    }
+  }, []);
+
   // 바코드 스캐너 시작
   const startScanner = useCallback(async () => {
     if (!scannerContainerRef.current) return;
@@ -554,18 +575,26 @@ function HitejinroEnrollStampContent() {
       // 처리 중복 방지용 플래그
       let isHandlingBarcode = false;
 
+      // 컨테이너 크기 계산 (qrbox를 더 크게)
+      const containerWidth = scannerContainerRef.current?.clientWidth || 320;
+      const qrboxWidth = Math.min(containerWidth - 40, 300); // 패딩 20px 양쪽
+      const qrboxHeight = Math.min(180, qrboxWidth * 0.6); // 바코드는 가로로 긴 형태
+
       await html5QrCodeRef.current.start(
         { facingMode: 'environment' },
         {
-          fps: 15,
-          qrbox: { width: 280, height: 120 },
-          aspectRatio: 1.33,
+          fps: 20, // fps 증가
+          qrbox: { width: qrboxWidth, height: qrboxHeight },
+          aspectRatio: 1.0, // 정사각형에 가깝게
           disableFlip: false,
         },
         async (decodedText) => {
           // 중복 처리 방지
           if (isHandlingBarcode) return;
           isHandlingBarcode = true;
+
+          // 바코드 인식 성공 - 비프음 재생
+          playBeepSound();
 
           // 바코드 인식 성공
           setScannedBarcode(decodedText);
@@ -1055,8 +1084,8 @@ function HitejinroEnrollStampContent() {
             </div>
 
             {/* 바코드 스캐너 영역 */}
-            <div className="flex-1 flex flex-col items-center justify-center px-5">
-              <div className="w-full max-w-[320px] aspect-[4/3] bg-neutral-900 rounded-2xl overflow-hidden relative" ref={scannerContainerRef}>
+            <div className="flex-1 flex flex-col items-center justify-center px-4">
+              <div className="w-full max-w-[360px] aspect-square bg-neutral-900 rounded-2xl overflow-hidden relative" ref={scannerContainerRef}>
                 <div id="barcode-scanner" className="w-full h-full" />
 
                 {!isScannerActive && !scannerError && !isProcessing && (
