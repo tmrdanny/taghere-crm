@@ -1016,9 +1016,9 @@ router.get('/customers/:customerId', franchiseAuthMiddleware, async (req: Franch
 router.get('/insights', async (req: FranchiseAuthRequest, res) => {
   try {
     const franchiseId = req.franchiseUser!.franchiseId;
-    const { period = '30days' } = req.query;
+    const { period = '30days', startDate: startDateParam, endDate: endDateParam } = req.query;
 
-    console.log('[Franchise Insights] franchiseId:', franchiseId, 'period:', period);
+    console.log('[Franchise Insights] franchiseId:', franchiseId, 'period:', period, 'startDate:', startDateParam, 'endDate:', endDateParam);
 
     // 1. 프랜차이즈의 모든 가맹점 조회
     const stores = await prisma.store.findMany({
@@ -1040,31 +1040,44 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
       });
     }
 
-    // 2. 기간 계산
+    // 2. 기간 계산 (startDate/endDate 파라미터가 있으면 우선 사용)
     const now = new Date();
     let startDate: Date;
+    let endDate: Date = now;
 
-    switch (period) {
-      case '7days':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case '30days':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case '90days':
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case 'all':
-      default:
-        startDate = new Date(0); // 전체 기간
-        break;
+    if (startDateParam && typeof startDateParam === 'string') {
+      // startDate 파라미터가 있으면 직접 사용
+      startDate = new Date(startDateParam);
+      startDate.setHours(0, 0, 0, 0);
+
+      if (endDateParam && typeof endDateParam === 'string') {
+        endDate = new Date(endDateParam);
+        endDate.setHours(23, 59, 59, 999);
+      }
+    } else {
+      // 기존 period 로직
+      switch (period) {
+        case '7days':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30days':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case '90days':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        case 'all':
+        default:
+          startDate = new Date(0); // 전체 기간
+          break;
+      }
     }
 
     // 3. 연령대별 고객 분포
     const allCustomers = await prisma.customer.findMany({
       where: {
         storeId: { in: storeIds },
-        createdAt: { gte: startDate }
+        createdAt: { gte: startDate, lte: endDate }
       },
       select: { ageGroup: true, birthYear: true, gender: true, id: true }
     });
@@ -1252,7 +1265,7 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
     const customersWithVisitSource = await prisma.customer.findMany({
       where: {
         storeId: { in: storeIds },
-        createdAt: { gte: startDate },
+        createdAt: { gte: startDate, lte: endDate },
         visitSource: { not: null }
       },
       select: { visitSource: true }

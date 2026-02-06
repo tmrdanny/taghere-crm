@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Building2,
   Users2,
@@ -12,6 +12,10 @@ import {
   MapPin,
   Contact,
   Link2,
+  Calendar,
+  RefreshCw,
+  ChartPie,
+  BarChart3,
 } from 'lucide-react';
 
 interface OverviewData {
@@ -23,6 +27,36 @@ interface OverviewData {
   customerGrowth?: number;
   newCustomerGrowth?: number;
 }
+
+interface VisitSourceData {
+  source: string;
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+// 방문경로 색상 매핑
+const visitSourceColors: Record<string, string> = {
+  naver: '#03C75A',
+  instagram: '#E4405F',
+  friend: '#6366f1',
+  revisit: '#64748b',
+  passby: '#f59e0b',
+  kakao: '#FEE500',
+  youtube: '#FF0000',
+  daangn: '#FF6F0F',
+  sms: '#0EA5E9',
+};
+
+// Demo 방문경로 데이터
+const DEMO_VISIT_SOURCE: VisitSourceData[] = [
+  { source: 'naver', label: '네이버', count: 81, percentage: 33 },
+  { source: 'revisit', label: '단순 재방문', count: 67, percentage: 28 },
+  { source: 'friend', label: '지인 추천', count: 51, percentage: 21 },
+  { source: 'passby', label: '지나가다', count: 36, percentage: 15 },
+  { source: 'instagram', label: '인스타그램', count: 3, percentage: 1 },
+  { source: 'kakao', label: '카카오톡', count: 2, percentage: 1 },
+];
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -129,6 +163,27 @@ export default function FranchiseHomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 방문경로 관련 상태
+  const [visitSourceData, setVisitSourceData] = useState<VisitSourceData[]>([]);
+  const [isVisitSourceLoading, setIsVisitSourceLoading] = useState(true);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [tempStartDate, setTempStartDate] = useState('');
+  const [tempEndDate, setTempEndDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const datePickerRef = useRef<HTMLDivElement>(null);
+
+  // 외부 클릭 감지
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
+        setShowDatePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   useEffect(() => {
     const fetchOverviewData = async () => {
       try {
@@ -170,6 +225,69 @@ export default function FranchiseHomePage() {
 
     fetchOverviewData();
   }, []);
+
+  // 방문경로 데이터 fetch
+  const fetchVisitSourceData = async () => {
+    setIsVisitSourceLoading(true);
+    try {
+      const token = localStorage.getItem('franchiseToken');
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      if (!startDate && !endDate) params.append('period', 'all');
+
+      const res = await fetch(`${API_BASE}/api/franchise/insights?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error('Failed to fetch insights');
+
+      const responseData = await res.json();
+      if (isDemoAccount() && (!responseData.visitSourceDistribution || responseData.visitSourceDistribution.length === 0)) {
+        setVisitSourceData(DEMO_VISIT_SOURCE);
+      } else {
+        setVisitSourceData(responseData.visitSourceDistribution || []);
+      }
+    } catch (err) {
+      if (isDemoAccount()) {
+        setVisitSourceData(DEMO_VISIT_SOURCE);
+      } else {
+        setVisitSourceData([]);
+      }
+    } finally {
+      setIsVisitSourceLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVisitSourceData();
+  }, [startDate, endDate]);
+
+  // 날짜 범위 적용
+  const applyDateRange = () => {
+    setStartDate(tempStartDate);
+    setEndDate(tempEndDate);
+    setShowDatePicker(false);
+  };
+
+  // 날짜 범위 초기화
+  const resetDateRange = () => {
+    setTempStartDate('');
+    setTempEndDate('');
+    setStartDate('');
+    setEndDate('');
+    setShowDatePicker(false);
+  };
+
+  // 날짜 포맷팅
+  const formatDateRange = () => {
+    if (!startDate && !endDate) return '전체 기간';
+    if (startDate && endDate) return `${startDate} ~ ${endDate}`;
+    if (startDate) return `${startDate} ~`;
+    return `~ ${endDate}`;
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('ko-KR', {
@@ -292,6 +410,189 @@ export default function FranchiseHomePage() {
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-400 transition-colors" strokeWidth={1.5} />
               </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 방문경로 분석 섹션 */}
+      {!isLoading && data && (data.totalStores > 0 || data.totalCustomers > 0) && (
+        <div className="mt-6">
+          {/* 섹션 헤더 + 날짜 선택 */}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-slate-900">방문경로 분석</h2>
+            <div className="flex items-center gap-2">
+              {/* 날짜 범위 선택 */}
+              <div className="relative" ref={datePickerRef}>
+                <button
+                  onClick={() => {
+                    setTempStartDate(startDate);
+                    setTempEndDate(endDate);
+                    setShowDatePicker(!showDatePicker);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  <Calendar className="w-4 h-4 text-slate-400" />
+                  <span>{formatDateRange()}</span>
+                </button>
+
+                {showDatePicker && (
+                  <div className="absolute right-0 top-full mt-2 bg-white border border-slate-200 rounded-xl shadow-lg p-4 z-50 min-w-[280px]">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">시작일</label>
+                        <input
+                          type="date"
+                          value={tempStartDate}
+                          onChange={(e) => setTempStartDate(e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">종료일</label>
+                        <input
+                          type="date"
+                          value={tempEndDate}
+                          onChange={(e) => setTempEndDate(e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        />
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          onClick={resetDateRange}
+                          className="flex-1 px-3 py-2 text-sm text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                        >
+                          초기화
+                        </button>
+                        <button
+                          onClick={applyDateRange}
+                          className="flex-1 px-3 py-2 text-sm text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors"
+                        >
+                          적용
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 새로고침 버튼 */}
+              <button
+                onClick={fetchVisitSourceData}
+                disabled={isVisitSourceLoading}
+                className="p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${isVisitSourceLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* 방문경로 그래프 카드 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* 방문경로 분포 (원형 차트) */}
+            <div className="bg-white border border-slate-100 rounded-2xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <ChartPie className="w-4 h-4 text-slate-400" />
+                <h3 className="text-sm font-semibold text-slate-900">방문경로 분포</h3>
+              </div>
+              <p className="text-xs text-slate-500 mb-4">고객이 매장을 알게 된 경로입니다</p>
+
+              {isVisitSourceLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <RefreshCw className="w-6 h-6 text-slate-300 animate-spin" />
+                </div>
+              ) : visitSourceData.length === 0 ? (
+                <div className="flex items-center justify-center h-40 text-sm text-slate-400">
+                  데이터가 없습니다
+                </div>
+              ) : (
+                <div className="flex items-center gap-6">
+                  {/* 원형 차트 */}
+                  <div
+                    className="relative w-36 h-36 rounded-full shrink-0"
+                    style={{
+                      background: `conic-gradient(${visitSourceData
+                        .reduce((acc, item, index) => {
+                          const startPercent = visitSourceData.slice(0, index).reduce((sum, i) => sum + i.percentage, 0);
+                          const endPercent = startPercent + item.percentage;
+                          const color = visitSourceColors[item.source] || '#6366f1';
+                          return [...acc, `${color} ${startPercent}% ${endPercent}%`];
+                        }, [] as string[])
+                        .join(', ')})`,
+                    }}
+                  >
+                    <div className="absolute inset-3 bg-white rounded-full flex flex-col items-center justify-center">
+                      <span className="text-2xl font-bold text-slate-900">
+                        {visitSourceData.reduce((sum, item) => sum + item.count, 0)}
+                      </span>
+                      <span className="text-xs text-slate-500">총 응답</span>
+                    </div>
+                  </div>
+
+                  {/* 범례 */}
+                  <div className="flex-1 space-y-1.5">
+                    {visitSourceData.slice(0, 5).map((item) => (
+                      <div key={item.source} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{ backgroundColor: visitSourceColors[item.source] || '#6366f1' }}
+                          />
+                          <span className="text-slate-700">{item.label}</span>
+                        </div>
+                        <span className="text-slate-500">{item.percentage}%</span>
+                      </div>
+                    ))}
+                    {visitSourceData.length > 5 && (
+                      <p className="text-xs text-slate-400 pt-1">외 {visitSourceData.length - 5}개</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 방문경로별 고객 수 (막대 그래프) */}
+            <div className="bg-white border border-slate-100 rounded-2xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 className="w-4 h-4 text-slate-400" />
+                <h3 className="text-sm font-semibold text-slate-900">방문경로별 고객 수</h3>
+              </div>
+              <p className="text-xs text-slate-500 mb-4">방문경로별 고객 수를 비교합니다</p>
+
+              {isVisitSourceLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <RefreshCw className="w-6 h-6 text-slate-300 animate-spin" />
+                </div>
+              ) : visitSourceData.length === 0 ? (
+                <div className="flex items-center justify-center h-40 text-sm text-slate-400">
+                  데이터가 없습니다
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {visitSourceData.slice(0, 7).map((item) => {
+                    const maxCount = Math.max(...visitSourceData.map((d) => d.count));
+                    const barWidth = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
+                    return (
+                      <div key={item.source} className="flex items-center gap-3">
+                        <span className="text-sm text-slate-600 w-20 shrink-0 truncate">{item.label}</span>
+                        <div className="flex-1 h-6 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${barWidth}%`,
+                              backgroundColor: visitSourceColors[item.source] || '#6366f1',
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-sm font-semibold text-slate-900 w-8 text-right">{item.count}</span>
+                          <span className="text-xs text-slate-400 w-8">{item.percentage}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

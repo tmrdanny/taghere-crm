@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Users,
   TrendingUp,
@@ -93,12 +93,32 @@ export default function FranchiseInsightsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState('30days');
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
 
+  // 날짜 범위 선택 관련 상태
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [tempStartDate, setTempStartDate] = useState('');
+  const [tempEndDate, setTempEndDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateFilterMode, setDateFilterMode] = useState<'period' | 'range'>('period');
+  const datePickerRef = useRef<HTMLDivElement>(null);
+
   const periodOptions = [
     { value: '7days', label: '최근 7일' },
     { value: '30days', label: '최근 30일' },
     { value: '90days', label: '최근 90일' },
     { value: 'all', label: '전체 기간' },
   ];
+
+  // 외부 클릭 감지
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
+        setShowDatePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Auth token helper
   const getAuthToken = () => {
@@ -113,7 +133,16 @@ export default function FranchiseInsightsPage() {
     setIsLoading(true);
     try {
       const token = getAuthToken();
-      const res = await fetch(`${API_BASE}/api/franchise/insights?period=${selectedPeriod}`, {
+      const params = new URLSearchParams();
+
+      if (dateFilterMode === 'range' && (startDate || endDate)) {
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+      } else {
+        params.append('period', selectedPeriod);
+      }
+
+      const res = await fetch(`${API_BASE}/api/franchise/insights?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -131,11 +160,40 @@ export default function FranchiseInsightsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedPeriod]);
+  }, [selectedPeriod, startDate, endDate, dateFilterMode]);
 
   useEffect(() => {
     fetchInsights();
   }, [fetchInsights]);
+
+  // 날짜 범위 적용
+  const applyDateRange = () => {
+    setStartDate(tempStartDate);
+    setEndDate(tempEndDate);
+    setDateFilterMode('range');
+    setShowDatePicker(false);
+  };
+
+  // 날짜 범위 초기화 (기간 모드로 전환)
+  const resetDateRange = () => {
+    setTempStartDate('');
+    setTempEndDate('');
+    setStartDate('');
+    setEndDate('');
+    setDateFilterMode('period');
+    setShowDatePicker(false);
+  };
+
+  // 날짜 포맷팅
+  const formatDateRange = () => {
+    if (dateFilterMode === 'period') {
+      return periodOptions.find((p) => p.value === selectedPeriod)?.label || '최근 30일';
+    }
+    if (startDate && endDate) return `${startDate} ~ ${endDate}`;
+    if (startDate) return `${startDate} ~`;
+    if (endDate) return `~ ${endDate}`;
+    return '전체 기간';
+  };
 
   // Render bar chart (simple CSS-based)
   const renderBarChart = (data: AgeDistribution[]) => {
@@ -387,15 +445,22 @@ export default function FranchiseInsightsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {/* Period Selector */}
+            {/* Period Selector (프리셋) */}
             <div className="relative">
               <button
                 onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-colors',
+                  dateFilterMode === 'period'
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                )}
               >
-                <Calendar className="w-4 h-4 text-slate-400" />
-                {periodOptions.find((p) => p.value === selectedPeriod)?.label}
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+                <Calendar className="w-4 h-4" />
+                {dateFilterMode === 'period'
+                  ? periodOptions.find((p) => p.value === selectedPeriod)?.label
+                  : '기간 선택'}
+                <ChevronDown className="w-4 h-4" />
               </button>
               {showPeriodDropdown && (
                 <>
@@ -406,11 +471,16 @@ export default function FranchiseInsightsPage() {
                         key={option.value}
                         onClick={() => {
                           setSelectedPeriod(option.value);
+                          setDateFilterMode('period');
+                          setStartDate('');
+                          setEndDate('');
                           setShowPeriodDropdown(false);
                         }}
                         className={cn(
                           'w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors',
-                          selectedPeriod === option.value ? 'bg-franchise-50 text-franchise-700' : 'text-slate-700'
+                          dateFilterMode === 'period' && selectedPeriod === option.value
+                            ? 'bg-franchise-50 text-franchise-700'
+                            : 'text-slate-700'
                         )}
                       >
                         {option.label}
@@ -418,6 +488,65 @@ export default function FranchiseInsightsPage() {
                     ))}
                   </div>
                 </>
+              )}
+            </div>
+
+            {/* Date Range Picker */}
+            <div className="relative" ref={datePickerRef}>
+              <button
+                onClick={() => {
+                  setTempStartDate(startDate);
+                  setTempEndDate(endDate);
+                  setShowDatePicker(!showDatePicker);
+                }}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-colors',
+                  dateFilterMode === 'range'
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                )}
+              >
+                <Calendar className="w-4 h-4" />
+                {dateFilterMode === 'range' ? formatDateRange() : '날짜 지정'}
+              </button>
+
+              {showDatePicker && (
+                <div className="absolute right-0 top-full mt-2 bg-white border border-slate-200 rounded-xl shadow-lg p-4 z-50 min-w-[280px]">
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">시작일</label>
+                      <input
+                        type="date"
+                        value={tempStartDate}
+                        onChange={(e) => setTempStartDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">종료일</label>
+                      <input
+                        type="date"
+                        value={tempEndDate}
+                        onChange={(e) => setTempEndDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      />
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={resetDateRange}
+                        className="flex-1 px-3 py-2 text-sm text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                      >
+                        초기화
+                      </button>
+                      <button
+                        onClick={applyDateRange}
+                        className="flex-1 px-3 py-2 text-sm text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors"
+                      >
+                        적용
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 
