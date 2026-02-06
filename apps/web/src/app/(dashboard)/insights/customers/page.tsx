@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Users, RefreshCw, TrendingUp, MapPin } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Users, RefreshCw, TrendingUp, MapPin, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -49,6 +49,25 @@ export default function CustomerInsightsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 날짜 범위 선택 상태
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [tempStartDate, setTempStartDate] = useState('');
+  const [tempEndDate, setTempEndDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const datePickerRef = useRef<HTMLDivElement>(null);
+
+  // 외부 클릭 감지
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
+        setShowDatePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Auth token helper
   const getAuthToken = () => {
     if (typeof window !== 'undefined') {
@@ -63,7 +82,11 @@ export default function CustomerInsightsPage() {
     setError(null);
     try {
       const token = getAuthToken();
-      const res = await fetch(`${API_BASE}/api/insights/customers`, {
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+
+      const res = await fetch(`${API_BASE}/api/insights/customers?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -81,11 +104,35 @@ export default function CustomerInsightsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [startDate, endDate]);
 
   useEffect(() => {
     fetchInsights();
   }, [fetchInsights]);
+
+  // 날짜 범위 적용
+  const applyDateRange = () => {
+    setStartDate(tempStartDate);
+    setEndDate(tempEndDate);
+    setShowDatePicker(false);
+  };
+
+  // 날짜 범위 초기화
+  const resetDateRange = () => {
+    setTempStartDate('');
+    setTempEndDate('');
+    setStartDate('');
+    setEndDate('');
+    setShowDatePicker(false);
+  };
+
+  // 날짜 포맷팅
+  const formatDateRange = () => {
+    if (!startDate && !endDate) return '전체 기간';
+    if (startDate && endDate) return `${startDate} ~ ${endDate}`;
+    if (startDate) return `${startDate} ~`;
+    return `~ ${endDate}`;
+  };
 
   // 성별 파이차트 렌더링 (미설정 제외)
   const renderGenderPie = () => {
@@ -323,21 +370,77 @@ export default function CustomerInsightsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">고객 통계</h1>
-          <p className="text-neutral-500 mt-1">누적 고객 데이터 기반 인사이트</p>
+          <p className="text-neutral-500 mt-1">고객 데이터 기반 인사이트</p>
         </div>
-        <button
-          onClick={fetchInsights}
-          disabled={isLoading}
-          className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors',
-            isLoading
-              ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
-              : 'bg-white text-neutral-700 hover:bg-neutral-50'
-          )}
-        >
-          <RefreshCw className={cn('w-4 h-4', isLoading && 'animate-spin')} />
-          새로고침
-        </button>
+        <div className="flex items-center gap-2">
+          {/* 날짜 범위 선택 */}
+          <div className="relative" ref={datePickerRef}>
+            <button
+              onClick={() => {
+                setTempStartDate(startDate);
+                setTempEndDate(endDate);
+                setShowDatePicker(!showDatePicker);
+              }}
+              className="flex items-center gap-2 px-3 py-2 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+            >
+              <Calendar className="w-4 h-4 text-neutral-400" />
+              <span>{formatDateRange()}</span>
+            </button>
+
+            {showDatePicker && (
+              <div className="absolute right-0 top-full mt-2 bg-white border border-neutral-200 rounded-xl shadow-lg p-4 z-50 min-w-[280px]">
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-500 mb-1">시작일</label>
+                    <input
+                      type="date"
+                      value={tempStartDate}
+                      onChange={(e) => setTempStartDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-500 mb-1">종료일</label>
+                    <input
+                      type="date"
+                      value={tempEndDate}
+                      onChange={(e) => setTempEndDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={resetDateRange}
+                      className="flex-1 px-3 py-2 text-sm text-neutral-600 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors"
+                    >
+                      초기화
+                    </button>
+                    <button
+                      onClick={applyDateRange}
+                      className="flex-1 px-3 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition-colors"
+                    >
+                      적용
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 새로고침 버튼 */}
+          <button
+            onClick={fetchInsights}
+            disabled={isLoading}
+            className={cn(
+              'p-2 rounded-lg border transition-colors',
+              isLoading
+                ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                : 'bg-white text-neutral-700 hover:bg-neutral-50'
+            )}
+          >
+            <RefreshCw className={cn('w-4 h-4', isLoading && 'animate-spin')} />
+          </button>
+        </div>
       </div>
 
       {isLoading ? (

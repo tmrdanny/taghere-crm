@@ -37,10 +37,26 @@ const calculateAgeGroup = (birthYear: number | null): string | null => {
 router.get('/customers', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
+    const { startDate: startDateParam, endDate: endDateParam } = req.query;
+
+    // 날짜 범위 설정
+    const whereCondition: any = { storeId };
+
+    if (startDateParam && typeof startDateParam === 'string') {
+      const startDate = new Date(startDateParam);
+      startDate.setHours(0, 0, 0, 0);
+      whereCondition.createdAt = { ...whereCondition.createdAt, gte: startDate };
+    }
+
+    if (endDateParam && typeof endDateParam === 'string') {
+      const endDate = new Date(endDateParam);
+      endDate.setHours(23, 59, 59, 999);
+      whereCondition.createdAt = { ...whereCondition.createdAt, lte: endDate };
+    }
 
     // 1. 전체 고객 조회
     const allCustomers = await prisma.customer.findMany({
-      where: { storeId },
+      where: whereCondition,
       select: {
         id: true,
         gender: true,
