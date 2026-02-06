@@ -19,17 +19,19 @@ const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || '';
 
 // 충전 금액 프리셋 및 보너스율
 const AMOUNT_PRESETS = [
-  { amount: 100000, bonusRate: 0 },
-  { amount: 200000, bonusRate: 3 },
-  { amount: 500000, bonusRate: 5 },
-  { amount: 1000000, bonusRate: 7 },
+  { amount: 50000, bonusRate: 0 },
+  { amount: 100000, bonusRate: 3 },
+  { amount: 200000, bonusRate: 5 },
+  { amount: 500000, bonusRate: 7 },
+  { amount: 1000000, bonusRate: 10 },
 ];
 
 // 금액에 따른 보너스율 계산
 const getBonusRate = (amount: number): number => {
-  if (amount >= 1000000) return 7;
-  if (amount >= 500000) return 5;
-  if (amount >= 200000) return 3;
+  if (amount >= 1000000) return 10;
+  if (amount >= 500000) return 7;
+  if (amount >= 200000) return 5;
+  if (amount >= 100000) return 3;
   return 0;
 };
 
@@ -56,7 +58,7 @@ export function ChargeModal({
   requiredAmount,
   successRedirectPath,
 }: ChargeModalProps) {
-  const [amount, setAmount] = useState<number>(requiredAmount ? Math.max(100000, Math.ceil((requiredAmount - currentBalance) / 10000) * 10000) : 100000);
+  const [amount, setAmount] = useState<number>(requiredAmount ? Math.max(50000, Math.ceil((requiredAmount - currentBalance) / 10000) * 10000) : 50000);
   const [customAmount, setCustomAmount] = useState<string>('');
   const [widgets, setWidgets] = useState<TossPaymentsWidgets | null>(null);
   const [isPaymentReady, setIsPaymentReady] = useState(false);
@@ -84,8 +86,8 @@ export function ChargeModal({
   useEffect(() => {
     if (isOpen) {
       const initialAmount = requiredAmount
-        ? Math.max(100000, Math.ceil((requiredAmount - currentBalance) / 10000) * 10000)
-        : 100000;
+        ? Math.max(50000, Math.ceil((requiredAmount - currentBalance) / 10000) * 10000)
+        : 50000;
       setAmount(initialAmount);
       setCustomAmount(formatWithComma(initialAmount));
       setError(null);
