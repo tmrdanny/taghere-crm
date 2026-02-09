@@ -58,6 +58,15 @@ export default function FranchisesPage() {
   const [walletReason, setWalletReason] = useState('');
   const [walletPassword, setWalletPassword] = useState('');
   const [walletLoading, setWalletLoading] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    ownerName: '',
+    ownerEmail: '',
+    ownerPhone: '',
+    ownerPassword: '',
+  });
+  const [editLoading, setEditLoading] = useState(false);
 
   // 프랜차이즈 생성 폼 데이터
   const [formData, setFormData] = useState({
@@ -322,6 +331,61 @@ export default function FranchisesPage() {
     return num ? parseInt(num, 10).toLocaleString() : '';
   };
 
+  const handleOpenEditModal = (franchise: Franchise) => {
+    const owner = franchise.users.find((u) => u.role === 'OWNER');
+    setSelectedFranchise(franchise);
+    setEditFormData({
+      name: franchise.name,
+      ownerName: owner?.name || '',
+      ownerEmail: owner?.email || '',
+      ownerPhone: owner?.phone || '',
+      ownerPassword: '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditFranchise = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFranchise) return;
+
+    setEditLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const body: any = {
+        name: editFormData.name,
+        ownerName: editFormData.ownerName,
+        ownerEmail: editFormData.ownerEmail,
+        ownerPhone: editFormData.ownerPhone,
+      };
+      if (editFormData.ownerPassword) {
+        body.ownerPassword = editFormData.ownerPassword;
+      }
+
+      const res = await fetch(`${API_URL}/api/admin/franchises/${selectedFranchise.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || '수정에 실패했습니다.');
+      }
+
+      alert('프랜차이즈 정보가 수정되었습니다.');
+      setShowEditModal(false);
+      setSelectedFranchise(null);
+      fetchFranchises();
+    } catch (error: any) {
+      alert(error.message);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -391,7 +455,7 @@ export default function FranchisesPage() {
                 franchises.map((franchise) => {
                   const owner = franchise.users.find((u) => u.role === 'OWNER');
                   return (
-                    <tr key={franchise.id} className="hover:bg-neutral-50 transition-colors">
+                    <tr key={franchise.id} className="hover:bg-neutral-50 transition-colors cursor-pointer" onClick={() => handleOpenEditModal(franchise)}>
                       <td className="px-6 py-4">
                         <div className="font-medium text-neutral-900">{franchise.name}</div>
                       </td>
@@ -418,7 +482,7 @@ export default function FranchisesPage() {
                       <td className="px-6 py-4 text-sm text-neutral-600">
                         {formatDate(franchise.createdAt)}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-3">
                           <button
                             onClick={() => {
@@ -802,6 +866,105 @@ export default function FranchisesPage() {
                   disabled={uploadingLogo || !logoFile}
                 >
                   {uploadingLogo ? '업로드 중...' : '업로드'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 프랜차이즈 편집 모달 */}
+      {showEditModal && selectedFranchise && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-neutral-900 mb-4">프랜차이즈 정보 수정</h2>
+            <form onSubmit={handleEditFranchise} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  프랜차이즈명
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  Slug
+                </label>
+                <input
+                  type="text"
+                  value={selectedFranchise.slug}
+                  readOnly
+                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg bg-neutral-50 text-neutral-500 cursor-not-allowed"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  관리자 이름
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.ownerName}
+                  onChange={(e) => setEditFormData({ ...editFormData, ownerName: e.target.value })}
+                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  관리자 이메일
+                </label>
+                <input
+                  type="email"
+                  value={editFormData.ownerEmail}
+                  onChange={(e) => setEditFormData({ ...editFormData, ownerEmail: e.target.value })}
+                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  관리자 전화번호
+                </label>
+                <input
+                  type="tel"
+                  value={editFormData.ownerPhone}
+                  onChange={(e) => setEditFormData({ ...editFormData, ownerPhone: e.target.value })}
+                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  placeholder="010-1234-5678"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  새 비밀번호
+                </label>
+                <input
+                  type="password"
+                  value={editFormData.ownerPassword}
+                  onChange={(e) => setEditFormData({ ...editFormData, ownerPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  placeholder="변경 시에만 입력"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setSelectedFranchise(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-[#EAEAEA] rounded-lg hover:bg-neutral-50 transition-colors text-sm font-medium"
+                  disabled={editLoading}
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors text-sm font-medium disabled:bg-neutral-400 disabled:cursor-not-allowed"
+                  disabled={editLoading}
+                >
+                  {editLoading ? '저장 중...' : '저장'}
                 </button>
               </div>
             </form>

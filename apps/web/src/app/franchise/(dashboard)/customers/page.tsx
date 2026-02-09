@@ -25,6 +25,7 @@ const COLUMN_DEFINITIONS = [
   { id: 'name', label: '이름', required: true, defaultVisible: true },
   { id: 'phone', label: '연락처', required: false, defaultVisible: true },
   { id: 'store', label: '소속 매장', required: false, defaultVisible: true },
+  { id: 'stamps', label: '스탬프', required: false, defaultVisible: true },
   { id: 'points', label: '포인트', required: false, defaultVisible: true },
   { id: 'gender', label: '성별', required: false, defaultVisible: false },
   { id: 'ageGroup', label: '연령대', required: false, defaultVisible: false },
@@ -51,6 +52,7 @@ interface Customer {
   ageGroup: string | null;
   visitCount: number;
   totalPoints: number;
+  totalStamps: number;
   lastVisitAt: string | null;
   createdAt: string;
   store: {
@@ -1039,6 +1041,11 @@ export default function FranchiseCustomersPage() {
                       소속 매장
                     </th>
                   )}
+                  {isColumnVisible('stamps') && (
+                    <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      스탬프
+                    </th>
+                  )}
                   {isColumnVisible('points') && (
                     <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
                       포인트
@@ -1107,6 +1114,11 @@ export default function FranchiseCustomersPage() {
                       )}
                       {isColumnVisible('store') && (
                         <td className="px-6 py-4 text-sm text-neutral-600">{customer.store.name}</td>
+                      )}
+                      {isColumnVisible('stamps') && (
+                        <td className="px-6 py-4 text-sm text-neutral-900 text-right font-medium">
+                          {customer.totalStamps}개
+                        </td>
                       )}
                       {isColumnVisible('points') && (
                         <td className="px-6 py-4 text-sm text-neutral-900 text-right font-medium">

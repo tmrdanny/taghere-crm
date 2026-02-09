@@ -1995,15 +1995,65 @@ router.post('/franchises/:franchiseId/logo', adminAuthMiddleware, logoUpload.sin
 router.patch('/franchises/:franchiseId', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
     const { franchiseId } = req.params;
-    const { name, logoUrl } = req.body;
+    const { name, logoUrl, ownerName, ownerEmail, ownerPhone, ownerPassword } = req.body;
 
+    // 1. 프랜차이즈 기본 정보 업데이트
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
 
-    const franchise = await prisma.franchise.update({
+    if (Object.keys(updateData).length > 0) {
+      await prisma.franchise.update({
+        where: { id: franchiseId },
+        data: updateData,
+      });
+    }
+
+    // 2. OWNER 유저 정보 업데이트
+    const hasOwnerUpdate = ownerName !== undefined || ownerEmail !== undefined || ownerPhone !== undefined || ownerPassword;
+    if (hasOwnerUpdate) {
+      const owner = await prisma.franchiseUser.findFirst({
+        where: { franchiseId, role: 'OWNER' },
+      });
+
+      if (!owner) {
+        return res.status(404).json({ error: '프랜차이즈 OWNER를 찾을 수 없습니다.' });
+      }
+
+      const ownerUpdateData: any = {};
+      if (ownerName !== undefined) ownerUpdateData.name = ownerName;
+      if (ownerPhone !== undefined) ownerUpdateData.phone = ownerPhone;
+
+      if (ownerEmail !== undefined && ownerEmail !== owner.email) {
+        const existing = await prisma.franchiseUser.findUnique({ where: { email: ownerEmail } });
+        if (existing) {
+          return res.status(400).json({ error: '이미 사용 중인 이메일입니다.' });
+        }
+        ownerUpdateData.email = ownerEmail;
+      }
+
+      if (ownerPassword) {
+        ownerUpdateData.passwordHash = await bcrypt.hash(ownerPassword, 10);
+      }
+
+      if (Object.keys(ownerUpdateData).length > 0) {
+        await prisma.franchiseUser.update({
+          where: { id: owner.id },
+          data: ownerUpdateData,
+        });
+      }
+    }
+
+    // 3. 업데이트된 프랜차이즈 정보 응답
+    const franchise = await prisma.franchise.findUnique({
       where: { id: franchiseId },
-      data: updateData,
+      include: {
+        users: {
+          select: { id: true, email: true, name: true, phone: true, role: true, createdAt: true },
+        },
+        _count: { select: { stores: true, users: true } },
+        wallet: { select: { balance: true } },
+      },
     });
 
     res.json({ success: true, franchise });
