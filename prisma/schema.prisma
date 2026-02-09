@@ -44,6 +44,7 @@ model Store {
   // 프랜차이즈 연동
   franchiseId           String?
   franchise             Franchise? @relation(fields: [franchiseId], references: [id])
+  franchiseStampEnabled Boolean    @default(false)  // 통합 스탬프 참여 여부
 
   // Relations
   staffUsers            StaffUser[]
@@ -82,6 +83,10 @@ model Store {
   // 고객 설문
   surveyQuestions       SurveyQuestion[]
   surveyAnswers         SurveyAnswer[]
+
+  // 프랜차이즈 통합 스탬프/포인트
+  franchiseStampLedger  FranchiseStampLedger[]
+  franchisePointLedger  FranchisePointLedger[]
 
   @@index([franchiseId])
   @@map("stores")
@@ -915,6 +920,12 @@ model Franchise {
   smsTestLogs            FranchiseSmsTestLog[]
   externalSmsCampaigns   ExternalSmsCampaign[]
 
+  // 통합 스탬프/포인트
+  franchiseCustomers     FranchiseCustomer[]
+  franchiseStampSetting  FranchiseStampSetting?
+  franchiseStampLedger   FranchiseStampLedger[]
+  franchisePointLedger   FranchisePointLedger[]
+
   @@map("franchises")
 }
 
@@ -1501,4 +1512,118 @@ model SurveyAnswer {
   @@index([customerId])
   @@index([valueDate])
   @@map("survey_answers")
+}
+
+// ============================================
+// 프랜차이즈 통합 스탬프/포인트
+// ============================================
+
+// 프랜차이즈 통합 고객
+model FranchiseCustomer {
+  id            String    @id @default(cuid())
+  franchiseId   String
+  kakaoId       String
+  phone         String?
+  name          String?
+  totalStamps   Int       @default(0)
+  totalPoints   Int       @default(0)
+  visitCount    Int       @default(0)
+  lastVisitAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  franchise     Franchise              @relation(fields: [franchiseId], references: [id])
+  stampLedger   FranchiseStampLedger[]
+  pointLedger   FranchisePointLedger[]
+
+  @@unique([franchiseId, kakaoId])
+  @@index([franchiseId])
+  @@index([kakaoId])
+  @@map("franchise_customers")
+}
+
+// 프랜차이즈 통합 스탬프 보상 설정
+model FranchiseStampSetting {
+  id                    String   @id @default(cuid())
+  franchiseId           String   @unique
+
+  // 기본 설정
+  enabled               Boolean  @default(true)
+
+  // 보상 설정 (레거시 5개 단위)
+  reward5Description    String?
+  reward10Description   String?
+  reward15Description   String?
+  reward20Description   String?
+  reward25Description   String?
+  reward30Description   String?
+  reward5Options        Json?
+  reward10Options       Json?
+  reward15Options       Json?
+  reward20Options       Json?
+  reward25Options       Json?
+  reward30Options       Json?
+
+  // 보상 설정 (JSON 배열, 1~50 자유 티어)
+  rewards               Json?
+
+  // 알림톡 설정
+  alimtalkEnabled       Boolean  @default(true)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  franchise             Franchise @relation(fields: [franchiseId], references: [id])
+
+  @@map("franchise_stamp_settings")
+}
+
+// 프랜차이즈 통합 스탬프 거래 내역
+model FranchiseStampLedger {
+  id                    String           @id @default(cuid())
+  franchiseId           String
+  franchiseCustomerId   String
+  storeId               String           // 적립/사용한 매장
+  type                  StampLedgerType
+  delta                 Int
+  balance               Int
+  earnMethod            StampEarnMethod?
+  ordersheetId          String?
+  drawnReward           String?
+  drawnRewardTier       Int?
+  reason                String?
+  createdAt             DateTime         @default(now())
+
+  franchise             Franchise         @relation(fields: [franchiseId], references: [id])
+  customer              FranchiseCustomer @relation(fields: [franchiseCustomerId], references: [id])
+  store                 Store             @relation(fields: [storeId], references: [id])
+
+  @@index([franchiseId, franchiseCustomerId])
+  @@index([franchiseCustomerId])
+  @@index([createdAt])
+  @@map("franchise_stamp_ledger")
+}
+
+// 프랜차이즈 통합 포인트 거래 내역
+model FranchisePointLedger {
+  id                    String    @id @default(cuid())
+  franchiseId           String
+  franchiseCustomerId   String
+  storeId               String           // 적립/사용한 매장
+  delta                 Int
+  balance               Int
+  type                  PointType
+  reason                String?
+  orderId               String?
+  tableLabel            String?
+  createdAt             DateTime  @default(now())
+
+  franchise             Franchise         @relation(fields: [franchiseId], references: [id])
+  customer              FranchiseCustomer @relation(fields: [franchiseCustomerId], references: [id])
+  store                 Store             @relation(fields: [storeId], references: [id])
+
+  @@index([franchiseId, franchiseCustomerId])
+  @@index([franchiseCustomerId])
+  @@index([createdAt])
+  @@map("franchise_point_ledger")
 }

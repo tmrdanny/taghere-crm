@@ -560,6 +560,15 @@ async function handleStampCallback(
     id: true,
     name: true,
     stampSetting: true,
+    franchiseStampEnabled: true,
+    franchiseId: true,
+    franchise: {
+      select: {
+        id: true,
+        name: true,
+        franchiseStampSetting: true,
+      },
+    },
     reviewAutomationSetting: {
       select: { benefitText: true },
     },
@@ -583,8 +592,15 @@ async function handleStampCallback(
     return res.redirect(`${redirectOrigin}${stampBasePath}?error=store_not_found`);
   }
 
-  // 스탬프 기능 활성화 확인
-  if (!store.stampSetting?.enabled) {
+  // 프랜차이즈 통합 스탬프 모드 판별
+  const isFranchiseStampMode = !!(
+    store.franchiseStampEnabled &&
+    store.franchiseId &&
+    store.franchise?.franchiseStampSetting
+  );
+
+  // 스탬프 기능 활성화 확인 (통합 스탬프 또는 개별 스탬프)
+  if (!isFranchiseStampMode && !store.stampSetting?.enabled) {
     return res.redirect(`${redirectOrigin}${stampBasePath}?error=stamp_disabled`);
   }
 
@@ -769,6 +785,210 @@ async function handleStampCallback(
       console.error('[Kakao Stamp] Failed to fetch ordersheet:', e);
     }
   }
+
+  // ============================================
+  // 프랜차이즈 통합 스탬프 모드
+  // ============================================
+  if (isFranchiseStampMode) {
+    const franchiseId = store.franchiseId!;
+    const franchiseStampSetting = store.franchise!.franchiseStampSetting!;
+    const franchiseName = store.franchise!.name;
+
+    // FranchiseCustomer upsert
+    let franchiseCustomer = await prisma.franchiseCustomer.findUnique({
+      where: { franchiseId_kakaoId: { franchiseId, kakaoId } },
+    });
+
+    // 1일 1회 제한 체크 (프랜차이즈 통합)
+    if (franchiseCustomer) {
+      const todayFranchiseEarn = await prisma.franchiseStampLedger.findFirst({
+        where: {
+          franchiseCustomerId: franchiseCustomer.id,
+          storeId: store.id,
+          type: 'EARN',
+          createdAt: { gte: todayStart },
+        },
+      });
+
+      if (todayFranchiseEarn) {
+        const alreadyUrl = new URL(`${redirectOrigin}${stampBasePath}`);
+        alreadyUrl.searchParams.set('error', 'already_participated');
+        alreadyUrl.searchParams.set('stamps', String(franchiseCustomer.totalStamps || 0));
+        alreadyUrl.searchParams.set('storeName', store.name);
+        alreadyUrl.searchParams.set('franchiseName', franchiseName);
+        const alreadyRewards: RewardEntry[] = franchiseStampSetting.rewards
+          ? (franchiseStampSetting.rewards as unknown as RewardEntry[])
+          : buildRewardsFromLegacy(franchiseStampSetting as any);
+        for (const r of alreadyRewards) {
+          const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
+          alreadyUrl.searchParams.set(`reward${r.tier}`, isRandom ? '랜덤 박스!' : r.description);
+          if (isRandom) alreadyUrl.searchParams.set(`reward${r.tier}Random`, 'true');
+        }
+        return res.redirect(alreadyUrl.toString());
+      }
+    }
+
+    if (!franchiseCustomer) {
+      franchiseCustomer = await prisma.franchiseCustomer.create({
+        data: {
+          franchiseId,
+          kakaoId,
+          phone: customer?.phone || kakaoAccount.phone_number || null,
+          name: customer?.name || profile.nickname || null,
+        },
+      });
+    }
+
+    // 매장 Customer 방문수만 업데이트 (개별 스탬프는 적립 안함)
+    await prisma.customer.update({
+      where: { id: customer!.id },
+      data: {
+        lastVisitAt: new Date(),
+        visitCount: { increment: 1 },
+      },
+    });
+
+    // 주문 내역 (매장 레벨 - 방문 기록)
+    await prisma.visitOrOrder.create({
+      data: {
+        storeId: store.id,
+        customerId: customer!.id,
+        orderId: stateData.ordersheetId || null,
+        visitedAt: new Date(),
+        totalAmount: totalAmount,
+        items: orderItems.length > 0 || tableLabel ? {
+          items: orderItems,
+          tableNumber: tableLabel,
+        } : undefined,
+      },
+    });
+
+    // 프랜차이즈 통합 스탬프 적립
+    const previousFranchiseStamps = franchiseCustomer.totalStamps;
+    const newFranchiseBalance = previousFranchiseStamps + 1;
+
+    const franchiseResult = await prisma.$transaction(async (tx) => {
+      const updated = await tx.franchiseCustomer.update({
+        where: { id: franchiseCustomer!.id },
+        data: {
+          totalStamps: newFranchiseBalance,
+          visitCount: { increment: 1 },
+          lastVisitAt: new Date(),
+          phone: customer?.phone || franchiseCustomer!.phone || undefined,
+          name: customer?.name || franchiseCustomer!.name || undefined,
+        },
+      });
+
+      const ledger = await tx.franchiseStampLedger.create({
+        data: {
+          franchiseId,
+          franchiseCustomerId: franchiseCustomer!.id,
+          storeId: store!.id,
+          type: 'EARN',
+          delta: 1,
+          balance: newFranchiseBalance,
+          ordersheetId: stateData.ordersheetId || null,
+          earnMethod: 'NFC_TAG',
+          reason: stateData.ordersheetId
+            ? `태그히어 주문 적립 (${stateData.ordersheetId})`
+            : '카카오 로그인 스탬프 적립 (통합)',
+        },
+      });
+
+      // 마일스톤 체크
+      const milestoneResult = checkMilestoneAndDraw(
+        previousFranchiseStamps,
+        newFranchiseBalance,
+        franchiseStampSetting as any,
+      );
+      if (milestoneResult) {
+        await tx.franchiseStampLedger.update({
+          where: { id: ledger.id },
+          data: {
+            drawnReward: milestoneResult.reward,
+            drawnRewardTier: milestoneResult.tier,
+          },
+        });
+      }
+
+      return { customer: updated, ledger, milestoneResult };
+    });
+
+    console.log(`[Kakao Stamp] Franchise stamp earned - franchiseCustomerId: ${franchiseCustomer.id}, newBalance: ${franchiseResult.customer.totalStamps}${franchiseResult.milestoneResult ? `, milestone: ${franchiseResult.milestoneResult.tier}개 - ${franchiseResult.milestoneResult.reward}` : ''}`);
+
+    // 알림톡 발송 (비동기)
+    const phoneNumber = customer!.phone?.replace(/[^0-9]/g, '');
+    if (franchiseStampSetting.alimtalkEnabled && phoneNumber) {
+      const rewardsForAlimtalk: RewardEntry[] = franchiseStampSetting.rewards
+        ? (franchiseStampSetting.rewards as unknown as RewardEntry[])
+        : buildRewardsFromLegacy(franchiseStampSetting as any);
+      const rules = rewardsForAlimtalk
+        .sort((a, b) => a.tier - b.tier)
+        .map(r => {
+          const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
+          return `- ${r.tier}개 모을 시: ${isRandom ? '랜덤 박스!' : r.description}`;
+        });
+      const stampUsageRule = rules.length > 0
+        ? '\n' + rules.join('\n')
+        : '\n- 10개 모을시 매장 선물 증정!';
+
+      const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
+
+      enqueueStampEarnedAlimTalk({
+        storeId: store.id,
+        customerId: customer!.id,
+        stampLedgerId: franchiseResult.ledger.id,
+        phone: phoneNumber,
+        variables: {
+          storeName: `${franchiseName} ${store.name}`,
+          earnedStamps: 1,
+          totalStamps: franchiseResult.customer.totalStamps,
+          stampUsageRule,
+          reviewGuide,
+        },
+      }).catch((err) => {
+        console.error('[Kakao Stamp] Franchise Stamp AlimTalk enqueue failed:', err);
+      });
+    }
+
+    // 리다이렉트
+    const hasPreferences = !!(customer as any).preferredCategories;
+    const hasVisitSource = !!(customer as any).visitSource;
+
+    const successUrl = new URL(`${redirectOrigin}${stampBasePath}`);
+    successUrl.searchParams.set('stamps', franchiseResult.customer.totalStamps.toString());
+    successUrl.searchParams.set('successStoreName', store.name);
+    successUrl.searchParams.set('franchiseName', franchiseName);
+    successUrl.searchParams.set('customerId', customer!.id);
+    successUrl.searchParams.set('kakaoId', kakaoId);
+    successUrl.searchParams.set('hasPreferences', hasPreferences.toString());
+    successUrl.searchParams.set('hasVisitSource', hasVisitSource.toString());
+
+    const rewardsForUrl: RewardEntry[] = franchiseStampSetting.rewards
+      ? (franchiseStampSetting.rewards as unknown as RewardEntry[])
+      : buildRewardsFromLegacy(franchiseStampSetting as any);
+    for (const entry of rewardsForUrl) {
+      if (entry.description) {
+        successUrl.searchParams.set(`reward${entry.tier}`, entry.description);
+      }
+      if (entry.options && Array.isArray(entry.options) && entry.options.length > 1) {
+        successUrl.searchParams.set(`reward${entry.tier}Random`, 'true');
+      }
+    }
+    if (stateData.ordersheetId) {
+      successUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
+    }
+    if (franchiseResult.milestoneResult) {
+      successUrl.searchParams.set('drawnReward', franchiseResult.milestoneResult.reward);
+      successUrl.searchParams.set('drawnRewardTier', franchiseResult.milestoneResult.tier.toString());
+    }
+
+    return res.redirect(successUrl.toString());
+  }
+
+  // ============================================
+  // 기존 매장 개별 스탬프 적립
+  // ============================================
 
   // 스탬프 적립 (트랜잭션) - 스탬프 적립 시 무조건 방문횟수 +1
   const previousStamps = customer!.totalStamps ?? 0;

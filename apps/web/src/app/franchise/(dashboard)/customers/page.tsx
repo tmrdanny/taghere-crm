@@ -14,6 +14,7 @@ import {
   Star,
   Building2,
   Settings2,
+  Stamp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -101,7 +102,59 @@ interface Store {
   name: string;
 }
 
+interface FranchiseCustomerItem {
+  id: string;
+  kakaoId: string;
+  name: string | null;
+  phone: string | null;
+  totalStamps: number;
+  totalPoints: number;
+  visitCount: number;
+  lastVisitAt: string | null;
+  lastStore: { id: string; name: string } | null;
+  createdAt: string;
+}
+
+interface FranchiseStampLedgerEntry {
+  id: string;
+  type: string;
+  delta: number;
+  balance: number;
+  drawnReward: string | null;
+  drawnRewardTier: number | null;
+  reason: string | null;
+  createdAt: string;
+  store: { id: string; name: string };
+}
+
+interface FranchisePointLedgerEntry {
+  id: string;
+  delta: number;
+  balance: number;
+  type: string;
+  reason: string | null;
+  createdAt: string;
+  store: { id: string; name: string };
+}
+
+interface FranchiseCustomerDetail {
+  id: string;
+  kakaoId: string;
+  name: string | null;
+  phone: string | null;
+  totalStamps: number;
+  totalPoints: number;
+  visitCount: number;
+  lastVisitAt: string | null;
+  createdAt: string;
+  stampLedger: FranchiseStampLedgerEntry[];
+  pointLedger: FranchisePointLedgerEntry[];
+}
+
 export default function FranchiseCustomersPage() {
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'store' | 'franchise'>('store');
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,6 +162,17 @@ export default function FranchiseCustomersPage() {
   const [searchInput, setSearchInput] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetail | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
+
+  // Franchise customer states
+  const [franchiseCustomers, setFranchiseCustomers] = useState<FranchiseCustomerItem[]>([]);
+  const [isFranchiseLoading, setIsFranchiseLoading] = useState(false);
+  const [franchiseSearchQuery, setFranchiseSearchQuery] = useState('');
+  const [franchiseSearchInput, setFranchiseSearchInput] = useState('');
+  const [franchiseCurrentPage, setFranchiseCurrentPage] = useState(1);
+  const [franchiseTotalPages, setFranchiseTotalPages] = useState(1);
+  const [franchiseTotalCustomers, setFranchiseTotalCustomers] = useState(0);
+  const [selectedFranchiseCustomer, setSelectedFranchiseCustomer] = useState<FranchiseCustomerDetail | null>(null);
+  const [isFranchiseDetailLoading, setIsFranchiseDetailLoading] = useState(false);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -351,6 +415,70 @@ export default function FranchiseCustomersPage() {
     }
   };
 
+  // Fetch franchise customers
+  const fetchFranchiseCustomers = useCallback(async () => {
+    setIsFranchiseLoading(true);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        setIsFranchiseLoading(false);
+        return;
+      }
+
+      const params = new URLSearchParams();
+      params.append('page', franchiseCurrentPage.toString());
+      params.append('limit', ITEMS_PER_PAGE.toString());
+      if (franchiseSearchQuery) params.append('search', franchiseSearchQuery);
+
+      const response = await fetch(`${API_BASE}/api/franchise/franchise-customers?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch franchise customers');
+
+      const data = await response.json();
+      setFranchiseCustomers(data.customers || []);
+      setFranchiseTotalPages(data.totalPages || 1);
+      setFranchiseTotalCustomers(data.total || 0);
+    } catch (error) {
+      console.error('Error fetching franchise customers:', error);
+      setFranchiseCustomers([]);
+      setFranchiseTotalPages(1);
+      setFranchiseTotalCustomers(0);
+    } finally {
+      setIsFranchiseLoading(false);
+    }
+  }, [franchiseCurrentPage, franchiseSearchQuery]);
+
+  useEffect(() => {
+    if (activeTab === 'franchise') {
+      fetchFranchiseCustomers();
+    }
+  }, [activeTab, fetchFranchiseCustomers]);
+
+  // Fetch franchise customer detail
+  const fetchFranchiseCustomerDetail = async (kakaoId: string) => {
+    setIsFranchiseDetailLoading(true);
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE}/api/franchise/franchise-customers/${kakaoId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch franchise customer detail');
+
+      const data = await response.json();
+      setSelectedFranchiseCustomer(data.customer);
+    } catch (error) {
+      console.error('Error fetching franchise customer detail:', error);
+      setSelectedFranchiseCustomer(null);
+    } finally {
+      setIsFranchiseDetailLoading(false);
+    }
+  };
+
   // Close all dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -408,6 +536,18 @@ export default function FranchiseCustomersPage() {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSearch();
+    }
+  };
+
+  // Franchise search handlers
+  const handleFranchiseSearch = () => {
+    setFranchiseCurrentPage(1);
+    setFranchiseSearchQuery(franchiseSearchInput);
+  };
+
+  const handleFranchiseKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleFranchiseSearch();
     }
   };
 
@@ -470,12 +610,45 @@ export default function FranchiseCustomersPage() {
           <div>
             <h1 className="text-2xl font-semibold text-neutral-900">고객 통합 DB</h1>
             <p className="text-sm text-neutral-500 mt-1">
-              전체 {totalCustomers.toLocaleString()}명의 고객
-              {totalPages > 1 && ` (${currentPage}/${totalPages} 페이지)`}
+              {activeTab === 'store'
+                ? `전체 ${totalCustomers.toLocaleString()}명의 고객${totalPages > 1 ? ` (${currentPage}/${totalPages} 페이지)` : ''}`
+                : `통합 고객 ${franchiseTotalCustomers.toLocaleString()}명${franchiseTotalPages > 1 ? ` (${franchiseCurrentPage}/${franchiseTotalPages} 페이지)` : ''}`
+              }
             </p>
           </div>
         </div>
 
+        {/* Tab Selector */}
+        <div className="flex items-center gap-1 mb-4 bg-neutral-100 rounded-lg p-1 w-fit">
+          <button
+            onClick={() => setActiveTab('store')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors',
+              activeTab === 'store'
+                ? 'bg-white text-neutral-900 shadow-sm'
+                : 'text-neutral-500 hover:text-neutral-700'
+            )}
+          >
+            <Users className="w-4 h-4" />
+            매장 고객
+          </button>
+          <button
+            onClick={() => setActiveTab('franchise')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors',
+              activeTab === 'franchise'
+                ? 'bg-white text-neutral-900 shadow-sm'
+                : 'text-neutral-500 hover:text-neutral-700'
+            )}
+          >
+            <Stamp className="w-4 h-4" />
+            통합 고객
+          </button>
+        </div>
+
+        {/* Search and Filters - Store Tab */}
+        {activeTab === 'store' && (
+        <>
         {/* Search and Filters */}
         <div className="bg-white border border-neutral-200 rounded-xl shadow-sm mb-6 p-4">
           {/* Search bar */}
@@ -1046,6 +1219,180 @@ export default function FranchiseCustomersPage() {
             </div>
           )}
         </div>
+        </>
+        )}
+
+        {/* Franchise Tab Content */}
+        {activeTab === 'franchise' && (
+        <>
+          {/* Search */}
+          <div className="bg-white border border-neutral-200 rounded-xl shadow-sm mb-6 p-4">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                <input
+                  type="text"
+                  value={franchiseSearchInput}
+                  onChange={(e) => setFranchiseSearchInput(e.target.value)}
+                  onKeyPress={handleFranchiseKeyPress}
+                  placeholder="이름, 연락처로 검색"
+                  className="w-full pl-10 pr-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-800 focus:border-transparent"
+                />
+              </div>
+              <button
+                onClick={handleFranchiseSearch}
+                className="px-4 py-2 bg-brand-800 text-white rounded-lg text-sm font-medium hover:bg-brand-900 transition-colors"
+              >
+                검색
+              </button>
+            </div>
+          </div>
+
+          {/* Franchise Customer Table */}
+          <div className="bg-white border border-neutral-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-neutral-200 bg-neutral-50">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">이름</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">연락처</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">스탬프</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">포인트</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">방문횟수</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">최근 적립 매장</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">최근방문</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {isFranchiseLoading ? (
+                    <tr>
+                      <td colSpan={7}>
+                        <div className="animate-pulse font-pretendard">
+                          {[...Array(10)].map((_, i) => (
+                            <div key={i} className="flex items-center gap-4 px-6 py-4 border-b border-neutral-100">
+                              <div className="h-4 bg-neutral-200 rounded w-24"></div>
+                              <div className="h-4 bg-neutral-200 rounded w-32"></div>
+                              <div className="h-4 bg-neutral-200 rounded w-16"></div>
+                              <div className="h-4 bg-neutral-200 rounded w-16"></div>
+                              <div className="h-4 bg-neutral-200 rounded w-12"></div>
+                              <div className="h-4 bg-neutral-200 rounded w-24"></div>
+                              <div className="h-4 bg-neutral-200 rounded w-20"></div>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ) : franchiseCustomers.length === 0 ? (
+                    <tr>
+                      <td colSpan={7}>
+                        <div className="flex flex-col items-center justify-center py-16 font-pretendard">
+                          <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
+                            <Stamp className="w-8 h-8 text-neutral-400" />
+                          </div>
+                          <h3 className="text-lg font-medium text-neutral-900 mb-1">통합 고객이 없습니다</h3>
+                          <p className="text-sm text-neutral-500">통합 스탬프를 활성화한 매장에서 적립이 발생하면 여기에 표시됩니다</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    franchiseCustomers.map((fc) => (
+                      <tr
+                        key={fc.id}
+                        onClick={() => fetchFranchiseCustomerDetail(fc.kakaoId)}
+                        className="hover:bg-neutral-50 transition-colors cursor-pointer"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-amber-50 rounded-full flex items-center justify-center">
+                              <Stamp className="w-4 h-4 text-amber-500" />
+                            </div>
+                            <span className="text-sm font-medium text-neutral-900">{fc.name || '-'}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-neutral-600 font-pretendard">{fc.phone || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-neutral-900 text-right font-medium">{fc.totalStamps}개</td>
+                        <td className="px-6 py-4 text-sm text-neutral-900 text-right font-medium">{fc.totalPoints.toLocaleString()}P</td>
+                        <td className="px-6 py-4 text-sm text-neutral-900 text-right font-medium">{fc.visitCount}회</td>
+                        <td className="px-6 py-4 text-sm text-neutral-600">{fc.lastStore?.name || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-neutral-500">
+                          {fc.lastVisitAt ? formatDate(fc.lastVisitAt) : '-'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Franchise Pagination */}
+            {!isFranchiseLoading && franchiseTotalPages > 1 && (
+              <div className="px-6 py-4 border-t border-neutral-200 flex items-center justify-between">
+                <p className="text-sm text-neutral-500">
+                  {franchiseTotalCustomers.toLocaleString()}명 중 {((franchiseCurrentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(franchiseCurrentPage * ITEMS_PER_PAGE, franchiseTotalCustomers)}명 표시
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setFranchiseCurrentPage(1)}
+                    disabled={franchiseCurrentPage === 1}
+                    className="px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    처음
+                  </button>
+                  <button
+                    onClick={() => setFranchiseCurrentPage(franchiseCurrentPage - 1)}
+                    disabled={franchiseCurrentPage === 1}
+                    className="p-1.5 text-neutral-600 hover:bg-neutral-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, franchiseTotalPages) }, (_, i) => {
+                      let pageNum;
+                      if (franchiseTotalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (franchiseCurrentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (franchiseCurrentPage >= franchiseTotalPages - 2) {
+                        pageNum = franchiseTotalPages - 4 + i;
+                      } else {
+                        pageNum = franchiseCurrentPage - 2 + i;
+                      }
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setFranchiseCurrentPage(pageNum)}
+                          className={cn(
+                            'w-8 h-8 text-sm rounded-lg transition-colors',
+                            franchiseCurrentPage === pageNum
+                              ? 'bg-brand-800 text-white'
+                              : 'text-neutral-600 hover:bg-neutral-100'
+                          )}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={() => setFranchiseCurrentPage(franchiseCurrentPage + 1)}
+                    disabled={franchiseCurrentPage === franchiseTotalPages}
+                    className="p-1.5 text-neutral-600 hover:bg-neutral-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setFranchiseCurrentPage(franchiseTotalPages)}
+                    disabled={franchiseCurrentPage === franchiseTotalPages}
+                    className="px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    마지막
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+        )}
       </div>
 
       {/* Customer Detail Modal */}
@@ -1235,6 +1582,156 @@ export default function FranchiseCustomersPage() {
             <div className="px-6 py-4 border-t border-neutral-200 flex items-center justify-end gap-3">
               <button
                 onClick={() => setSelectedCustomer(null)}
+                className="px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Franchise Customer Detail Modal */}
+      {selectedFranchiseCustomer && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setSelectedFranchiseCustomer(null)}
+          />
+
+          <div className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-4xl md:max-h-[85vh] bg-white rounded-2xl shadow-xl z-50 flex flex-col font-pretendard">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-neutral-900">통합 고객 상세 정보</h2>
+                <p className="text-sm text-neutral-500">프랜차이즈 통합 스탬프/포인트</p>
+              </div>
+              <button
+                onClick={() => setSelectedFranchiseCustomer(null)}
+                className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-neutral-500" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {isFranchiseDetailLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <>
+                  {/* Customer Info */}
+                  <div className="bg-neutral-50 rounded-xl p-4 mb-6">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-xs text-neutral-500 mb-1">이름</p>
+                        <p className="text-sm font-medium text-neutral-900">{selectedFranchiseCustomer.name || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-500 mb-1">연락처</p>
+                        <p className="text-sm font-medium text-neutral-900 font-pretendard">{selectedFranchiseCustomer.phone || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-500 mb-1">통합 스탬프</p>
+                        <p className="text-sm font-medium text-neutral-900">{selectedFranchiseCustomer.totalStamps}개</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-500 mb-1">통합 포인트</p>
+                        <p className="text-sm font-medium text-neutral-900">{selectedFranchiseCustomer.totalPoints.toLocaleString()}P</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-500 mb-1">방문 횟수</p>
+                        <p className="text-sm font-medium text-neutral-900">{selectedFranchiseCustomer.visitCount}회</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-500 mb-1">최근 방문</p>
+                        <p className="text-sm font-medium text-neutral-900">
+                          {selectedFranchiseCustomer.lastVisitAt ? formatDate(selectedFranchiseCustomer.lastVisitAt) : '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-500 mb-1">가입일</p>
+                        <p className="text-sm font-medium text-neutral-900">{formatDate(selectedFranchiseCustomer.createdAt)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stamp Ledger */}
+                  <div className="space-y-4">
+                    <div className="border border-neutral-200 rounded-xl overflow-hidden">
+                      <div className="bg-neutral-50 px-4 py-3 border-b border-neutral-200">
+                        <h3 className="text-sm font-semibold text-neutral-900">스탬프 내역 ({selectedFranchiseCustomer.stampLedger.length}건)</h3>
+                      </div>
+                      <div className="p-4">
+                        {selectedFranchiseCustomer.stampLedger.length === 0 ? (
+                          <p className="text-sm text-neutral-500 text-center py-4">스탬프 내역이 없습니다</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {selectedFranchiseCustomer.stampLedger.map((entry) => (
+                              <div key={entry.id} className="flex items-center justify-between py-2 border-b border-neutral-100 last:border-0">
+                                <div>
+                                  <p className="text-sm text-neutral-900">
+                                    {entry.type === 'EARN' ? '적립' : entry.type === 'USE' ? '사용' : entry.type}
+                                    {entry.drawnReward && ` - ${entry.drawnReward}`}
+                                  </p>
+                                  <p className="text-xs text-neutral-500">
+                                    {entry.store.name} · {formatDate(entry.createdAt)}
+                                  </p>
+                                </div>
+                                <p className={cn(
+                                  'text-sm font-semibold',
+                                  entry.delta > 0 ? 'text-green-600' : 'text-red-600'
+                                )}>
+                                  {entry.delta > 0 ? '+' : ''}{entry.delta}개
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Point Ledger */}
+                    <div className="border border-neutral-200 rounded-xl overflow-hidden">
+                      <div className="bg-neutral-50 px-4 py-3 border-b border-neutral-200">
+                        <h3 className="text-sm font-semibold text-neutral-900">포인트 내역 ({selectedFranchiseCustomer.pointLedger.length}건)</h3>
+                      </div>
+                      <div className="p-4">
+                        {selectedFranchiseCustomer.pointLedger.length === 0 ? (
+                          <p className="text-sm text-neutral-500 text-center py-4">포인트 내역이 없습니다</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {selectedFranchiseCustomer.pointLedger.map((entry) => (
+                              <div key={entry.id} className="flex items-center justify-between py-2 border-b border-neutral-100 last:border-0">
+                                <div>
+                                  <p className="text-sm text-neutral-900">{entry.reason || entry.type}</p>
+                                  <p className="text-xs text-neutral-500">
+                                    {entry.store.name} · {formatDate(entry.createdAt)}
+                                  </p>
+                                </div>
+                                <p className={cn(
+                                  'text-sm font-semibold',
+                                  entry.delta > 0 ? 'text-green-600' : 'text-red-600'
+                                )}>
+                                  {entry.delta > 0 ? '+' : ''}{entry.delta.toLocaleString()}P
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-neutral-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setSelectedFranchiseCustomer(null)}
                 className="px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors"
               >
                 닫기

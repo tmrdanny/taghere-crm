@@ -143,6 +143,7 @@ function StampSuccessContent() {
   // 당첨 보상 정보
   const drawnReward = searchParams.get('drawnReward') || '';
   const drawnRewardTier = parseInt(searchParams.get('drawnRewardTier') || '0');
+  const franchiseName = searchParams.get('franchiseName') || '';
 
   // URL 파라미터에서 모든 rewardN 패턴 동적 파싱 (1~50 지원)
   const rewardList: { count: number; desc: string; isRandom: boolean }[] = [];
@@ -235,7 +236,7 @@ function StampSuccessContent() {
               </svg>
             </div>
             <h1 className="text-xl font-bold text-[#1d2022] mt-4 tracking-tight">
-              스탬프가 적립되었어요
+              {franchiseName ? `${franchiseName} 통합 스탬프 적립 완료` : '스탬프가 적립되었어요'}
             </h1>
             {storeName && (
               <p className="text-sm text-[#91949a] mt-1">{storeName}</p>

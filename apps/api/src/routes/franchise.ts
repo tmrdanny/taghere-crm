@@ -3,6 +3,13 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
 import { maskName, maskPhone } from '../utils/masking.js';
+import {
+  RewardEntry,
+  buildRewardsFromLegacy,
+  buildLegacyFromRewards,
+  checkMilestoneAndDraw,
+  validateRewards,
+} from '../utils/random-reward.js';
 
 const router = Router();
 
@@ -46,6 +53,7 @@ router.get('/stores', async (req: FranchiseAuthRequest, res) => {
         ownerName: true,
         phone: true,
         address: true,
+        franchiseStampEnabled: true,
         createdAt: true,
         _count: {
           select: {
@@ -65,6 +73,7 @@ router.get('/stores', async (req: FranchiseAuthRequest, res) => {
         ownerName: store.ownerName,
         phone: store.phone,
         address: store.address,
+        franchiseStampEnabled: store.franchiseStampEnabled,
         customerCount: store._count.customers,
         createdAt: store.createdAt,
       })),
@@ -1555,6 +1564,573 @@ router.get('/feedbacks/summary', async (req: FranchiseAuthRequest, res) => {
   } catch (error) {
     console.error('Failed to fetch feedback summary:', error);
     res.status(500).json({ error: '피드백 통계 조회에 실패했습니다.' });
+  }
+});
+
+// ============================================
+// 통합 스탬프/포인트 시스템
+// ============================================
+
+// PUT /api/franchise/stores/:storeId/stamp-toggle - 매장별 통합 스탬프 ON/OFF 토글
+router.put('/stores/:storeId/stamp-toggle', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { storeId } = req.params;
+
+    // 매장이 해당 프랜차이즈 소속인지 확인
+    const store = await prisma.store.findFirst({
+      where: { id: storeId, franchiseId },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '가맹점을 찾을 수 없습니다.' });
+    }
+
+    // 토글
+    const updated = await prisma.store.update({
+      where: { id: storeId },
+      data: { franchiseStampEnabled: !store.franchiseStampEnabled },
+    });
+
+    // ON 시: FranchiseStampSetting이 없으면 자동 생성
+    if (updated.franchiseStampEnabled) {
+      await prisma.franchiseStampSetting.upsert({
+        where: { franchiseId },
+        update: {},
+        create: { franchiseId },
+      });
+    }
+
+    res.json({
+      storeId,
+      franchiseStampEnabled: updated.franchiseStampEnabled,
+    });
+  } catch (error) {
+    console.error('Toggle franchise stamp error:', error);
+    res.status(500).json({ error: '통합 스탬프 토글 중 오류가 발생했습니다.' });
+  }
+});
+
+// PUT /api/franchise/stores/stamp-toggle-all - 전체 매장 일괄 ON/OFF 토글
+router.put('/stores/stamp-toggle-all', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { enabled } = req.body;
+
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: 'enabled 값이 필요합니다.' });
+    }
+
+    const result = await prisma.store.updateMany({
+      where: { franchiseId },
+      data: { franchiseStampEnabled: enabled },
+    });
+
+    // ON 시: FranchiseStampSetting이 없으면 자동 생성
+    if (enabled) {
+      await prisma.franchiseStampSetting.upsert({
+        where: { franchiseId },
+        update: {},
+        create: { franchiseId },
+      });
+    }
+
+    res.json({
+      updatedCount: result.count,
+      franchiseStampEnabled: enabled,
+    });
+  } catch (error) {
+    console.error('Toggle all franchise stamp error:', error);
+    res.status(500).json({ error: '전체 매장 통합 스탬프 토글 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/franchise/stamp-setting - 프랜차이즈 보상 설정 조회
+router.get('/stamp-setting', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+
+    const setting = await prisma.franchiseStampSetting.findUnique({
+      where: { franchiseId },
+    });
+
+    if (!setting) {
+      return res.json({ setting: null });
+    }
+
+    // rewards JSON이 있으면 그대로, 없으면 레거시에서 빌드
+    const rewards: RewardEntry[] = setting.rewards
+      ? (setting.rewards as unknown as RewardEntry[])
+      : buildRewardsFromLegacy(setting as any);
+
+    res.json({
+      setting: {
+        id: setting.id,
+        franchiseId: setting.franchiseId,
+        enabled: setting.enabled,
+        rewards,
+        alimtalkEnabled: setting.alimtalkEnabled,
+      },
+    });
+  } catch (error) {
+    console.error('Get franchise stamp setting error:', error);
+    res.status(500).json({ error: '보상 설정 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// PUT /api/franchise/stamp-setting - 프랜차이즈 보상 설정 수정
+router.put('/stamp-setting', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { rewards, alimtalkEnabled } = req.body;
+
+    // rewards 유효성 검증
+    if (rewards) {
+      const validation = validateRewards(rewards);
+      if (!validation.valid) {
+        return res.status(400).json({ error: validation.error });
+      }
+    }
+
+    // 레거시 컬럼 동기화
+    const legacyData = rewards ? buildLegacyFromRewards(rewards) : {};
+
+    const setting = await prisma.franchiseStampSetting.upsert({
+      where: { franchiseId },
+      update: {
+        rewards: rewards ? (rewards as any) : undefined,
+        alimtalkEnabled: alimtalkEnabled !== undefined ? alimtalkEnabled : undefined,
+        ...legacyData,
+      },
+      create: {
+        franchiseId,
+        rewards: rewards ? (rewards as any) : undefined,
+        alimtalkEnabled: alimtalkEnabled !== undefined ? alimtalkEnabled : true,
+        ...legacyData,
+      },
+    });
+
+    const resultRewards: RewardEntry[] = setting.rewards
+      ? (setting.rewards as unknown as RewardEntry[])
+      : buildRewardsFromLegacy(setting as any);
+
+    res.json({
+      setting: {
+        id: setting.id,
+        franchiseId: setting.franchiseId,
+        enabled: setting.enabled,
+        rewards: resultRewards,
+        alimtalkEnabled: setting.alimtalkEnabled,
+      },
+    });
+  } catch (error) {
+    console.error('Update franchise stamp setting error:', error);
+    res.status(500).json({ error: '보상 설정 수정 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/franchise/stamps/earn - 통합 스탬프 적립
+router.post('/stamps/earn', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { storeId, kakaoId, phone, name } = req.body;
+
+    if (!storeId || !kakaoId) {
+      return res.status(400).json({ error: 'storeId와 kakaoId가 필요합니다.' });
+    }
+
+    // 매장이 해당 프랜차이즈 소속이며 통합 스탬프 ON인지 확인
+    const store = await prisma.store.findFirst({
+      where: { id: storeId, franchiseId, franchiseStampEnabled: true },
+    });
+
+    if (!store) {
+      return res.status(400).json({ error: '통합 스탬프가 활성화된 가맹점이 아닙니다.' });
+    }
+
+    // 보상 설정 조회
+    const stampSetting = await prisma.franchiseStampSetting.findUnique({
+      where: { franchiseId },
+    });
+
+    if (!stampSetting) {
+      return res.status(400).json({ error: '보상 설정이 없습니다.' });
+    }
+
+    // FranchiseCustomer upsert
+    let franchiseCustomer = await prisma.franchiseCustomer.findUnique({
+      where: { franchiseId_kakaoId: { franchiseId, kakaoId } },
+    });
+
+    if (!franchiseCustomer) {
+      franchiseCustomer = await prisma.franchiseCustomer.create({
+        data: { franchiseId, kakaoId, phone, name },
+      });
+    }
+
+    // 1일 1회 제한 체크
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const alreadyEarned = await prisma.franchiseStampLedger.findFirst({
+      where: {
+        franchiseCustomerId: franchiseCustomer.id,
+        storeId,
+        type: 'EARN',
+        createdAt: { gte: todayStart },
+      },
+    });
+
+    if (alreadyEarned) {
+      return res.status(400).json({
+        error: 'already_earned_today',
+        currentStamps: franchiseCustomer.totalStamps,
+      });
+    }
+
+    // 트랜잭션: 스탬프 +1, 레저 생성
+    const previousStamps = franchiseCustomer.totalStamps;
+    const newBalance = previousStamps + 1;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.franchiseCustomer.update({
+        where: { id: franchiseCustomer!.id },
+        data: {
+          totalStamps: newBalance,
+          visitCount: { increment: 1 },
+          lastVisitAt: new Date(),
+          phone: phone || undefined,
+          name: name || undefined,
+        },
+      });
+
+      const ledger = await tx.franchiseStampLedger.create({
+        data: {
+          franchiseId,
+          franchiseCustomerId: franchiseCustomer!.id,
+          storeId,
+          type: 'EARN',
+          delta: 1,
+          balance: newBalance,
+          earnMethod: 'NFC_TAG',
+        },
+      });
+
+      // 마일스톤 체크
+      const milestoneResult = checkMilestoneAndDraw(previousStamps, newBalance, stampSetting as any);
+      if (milestoneResult) {
+        await tx.franchiseStampLedger.update({
+          where: { id: ledger.id },
+          data: {
+            drawnReward: milestoneResult.reward,
+            drawnRewardTier: milestoneResult.tier,
+          },
+        });
+      }
+
+      return { customer: updated, ledger, milestoneResult };
+    });
+
+    res.json({
+      success: true,
+      currentStamps: result.customer.totalStamps,
+      drawnReward: result.milestoneResult?.reward || null,
+      drawnRewardTier: result.milestoneResult?.tier || null,
+    });
+  } catch (error) {
+    console.error('Franchise stamp earn error:', error);
+    res.status(500).json({ error: '통합 스탬프 적립 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/franchise/stamps/use - 통합 스탬프 사용
+router.post('/stamps/use', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { franchiseCustomerId, tier, storeId } = req.body;
+
+    if (!franchiseCustomerId || !tier || !storeId) {
+      return res.status(400).json({ error: 'franchiseCustomerId, tier, storeId가 필요합니다.' });
+    }
+
+    const customer = await prisma.franchiseCustomer.findFirst({
+      where: { id: franchiseCustomerId, franchiseId },
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
+    }
+
+    if (customer.totalStamps < tier) {
+      return res.status(400).json({ error: '스탬프가 부족합니다.' });
+    }
+
+    const newBalance = customer.totalStamps - tier;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.franchiseCustomer.update({
+        where: { id: franchiseCustomerId },
+        data: { totalStamps: newBalance },
+      });
+
+      await tx.franchiseStampLedger.create({
+        data: {
+          franchiseId,
+          franchiseCustomerId,
+          storeId,
+          type: 'USE',
+          delta: -tier,
+          balance: newBalance,
+          reason: `${tier}개 보상 사용`,
+        },
+      });
+
+      return updated;
+    });
+
+    res.json({
+      success: true,
+      currentStamps: result.totalStamps,
+    });
+  } catch (error) {
+    console.error('Franchise stamp use error:', error);
+    res.status(500).json({ error: '통합 스탬프 사용 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/franchise/points/earn - 통합 포인트 적립
+router.post('/points/earn', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { storeId, kakaoId, amount, reason, phone, name } = req.body;
+
+    if (!storeId || !kakaoId || !amount) {
+      return res.status(400).json({ error: 'storeId, kakaoId, amount가 필요합니다.' });
+    }
+
+    // 매장 확인
+    const store = await prisma.store.findFirst({
+      where: { id: storeId, franchiseId, franchiseStampEnabled: true },
+    });
+
+    if (!store) {
+      return res.status(400).json({ error: '통합 스탬프가 활성화된 가맹점이 아닙니다.' });
+    }
+
+    // FranchiseCustomer upsert
+    let customer = await prisma.franchiseCustomer.findUnique({
+      where: { franchiseId_kakaoId: { franchiseId, kakaoId } },
+    });
+
+    if (!customer) {
+      customer = await prisma.franchiseCustomer.create({
+        data: { franchiseId, kakaoId, phone, name },
+      });
+    }
+
+    const newBalance = customer.totalPoints + amount;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.franchiseCustomer.update({
+        where: { id: customer!.id },
+        data: {
+          totalPoints: newBalance,
+          phone: phone || undefined,
+          name: name || undefined,
+        },
+      });
+
+      await tx.franchisePointLedger.create({
+        data: {
+          franchiseId,
+          franchiseCustomerId: customer!.id,
+          storeId,
+          delta: amount,
+          balance: newBalance,
+          type: 'EARN',
+          reason: reason || '포인트 적립',
+        },
+      });
+
+      return updated;
+    });
+
+    res.json({
+      success: true,
+      currentPoints: result.totalPoints,
+    });
+  } catch (error) {
+    console.error('Franchise point earn error:', error);
+    res.status(500).json({ error: '통합 포인트 적립 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/franchise/points/use - 통합 포인트 사용
+router.post('/points/use', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { franchiseCustomerId, amount, storeId, reason } = req.body;
+
+    if (!franchiseCustomerId || !amount || !storeId) {
+      return res.status(400).json({ error: 'franchiseCustomerId, amount, storeId가 필요합니다.' });
+    }
+
+    const customer = await prisma.franchiseCustomer.findFirst({
+      where: { id: franchiseCustomerId, franchiseId },
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
+    }
+
+    if (customer.totalPoints < amount) {
+      return res.status(400).json({ error: '포인트가 부족합니다.' });
+    }
+
+    const newBalance = customer.totalPoints - amount;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.franchiseCustomer.update({
+        where: { id: franchiseCustomerId },
+        data: { totalPoints: newBalance },
+      });
+
+      await tx.franchisePointLedger.create({
+        data: {
+          franchiseId,
+          franchiseCustomerId,
+          storeId,
+          delta: -amount,
+          balance: newBalance,
+          type: 'USE',
+          reason: reason || '포인트 사용',
+        },
+      });
+
+      return updated;
+    });
+
+    res.json({
+      success: true,
+      currentPoints: result.totalPoints,
+    });
+  } catch (error) {
+    console.error('Franchise point use error:', error);
+    res.status(500).json({ error: '통합 포인트 사용 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/franchise/franchise-customers - 프랜차이즈 통합 고객 목록
+router.get('/franchise-customers', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { page = '1', limit = '50', search } = req.query;
+
+    const pageNum = parseInt(page as string, 10);
+    const limitNum = Math.min(parseInt(limit as string, 10), 100);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = { franchiseId };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search as string } },
+        { phone: { contains: search as string } },
+        { kakaoId: { contains: search as string } },
+      ];
+    }
+
+    const [customers, total] = await Promise.all([
+      prisma.franchiseCustomer.findMany({
+        where,
+        orderBy: { lastVisitAt: 'desc' },
+        skip,
+        take: limitNum,
+        include: {
+          stampLedger: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            include: {
+              store: { select: { id: true, name: true } },
+            },
+          },
+        },
+      }),
+      prisma.franchiseCustomer.count({ where }),
+    ]);
+
+    res.json({
+      customers: customers.map((c) => ({
+        id: c.id,
+        kakaoId: c.kakaoId,
+        name: c.name ? maskName(c.name) : null,
+        phone: c.phone ? maskPhone(c.phone) : null,
+        totalStamps: c.totalStamps,
+        totalPoints: c.totalPoints,
+        visitCount: c.visitCount,
+        lastVisitAt: c.lastVisitAt,
+        lastStore: c.stampLedger[0]?.store || null,
+        createdAt: c.createdAt,
+      })),
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+    });
+  } catch (error) {
+    console.error('Get franchise customers error:', error);
+    res.status(500).json({ error: '통합 고객 목록 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/franchise/franchise-customers/:kakaoId - 프랜차이즈 고객 조회 (kakaoId 기준)
+router.get('/franchise-customers/:kakaoId', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { kakaoId } = req.params;
+
+    const customer = await prisma.franchiseCustomer.findUnique({
+      where: { franchiseId_kakaoId: { franchiseId, kakaoId } },
+      include: {
+        stampLedger: {
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+          include: {
+            store: { select: { id: true, name: true } },
+          },
+        },
+        pointLedger: {
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+          include: {
+            store: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
+    }
+
+    res.json({
+      customer: {
+        id: customer.id,
+        kakaoId: customer.kakaoId,
+        name: customer.name ? maskName(customer.name) : null,
+        phone: customer.phone ? maskPhone(customer.phone) : null,
+        totalStamps: customer.totalStamps,
+        totalPoints: customer.totalPoints,
+        visitCount: customer.visitCount,
+        lastVisitAt: customer.lastVisitAt,
+        createdAt: customer.createdAt,
+        stampLedger: customer.stampLedger,
+        pointLedger: customer.pointLedger,
+      },
+    });
+  } catch (error) {
+    console.error('Get franchise customer error:', error);
+    res.status(500).json({ error: '고객 조회 중 오류가 발생했습니다.' });
   }
 });
 

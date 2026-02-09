@@ -18,6 +18,9 @@ import {
   Wallet,
   Send,
   Loader2,
+  Gift,
+  Settings,
+  Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +51,7 @@ interface StoreData {
   ownerName?: string;
   phone?: string;
   createdAt?: string;
+  franchiseStampEnabled?: boolean;
   stats?: {
     customerCount: number;
     totalOrders: number;
@@ -57,6 +61,19 @@ interface StoreData {
     revisitRate: number;
     averageVisits: number;
   };
+}
+
+interface StampRewardSetting {
+  tier: number;
+  description: string;
+  options?: string[];
+}
+
+interface FranchiseStampSettingData {
+  id?: string;
+  enabled: boolean;
+  rewards: StampRewardSetting[];
+  alimtalkEnabled: boolean;
 }
 
 // Category label mapping
@@ -117,6 +134,15 @@ export default function FranchiseStoresPage() {
   const [transferError, setTransferError] = useState<string | null>(null);
   const [transferSuccess, setTransferSuccess] = useState<string | null>(null);
 
+  // Stamp setting state
+  const [stampSetting, setStampSetting] = useState<FranchiseStampSettingData | null>(null);
+  const [isStampSettingOpen, setIsStampSettingOpen] = useState(false);
+  const [stampSettingForm, setStampSettingForm] = useState<StampRewardSetting[]>([]);
+  const [stampAlimtalk, setStampAlimtalk] = useState(true);
+  const [isSavingStampSetting, setIsSavingStampSetting] = useState(false);
+  const [togglingStoreId, setTogglingStoreId] = useState<string | null>(null);
+  const [isTogglingAll, setIsTogglingAll] = useState(false);
+
   // Auth token helper
   const getAuthToken = () => {
     if (typeof window !== 'undefined') {
@@ -169,10 +195,133 @@ export default function FranchiseStoresPage() {
     }
   }, []);
 
+  // Fetch franchise stamp setting
+  const fetchStampSetting = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE}/api/franchise/stamp-setting`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const s = data.setting;
+        if (s) {
+          const rewards: StampRewardSetting[] = s.rewards || [];
+          setStampSetting({ id: s.id, enabled: s.enabled, rewards, alimtalkEnabled: s.alimtalkEnabled });
+          setStampSettingForm(rewards.length > 0 ? rewards : [{ tier: 5, description: '' }, { tier: 10, description: '' }]);
+          setStampAlimtalk(s.alimtalkEnabled ?? true);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch stamp setting:', err);
+    }
+  }, []);
+
+  // Toggle individual store stamp
+  const handleStampToggle = async (storeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTogglingStoreId(storeId);
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE}/api/franchise/stores/${storeId}/stamp-toggle`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStores((prev) => prev.map((s) => (s.id === storeId ? { ...s, franchiseStampEnabled: data.franchiseStampEnabled } : s)));
+        if (selectedStore?.id === storeId) {
+          setSelectedStore((prev) => prev ? { ...prev, franchiseStampEnabled: data.franchiseStampEnabled } : prev);
+        }
+        // If turning on and no stamp setting yet, fetch it
+        if (data.franchiseStampEnabled && !stampSetting) {
+          fetchStampSetting();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to toggle stamp:', err);
+    } finally {
+      setTogglingStoreId(null);
+    }
+  };
+
+  // Toggle all stores stamp
+  const handleStampToggleAll = async (enabled: boolean) => {
+    setIsTogglingAll(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE}/api/franchise/stores/stamp-toggle-all`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ enabled }),
+      });
+      if (res.ok) {
+        setStores((prev) => prev.map((s) => ({ ...s, franchiseStampEnabled: enabled })));
+        if (selectedStore) {
+          setSelectedStore((prev) => prev ? { ...prev, franchiseStampEnabled: enabled } : prev);
+        }
+        if (enabled && !stampSetting) {
+          fetchStampSetting();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to toggle all stamps:', err);
+    } finally {
+      setIsTogglingAll(false);
+    }
+  };
+
+  // Save stamp setting
+  const handleSaveStampSetting = async () => {
+    setIsSavingStampSetting(true);
+    try {
+      const token = getAuthToken();
+      const validRewards = stampSettingForm.filter((r) => r.description.trim());
+      const res = await fetch(`${API_BASE}/api/franchise/stamp-setting`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ rewards: validRewards, alimtalkEnabled: stampAlimtalk }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const s = data.setting;
+        if (s) {
+          const rewards: StampRewardSetting[] = s.rewards || [];
+          setStampSetting({ id: s.id, enabled: s.enabled, rewards, alimtalkEnabled: s.alimtalkEnabled });
+        }
+        setIsStampSettingOpen(false);
+      }
+    } catch (err) {
+      console.error('Failed to save stamp setting:', err);
+    } finally {
+      setIsSavingStampSetting(false);
+    }
+  };
+
+  // Add reward tier
+  const handleAddRewardTier = () => {
+    const usedTiers = stampSettingForm.map((r) => r.tier);
+    const nextTier = [5, 10, 15, 20, 25, 30, 1, 2, 3, 4, 6, 7, 8, 9].find((t) => !usedTiers.includes(t));
+    if (nextTier) {
+      setStampSettingForm([...stampSettingForm, { tier: nextTier, description: '' }]);
+    }
+  };
+
+  // Remove reward tier
+  const handleRemoveRewardTier = (index: number) => {
+    setStampSettingForm(stampSettingForm.filter((_, i) => i !== index));
+  };
+
+  // Update reward tier
+  const handleUpdateRewardTier = (index: number, field: 'tier' | 'description', value: string | number) => {
+    setStampSettingForm(stampSettingForm.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+  };
+
   useEffect(() => {
     fetchStores();
     fetchFranchiseWallet();
-  }, [fetchStores, fetchFranchiseWallet]);
+    fetchStampSetting();
+  }, [fetchStores, fetchFranchiseWallet, fetchStampSetting]);
 
   // Fetch store detail
   const fetchStoreDetail = useCallback(async (storeId: string) => {
@@ -380,6 +529,113 @@ export default function FranchiseStoresPage() {
           </div>
         </div>
 
+        {/* Franchise Stamp Setting Section */}
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm mb-6">
+          <button
+            onClick={() => setIsStampSettingOpen(!isStampSettingOpen)}
+            className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-franchise-100 rounded-lg flex items-center justify-center">
+                <Gift className="w-5 h-5 text-franchise-600" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-sm font-semibold text-slate-900">통합 스탬프 보상 설정</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {stampSetting?.rewards && stampSetting.rewards.length > 0
+                    ? `${stampSetting.rewards.length}개 보상 설정됨`
+                    : '보상을 설정해주세요'}
+                </p>
+              </div>
+            </div>
+            <ChevronDown className={cn('w-5 h-5 text-slate-400 transition-transform', isStampSettingOpen && 'rotate-180')} />
+          </button>
+
+          {isStampSettingOpen && (
+            <div className="px-6 pb-6 border-t border-slate-100">
+              <div className="pt-4 space-y-4">
+                {/* Reward Tiers */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">보상 목록</label>
+                  <div className="space-y-3">
+                    {stampSettingForm.map((reward, idx) => (
+                      <div key={idx} className="flex items-center gap-3">
+                        <div className="w-20">
+                          <input
+                            type="number"
+                            min={1}
+                            max={50}
+                            value={reward.tier}
+                            onChange={(e) => handleUpdateRewardTier(idx, 'tier', parseInt(e.target.value) || 1)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-franchise-600"
+                          />
+                          <span className="text-[10px] text-slate-400 block text-center mt-0.5">개 달성</span>
+                        </div>
+                        <input
+                          type="text"
+                          value={reward.description}
+                          onChange={(e) => handleUpdateRewardTier(idx, 'description', e.target.value)}
+                          placeholder="보상 내용 (예: 아메리카노 1잔)"
+                          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600"
+                        />
+                        <button
+                          onClick={() => handleRemoveRewardTier(idx)}
+                          className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {stampSettingForm.length < 10 && (
+                    <button
+                      onClick={handleAddRewardTier}
+                      className="mt-3 text-sm text-franchise-600 hover:text-franchise-700 font-medium"
+                    >
+                      + 보상 추가
+                    </button>
+                  )}
+                </div>
+
+                {/* AlimTalk Toggle */}
+                <div className="flex items-center justify-between py-3 border-t border-slate-100">
+                  <div>
+                    <span className="text-sm font-medium text-slate-700">알림톡 발송</span>
+                    <p className="text-xs text-slate-500 mt-0.5">스탬프 적립 시 고객에게 카카오 알림톡을 발송합니다</p>
+                  </div>
+                  <button
+                    onClick={() => setStampAlimtalk(!stampAlimtalk)}
+                    className={cn(
+                      'relative w-11 h-6 rounded-full transition-colors',
+                      stampAlimtalk ? 'bg-franchise-600' : 'bg-slate-200'
+                    )}
+                  >
+                    <div className={cn('absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform', stampAlimtalk && 'translate-x-5')} />
+                  </button>
+                </div>
+
+                {/* Save Button */}
+                <div className="flex justify-end pt-2">
+                  <button
+                    onClick={handleSaveStampSetting}
+                    disabled={isSavingStampSetting}
+                    className={cn(
+                      'flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                      isSavingStampSetting ? 'bg-slate-100 text-slate-400' : 'bg-franchise-600 text-white hover:bg-franchise-700'
+                    )}
+                  >
+                    {isSavingStampSetting ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> 저장 중...</>
+                    ) : (
+                      <><Check className="w-4 h-4" /> 보상 설정 저장</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Table */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
@@ -395,6 +651,28 @@ export default function FranchiseStoresPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     업종
                   </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    <div className="flex items-center justify-center gap-2">
+                      <span>통합 스탬프</span>
+                      <button
+                        onClick={() => {
+                          const allEnabled = stores.every((s) => s.franchiseStampEnabled);
+                          handleStampToggleAll(!allEnabled);
+                        }}
+                        disabled={isTogglingAll}
+                        className={cn(
+                          'relative w-9 h-5 rounded-full transition-colors flex-shrink-0',
+                          isTogglingAll ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+                          stores.length > 0 && stores.every((s) => s.franchiseStampEnabled) ? 'bg-franchise-600' : 'bg-slate-200'
+                        )}
+                      >
+                        <div className={cn(
+                          'absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
+                          stores.length > 0 && stores.every((s) => s.franchiseStampEnabled) && 'translate-x-4'
+                        )} />
+                      </button>
+                    </div>
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                     고객수
                   </th>
@@ -403,11 +681,11 @@ export default function FranchiseStoresPage() {
               <tbody className="divide-y divide-slate-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={4}>{renderSkeleton()}</td>
+                    <td colSpan={5}>{renderSkeleton()}</td>
                   </tr>
                 ) : filteredStores.length === 0 ? (
                   <tr>
-                    <td colSpan={4}>{renderEmptyState()}</td>
+                    <td colSpan={5}>{renderEmptyState()}</td>
                   </tr>
                 ) : (
                   filteredStores.map((store) => (
@@ -426,6 +704,22 @@ export default function FranchiseStoresPage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">{store.address || '-'}</td>
                       <td className="px-6 py-4 text-sm text-slate-600">{store.category ? CATEGORY_LABELS[store.category] || store.category : '-'}</td>
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={(e) => handleStampToggle(store.id, e)}
+                          disabled={togglingStoreId === store.id}
+                          className={cn(
+                            'relative w-9 h-5 rounded-full transition-colors inline-block',
+                            togglingStoreId === store.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+                            store.franchiseStampEnabled ? 'bg-franchise-600' : 'bg-slate-200'
+                          )}
+                        >
+                          <div className={cn(
+                            'absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
+                            store.franchiseStampEnabled && 'translate-x-4'
+                          )} />
+                        </button>
+                      </td>
                       <td className="px-6 py-4 text-sm text-slate-900 text-right font-medium">
                         {store.customerCount.toLocaleString()}명
                       </td>
@@ -487,6 +781,37 @@ export default function FranchiseStoresPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-slate-500">주소</span>
                       <span className="text-sm font-medium text-slate-900">{selectedStore.address || '-'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Franchise Stamp Toggle */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-slate-900 mb-3">통합 스탬프</h3>
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">통합 스탬프 참여</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {selectedStore.franchiseStampEnabled
+                            ? '이 매장의 스탬프가 프랜차이즈 통합으로 적립됩니다'
+                            : '이 매장은 개별 스탬프를 사용합니다'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => handleStampToggle(selectedStore.id, e)}
+                        disabled={togglingStoreId === selectedStore.id}
+                        className={cn(
+                          'relative w-11 h-6 rounded-full transition-colors flex-shrink-0',
+                          togglingStoreId === selectedStore.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+                          selectedStore.franchiseStampEnabled ? 'bg-franchise-600' : 'bg-slate-200'
+                        )}
+                      >
+                        <div className={cn(
+                          'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform',
+                          selectedStore.franchiseStampEnabled && 'translate-x-5'
+                        )} />
+                      </button>
                     </div>
                   </div>
                 </div>

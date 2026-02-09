@@ -118,6 +118,8 @@ interface StampInfo {
   storeName: string;
   rewards?: Array<{ tier: number; description: string; options?: any[] | null }>;
   enabled: boolean;
+  franchiseStampEnabled?: boolean;
+  franchiseName?: string;
 }
 
 interface VisitSourceOption {
@@ -140,6 +142,7 @@ interface SuccessData {
   rewards: RewardInfo[];
   drawnReward?: string | null;
   drawnRewardTier?: number | null;
+  franchiseName?: string | null;
 }
 
 interface SurveyQuestion {
@@ -666,6 +669,7 @@ function TaghereEnrollStampContent() {
   });
   const urlDrawnReward = searchParams.get('drawnReward');
   const urlDrawnRewardTier = searchParams.get('drawnRewardTier');
+  const urlFranchiseName = searchParams.get('franchiseName');
 
   // 방문 경로 옵션은 항상 조회 (별도 useEffect - 카카오 로그인 리다이렉트 시에도 실행되도록)
   useEffect(() => {
@@ -739,6 +743,7 @@ function TaghereEnrollStampContent() {
           rewards: apiRewards,
           drawnReward: data.drawnReward || null,
           drawnRewardTier: data.drawnRewardTier || null,
+          franchiseName: data.franchiseName || null,
         });
         setStampInfo(null); // 기본 UI 숨김
       } else {
@@ -801,6 +806,7 @@ function TaghereEnrollStampContent() {
         rewards: urlRewards,
         drawnReward: urlDrawnReward,
         drawnRewardTier: urlDrawnRewardTier ? parseInt(urlDrawnRewardTier) : null,
+        franchiseName: urlFranchiseName,
       });
       setIsLoading(false);
       return;
@@ -941,6 +947,9 @@ function TaghereEnrollStampContent() {
       if (successData.drawnRewardTier) {
         url.searchParams.set('drawnRewardTier', String(successData.drawnRewardTier));
       }
+      if (successData.franchiseName) {
+        url.searchParams.set('franchiseName', successData.franchiseName);
+      }
     }
     window.location.href = url.toString();
   };
@@ -1026,11 +1035,19 @@ function TaghereEnrollStampContent() {
             {/* Title - 상단 영역 (flex: 1) */}
             <div className="flex-1 flex flex-col justify-end pb-4">
               <div className="text-center">
-                <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
-                  방문 스탬프
-                  <br />
-                  <span className="text-[#FFD541]">찍어드릴게요!</span>
-                </p>
+                {stampInfo?.franchiseStampEnabled && stampInfo.franchiseName ? (
+                  <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
+                    {stampInfo.franchiseName}
+                    <br />
+                    <span className="text-[#FFD541]">통합 스탬프 적립!</span>
+                  </p>
+                ) : (
+                  <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
+                    방문 스탬프
+                    <br />
+                    <span className="text-[#FFD541]">찍어드릴게요!</span>
+                  </p>
+                )}
                 <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">
                   {rewardText}
                 </p>

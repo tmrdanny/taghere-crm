@@ -61,6 +61,8 @@ interface StampInfo {
   storeName: string;
   rewards?: Array<{ tier: number; description: string; options?: any[] | null }>;
   enabled: boolean;
+  franchiseStampEnabled?: boolean;
+  franchiseName?: string;
 }
 
 interface VisitSourceOption {
@@ -83,6 +85,7 @@ interface SuccessData {
   rewards: RewardInfo[];
   drawnReward?: string | null;
   drawnRewardTier?: number | null;
+  franchiseName?: string | null;
 }
 
 interface SurveyQuestion {
@@ -512,6 +515,7 @@ function HitejinroEnrollStampContent() {
   });
   const urlDrawnReward = searchParams.get('drawnReward');
   const urlDrawnRewardTier = searchParams.get('drawnRewardTier');
+  const urlFranchiseName = searchParams.get('franchiseName');
 
   // 바코드 스캐너 정지
   const stopScanner = useCallback(() => {
@@ -802,6 +806,7 @@ function HitejinroEnrollStampContent() {
           rewards: apiRewards,
           drawnReward: data.drawnReward || null,
           drawnRewardTier: data.drawnRewardTier || null,
+          franchiseName: data.franchiseName || null,
         });
         setStampInfo(null);
       } else {
@@ -896,6 +901,7 @@ function HitejinroEnrollStampContent() {
         rewards: urlRewards,
         drawnReward: urlDrawnReward,
         drawnRewardTier: urlDrawnRewardTier ? parseInt(urlDrawnRewardTier) : null,
+        franchiseName: urlFranchiseName,
       });
       setIsLoading(false);
       return;
@@ -981,6 +987,9 @@ function HitejinroEnrollStampContent() {
       }
       if (successData.drawnRewardTier) {
         url.searchParams.set('drawnRewardTier', String(successData.drawnRewardTier));
+      }
+      if (successData.franchiseName) {
+        url.searchParams.set('franchiseName', successData.franchiseName);
       }
     }
     window.location.href = url.toString();
@@ -1068,12 +1077,25 @@ function HitejinroEnrollStampContent() {
             {/* Title */}
             <div className="pt-12 pb-4 px-5">
               <div className="text-center">
-                <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
-                  테라, 켈리 주문하고
-                  <br />
-                  <span className="text-[#00A859]">해외여행 가자!!</span>
-                </p>
-                <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">테라와 켈리 병에 있는 바코드를 스캔해보세요.</p>
+                {stampInfo?.franchiseStampEnabled && stampInfo.franchiseName ? (
+                  <>
+                    <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
+                      {stampInfo.franchiseName}
+                      <br />
+                      <span className="text-[#00A859]">통합 스탬프 적립!</span>
+                    </p>
+                    <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">테라와 켈리 병에 있는 바코드를 스캔해보세요.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
+                      테라, 켈리 주문하고
+                      <br />
+                      <span className="text-[#00A859]">해외여행 가자!!</span>
+                    </p>
+                    <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">테라와 켈리 병에 있는 바코드를 스캔해보세요.</p>
+                  </>
+                )}
                 <p className="text-[12px] text-neutral-400 mt-1">{rewardText}</p>
               </div>
             </div>

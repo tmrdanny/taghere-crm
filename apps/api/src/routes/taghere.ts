@@ -857,11 +857,50 @@ router.get('/stamp-info/:slug', async (req, res) => {
         id: true,
         name: true,
         stampSetting: true,
+        franchiseStampEnabled: true,
+        franchiseId: true,
+        franchise: {
+          select: {
+            id: true,
+            name: true,
+            franchiseStampSetting: true,
+          },
+        },
       },
     });
 
     if (!store) {
       return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    // 프랜차이즈 통합 스탬프 모드
+    const isFranchiseStampMode = !!(
+      store.franchiseStampEnabled &&
+      store.franchiseId &&
+      store.franchise?.franchiseStampSetting
+    );
+
+    if (isFranchiseStampMode) {
+      const franchiseStampSetting = store.franchise!.franchiseStampSetting!;
+      const rewards: RewardEntry[] = franchiseStampSetting.rewards
+        ? (franchiseStampSetting.rewards as unknown as RewardEntry[])
+        : buildRewardsFromLegacy(franchiseStampSetting as any);
+
+      const legacyFields: Record<string, any> = {};
+      for (const r of rewards) {
+        legacyFields[`reward${r.tier}Description`] = r.description;
+        legacyFields[`reward${r.tier}IsRandom`] = r.options && Array.isArray(r.options) && r.options.length > 1;
+      }
+
+      return res.json({
+        storeId: store.id,
+        storeName: store.name,
+        franchiseName: store.franchise!.name,
+        franchiseStampEnabled: true,
+        enabled: true,
+        rewards,
+        ...legacyFields,
+      });
     }
 
     // 스탬프 설정이 없거나 비활성화된 경우
@@ -929,6 +968,15 @@ router.post('/stamp-earn', async (req, res) => {
         id: true,
         name: true,
         stampSetting: true,
+        franchiseStampEnabled: true,
+        franchiseId: true,
+        franchise: {
+          select: {
+            id: true,
+            name: true,
+            franchiseStampSetting: true,
+          },
+        },
         reviewAutomationSetting: {
           select: { benefitText: true },
         },
@@ -943,8 +991,15 @@ router.post('/stamp-earn', async (req, res) => {
       });
     }
 
+    // 프랜차이즈 통합 스탬프 모드 판별
+    const isFranchiseStampMode = !!(
+      store.franchiseStampEnabled &&
+      store.franchiseId &&
+      store.franchise?.franchiseStampSetting
+    );
+
     // 3. 스탬프 기능 활성화 확인
-    if (!store.stampSetting?.enabled) {
+    if (!isFranchiseStampMode && !store.stampSetting?.enabled) {
       return res.status(400).json({
         success: false,
         error: 'stamp_disabled',
@@ -1022,38 +1077,40 @@ router.post('/stamp-earn', async (req, res) => {
       console.log(`[TagHere Stamp-Earn] New customer created - customerId: ${customer.id}, storeId: ${store.id}`);
     }
 
-    // 6. 일일 적립 제한 확인 (1일 1회)
+    // 6. 일일 적립 제한 확인 (1일 1회) - 프랜차이즈 모드는 위에서 처리
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const todayEarn = await prisma.stampLedger.findFirst({
-      where: {
-        storeId: store.id,
-        customerId: customer.id,
-        type: 'EARN',
-        createdAt: { gte: todayStart },
-      },
-    });
-
-    if (todayEarn) {
-      // rewards JSON 기반 보상 정보
-      const alreadyRewards: RewardEntry[] = store.stampSetting.rewards
-        ? (store.stampSetting.rewards as unknown as RewardEntry[])
-        : buildRewardsFromLegacy(store.stampSetting as any);
-      const alreadyLegacy: Record<string, any> = {};
-      for (const r of alreadyRewards) {
-        alreadyLegacy[`reward${r.tier}Description`] = r.description;
-      }
-
-      return res.status(400).json({
-        success: false,
-        error: 'already_earned_today',
-        message: '오늘 이미 스탬프를 적립했습니다.',
-        alreadyEarned: true,
-        currentStamps: customer.totalStamps,
-        rewards: alreadyRewards,
-        ...alreadyLegacy,
+    if (!isFranchiseStampMode) {
+      const todayEarn = await prisma.stampLedger.findFirst({
+        where: {
+          storeId: store.id,
+          customerId: customer.id,
+          type: 'EARN',
+          createdAt: { gte: todayStart },
+        },
       });
+
+      if (todayEarn) {
+        // rewards JSON 기반 보상 정보
+        const alreadyRewards: RewardEntry[] = store.stampSetting!.rewards
+          ? (store.stampSetting!.rewards as unknown as RewardEntry[])
+          : buildRewardsFromLegacy(store.stampSetting as any);
+        const alreadyLegacy: Record<string, any> = {};
+        for (const r of alreadyRewards) {
+          alreadyLegacy[`reward${r.tier}Description`] = r.description;
+        }
+
+        return res.status(400).json({
+          success: false,
+          error: 'already_earned_today',
+          message: '오늘 이미 스탬프를 적립했습니다.',
+          alreadyEarned: true,
+          currentStamps: customer.totalStamps,
+          rewards: alreadyRewards,
+          ...alreadyLegacy,
+        });
+      }
     }
 
     // 7. 태그히어 연동 시 중복 체크
@@ -1115,6 +1172,189 @@ router.post('/stamp-earn', async (req, res) => {
         // 조회 실패해도 스탬프 적립은 계속 진행
       }
     }
+
+    // ============================================
+    // 프랜차이즈 통합 스탬프 모드
+    // ============================================
+    if (isFranchiseStampMode) {
+      const franchiseId = store.franchiseId!;
+      const franchiseStampSetting = store.franchise!.franchiseStampSetting!;
+      const franchiseName = store.franchise!.name;
+
+      // FranchiseCustomer upsert
+      let franchiseCustomer = await prisma.franchiseCustomer.findUnique({
+        where: { franchiseId_kakaoId: { franchiseId, kakaoId } },
+      });
+
+      // 1일 1회 제한 체크 (프랜차이즈 통합)
+      if (franchiseCustomer) {
+        const todayFranchiseEarn = await prisma.franchiseStampLedger.findFirst({
+          where: {
+            franchiseCustomerId: franchiseCustomer.id,
+            storeId: store.id,
+            type: 'EARN',
+            createdAt: { gte: todayStart },
+          },
+        });
+
+        if (todayFranchiseEarn) {
+          const alreadyRewards: RewardEntry[] = franchiseStampSetting.rewards
+            ? (franchiseStampSetting.rewards as unknown as RewardEntry[])
+            : buildRewardsFromLegacy(franchiseStampSetting as any);
+          return res.status(400).json({
+            success: false,
+            error: 'already_earned_today',
+            message: '오늘 이미 스탬프를 적립했습니다.',
+            alreadyEarned: true,
+            currentStamps: franchiseCustomer.totalStamps,
+            storeName: store.name,
+            franchiseName,
+            rewards: alreadyRewards,
+          });
+        }
+      }
+
+      if (!franchiseCustomer) {
+        franchiseCustomer = await prisma.franchiseCustomer.create({
+          data: {
+            franchiseId,
+            kakaoId,
+            phone: customer!.phone || null,
+            name: customer!.name || null,
+          },
+        });
+      }
+
+      // 매장 Customer 방문수만 업데이트
+      await prisma.customer.update({
+        where: { id: customer!.id },
+        data: {
+          lastVisitAt: new Date(),
+          visitCount: { increment: 1 },
+        },
+      });
+
+      // 주문 내역 (매장 레벨)
+      await prisma.visitOrOrder.create({
+        data: {
+          storeId: store.id,
+          customerId: customer!.id,
+          orderId: ordersheetId || null,
+          visitedAt: new Date(),
+          totalAmount: totalAmount,
+          items: orderItems.length > 0 || tableLabel ? {
+            items: orderItems,
+            tableNumber: tableLabel,
+          } : undefined,
+        },
+      });
+
+      // 프랜차이즈 통합 스탬프 적립
+      const previousFranchiseStamps = franchiseCustomer.totalStamps;
+      const newFranchiseBalance = previousFranchiseStamps + 1;
+
+      const franchiseResult = await prisma.$transaction(async (tx) => {
+        const updated = await tx.franchiseCustomer.update({
+          where: { id: franchiseCustomer!.id },
+          data: {
+            totalStamps: newFranchiseBalance,
+            visitCount: { increment: 1 },
+            lastVisitAt: new Date(),
+            phone: customer!.phone || franchiseCustomer!.phone || undefined,
+            name: customer!.name || franchiseCustomer!.name || undefined,
+          },
+        });
+
+        const ledger = await tx.franchiseStampLedger.create({
+          data: {
+            franchiseId,
+            franchiseCustomerId: franchiseCustomer!.id,
+            storeId: store.id,
+            type: 'EARN',
+            delta: 1,
+            balance: newFranchiseBalance,
+            ordersheetId: ordersheetId || null,
+            earnMethod: earnMethod as any,
+            reason: ordersheetId ? `태그히어 주문 적립 (${ordersheetId})` : '스탬프 적립 (통합)',
+          },
+        });
+
+        const milestoneResult = checkMilestoneAndDraw(
+          previousFranchiseStamps,
+          newFranchiseBalance,
+          franchiseStampSetting as any,
+        );
+        if (milestoneResult) {
+          await tx.franchiseStampLedger.update({
+            where: { id: ledger.id },
+            data: {
+              drawnReward: milestoneResult.reward,
+              drawnRewardTier: milestoneResult.tier,
+            },
+          });
+        }
+
+        return { customer: updated, ledger, milestoneResult };
+      });
+
+      console.log(`[TagHere Stamp-Earn] Franchise stamp earned - franchiseCustomerId: ${franchiseCustomer.id}, newBalance: ${franchiseResult.customer.totalStamps}${franchiseResult.milestoneResult ? `, milestone: ${franchiseResult.milestoneResult.tier}개` : ''}`);
+
+      // 알림톡
+      const phoneNumber = customer!.phone?.replace(/[^0-9]/g, '');
+      if (franchiseStampSetting.alimtalkEnabled && phoneNumber) {
+        const rewardsForAlimtalk: RewardEntry[] = franchiseStampSetting.rewards
+          ? (franchiseStampSetting.rewards as unknown as RewardEntry[])
+          : buildRewardsFromLegacy(franchiseStampSetting as any);
+        const rules = rewardsForAlimtalk
+          .sort((a, b) => a.tier - b.tier)
+          .map(r => {
+            const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
+            return `- ${r.tier}개 모을 시: ${isRandom ? '랜덤 박스!' : r.description}`;
+          });
+        const stampUsageRule = rules.length > 0
+          ? '\n' + rules.join('\n')
+          : '\n- 10개 모을시 매장 선물 증정!';
+        const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
+
+        enqueueStampEarnedAlimTalk({
+          storeId: store.id,
+          customerId: customer!.id,
+          stampLedgerId: franchiseResult.ledger.id,
+          phone: phoneNumber,
+          variables: {
+            storeName: `${franchiseName} ${store.name}`,
+            earnedStamps: 1,
+            totalStamps: franchiseResult.customer.totalStamps,
+            stampUsageRule,
+            reviewGuide,
+          },
+        }).catch((err) => {
+          console.error('[TagHere Stamp-Earn] Franchise Stamp AlimTalk enqueue failed:', err);
+        });
+      }
+
+      // 성공 응답
+      const successRewards: RewardEntry[] = franchiseStampSetting.rewards
+        ? (franchiseStampSetting.rewards as unknown as RewardEntry[])
+        : buildRewardsFromLegacy(franchiseStampSetting as any);
+
+      return res.json({
+        success: true,
+        currentStamps: franchiseResult.customer.totalStamps,
+        customerId: customer!.id,
+        storeName: store.name,
+        franchiseName,
+        isNewCustomer,
+        hasVisitSource: !!customer!.visitSource,
+        rewards: successRewards,
+        drawnReward: franchiseResult.milestoneResult?.reward || null,
+        drawnRewardTier: franchiseResult.milestoneResult?.tier || null,
+      });
+    }
+
+    // ============================================
+    // 기존 매장 개별 스탬프 적립
+    // ============================================
 
     // 8. 스탬프 적립 (트랜잭션) - 스탬프 적립 시 무조건 방문횟수 +1
     const previousStamps = customer!.totalStamps ?? 0;
@@ -1182,10 +1422,10 @@ router.post('/stamp-earn', async (req, res) => {
 
     // 9. 알림톡 발송 (비동기)
     const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
-    if (store.stampSetting.alimtalkEnabled && phoneNumber) {
+    if (store.stampSetting!.alimtalkEnabled && phoneNumber) {
       // 스탬프 사용 규칙 생성 (rewards JSON 기반)
-      const rewardsForAlimtalk: RewardEntry[] = store.stampSetting.rewards
-        ? (store.stampSetting.rewards as unknown as RewardEntry[])
+      const rewardsForAlimtalk: RewardEntry[] = store.stampSetting!.rewards
+        ? (store.stampSetting!.rewards as unknown as RewardEntry[])
         : buildRewardsFromLegacy(store.stampSetting as any);
       const rules = rewardsForAlimtalk
         .sort((a, b) => a.tier - b.tier)
@@ -1218,8 +1458,8 @@ router.post('/stamp-earn', async (req, res) => {
     }
 
     // 10. 성공 응답
-    const successRewards: RewardEntry[] = store.stampSetting.rewards
-      ? (store.stampSetting.rewards as unknown as RewardEntry[])
+    const successRewards: RewardEntry[] = store.stampSetting!.rewards
+      ? (store.stampSetting!.rewards as unknown as RewardEntry[])
       : buildRewardsFromLegacy(store.stampSetting as any);
     const successLegacy: Record<string, any> = {};
     for (const entry of successRewards) {
