@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { BarcodeDetectorPolyfill } from '@undecaf/barcode-detector-polyfill';
 
 // ============================================
 // 로컬스토리지 헬퍼 함수 (kakaoId 저장용)
@@ -477,7 +477,10 @@ function HitejinroEnrollStampContent() {
   const [showInvalidBarcodePopup, setShowInvalidBarcodePopup] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const detectorRef = useRef<BarcodeDetectorPolyfill | null>(null);
+  const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scannerContainerRef = useRef<HTMLDivElement>(null);
 
   // 바코드 처리를 위한 ref (콜백에서 최신 상태 접근용)
@@ -516,16 +519,17 @@ function HitejinroEnrollStampContent() {
   const urlDrawnRewardTier = searchParams.get('drawnRewardTier');
 
   // 바코드 스캐너 정지
-  const stopScanner = useCallback(async () => {
-    if (html5QrCodeRef.current) {
-      try {
-        const state = html5QrCodeRef.current.getState();
-        if (state === 2) { // SCANNING state
-          await html5QrCodeRef.current.stop();
-        }
-      } catch (e) {
-        console.error('Failed to stop scanner:', e);
-      }
+  const stopScanner = useCallback(() => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
     setIsScannerActive(false);
   }, []);
@@ -551,29 +555,6 @@ function HitejinroEnrollStampContent() {
     }
   }, []);
 
-  // 카메라 줌 적용 (스캐너 시작 후 호출)
-  const applyZoom = useCallback(async () => {
-    try {
-      const videoElement = document.querySelector('#barcode-scanner video') as HTMLVideoElement;
-      if (!videoElement || !videoElement.srcObject) return;
-
-      const stream = videoElement.srcObject as MediaStream;
-      const track = stream.getVideoTracks()[0];
-      if (!track) return;
-
-      const capabilities = track.getCapabilities() as MediaTrackCapabilities & { zoom?: { min: number; max: number; step: number } };
-      if (capabilities.zoom) {
-        // 줌 2.0x를 기본으로, 지원 범위 내에서 적용
-        const targetZoom = Math.min(2.0, capabilities.zoom.max);
-        await track.applyConstraints({
-          advanced: [{ zoom: targetZoom } as MediaTrackConstraintSet & { zoom: number }],
-        } as MediaTrackConstraints);
-      }
-    } catch (e) {
-      console.error('Failed to apply zoom:', e);
-    }
-  }, []);
-
   // 바코드 스캐너 시작
   const startScanner = useCallback(async () => {
     if (!scannerContainerRef.current) return;
@@ -581,41 +562,46 @@ function HitejinroEnrollStampContent() {
     setScannerError(null);
 
     try {
-      if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode('barcode-scanner', {
-          formatsToSupport: [
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.EAN_8,
-            Html5QrcodeSupportedFormats.UPC_A,
-            Html5QrcodeSupportedFormats.UPC_E,
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.CODE_39,
-          ],
-          verbose: false,
-          useBarCodeDetectorIfSupported: true,
+      // 카메라 열기 (고해상도 + 연속 오토포커스)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1920, min: 1280 },
+          height: { ideal: 1080, min: 720 },
+          focusMode: { ideal: 'continuous' },
+        } as MediaTrackConstraints,
+      });
+
+      streamRef.current = stream;
+
+      // 비디오 엘리먼트에 스트림 연결
+      const video = videoRef.current;
+      if (!video) return;
+      video.srcObject = stream;
+      await video.play();
+
+      // BarcodeDetector 초기화 (ZBar WASM)
+      if (!detectorRef.current) {
+        detectorRef.current = new BarcodeDetectorPolyfill({
+          formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'],
         });
       }
 
       // 처리 중복 방지용 플래그
       let isHandlingBarcode = false;
 
-      await html5QrCodeRef.current.start(
-        {
-          facingMode: 'environment',
-        },
-        {
-          fps: 30,
-          disableFlip: false,
-          // qrbox 제거 → 전체 비디오 프레임에서 바코드 검색 (세로/가로 모두 인식)
-          videoConstraints: {
-            facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-        },
-        async (decodedText) => {
+      // 주기적 프레임 스캔 (200ms 간격)
+      scanIntervalRef.current = setInterval(async () => {
+        if (isHandlingBarcode || !video || video.readyState < 2) return;
+
+        try {
+          const barcodes = await detectorRef.current!.detect(video);
+          if (barcodes.length === 0) return;
+
+          const decodedText = barcodes[0].rawValue;
+          if (!decodedText) return;
+
           // 중복 처리 방지
-          if (isHandlingBarcode) return;
           isHandlingBarcode = true;
 
           // 바코드 인식 성공 - 비프음 재생
@@ -627,7 +613,7 @@ function HitejinroEnrollStampContent() {
           // 하이트진로 바코드 검증
           if (decodedText.startsWith(HITEJINRO_BARCODE_PREFIX)) {
             // 유효한 바코드 → 스캐너 정지 후 스탬프 적립 진행
-            await stopScanner();
+            stopScanner();
             // ref를 통해 최신 상태 접근
             if (!stampInfoRef.current || !isAgreedRef.current) {
               if (!isAgreedRef.current) {
@@ -639,19 +625,15 @@ function HitejinroEnrollStampContent() {
             handleValidBarcodeWithRef(decodedText);
           } else {
             // 유효하지 않은 바코드
-            await stopScanner();
+            stopScanner();
             setShowInvalidBarcodePopup(true);
           }
-        },
-        () => {
-          // 인식 실패 (무시)
+        } catch (e) {
+          // 프레임 디코딩 실패 (무시)
         }
-      );
+      }, 200);
 
       setIsScannerActive(true);
-
-      // 스캐너 시작 후 줌 적용 (약간의 딜레이)
-      setTimeout(() => applyZoom(), 500);
     } catch (err) {
       console.error('Failed to start scanner:', err);
       if (err instanceof Error) {
@@ -664,7 +646,7 @@ function HitejinroEnrollStampContent() {
         }
       }
     }
-  }, [stopScanner, applyZoom]);
+  }, [stopScanner, playBeepSound]);
 
   // 유효한 바코드 처리 (ref 사용 - 스캐너 콜백에서 호출됨)
   const handleValidBarcodeWithRef = async (barcode: string) => {
@@ -1114,7 +1096,7 @@ function HitejinroEnrollStampContent() {
             {/* 바코드 스캐너 영역 */}
             <div className="flex-1 flex flex-col items-center justify-center px-5">
               <div className="w-full max-w-[320px] aspect-[4/3] bg-neutral-900 rounded-2xl overflow-hidden relative" ref={scannerContainerRef}>
-                <div id="barcode-scanner" className="w-full h-full" />
+                <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
 
                 {!isScannerActive && !scannerError && !isProcessing && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900">
@@ -1264,22 +1246,6 @@ function HitejinroEnrollStampContent() {
 
         .font-pretendard {
           font-family: 'Pretendard JP Variable', 'Pretendard JP', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-        }
-
-        #barcode-scanner {
-          position: relative;
-        }
-
-        #barcode-scanner video {
-          object-fit: cover !important;
-          width: 100% !important;
-          height: 100% !important;
-        }
-
-        /* html5-qrcode가 생성하는 내부 요소 숨김 (qrbox 없을 때 불필요) */
-        #barcode-scanner img[alt="Info"],
-        #barcode-scanner > div:last-child {
-          display: none !important;
         }
       `}</style>
     </>

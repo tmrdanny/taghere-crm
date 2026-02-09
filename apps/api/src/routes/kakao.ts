@@ -489,10 +489,15 @@ router.get('/taghere-start', (req, res) => {
 async function handleStampCallback(
   req: Request,
   res: Response,
-  stateData: { storeId: string; ordersheetId: string; slug: string; isStamp: boolean; origin: string },
+  stateData: { storeId: string; ordersheetId: string; slug: string; isStamp: boolean; origin: string; isHitejinro?: boolean; returnPath?: string; barcode?: string },
   redirectOrigin: string
 ) {
   const { code } = req.query;
+
+  // 하이트진로 여부에 따라 리다이렉트 경로 결정
+  const stampBasePath = stateData.isHitejinro
+    ? `/taghere-enroll-stamp-hitejinro/${stateData.slug || ''}`
+    : `/taghere-enroll-stamp/${stateData.slug || ''}`;
 
   // TagHere 전용 콜백 URL
   const tagherRedirectUri = KAKAO_REDIRECT_URI.replace('/callback', '/taghere-callback');
@@ -519,7 +524,7 @@ async function handleStampCallback(
 
   if (tokenData.error) {
     console.error('Kakao token error:', tokenData);
-    return res.redirect(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug}?error=token_error`);
+    return res.redirect(`${redirectOrigin}${stampBasePath}?error=token_error`);
   }
 
   // Get user info
@@ -542,7 +547,7 @@ async function handleStampCallback(
 
   if (!userData.id) {
     console.error('Kakao user error:', userData);
-    return res.redirect(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug}?error=user_error`);
+    return res.redirect(`${redirectOrigin}${stampBasePath}?error=user_error`);
   }
 
   const kakaoId = userData.id.toString();
@@ -575,12 +580,12 @@ async function handleStampCallback(
   }
 
   if (!store) {
-    return res.redirect(`${redirectOrigin}/taghere-enroll-stamp?error=store_not_found`);
+    return res.redirect(`${redirectOrigin}${stampBasePath}?error=store_not_found`);
   }
 
   // 스탬프 기능 활성화 확인
   if (!store.stampSetting?.enabled) {
-    return res.redirect(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug}?error=stamp_disabled`);
+    return res.redirect(`${redirectOrigin}${stampBasePath}?error=stamp_disabled`);
   }
 
   // 전화번호 정규화
@@ -617,7 +622,7 @@ async function handleStampCallback(
     });
 
     if (existingEarn) {
-      const alreadyUrl = new URL(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug || ''}`);
+      const alreadyUrl = new URL(`${redirectOrigin}${stampBasePath}`);
       alreadyUrl.searchParams.set('error', 'already_participated');
       if (stateData.ordersheetId) alreadyUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
       if (customer) alreadyUrl.searchParams.set('stamps', String(customer.totalStamps || 0));
@@ -643,7 +648,7 @@ async function handleStampCallback(
     });
 
     if (todayEarn) {
-      const alreadyUrl = new URL(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug || ''}`);
+      const alreadyUrl = new URL(`${redirectOrigin}${stampBasePath}`);
       alreadyUrl.searchParams.set('error', 'already_participated');
       alreadyUrl.searchParams.set('stamps', String(customer.totalStamps || 0));
       alreadyUrl.searchParams.set('storeName', store.name);
@@ -859,7 +864,7 @@ async function handleStampCallback(
   const hasVisitSource = !!(customer as any).visitSource;
 
   // Redirect back to stamp enroll page with success data
-  const successUrl = new URL(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug || ''}`);
+  const successUrl = new URL(`${redirectOrigin}${stampBasePath}`);
   successUrl.searchParams.set('stamps', result.customer.totalStamps.toString());
   successUrl.searchParams.set('successStoreName', store.name);
   successUrl.searchParams.set('customerId', customer.id);
@@ -1262,7 +1267,10 @@ router.get('/taghere-callback', async (req, res) => {
     console.error('TagHere Kakao callback error:', error);
     // 스탬프 모드일 때 스탬프 페이지로, 아니면 포인트 페이지로 리다이렉트
     if (stateData.isStamp) {
-      res.redirect(`${redirectOrigin}/taghere-enroll-stamp/${stateData.slug || ''}?error=callback_error`);
+      const errorStampPath = (stateData as any).isHitejinro
+        ? `/taghere-enroll-stamp-hitejinro/${stateData.slug || ''}`
+        : `/taghere-enroll-stamp/${stateData.slug || ''}`;
+      res.redirect(`${redirectOrigin}${errorStampPath}?error=callback_error`);
     } else {
       res.redirect(`${redirectOrigin}/taghere-enroll/${stateData.slug || ''}?error=callback_error`);
     }
