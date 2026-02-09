@@ -35,6 +35,9 @@ model Store {
   pointRatePercent       Float    @default(5)     // 적립률 (%) - 소수점 한 자리까지 지원 (0.1~99.9)
   // 포인트 사용 규칙
   pointUsageRule         String?  @db.Text        // 포인트 사용 규칙 안내 문구
+  // 알림톡 지연 발송 설정
+  alimtalkDelayEnabled   Boolean  @default(false) // 알림톡 지연 발송 ON/OFF (기본: 비활성화)
+  alimtalkDelayMinutes   Int      @default(30)    // 지연 시간 (분, 10~120)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 

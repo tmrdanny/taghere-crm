@@ -10,6 +10,7 @@ import {
   Menu,
   Loader2,
   AlertCircle,
+  Clock,
 } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -17,6 +18,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 interface Settings {
   benefitText: string;
   storeName: string;
+  alimtalkDelayEnabled: boolean;
+  alimtalkDelayMinutes: number;
 }
 
 export default function NaverReviewPage() {
@@ -26,10 +29,14 @@ export default function NaverReviewPage() {
   const [settings, setSettings] = useState<Settings>({
     benefitText: '',
     storeName: '',
+    alimtalkDelayEnabled: false,
+    alimtalkDelayMinutes: 30,
   });
 
   // Local input state
   const [benefitText, setBenefitText] = useState('');
+  const [delayEnabled, setDelayEnabled] = useState(false);
+  const [delayMinutes, setDelayMinutes] = useState(30);
 
   // UI states
   const [isLoading, setIsLoading] = useState(true);
@@ -55,8 +62,12 @@ export default function NaverReviewPage() {
         setSettings({
           benefitText: data.benefitText || '',
           storeName: data.storeName || '',
+          alimtalkDelayEnabled: data.alimtalkDelayEnabled ?? false,
+          alimtalkDelayMinutes: data.alimtalkDelayMinutes ?? 30,
         });
         setBenefitText(data.benefitText || '');
+        setDelayEnabled(data.alimtalkDelayEnabled ?? false);
+        setDelayMinutes(data.alimtalkDelayMinutes ?? 30);
       }
     } catch (err) {
       console.error('Failed to fetch settings:', err);
@@ -86,6 +97,8 @@ export default function NaverReviewPage() {
         },
         body: JSON.stringify({
           benefitText,
+          alimtalkDelayEnabled: delayEnabled,
+          alimtalkDelayMinutes: delayMinutes,
         }),
       });
 
@@ -168,18 +181,81 @@ export default function NaverReviewPage() {
                     입력하지 않으면 기본 문구 &quot;진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)&quot;가 표시됩니다.
                   </p>
                 </div>
-
-                <Button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="w-full h-12 text-base"
-                >
-                  {isSaving ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : null}
-                  저장하기
-                </Button>
               </div>
+            </Card>
+
+            {/* Delay Settings */}
+            <Card className="p-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-neutral-500" />
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-neutral-900">
+                      알림톡 지연 발송
+                    </h3>
+                    <p className="text-xs text-neutral-500 mt-0.5">
+                      적립/리뷰 알림톡을 설정한 시간 후에 발송합니다
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={delayEnabled}
+                    onClick={() => setDelayEnabled(!delayEnabled)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      delayEnabled ? 'bg-brand-800' : 'bg-neutral-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        delayEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {delayEnabled && (
+                  <div className="space-y-3 pt-2 border-t border-neutral-100">
+                    <Card className="p-3 bg-amber-50 border-amber-200">
+                      <p className="text-xs text-amber-800">
+                        고객이 포인트/스탬프를 적립한 후, 설정한 시간이 지나면 알림톡이 발송됩니다.
+                        식사 후 결제 시점에 리뷰를 요청하고 싶을 때 유용합니다.
+                      </p>
+                    </Card>
+
+                    <div>
+                      <label className="text-sm font-medium text-neutral-700 block mb-2">
+                        발송 지연 시간
+                      </label>
+                      <select
+                        value={delayMinutes}
+                        onChange={(e) => setDelayMinutes(Number(e.target.value))}
+                        className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => (i + 1) * 10).map((min) => (
+                          <option key={min} value={min}>
+                            {min}분 후 발송
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Save Button */}
+            <Card className="p-6">
+              <Button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="w-full h-12 text-base"
+              >
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : null}
+                저장하기
+              </Button>
             </Card>
           </div>
 

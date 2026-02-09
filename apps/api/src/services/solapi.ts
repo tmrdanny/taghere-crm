@@ -448,6 +448,8 @@ export async function enqueuePointsEarnedAlimTalk(params: {
     select: {
       pointsAlimtalkEnabled: true,
       pointUsageRule: true,
+      alimtalkDelayEnabled: true,
+      alimtalkDelayMinutes: true,
       reviewAutomationSetting: {
         select: { benefitText: true }
       }
@@ -504,6 +506,11 @@ export async function enqueuePointsEarnedAlimTalk(params: {
   // 리뷰 작성 안내 문구 (없으면 기본 문구)
   const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
 
+  // 지연 발송 설정
+  const scheduledAt = store.alimtalkDelayEnabled && store.alimtalkDelayMinutes > 0
+    ? new Date(Date.now() + store.alimtalkDelayMinutes * 60_000)
+    : undefined;
+
   return enqueueAlimTalk({
     storeId: params.storeId,
     customerId: params.customerId,
@@ -519,6 +526,7 @@ export async function enqueuePointsEarnedAlimTalk(params: {
       '#{포인트사용규칙}': usageRule,
     },
     idempotencyKey,
+    scheduledAt,
   });
 }
 
@@ -556,10 +564,16 @@ export async function enqueueNaverReviewAlimTalk(params: {
     return { success: false, error: 'Insufficient wallet balance' };
   }
 
-  // 리뷰 자동 발송 설정 확인
-  const reviewSetting = await prisma.reviewAutomationSetting.findUnique({
-    where: { storeId: params.storeId },
-  });
+  // 리뷰 자동 발송 설정 및 지연 발송 설정 확인
+  const [reviewSetting, storeDelaySetting] = await Promise.all([
+    prisma.reviewAutomationSetting.findUnique({
+      where: { storeId: params.storeId },
+    }),
+    prisma.store.findUnique({
+      where: { id: params.storeId },
+      select: { alimtalkDelayEnabled: true, alimtalkDelayMinutes: true },
+    }),
+  ]);
 
   if (!reviewSetting?.enabled) {
     console.log(`[AlimTalk] Review auto-send disabled for store: ${params.storeId}`);
@@ -603,7 +617,9 @@ export async function enqueueNaverReviewAlimTalk(params: {
       '#{플레이스주소}': placeAddress,
     },
     idempotencyKey,
-    scheduledAt: params.scheduledAt,
+    scheduledAt: storeDelaySetting?.alimtalkDelayEnabled && storeDelaySetting.alimtalkDelayMinutes > 0
+      ? new Date(Date.now() + storeDelaySetting.alimtalkDelayMinutes * 60_000)
+      : params.scheduledAt,
   });
 
   console.log(`[AlimTalk] Naver review enqueue result:`, result);
@@ -689,11 +705,17 @@ export async function enqueueStampEarnedAlimTalk(params: {
     variables: params.variables,
   });
 
-  // 매장 스탬프 알림톡 설정 확인
-  const stampSetting = await prisma.stampSetting.findUnique({
-    where: { storeId: params.storeId },
-    select: { alimtalkEnabled: true },
-  });
+  // 매장 스탬프 알림톡 설정 및 지연 발송 설정 확인
+  const [stampSetting, storeDelaySetting] = await Promise.all([
+    prisma.stampSetting.findUnique({
+      where: { storeId: params.storeId },
+      select: { alimtalkEnabled: true },
+    }),
+    prisma.store.findUnique({
+      where: { id: params.storeId },
+      select: { alimtalkDelayEnabled: true, alimtalkDelayMinutes: true },
+    }),
+  ]);
 
   if (!stampSetting?.alimtalkEnabled) {
     console.log(`[AlimTalk] Stamp alimtalk disabled for store: ${params.storeId}`);
@@ -721,6 +743,11 @@ export async function enqueueStampEarnedAlimTalk(params: {
   // 멱등성 키: storeId + customerId + stampLedgerId
   const idempotencyKey = `stamp_earned:${params.storeId}:${params.customerId}:${params.stampLedgerId}`;
 
+  // 지연 발송 설정
+  const scheduledAt = storeDelaySetting?.alimtalkDelayEnabled && storeDelaySetting.alimtalkDelayMinutes > 0
+    ? new Date(Date.now() + storeDelaySetting.alimtalkDelayMinutes * 60_000)
+    : undefined;
+
   return enqueueAlimTalk({
     storeId: params.storeId,
     customerId: params.customerId,
@@ -735,6 +762,7 @@ export async function enqueueStampEarnedAlimTalk(params: {
       '#{리뷰작성법안내}': params.variables.reviewGuide,
     },
     idempotencyKey,
+    scheduledAt,
   });
 }
 

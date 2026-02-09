@@ -31,16 +31,22 @@ router.get('/settings', authMiddleware, async (req: AuthRequest, res) => {
 
     const wallet = await prisma.wallet.findUnique({ where: { storeId } });
 
-    // 매장 정보 조회 (매장명 포함)
+    // 매장 정보 조회 (매장명 + 알림톡 지연 발송 설정 포함)
     const store = await prisma.store.findUnique({
       where: { id: storeId },
-      select: { name: true },
+      select: {
+        name: true,
+        alimtalkDelayEnabled: true,
+        alimtalkDelayMinutes: true,
+      },
     });
 
     res.json({
       ...settings,
       balance: wallet?.balance || 0,
       storeName: store?.name || '',
+      alimtalkDelayEnabled: store?.alimtalkDelayEnabled ?? false,
+      alimtalkDelayMinutes: store?.alimtalkDelayMinutes ?? 30,
     });
   } catch (error) {
     console.error('Review settings get error:', error);
@@ -60,6 +66,8 @@ router.post('/settings', authMiddleware, async (req: AuthRequest, res) => {
       autoTopupThreshold,
       autoTopupAmount,
       naverReviewUrl,
+      alimtalkDelayEnabled,
+      alimtalkDelayMinutes,
     } = req.body;
 
     const settings = await prisma.reviewAutomationSetting.upsert({
@@ -84,6 +92,17 @@ router.post('/settings', authMiddleware, async (req: AuthRequest, res) => {
         naverReviewUrl,
       },
     });
+
+    // 알림톡 지연 발송 설정은 Store 모델에 저장
+    if (alimtalkDelayEnabled !== undefined || alimtalkDelayMinutes !== undefined) {
+      await prisma.store.update({
+        where: { id: storeId },
+        data: {
+          ...(alimtalkDelayEnabled !== undefined && { alimtalkDelayEnabled }),
+          ...(alimtalkDelayMinutes !== undefined && { alimtalkDelayMinutes }),
+        },
+      });
+    }
 
     res.json({ success: true, settings });
   } catch (error) {
