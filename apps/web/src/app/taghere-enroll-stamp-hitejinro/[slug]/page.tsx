@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { BarcodeDetectorPolyfill } from '@undecaf/barcode-detector-polyfill';
+import { BarcodeDetector } from 'barcode-detector/ponyfill';
 
 // ============================================
 // 로컬스토리지 헬퍼 함수 (kakaoId 저장용)
@@ -479,7 +479,7 @@ function HitejinroEnrollStampContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const detectorRef = useRef<BarcodeDetectorPolyfill | null>(null);
+  const detectorRef = useRef<BarcodeDetector | null>(null);
   const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scannerContainerRef = useRef<HTMLDivElement>(null);
 
@@ -580,9 +580,9 @@ function HitejinroEnrollStampContent() {
       video.srcObject = stream;
       await video.play();
 
-      // BarcodeDetector 초기화 (ZBar WASM)
+      // BarcodeDetector 초기화 (ZXing WASM 기반 polyfill)
       if (!detectorRef.current) {
-        detectorRef.current = new BarcodeDetectorPolyfill({
+        detectorRef.current = new BarcodeDetector({
           formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'],
         });
       }
