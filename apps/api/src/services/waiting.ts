@@ -197,6 +197,7 @@ export async function registerWaiting(
         position,
         partySize: params.partySize,
         waitingNote: setting?.waitingNote || '오늘도 행복한 하루 되세요.',
+        estimatedMinutes,
       });
     }
 
@@ -693,6 +694,7 @@ async function sendWaitingRegisteredAlimTalk(params: {
   position: number;
   partySize: number;
   waitingNote: string;
+  estimatedMinutes: number;
 }): Promise<void> {
   const templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_REGISTERED;
   if (!templateId) return;
@@ -713,6 +715,7 @@ async function sendWaitingRegisteredAlimTalk(params: {
         '#{내순서}': `${params.position}번째`,
         '#{대기번호}': `${params.waitingNumber}번`,
         '#{인원}': `${params.partySize}명`,
+        '#{대기시간}': `약 ${params.estimatedMinutes}분`,
         '#{매장안내}': params.waitingNote,
         '#{실시간순서확인페이지}': statusPageUrl,
         '#{웨이팅취소페이지}': cancelPageUrl,
