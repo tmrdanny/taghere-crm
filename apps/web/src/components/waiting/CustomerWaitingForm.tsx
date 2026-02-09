@@ -25,6 +25,8 @@ interface CustomerWaitingFormProps {
     phone: string;
     waitingTypeId: string;
     partySize: number;
+    adultCount: number;
+    childCount: number;
     memo?: string;
     consentPrivacy: boolean;
     consentMarketing: boolean;
@@ -45,7 +47,8 @@ export function CustomerWaitingForm({
 }: CustomerWaitingFormProps) {
   const [phone, setPhone] = useState('');
   const [selectedTypeId, setSelectedTypeId] = useState<string>('');
-  const [partySize, setPartySize] = useState<number>(2);
+  const [adultCount, setAdultCount] = useState<number>(1);
+  const [childCount, setChildCount] = useState<number>(0);
   const [consentPrivacy, setConsentPrivacy] = useState(false);
   const [consentMarketing, setConsentMarketing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,8 +59,8 @@ export function CustomerWaitingForm({
     const type = waitingTypes.find(t => t.id === typeId);
     if (type) {
       const min = type.minPartySize || 1;
-      if (partySize < min) setPartySize(min);
-      if (type.maxPartySize && partySize > type.maxPartySize) setPartySize(type.maxPartySize);
+      const totalPartySize = adultCount + childCount;
+      if (totalPartySize < min) setAdultCount(min);
     }
   };
 
@@ -97,10 +100,13 @@ export function CustomerWaitingForm({
     }
 
     try {
+      const partySize = adultCount + childCount;
       await onSubmit({
         phone: phoneNumbers,
         waitingTypeId: selectedTypeId,
-        partySize: partySize,
+        partySize,
+        adultCount,
+        childCount,
         consentPrivacy,
         consentMarketing,
       });
@@ -112,20 +118,7 @@ export function CustomerWaitingForm({
   const selectedType = waitingTypes.find(t => t.id === selectedTypeId);
   const maxPartySize = selectedType?.maxPartySize || 20;
   const minPartySize = selectedType?.minPartySize || 1;
-
-  // 인원 선택 옵션 동적 생성 (최소~최대 인원에 맞춰서)
-  const getPartySizeOptions = () => {
-    const options: (number | string)[] = [];
-    const start = Math.max(1, minPartySize);
-    const displayCount = Math.min(maxPartySize, start + 4);
-    for (let i = start; i <= displayCount; i++) {
-      options.push(i);
-    }
-    if (maxPartySize > displayCount) {
-      options.push(`${displayCount + 1}+`);
-    }
-    return options;
-  };
+  const totalPartySize = adultCount + childCount;
 
   return (
     <div className={cn('min-h-screen bg-white font-pretendard', className)}>
@@ -228,32 +221,79 @@ export function CustomerWaitingForm({
             </div>
           </div>
 
-          {/* Party Size */}
+          {/* Party Size - Adult */}
           <div>
             <label className="block text-sm font-medium text-[#1d2022] mb-2">
-              인원 수 {selectedType && <span className="text-[#b1b5b8] font-normal">({minPartySize > 1 ? `${minPartySize}~${maxPartySize}명` : `최대 ${maxPartySize}명`})</span>}
+              성인
             </label>
-            <div className="grid grid-cols-6 gap-2">
-              {getPartySizeOptions().map((size) => {
-                const numSize = typeof size === 'string' ? Math.min(Math.max(1, minPartySize) + 5, maxPartySize) : size;
-                const isSelected = partySize === numSize;
-                return (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={() => setPartySize(numSize)}
-                    className={cn(
-                      'h-12 rounded-xl font-medium transition-colors',
-                      isSelected
-                        ? 'bg-[#FFD541] text-[#1d2022]'
-                        : 'bg-white border border-[#ebeced] text-[#55595e] hover:border-[#d1d5db]'
-                    )}
-                  >
-                    {size}
-                  </button>
-                );
-              })}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setAdultCount(Math.max(1, adultCount - 1))}
+                disabled={adultCount <= 1}
+                className="w-12 h-12 rounded-xl bg-white border border-[#ebeced] text-[#55595e] font-bold text-xl flex items-center justify-center hover:border-[#d1d5db] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                -
+              </button>
+              <div className="flex-1 h-12 bg-white border border-[#ebeced] rounded-xl flex items-center justify-center">
+                <span className="text-xl font-bold text-[#1d2022]">{adultCount}명</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (totalPartySize < maxPartySize) {
+                    setAdultCount(adultCount + 1);
+                  }
+                }}
+                disabled={totalPartySize >= maxPartySize}
+                className="w-12 h-12 rounded-xl bg-white border border-[#ebeced] text-[#55595e] font-bold text-xl flex items-center justify-center hover:border-[#d1d5db] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                +
+              </button>
             </div>
+          </div>
+
+          {/* Party Size - Child */}
+          <div>
+            <label className="block text-sm font-medium text-[#1d2022] mb-2">
+              유아
+            </label>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setChildCount(Math.max(0, childCount - 1))}
+                disabled={childCount <= 0}
+                className="w-12 h-12 rounded-xl bg-white border border-[#ebeced] text-[#55595e] font-bold text-xl flex items-center justify-center hover:border-[#d1d5db] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                -
+              </button>
+              <div className="flex-1 h-12 bg-white border border-[#ebeced] rounded-xl flex items-center justify-center">
+                <span className="text-xl font-bold text-[#1d2022]">{childCount}명</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (totalPartySize < maxPartySize) {
+                    setChildCount(childCount + 1);
+                  }
+                }}
+                disabled={totalPartySize >= maxPartySize}
+                className="w-12 h-12 rounded-xl bg-white border border-[#ebeced] text-[#55595e] font-bold text-xl flex items-center justify-center hover:border-[#d1d5db] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          {/* Total Party Size */}
+          <div className="bg-white border border-[#ebeced] rounded-xl p-3 text-center">
+            <span className="text-[#91949a] text-sm">총 인원: </span>
+            <span className="font-bold text-[#1d2022]">{totalPartySize}명</span>
+            {selectedType && (
+              <span className="text-[#b1b5b8] text-sm ml-2">
+                ({minPartySize > 1 ? `${minPartySize}~${maxPartySize}명` : `최대 ${maxPartySize}명`})
+              </span>
+            )}
           </div>
 
           {/* Consent */}
@@ -306,7 +346,7 @@ export function CustomerWaitingForm({
           {/* Submit Button */}
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting || !consentPrivacy}
+            disabled={isSubmitting || !consentPrivacy || totalPartySize < minPartySize}
             className="w-full py-4 font-semibold text-base rounded-xl transition-colors bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-[#1d2022]"
           >
             {isSubmitting ? (

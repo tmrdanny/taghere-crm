@@ -145,6 +145,8 @@ export default function TabletWaitingPage() {
     phone: string;
     waitingTypeId: string;
     partySize: number;
+    adultCount: number;
+    childCount: number;
     marketingConsent?: boolean;
   }): Promise<RegistrationResult> => {
     if (!storeInfo) {
@@ -163,6 +165,8 @@ export default function TabletWaitingPage() {
           phone: data.phone,
           waitingTypeId: data.waitingTypeId,
           partySize: data.partySize,
+          adultCount: data.adultCount,
+          childCount: data.childCount,
           marketingConsent: data.marketingConsent,
           source: 'TABLET',
         }),

@@ -24,6 +24,8 @@ interface AddWaitingModalProps {
     phone: string | null;
     name: string | null;
     partySize: number;
+    adultCount: number;
+    childCount: number;
     consentService: boolean;
     consentPrivacy: boolean;
     consentThirdParty: boolean;
@@ -43,7 +45,8 @@ export function AddWaitingModal({
   const [phone, setPhone] = useState('');
   const [noPhone, setNoPhone] = useState(false);
   const [name, setName] = useState('');
-  const [partySize, setPartySize] = useState<number>(2);
+  const [adultCount, setAdultCount] = useState<number>(1);
+  const [childCount, setChildCount] = useState<number>(0);
   const [consentService, setConsentService] = useState(false);
   const [consentPrivacy, setConsentPrivacy] = useState(false);
   const [consentThirdParty, setConsentThirdParty] = useState(false);
@@ -56,8 +59,8 @@ export function AddWaitingModal({
       setPhone('');
       setNoPhone(false);
       setName('');
-      const preType = types.find(t => t.id === preSelectedTypeId);
-      setPartySize(Math.max(2, preType?.minPartySize || 1));
+      setAdultCount(1);
+      setChildCount(0);
       setConsentService(false);
       setConsentPrivacy(false);
       setConsentThirdParty(false);
@@ -123,11 +126,14 @@ export function AddWaitingModal({
   const handleSubmit = async () => {
     if (!validate()) return;
 
+    const partySize = adultCount + childCount;
     await onSubmit({
       waitingTypeId: selectedTypeId,
       phone: noPhone ? null : phone.replace(/\D/g, ''),
       name: name.trim() || null,
       partySize,
+      adultCount,
+      childCount,
       consentService,
       consentPrivacy,
       consentThirdParty,
@@ -138,19 +144,7 @@ export function AddWaitingModal({
   const selectedType = activeTypes.find((t) => t.id === selectedTypeId);
   const minPartySize = selectedType?.minPartySize || 1;
   const maxPartySize = selectedType?.maxPartySize || 20;
-
-  const partySizeOptions: (number | string)[] = (() => {
-    const start = Math.max(1, minPartySize);
-    const options: (number | string)[] = [];
-    const displayCount = Math.min(maxPartySize, start + 4);
-    for (let i = start; i <= displayCount; i++) {
-      options.push(i);
-    }
-    if (maxPartySize > displayCount) {
-      options.push(`${displayCount + 1}+`);
-    }
-    return options;
-  })();
+  const totalPartySize = adultCount + childCount;
 
   return (
     <Modal open={open} onOpenChange={handleOpenChange}>
@@ -173,8 +167,8 @@ export function AddWaitingModal({
                   onClick={() => {
                     setSelectedTypeId(type.id);
                     const min = type.minPartySize || 1;
-                    if (partySize < min) setPartySize(min);
-                    if (type.maxPartySize && partySize > type.maxPartySize) setPartySize(type.maxPartySize);
+                    const total = adultCount + childCount;
+                    if (total < min) setAdultCount(min);
                   }}
                   className={cn(
                     'px-4 py-2 rounded-lg border text-sm font-medium transition-colors',
@@ -281,33 +275,77 @@ export function AddWaitingModal({
             )}
           </div>
 
-          {/* Party Size Selection */}
+          {/* Adult Count */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-neutral-900">
-              총 입장 인원을 입력해 주세요 <span className="text-error">*</span>
+              성인 <span className="text-error">*</span>
             </label>
-            <div className="flex gap-2">
-              {partySizeOptions.map((size) => {
-                const sizeValue = typeof size === 'number' ? size : Math.min(Math.max(1, minPartySize) + 5, maxPartySize);
-                const isSelected = partySize === sizeValue || (size === '6+' && partySize >= 6);
-
-                return (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={() => setPartySize(sizeValue)}
-                    className={cn(
-                      'flex-1 py-2.5 rounded-lg border text-sm font-medium transition-colors',
-                      isSelected
-                        ? 'border-brand-800 bg-brand-800 text-white'
-                        : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
-                    )}
-                  >
-                    {size}
-                  </button>
-                );
-              })}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setAdultCount(Math.max(1, adultCount - 1))}
+                disabled={adultCount <= 1}
+                className="w-10 h-10 rounded-lg border border-neutral-200 bg-white text-neutral-600 font-bold flex items-center justify-center hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                -
+              </button>
+              <div className="flex-1 h-10 border border-neutral-200 rounded-lg flex items-center justify-center bg-white">
+                <span className="text-lg font-semibold text-neutral-900">{adultCount}명</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (totalPartySize < maxPartySize) {
+                    setAdultCount(adultCount + 1);
+                  }
+                }}
+                disabled={totalPartySize >= maxPartySize}
+                className="w-10 h-10 rounded-lg border border-neutral-200 bg-white text-neutral-600 font-bold flex items-center justify-center hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                +
+              </button>
             </div>
+          </div>
+
+          {/* Child Count */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-neutral-900">
+              유아
+            </label>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setChildCount(Math.max(0, childCount - 1))}
+                disabled={childCount <= 0}
+                className="w-10 h-10 rounded-lg border border-neutral-200 bg-white text-neutral-600 font-bold flex items-center justify-center hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                -
+              </button>
+              <div className="flex-1 h-10 border border-neutral-200 rounded-lg flex items-center justify-center bg-white">
+                <span className="text-lg font-semibold text-neutral-900">{childCount}명</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (totalPartySize < maxPartySize) {
+                    setChildCount(childCount + 1);
+                  }
+                }}
+                disabled={totalPartySize >= maxPartySize}
+                className="w-10 h-10 rounded-lg border border-neutral-200 bg-white text-neutral-600 font-bold flex items-center justify-center hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          {/* Total Party Size */}
+          <div className="bg-neutral-50 rounded-lg p-3 text-center">
+            <span className="text-sm text-neutral-500">총 인원: </span>
+            <span className="font-bold text-neutral-900">{totalPartySize}명</span>
+            <span className="text-xs text-neutral-400 ml-2">
+              ({minPartySize > 1 ? `${minPartySize}~${maxPartySize}명` : `최대 ${maxPartySize}명`})
+            </span>
           </div>
         </div>
 

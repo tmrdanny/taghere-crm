@@ -39,6 +39,8 @@ interface TabletWaitingFormProps {
     phone: string;
     waitingTypeId: string;
     partySize: number;
+    adultCount: number;
+    childCount: number;
     marketingConsent?: boolean;
   }) => Promise<RegistrationResult>;
   onViewWaitingList?: () => void;
@@ -63,12 +65,13 @@ export function TabletWaitingForm({
   const [step, setStep] = useState<TabletStep>('phone');
   const [phone, setPhone] = useState('');
   const [selectedTypeId, setSelectedTypeId] = useState<string>(skipTypeSelection ? waitingTypes[0]?.id || '' : '');
-  const [partySize, setPartySize] = useState(() => {
+  const [adultCount, setAdultCount] = useState(() => {
     if (skipTypeSelection && waitingTypes[0]?.minPartySize) {
       return Math.max(1, waitingTypes[0].minPartySize);
     }
     return 1;
   });
+  const [childCount, setChildCount] = useState(0);
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registrationResult, setRegistrationResult] = useState<RegistrationResult | null>(null);
@@ -186,7 +189,8 @@ export function TabletWaitingForm({
     setSelectedTypeId(typeId);
     const type = waitingTypes.find(t => t.id === typeId);
     const min = type?.minPartySize || 1;
-    if (partySize < min) setPartySize(min);
+    const totalPartySize = adultCount + childCount;
+    if (totalPartySize < min) setAdultCount(min);
     setStep('partySize');
   };
 
@@ -197,10 +201,13 @@ export function TabletWaitingForm({
       return;
     }
     try {
+      const partySize = adultCount + childCount;
       const result = await onSubmit({
         phone: `010${phone}`,
         waitingTypeId: selectedTypeId,
         partySize,
+        adultCount,
+        childCount,
       });
       setRegistrationResult(result);
       setStep('complete');
@@ -228,7 +235,8 @@ export function TabletWaitingForm({
     setStep('phone');
     setPhone('');
     setSelectedTypeId(skipTypeSelection ? waitingTypes[0]?.id || '' : '');
-    setPartySize(1);
+    setAdultCount(1);
+    setChildCount(0);
     setPrivacyConsent(false);
     setError(null);
     setRegistrationResult(null);
@@ -547,32 +555,79 @@ export function TabletWaitingForm({
                 </div>
               )}
 
-              <h2 className="text-3xl font-bold text-neutral-900 mb-10">
+              <h2 className="text-3xl font-bold text-neutral-900 mb-8">
                 인원을 선택해주세요
               </h2>
 
-              {/* Party Size Selector */}
-              <div className="flex items-center justify-center gap-6 mb-8">
-                <button
-                  type="button"
-                  onClick={() => setPartySize(Math.max(selectedType?.minPartySize || 1, partySize - 1))}
-                  disabled={partySize <= (selectedType?.minPartySize || 1)}
-                  className="w-16 h-16 rounded-xl border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <Minus className="w-6 h-6" />
-                </button>
-                <div className="w-32 text-center">
-                  <span className="text-5xl font-bold text-neutral-900">{partySize}</span>
-                  <span className="text-2xl font-medium text-neutral-600 ml-1">명</span>
+              {/* Adult Count Selector */}
+              <div className="mb-6">
+                <p className="text-lg font-medium text-neutral-700 mb-3">성인</p>
+                <div className="flex items-center justify-center gap-6">
+                  <button
+                    type="button"
+                    onClick={() => setAdultCount(Math.max(1, adultCount - 1))}
+                    disabled={adultCount <= 1}
+                    className="w-14 h-14 rounded-xl border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Minus className="w-5 h-5" />
+                  </button>
+                  <div className="w-24 text-center">
+                    <span className="text-4xl font-bold text-neutral-900">{adultCount}</span>
+                    <span className="text-xl font-medium text-neutral-600 ml-1">명</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const maxTotal = selectedType?.maxPartySize || 20;
+                      if (adultCount + childCount < maxTotal) {
+                        setAdultCount(adultCount + 1);
+                      }
+                    }}
+                    disabled={adultCount + childCount >= (selectedType?.maxPartySize || 20)}
+                    className="w-14 h-14 rounded-xl border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setPartySize(Math.min(selectedType?.maxPartySize || 20, partySize + 1))}
-                  disabled={partySize >= (selectedType?.maxPartySize || 20)}
-                  className="w-16 h-16 rounded-xl border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <Plus className="w-6 h-6" />
-                </button>
+              </div>
+
+              {/* Child Count Selector */}
+              <div className="mb-6">
+                <p className="text-lg font-medium text-neutral-700 mb-3">유아</p>
+                <div className="flex items-center justify-center gap-6">
+                  <button
+                    type="button"
+                    onClick={() => setChildCount(Math.max(0, childCount - 1))}
+                    disabled={childCount <= 0}
+                    className="w-14 h-14 rounded-xl border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Minus className="w-5 h-5" />
+                  </button>
+                  <div className="w-24 text-center">
+                    <span className="text-4xl font-bold text-neutral-900">{childCount}</span>
+                    <span className="text-xl font-medium text-neutral-600 ml-1">명</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const maxTotal = selectedType?.maxPartySize || 20;
+                      if (adultCount + childCount < maxTotal) {
+                        setChildCount(childCount + 1);
+                      }
+                    }}
+                    disabled={adultCount + childCount >= (selectedType?.maxPartySize || 20)}
+                    className="w-14 h-14 rounded-xl border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Total Party Size */}
+              <div className="bg-neutral-50 rounded-xl py-3 px-4 mb-4">
+                <p className="text-neutral-600">
+                  총 인원: <span className="font-bold text-neutral-900">{adultCount + childCount}명</span>
+                </p>
               </div>
 
               {/* Max Party Size Info */}
@@ -604,10 +659,10 @@ export function TabletWaitingForm({
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={isSubmitting || !privacyConsent}
+                disabled={isSubmitting || !privacyConsent || (adultCount + childCount) < (selectedType?.minPartySize || 1)}
                 className={cn(
                   'w-full h-16 rounded-xl font-semibold text-xl transition-colors',
-                  isSubmitting || !privacyConsent
+                  isSubmitting || !privacyConsent || (adultCount + childCount) < (selectedType?.minPartySize || 1)
                     ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
                     : 'bg-[#FCD535] text-neutral-900 hover:bg-[#e5c130]'
                 )}

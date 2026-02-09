@@ -1087,7 +1087,9 @@ model WaitingList {
   phone               String?         // 연락처 (수기 등록 시 없을 수 있음)
   phoneLastDigits     String?         // 뒤 4자리 (마스킹용)
   name                String?         // 이름 (수기 등록용)
-  partySize           Int             // 인원 수
+  partySize           Int             // 총 인원 수 (adultCount + childCount)
+  adultCount          Int?            // 성인 인원 (null이면 레거시 데이터)
+  childCount          Int?            // 유아 인원 (null이면 레거시 데이터)
   memo                String?         @db.Text  // 요청사항/메모
 
   // 상태 관리

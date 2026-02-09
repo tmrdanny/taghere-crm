@@ -114,6 +114,8 @@ export default function WaitingQRPage() {
     phone: string;
     waitingTypeId: string;
     partySize: number;
+    adultCount: number;
+    childCount: number;
     memo?: string;
     consentPrivacy: boolean;
     consentMarketing: boolean;
@@ -132,6 +134,8 @@ export default function WaitingQRPage() {
           phone: data.phone,
           waitingTypeId: data.waitingTypeId,
           partySize: data.partySize,
+          adultCount: data.adultCount,
+          childCount: data.childCount,
           memo: data.memo,
           consentMarketing: data.consentMarketing,
         }),

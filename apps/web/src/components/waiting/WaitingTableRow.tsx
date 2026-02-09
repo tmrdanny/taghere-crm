@@ -150,9 +150,15 @@ export const WaitingTableRow = memo(function WaitingTableRow({
       <td className="py-3 px-3 align-middle">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-1.5">
-            <span className="text-base font-semibold text-neutral-900">
-              {item.partySize}명
-            </span>
+            {item.adultCount != null && item.childCount != null ? (
+              <span className="text-sm font-semibold text-neutral-900">
+                성인 {item.adultCount} / 유아 {item.childCount}
+              </span>
+            ) : (
+              <span className="text-base font-semibold text-neutral-900">
+                {item.partySize}명
+              </span>
+            )}
           </div>
           {item.waitingType && (
             <span className="text-xs text-neutral-500 truncate max-w-[100px]">

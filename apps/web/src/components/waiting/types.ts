@@ -28,6 +28,8 @@ export interface WaitingItem {
   phoneLastDigits?: string | null;
   name?: string | null;
   partySize: number;
+  adultCount?: number | null;
+  childCount?: number | null;
   memo?: string | null;
   status: WaitingStatus;
   calledAt?: string | null;

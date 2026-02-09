@@ -244,6 +244,8 @@ export default function WaitingPage() {
     phone: string | null;
     name: string | null;
     partySize: number;
+    adultCount: number;
+    childCount: number;
     consentService: boolean;
     consentPrivacy: boolean;
     consentThirdParty: boolean;
@@ -262,6 +264,8 @@ export default function WaitingPage() {
           phone: data.phone,
           name: data.name,
           partySize: data.partySize,
+          adultCount: data.adultCount,
+          childCount: data.childCount,
           source: 'MANUAL',
         }),
       });

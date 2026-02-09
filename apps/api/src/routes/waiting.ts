@@ -164,13 +164,18 @@ router.get('/stats/today', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { waitingTypeId, phone, name, partySize, memo, consentMarketing } = req.body;
+    const { waitingTypeId, phone, name, partySize, adultCount, childCount, memo, consentMarketing } = req.body;
 
     if (!waitingTypeId) {
       return res.status(400).json({ error: '웨이팅 유형을 선택해주세요.' });
     }
 
-    if (!partySize || partySize < 1) {
+    // adultCount와 childCount가 제공된 경우, partySize는 합계로 계산
+    const finalPartySize = (adultCount !== undefined && childCount !== undefined)
+      ? adultCount + childCount
+      : partySize;
+
+    if (!finalPartySize || finalPartySize < 1) {
       return res.status(400).json({ error: '인원 수를 입력해주세요.' });
     }
 
@@ -183,7 +188,9 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       waitingTypeId,
       phone: phone || undefined,
       name: name || undefined,
-      partySize,
+      partySize: finalPartySize,
+      adultCount: adultCount ?? undefined,
+      childCount: childCount ?? undefined,
       memo,
       source: 'MANUAL',
       consentMarketing,

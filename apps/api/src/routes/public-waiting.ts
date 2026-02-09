@@ -90,7 +90,7 @@ router.get('/:storeSlug/info', async (req: Request, res: Response) => {
 router.post('/:storeSlug/register', async (req: Request, res: Response) => {
   try {
     const { storeSlug } = req.params;
-    const { waitingTypeId, phone, partySize, memo, consentMarketing, source } = req.body;
+    const { waitingTypeId, phone, partySize, adultCount, childCount, memo, consentMarketing, source } = req.body;
 
     const store = await prisma.store.findUnique({
       where: { slug: storeSlug },
@@ -136,11 +136,18 @@ router.post('/:storeSlug/register', async (req: Request, res: Response) => {
 
     const waitingSource = source === 'TABLET' ? 'TABLET' : 'QR';
 
+    // adultCount와 childCount가 제공된 경우, partySize는 합계로 재계산
+    const finalPartySize = (adultCount !== undefined && childCount !== undefined)
+      ? adultCount + childCount
+      : partySize;
+
     const result = await registerWaiting({
       storeId: store.id,
       waitingTypeId,
       phone: normalizedPhone,
-      partySize,
+      partySize: finalPartySize,
+      adultCount: adultCount ?? undefined,
+      childCount: childCount ?? undefined,
       memo,
       source: waitingSource,
       consentMarketing: consentMarketing ?? false,

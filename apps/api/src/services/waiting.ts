@@ -13,6 +13,8 @@ export interface WaitingRegistrationParams {
   phone?: string;
   name?: string;
   partySize: number;
+  adultCount?: number;
+  childCount?: number;
   memo?: string;
   source: WaitingSource;
   consentMarketing?: boolean;
@@ -169,6 +171,8 @@ export async function registerWaiting(
         phoneLastDigits,
         name: params.name,
         partySize: params.partySize,
+        adultCount: params.adultCount ?? null,
+        childCount: params.childCount ?? null,
         memo: params.memo,
         source: params.source,
         consentMarketing: params.consentMarketing ?? false,
