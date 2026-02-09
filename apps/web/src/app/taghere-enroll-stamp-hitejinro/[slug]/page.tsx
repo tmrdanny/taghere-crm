@@ -563,8 +563,8 @@ function HitejinroEnrollStampContent() {
 
       const capabilities = track.getCapabilities() as MediaTrackCapabilities & { zoom?: { min: number; max: number; step: number } };
       if (capabilities.zoom) {
-        // 줌 2.0x를 기본으로, 지원 범위 내에서 적용
-        const targetZoom = Math.min(2.0, capabilities.zoom.max);
+        // 줌 1.0x로 설정 (넓은 시야 확보 → 원거리 바코드 인식)
+        const targetZoom = Math.max(1.0, capabilities.zoom.min);
         await track.applyConstraints({
           advanced: [{ zoom: targetZoom } as MediaTrackConstraintSet & { zoom: number }],
         } as MediaTrackConstraints);
@@ -604,14 +604,15 @@ function HitejinroEnrollStampContent() {
           facingMode: 'environment',
         },
         {
-          fps: 30,
+          fps: 15,
           disableFlip: false,
           // qrbox 제거 → 전체 비디오 프레임에서 바코드 검색 (세로/가로 모두 인식)
           videoConstraints: {
             facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
+            width: { ideal: 1920, min: 1280 },
+            height: { ideal: 1080, min: 720 },
+            focusMode: { ideal: 'continuous' },
+          } as MediaTrackConstraints,
         },
         async (decodedText) => {
           // 중복 처리 방지
