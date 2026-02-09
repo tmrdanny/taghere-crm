@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk } from '../services/solapi.js';
-import { checkMilestoneAndDraw } from '../utils/random-reward.js';
+import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 
 const router = Router();
 
@@ -627,8 +627,13 @@ async function handleStampCallback(
       if (stateData.ordersheetId) alreadyUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
       if (customer) alreadyUrl.searchParams.set('stamps', String(customer.totalStamps || 0));
       alreadyUrl.searchParams.set('storeName', store.name);
-      if (store.stampSetting?.reward5Description) alreadyUrl.searchParams.set('reward5', store.stampSetting.reward5Description);
-      if (store.stampSetting?.reward10Description) alreadyUrl.searchParams.set('reward10', store.stampSetting.reward10Description);
+      const earlyRewards: RewardEntry[] = store.stampSetting?.rewards
+        ? (store.stampSetting.rewards as unknown as RewardEntry[])
+        : buildRewardsFromLegacy(store.stampSetting as any);
+      for (const entry of earlyRewards) {
+        if (entry.description) alreadyUrl.searchParams.set(`reward${entry.tier}`, entry.description);
+        if (entry.options && Array.isArray(entry.options) && entry.options.length > 1) alreadyUrl.searchParams.set(`reward${entry.tier}Random`, 'true');
+      }
       return res.redirect(alreadyUrl.toString());
     }
   }
@@ -652,8 +657,15 @@ async function handleStampCallback(
       alreadyUrl.searchParams.set('error', 'already_participated');
       alreadyUrl.searchParams.set('stamps', String(customer.totalStamps || 0));
       alreadyUrl.searchParams.set('storeName', store.name);
-      if (store.stampSetting?.reward5Description) alreadyUrl.searchParams.set('reward5', store.stampSetting.reward5Description);
-      if (store.stampSetting?.reward10Description) alreadyUrl.searchParams.set('reward10', store.stampSetting.reward10Description);
+      // rewards JSON 기반으로 보상 정보 전달
+      const alreadyRewards: RewardEntry[] = store.stampSetting?.rewards
+        ? (store.stampSetting.rewards as unknown as RewardEntry[])
+        : store.stampSetting ? buildRewardsFromLegacy(store.stampSetting as any) : [];
+      for (const r of alreadyRewards) {
+        const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
+        alreadyUrl.searchParams.set(`reward${r.tier}`, isRandom ? '랜덤 박스!' : r.description);
+        if (isRandom) alreadyUrl.searchParams.set(`reward${r.tier}Random`, 'true');
+      }
       return res.redirect(alreadyUrl.toString());
     }
   }
@@ -825,16 +837,16 @@ async function handleStampCallback(
   // 알림톡 발송 (비동기)
   const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
   if (store.stampSetting?.alimtalkEnabled && phoneNumber) {
-    // 스탬프 사용 규칙 생성 (보상이 설정된 단계만 포함)
-    const rewardTiers = [
-      { count: 5, desc: store.stampSetting.reward5Description, isRandom: Array.isArray(store.stampSetting.reward5Options) && (store.stampSetting.reward5Options as any[]).length > 1 },
-      { count: 10, desc: store.stampSetting.reward10Description, isRandom: Array.isArray(store.stampSetting.reward10Options) && (store.stampSetting.reward10Options as any[]).length > 1 },
-      { count: 15, desc: store.stampSetting.reward15Description, isRandom: Array.isArray(store.stampSetting.reward15Options) && (store.stampSetting.reward15Options as any[]).length > 1 },
-      { count: 20, desc: store.stampSetting.reward20Description, isRandom: Array.isArray(store.stampSetting.reward20Options) && (store.stampSetting.reward20Options as any[]).length > 1 },
-      { count: 25, desc: store.stampSetting.reward25Description, isRandom: Array.isArray(store.stampSetting.reward25Options) && (store.stampSetting.reward25Options as any[]).length > 1 },
-      { count: 30, desc: store.stampSetting.reward30Description, isRandom: Array.isArray(store.stampSetting.reward30Options) && (store.stampSetting.reward30Options as any[]).length > 1 },
-    ];
-    const rules = rewardTiers.filter(t => t.desc).map(t => `- ${t.count}개 모을 시: ${t.isRandom ? '랜덤 박스!' : t.desc}`);
+    // 스탬프 사용 규칙 생성 (rewards JSON 또는 레거시 컬럼에서)
+    const rewardsForAlimtalk: RewardEntry[] = store.stampSetting.rewards
+      ? (store.stampSetting.rewards as unknown as RewardEntry[])
+      : buildRewardsFromLegacy(store.stampSetting as any);
+    const rules = rewardsForAlimtalk
+      .sort((a, b) => a.tier - b.tier)
+      .map(r => {
+        const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
+        return `- ${r.tier}개 모을 시: ${isRandom ? '랜덤 박스!' : r.description}`;
+      });
     const stampUsageRule = rules.length > 0
       ? '\n' + rules.join('\n')
       : '\n- 10개 모을시 매장 선물 증정!';
@@ -871,16 +883,16 @@ async function handleStampCallback(
   successUrl.searchParams.set('kakaoId', kakaoId);
   successUrl.searchParams.set('hasPreferences', hasPreferences.toString());
   successUrl.searchParams.set('hasVisitSource', hasVisitSource.toString());
-  for (const n of [5, 10, 15, 20, 25, 30] as const) {
-    const key = `reward${n}Description` as keyof typeof store.stampSetting;
-    const val = store.stampSetting?.[key];
-    if (val) {
-      successUrl.searchParams.set(`reward${n}`, val as string);
+  // rewards JSON 기반으로 보상 정보 전달
+  const rewardsForUrl: RewardEntry[] = store.stampSetting?.rewards
+    ? (store.stampSetting.rewards as unknown as RewardEntry[])
+    : buildRewardsFromLegacy(store.stampSetting as any);
+  for (const entry of rewardsForUrl) {
+    if (entry.description) {
+      successUrl.searchParams.set(`reward${entry.tier}`, entry.description);
     }
-    const optsKey = `reward${n}Options` as keyof typeof store.stampSetting;
-    const opts = store.stampSetting?.[optsKey];
-    if (Array.isArray(opts) && opts.length > 1) {
-      successUrl.searchParams.set(`reward${n}Random`, 'true');
+    if (entry.options && Array.isArray(entry.options) && entry.options.length > 1) {
+      successUrl.searchParams.set(`reward${entry.tier}Random`, 'true');
     }
   }
   if (stateData.ordersheetId) {

@@ -59,12 +59,7 @@ const HITEJINRO_BARCODE_PREFIX = '8801119';
 interface StampInfo {
   storeId: string;
   storeName: string;
-  reward5Description: string | null;
-  reward10Description: string | null;
-  reward15Description: string | null;
-  reward20Description: string | null;
-  reward25Description: string | null;
-  reward30Description: string | null;
+  rewards?: Array<{ tier: number; description: string; options?: any[] | null }>;
   enabled: boolean;
 }
 
@@ -73,24 +68,19 @@ interface VisitSourceOption {
   label: string;
 }
 
+interface RewardInfo {
+  tier: number;
+  description: string;
+  isRandom: boolean;
+}
+
 interface SuccessData {
   storeName: string;
   customerId: string;
   currentStamps: number;
   hasExistingPreferences: boolean;
   hasVisitSource?: boolean;
-  reward5Description: string | null;
-  reward10Description: string | null;
-  reward15Description: string | null;
-  reward20Description: string | null;
-  reward25Description: string | null;
-  reward30Description: string | null;
-  reward5IsRandom?: boolean;
-  reward10IsRandom?: boolean;
-  reward15IsRandom?: boolean;
-  reward20IsRandom?: boolean;
-  reward25IsRandom?: boolean;
-  reward30IsRandom?: boolean;
+  rewards: RewardInfo[];
   drawnReward?: string | null;
   drawnRewardTier?: number | null;
 }
@@ -507,14 +497,19 @@ function HitejinroEnrollStampContent() {
   const urlKakaoId = searchParams.get('kakaoId');
   const hasPreferences = searchParams.get('hasPreferences') === 'true';
   const hasVisitSourceParam = searchParams.get('hasVisitSource') === 'true';
+  // URL 파라미터에서 모든 rewardN 패턴 동적 파싱 (1~50 지원)
   const rewardParams: Record<number, string | null> = {};
-  for (const n of [5, 10, 15, 20, 25, 30]) {
-    rewardParams[n] = searchParams.get(`reward${n}`);
-  }
   const rewardRandomParams: Record<number, boolean> = {};
-  for (const n of [5, 10, 15, 20, 25, 30]) {
-    rewardRandomParams[n] = searchParams.get(`reward${n}Random`) === 'true';
-  }
+  searchParams.forEach((value, key) => {
+    const match = key.match(/^reward(\d+)$/);
+    if (match && !key.endsWith('Random')) {
+      const n = parseInt(match[1]);
+      if (n >= 1 && n <= 50) {
+        rewardParams[n] = value || null;
+        rewardRandomParams[n] = searchParams.get(`reward${n}Random`) === 'true';
+      }
+    }
+  });
   const urlDrawnReward = searchParams.get('drawnReward');
   const urlDrawnRewardTier = searchParams.get('drawnRewardTier');
 
@@ -790,24 +785,21 @@ function HitejinroEnrollStampContent() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        // API rewards 배열에서 RewardInfo 변환
+        const apiRewards: RewardInfo[] = Array.isArray(data.rewards)
+          ? data.rewards.map((r: any) => ({
+              tier: r.tier,
+              description: r.description || '',
+              isRandom: r.options && Array.isArray(r.options) && r.options.length > 1,
+            }))
+          : [];
         setSuccessData({
           storeName: data.storeName,
           customerId: data.customerId,
           currentStamps: data.currentStamps,
           hasExistingPreferences: data.hasExistingPreferences || false,
           hasVisitSource: data.hasVisitSource || false,
-          reward5Description: data.reward5Description,
-          reward10Description: data.reward10Description,
-          reward15Description: data.reward15Description,
-          reward20Description: data.reward20Description,
-          reward25Description: data.reward25Description,
-          reward30Description: data.reward30Description,
-          reward5IsRandom: data.reward5IsRandom || false,
-          reward10IsRandom: data.reward10IsRandom || false,
-          reward15IsRandom: data.reward15IsRandom || false,
-          reward20IsRandom: data.reward20IsRandom || false,
-          reward25IsRandom: data.reward25IsRandom || false,
-          reward30IsRandom: data.reward30IsRandom || false,
+          rewards: apiRewards,
           drawnReward: data.drawnReward || null,
           drawnRewardTier: data.drawnRewardTier || null,
         });
@@ -821,16 +813,16 @@ function HitejinroEnrollStampContent() {
           }
         } else if (data.error === 'already_earned_today' || data.error === 'already_earned') {
           if (data.currentStamps !== undefined) {
-            const rw: Record<number, string> = {};
-            for (const n of [5, 10, 15, 20, 25, 30]) {
-              const key = `reward${n}Description` as keyof typeof data;
-              const storeKey = `reward${n}Description` as keyof typeof storeData;
-              rw[n] = (data[key] as string) || (storeData[storeKey] as string) || '';
+            const rwArr: Record<number, string> = {};
+            if (Array.isArray(data.rewards)) {
+              for (const r of data.rewards) {
+                rwArr[r.tier] = r.description || '';
+              }
             }
             setAlreadyParticipatedData({
               stamps: data.currentStamps,
               storeName: data.storeName || storeData.storeName || '',
-              rewards: rw,
+              rewards: rwArr,
             });
           }
           setShowAlreadyParticipated(true);
@@ -887,24 +879,21 @@ function HitejinroEnrollStampContent() {
         saveKakaoId(urlKakaoId);
       }
 
+      const urlRewards: RewardInfo[] = Object.entries(rewardParams)
+        .filter(([_, desc]) => desc)
+        .map(([tier, desc]) => ({
+          tier: Number(tier),
+          description: desc!,
+          isRandom: rewardRandomParams[Number(tier)] || false,
+        }))
+        .sort((a, b) => a.tier - b.tier);
       setSuccessData({
         storeName: successStoreName || '태그히어',
         customerId,
         currentStamps: parseInt(successStamps),
         hasExistingPreferences: hasPreferences,
         hasVisitSource: hasVisitSourceParam,
-        reward5Description: rewardParams[5],
-        reward10Description: rewardParams[10],
-        reward15Description: rewardParams[15],
-        reward20Description: rewardParams[20],
-        reward25Description: rewardParams[25],
-        reward30Description: rewardParams[30],
-        reward5IsRandom: rewardRandomParams[5],
-        reward10IsRandom: rewardRandomParams[10],
-        reward15IsRandom: rewardRandomParams[15],
-        reward20IsRandom: rewardRandomParams[20],
-        reward25IsRandom: rewardRandomParams[25],
-        reward30IsRandom: rewardRandomParams[30],
+        rewards: urlRewards,
         drawnReward: urlDrawnReward,
         drawnRewardTier: urlDrawnRewardTier ? parseInt(urlDrawnRewardTier) : null,
       });
@@ -917,8 +906,8 @@ function HitejinroEnrollStampContent() {
       const urlStoreName = searchParams.get('storeName');
       if (urlStamps) {
         const rw: Record<number, string> = {};
-        for (const n of [5, 10, 15, 20, 25, 30]) {
-          rw[n] = rewardParams[n] || '';
+        for (const [tier, desc] of Object.entries(rewardParams)) {
+          if (desc) rw[Number(tier)] = desc;
         }
         setAlreadyParticipatedData({
           stamps: parseInt(urlStamps),
@@ -983,12 +972,9 @@ function HitejinroEnrollStampContent() {
     if (successData) {
       url.searchParams.set('stamps', String(successData.currentStamps || 0));
       url.searchParams.set('storeName', successData.storeName || '');
-      for (const n of [5, 10, 15, 20, 25, 30]) {
-        const key = `reward${n}Description` as keyof SuccessData;
-        const val = successData[key] as string | null;
-        if (val) url.searchParams.set(`reward${n}`, val);
-        const randomKey = `reward${n}IsRandom` as keyof SuccessData;
-        if (successData[randomKey]) url.searchParams.set(`reward${n}Random`, 'true');
+      for (const r of successData.rewards) {
+        if (r.description) url.searchParams.set(`reward${r.tier}`, r.description);
+        if (r.isRandom) url.searchParams.set(`reward${r.tier}Random`, 'true');
       }
       if (successData.drawnReward) {
         url.searchParams.set('drawnReward', successData.drawnReward);
@@ -1052,12 +1038,11 @@ function HitejinroEnrollStampContent() {
 
   const rewardText = (() => {
     if (!stampInfo) return '10개 모으면 선물이 있어요';
-    for (const n of [30, 25, 20, 15, 10, 5] as const) {
-      const key = `reward${n}Description` as keyof StampInfo;
-      const desc = stampInfo[key];
-      if (desc) return `${n}개 모으면 ${desc} 증정`;
-    }
-    return '스탬프를 모아 보상을 받으세요';
+    const rewards = stampInfo.rewards || [];
+    if (rewards.length === 0) return '스탬프를 모아 보상을 받으세요';
+    const sorted = [...rewards].sort((a, b) => a.tier - b.tier);
+    const first = sorted[0];
+    return `${first.tier}개 모으면 ${first.description} 증정`;
   })();
 
   return (
@@ -1210,8 +1195,8 @@ function HitejinroEnrollStampContent() {
                   url.searchParams.set('slug', slug);
                   url.searchParams.set('stamps', String(alreadyParticipatedData.stamps));
                   url.searchParams.set('storeName', alreadyParticipatedData.storeName);
-                  for (const n of [5, 10, 15, 20, 25, 30]) {
-                    if (alreadyParticipatedData.rewards[n]) url.searchParams.set(`reward${n}`, alreadyParticipatedData.rewards[n]);
+                  for (const [tier, desc] of Object.entries(alreadyParticipatedData.rewards)) {
+                    if (desc) url.searchParams.set(`reward${tier}`, desc);
                   }
                   window.location.href = url.toString();
                 } else {

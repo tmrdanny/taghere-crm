@@ -140,13 +140,22 @@ function StampSuccessContent() {
   const drawnReward = searchParams.get('drawnReward') || '';
   const drawnRewardTier = parseInt(searchParams.get('drawnRewardTier') || '0');
 
-  const rewardList = [5, 10, 15, 20, 25, 30]
-    .map((n) => ({
-      count: n,
-      desc: searchParams.get(`reward${n}`) || '',
-      isRandom: searchParams.get(`reward${n}Random`) === 'true',
-    }))
-    .filter((r) => r.desc);
+  // URL 파라미터에서 모든 rewardN 패턴 동적 파싱 (1~50 지원)
+  const rewardList: { count: number; desc: string; isRandom: boolean }[] = [];
+  searchParams.forEach((value, key) => {
+    const match = key.match(/^reward(\d+)$/);
+    if (match && !key.endsWith('Random')) {
+      const n = parseInt(match[1]);
+      if (n >= 1 && n <= 50 && value) {
+        rewardList.push({
+          count: n,
+          desc: value,
+          isRandom: searchParams.get(`reward${n}Random`) === 'true',
+        });
+      }
+    }
+  });
+  rewardList.sort((a, b) => a.count - b.count);
 
   const displayStamps = stamps % 10 || (stamps > 0 && stamps % 10 === 0 ? 10 : 0);
 

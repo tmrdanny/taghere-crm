@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { validateRewardOptions } from '../utils/random-reward.js';
+import { validateRewards, buildRewardsFromLegacy, buildLegacyFromRewards, RewardEntry } from '../utils/random-reward.js';
 
 const router = Router();
 
@@ -64,8 +64,16 @@ router.get('/', async (req: AuthRequest, res) => {
       });
     }
 
+    // rewards JSON이 있으면 그대로 반환, 없으면 레거시 컬럼에서 빌드
+    const rewards: RewardEntry[] = setting.rewards
+      ? (setting.rewards as unknown as RewardEntry[])
+      : buildRewardsFromLegacy(setting as any);
+
     res.json({
       enabled: setting.enabled,
+      rewards,
+      alimtalkEnabled: setting.alimtalkEnabled,
+      // 레거시 호환 필드 (기존 클라이언트용)
       reward5Description: setting.reward5Description,
       reward10Description: setting.reward10Description,
       reward15Description: setting.reward15Description,
@@ -78,7 +86,6 @@ router.get('/', async (req: AuthRequest, res) => {
       reward20Options: setting.reward20Options,
       reward25Options: setting.reward25Options,
       reward30Options: setting.reward30Options,
-      alimtalkEnabled: setting.alimtalkEnabled,
     });
   } catch (error) {
     console.error('Get stamp settings error:', error);
@@ -92,6 +99,9 @@ router.put('/', async (req: AuthRequest, res) => {
     const storeId = req.user!.storeId;
     const {
       enabled,
+      rewards,
+      alimtalkEnabled,
+      // 레거시 필드 (기존 클라이언트 호환)
       reward5Description,
       reward10Description,
       reward15Description,
@@ -104,32 +114,65 @@ router.put('/', async (req: AuthRequest, res) => {
       reward20Options,
       reward25Options,
       reward30Options,
-      alimtalkEnabled,
     } = req.body;
 
-    // 랜덤 보상 옵션 유효성 검증
+    // rewards JSON이 전달된 경우 (신규 클라이언트)
+    if (rewards !== undefined) {
+      if (rewards !== null && Array.isArray(rewards) && rewards.length > 0) {
+        const validation = validateRewards(rewards);
+        if (!validation.valid) {
+          return res.status(400).json({ error: validation.error });
+        }
+      }
+
+      // 레거시 컬럼 동기화 (5/10/15/20/25/30)
+      const rewardsArr = (rewards && Array.isArray(rewards)) ? rewards as RewardEntry[] : [];
+      const legacyData = buildLegacyFromRewards(rewardsArr);
+
+      // 기존 설정 조회 (enabled 변경 감지용)
+      const existingSetting = await prisma.stampSetting.findUnique({
+        where: { storeId },
+      });
+      const wasEnabled = existingSetting?.enabled ?? false;
+
+      const setting = await prisma.stampSetting.upsert({
+        where: { storeId },
+        create: {
+          storeId,
+          enabled: enabled ?? false,
+          rewards: (rewardsArr.length > 0 ? rewardsArr : undefined) as any,
+          alimtalkEnabled: alimtalkEnabled ?? true,
+          ...legacyData,
+        },
+        update: {
+          ...(enabled !== undefined && { enabled }),
+          ...(alimtalkEnabled !== undefined && { alimtalkEnabled }),
+          rewards: (rewardsArr.length > 0 ? rewardsArr : undefined) as any,
+          ...legacyData,
+        },
+      });
+
+      // 스탬프 enabled 변경 시 태그히어 서버에 알림
+      if (enabled !== undefined && enabled !== wasEnabled) {
+        await handleEnabledChange(storeId, enabled);
+      }
+
+      const responseRewards: RewardEntry[] = setting.rewards
+        ? (setting.rewards as unknown as RewardEntry[])
+        : buildRewardsFromLegacy(setting as any);
+
+      return res.json({
+        enabled: setting.enabled,
+        rewards: responseRewards,
+        alimtalkEnabled: setting.alimtalkEnabled,
+      });
+    }
+
+    // 레거시 클라이언트 호환: reward5Options 등으로 전달된 경우
     const TIERS = [5, 10, 15, 20, 25, 30] as const;
     const optionsMap: Record<number, any> = {
       5: reward5Options, 10: reward10Options, 15: reward15Options,
       20: reward20Options, 25: reward25Options, 30: reward30Options,
-    };
-    for (const tier of TIERS) {
-      const opts = optionsMap[tier];
-      if (opts !== undefined && opts !== null && Array.isArray(opts) && opts.length > 0) {
-        const validation = validateRewardOptions(opts);
-        if (!validation.valid) {
-          return res.status(400).json({ error: `${tier}개 보상: ${validation.error}` });
-        }
-      }
-    }
-
-    // 옵션에서 대표 설명 추출 (기존 rewardNDescription 호환)
-    const deriveDescription = (options: any[] | null | undefined, fallbackDesc: string | undefined): string | null => {
-      if (options && Array.isArray(options) && options.length > 0) {
-        return options[0].description;
-      }
-      if (fallbackDesc !== undefined) return fallbackDesc || null;
-      return undefined as any; // undefined면 업데이트 안함
     };
 
     // 각 tier별 description과 options 결정
@@ -142,13 +185,10 @@ router.put('/', async (req: AuthRequest, res) => {
       const result: Record<string, any> = {};
 
       if (opts !== undefined) {
-        // 옵션이 명시적으로 전달된 경우
         const cleanOpts = (opts && Array.isArray(opts) && opts.length > 0) ? opts : null;
         result[optsKey] = cleanOpts;
-        // 옵션에서 대표 설명 자동 생성
         result[descKey] = cleanOpts ? cleanOpts[0].description : (descValue !== undefined ? (descValue || null) : null);
       } else if (descValue !== undefined) {
-        // 기존 방식: description만 전달된 경우
         result[descKey] = descValue || null;
       }
 
@@ -193,40 +233,23 @@ router.put('/', async (req: AuthRequest, res) => {
       },
     });
 
+    // 레거시 저장 후 rewards JSON도 동기화
+    const builtRewards = buildRewardsFromLegacy(setting as any);
+    if (builtRewards.length > 0) {
+      await prisma.stampSetting.update({
+        where: { storeId },
+        data: { rewards: builtRewards as any },
+      });
+    }
+
     // 스탬프 enabled 변경 시 태그히어 서버에 알림
     if (enabled !== undefined && enabled !== wasEnabled) {
-      // 매장 정보 조회 (slug, owner email from StaffUser)
-      const store = await prisma.store.findUnique({
-        where: { id: storeId },
-        select: {
-          slug: true,
-          staffUsers: {
-            where: { role: 'OWNER' },
-            select: { email: true },
-            take: 1,
-          },
-        },
-      });
-
-      const ownerEmail = store?.staffUsers?.[0]?.email;
-
-      if (ownerEmail && store?.slug) {
-        if (enabled) {
-          // 스탬프 ON → 스탬프 적립 URL로 전환
-          await notifyTaghereCrmOn(ownerEmail, store.slug, true);
-          console.log(`[Stamp Settings] Stamp enabled for store ${storeId}, notified TagHere with stamp URL`);
-        } else {
-          // 스탬프 OFF → 포인트 적립 URL로 자동 전환
-          await notifyTaghereCrmOn(ownerEmail, store.slug, false);
-          console.log(`[Stamp Settings] Stamp disabled for store ${storeId}, notified TagHere with point URL`);
-        }
-      } else {
-        console.log(`[Stamp Settings] Store ${storeId} missing owner email or slug, skipped TagHere notification`);
-      }
+      await handleEnabledChange(storeId, enabled);
     }
 
     res.json({
       enabled: setting.enabled,
+      rewards: builtRewards,
       reward5Description: setting.reward5Description,
       reward10Description: setting.reward10Description,
       reward15Description: setting.reward15Description,
@@ -246,5 +269,31 @@ router.put('/', async (req: AuthRequest, res) => {
     res.status(500).json({ error: '스탬프 설정 수정 중 오류가 발생했습니다.' });
   }
 });
+
+async function handleEnabledChange(storeId: string, enabled: boolean) {
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: {
+      slug: true,
+      staffUsers: {
+        where: { role: 'OWNER' },
+        select: { email: true },
+        take: 1,
+      },
+    },
+  });
+
+  const ownerEmail = store?.staffUsers?.[0]?.email;
+
+  if (ownerEmail && store?.slug) {
+    if (enabled) {
+      await notifyTaghereCrmOn(ownerEmail, store.slug, true);
+      console.log(`[Stamp Settings] Stamp enabled for store ${storeId}, notified TagHere with stamp URL`);
+    } else {
+      await notifyTaghereCrmOn(ownerEmail, store.slug, false);
+      console.log(`[Stamp Settings] Stamp disabled for store ${storeId}, notified TagHere with point URL`);
+    }
+  }
+}
 
 export default router;

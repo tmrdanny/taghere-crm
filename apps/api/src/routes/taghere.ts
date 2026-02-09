@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk } from '../services/solapi.js';
-import { checkMilestoneAndDraw } from '../utils/random-reward.js';
+import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 
 const router = Router();
 
@@ -872,16 +872,24 @@ router.get('/stamp-info/:slug', async (req, res) => {
       });
     }
 
+    // rewards JSON 기반으로 보상 정보 반환
+    const rewards: RewardEntry[] = store.stampSetting.rewards
+      ? (store.stampSetting.rewards as unknown as RewardEntry[])
+      : buildRewardsFromLegacy(store.stampSetting as any);
+
+    // 레거시 호환 필드도 함께 반환
+    const legacyFields: Record<string, any> = {};
+    for (const r of rewards) {
+      legacyFields[`reward${r.tier}Description`] = r.description;
+      legacyFields[`reward${r.tier}IsRandom`] = r.options && Array.isArray(r.options) && r.options.length > 1;
+    }
+
     res.json({
       storeId: store.id,
       storeName: store.name,
       enabled: true,
-      reward5Description: store.stampSetting.reward5Description,
-      reward10Description: store.stampSetting.reward10Description,
-      reward15Description: store.stampSetting.reward15Description,
-      reward20Description: store.stampSetting.reward20Description,
-      reward25Description: store.stampSetting.reward25Description,
-      reward30Description: store.stampSetting.reward30Description,
+      rewards,
+      ...legacyFields,
     });
   } catch (error: any) {
     console.error('[TagHere] Stamp info error:', error);
@@ -1028,14 +1036,23 @@ router.post('/stamp-earn', async (req, res) => {
     });
 
     if (todayEarn) {
+      // rewards JSON 기반 보상 정보
+      const alreadyRewards: RewardEntry[] = store.stampSetting.rewards
+        ? (store.stampSetting.rewards as unknown as RewardEntry[])
+        : buildRewardsFromLegacy(store.stampSetting as any);
+      const alreadyLegacy: Record<string, any> = {};
+      for (const r of alreadyRewards) {
+        alreadyLegacy[`reward${r.tier}Description`] = r.description;
+      }
+
       return res.status(400).json({
         success: false,
         error: 'already_earned_today',
         message: '오늘 이미 스탬프를 적립했습니다.',
         alreadyEarned: true,
         currentStamps: customer.totalStamps,
-        reward5Description: store.stampSetting.reward5Description,
-        reward10Description: store.stampSetting.reward10Description,
+        rewards: alreadyRewards,
+        ...alreadyLegacy,
       });
     }
 
@@ -1166,16 +1183,16 @@ router.post('/stamp-earn', async (req, res) => {
     // 9. 알림톡 발송 (비동기)
     const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
     if (store.stampSetting.alimtalkEnabled && phoneNumber) {
-      // 스탬프 사용 규칙 생성 (보상이 설정된 단계만 포함)
-      const rewardTiers = [
-        { count: 5, desc: store.stampSetting.reward5Description, isRandom: Array.isArray(store.stampSetting.reward5Options) && (store.stampSetting.reward5Options as any[]).length > 1 },
-        { count: 10, desc: store.stampSetting.reward10Description, isRandom: Array.isArray(store.stampSetting.reward10Options) && (store.stampSetting.reward10Options as any[]).length > 1 },
-        { count: 15, desc: store.stampSetting.reward15Description, isRandom: Array.isArray(store.stampSetting.reward15Options) && (store.stampSetting.reward15Options as any[]).length > 1 },
-        { count: 20, desc: store.stampSetting.reward20Description, isRandom: Array.isArray(store.stampSetting.reward20Options) && (store.stampSetting.reward20Options as any[]).length > 1 },
-        { count: 25, desc: store.stampSetting.reward25Description, isRandom: Array.isArray(store.stampSetting.reward25Options) && (store.stampSetting.reward25Options as any[]).length > 1 },
-        { count: 30, desc: store.stampSetting.reward30Description, isRandom: Array.isArray(store.stampSetting.reward30Options) && (store.stampSetting.reward30Options as any[]).length > 1 },
-      ];
-      const rules = rewardTiers.filter(t => t.desc).map(t => `- ${t.count}개 모을 시: ${t.isRandom ? '랜덤 박스!' : t.desc}`);
+      // 스탬프 사용 규칙 생성 (rewards JSON 기반)
+      const rewardsForAlimtalk: RewardEntry[] = store.stampSetting.rewards
+        ? (store.stampSetting.rewards as unknown as RewardEntry[])
+        : buildRewardsFromLegacy(store.stampSetting as any);
+      const rules = rewardsForAlimtalk
+        .sort((a, b) => a.tier - b.tier)
+        .map(r => {
+          const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
+          return `- ${r.tier}개 모을 시: ${isRandom ? '랜덤 박스!' : r.description}`;
+        });
       const stampUsageRule = rules.length > 0
         ? '\n' + rules.join('\n')
         : '\n- 10개 모을시 매장 선물 증정!';
@@ -1201,6 +1218,15 @@ router.post('/stamp-earn', async (req, res) => {
     }
 
     // 10. 성공 응답
+    const successRewards: RewardEntry[] = store.stampSetting.rewards
+      ? (store.stampSetting.rewards as unknown as RewardEntry[])
+      : buildRewardsFromLegacy(store.stampSetting as any);
+    const successLegacy: Record<string, any> = {};
+    for (const entry of successRewards) {
+      successLegacy[`reward${entry.tier}Description`] = entry.description;
+      successLegacy[`reward${entry.tier}IsRandom`] = entry.options && Array.isArray(entry.options) && entry.options.length > 1;
+    }
+
     res.json({
       success: true,
       currentStamps: result.customer.totalStamps,
@@ -1208,18 +1234,8 @@ router.post('/stamp-earn', async (req, res) => {
       storeName: store.name,
       isNewCustomer,
       hasVisitSource: !!customer.visitSource,
-      reward5Description: store.stampSetting.reward5Description,
-      reward10Description: store.stampSetting.reward10Description,
-      reward15Description: store.stampSetting.reward15Description,
-      reward20Description: store.stampSetting.reward20Description,
-      reward25Description: store.stampSetting.reward25Description,
-      reward30Description: store.stampSetting.reward30Description,
-      reward5IsRandom: Array.isArray(store.stampSetting.reward5Options) && (store.stampSetting.reward5Options as any[]).length > 1,
-      reward10IsRandom: Array.isArray(store.stampSetting.reward10Options) && (store.stampSetting.reward10Options as any[]).length > 1,
-      reward15IsRandom: Array.isArray(store.stampSetting.reward15Options) && (store.stampSetting.reward15Options as any[]).length > 1,
-      reward20IsRandom: Array.isArray(store.stampSetting.reward20Options) && (store.stampSetting.reward20Options as any[]).length > 1,
-      reward25IsRandom: Array.isArray(store.stampSetting.reward25Options) && (store.stampSetting.reward25Options as any[]).length > 1,
-      reward30IsRandom: Array.isArray(store.stampSetting.reward30Options) && (store.stampSetting.reward30Options as any[]).length > 1,
+      rewards: successRewards,
+      ...successLegacy,
       drawnReward: result.milestoneResult?.reward || null,
       drawnRewardTier: result.milestoneResult?.tier || null,
     });

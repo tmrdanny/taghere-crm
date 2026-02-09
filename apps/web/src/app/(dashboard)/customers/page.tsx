@@ -260,6 +260,9 @@ export default function CustomersPage() {
   // Announcements
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
+  // 스탬프 보상 티어 목록 (매장 설정 기반)
+  const [stampRewardTiers, setStampRewardTiers] = useState<number[]>([5, 10, 15, 20, 25, 30]);
+
   // 방문 경로 라벨 맵
   const [visitSourceLabelMap, setVisitSourceLabelMap] = useState<Record<string, string>>({});
 
@@ -306,6 +309,28 @@ export default function CustomersPage() {
     };
 
     fetchAnnouncements();
+  }, [apiUrl]);
+
+  // Fetch stamp reward tiers from stamp settings
+  useEffect(() => {
+    const fetchStampRewardTiers = async () => {
+      try {
+        const token = getAuthToken();
+        const res = await fetch(`${apiUrl}/api/stamp-settings`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.rewards && Array.isArray(data.rewards) && data.rewards.length > 0) {
+            const tiers = data.rewards.map((r: any) => r.tier).sort((a: number, b: number) => a - b);
+            setStampRewardTiers(tiers);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch stamp reward tiers:', error);
+      }
+    };
+    fetchStampRewardTiers();
   }, [apiUrl]);
 
   // Fetch visit source settings for label mapping
@@ -1831,7 +1856,7 @@ export default function CustomersPage() {
                   <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-lg space-y-2">
                     <p className="text-sm font-medium text-neutral-700">스탬프 보상 사용</p>
                     <div className="flex flex-wrap gap-2">
-                      {[5, 10, 15, 20, 25, 30].map((amount) => (
+                      {stampRewardTiers.map((amount) => (
                         <Button
                           key={amount}
                           variant="outline"

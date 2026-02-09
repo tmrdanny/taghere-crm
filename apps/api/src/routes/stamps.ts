@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 
 const router = Router();
 
@@ -103,10 +104,23 @@ router.post('/use', async (req: AuthRequest, res) => {
       return res.status(400).json({ error: '고객 ID가 필요합니다.' });
     }
 
-    // 5, 10, 15, 20, 25, 30개 단위로 사용 가능
-    const VALID_AMOUNTS = [5, 10, 15, 20, 25, 30];
-    if (!VALID_AMOUNTS.includes(amount)) {
-      return res.status(400).json({ error: '5, 10, 15, 20, 25, 30개 단위로만 사용 가능합니다.' });
+    if (typeof amount !== 'number' || amount < 1 || amount > 50) {
+      return res.status(400).json({ error: '사용 가능한 스탬프 수는 1~50입니다.' });
+    }
+
+    // 매장의 보상 설정에서 유효한 티어 확인
+    const setting = await prisma.stampSetting.findUnique({ where: { storeId } });
+    const rewards: RewardEntry[] = setting?.rewards
+      ? (setting.rewards as unknown as RewardEntry[])
+      : setting ? buildRewardsFromLegacy(setting as any) : [];
+    const validTiers = rewards.map(r => r.tier);
+
+    // 레거시 폴백: 보상 설정이 없으면 기존 고정 티어 허용
+    const LEGACY_AMOUNTS = [5, 10, 15, 20, 25, 30];
+    const allowedAmounts = validTiers.length > 0 ? validTiers : LEGACY_AMOUNTS;
+
+    if (!allowedAmounts.includes(amount)) {
+      return res.status(400).json({ error: `${allowedAmounts.join(', ')}개 단위로만 사용 가능합니다.` });
     }
 
     // 고객 확인
@@ -128,7 +142,9 @@ router.post('/use', async (req: AuthRequest, res) => {
     // 스탬프 사용 (트랜잭션)
     const result = await prisma.$transaction(async (tx) => {
       const newBalance = customer.totalStamps - amount;
-      const ledgerType = `USE_${amount}` as any;
+      // 레거시 티어(5,10,15,20,25,30)는 기존 USE_N 타입, 그 외는 USE
+      const legacyAmounts = [5, 10, 15, 20, 25, 30];
+      const ledgerType = legacyAmounts.includes(amount) ? `USE_${amount}` as any : 'USE' as any;
 
       // 고객 스탬프 업데이트
       const updatedCustomer = await tx.customer.update({
@@ -144,6 +160,7 @@ router.post('/use', async (req: AuthRequest, res) => {
           type: ledgerType,
           delta: -amount,
           balance: newBalance,
+          drawnRewardTier: amount,
           reason: `${amount}개 보상 사용`,
         },
       });

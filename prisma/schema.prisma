@@ -1222,6 +1222,10 @@ model StampSetting {
   reward25Options       Json?    // 25개 랜덤 보상 옵션
   reward30Options       Json?    // 30개 랜덤 보상 옵션
 
+  // 보상 설정 (JSON 배열, 1~50 자유 티어)
+  // [{tier: 3, description: "아메리카노", options: [{description, probability}] | null}]
+  rewards               Json?
+
   // 알림톡 설정
   alimtalkEnabled       Boolean  @default(true)
 
@@ -1269,12 +1273,13 @@ model StampLedger {
 
 enum StampLedgerType {
   EARN          // 적립 (+1)
-  USE_5         // 5개 사용 (-5)
-  USE_10        // 10개 사용 (-10)
-  USE_15        // 15개 사용 (-15)
-  USE_20        // 20개 사용 (-20)
-  USE_25        // 25개 사용 (-25)
-  USE_30        // 30개 사용 (-30)
+  USE           // 보상 사용 (임의 티어)
+  USE_5         // 5개 사용 (-5) [레거시]
+  USE_10        // 10개 사용 (-10) [레거시]
+  USE_15        // 15개 사용 (-15) [레거시]
+  USE_20        // 20개 사용 (-20) [레거시]
+  USE_25        // 25개 사용 (-25) [레거시]
+  USE_30        // 30개 사용 (-30) [레거시]
   ADMIN_ADD     // 관리자 추가
   ADMIN_REMOVE  // 관리자 차감
 }

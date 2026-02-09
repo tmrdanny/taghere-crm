@@ -13,33 +13,23 @@ interface RewardOption {
   probability: number;
 }
 
-interface StampSettings {
-  enabled: boolean;
-  reward5Description: string | null;
-  reward10Description: string | null;
-  reward15Description: string | null;
-  reward20Description: string | null;
-  reward25Description: string | null;
-  reward30Description: string | null;
-  reward5Options: RewardOption[] | null;
-  reward10Options: RewardOption[] | null;
-  reward15Options: RewardOption[] | null;
-  reward20Options: RewardOption[] | null;
-  reward25Options: RewardOption[] | null;
-  reward30Options: RewardOption[] | null;
+interface RewardEntry {
+  tier: number;
+  description: string;
+  options: RewardOption[] | null;
 }
-
-const REWARD_TIERS = [5, 10, 15, 20, 25, 30];
 
 function RewardTierEditor({
   tier,
   options,
   onChange,
+  onRemove,
   disabled,
 }: {
   tier: number;
   options: RewardOption[];
   onChange: (options: RewardOption[]) => void;
+  onRemove: () => void;
   disabled: boolean;
 }) {
   const totalProbability = options.reduce((sum, opt) => sum + opt.probability, 0);
@@ -56,7 +46,6 @@ function RewardTierEditor({
 
   const removeOption = (index: number) => {
     const newOptions = options.filter((_, i) => i !== index);
-    // 1개 남으면 확률 100%로 고정
     if (newOptions.length === 1) {
       newOptions[0].probability = 100;
     }
@@ -73,10 +62,8 @@ function RewardTierEditor({
     onChange(newOptions);
   };
 
-  const placeholder = tier === 5 ? '예: 아메리카노 1잔 무료' : tier === 10 ? '예: 케이크 세트 무료 (음료 포함)' : '보상 내용 입력';
-
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 p-4 bg-neutral-50 rounded-lg border border-neutral-200">
       {/* Tier Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -93,6 +80,14 @@ function RewardTierEditor({
             </span>
           )}
         </div>
+        <button
+          onClick={onRemove}
+          disabled={disabled}
+          className="p-1.5 text-neutral-400 hover:text-red-500 transition-colors"
+          title="이 보상 단계 삭제"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Options */}
@@ -111,7 +106,7 @@ function RewardTierEditor({
               <Input
                 value={opt.description}
                 onChange={(e) => updateOption(idx, 'description', e.target.value)}
-                placeholder={placeholder}
+                placeholder="보상 내용 입력 (예: 아메리카노 1잔 무료)"
                 disabled={disabled}
                 className="flex-1"
               />
@@ -172,12 +167,37 @@ export default function StampSettingsPage() {
 
   // Settings state
   const [enabled, setEnabled] = useState(true);
-  const [rewardOptions, setRewardOptions] = useState<Record<number, RewardOption[]>>({
-    5: [], 10: [], 15: [], 20: [], 25: [], 30: [],
-  });
+  const [selectedTiers, setSelectedTiers] = useState<number[]>([]);
+  const [rewardOptions, setRewardOptions] = useState<Record<number, RewardOption[]>>({});
+
+  // 새 티어 추가 input
+  const [newTierInput, setNewTierInput] = useState('');
 
   const setTierOptions = (tier: number, options: RewardOption[]) => {
     setRewardOptions(prev => ({ ...prev, [tier]: options }));
+  };
+
+  const addTier = (tier: number) => {
+    if (tier < 1 || tier > 50) {
+      showToast('1~50 사이의 숫자를 입력해주세요.', 'error');
+      return;
+    }
+    if (selectedTiers.includes(tier)) {
+      showToast(`${tier}개 보상은 이미 추가되어 있습니다.`, 'error');
+      return;
+    }
+    setSelectedTiers(prev => [...prev, tier].sort((a, b) => a - b));
+    setRewardOptions(prev => ({ ...prev, [tier]: [] }));
+    setNewTierInput('');
+  };
+
+  const removeTier = (tier: number) => {
+    setSelectedTiers(prev => prev.filter(t => t !== tier));
+    setRewardOptions(prev => {
+      const next = { ...prev };
+      delete next[tier];
+      return next;
+    });
   };
 
   // Fetch stamp settings
@@ -192,27 +212,27 @@ export default function StampSettingsPage() {
         });
 
         if (res.ok) {
-          const data: StampSettings = await res.json();
+          const data = await res.json();
           setEnabled(data.enabled);
 
-          // 옵션 데이터 로드 (옵션 우선, 없으면 기존 description에서 변환)
-          const newOptions: Record<number, RewardOption[]> = {};
-          for (const tier of REWARD_TIERS) {
-            const optKey = `reward${tier}Options` as keyof StampSettings;
-            const descKey = `reward${tier}Description` as keyof StampSettings;
-            const opts = data[optKey] as RewardOption[] | null;
-            const desc = data[descKey] as string | null;
+          // rewards JSON 기반으로 로드
+          const rewards: RewardEntry[] = data.rewards || [];
+          const tiers: number[] = [];
+          const opts: Record<number, RewardOption[]> = {};
 
-            if (opts && Array.isArray(opts) && opts.length > 0) {
-              newOptions[tier] = opts;
-            } else if (desc) {
-              // 기존 단일 보상을 옵션 형태로 변환
-              newOptions[tier] = [{ description: desc, probability: 100 }];
+          for (const entry of rewards) {
+            tiers.push(entry.tier);
+            if (entry.options && Array.isArray(entry.options) && entry.options.length > 0) {
+              opts[entry.tier] = entry.options;
+            } else if (entry.description) {
+              opts[entry.tier] = [{ description: entry.description, probability: 100 }];
             } else {
-              newOptions[tier] = [];
+              opts[entry.tier] = [];
             }
           }
-          setRewardOptions(newOptions);
+
+          setSelectedTiers(tiers.sort((a, b) => a - b));
+          setRewardOptions(opts);
         }
       } catch (error) {
         console.error('Failed to fetch stamp settings:', error);
@@ -227,24 +247,21 @@ export default function StampSettingsPage() {
 
   // 저장 전 유효성 검증
   const validateBeforeSave = (): string | null => {
-    for (const tier of REWARD_TIERS) {
-      const opts = rewardOptions[tier];
+    for (const tier of selectedTiers) {
+      const opts = rewardOptions[tier] || [];
       if (opts.length === 0) continue;
 
-      // 빈 설명 확인
       for (const opt of opts) {
         if (!opt.description.trim()) {
           return `${tier}개 보상에 빈 항목이 있습니다. 내용을 입력하거나 삭제해주세요.`;
         }
       }
 
-      // 다중 옵션일 때 확률 합 검증
       if (opts.length > 1) {
         const total = opts.reduce((sum, opt) => sum + opt.probability, 0);
         if (Math.abs(total - 100) > 0.1) {
           return `${tier}개 보상의 확률 합이 ${total.toFixed(1)}%입니다. 100%가 되어야 합니다.`;
         }
-        // 0% 확률 확인
         for (const opt of opts) {
           if (opt.probability <= 0) {
             return `${tier}개 보상에 확률이 0% 이하인 항목이 있습니다.`;
@@ -266,21 +283,21 @@ export default function StampSettingsPage() {
     try {
       const token = localStorage.getItem('token');
 
-      // 요청 데이터 구성
-      const body: Record<string, any> = { enabled };
-      for (const tier of REWARD_TIERS) {
-        const opts = rewardOptions[tier];
-        const optKey = `reward${tier}Options`;
-        const descKey = `reward${tier}Description`;
-
-        if (opts.length === 0) {
-          body[optKey] = null;
-          body[descKey] = null;
-        } else {
-          body[optKey] = opts;
-          body[descKey] = opts[0].description; // 대표 설명
-        }
-      }
+      // rewards JSON 배열 구성
+      const rewards: RewardEntry[] = selectedTiers
+        .filter(tier => {
+          const opts = rewardOptions[tier] || [];
+          return opts.length > 0 && opts.some(o => o.description.trim());
+        })
+        .map(tier => {
+          const opts = rewardOptions[tier];
+          const isMultiple = opts.length > 1;
+          return {
+            tier,
+            description: opts[0]?.description || '',
+            options: isMultiple ? opts : null,
+          };
+        });
 
       const res = await fetch(`${apiUrl}/api/stamp-settings`, {
         method: 'PUT',
@@ -288,7 +305,7 @@ export default function StampSettingsPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ enabled, rewards }),
       });
 
       if (res.ok) {
@@ -307,7 +324,6 @@ export default function StampSettingsPage() {
 
   const handleToggleEnabled = async (newEnabled: boolean) => {
     setEnabled(newEnabled);
-    // 토글 변경 시 즉시 저장
     try {
       const token = localStorage.getItem('token');
       await fetch(`${apiUrl}/api/stamp-settings`, {
@@ -323,7 +339,15 @@ export default function StampSettingsPage() {
       showToast(newEnabled ? '스탬프 기능이 활성화되었습니다.' : '스탬프 기능이 비활성화되었습니다.', 'success');
     } catch (error) {
       console.error('Failed to toggle stamp enabled:', error);
-      setEnabled(!newEnabled); // 실패 시 롤백
+      setEnabled(!newEnabled);
+    }
+  };
+
+  const handleNewTierKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const num = parseInt(newTierInput);
+      if (!isNaN(num)) addTier(num);
     }
   };
 
@@ -368,7 +392,7 @@ export default function StampSettingsPage() {
                   <span className="text-xs font-medium">2</span>
                 </div>
                 <p>
-                  스탬프는 <strong>하루 1개씩 적립</strong>되며, 설정된 단계(5~30개)에 도달하면 보상을 사용할 수 있습니다.
+                  스탬프는 <strong>하루 1개씩 적립</strong>되며, 설정한 개수에 도달하면 보상을 사용할 수 있습니다.
                 </p>
               </div>
               <div className="flex items-start gap-3">
@@ -426,19 +450,78 @@ export default function StampSettingsPage() {
               <CardTitle className="text-lg">보상 설정</CardTitle>
             </div>
             <p className="text-sm text-neutral-500 mt-1">
-              스탬프 단계별 보상을 설정하세요. 여러 보상을 추가하면 랜덤으로 추첨됩니다.
+              보상을 줄 스탬프 개수를 추가하고, 각 단계별 보상을 설정하세요.
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
-            {REWARD_TIERS.map((tier) => (
-              <RewardTierEditor
-                key={tier}
-                tier={tier}
-                options={rewardOptions[tier]}
-                onChange={(opts) => setTierOptions(tier, opts)}
-                disabled={!enabled}
-              />
-            ))}
+            {/* 보상 단계 추가 */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-neutral-700">보상 단계 추가</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  value={newTierInput}
+                  onChange={(e) => setNewTierInput(e.target.value)}
+                  onKeyDown={handleNewTierKeyDown}
+                  placeholder="스탬프 개수 (1~50)"
+                  min={1}
+                  max={50}
+                  disabled={!enabled}
+                  className="w-48"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!enabled || !newTierInput}
+                  onClick={() => {
+                    const num = parseInt(newTierInput);
+                    if (!isNaN(num)) addTier(num);
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  추가
+                </Button>
+              </div>
+              {/* 선택된 티어 뱃지 */}
+              {selectedTiers.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {selectedTiers.map(tier => (
+                    <span
+                      key={tier}
+                      className="inline-flex items-center gap-1 text-sm bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full border border-amber-200"
+                    >
+                      {tier}개
+                      <button
+                        onClick={() => removeTier(tier)}
+                        className="ml-0.5 hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 각 티어별 보상 에디터 */}
+            {selectedTiers.length === 0 ? (
+              <div className="text-center py-8 text-neutral-400 text-sm">
+                보상을 줄 스탬프 개수를 추가해주세요.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {selectedTiers.map((tier) => (
+                  <RewardTierEditor
+                    key={tier}
+                    tier={tier}
+                    options={rewardOptions[tier] || []}
+                    onChange={(opts) => setTierOptions(tier, opts)}
+                    onRemove={() => removeTier(tier)}
+                    disabled={!enabled}
+                  />
+                ))}
+              </div>
+            )}
 
             <div className="flex justify-end pt-2">
               <Button onClick={handleSave} disabled={isSaving || !enabled}>
