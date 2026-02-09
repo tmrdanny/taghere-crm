@@ -551,6 +551,29 @@ function HitejinroEnrollStampContent() {
     }
   }, []);
 
+  // 카메라 줌 적용 (스캐너 시작 후 호출)
+  const applyZoom = useCallback(async () => {
+    try {
+      const videoElement = document.querySelector('#barcode-scanner video') as HTMLVideoElement;
+      if (!videoElement || !videoElement.srcObject) return;
+
+      const stream = videoElement.srcObject as MediaStream;
+      const track = stream.getVideoTracks()[0];
+      if (!track) return;
+
+      const capabilities = track.getCapabilities() as MediaTrackCapabilities & { zoom?: { min: number; max: number; step: number } };
+      if (capabilities.zoom) {
+        // 줌 2.0x를 기본으로, 지원 범위 내에서 적용
+        const targetZoom = Math.min(2.0, capabilities.zoom.max);
+        await track.applyConstraints({
+          advanced: [{ zoom: targetZoom } as MediaTrackConstraintSet & { zoom: number }],
+        } as MediaTrackConstraints);
+      }
+    } catch (e) {
+      console.error('Failed to apply zoom:', e);
+    }
+  }, []);
+
   // 바코드 스캐너 시작
   const startScanner = useCallback(async () => {
     if (!scannerContainerRef.current) return;
@@ -569,23 +592,26 @@ function HitejinroEnrollStampContent() {
             Html5QrcodeSupportedFormats.CODE_39,
           ],
           verbose: false,
+          useBarCodeDetectorIfSupported: true,
         });
       }
 
       // 처리 중복 방지용 플래그
       let isHandlingBarcode = false;
 
-      // 바코드 스캔 영역 설정 (가로로 긴 바코드 형태에 맞게)
-      const containerWidth = scannerContainerRef.current?.clientWidth || 320;
-      const qrboxWidth = Math.floor(containerWidth * 0.85); // 컨테이너 가로의 85%
-      const qrboxHeight = Math.floor(qrboxWidth * 0.35); // 바코드는 가로로 긴 형태
-
       await html5QrCodeRef.current.start(
-        { facingMode: 'environment' },
         {
-          fps: 20,
-          qrbox: { width: qrboxWidth, height: qrboxHeight },
+          facingMode: 'environment',
+        },
+        {
+          fps: 30,
           disableFlip: false,
+          // qrbox 제거 → 전체 비디오 프레임에서 바코드 검색 (세로/가로 모두 인식)
+          videoConstraints: {
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
         },
         async (decodedText) => {
           // 중복 처리 방지
@@ -623,6 +649,9 @@ function HitejinroEnrollStampContent() {
       );
 
       setIsScannerActive(true);
+
+      // 스캐너 시작 후 줌 적용 (약간의 딜레이)
+      setTimeout(() => applyZoom(), 500);
     } catch (err) {
       console.error('Failed to start scanner:', err);
       if (err instanceof Error) {
@@ -635,7 +664,7 @@ function HitejinroEnrollStampContent() {
         }
       }
     }
-  }, [stopScanner]);
+  }, [stopScanner, applyZoom]);
 
   // 유효한 바코드 처리 (ref 사용 - 스캐너 콜백에서 호출됨)
   const handleValidBarcodeWithRef = async (barcode: string) => {
@@ -1121,7 +1150,7 @@ function HitejinroEnrollStampContent() {
 
               {/* 스캔 가이드 */}
               <div className="mt-4 text-center">
-                <p className="text-[13px] text-neutral-500">바코드를 사각형 안에 맞춰주세요</p>
+                <p className="text-[13px] text-neutral-500">{isScannerActive ? '바코드를 카메라에 비춰주세요' : '카메라 대기 중'}</p>
               </div>
             </div>
 
@@ -1245,12 +1274,12 @@ function HitejinroEnrollStampContent() {
           object-fit: cover !important;
           width: 100% !important;
           height: 100% !important;
-          filter: brightness(1.1) contrast(1.05);
         }
 
-        /* 스캔 영역 표시 테두리 강조 */
-        #barcode-scanner #qr-shaded-region {
-          border-color: rgba(255, 255, 255, 0.8) !important;
+        /* html5-qrcode가 생성하는 내부 요소 숨김 (qrbox 없을 때 불필요) */
+        #barcode-scanner img[alt="Info"],
+        #barcode-scanner > div:last-child {
+          display: none !important;
         }
       `}</style>
     </>
