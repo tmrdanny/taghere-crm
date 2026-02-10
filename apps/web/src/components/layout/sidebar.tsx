@@ -31,6 +31,9 @@ import {
   ShoppingBag,
   ClipboardList,
   Zap,
+  PieChart,
+  Clock,
+  DollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -113,6 +116,9 @@ const navGroups: NavGroup[] = [
     icon: BarChart3,
     items: [
       { href: '/insights/customers', label: '고객 통계', icon: Users, isNew: true },
+      { href: '/segments', label: '고객 세그먼트', icon: PieChart, isNew: true },
+      { href: '/insights/visit-cycle', label: '방문 주기 분석', icon: Clock, isNew: true },
+      { href: '/insights/revenue', label: '매출 기여', icon: DollarSign, isNew: true },
     ],
   },
 ];
