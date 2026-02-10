@@ -15,6 +15,11 @@ const ALIMTALK_COSTS: Record<string, number> = {
   RETARGET_COUPON: 50,    // 리타겟 쿠폰 알림톡: 50원
   AUTO_BIRTHDAY: 50,      // 생일 자동화 알림톡: 50원
   AUTO_CHURN: 50,         // 이탈 방지 자동화 알림톡: 50원
+  AUTO_ANNIVERSARY: 50,   // 가입 기념일 자동화 알림톡: 50원
+  AUTO_FIRST_VISIT: 50,   // 첫 방문 팔로업 자동화 알림톡: 50원
+  AUTO_VIP_MILESTONE: 50, // VIP 마일스톤 자동화 알림톡: 50원
+  AUTO_WINBACK: 50,       // 장기 미방문 윈백 자동화 알림톡: 50원
+  AUTO_SLOW_DAY: 50,      // 비수기 프로모션 자동화 알림톡: 50원
 };
 const DEFAULT_COST = 20; // 기본 비용
 
@@ -139,7 +144,7 @@ async function processMessage(messageId: string): Promise<void> {
     // LOW_BALANCE가 아닌 경우에만 잔액 확인
     // RETARGET_COUPON 및 자동화 메시지는 무료 크레딧 적용 가능
     const isRetargetCoupon = msg.messageType === 'RETARGET_COUPON';
-    const isAutomation = msg.messageType === 'AUTO_BIRTHDAY' || msg.messageType === 'AUTO_CHURN';
+    const isAutomation = msg.messageType.startsWith('AUTO_');
     let useFreeCredit = false;
 
     if (!isLowBalanceMessage) {

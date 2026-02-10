@@ -516,6 +516,11 @@ enum AlimTalkType {
   RETARGET_COUPON       // 리타겟 쿠폰 발송
   AUTO_BIRTHDAY         // 생일 자동화
   AUTO_CHURN            // 이탈 방지 자동화
+  AUTO_ANNIVERSARY      // 가입 기념일 자동화
+  AUTO_FIRST_VISIT      // 첫 방문 팔로업 자동화
+  AUTO_VIP_MILESTONE    // VIP 마일스톤 자동화
+  AUTO_WINBACK          // 장기 미방문 윈백 자동화
+  AUTO_SLOW_DAY         // 비수기 프로모션 자동화
 }
 
 enum AlimTalkStatus {
@@ -1638,8 +1643,13 @@ model FranchisePointLedger {
 // ─── 자동 마케팅 (Marketing Automation) ───
 
 enum AutomationRuleType {
-  BIRTHDAY           // 생일 축하
-  CHURN_PREVENTION   // 이탈 방지
+  BIRTHDAY              // 생일 축하
+  CHURN_PREVENTION      // 이탈 방지
+  ANNIVERSARY           // 가입 기념일
+  FIRST_VISIT_FOLLOWUP  // 첫 방문 팔로업
+  VIP_MILESTONE         // VIP 마일스톤
+  WINBACK               // 장기 미방문 윈백
+  SLOW_DAY              // 비수기 프로모션
 }
 
 // 자동화 규칙 (매장별 시나리오 ON/OFF + 설정)

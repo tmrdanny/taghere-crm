@@ -6,18 +6,47 @@ import type { AutomationRuleType } from '@prisma/client';
 const router = Router();
 
 // 유효한 타입 체크
-const VALID_TYPES: AutomationRuleType[] = ['BIRTHDAY', 'CHURN_PREVENTION'];
+const VALID_TYPES: AutomationRuleType[] = [
+  'BIRTHDAY',
+  'CHURN_PREVENTION',
+  'ANNIVERSARY',
+  'FIRST_VISIT_FOLLOWUP',
+  'VIP_MILESTONE',
+  'WINBACK',
+  'SLOW_DAY',
+];
 
 // 기본 트리거 설정
 const DEFAULT_TRIGGER_CONFIG: Record<string, object> = {
   BIRTHDAY: { daysBefore: 3 },
   CHURN_PREVENTION: { daysInactive: 30 },
+  ANNIVERSARY: { daysBefore: 3 },                          // 가입 기념일 3일 전
+  FIRST_VISIT_FOLLOWUP: { daysAfterFirstVisit: 3 },        // 첫 방문 3일 후
+  VIP_MILESTONE: { milestones: [10, 20, 30, 50, 100] },    // 방문 마일스톤
+  WINBACK: { daysInactive: 90 },                            // 90일 이상 미방문
+  SLOW_DAY: { slowDays: [1, 2] },                           // 월,화 (0=일,1=월,...6=토)
 };
 
 // 기본 쿨다운 (일)
 const DEFAULT_COOLDOWN: Record<string, number> = {
-  BIRTHDAY: 365,      // 연 1회
-  CHURN_PREVENTION: 60, // 60일 내 재발송 금지
+  BIRTHDAY: 365,             // 연 1회
+  CHURN_PREVENTION: 60,      // 60일 내 재발송 금지
+  ANNIVERSARY: 365,          // 연 1회
+  FIRST_VISIT_FOLLOWUP: 365, // 고객당 1회
+  VIP_MILESTONE: 30,         // 마일스톤별 1회 (로그로 관리)
+  WINBACK: 90,               // 90일 내 재발송 금지
+  SLOW_DAY: 14,              // 14일 내 재발송 금지
+};
+
+// 기본 쿠폰 내용
+const DEFAULT_COUPON_CONTENT: Record<string, string> = {
+  BIRTHDAY: '생일 축하 특별 할인',
+  CHURN_PREVENTION: '다시 만나서 반가워요! 특별 할인',
+  ANNIVERSARY: '가입 기념일 축하 할인',
+  FIRST_VISIT_FOLLOWUP: '첫 방문 감사 재방문 할인',
+  VIP_MILESTONE: 'VIP 감사 특별 할인',
+  WINBACK: '오랜만에 뵙는 특별 할인',
+  SLOW_DAY: '오늘만의 특별 할인',
 };
 
 /**
@@ -41,7 +70,7 @@ async function ensureRulesExist(storeId: string) {
         enabled: false,
         triggerConfig: DEFAULT_TRIGGER_CONFIG[type] as any,
         cooldownDays: DEFAULT_COOLDOWN[type],
-        couponContent: type === 'BIRTHDAY' ? '생일 축하 특별 할인' : '다시 만나서 반가워요! 특별 할인',
+        couponContent: DEFAULT_COUPON_CONTENT[type] || '특별 할인 쿠폰',
       })),
     });
   }
@@ -317,6 +346,65 @@ router.get('/preview/:type', authMiddleware, async (req: AuthRequest, res: Respo
         totalEligible: totalRevisitable,
         currentChurnRisk: churnRisk,
         estimatedMonthlyCost: churnRisk * 50,
+      });
+    } else if (type === 'ANNIVERSARY') {
+      // 가입 기념일: 등록 고객 수 (가입일 기준)
+      const totalCustomers = await prisma.customer.count({
+        where: { storeId, consentMarketing: true, phone: { not: null } },
+      });
+      const thisMonthEstimate = Math.round(totalCustomers / 12);
+      res.json({
+        totalEligible: totalCustomers,
+        thisMonthEstimate,
+        estimatedMonthlyCost: thisMonthEstimate * 50,
+      });
+    } else if (type === 'FIRST_VISIT_FOLLOWUP') {
+      // 첫 방문 팔로업: 1회 방문 고객 수
+      const firstVisitors = await prisma.customer.count({
+        where: { storeId, visitCount: 1, consentMarketing: true, phone: { not: null } },
+      });
+      res.json({
+        totalEligible: firstVisitors,
+        thisMonthEstimate: firstVisitors,
+        estimatedMonthlyCost: firstVisitors * 50,
+      });
+    } else if (type === 'VIP_MILESTONE') {
+      // VIP 마일스톤: 5회 이상 방문 고객
+      const vipCandidates = await prisma.customer.count({
+        where: { storeId, visitCount: { gte: 5 }, consentMarketing: true, phone: { not: null } },
+      });
+      res.json({
+        totalEligible: vipCandidates,
+        thisMonthEstimate: Math.round(vipCandidates * 0.1),
+        estimatedMonthlyCost: Math.round(vipCandidates * 0.1) * 50,
+      });
+    } else if (type === 'WINBACK') {
+      // 장기 미방문 윈백: 90일 이상 미방문
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      const winbackTargets = await prisma.customer.count({
+        where: {
+          storeId,
+          visitCount: { gte: 2 },
+          lastVisitAt: { lt: ninetyDaysAgo },
+          consentMarketing: true,
+          phone: { not: null },
+        },
+      });
+      res.json({
+        totalEligible: winbackTargets,
+        currentChurnRisk: winbackTargets,
+        estimatedMonthlyCost: winbackTargets * 50,
+      });
+    } else if (type === 'SLOW_DAY') {
+      // 비수기 프로모션: 마케팅 동의 고객 전체
+      const eligibleCustomers = await prisma.customer.count({
+        where: { storeId, visitCount: { gte: 1 }, consentMarketing: true, phone: { not: null } },
+      });
+      res.json({
+        totalEligible: eligibleCustomers,
+        thisMonthEstimate: Math.round(eligibleCustomers * 0.3),
+        estimatedMonthlyCost: Math.round(eligibleCustomers * 0.3) * 50,
       });
     }
   } catch (error) {

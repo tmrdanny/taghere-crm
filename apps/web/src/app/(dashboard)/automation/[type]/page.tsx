@@ -15,6 +15,11 @@ import {
   Check,
   Cake,
   Bell,
+  Heart,
+  HandMetal,
+  Star,
+  Moon,
+  Calendar,
 } from 'lucide-react';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -58,6 +63,11 @@ interface LogEntry {
 const SCENARIO_META: Record<string, { label: string; icon: any }> = {
   BIRTHDAY: { label: '생일 축하', icon: Cake },
   CHURN_PREVENTION: { label: '이탈 방지', icon: Bell },
+  ANNIVERSARY: { label: '가입 기념일', icon: Heart },
+  FIRST_VISIT_FOLLOWUP: { label: '첫 방문 팔로업', icon: HandMetal },
+  VIP_MILESTONE: { label: 'VIP 마일스톤', icon: Star },
+  WINBACK: { label: '장기 미방문 윈백', icon: Moon },
+  SLOW_DAY: { label: '비수기 프로모션', icon: Calendar },
 };
 
 export default function AutomationSettingPage() {
@@ -76,6 +86,10 @@ export default function AutomationSettingPage() {
   const [enabled, setEnabled] = useState(false);
   const [daysBefore, setDaysBefore] = useState(3);
   const [daysInactive, setDaysInactive] = useState(30);
+  const [daysAfterFirstVisit, setDaysAfterFirstVisit] = useState(3);
+  const [milestones, setMilestones] = useState('10, 20, 30, 50, 100');
+  const [winbackDaysInactive, setWinbackDaysInactive] = useState(90);
+  const [slowDays, setSlowDays] = useState<number[]>([1, 2]);
   const [sendTimeHour, setSendTimeHour] = useState(10);
   const [couponEnabled, setCouponEnabled] = useState(true);
   const [couponContent, setCouponContent] = useState('');
@@ -118,6 +132,21 @@ export default function AutomationSettingPage() {
           if (type === 'CHURN_PREVENTION' && r.triggerConfig?.daysInactive) {
             setDaysInactive(r.triggerConfig.daysInactive);
           }
+          if (type === 'ANNIVERSARY' && r.triggerConfig?.daysBefore) {
+            setDaysBefore(r.triggerConfig.daysBefore);
+          }
+          if (type === 'FIRST_VISIT_FOLLOWUP' && r.triggerConfig?.daysAfterFirstVisit) {
+            setDaysAfterFirstVisit(r.triggerConfig.daysAfterFirstVisit);
+          }
+          if (type === 'VIP_MILESTONE' && r.triggerConfig?.milestones) {
+            setMilestones(r.triggerConfig.milestones.join(', '));
+          }
+          if (type === 'WINBACK' && r.triggerConfig?.daysInactive) {
+            setWinbackDaysInactive(r.triggerConfig.daysInactive);
+          }
+          if (type === 'SLOW_DAY' && r.triggerConfig?.slowDays) {
+            setSlowDays(r.triggerConfig.slowDays);
+          }
         }
       }
 
@@ -141,10 +170,16 @@ export default function AutomationSettingPage() {
     try {
       const token = localStorage.getItem('token');
 
-      const triggerConfig =
-        type === 'BIRTHDAY'
-          ? { daysBefore }
-          : { daysInactive };
+      const triggerConfigMap: Record<string, object> = {
+        BIRTHDAY: { daysBefore },
+        CHURN_PREVENTION: { daysInactive },
+        ANNIVERSARY: { daysBefore },
+        FIRST_VISIT_FOLLOWUP: { daysAfterFirstVisit },
+        VIP_MILESTONE: { milestones: milestones.split(',').map((s) => parseInt(s.trim())).filter((n) => !isNaN(n) && n > 0) },
+        WINBACK: { daysInactive: winbackDaysInactive },
+        SLOW_DAY: { slowDays },
+      };
+      const triggerConfig = triggerConfigMap[type] || {};
 
       const res = await fetch(`${apiUrl}/api/automation/rules/${type}`, {
         method: 'PUT',
@@ -269,6 +304,114 @@ export default function AutomationSettingPage() {
               </div>
             )}
 
+            {type === 'ANNIVERSARY' && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  발송 시점
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-neutral-600">가입 기념일</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={14}
+                    value={daysBefore}
+                    onChange={(e) => setDaysBefore(parseInt(e.target.value) || 3)}
+                    className="w-20 text-center"
+                  />
+                  <span className="text-sm text-neutral-600">일 전</span>
+                </div>
+                <p className="text-xs text-neutral-400 mt-1">고객의 첫 등록일을 기준으로 매년 기념일 쿠폰을 보냅니다</p>
+              </div>
+            )}
+
+            {type === 'FIRST_VISIT_FOLLOWUP' && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  발송 시점
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-neutral-600">첫 방문</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={14}
+                    value={daysAfterFirstVisit}
+                    onChange={(e) => setDaysAfterFirstVisit(parseInt(e.target.value) || 3)}
+                    className="w-20 text-center"
+                  />
+                  <span className="text-sm text-neutral-600">일 후</span>
+                </div>
+                <p className="text-xs text-neutral-400 mt-1">첫 방문 고객에게 감사 메시지와 재방문 쿠폰을 보냅니다</p>
+              </div>
+            )}
+
+            {type === 'VIP_MILESTONE' && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  마일스톤 설정
+                </label>
+                <Input
+                  value={milestones}
+                  onChange={(e) => setMilestones(e.target.value)}
+                  placeholder="10, 20, 30, 50, 100"
+                />
+                <p className="text-xs text-neutral-400 mt-1">방문 횟수가 해당 숫자에 도달하면 감사 쿠폰을 발송합니다 (쉼표로 구분)</p>
+              </div>
+            )}
+
+            {type === 'WINBACK' && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  미방문 기간
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-neutral-600">마지막 방문 후</span>
+                  <Input
+                    type="number"
+                    min={60}
+                    max={365}
+                    value={winbackDaysInactive}
+                    onChange={(e) => setWinbackDaysInactive(parseInt(e.target.value) || 90)}
+                    className="w-20 text-center"
+                  />
+                  <span className="text-sm text-neutral-600">일 이상 미방문 시</span>
+                </div>
+                <p className="text-xs text-neutral-400 mt-1">이탈 방지보다 긴 기간 미방문 고객에게 특별 할인을 보냅니다</p>
+              </div>
+            )}
+
+            {type === 'SLOW_DAY' && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  비수기 요일
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {['일', '월', '화', '수', '목', '금', '토'].map((day, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setSlowDays((prev) =>
+                          prev.includes(idx)
+                            ? prev.filter((d) => d !== idx)
+                            : [...prev, idx].sort()
+                        );
+                      }}
+                      className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
+                        slowDays.includes(idx)
+                          ? 'bg-brand-500 text-white'
+                          : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-neutral-400 mt-1">선택한 요일에 방문 이력 있는 고객에게 프로모션을 발송합니다</p>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1">
                 발송 시각
@@ -314,7 +457,15 @@ export default function AutomationSettingPage() {
                 <Input
                   value={couponContent}
                   onChange={(e) => setCouponContent(e.target.value)}
-                  placeholder={type === 'BIRTHDAY' ? '생일 축하 10% 할인' : '재방문 감사 10% 할인'}
+                  placeholder={
+                    type === 'BIRTHDAY' ? '생일 축하 10% 할인' :
+                    type === 'ANNIVERSARY' ? '가입 기념일 축하 10% 할인' :
+                    type === 'FIRST_VISIT_FOLLOWUP' ? '첫 방문 감사 10% 할인' :
+                    type === 'VIP_MILESTONE' ? 'VIP 감사 특별 할인' :
+                    type === 'WINBACK' ? '다시 만나고 싶어요! 20% 할인' :
+                    type === 'SLOW_DAY' ? '오늘만의 특별 할인 10%' :
+                    '재방문 감사 10% 할인'
+                  }
                   maxLength={50}
                 />
                 <p className="text-xs text-neutral-400 mt-1">
@@ -355,7 +506,13 @@ export default function AutomationSettingPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-neutral-50 rounded-lg p-3">
                   <div className="text-sm text-neutral-500">
-                    {type === 'BIRTHDAY' ? '생일 정보가 있는 고객' : '재방문 가능 고객'}
+                    {type === 'BIRTHDAY' ? '생일 정보가 있는 고객' :
+                     type === 'CHURN_PREVENTION' ? '재방문 가능 고객' :
+                     type === 'ANNIVERSARY' ? '등록 고객' :
+                     type === 'FIRST_VISIT_FOLLOWUP' ? '첫 방문 고객' :
+                     type === 'VIP_MILESTONE' ? 'VIP 후보 고객' :
+                     type === 'WINBACK' ? '장기 미방문 고객' :
+                     '프로모션 대상 고객'}
                   </div>
                   <div className="text-xl font-bold text-neutral-900 mt-1">
                     {preview.totalEligible}명
@@ -363,10 +520,12 @@ export default function AutomationSettingPage() {
                 </div>
                 <div className="bg-neutral-50 rounded-lg p-3">
                   <div className="text-sm text-neutral-500">
-                    {type === 'BIRTHDAY' ? '이번 달 예상 발송' : '현재 이탈 위험'}
+                    {(type === 'CHURN_PREVENTION' || type === 'WINBACK') ? '현재 대상' : '이번 달 예상 발송'}
                   </div>
                   <div className="text-xl font-bold text-neutral-900 mt-1">
-                    ~{type === 'BIRTHDAY' ? preview.thisMonthEstimate : preview.currentChurnRisk}건
+                    ~{(type === 'CHURN_PREVENTION' || type === 'WINBACK')
+                      ? preview.currentChurnRisk
+                      : preview.thisMonthEstimate}건
                   </div>
                 </div>
               </div>
