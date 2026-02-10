@@ -77,6 +77,10 @@ model Store {
   // 리타겟 쿠폰
   retargetCoupons       RetargetCoupon[]
 
+  // 자동 마케팅
+  automationRules       AutomationRule[]
+  automationLogs        AutomationLog[]
+
   // 스토어 주문
   storeOrders           StoreOrder[]
 
@@ -209,6 +213,7 @@ model Customer {
   waitingList       WaitingList[]
   retargetCoupons   RetargetCoupon[]
   surveyAnswers     SurveyAnswer[]
+  automationLogs    AutomationLog[]
 
   @@unique([storeId, kakaoId])  // 매장별 카카오ID 유니크 (null 허용)
   // naverId 유니크 제약조건 제거 - null인 경우가 많아 부분 인덱스로 처리
@@ -509,6 +514,8 @@ enum AlimTalkType {
   WAITING_CALLED        // 웨이팅 호출 알림
   WAITING_CANCELLED     // 웨이팅 취소 알림
   RETARGET_COUPON       // 리타겟 쿠폰 발송
+  AUTO_BIRTHDAY         // 생일 자동화
+  AUTO_CHURN            // 이탈 방지 자동화
 }
 
 enum AlimTalkStatus {
@@ -1626,4 +1633,79 @@ model FranchisePointLedger {
   @@index([franchiseCustomerId])
   @@index([createdAt])
   @@map("franchise_point_ledger")
+}
+
+// ─── 자동 마케팅 (Marketing Automation) ───
+
+enum AutomationRuleType {
+  BIRTHDAY           // 생일 축하
+  CHURN_PREVENTION   // 이탈 방지
+}
+
+// 자동화 규칙 (매장별 시나리오 ON/OFF + 설정)
+model AutomationRule {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  type      AutomationRuleType
+  enabled   Boolean  @default(false)
+
+  // 트리거 설정 (JSON)
+  // BIRTHDAY: { daysBefore: 3 }
+  // CHURN_PREVENTION: { daysInactive: 30 }
+  triggerConfig Json   @default("{}")
+
+  // 쿠폰 설정
+  couponEnabled      Boolean @default(true)
+  couponContent      String?  // "생일 축하 10% 할인" 등
+  couponDiscountType String?  // "PERCENT" | "FIXED"
+  couponDiscountValue Int?    // 10 (%) 또는 3000 (원)
+  couponValidDays    Int     @default(14)
+
+  // 메시지 설정
+  messageTemplate    String? @db.Text // 커스텀 메시지 (null이면 기본 템플릿)
+
+  // 발송 제한
+  cooldownDays       Int     @default(60)
+  monthlyMaxSends    Int?    // null = 제한 없음
+  sendTimeHour       Int     @default(10) // 발송 시각 (0-23)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  logs AutomationLog[]
+
+  @@unique([storeId, type])
+  @@index([enabled])
+  @@map("automation_rules")
+}
+
+// 자동화 실행 로그 (발송 이력 + ROI 추적)
+model AutomationLog {
+  id               String   @id @default(cuid())
+  automationRuleId String
+  rule             AutomationRule @relation(fields: [automationRuleId], references: [id], onDelete: Cascade)
+  storeId          String
+  store            Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customerId       String
+  customer         Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  // 발송 정보
+  sentAt           DateTime @default(now())
+  alimtalkOutboxId String?  // AlimTalkOutbox 참조
+  couponId         String?  // RetargetCoupon 참조
+  couponCode       String?
+
+  // 결과 추적
+  couponUsed       Boolean  @default(false)
+  couponUsedAt     DateTime?
+  resultAmount     Int?     // 쿠폰 사용 시 결제 금액
+
+  createdAt        DateTime @default(now())
+
+  @@index([automationRuleId, customerId, sentAt])
+  @@index([storeId, sentAt])
+  @@index([couponCode])
+  @@map("automation_logs")
 }

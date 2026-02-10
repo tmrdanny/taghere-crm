@@ -13,6 +13,8 @@ const ALIMTALK_COSTS: Record<string, number> = {
   POINTS_USED: 20,        // 포인트 사용 알림톡: 20원
   NAVER_REVIEW_REQUEST: 50, // 네이버 리뷰 요청 알림톡: 50원
   RETARGET_COUPON: 50,    // 리타겟 쿠폰 알림톡: 50원
+  AUTO_BIRTHDAY: 50,      // 생일 자동화 알림톡: 50원
+  AUTO_CHURN: 50,         // 이탈 방지 자동화 알림톡: 50원
 };
 const DEFAULT_COST = 20; // 기본 비용
 
@@ -135,13 +137,14 @@ async function processMessage(messageId: string): Promise<void> {
     const cost = isLowBalanceMessage ? 0 : (ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST);
 
     // LOW_BALANCE가 아닌 경우에만 잔액 확인
-    // RETARGET_COUPON은 무료 크레딧 적용 가능
+    // RETARGET_COUPON 및 자동화 메시지는 무료 크레딧 적용 가능
     const isRetargetCoupon = msg.messageType === 'RETARGET_COUPON';
+    const isAutomation = msg.messageType === 'AUTO_BIRTHDAY' || msg.messageType === 'AUTO_CHURN';
     let useFreeCredit = false;
 
     if (!isLowBalanceMessage) {
-      // 리타겟 쿠폰이면 무료 크레딧 확인
-      if (isRetargetCoupon) {
+      // 리타겟 쿠폰 또는 자동화 메시지이면 무료 크레딧 확인
+      if (isRetargetCoupon || isAutomation) {
         const remainingCredits = await getRemainingCredits(msg.storeId);
         if (remainingCredits > 0) {
           useFreeCredit = true;

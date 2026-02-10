@@ -56,6 +56,7 @@ import monthlyCreditRoutes from './routes/monthly-credit.js';
 import visitSourceSettingsRoutes from './routes/visit-source-settings.js';
 import insightsRoutes from './routes/insights.js';
 import retargetCouponRoutes from './routes/retarget-coupon.js';
+import automationRoutes from './routes/automation.js';
 import storeProductsRoutes from './routes/store-products.js';
 import storeOrdersRoutes from './routes/store-orders.js';
 import surveyQuestionsRoutes from './routes/survey-questions.js';
@@ -63,6 +64,7 @@ import { startAlimTalkWorker } from './services/alimtalk-worker.js';
 import { startSmsWorker } from './services/sms-worker.js';
 import { startExternalSmsWorker } from './services/external-sms-worker.js';
 import { startBrandMessageWorker } from './services/brand-message-worker.js';
+import { startAutomationWorker } from './services/automation-worker.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -249,6 +251,9 @@ app.use('/api/insights', insightsRoutes);
 // Retarget coupon routes
 app.use('/api/retarget-coupon', retargetCouponRoutes);
 
+// Automation routes
+app.use('/api/automation', automationRoutes);
+
 // Store routes
 app.use('/api/store-products', storeProductsRoutes);
 app.use('/api/store-orders', storeOrdersRoutes);
@@ -284,4 +289,5 @@ app.listen(PORT, () => {
   startSmsWorker();
   startExternalSmsWorker();
   startBrandMessageWorker();
+  startAutomationWorker();
 });
