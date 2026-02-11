@@ -529,6 +529,21 @@ export default function FranchiseCustomersPage() {
     });
   };
 
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const datePart = date.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const timePart = date.toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    return `${datePart} ${timePart}`;
+  };
+
   // Handle search
   const handleSearch = () => {
     setCurrentPage(1); // Reset to first page on search
@@ -1154,7 +1169,7 @@ export default function FranchiseCustomersPage() {
                       )}
                       {isColumnVisible('lastVisit') && (
                         <td className="px-6 py-4 text-sm text-neutral-500">
-                          {customer.lastVisitAt ? formatDate(customer.lastVisitAt) : '-'}
+                          {customer.lastVisitAt ? formatDateTime(customer.lastVisitAt) : '-'}
                         </td>
                       )}
                     </tr>
@@ -1327,7 +1342,7 @@ export default function FranchiseCustomersPage() {
                         <td className="px-6 py-4 text-sm text-neutral-900 text-right font-medium">{fc.visitCount}회</td>
                         <td className="px-6 py-4 text-sm text-neutral-600">{fc.lastStore?.name || '-'}</td>
                         <td className="px-6 py-4 text-sm text-neutral-500">
-                          {fc.lastVisitAt ? formatDate(fc.lastVisitAt) : '-'}
+                          {fc.lastVisitAt ? formatDateTime(fc.lastVisitAt) : '-'}
                         </td>
                       </tr>
                     ))
@@ -1480,7 +1495,7 @@ export default function FranchiseCustomersPage() {
                       <div>
                         <p className="text-xs text-neutral-500 mb-1">최근 방문</p>
                         <p className="text-sm font-medium text-neutral-900">
-                          {selectedCustomer.lastVisitAt ? formatDate(selectedCustomer.lastVisitAt) : '-'}
+                          {selectedCustomer.lastVisitAt ? formatDateTime(selectedCustomer.lastVisitAt) : '-'}
                         </p>
                       </div>
                     </div>
@@ -1660,7 +1675,7 @@ export default function FranchiseCustomersPage() {
                       <div>
                         <p className="text-xs text-neutral-500 mb-1">최근 방문</p>
                         <p className="text-sm font-medium text-neutral-900">
-                          {selectedFranchiseCustomer.lastVisitAt ? formatDate(selectedFranchiseCustomer.lastVisitAt) : '-'}
+                          {selectedFranchiseCustomer.lastVisitAt ? formatDateTime(selectedFranchiseCustomer.lastVisitAt) : '-'}
                         </p>
                       </div>
                       <div>
