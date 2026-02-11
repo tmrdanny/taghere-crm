@@ -20,6 +20,10 @@ import {
   Star,
   Moon,
   Calendar,
+  ChevronLeft,
+  MessageSquare,
+  ExternalLink,
+  AlertTriangle,
 } from 'lucide-react';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -94,6 +98,8 @@ export default function AutomationSettingPage() {
   const [couponEnabled, setCouponEnabled] = useState(true);
   const [couponContent, setCouponContent] = useState('');
   const [couponValidDays, setCouponValidDays] = useState(14);
+  const [storeName, setStoreName] = useState('');
+  const [naverPlaceUrl, setNaverPlaceUrl] = useState('');
 
   const meta = SCENARIO_META[type];
 
@@ -110,10 +116,11 @@ export default function AutomationSettingPage() {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
 
-      const [rulesRes, previewRes, logsRes] = await Promise.all([
+      const [rulesRes, previewRes, logsRes, storeRes] = await Promise.all([
         fetch(`${apiUrl}/api/automation/rules`, { headers }),
         fetch(`${apiUrl}/api/automation/preview/${type}`, { headers }),
         fetch(`${apiUrl}/api/automation/rules/${type}/logs?limit=10`, { headers }),
+        fetch(`${apiUrl}/api/retarget-coupon/settings`, { headers }),
       ]);
 
       if (rulesRes.ok) {
@@ -158,6 +165,12 @@ export default function AutomationSettingPage() {
         const data = await logsRes.json();
         setLogs(data.logs);
       }
+
+      if (storeRes.ok) {
+        const storeData = await storeRes.json();
+        setStoreName(storeData.storeName || '');
+        setNaverPlaceUrl(storeData.naverPlaceUrl || '');
+      }
     } catch (error) {
       console.error('Failed to fetch automation setting:', error);
     } finally {
@@ -166,6 +179,10 @@ export default function AutomationSettingPage() {
   };
 
   const handleSave = async () => {
+    if (enabled && !naverPlaceUrl) {
+      showToast('네이버 플레이스 링크가 없으면 알림톡의 길찾기 버튼이 작동하지 않습니다. 매장 설정에서 입력해주세요.', 'error');
+    }
+
     setIsSaving(true);
     try {
       const token = localStorage.getItem('token');
@@ -489,9 +506,187 @@ export default function AutomationSettingPage() {
                   <span className="text-sm text-neutral-600">일</span>
                 </div>
               </div>
+
+              {/* 네이버 플레이스 링크 */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  네이버 플레이스 링크
+                </label>
+                {naverPlaceUrl ? (
+                  <div className="flex items-center gap-2 p-2.5 bg-neutral-50 rounded-lg">
+                    <span className="text-sm text-neutral-700 truncate flex-1">{naverPlaceUrl}</span>
+                    <a
+                      href={naverPlaceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand-600 hover:text-brand-700 flex-shrink-0"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-amber-800">
+                        네이버 플레이스 링크가 설정되지 않았습니다
+                      </p>
+                      <p className="text-xs text-amber-600 mt-0.5">
+                        링크가 없으면 알림톡의 &quot;네이버 길찾기&quot; 버튼이 작동하지 않습니다
+                      </p>
+                      <button
+                        onClick={() => router.push('/settings')}
+                        className="text-xs text-brand-600 hover:text-brand-700 font-medium mt-1.5 inline-flex items-center gap-1"
+                      >
+                        매장 설정에서 입력하기
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <p className="text-xs text-neutral-400 mt-1">
+                  알림톡에 포함되는 네이버 길찾기 링크입니다. 매장 설정에서 변경할 수 있습니다.
+                </p>
+              </div>
             </CardContent>
           )}
         </Card>
+
+        {/* 카카오톡 메시지 미리보기 */}
+        {couponEnabled && (
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-neutral-600" />
+                <CardTitle className="text-lg">메시지 미리보기</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex justify-center">
+                {/* 폰 프레임 */}
+                <div className="w-56 h-[440px] bg-neutral-800 rounded-[2rem] p-1.5 shadow-xl">
+                  <div className="w-full h-full bg-[#B2C7D9] rounded-[1.5rem] overflow-hidden flex flex-col">
+                    {/* 카카오 헤더 */}
+                    <div className="flex items-center justify-between px-3 pt-8 pb-1.5">
+                      <ChevronLeft className="w-3.5 h-3.5 text-neutral-700" />
+                      <span className="font-medium text-[10px] text-neutral-800">태그히어</span>
+                      <div className="w-3.5" />
+                    </div>
+
+                    {/* 날짜 뱃지 */}
+                    <div className="flex justify-center mb-2">
+                      <span className="text-[8px] bg-neutral-500/30 text-neutral-700 px-1.5 py-0.5 rounded-full">
+                        {new Date().toLocaleDateString('ko-KR', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </span>
+                    </div>
+
+                    {/* 메시지 영역 */}
+                    <div className="flex-1 pl-1.5 pr-3 overflow-auto">
+                      <div className="flex gap-1">
+                        {/* 프로필 아이콘 */}
+                        <div className="flex-shrink-0">
+                          <div className="w-5 h-5 rounded-full bg-neutral-300" />
+                        </div>
+
+                        {/* 메시지 콘텐츠 */}
+                        <div className="flex-1 min-w-0 mr-2">
+                          <p className="text-[8px] text-neutral-600 mb-0.5">태그히어</p>
+
+                          {/* 알림톡 버블 */}
+                          <div className="relative">
+                            {/* kakao 뱃지 */}
+                            <div className="absolute -top-1 -right-1 z-10">
+                              <span className="bg-neutral-700 text-white text-[6px] px-0.5 py-px rounded-full font-medium">
+                                kakao
+                              </span>
+                            </div>
+
+                            {/* 알림톡 도착 배너 */}
+                            <div className="bg-[#FEE500] rounded-t-md px-1.5 py-1">
+                              <span className="text-[9px] font-medium text-neutral-800">알림톡 도착</span>
+                            </div>
+
+                            <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
+                              {/* 쿠폰 이미지 */}
+                              <img
+                                src="/images/coupon_kakao.png"
+                                alt="쿠폰 이미지"
+                                className="w-full h-auto"
+                              />
+
+                              {/* 메시지 본문 */}
+                              <div className="px-2.5 py-2.5">
+                                <p className="text-[9px] font-semibold text-neutral-800 mb-2">
+                                  태그히어 고객 대상 쿠폰
+                                </p>
+                                <div className="space-y-0.5 text-[9px] text-neutral-700">
+                                  <p>
+                                    <span className="text-[#6BA3FF]">{storeName || '매장명'}</span>에서 쿠폰을 보냈어요!
+                                  </p>
+                                  <p className="text-neutral-500 mb-2">
+                                    태그히어 이용 고객에게만 제공되는 쿠폰이에요.
+                                  </p>
+                                  <div className="space-y-0.5 mb-2">
+                                    <p>📌 {couponContent || (
+                                      type === 'BIRTHDAY' ? '생일 축하 10% 할인' :
+                                      type === 'ANNIVERSARY' ? '가입 기념일 축하 10% 할인' :
+                                      type === 'FIRST_VISIT_FOLLOWUP' ? '첫 방문 감사 10% 할인' :
+                                      type === 'VIP_MILESTONE' ? 'VIP 감사 특별 할인' :
+                                      type === 'WINBACK' ? '다시 만나고 싶어요! 20% 할인' :
+                                      type === 'SLOW_DAY' ? '오늘만의 특별 할인 10%' :
+                                      '재방문 감사 10% 할인'
+                                    )}</p>
+                                    <p>📌 {(() => {
+                                      const d = new Date();
+                                      d.setDate(d.getDate() + couponValidDays);
+                                      return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}까지`;
+                                    })()}</p>
+                                  </div>
+                                  <p className="text-neutral-500">
+                                    결제 시 직원 확인을 통해 사용할 수 있어요.
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* 버튼 */}
+                              <div className="px-2.5 pb-2.5 space-y-1">
+                                <div className={`w-full py-1.5 text-center text-[8px] font-medium rounded border ${
+                                  naverPlaceUrl
+                                    ? 'bg-white text-neutral-800 border-neutral-300'
+                                    : 'bg-neutral-100 text-neutral-400 border-neutral-200'
+                                }`}>
+                                  네이버 길찾기
+                                </div>
+                                <div className="w-full py-1.5 bg-white text-neutral-800 text-[8px] font-medium rounded border border-neutral-300 text-center">
+                                  직원 확인
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 시간 */}
+                          <p className="text-[7px] text-neutral-500 mt-0.5 text-right">
+                            오후 12:30
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 하단 세이프 영역 */}
+                    <div className="h-4" />
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-neutral-400 text-center mt-3">
+                실제 고객에게 발송되는 카카오 알림톡 형태입니다
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* 대상 미리보기 */}
         {preview && (
