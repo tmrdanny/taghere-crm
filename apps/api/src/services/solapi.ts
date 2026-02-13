@@ -696,6 +696,7 @@ export async function enqueueStampEarnedAlimTalk(params: {
   stampLedgerId: string;
   phone: string;
   variables: StampEarnedVariables;
+  skipAlimtalkCheck?: boolean; // 프랜차이즈 통합 모드: 호출자가 이미 franchiseStampSetting.alimtalkEnabled 검증 완료
 }): Promise<{ success: boolean; error?: string }> {
   console.log(`[AlimTalk] enqueueStampEarnedAlimTalk called:`, {
     storeId: params.storeId,
@@ -703,21 +704,24 @@ export async function enqueueStampEarnedAlimTalk(params: {
     stampLedgerId: params.stampLedgerId,
     phone: params.phone,
     variables: params.variables,
+    skipAlimtalkCheck: params.skipAlimtalkCheck,
   });
 
   // 매장 스탬프 알림톡 설정 및 지연 발송 설정 확인
   const [stampSetting, storeDelaySetting] = await Promise.all([
-    prisma.stampSetting.findUnique({
-      where: { storeId: params.storeId },
-      select: { alimtalkEnabled: true },
-    }),
+    params.skipAlimtalkCheck
+      ? Promise.resolve(null)
+      : prisma.stampSetting.findUnique({
+          where: { storeId: params.storeId },
+          select: { alimtalkEnabled: true },
+        }),
     prisma.store.findUnique({
       where: { id: params.storeId },
       select: { alimtalkDelayEnabled: true, alimtalkDelayMinutes: true },
     }),
   ]);
 
-  if (!stampSetting?.alimtalkEnabled) {
+  if (!params.skipAlimtalkCheck && !stampSetting?.alimtalkEnabled) {
     console.log(`[AlimTalk] Stamp alimtalk disabled for store: ${params.storeId}`);
     return { success: false, error: 'Stamp alimtalk disabled' };
   }

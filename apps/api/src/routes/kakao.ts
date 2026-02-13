@@ -946,6 +946,7 @@ async function handleStampCallback(
           stampUsageRule,
           reviewGuide,
         },
+        skipAlimtalkCheck: true, // 프랜차이즈 통합: franchiseStampSetting.alimtalkEnabled 이미 검증됨
       }).catch((err) => {
         console.error('[Kakao Stamp] Franchise Stamp AlimTalk enqueue failed:', err);
       });
