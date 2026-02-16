@@ -560,6 +560,8 @@ export async function restoreWaiting(
 }
 
 export async function getWaitingStats(storeId: string): Promise<WaitingStats> {
+  const { todayStart, todayEnd } = getTodayStartEnd();
+
   const waitingTypes = await prisma.waitingType.findMany({
     where: { storeId, isActive: true },
     orderBy: { sortOrder: 'asc' },
@@ -570,6 +572,7 @@ export async function getWaitingStats(storeId: string): Promise<WaitingStats> {
     where: {
       storeId,
       status: { in: ['WAITING', 'CALLED'] },
+      createdAt: { gte: todayStart, lte: todayEnd },
     },
     _count: { id: true },
     _sum: { partySize: true },
