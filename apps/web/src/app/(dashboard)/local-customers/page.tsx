@@ -641,13 +641,100 @@ export default function LocalCustomersPage() {
             </div>
 
             {selectedSidos.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {selectedSidos.map((sido) => (
-                  <span key={sido} className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-100 text-brand-700 rounded-full text-sm font-medium">
-                    {sido}
-                    <button onClick={() => removeSido(sido)} className="hover:bg-brand-200 rounded-full p-0.5 transition-colors"><X className="w-3.5 h-3.5" /></button>
-                  </span>
-                ))}
+              <div className="space-y-2 mb-3">
+                <div className="flex flex-wrap gap-2">
+                  {selectedSidos.map((sido) => (
+                    <span key={sido} className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-100 text-brand-700 rounded-full text-sm font-medium">
+                      {sido}
+                      {(selectedSigungus[sido]?.length || 0) > 0 && (
+                        <span className="text-xs text-brand-500">({selectedSigungus[sido].length})</span>
+                      )}
+                      <button onClick={() => removeSido(sido)} className="hover:bg-brand-200 rounded-full p-0.5 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                    </span>
+                  ))}
+                </div>
+
+                {/* 시/군/구 상세 선택 */}
+                <div className="border border-neutral-200 rounded-lg overflow-hidden">
+                  <div className="flex overflow-x-auto bg-neutral-50 border-b border-neutral-200">
+                    {selectedSidos.map((sido) => (
+                      <button
+                        key={sido}
+                        onClick={() => setActiveSidoForSigungu(activeSidoForSigungu === sido ? null : sido)}
+                        className={cn(
+                          'px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 transition-colors',
+                          activeSidoForSigungu === sido
+                            ? 'border-brand-600 text-brand-700 bg-white'
+                            : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                        )}
+                      >
+                        {sido}
+                        {(selectedSigungus[sido]?.length || 0) > 0 && (
+                          <span className="ml-1 text-brand-500">{selectedSigungus[sido].length}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {activeSidoForSigungu && regionCounts.sigunguCounts[activeSidoForSigungu] && (
+                    <div className="p-3">
+                      <div className="mb-2">
+                        <input
+                          type="text"
+                          value={sigunguSearchQuery}
+                          onChange={(e) => setSigunguSearchQuery(e.target.value)}
+                          placeholder={`${activeSidoForSigungu} 시/군/구 검색...`}
+                          className="w-full px-3 py-1.5 border border-neutral-200 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                        {Object.entries(regionCounts.sigunguCounts[activeSidoForSigungu])
+                          .filter(([sigungu]) => !sigunguSearchQuery || sigungu.includes(sigunguSearchQuery))
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([sigungu, count]) => {
+                            const isSelected = selectedSigungus[activeSidoForSigungu]?.includes(sigungu);
+                            return (
+                              <button
+                                key={sigungu}
+                                onClick={() => {
+                                  setSelectedSigungus(prev => {
+                                    const current = prev[activeSidoForSigungu!] || [];
+                                    if (isSelected) {
+                                      return { ...prev, [activeSidoForSigungu!]: current.filter(s => s !== sigungu) };
+                                    } else {
+                                      return { ...prev, [activeSidoForSigungu!]: [...current, sigungu] };
+                                    }
+                                  });
+                                }}
+                                className={cn(
+                                  'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                                  isSelected
+                                    ? 'bg-brand-600 text-white'
+                                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                                )}
+                              >
+                                {sigungu} <span className={cn('text-[10px]', isSelected ? 'text-brand-200' : 'text-neutral-400')}>{count.toLocaleString()}</span>
+                              </button>
+                            );
+                          })}
+                      </div>
+                      {(selectedSigungus[activeSidoForSigungu]?.length || 0) > 0 && (
+                        <p className="text-[10px] text-neutral-400 mt-2">
+                          * 미선택 시 {activeSidoForSigungu} 전체에 발송됩니다
+                        </p>
+                      )}
+                      {(selectedSigungus[activeSidoForSigungu]?.length || 0) === 0 && (
+                        <p className="text-[10px] text-neutral-400 mt-2">
+                          * 상세 지역 미선택 시 {activeSidoForSigungu} 전체에 발송됩니다
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {activeSidoForSigungu && !regionCounts.sigunguCounts[activeSidoForSigungu] && (
+                    <div className="p-3 text-xs text-neutral-400 text-center">상세 지역 데이터가 없습니다</div>
+                  )}
+                </div>
               </div>
             )}
 
