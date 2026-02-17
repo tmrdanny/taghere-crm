@@ -37,11 +37,17 @@ import {
   TrendingUp,
   Wallet,
   Sparkles,
+  MapPin,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChargeModal } from '@/components/ChargeModal';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+const KOREA_SIDOS = [
+  '서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종',
+  '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'
+];
 
 // 연령대 옵션 (local-customers와 동일)
 const AGE_GROUP_OPTIONS = [
@@ -193,12 +199,61 @@ export default function MessagesPage() {
   const [genderFilter, setGenderFilter] = useState<'all' | 'MALE' | 'FEMALE'>('all');
   const [selectedAgeGroups, setSelectedAgeGroups] = useState<string[]>([]);
 
+  // 지역 필터 상태
+  const [selectedSidos, setSelectedSidos] = useState<string[]>([]);
+  const [selectedSigungus, setSelectedSigungus] = useState<Record<string, string[]>>({});
+  const [regionCounts, setRegionCounts] = useState<{
+    sidoCounts: Record<string, number>;
+    sigunguCounts: Record<string, Record<string, number>>;
+  }>({ sidoCounts: {}, sigunguCounts: {} });
+  const [activeSidoForSigungu, setActiveSidoForSigungu] = useState<string | null>(null);
+  const [sigunguSearchQuery, setSigunguSearchQuery] = useState('');
+  const [regionSearchQuery, setRegionSearchQuery] = useState('');
+  const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
+
   // 연령대 토글
   const toggleAgeGroup = (value: string) => {
     setSelectedAgeGroups((prev) =>
       prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
     );
   };
+
+  // 지역 선택 헬퍼
+  const addSido = useCallback((sido: string) => {
+    setSelectedSidos(prev => prev.includes(sido) ? prev : [...prev, sido]);
+    setRegionSearchQuery('');
+    setIsRegionDropdownOpen(false);
+  }, []);
+
+  const removeSido = useCallback((sido: string) => {
+    setSelectedSidos(prev => prev.filter(s => s !== sido));
+    setSelectedSigungus(prev => {
+      const next = { ...prev };
+      delete next[sido];
+      return next;
+    });
+    if (activeSidoForSigungu === sido) setActiveSidoForSigungu(null);
+  }, [activeSidoForSigungu]);
+
+  const filteredSidos = regionSearchQuery.trim()
+    ? KOREA_SIDOS.filter((sido) => sido.toLowerCase().includes(regionSearchQuery.toLowerCase()))
+    : KOREA_SIDOS;
+
+  // 지역별 고객 수 helper
+  const buildRegionParams = useCallback(() => {
+    const params: Record<string, string> = {};
+    if (selectedSidos.length > 0) {
+      params.regionSidos = selectedSidos.join(',');
+      const sigunguList: string[] = [];
+      Object.entries(selectedSigungus).forEach(([sido, sigungus]) => {
+        if (sigungus && sigungus.length > 0) {
+          sigungus.forEach(s => sigunguList.push(`${sido}/${s}`));
+        }
+      });
+      if (sigunguList.length > 0) params.regionSigungus = sigunguList.join(',');
+    }
+    return params;
+  }, [selectedSidos, selectedSigungus]);
 
   // UI states
   const [isLoading, setIsLoading] = useState(true);
@@ -327,6 +382,8 @@ export default function MessagesPage() {
         if (draft.isAdMessage !== undefined) setIsAdMessage(draft.isAdMessage);
         if (draft.kakaoMessageType) setKakaoMessageType(draft.kakaoMessageType);
         if (draft.kakaoButtons) setKakaoButtons(draft.kakaoButtons);
+        if (draft.selectedSidos) setSelectedSidos(draft.selectedSidos);
+        if (draft.selectedSigungus) setSelectedSigungus(draft.selectedSigungus);
       } catch (e) {
         console.error('Failed to restore draft:', e);
       }
@@ -343,6 +400,8 @@ export default function MessagesPage() {
         selectedTarget,
         genderFilter,
         selectedAgeGroups,
+        selectedSidos,
+        selectedSigungus,
         isAdMessage,
         kakaoMessageType,
         kakaoButtons,
@@ -350,7 +409,7 @@ export default function MessagesPage() {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     }, 500);
     return () => clearTimeout(timer);
-  }, [messageContent, kakaoContent, activeTab, selectedTarget, genderFilter, selectedAgeGroups, isAdMessage, kakaoMessageType, kakaoButtons]);
+  }, [messageContent, kakaoContent, activeTab, selectedTarget, genderFilter, selectedAgeGroups, selectedSidos, selectedSigungus, isAdMessage, kakaoMessageType, kakaoButtons]);
 
   // Draft 삭제 함수
   const clearDraft = () => {
@@ -386,6 +445,8 @@ export default function MessagesPage() {
       if (selectedAgeGroups.length > 0) {
         params.set('ageGroups', selectedAgeGroups.join(','));
       }
+      const regionParams = buildRegionParams();
+      Object.entries(regionParams).forEach(([k, v]) => params.set(k, v));
 
       const url = `${API_BASE}/api/sms/target-counts${params.toString() ? '?' + params.toString() : ''}`;
       const res = await fetch(url, {
@@ -398,7 +459,7 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Failed to fetch target counts:', error);
     }
-  }, [genderFilter, selectedAgeGroups]);
+  }, [genderFilter, selectedAgeGroups, buildRegionParams]);
 
   // Fetch estimate (with filters)
   const fetchEstimate = useCallback(async () => {
@@ -430,6 +491,10 @@ export default function MessagesPage() {
         params.set('hasImage', 'true');
       }
 
+      // 지역 필터
+      const regionParams = buildRegionParams();
+      Object.entries(regionParams).forEach(([k, v]) => params.set(k, v));
+
       const res = await fetch(`${API_BASE}/api/sms/estimate?${params}`, {
         headers: { Authorization: `Bearer ${getAuthToken()}` },
       });
@@ -441,7 +506,7 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Failed to fetch estimate:', error);
     }
-  }, [messageContent, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, uploadedImage]);
+  }, [messageContent, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, uploadedImage, buildRegionParams]);
 
   // Fetch test count
   const fetchTestCount = useCallback(async () => {
@@ -498,6 +563,10 @@ export default function MessagesPage() {
         params.set('ageGroups', selectedAgeGroups.join(','));
       }
 
+      // 지역 필터
+      const regionParams = buildRegionParams();
+      Object.entries(regionParams).forEach(([k, v]) => params.set(k, v));
+
       const res = await fetch(`${API_BASE}/api/brand-message/estimate?${params}`, {
         headers: { Authorization: `Bearer ${getAuthToken()}` },
       });
@@ -509,7 +578,7 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Failed to fetch kakao estimate:', error);
     }
-  }, [kakaoContent, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, kakaoMessageType]);
+  }, [kakaoContent, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, kakaoMessageType, buildRegionParams]);
 
   // 쿠폰 알림톡 비용 예상 조회
   const fetchCouponEstimate = useCallback(async () => {
@@ -685,9 +754,21 @@ export default function MessagesPage() {
         messageType: kakaoMessageType,
         genderFilter: genderFilter !== 'all' ? genderFilter : undefined,
         ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : undefined,
+        regionSidos: selectedSidos.length > 0 ? selectedSidos : undefined,
         imageId: kakaoUploadedImage?.imageId || undefined,
         buttons: validButtons.length > 0 ? validButtons : undefined,
       };
+
+      // 지역 시군구 필터
+      if (selectedSidos.length > 0) {
+        const sigunguList: string[] = [];
+        Object.entries(selectedSigungus).forEach(([sido, sigungus]) => {
+          if (sigungus && sigungus.length > 0) {
+            sigungus.forEach(s => sigunguList.push(`${sido}/${s}`));
+          }
+        });
+        if (sigunguList.length > 0) body.regionSigungus = sigunguList;
+      }
 
       if (selectedTarget === 'CUSTOM') {
         body.customerIds = selectedCustomers.map(c => c.id);
@@ -737,13 +818,29 @@ export default function MessagesPage() {
     }
   };
 
+  // 지역별 고객 수 조회
+  const fetchRegionCounts = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/sms/region-counts`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRegionCounts({
+          sidoCounts: data.sidoCounts || {},
+          sigunguCounts: data.sigunguCounts || {},
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch region counts:', error);
+    }
+  }, []);
+
   // Initial load
   useEffect(() => {
     const init = async () => {
       setIsLoading(true);
-      await fetchTestCount();
-      await fetchTargetCounts();
-      await checkSendableTime();
+      await Promise.all([fetchTestCount(), fetchTargetCounts(), checkSendableTime(), fetchRegionCounts()]);
       setIsLoading(false);
     };
     init();
@@ -1037,10 +1134,22 @@ export default function MessagesPage() {
         targetType: selectedTarget,
         genderFilter: genderFilter !== 'all' ? genderFilter : undefined,
         ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : undefined,
+        regionSidos: selectedSidos.length > 0 ? selectedSidos : undefined,
         imageUrl: uploadedImage?.imageUrl || undefined,
         imageId: uploadedImage?.imageId || undefined, // SOLAPI 이미지 ID 전달
         isAdMessage,
       };
+
+      // 지역 시군구 필터
+      if (selectedSidos.length > 0) {
+        const sigunguList: string[] = [];
+        Object.entries(selectedSigungus).forEach(([sido, sigungus]) => {
+          if (sigungus && sigungus.length > 0) {
+            sigungus.forEach(s => sigunguList.push(`${sido}/${s}`));
+          }
+        });
+        if (sigunguList.length > 0) body.regionSigungus = sigunguList;
+      }
 
       if (selectedTarget === 'CUSTOM') {
         body.customerIds = selectedCustomers.map(c => c.id);
@@ -1303,6 +1412,141 @@ export default function MessagesPage() {
                     ))}
                   </div>
                 </div>
+              </div>
+
+              {/* 지역 필터 */}
+              <div>
+                <label className="text-xs font-medium text-[#64748b] mb-2 block">
+                  지역 필터
+                  {selectedSidos.length > 0 && (
+                    <span className="ml-1 text-[#3b82f6]">({selectedSidos.length}개 선택)</span>
+                  )}
+                </label>
+
+                {/* 선택된 시도 칩 */}
+                {selectedSidos.length > 0 && (
+                  <div className="space-y-2 mb-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedSidos.map((sido) => (
+                        <span key={sido} className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#eff6ff] text-[#3b82f6] rounded-full text-xs font-medium">
+                          {sido}
+                          {(selectedSigungus[sido]?.length || 0) > 0 && (
+                            <span className="text-[10px] text-[#93b4f5]">({selectedSigungus[sido].length})</span>
+                          )}
+                          <button onClick={() => removeSido(sido)} className="hover:bg-[#dbeafe] rounded-full p-0.5 transition-colors"><X className="w-3 h-3" /></button>
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* 시/군/구 상세 선택 */}
+                    <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
+                      <div className="flex overflow-x-auto bg-[#f8fafc] border-b border-[#e5e7eb]">
+                        {selectedSidos.map((sido) => (
+                          <button
+                            key={sido}
+                            onClick={() => setActiveSidoForSigungu(activeSidoForSigungu === sido ? null : sido)}
+                            className={cn(
+                              'px-3 py-1.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors',
+                              activeSidoForSigungu === sido
+                                ? 'border-[#3b82f6] text-[#3b82f6] bg-white'
+                                : 'border-transparent text-[#94a3b8] hover:text-[#64748b]'
+                            )}
+                          >
+                            {sido}
+                            {(selectedSigungus[sido]?.length || 0) > 0 && (
+                              <span className="ml-1 text-[#3b82f6]">{selectedSigungus[sido].length}</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+
+                      {activeSidoForSigungu && regionCounts.sigunguCounts[activeSidoForSigungu] && (
+                        <div className="p-2.5">
+                          <div className="mb-2">
+                            <input
+                              type="text"
+                              value={sigunguSearchQuery}
+                              onChange={(e) => setSigunguSearchQuery(e.target.value)}
+                              placeholder={`${activeSidoForSigungu} 시/군/구 검색...`}
+                              className="w-full px-2.5 py-1.5 border border-[#e5e7eb] rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-[#3b82f6]"
+                            />
+                          </div>
+                          <div className="flex flex-wrap gap-1 max-h-36 overflow-y-auto">
+                            {Object.entries(regionCounts.sigunguCounts[activeSidoForSigungu])
+                              .filter(([sigungu]) => !sigunguSearchQuery || sigungu.includes(sigunguSearchQuery))
+                              .sort((a, b) => b[1] - a[1])
+                              .map(([sigungu, count]) => {
+                                const isSelected = selectedSigungus[activeSidoForSigungu]?.includes(sigungu);
+                                return (
+                                  <button
+                                    key={sigungu}
+                                    onClick={() => {
+                                      setSelectedSigungus(prev => {
+                                        const current = prev[activeSidoForSigungu!] || [];
+                                        if (isSelected) {
+                                          return { ...prev, [activeSidoForSigungu!]: current.filter(s => s !== sigungu) };
+                                        } else {
+                                          return { ...prev, [activeSidoForSigungu!]: [...current, sigungu] };
+                                        }
+                                      });
+                                    }}
+                                    className={cn(
+                                      'px-2 py-1 rounded-md text-xs font-medium transition-colors',
+                                      isSelected
+                                        ? 'bg-[#3b82f6] text-white'
+                                        : 'bg-[#f1f5f9] text-[#64748b] hover:bg-[#e2e8f0]'
+                                    )}
+                                  >
+                                    {sigungu} <span className={cn('text-[10px]', isSelected ? 'text-blue-200' : 'text-[#94a3b8]')}>{count.toLocaleString()}</span>
+                                  </button>
+                                );
+                              })}
+                          </div>
+                          <p className="text-[10px] text-[#94a3b8] mt-1.5">
+                            * 미선택 시 {activeSidoForSigungu} 전체에 발송됩니다
+                          </p>
+                        </div>
+                      )}
+
+                      {activeSidoForSigungu && !regionCounts.sigunguCounts[activeSidoForSigungu] && (
+                        <div className="p-2.5 text-xs text-[#94a3b8] text-center">상세 지역 데이터가 없습니다</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 지역 검색 드롭다운 */}
+                <div className="relative">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94a3b8]" />
+                    <input
+                      type="text"
+                      value={regionSearchQuery}
+                      onChange={(e) => { setRegionSearchQuery(e.target.value); setIsRegionDropdownOpen(true); }}
+                      onFocus={() => setIsRegionDropdownOpen(true)}
+                      placeholder="지역 검색 (예: 서울, 경기...)"
+                      className="w-full pl-8 pr-3 py-2 border border-[#e5e7eb] rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#3b82f6]"
+                    />
+                  </div>
+                  {isRegionDropdownOpen && (
+                    <div className="absolute z-20 w-full mt-1 bg-white border border-[#e5e7eb] rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                      {filteredSidos.length > 0 ? filteredSidos.map((sido) => {
+                        const isSelected = selectedSidos.includes(sido);
+                        const count = regionCounts.sidoCounts[sido] || 0;
+                        return (
+                          <button key={sido} onClick={() => !isSelected && addSido(sido)} disabled={isSelected} className={cn("w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors", isSelected ? "bg-[#eff6ff] text-[#3b82f6]" : "hover:bg-[#f8fafc] text-[#64748b]")}>
+                            <span className="font-medium">{sido}</span>
+                            <div className="flex items-center gap-2">
+                              {count > 0 && !isSelected && <span className="text-[10px] text-[#94a3b8]">+{count.toLocaleString()}명</span>}
+                              {isSelected ? <span className="text-[10px] text-[#3b82f6]">선택됨</span> : <Plus className="w-3.5 h-3.5 text-[#94a3b8]" />}
+                            </div>
+                          </button>
+                        );
+                      }) : <div className="px-3 py-2 text-xs text-[#94a3b8]">검색 결과가 없습니다</div>}
+                    </div>
+                  )}
+                </div>
+                {isRegionDropdownOpen && <div className="fixed inset-0 z-10" onClick={() => setIsRegionDropdownOpen(false)} />}
               </div>
             </div>
           )}

@@ -104,7 +104,32 @@ function getAgeGroupBirthYearRange(ageGroup: string): { gte: number; lte: number
 }
 
 // 필터 조건 생성 헬퍼 함수
-function buildFilterConditions(genderFilter?: string, ageGroups?: string[]): any {
+// 지역 필터를 파싱하여 Prisma where 조건 생성
+function buildRegionConditions(regionSidos?: string[], regionSigungus?: string[]): any[] {
+  if (!regionSidos || regionSidos.length === 0) return [];
+
+  // regionSigungus: ["서울/강남구", "서울/송파구", "경기/성남시"] 형태
+  const sigunguMap: Record<string, string[]> = {};
+  if (regionSigungus && regionSigungus.length > 0) {
+    for (const item of regionSigungus) {
+      const [sido, sigungu] = item.split('/');
+      if (sido && sigungu) {
+        if (!sigunguMap[sido]) sigunguMap[sido] = [];
+        sigunguMap[sido].push(sigungu);
+      }
+    }
+  }
+
+  return regionSidos.map((sido) => {
+    const sigungus = sigunguMap[sido];
+    if (sigungus && sigungus.length > 0) {
+      return { regionSido: sido, regionSigungu: { in: sigungus } };
+    }
+    return { regionSido: sido };
+  });
+}
+
+function buildFilterConditions(genderFilter?: string, ageGroups?: string[], regionSidos?: string[], regionSigungus?: string[]): any {
   const conditions: any = {};
 
   // 성별 필터
@@ -113,6 +138,7 @@ function buildFilterConditions(genderFilter?: string, ageGroups?: string[]): any
   }
 
   // 연령대 필터 (개별 연령대 배열 지원)
+  const orConditions: any[] = [];
   if (ageGroups && ageGroups.length > 0) {
     const birthYearConditions: any[] = [];
     for (const ageGroup of ageGroups) {
@@ -128,6 +154,16 @@ function buildFilterConditions(genderFilter?: string, ageGroups?: string[]): any
     }
   }
 
+  // 지역 필터
+  const regionConditions = buildRegionConditions(regionSidos, regionSigungus);
+  if (regionConditions.length > 0) {
+    // 지역은 AND 조건으로 추가 (OR 내의 하나에 해당하면 됨)
+    conditions.AND = [
+      ...(conditions.AND || []),
+      { OR: regionConditions },
+    ];
+  }
+
   return conditions;
 }
 
@@ -135,15 +171,19 @@ function buildFilterConditions(genderFilter?: string, ageGroups?: string[]): any
 router.get('/target-counts', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { genderFilter, ageGroups } = req.query;
+    const { genderFilter, ageGroups, regionSidos, regionSigungus } = req.query;
 
     // ageGroups 문자열을 배열로 변환
     const ageGroupList = ageGroups ? (ageGroups as string).split(',').filter(Boolean) : undefined;
+    const regionSidoList = regionSidos ? (regionSidos as string).split(',').filter(Boolean) : undefined;
+    const regionSigunguList = regionSigungus ? (regionSigungus as string).split(',').filter(Boolean) : undefined;
 
     // 필터 조건 생성
     const filterConditions = buildFilterConditions(
       genderFilter as string,
-      ageGroupList
+      ageGroupList,
+      regionSidoList,
+      regionSigunguList,
     );
 
     const baseWhere = { storeId, phone: { not: null }, ...filterConditions };
@@ -179,19 +219,64 @@ router.get('/target-counts', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/sms/region-counts - 매장 고객 지역별 카운트
+router.get('/region-counts', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+
+    const baseWhere = { storeId, phone: { not: null } };
+
+    const sidoCounts = await prisma.customer.groupBy({
+      by: ['regionSido'],
+      where: { ...baseWhere, AND: [{ regionSido: { not: null } }, { regionSido: { not: '' } }] },
+      _count: { _all: true },
+    });
+
+    const sigunguCounts = await prisma.customer.groupBy({
+      by: ['regionSido', 'regionSigungu'],
+      where: { ...baseWhere, AND: [{ regionSido: { not: null } }, { regionSido: { not: '' } }, { regionSigungu: { not: null } }, { regionSigungu: { not: '' } }] },
+      _count: { _all: true },
+    });
+
+    const sidoCountMap: Record<string, number> = {};
+    sidoCounts.forEach((item) => {
+      if (item.regionSido) {
+        sidoCountMap[item.regionSido] = (sidoCountMap[item.regionSido] || 0) + (item._count?._all || 0);
+      }
+    });
+
+    const sigunguCountMap: Record<string, Record<string, number>> = {};
+    sigunguCounts.forEach((item) => {
+      if (item.regionSido && item.regionSigungu) {
+        if (!sigunguCountMap[item.regionSido]) sigunguCountMap[item.regionSido] = {};
+        sigunguCountMap[item.regionSido][item.regionSigungu] = (sigunguCountMap[item.regionSido][item.regionSigungu] || 0) + (item._count?._all || 0);
+      }
+    });
+
+    res.json({ sidoCounts: sidoCountMap, sigunguCounts: sigunguCountMap });
+  } catch (error) {
+    console.error('Region counts error:', error);
+    res.status(500).json({ error: '지역별 카운트 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 // GET /api/sms/estimate - 발송 비용 예상 (필터 적용)
 router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { targetType, content, customerIds, genderFilter, ageGroups, hasImage } = req.query;
+    const { targetType, content, customerIds, genderFilter, ageGroups, hasImage, regionSidos, regionSigungus } = req.query;
 
-    // ageGroups 문자열을 배열로 변환
+    // 파라미터를 배열로 변환
     const ageGroupList = ageGroups ? (ageGroups as string).split(',').filter(Boolean) : undefined;
+    const regionSidoList = regionSidos ? (regionSidos as string).split(',').filter(Boolean) : undefined;
+    const regionSigunguList = regionSigungus ? (regionSigungus as string).split(',').filter(Boolean) : undefined;
 
     // 필터 조건 생성
     const filterConditions = buildFilterConditions(
       genderFilter as string,
-      ageGroupList
+      ageGroupList,
+      regionSidoList,
+      regionSigunguList,
     );
 
     let targetCount = 0;
@@ -282,7 +367,7 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { title, content, targetType, customerIds, genderFilter, ageGroups, imageUrl, imageId, isAdMessage = false } = req.body;
+    const { title, content, targetType, customerIds, genderFilter, ageGroups, imageUrl, imageId, isAdMessage = false, regionSidos, regionSigungus } = req.body;
 
     if (!content || content.trim() === '') {
       return res.status(400).json({ error: '메시지 내용을 입력해주세요.' });
@@ -328,6 +413,12 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       if (birthYearConditions.length > 0) {
         where.OR = birthYearConditions;
       }
+    }
+
+    // 지역 필터
+    const regionConditions = buildRegionConditions(regionSidos, regionSigungus);
+    if (regionConditions.length > 0) {
+      where.AND = [...(where.AND || []), { OR: regionConditions }];
     }
 
     const customers = await prisma.customer.findMany({

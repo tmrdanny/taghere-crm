@@ -86,8 +86,32 @@ function getAgeGroupBirthYearRange(ageGroup: string): { gte: number; lte: number
   }
 }
 
+// 지역 필터를 파싱하여 Prisma where 조건 생성
+function buildRegionConditions(regionSidos?: string[], regionSigungus?: string[]): any[] {
+  if (!regionSidos || regionSidos.length === 0) return [];
+
+  const sigunguMap: Record<string, string[]> = {};
+  if (regionSigungus && regionSigungus.length > 0) {
+    for (const item of regionSigungus) {
+      const [sido, sigungu] = item.split('/');
+      if (sido && sigungu) {
+        if (!sigunguMap[sido]) sigunguMap[sido] = [];
+        sigunguMap[sido].push(sigungu);
+      }
+    }
+  }
+
+  return regionSidos.map((sido) => {
+    const sigungus = sigunguMap[sido];
+    if (sigungus && sigungus.length > 0) {
+      return { regionSido: sido, regionSigungu: { in: sigungus } };
+    }
+    return { regionSido: sido };
+  });
+}
+
 // 필터 조건 생성 헬퍼 함수
-function buildFilterConditions(genderFilter?: string, ageGroups?: string[]): any {
+function buildFilterConditions(genderFilter?: string, ageGroups?: string[], regionSidos?: string[], regionSigungus?: string[]): any {
   const conditions: any = {};
 
   if (genderFilter && genderFilter !== 'all') {
@@ -105,6 +129,11 @@ function buildFilterConditions(genderFilter?: string, ageGroups?: string[]): any
     if (birthYearConditions.length > 0) {
       conditions.OR = birthYearConditions;
     }
+  }
+
+  const regionConditions = buildRegionConditions(regionSidos, regionSigungus);
+  if (regionConditions.length > 0) {
+    conditions.AND = [...(conditions.AND || []), { OR: regionConditions }];
   }
 
   return conditions;
@@ -205,10 +234,12 @@ router.get('/target-counts', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { targetType, messageType, customerIds, genderFilter, ageGroups } = req.query;
+    const { targetType, messageType, customerIds, genderFilter, ageGroups, regionSidos, regionSigungus } = req.query;
 
     const ageGroupList = ageGroups ? (ageGroups as string).split(',').filter(Boolean) : undefined;
-    const filterConditions = buildFilterConditions(genderFilter as string, ageGroupList);
+    const regionSidoList = regionSidos ? (regionSidos as string).split(',').filter(Boolean) : undefined;
+    const regionSigunguList = regionSigungus ? (regionSigungus as string).split(',').filter(Boolean) : undefined;
+    const filterConditions = buildFilterConditions(genderFilter as string, ageGroupList, regionSidoList, regionSigunguList);
 
     let targetCount = 0;
 
@@ -375,6 +406,8 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       customerIds,
       genderFilter,
       ageGroups,
+      regionSidos,
+      regionSigungus,
       imageUrl,
       imageId,
       buttons,
@@ -429,6 +462,12 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       if (birthYearConditions.length > 0) {
         where.OR = birthYearConditions;
       }
+    }
+
+    // 지역 필터
+    const regionConditions = buildRegionConditions(regionSidos, regionSigungus);
+    if (regionConditions.length > 0) {
+      where.AND = [...(where.AND || []), { OR: regionConditions }];
     }
 
     const customers = await prisma.customer.findMany({
@@ -589,6 +628,8 @@ router.post('/schedule', authMiddleware, async (req: AuthRequest, res) => {
       customerIds,
       genderFilter,
       ageGroups,
+      regionSidos,
+      regionSigungus,
       imageUrl,
       imageId,
       buttons,
@@ -634,6 +675,12 @@ router.post('/schedule', authMiddleware, async (req: AuthRequest, res) => {
       if (birthYearConditions.length > 0) {
         where.OR = birthYearConditions;
       }
+    }
+
+    // 지역 필터
+    const regionConditions = buildRegionConditions(regionSidos, regionSigungus);
+    if (regionConditions.length > 0) {
+      where.AND = [...(where.AND || []), { OR: regionConditions }];
     }
 
     const targetCount = await prisma.customer.count({ where });
