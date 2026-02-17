@@ -155,6 +155,17 @@ router.put('/rules/:type', authMiddleware, async (req: AuthRequest, res: Respons
       sendTimeHour,
     } = req.body;
 
+    // 활성화 시 네이버 플레이스 링크 필수 확인
+    if (enabled === true) {
+      const store = await prisma.store.findUnique({
+        where: { id: storeId },
+        select: { naverPlaceUrl: true },
+      });
+      if (!store?.naverPlaceUrl) {
+        return res.status(400).json({ error: '네이버 플레이스 링크가 없으면 자동 마케팅을 활성화할 수 없습니다. 매장 설정에서 입력해주세요.' });
+      }
+    }
+
     // 업데이트 데이터 구성 (undefined인 필드는 무시)
     const updateData: Record<string, any> = {};
     if (enabled !== undefined) updateData.enabled = enabled;

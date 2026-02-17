@@ -180,7 +180,8 @@ export default function AutomationSettingPage() {
 
   const handleSave = async () => {
     if (enabled && !naverPlaceUrl) {
-      showToast('네이버 플레이스 링크가 없으면 알림톡의 길찾기 버튼이 작동하지 않습니다. 매장 설정에서 입력해주세요.', 'error');
+      showToast('네이버 플레이스 링크가 없으면 자동 마케팅을 활성화할 수 없습니다. 매장 설정에서 입력해주세요.', 'error');
+      return;
     }
 
     setIsSaving(true);
@@ -266,7 +267,13 @@ export default function AutomationSettingPage() {
           </div>
           <Switch
             checked={enabled}
-            onCheckedChange={setEnabled}
+            onCheckedChange={(v) => {
+              if (v && !naverPlaceUrl) {
+                showToast('네이버 플레이스 링크가 없으면 활성화할 수 없습니다. 매장 설정에서 입력해주세요.', 'error');
+                return;
+              }
+              setEnabled(v);
+            }}
           />
         </div>
       </div>
