@@ -76,11 +76,13 @@ export async function calculateEstimatedWaitTime(
 
   if (!waitingType) return 0;
 
+  const { todayStart, todayEnd } = getTodayStartEnd();
   const waitingAhead = await prisma.waitingList.count({
     where: {
       storeId,
       waitingTypeId,
       status: { in: ['WAITING', 'CALLED'] },
+      createdAt: { gte: todayStart, lte: todayEnd },
     },
   });
 

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { getTodayStartEnd } from '../services/waiting.js';
 
 const router = Router();
 
@@ -19,12 +20,15 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       orderBy: { sortOrder: 'asc' },
     });
 
+    const { todayStart, todayEnd } = getTodayStartEnd();
+
     const typesWithStats = await Promise.all(
       types.map(async (type: any) => {
         const waitingCount = await (prisma as any).waitingList.count({
           where: {
             waitingTypeId: type.id,
             status: { in: ['WAITING', 'CALLED'] },
+            createdAt: { gte: todayStart, lte: todayEnd },
           },
         });
 
@@ -176,10 +180,12 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: '최소 1개의 활성 유형이 필요합니다.' });
     }
 
+    const { todayStart: delTodayStart, todayEnd: delTodayEnd } = getTodayStartEnd();
     const activeWaitingCount = await (prisma as any).waitingList.count({
       where: {
         waitingTypeId: id,
         status: { in: ['WAITING', 'CALLED'] },
+        createdAt: { gte: delTodayStart, lte: delTodayEnd },
       },
     });
 
