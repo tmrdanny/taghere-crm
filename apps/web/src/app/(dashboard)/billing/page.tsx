@@ -23,17 +23,19 @@ const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || '';
 
 // 충전 금액 프리셋 및 보너스율
 const AMOUNT_PRESETS = [
-  { amount: 100000, bonusRate: 0 },
-  { amount: 200000, bonusRate: 3 },
-  { amount: 500000, bonusRate: 5 },
-  { amount: 1000000, bonusRate: 7 },
+  { amount: 50000, bonusRate: 0 },
+  { amount: 100000, bonusRate: 3 },
+  { amount: 200000, bonusRate: 5 },
+  { amount: 500000, bonusRate: 7 },
+  { amount: 1000000, bonusRate: 10 },
 ];
 
 // 금액에 따른 보너스율 계산
 const getBonusRate = (amount: number): number => {
-  if (amount >= 1000000) return 7;
-  if (amount >= 500000) return 5;
-  if (amount >= 200000) return 3;
+  if (amount >= 1000000) return 10;
+  if (amount >= 500000) return 7;
+  if (amount >= 200000) return 5;
+  if (amount >= 100000) return 3;
   return 0;
 };
 
@@ -58,8 +60,8 @@ export default function BillingPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { showToast, ToastComponent } = useToast();
-  const [amount, setAmount] = useState<number>(100000);
-  const [customAmount, setCustomAmount] = useState<string>('100,000');
+  const [amount, setAmount] = useState<number>(50000);
+  const [customAmount, setCustomAmount] = useState<string>('50,000');
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -271,13 +273,6 @@ export default function BillingPage() {
     setAmount(numValue);
   };
 
-  // +5만원 추가
-  const handleAddAmount = () => {
-    const newAmount = amount + 50000;
-    setAmount(newAmount);
-    setCustomAmount(formatWithComma(newAmount));
-  };
-
   // 위젯 재초기화 함수
   const reinitializeWidgets = () => {
     setWidgets(null);
@@ -463,12 +458,6 @@ export default function BillingPage() {
                   )}
                 </button>
               ))}
-              <button
-                onClick={handleAddAmount}
-                className="px-3 py-2 rounded-lg text-sm font-medium border border-neutral-300 bg-white text-neutral-700 hover:border-brand-800 transition-colors"
-              >
-                +5만원
-              </button>
             </div>
 
             {/* 결제 예정 금액 */}
