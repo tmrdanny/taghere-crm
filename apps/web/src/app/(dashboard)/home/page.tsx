@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Modal, ModalContent } from '@/components/ui/modal';
 import { formatNumber, formatCurrency } from '@/lib/utils';
-import { Users, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin, Mail } from 'lucide-react';
+import { Users, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin, Mail, Zap, Bell, Cake, UserPlus, ArrowRight } from 'lucide-react';
 import {
   XAxis,
   YAxis,
@@ -84,6 +84,11 @@ export default function HomePage() {
   const [showPromoPopup, setShowPromoPopup] = useState(false);
   const [visitSourceData, setVisitSourceData] = useState<VisitSourceItem[]>([]);
   const [retargetCredits, setRetargetCredits] = useState<{ remainingCredits: number; totalCredits: number } | null>(null);
+  const [automationStatus, setAutomationStatus] = useState<{
+    hasActiveRules: boolean;
+    previews: Record<string, { totalEligible: number; thisMonthEstimate: number }> | null;
+    dashboard: { totalSent: number; totalCouponUsed: number; usageRate: number; estimatedRevenue: number } | null;
+  } | null>(null);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -224,6 +229,44 @@ export default function HomePage() {
     };
 
     fetchRetargetCredits();
+  }, [apiUrl]);
+
+  // Fetch automation marketing status
+  useEffect(() => {
+    const fetchAutomationStatus = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+
+        const [rulesRes, previewRes, dashRes] = await Promise.all([
+          fetch(`${apiUrl}/api/automation/rules`, { headers }),
+          fetch(`${apiUrl}/api/automation/preview-all`, { headers }),
+          fetch(`${apiUrl}/api/automation/dashboard`, { headers }),
+        ]);
+
+        let hasActiveRules = false;
+        let previews = null;
+        let dashboard = null;
+
+        if (rulesRes.ok) {
+          const data = await rulesRes.json();
+          hasActiveRules = data.rules?.some((r: { enabled: boolean }) => r.enabled) ?? false;
+        }
+        if (previewRes.ok) {
+          const data = await previewRes.json();
+          previews = data.previews;
+        }
+        if (dashRes.ok) {
+          dashboard = await dashRes.json();
+        }
+
+        setAutomationStatus({ hasActiveRules, previews, dashboard });
+      } catch (error) {
+        console.error('Failed to fetch automation status:', error);
+      }
+    };
+
+    fetchAutomationStatus();
   }, [apiUrl]);
 
   // Refresh feedback summary
@@ -569,6 +612,104 @@ export default function HomePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Automation Marketing CTA */}
+      {automationStatus && !automationStatus.hasActiveRules && (
+        <div
+          className="mb-8 border border-brand-200 rounded-2xl bg-gradient-to-r from-brand-50 to-white p-6 cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => router.push('/automation')}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <Zap className="w-5 h-5 text-brand-700" />
+            <h3 className="text-lg font-bold text-neutral-900">자동 마케팅이 꺼져 있습니다</h3>
+          </div>
+          <p className="text-sm text-neutral-600 mb-5">
+            지금 이 고객들에게 자동으로 쿠폰을 보낼 수 있습니다
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+            {/* 이탈 위험 고객 */}
+            <div className="bg-white border border-neutral-100 rounded-xl p-4 text-center">
+              <div className="flex justify-center mb-2">
+                <div className="p-2 bg-red-50 rounded-lg">
+                  <Bell className="w-5 h-5 text-red-500" />
+                </div>
+              </div>
+              <p className="text-sm font-medium text-neutral-700 mb-1">이탈 위험 고객</p>
+              <p className="text-2xl font-bold text-brand-700">
+                {automationStatus.previews?.CHURN_PREVENTION?.thisMonthEstimate ?? 0}명
+              </p>
+              <p className="text-xs text-neutral-400 mt-1">30일 이상 미방문</p>
+            </div>
+
+            {/* 이번 달 생일 */}
+            <div className="bg-white border border-neutral-100 rounded-xl p-4 text-center">
+              <div className="flex justify-center mb-2">
+                <div className="p-2 bg-pink-50 rounded-lg">
+                  <Cake className="w-5 h-5 text-pink-500" />
+                </div>
+              </div>
+              <p className="text-sm font-medium text-neutral-700 mb-1">이번 달 생일</p>
+              <p className="text-2xl font-bold text-brand-700">
+                {automationStatus.previews?.BIRTHDAY?.thisMonthEstimate ?? 0}명
+              </p>
+              <p className="text-xs text-neutral-400 mt-1">축하 쿠폰 자동 발송</p>
+            </div>
+
+            {/* 첫 방문 고객 */}
+            <div className="bg-white border border-neutral-100 rounded-xl p-4 text-center">
+              <div className="flex justify-center mb-2">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <UserPlus className="w-5 h-5 text-blue-500" />
+                </div>
+              </div>
+              <p className="text-sm font-medium text-neutral-700 mb-1">첫 방문 고객</p>
+              <p className="text-2xl font-bold text-brand-700">
+                {automationStatus.previews?.FIRST_VISIT_FOLLOWUP?.thisMonthEstimate ?? 0}명
+              </p>
+              <p className="text-xs text-neutral-400 mt-1">재방문 쿠폰 자동 발송</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-neutral-500">
+              <span className="font-medium text-neutral-700">월 30건까지 무료!</span>
+              {' · '}태그히어 평균 쿠폰 사용률 38%
+            </p>
+            <div className="flex items-center gap-1 text-sm font-semibold text-brand-700 hover:text-brand-800">
+              자동 마케팅 시작하기
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Automation Active Banner (State C) */}
+      {automationStatus && automationStatus.hasActiveRules && automationStatus.dashboard && automationStatus.dashboard.totalSent > 0 && (
+        <div
+          className="mb-8 flex items-center justify-between border border-neutral-200 rounded-xl bg-neutral-50 px-5 py-3.5 cursor-pointer hover:shadow-sm transition-shadow"
+          onClick={() => router.push('/automation')}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 bg-emerald-100 rounded-lg">
+              <Zap className="w-4 h-4 text-emerald-600" />
+            </div>
+            <span className="text-sm text-neutral-700">
+              이번 달 자동 마케팅:{' '}
+              <span className="font-semibold text-neutral-900">{automationStatus.dashboard.totalSent}건 발송</span>
+              {automationStatus.dashboard.totalCouponUsed > 0 && (
+                <>
+                  , <span className="font-semibold text-emerald-600">{automationStatus.dashboard.totalCouponUsed}건 사용 ({Math.round(automationStatus.dashboard.usageRate)}%)</span>
+                </>
+              )}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-700">
+            성과 보기
+            <ArrowRight className="w-3.5 h-3.5" />
+          </div>
+        </div>
+      )}
 
       {/* Visit Source Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

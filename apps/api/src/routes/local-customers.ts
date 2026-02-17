@@ -183,6 +183,13 @@ router.get('/region-counts', authMiddleware, async (req: AuthRequest, res) => {
       _count: { _all: true },
     });
 
+    // 4. ExternalCustomer 시/군/구별 카운트
+    const externalSigunguCounts = await prisma.externalCustomer.groupBy({
+      by: ['regionSido', 'regionSigungu'],
+      where: { consentMarketing: true, regionSido: { not: '' }, regionSigungu: { not: '' } },
+      _count: { _all: true },
+    });
+
     // 시/도별 통합 카운트 계산 (줄임말 키로 통합)
     const sidoCountMap: Record<string, number> = {};
 
@@ -201,17 +208,27 @@ router.get('/region-counts', authMiddleware, async (req: AuthRequest, res) => {
       }
     });
 
-    // 시/군/구별 카운트 (Customer만 - ExternalCustomer는 sigungu 없음)
-    // 줄임말 키로 변환
+    // 시/군/구별 카운트 (Customer + ExternalCustomer 통합)
     const sigunguCountMap: Record<string, Record<string, number>> = {};
 
+    // Customer 시/군/구 카운트 (전체 이름을 줄임말로 변환)
     customerSigunguCounts.forEach((item) => {
       if (item.regionSido && item.regionSigungu) {
         const shortSido = SIDO_FULL_TO_SHORT[item.regionSido] || item.regionSido;
         if (!sigunguCountMap[shortSido]) {
           sigunguCountMap[shortSido] = {};
         }
-        sigunguCountMap[shortSido][item.regionSigungu] = item._count?._all || 0;
+        sigunguCountMap[shortSido][item.regionSigungu] = (sigunguCountMap[shortSido][item.regionSigungu] || 0) + (item._count?._all || 0);
+      }
+    });
+
+    // ExternalCustomer 시/군/구 카운트 합산 (이미 줄임말 사용)
+    externalSigunguCounts.forEach((item) => {
+      if (item.regionSido && item.regionSigungu) {
+        if (!sigunguCountMap[item.regionSido]) {
+          sigunguCountMap[item.regionSido] = {};
+        }
+        sigunguCountMap[item.regionSido][item.regionSigungu] = (sigunguCountMap[item.regionSido][item.regionSigungu] || 0) + (item._count?._all || 0);
       }
     });
 
