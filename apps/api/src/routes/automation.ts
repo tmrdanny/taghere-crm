@@ -6,7 +6,7 @@ import type { AutomationRuleType } from '@prisma/client';
 const router = Router();
 
 // 유효한 타입 체크
-const VALID_TYPES: AutomationRuleType[] = [
+export const VALID_TYPES: AutomationRuleType[] = [
   'BIRTHDAY',
   'CHURN_PREVENTION',
   'ANNIVERSARY',
@@ -17,7 +17,7 @@ const VALID_TYPES: AutomationRuleType[] = [
 ];
 
 // 기본 트리거 설정
-const DEFAULT_TRIGGER_CONFIG: Record<string, object> = {
+export const DEFAULT_TRIGGER_CONFIG: Record<string, object> = {
   BIRTHDAY: { daysBefore: 3 },
   CHURN_PREVENTION: { daysInactive: 30 },
   ANNIVERSARY: { daysBefore: 3 },                          // 가입 기념일 3일 전
@@ -28,7 +28,7 @@ const DEFAULT_TRIGGER_CONFIG: Record<string, object> = {
 };
 
 // 기본 쿨다운 (일)
-const DEFAULT_COOLDOWN: Record<string, number> = {
+export const DEFAULT_COOLDOWN: Record<string, number> = {
   BIRTHDAY: 365,             // 연 1회
   CHURN_PREVENTION: 60,      // 60일 내 재발송 금지
   ANNIVERSARY: 365,          // 연 1회
@@ -39,7 +39,7 @@ const DEFAULT_COOLDOWN: Record<string, number> = {
 };
 
 // 기본 쿠폰 내용
-const DEFAULT_COUPON_CONTENT: Record<string, string> = {
+export const DEFAULT_COUPON_CONTENT: Record<string, string> = {
   BIRTHDAY: '생일 축하 특별 할인',
   CHURN_PREVENTION: '다시 만나서 반가워요! 특별 할인',
   ANNIVERSARY: '가입 기념일 축하 할인',
@@ -53,7 +53,7 @@ const DEFAULT_COUPON_CONTENT: Record<string, string> = {
  * 매장의 자동화 규칙 lazy 초기화
  * 규칙이 없으면 모든 타입에 대해 enabled=false로 생성
  */
-async function ensureRulesExist(storeId: string) {
+export async function ensureRulesExist(storeId: string) {
   const existing = await prisma.automationRule.findMany({
     where: { storeId },
     select: { type: true },

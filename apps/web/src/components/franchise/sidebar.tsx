@@ -10,6 +10,7 @@ import {
   Megaphone,
   MessageSquare,
   UserPlus,
+  Zap,
   CreditCard,
   BarChart3,
   Settings,
@@ -64,6 +65,7 @@ const navItems: NavItem[] = [
     children: [
       { href: '/franchise/campaigns/retarget', label: '리타겟', icon: MessageSquare },
       { href: '/franchise/campaigns/acquisition', label: '신규 고객 타겟', icon: UserPlus },
+      { href: '/franchise/campaigns/automation', label: '자동 마케팅', icon: Zap },
     ],
   },
   { href: '/franchise/billing', label: '충전', icon: CreditCard },
