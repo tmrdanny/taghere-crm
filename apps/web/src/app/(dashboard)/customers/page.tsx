@@ -13,9 +13,10 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatPhone, formatNumber, formatDate, getRelativeTime, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
-import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Upload, Settings2 } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Upload, Settings2, Download, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
+import * as XLSX from 'xlsx';
 
 interface Customer {
   id: string;
@@ -223,6 +224,21 @@ export default function CustomersPage() {
   const [addMemo, setAddMemo] = useState('');
   const [addInitialPoints, setAddInitialPoints] = useState('');
   const [submittingAdd, setSubmittingAdd] = useState(false);
+
+  // Bulk upload modal states
+  interface BulkRow {
+    phone: string;
+    name?: string;
+    gender?: string;
+    birthYear?: string | number;
+    birthday?: string;
+    memo?: string;
+  }
+  const [bulkModal, setBulkModal] = useState(false);
+  const [bulkParsedData, setBulkParsedData] = useState<BulkRow[]>([]);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ created: number; skipped: number; errors: Array<{ row: number; phone: string; reason: string }> } | null>(null);
+  const bulkFileInputRef = useRef<HTMLInputElement>(null);
 
   // Edit modal tab and feedback states
   const [editModalTab, setEditModalTab] = useState<'feedback' | 'history' | 'orders' | 'messages'>('orders');
@@ -904,6 +920,121 @@ export default function CustomersPage() {
     }
   };
 
+  // 샘플 엑셀 다운로드
+  const handleDownloadSampleExcel = () => {
+    const headers = ['전화번호', '이름', '성별', '생년(YYYY)', '생일(MM-DD)', '메모'];
+    const sampleData = [
+      ['01012345678', '홍길동', '남', 1990, '03-15', 'VIP고객'],
+      ['01098765432', '김영희', '여', 1985, '11-20', ''],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
+    ws['!cols'] = [{ wch: 15 }, { wch: 12 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '고객목록');
+    XLSX.writeFile(wb, '대량_고객등록_샘플.xlsx');
+  };
+
+  // 엑셀 파일 파싱
+  const handleBulkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<any>(sheet, { header: 1 });
+
+        if (rows.length < 2) {
+          showToast('데이터가 없습니다. 헤더 아래에 데이터를 입력해주세요.', 'error');
+          return;
+        }
+
+        // 헤더 매핑
+        const headerRow = (rows[0] as any[]).map((h: any) => String(h || '').trim());
+        const colMap: Record<string, number> = {};
+        headerRow.forEach((h, idx) => {
+          if (h.includes('전화') || h.includes('phone') || h.includes('Phone')) colMap.phone = idx;
+          else if (h.includes('이름') || h.includes('name') || h.includes('Name')) colMap.name = idx;
+          else if (h.includes('성별') || h.includes('gender') || h.includes('Gender')) colMap.gender = idx;
+          else if (h.includes('생년') || h.includes('birthYear') || h.includes('Birth') && h.includes('Y')) colMap.birthYear = idx;
+          else if (h.includes('생일') || h.includes('birthday') || h.includes('Birth') && h.includes('D')) colMap.birthday = idx;
+          else if (h.includes('메모') || h.includes('memo') || h.includes('Memo')) colMap.memo = idx;
+        });
+
+        if (colMap.phone === undefined) {
+          showToast('전화번호 컬럼을 찾을 수 없습니다. 헤더에 "전화번호"를 포함해주세요.', 'error');
+          return;
+        }
+
+        const parsed: BulkRow[] = [];
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i] as any[];
+          if (!row || row.length === 0) continue;
+          const phone = row[colMap.phone];
+          if (!phone && !row[colMap.name ?? -1]) continue; // 완전 빈 행 스킵
+
+          parsed.push({
+            phone: phone ? String(phone).trim() : '',
+            name: colMap.name !== undefined ? (row[colMap.name] ? String(row[colMap.name]).trim() : undefined) : undefined,
+            gender: colMap.gender !== undefined ? (row[colMap.gender] ? String(row[colMap.gender]).trim() : undefined) : undefined,
+            birthYear: colMap.birthYear !== undefined ? row[colMap.birthYear] : undefined,
+            birthday: colMap.birthday !== undefined ? (row[colMap.birthday] ? String(row[colMap.birthday]).trim() : undefined) : undefined,
+            memo: colMap.memo !== undefined ? (row[colMap.memo] ? String(row[colMap.memo]).trim() : undefined) : undefined,
+          });
+        }
+
+        if (parsed.length === 0) {
+          showToast('등록할 데이터가 없습니다.', 'error');
+          return;
+        }
+        if (parsed.length > 500) {
+          showToast(`최대 500건까지 등록 가능합니다. (현재 ${parsed.length}건)`, 'error');
+          return;
+        }
+
+        setBulkParsedData(parsed);
+        setBulkResult(null);
+      } catch {
+        showToast('파일을 읽는 중 오류가 발생했습니다.', 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    // input 초기화 (같은 파일 다시 선택 가능하도록)
+    e.target.value = '';
+  };
+
+  // 대량 등록 API 호출
+  const handleBulkUpload = async () => {
+    if (bulkParsedData.length === 0) return;
+    setBulkUploading(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/customers/bulk`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+        body: JSON.stringify({ customers: bulkParsedData }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || '대량 등록 중 오류가 발생했습니다.');
+      }
+      setBulkResult(data);
+      if (data.created > 0) {
+        setPage(1);
+        setRefreshKey((key) => key + 1);
+      }
+    } catch (err: any) {
+      showToast(err.message || '대량 등록 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setBulkUploading(false);
+    }
+  };
+
   const remainingPoints = selectedCustomer
     ? selectedCustomer.totalPoints - (parseInt(useAmount) || 0)
     : 0;
@@ -1055,10 +1186,14 @@ export default function CustomersPage() {
           </Button>
           <Button
             variant="outline"
-            onClick={() => window.open('https://tally.so/r/q4DXMG', '_blank')}
+            onClick={() => {
+              setBulkModal(true);
+              setBulkParsedData([]);
+              setBulkResult(null);
+            }}
           >
-            <Upload className="w-4 h-4 mr-2" />
-            고객 대량 등록(파일)
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            대량 등록
           </Button>
         </div>
       </div>
@@ -2610,6 +2745,149 @@ export default function CustomersPage() {
             >
               {submittingAdd ? '등록 중...' : '등록하기'}
             </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Bulk Upload Modal */}
+      <Modal open={bulkModal} onOpenChange={setBulkModal}>
+        <ModalContent className="sm:max-w-2xl">
+          <ModalHeader>
+            <ModalTitle>대량 고객 등록</ModalTitle>
+          </ModalHeader>
+
+          <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+            {/* 안내 + 샘플 다운로드 */}
+            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-700">
+                엑셀 파일로 고객을 일괄 등록할 수 있습니다. (최대 500건)
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadSampleExcel}
+              >
+                <Download className="w-4 h-4 mr-1" />
+                샘플 다운로드
+              </Button>
+            </div>
+
+            {/* 파일 업로드 */}
+            <div>
+              <input
+                ref={bulkFileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleBulkFileChange}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                className="w-full py-8 border-dashed border-2"
+                onClick={() => bulkFileInputRef.current?.click()}
+              >
+                <Upload className="w-5 h-5 mr-2" />
+                {bulkParsedData.length > 0
+                  ? `${bulkParsedData.length}건 로드됨 (다시 선택하려면 클릭)`
+                  : '엑셀 파일 선택 (.xlsx, .xls, .csv)'}
+              </Button>
+            </div>
+
+            {/* 미리보기 테이블 */}
+            {bulkParsedData.length > 0 && !bulkResult && (
+              <div>
+                <p className="text-sm font-medium text-neutral-700 mb-2">
+                  미리보기 (처음 10건)
+                </p>
+                <div className="overflow-x-auto border rounded-lg">
+                  <table className="w-full text-sm">
+                    <thead className="bg-neutral-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-neutral-600">#</th>
+                        <th className="px-3 py-2 text-left font-medium text-neutral-600">전화번호*</th>
+                        <th className="px-3 py-2 text-left font-medium text-neutral-600">이름</th>
+                        <th className="px-3 py-2 text-left font-medium text-neutral-600">성별</th>
+                        <th className="px-3 py-2 text-left font-medium text-neutral-600">생년</th>
+                        <th className="px-3 py-2 text-left font-medium text-neutral-600">생일</th>
+                        <th className="px-3 py-2 text-left font-medium text-neutral-600">메모</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bulkParsedData.slice(0, 10).map((row, idx) => (
+                        <tr key={idx} className={`border-t ${!row.phone ? 'bg-red-50' : ''}`}>
+                          <td className="px-3 py-2 text-neutral-500">{idx + 1}</td>
+                          <td className="px-3 py-2">
+                            {row.phone || <span className="text-red-500 text-xs">전화번호 없음</span>}
+                          </td>
+                          <td className="px-3 py-2">{row.name || '-'}</td>
+                          <td className="px-3 py-2">{row.gender || '-'}</td>
+                          <td className="px-3 py-2">{row.birthYear || '-'}</td>
+                          <td className="px-3 py-2">{row.birthday || '-'}</td>
+                          <td className="px-3 py-2">{row.memo || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {bulkParsedData.length > 10 && (
+                  <p className="text-xs text-neutral-500 mt-1">
+                    외 {bulkParsedData.length - 10}건 더 있음
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* 결과 표시 */}
+            {bulkResult && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 bg-green-50 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-green-700">{bulkResult.created}</p>
+                    <p className="text-xs text-green-600">등록 성공</p>
+                  </div>
+                  <div className="p-3 bg-yellow-50 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-yellow-700">{bulkResult.skipped}</p>
+                    <p className="text-xs text-yellow-600">중복 스킵</p>
+                  </div>
+                  <div className="p-3 bg-red-50 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-red-700">{bulkResult.errors.length}</p>
+                    <p className="text-xs text-red-600">오류</p>
+                  </div>
+                </div>
+                {bulkResult.errors.length > 0 && (
+                  <div className="p-3 bg-red-50 rounded-lg">
+                    <p className="text-sm font-medium text-red-700 mb-1">오류 목록:</p>
+                    <ul className="text-xs text-red-600 space-y-1">
+                      {bulkResult.errors.slice(0, 10).map((err, i) => (
+                        <li key={i}>행 {err.row}: {err.phone ? `${err.phone} - ` : ''}{err.reason}</li>
+                      ))}
+                      {bulkResult.errors.length > 10 && (
+                        <li>외 {bulkResult.errors.length - 10}건...</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <ModalFooter className="flex-shrink-0">
+            <Button
+              variant="secondary"
+              onClick={() => setBulkModal(false)}
+              className="flex-1"
+            >
+              {bulkResult ? '닫기' : '취소'}
+            </Button>
+            {!bulkResult && (
+              <Button
+                onClick={handleBulkUpload}
+                disabled={bulkParsedData.length === 0 || bulkUploading}
+                className="flex-1"
+              >
+                {bulkUploading ? '등록 중...' : `${bulkParsedData.length}건 등록하기`}
+              </Button>
+            )}
           </ModalFooter>
         </ModalContent>
       </Modal>

@@ -400,6 +400,154 @@ router.get('/search/phone/:digits', authMiddleware, async (req: AuthRequest, res
   }
 });
 
+// POST /api/customers/bulk - Bulk create customers
+router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { customers } = req.body;
+
+    if (!Array.isArray(customers) || customers.length === 0) {
+      return res.status(400).json({ error: '등록할 고객 데이터가 없습니다.' });
+    }
+    if (customers.length > 500) {
+      return res.status(400).json({ error: '한 번에 최대 500건까지 등록할 수 있습니다.' });
+    }
+
+    const errors: Array<{ row: number; phone: string; reason: string }> = [];
+    const validRows: Array<{
+      row: number;
+      phone: string;
+      phoneLastDigits: string;
+      name: string | null;
+      gender: 'MALE' | 'FEMALE' | null;
+      birthYear: number | null;
+      birthday: string | null;
+      memo: string | null;
+    }> = [];
+
+    // 1. 각 row 검증 + 정규화
+    const seenPhoneLastDigits = new Set<string>();
+
+    for (let i = 0; i < customers.length; i++) {
+      const row = customers[i];
+      const rowNum = i + 2; // 엑셀 기준 (헤더=1행, 데이터=2행부터)
+
+      if (!row.phone) {
+        errors.push({ row: rowNum, phone: '', reason: '전화번호가 없습니다.' });
+        continue;
+      }
+
+      const normalizedPhone = String(row.phone).replace(/[^0-9]/g, '');
+      if (normalizedPhone.length < 8) {
+        errors.push({ row: rowNum, phone: String(row.phone), reason: '전화번호가 너무 짧습니다.' });
+        continue;
+      }
+
+      const phoneLastDigits = normalizedPhone.slice(-8);
+
+      // 업로드 내 중복
+      if (seenPhoneLastDigits.has(phoneLastDigits)) {
+        errors.push({ row: rowNum, phone: String(row.phone), reason: '파일 내 중복 전화번호입니다.' });
+        continue;
+      }
+      seenPhoneLastDigits.add(phoneLastDigits);
+
+      // 성별 변환
+      let gender: 'MALE' | 'FEMALE' | null = null;
+      if (row.gender) {
+        const g = String(row.gender).trim();
+        if (g === '남' || g === '남성' || g.toUpperCase() === 'MALE' || g === 'M') gender = 'MALE';
+        else if (g === '여' || g === '여성' || g.toUpperCase() === 'FEMALE' || g === 'F') gender = 'FEMALE';
+      }
+
+      // 생년 검증
+      let birthYear: number | null = null;
+      if (row.birthYear) {
+        const y = parseInt(String(row.birthYear), 10);
+        if (y >= 1900 && y <= 2100) birthYear = y;
+      }
+
+      // 생일 검증 (MM-DD)
+      let birthday: string | null = null;
+      if (row.birthday) {
+        const b = String(row.birthday).trim();
+        if (/^\d{1,2}-\d{1,2}$/.test(b)) {
+          const [mm, dd] = b.split('-');
+          birthday = `${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+        }
+      }
+
+      validRows.push({
+        row: rowNum,
+        phone: normalizedPhone,
+        phoneLastDigits,
+        name: row.name ? String(row.name).trim() : null,
+        gender,
+        birthYear,
+        birthday,
+        memo: row.memo ? String(row.memo).trim() : null,
+      });
+    }
+
+    // 2. DB 기존 phoneLastDigits 조회
+    let skipped = 0;
+    if (validRows.length > 0) {
+      const allPhoneLastDigits = validRows.map(r => r.phoneLastDigits);
+      const existing = await prisma.customer.findMany({
+        where: {
+          storeId,
+          phoneLastDigits: { in: allPhoneLastDigits },
+        },
+        select: { phoneLastDigits: true },
+      });
+      const existingSet = new Set(existing.map(e => e.phoneLastDigits).filter(Boolean));
+
+      const toCreate = validRows.filter(r => {
+        if (existingSet.has(r.phoneLastDigits)) {
+          skipped++;
+          return false;
+        }
+        return true;
+      });
+
+      // 3. 일괄 생성
+      if (toCreate.length > 0) {
+        await prisma.customer.createMany({
+          data: toCreate.map(r => ({
+            storeId,
+            phone: r.phone,
+            phoneLastDigits: r.phoneLastDigits,
+            name: r.name,
+            gender: r.gender,
+            birthYear: r.birthYear,
+            birthday: r.birthday,
+            memo: r.memo,
+            visitCount: 0,
+            lastVisitAt: null,
+          })),
+        });
+      }
+
+      res.json({
+        created: toCreate.length,
+        skipped,
+        errors,
+        total: customers.length,
+      });
+    } else {
+      res.json({
+        created: 0,
+        skipped: 0,
+        errors,
+        total: customers.length,
+      });
+    }
+  } catch (error) {
+    console.error('Bulk customer create error:', error);
+    res.status(500).json({ error: '대량 고객 등록 중 오류가 발생했습니다.' });
+  }
+});
+
 // POST /api/customers - Create new customer
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
