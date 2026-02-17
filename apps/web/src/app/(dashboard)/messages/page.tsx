@@ -221,18 +221,24 @@ export default function MessagesPage() {
   // 지역 선택 헬퍼
   const addSido = useCallback((sido: string) => {
     setSelectedSidos(prev => prev.includes(sido) ? prev : [...prev, sido]);
+    setActiveSidoForSigungu(sido);
     setRegionSearchQuery('');
     setIsRegionDropdownOpen(false);
   }, []);
 
   const removeSido = useCallback((sido: string) => {
-    setSelectedSidos(prev => prev.filter(s => s !== sido));
+    setSelectedSidos(prev => {
+      const next = prev.filter(s => s !== sido);
+      if (activeSidoForSigungu === sido) {
+        setActiveSidoForSigungu(next.length > 0 ? next[0] : null);
+      }
+      return next;
+    });
     setSelectedSigungus(prev => {
       const next = { ...prev };
       delete next[sido];
       return next;
     });
-    if (activeSidoForSigungu === sido) setActiveSidoForSigungu(null);
   }, [activeSidoForSigungu]);
 
   const filteredSidos = regionSearchQuery.trim()

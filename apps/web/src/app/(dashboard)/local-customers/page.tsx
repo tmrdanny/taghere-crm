@@ -366,19 +366,27 @@ export default function LocalCustomersPage() {
   // 시/도 추가/제거 (functional setState로 안정적인 콜백)
   const addSido = useCallback((sido: string) => {
     setSelectedSidos(prev => prev.includes(sido) ? prev : [...prev, sido]);
+    setActiveSidoForSigungu(sido);
     setRegionSearchQuery('');
     setIsRegionDropdownOpen(false);
   }, []);
 
   const removeSido = useCallback((sido: string) => {
-    setSelectedSidos(prev => prev.filter(s => s !== sido));
+    setSelectedSidos(prev => {
+      const next = prev.filter(s => s !== sido);
+      // 삭제된 sido가 활성 탭이면 다른 탭으로 전환
+      if (activeSidoForSigungu === sido) {
+        setActiveSidoForSigungu(next.length > 0 ? next[0] : null);
+      }
+      return next;
+    });
     // 해당 시도의 시군구 선택도 함께 제거
     setSelectedSigungus(prev => {
       const next = { ...prev };
       delete next[sido];
       return next;
     });
-  }, []);
+  }, [activeSidoForSigungu]);
 
   // 연령대 토글 (functional setState로 최적화)
   const toggleAgeGroup = useCallback((value: string) => {
