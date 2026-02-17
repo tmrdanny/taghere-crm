@@ -91,7 +91,7 @@ function koreanCharToRoman(char: string): string {
   return char;
 }
 
-function generateSlug(storeName: string): string {
+export function generateSlug(storeName: string): string {
   let slug = '';
 
   for (const char of storeName) {
@@ -116,7 +116,7 @@ function generateSlug(storeName: string): string {
   return slug || 'store';
 }
 
-async function getUniqueSlug(baseSlug: string): Promise<string> {
+export async function getUniqueSlug(baseSlug: string): Promise<string> {
   let slug = baseSlug;
   let counter = 1;
 
@@ -150,7 +150,7 @@ router.post('/register', async (req, res) => {
     }
 
     // 사업자등록번호 중복 체크
-    const existingStore = await prisma.store.findUnique({
+    const existingStore = await prisma.store.findFirst({
       where: { businessRegNumber },
     });
 

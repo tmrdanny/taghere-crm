@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
 import { enqueueAlimTalk } from '../services/solapi.js';
+import { generateSlug, getUniqueSlug } from './auth.js';
 
 const router = Router();
 
@@ -2816,6 +2817,137 @@ router.get('/store-orders', adminAuthMiddleware, async (req: AdminRequest, res: 
   } catch (error) {
     console.error('Admin get store orders error:', error);
     res.status(500).json({ error: '주문 목록 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/stores/bulk - 매장 대량 등록
+router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { stores: storeRows, defaultPassword, franchiseId } = req.body;
+
+    if (!Array.isArray(storeRows) || storeRows.length === 0) {
+      return res.status(400).json({ error: '등록할 매장 데이터가 없습니다.' });
+    }
+
+    if (storeRows.length > 500) {
+      return res.status(400).json({ error: '한 번에 최대 500개까지 등록 가능합니다.' });
+    }
+
+    const password = defaultPassword || 'taghere1234';
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // 이메일 중복 체크를 위해 기존 이메일 조회
+    const existingEmails = new Set(
+      (await prisma.staffUser.findMany({ select: { email: true } })).map((u: any) => u.email)
+    );
+
+    const created: Array<{ row: number; storeName: string; email: string }> = [];
+    const errors: Array<{ row: number; storeName: string; reason: string }> = [];
+    const emailsInBatch = new Set<string>();
+
+    for (let i = 0; i < storeRows.length; i++) {
+      const row = storeRows[i];
+      const rowNum = i + 2; // 엑셀 기준 (헤더=1행)
+      const storeName = row.storeName?.trim();
+      const ownerName = row.ownerName?.trim() || '';
+      const phone = row.phone?.trim() || '';
+      const email = row.email?.trim()?.toLowerCase();
+      const businessRegNumber = row.businessRegNumber?.trim() || null;
+      const address = row.address?.trim() || '';
+      const category = row.category?.trim() || null;
+
+      // 필수 필드 검증
+      if (!storeName) {
+        errors.push({ row: rowNum, storeName: storeName || '-', reason: '상호명이 없습니다.' });
+        continue;
+      }
+
+      if (!email) {
+        errors.push({ row: rowNum, storeName, reason: '이메일이 없습니다.' });
+        continue;
+      }
+
+      // 이메일 형식 검증
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errors.push({ row: rowNum, storeName, reason: '이메일 형식이 올바르지 않습니다.' });
+        continue;
+      }
+
+      // 이메일 중복 체크 (DB + 배치 내)
+      if (existingEmails.has(email)) {
+        errors.push({ row: rowNum, storeName, reason: `이미 사용 중인 이메일입니다. (${email})` });
+        continue;
+      }
+      if (emailsInBatch.has(email)) {
+        errors.push({ row: rowNum, storeName, reason: `파일 내 중복 이메일입니다. (${email})` });
+        continue;
+      }
+
+      try {
+        const baseSlug = generateSlug(storeName);
+        const slug = await getUniqueSlug(baseSlug);
+
+        await prisma.$transaction(async (tx) => {
+          const store = await tx.store.create({
+            data: {
+              name: storeName,
+              slug,
+              ownerName: ownerName || null,
+              phone: phone || null,
+              businessRegNumber,
+              address: address || null,
+              category: category || null,
+              pointRatePercent: 5,
+              franchiseId: franchiseId || null,
+            },
+          });
+
+          await tx.wallet.create({
+            data: { storeId: store.id, balance: 500 },
+          });
+
+          await tx.waitingSetting.create({
+            data: { storeId: store.id, operationStatus: 'ACCEPTING' },
+          });
+
+          await tx.waitingType.create({
+            data: {
+              storeId: store.id,
+              name: '홀',
+              avgWaitTimePerTeam: 5,
+              sortOrder: 0,
+              isActive: true,
+            },
+          });
+
+          await tx.staffUser.create({
+            data: {
+              storeId: store.id,
+              email,
+              passwordHash,
+              name: ownerName || storeName,
+              role: 'OWNER',
+            },
+          });
+        });
+
+        emailsInBatch.add(email);
+        existingEmails.add(email);
+        created.push({ row: rowNum, storeName, email });
+      } catch (err: any) {
+        errors.push({ row: rowNum, storeName, reason: err.message || '생성 중 오류' });
+      }
+    }
+
+    res.json({
+      total: storeRows.length,
+      created: created.length,
+      errors,
+      defaultPassword: password,
+    });
+  } catch (error) {
+    console.error('Admin bulk store registration error:', error);
+    res.status(500).json({ error: '매장 대량 등록 중 오류가 발생했습니다.' });
   }
 });
 

@@ -18,7 +18,7 @@ model Store {
   category               StoreCategory? // 업종
   ownerName              String?        // 대표자명
   phone                  String?        // 연락처
-  businessRegNumber      String?        @unique // 사업자등록번호
+  businessRegNumber      String?        // 사업자등록번호
   address                String?        // 전체 주소 (하위 호환성 유지)
 
   // 정규화된 주소 필드
