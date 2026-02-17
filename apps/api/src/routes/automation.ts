@@ -424,4 +424,61 @@ router.get('/preview/:type', authMiddleware, async (req: AuthRequest, res: Respo
   }
 });
 
+// GET /api/automation/preview-all - 전체 시나리오 대상 고객 수 일괄 조회
+router.get('/preview-all', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const storeId = req.user?.storeId;
+    if (!storeId) return res.status(401).json({ error: '인증이 필요합니다.' });
+
+    const now = new Date();
+    const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    const [
+      birthdayTotal, birthdayThisMonth,
+      churnRisk, totalRevisitable,
+      totalCustomers,
+      firstVisitors,
+      vipCandidates,
+      winbackTargets,
+      eligibleCustomers,
+      store,
+    ] = await Promise.all([
+      prisma.customer.count({ where: { storeId, birthday: { not: null }, consentMarketing: true } }),
+      prisma.customer.count({ where: { storeId, birthday: { startsWith: currentMonth }, consentMarketing: true } }),
+      prisma.customer.count({ where: { storeId, visitCount: { gte: 2 }, lastVisitAt: { lt: thirtyDaysAgo }, consentMarketing: true } }),
+      prisma.customer.count({ where: { storeId, visitCount: { gte: 2 }, consentMarketing: true } }),
+      prisma.customer.count({ where: { storeId, consentMarketing: true, phone: { not: null } } }),
+      prisma.customer.count({ where: { storeId, visitCount: 1, consentMarketing: true, phone: { not: null } } }),
+      prisma.customer.count({ where: { storeId, visitCount: { gte: 5 }, consentMarketing: true, phone: { not: null } } }),
+      prisma.customer.count({ where: { storeId, visitCount: { gte: 2 }, lastVisitAt: { lt: ninetyDaysAgo }, consentMarketing: true, phone: { not: null } } }),
+      prisma.customer.count({ where: { storeId, visitCount: { gte: 1 }, consentMarketing: true, phone: { not: null } } }),
+      prisma.store.findUnique({ where: { id: storeId }, select: { naverPlaceUrl: true } }),
+    ]);
+
+    const anniversaryEstimate = Math.round(totalCustomers / 12);
+    const vipEstimate = Math.round(vipCandidates * 0.1);
+    const slowDayEstimate = Math.round(eligibleCustomers * 0.3);
+
+    res.json({
+      previews: {
+        BIRTHDAY: { totalEligible: birthdayTotal, thisMonthEstimate: birthdayThisMonth, estimatedMonthlyCost: birthdayThisMonth * 50 },
+        CHURN_PREVENTION: { totalEligible: totalRevisitable, thisMonthEstimate: churnRisk, estimatedMonthlyCost: churnRisk * 50 },
+        ANNIVERSARY: { totalEligible: totalCustomers, thisMonthEstimate: anniversaryEstimate, estimatedMonthlyCost: anniversaryEstimate * 50 },
+        FIRST_VISIT_FOLLOWUP: { totalEligible: firstVisitors, thisMonthEstimate: firstVisitors, estimatedMonthlyCost: firstVisitors * 50 },
+        VIP_MILESTONE: { totalEligible: vipCandidates, thisMonthEstimate: vipEstimate, estimatedMonthlyCost: vipEstimate * 50 },
+        WINBACK: { totalEligible: winbackTargets, thisMonthEstimate: winbackTargets, estimatedMonthlyCost: winbackTargets * 50 },
+        SLOW_DAY: { totalEligible: eligibleCustomers, thisMonthEstimate: slowDayEstimate, estimatedMonthlyCost: slowDayEstimate * 50 },
+      },
+      hasNaverPlaceUrl: !!store?.naverPlaceUrl,
+    });
+  } catch (error) {
+    console.error('[Automation] Failed to fetch preview-all:', error);
+    res.status(500).json({ error: '미리보기를 불러오는데 실패했습니다.' });
+  }
+});
+
 export default router;
