@@ -157,6 +157,13 @@ router.get('/region-counts', franchiseAuthMiddleware, async (req: FranchiseAuthR
       _count: { _all: true },
     });
 
+    // 4. ExternalCustomer 시/군/구별 카운트
+    const externalSigunguCounts = await prisma.externalCustomer.groupBy({
+      by: ['regionSido', 'regionSigungu'],
+      where: { consentMarketing: true, regionSido: { not: '' }, regionSigungu: { not: '' } },
+      _count: { _all: true },
+    });
+
     // 시/도별 통합 카운트 계산
     const sidoCountMap: Record<string, number> = {};
 
@@ -172,7 +179,7 @@ router.get('/region-counts', franchiseAuthMiddleware, async (req: FranchiseAuthR
       }
     });
 
-    // 시/군/구별 카운트 (Customer만 - ExternalCustomer는 sigungu 없음)
+    // 시/군/구별 카운트 (Customer + ExternalCustomer 통합)
     const sigunguCountMap: Record<string, Record<string, number>> = {};
 
     customerSigunguCounts.forEach((item) => {
@@ -180,7 +187,16 @@ router.get('/region-counts', franchiseAuthMiddleware, async (req: FranchiseAuthR
         if (!sigunguCountMap[item.regionSido]) {
           sigunguCountMap[item.regionSido] = {};
         }
-        sigunguCountMap[item.regionSido][item.regionSigungu] = item._count?._all || 0;
+        sigunguCountMap[item.regionSido][item.regionSigungu] = (sigunguCountMap[item.regionSido][item.regionSigungu] || 0) + (item._count?._all || 0);
+      }
+    });
+
+    externalSigunguCounts.forEach((item) => {
+      if (item.regionSido && item.regionSigungu) {
+        if (!sigunguCountMap[item.regionSido]) {
+          sigunguCountMap[item.regionSido] = {};
+        }
+        sigunguCountMap[item.regionSido][item.regionSigungu] = (sigunguCountMap[item.regionSido][item.regionSigungu] || 0) + (item._count?._all || 0);
       }
     });
 
@@ -227,15 +243,18 @@ router.get('/count', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       return res.status(400).json({ error: '지역을 선택해주세요.' });
     }
 
-    // 시/군/구 필터가 있는지 확인
-    const hasSigunguFilter = regionFilters.some((r) => r.sigungu);
-
     let externalCount = 0;
     let customerCount = 0;
 
-    // 1. ExternalCustomer 조회 (시/군/구 필터가 없을 때만)
-    if (!hasSigunguFilter) {
-      const regionOrConditions = regionFilters.map((r) => ({ regionSido: r.sido }));
+    // 1. ExternalCustomer 조회
+    {
+      const regionOrConditions = regionFilters.map((r) => {
+        if (r.sigungu) {
+          return { regionSido: r.sido, regionSigungu: r.sigungu };
+        } else {
+          return { regionSido: r.sido };
+        }
+      });
 
       const externalWhere: any = {
         OR: regionOrConditions,
@@ -294,9 +313,9 @@ router.get('/count', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
 
     customerCount = await prisma.customer.count({ where: customerWhere });
 
-    // 3. ExternalCustomer 슬롯 여유 확인 (hasSigunguFilter가 false일 때만)
+    // 3. ExternalCustomer 슬롯 여유 확인
     let availableExternalCount = externalCount;
-    if (!hasSigunguFilter && externalCount > 0) {
+    if (externalCount > 0) {
       const weekStart = getWeekStart(new Date());
       const usedSlots = await prisma.externalCustomerWeeklySlot.findMany({
         where: {
@@ -308,7 +327,13 @@ router.get('/count', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       const usedCustomerIds = usedSlots.map((s) => s.externalCustomerId);
 
       // 슬롯 여유 있는 ExternalCustomer 수
-      const regionOrConditions = regionFilters.map((r) => ({ regionSido: r.sido }));
+      const regionOrConditions = regionFilters.map((r) => {
+        if (r.sigungu) {
+          return { regionSido: r.sido, regionSigungu: r.sigungu };
+        } else {
+          return { regionSido: r.sido };
+        }
+      });
       const externalWhere: any = {
         OR: regionOrConditions,
         consentMarketing: true,
@@ -432,13 +457,10 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       });
     }
 
-    // 시/군/구 필터가 있는지 확인
-    const hasSigunguFilter = regionFilters.some((r) => r.sigungu);
-
-    // 1. ExternalCustomer 조회 (시/군/구 필터가 없을 때만)
+    // 1. ExternalCustomer 조회
     let externalCustomers: Array<{ id: string; phone: string; source: 'external' }> = [];
 
-    if (!hasSigunguFilter) {
+    {
       // 이번 주 슬롯 여유 있는 ExternalCustomer만
       const weekStart = getWeekStart(new Date());
       const usedSlots = await prisma.externalCustomerWeeklySlot.findMany({
@@ -451,7 +473,13 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       const usedCustomerIds = usedSlots.map((s) => s.externalCustomerId);
 
       // ExternalCustomer 필터 조건
-      const regionOrConditions = regionFilters.map((r) => ({ regionSido: r.sido }));
+      const regionOrConditions = regionFilters.map((r) => {
+        if (r.sigungu) {
+          return { regionSido: r.sido, regionSigungu: r.sigungu };
+        } else {
+          return { regionSido: r.sido };
+        }
+      });
       const externalWhere: any = {
         OR: regionOrConditions,
         consentMarketing: true,

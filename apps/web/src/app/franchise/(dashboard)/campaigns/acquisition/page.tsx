@@ -353,18 +353,28 @@ export default function LocalCustomersPage() {
   }, [fetchSmsEstimate, fetchKakaoEstimate, activeTab]);
 
   // 시/도 추가
-  const addSido = (sido: string) => {
-    if (!selectedSidos.includes(sido)) {
-      setSelectedSidos([...selectedSidos, sido]);
-    }
+  const addSido = useCallback((sido: string) => {
+    setSelectedSidos(prev => prev.includes(sido) ? prev : [...prev, sido]);
+    setActiveSidoForSigungu(sido);
     setRegionSearchQuery('');
     setIsRegionDropdownOpen(false);
-  };
+  }, []);
 
   // 시/도 제거
-  const removeSido = (sido: string) => {
-    setSelectedSidos(selectedSidos.filter((s) => s !== sido));
-  };
+  const removeSido = useCallback((sido: string) => {
+    setSelectedSidos(prev => {
+      const next = prev.filter(s => s !== sido);
+      if (activeSidoForSigungu === sido) {
+        setActiveSidoForSigungu(next.length > 0 ? next[0] : null);
+      }
+      return next;
+    });
+    setSelectedSigungus(prev => {
+      const next = { ...prev };
+      delete next[sido];
+      return next;
+    });
+  }, [activeSidoForSigungu]);
 
   // 연령대 토글
   const toggleAgeGroup = (value: string) => {
@@ -757,286 +767,136 @@ export default function LocalCustomersPage() {
           </div>
         </div>
 
-        {/* 지역 + 시/군/구 선택 - 2열 그리드 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* 좌측: 지역 선택 */}
+        {/* 지역 선택 */}
+        <div>
           <div className="p-4 rounded-xl border border-neutral-200 bg-white">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
-                <MapPin className="w-5 h-5 text-neutral-500" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-neutral-900">지역 선택</p>
-                <p className="text-xs text-neutral-500">여러 지역을 선택할 수 있습니다</p>
-              </div>
+              <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center"><MapPin className="w-5 h-5 text-neutral-500" /></div>
+              <div className="flex-1"><p className="text-sm font-medium text-neutral-900">지역 선택</p><p className="text-xs text-neutral-500">여러 지역을 선택할 수 있습니다</p></div>
             </div>
 
-            {/* 선택된 지역 태그 */}
             {selectedSidos.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {selectedSidos.map((sido) => (
-                  <span
-                    key={sido}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-100 text-brand-700 rounded-full text-sm font-medium"
-                  >
-                    {sido}
-                    <button
-                      onClick={() => removeSido(sido)}
-                      className="hover:bg-brand-200 rounded-full p-0.5 transition-colors"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </span>
-                ))}
+              <div className="space-y-2 mb-3">
+                <div className="flex flex-wrap gap-2">
+                  {selectedSidos.map((sido) => (
+                    <span key={sido} className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-100 text-brand-700 rounded-full text-sm font-medium">
+                      {sido}
+                      {(selectedSigungus[sido]?.length || 0) > 0 && (
+                        <span className="text-xs text-brand-500">({selectedSigungus[sido].length})</span>
+                      )}
+                      <button onClick={() => removeSido(sido)} className="hover:bg-brand-200 rounded-full p-0.5 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                    </span>
+                  ))}
+                </div>
+
+                {/* 시/군/구 상세 선택 */}
+                <div className="border border-neutral-200 rounded-lg overflow-hidden">
+                  <div className="flex overflow-x-auto bg-neutral-50 border-b border-neutral-200">
+                    {selectedSidos.map((sido) => (
+                      <button
+                        key={sido}
+                        onClick={() => setActiveSidoForSigungu(activeSidoForSigungu === sido ? null : sido)}
+                        className={cn(
+                          'px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 transition-colors',
+                          activeSidoForSigungu === sido
+                            ? 'border-brand-600 text-brand-700 bg-white'
+                            : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                        )}
+                      >
+                        {sido}
+                        {(selectedSigungus[sido]?.length || 0) > 0 && (
+                          <span className="ml-1 text-brand-500">{selectedSigungus[sido].length}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {activeSidoForSigungu && regionCounts.sigunguCounts[activeSidoForSigungu] && (
+                    <div className="p-3">
+                      <div className="mb-2">
+                        <input
+                          type="text"
+                          value={sigunguSearchQuery}
+                          onChange={(e) => setSigunguSearchQuery(e.target.value)}
+                          placeholder={`${activeSidoForSigungu} 시/군/구 검색...`}
+                          className="w-full px-3 py-1.5 border border-neutral-200 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                        {Object.entries(regionCounts.sigunguCounts[activeSidoForSigungu])
+                          .filter(([sigungu]) => !sigunguSearchQuery || sigungu.includes(sigunguSearchQuery))
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([sigungu, count]) => {
+                            const isSelected = selectedSigungus[activeSidoForSigungu]?.includes(sigungu);
+                            return (
+                              <button
+                                key={sigungu}
+                                onClick={() => {
+                                  setSelectedSigungus(prev => {
+                                    const current = prev[activeSidoForSigungu!] || [];
+                                    if (isSelected) {
+                                      return { ...prev, [activeSidoForSigungu!]: current.filter(s => s !== sigungu) };
+                                    } else {
+                                      return { ...prev, [activeSidoForSigungu!]: [...current, sigungu] };
+                                    }
+                                  });
+                                }}
+                                className={cn(
+                                  'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                                  isSelected
+                                    ? 'bg-brand-600 text-white'
+                                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                                )}
+                              >
+                                {sigungu} <span className={cn('text-[10px]', isSelected ? 'text-brand-200' : 'text-neutral-400')}>{count.toLocaleString()}</span>
+                              </button>
+                            );
+                          })}
+                      </div>
+                      <p className="text-[10px] text-neutral-400 mt-2">
+                        * 미선택 시 {activeSidoForSigungu} 전체에 발송됩니다
+                      </p>
+                    </div>
+                  )}
+
+                  {activeSidoForSigungu && !regionCounts.sigunguCounts[activeSidoForSigungu] && (
+                    <div className="p-3 text-xs text-neutral-400 text-center">상세 지역 데이터가 없습니다</div>
+                  )}
+                </div>
               </div>
             )}
 
-            {/* 지역 검색/추가 */}
             <div className="relative">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                <input
-                  type="text"
-                  value={regionSearchQuery}
-                  onChange={(e) => {
-                    setRegionSearchQuery(e.target.value);
-                    setIsRegionDropdownOpen(true);
-                  }}
-                  onFocus={() => setIsRegionDropdownOpen(true)}
-                  placeholder="지역 검색 (예: 서울, 경기, 부산...)"
-                  className="w-full pl-9 pr-4 py-2.5 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                />
+                <input type="text" value={regionSearchQuery} onChange={(e) => { setRegionSearchQuery(e.target.value); setIsRegionDropdownOpen(true); }} onFocus={() => setIsRegionDropdownOpen(true)} placeholder="지역 검색 (예: 서울, 경기, 부산...)" className="w-full pl-9 pr-4 py-2.5 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
               </div>
 
-              {/* 드롭다운 */}
               {isRegionDropdownOpen && (
                 <div className="absolute z-20 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
-                  {/* 전체 선택 버튼 */}
                   {filteredSidos.length > 0 && selectedSidos.length < KOREA_SIDOS.length && (
-                    <button
-                      onClick={() => {
-                        setSelectedSidos(KOREA_SIDOS);
-                        setIsRegionDropdownOpen(false);
-                        setRegionSearchQuery('');
-                      }}
-                      className="w-full px-4 py-2.5 text-left text-sm flex items-center justify-between transition-colors bg-blue-50 hover:bg-blue-100 text-blue-700 border-b border-blue-200"
-                    >
+                    <button onClick={() => { setSelectedSidos(KOREA_SIDOS); setIsRegionDropdownOpen(false); setRegionSearchQuery(''); }} className="w-full px-4 py-2.5 text-left text-sm flex items-center justify-between transition-colors bg-blue-50 hover:bg-blue-100 text-blue-700 border-b border-blue-200">
                       <span className="font-semibold">전체 선택</span>
-                      <span className="text-xs text-blue-600">
-                        +{globalTotalCount.toLocaleString()}명
-                      </span>
+                      <span className="text-xs text-blue-600">+{globalTotalCount.toLocaleString()}명</span>
                     </button>
                   )}
-                  {filteredSidos.length > 0 ? (
-                    filteredSidos.map((sido) => {
-                      const isSelected = selectedSidos.includes(sido);
-                      const count = regionCounts.sidoCounts[sido] || 0;
-                      return (
-                        <button
-                          key={sido}
-                          onClick={() => !isSelected && addSido(sido)}
-                          disabled={isSelected}
-                          className={cn(
-                            "w-full px-4 py-2.5 text-left text-sm flex items-center justify-between transition-colors",
-                            isSelected
-                              ? "bg-brand-50 text-brand-600"
-                              : "hover:bg-neutral-50 text-neutral-700"
-                          )}
-                        >
-                          <span className="font-medium">{sido}</span>
-                          <div className="flex items-center gap-2">
-                            {count > 0 && !isSelected && (
-                              <span className="text-xs text-neutral-500">+{count.toLocaleString()}명</span>
-                            )}
-                            {isSelected ? (
-                              <span className="text-xs text-brand-500">선택됨</span>
-                            ) : (
-                              <Plus className="w-4 h-4 text-neutral-400" />
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <div className="px-4 py-3 text-sm text-neutral-500">
-                      검색 결과가 없습니다
-                    </div>
-                  )}
+                  {filteredSidos.length > 0 ? filteredSidos.map((sido) => {
+                    const isSelected = selectedSidos.includes(sido);
+                    const count = regionCounts.sidoCounts[sido] || 0;
+                    return (
+                      <button key={sido} onClick={() => !isSelected && addSido(sido)} disabled={isSelected} className={cn("w-full px-4 py-2.5 text-left text-sm flex items-center justify-between transition-colors", isSelected ? "bg-brand-50 text-brand-600" : "hover:bg-neutral-50 text-neutral-700")}>
+                        <span className="font-medium">{sido}</span>
+                        <div className="flex items-center gap-2">
+                          {count > 0 && !isSelected && <span className="text-xs text-neutral-500">+{count.toLocaleString()}명</span>}
+                          {isSelected ? <span className="text-xs text-brand-500">선택됨</span> : <Plus className="w-4 h-4 text-neutral-400" />}
+                        </div>
+                      </button>
+                    );
+                  }) : <div className="px-4 py-3 text-sm text-neutral-500">검색 결과가 없습니다</div>}
                 </div>
               )}
             </div>
-
-            {/* 드롭다운 닫기 */}
-            {isRegionDropdownOpen && (
-              <div
-                className="fixed inset-0 z-0"
-                onClick={() => setIsRegionDropdownOpen(false)}
-              />
-            )}
-          </div>
-
-          {/* 우측: 시/군/구 상세 선택 */}
-          <div className="p-4 rounded-xl border border-neutral-200 bg-white overflow-visible">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
-                <MapPin className="w-5 h-5 text-neutral-500" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-neutral-900">시/군/구 상세 선택</p>
-                <p className="text-xs text-neutral-500">선택한 지역의 시/군/구를 선택</p>
-              </div>
-            </div>
-
-            {/* 시/도가 선택되지 않았을 때 */}
-            {selectedSidos.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <MapPin className="w-10 h-10 text-neutral-300 mb-2" />
-                <p className="text-sm text-neutral-500">먼저 지역(시/도)을 선택해주세요</p>
-              </div>
-            ) : (
-              /* 시/도별 시/군/구 선택 */
-              <div className="space-y-3 max-h-[280px] overflow-visible">
-                {selectedSidos.map((sido) => {
-                  const sigungus = KOREA_SIGUNGU[sido] || [];
-                  const selectedSigunguList = selectedSigungus[sido] || [];
-                  const filteredSigungus = sigungus.filter(sigungu =>
-                    sigungu.includes(sigunguSearchQuery)
-                  );
-
-                  return (
-                    <div key={sido} className="border border-neutral-200 rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-neutral-900">{sido}</span>
-                        <span className="text-xs text-neutral-500">
-                          {selectedSigunguList.length > 0
-                            ? `${selectedSigunguList.length}개 선택`
-                            : '전체'}
-                        </span>
-                      </div>
-
-                      {/* 선택된 시/군/구 태그 */}
-                      {selectedSigunguList.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mb-2">
-                          {selectedSigunguList.map((sigungu) => (
-                            <span
-                              key={sigungu}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
-                            >
-                              {sigungu}
-                              <button
-                                onClick={() => {
-                                  setSelectedSigungus(prev => ({
-                                    ...prev,
-                                    [sido]: prev[sido]?.filter(s => s !== sigungu) || []
-                                  }));
-                                }}
-                                className="hover:bg-blue-200 rounded-full p-0.5 transition-colors"
-                              >
-                                <X className="w-2.5 h-2.5" />
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* 시/군/구 검색 및 드롭다운 */}
-                      <div className="relative">
-                        <div className="relative">
-                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
-                          <input
-                            type="text"
-                            value={activeSidoForSigungu === sido ? sigunguSearchQuery : ''}
-                            onChange={(e) => {
-                              setSigunguSearchQuery(e.target.value);
-                              setActiveSidoForSigungu(sido);
-                              setIsSigunguDropdownOpen(true);
-                            }}
-                            onFocus={() => {
-                              setActiveSidoForSigungu(sido);
-                              setIsSigunguDropdownOpen(true);
-                            }}
-                            placeholder={`${sido} 시/군/구 검색...`}
-                            className="w-full pl-8 pr-3 py-1.5 border border-neutral-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                          />
-                        </div>
-
-                        {/* 드롭다운 */}
-                        {isSigunguDropdownOpen && activeSidoForSigungu === sido && (
-                          <div className="absolute z-50 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                            {filteredSigungus.length > 0 ? (
-                              filteredSigungus.map((sigungu) => {
-                                const isSelected = selectedSigunguList.includes(sigungu);
-                                const sigunguCount = regionCounts.sigunguCounts[sido]?.[sigungu] || 0;
-                                return (
-                                  <button
-                                    key={sigungu}
-                                    onClick={() => {
-                                      if (!isSelected) {
-                                        setSelectedSigungus(prev => ({
-                                          ...prev,
-                                          [sido]: [...(prev[sido] || []), sigungu]
-                                        }));
-                                      }
-                                      setIsSigunguDropdownOpen(false);
-                                      setSigunguSearchQuery('');
-                                    }}
-                                    disabled={isSelected}
-                                    className={cn(
-                                      "w-full px-3 py-1.5 text-left text-xs flex items-center justify-between transition-colors",
-                                      isSelected
-                                        ? "bg-blue-50 text-blue-600 cursor-not-allowed"
-                                        : "hover:bg-neutral-50 text-neutral-700"
-                                    )}
-                                  >
-                                    <span className="flex items-center gap-1.5">
-                                      {sigungu}
-                                      {sigunguCount > 0 && (
-                                        <span className={cn(
-                                          "text-[10px]",
-                                          isSelected ? "text-blue-400" : "text-neutral-400"
-                                        )}>
-                                          +{sigunguCount.toLocaleString()}명
-                                        </span>
-                                      )}
-                                    </span>
-                                    {isSelected ? (
-                                      <span className="text-[10px] text-blue-500">선택됨</span>
-                                    ) : (
-                                      <Plus className="w-3.5 h-3.5 text-neutral-400" />
-                                    )}
-                                  </button>
-                                );
-                              })
-                            ) : (
-                              <div className="px-3 py-2 text-xs text-neutral-500">
-                                검색 결과가 없습니다
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {selectedSidos.length > 0 && (
-              <p className="text-xs text-neutral-500 mt-2">
-                * 시/군/구 미선택 시 해당 시/도 전체로 발송
-              </p>
-            )}
-
-            {/* 드롭다운 닫기 */}
-            {isSigunguDropdownOpen && (
-              <div
-                className="fixed inset-0 z-0"
-                onClick={() => {
-                  setIsSigunguDropdownOpen(false);
-                  setSigunguSearchQuery('');
-                }}
-              />
-            )}
+            {isRegionDropdownOpen && <div className="fixed inset-0 z-0" onClick={() => setIsRegionDropdownOpen(false)} />}
           </div>
         </div>
 
