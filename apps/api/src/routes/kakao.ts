@@ -446,7 +446,7 @@ async function fetchOrdersheetForCallback(ordersheetId: string, slug?: string): 
 
 // GET /auth/kakao/taghere-start - TagHere 전용 카카오 로그인 시작
 router.get('/taghere-start', (req, res) => {
-  const { storeId, ordersheetId, slug, origin, isStamp } = req.query;
+  const { storeId, ordersheetId, slug, origin, isStamp, isMyPage } = req.query;
 
   // origin 검증: 허용된 도메인만 허용 (보안)
   const allowedOrigins = [
@@ -473,6 +473,7 @@ router.get('/taghere-start', (req, res) => {
       slug: slug || '',
       isTaghere: true,
       isStamp: isStamp === 'true',  // 스탬프 적립 여부
+      isMyPage: isMyPage === 'true',  // 마이페이지 조회
       origin: validOrigin,  // origin을 state에 포함
     })
   ).toString('base64');
@@ -484,6 +485,70 @@ router.get('/taghere-start', (req, res) => {
 
   res.redirect(kakaoAuthUrl);
 });
+
+// 마이페이지 전용 콜백 핸들러 (적립 없이 kakaoId만 추출)
+async function handleMyPageCallback(
+  req: Request,
+  res: Response,
+  stateData: { origin: string },
+  redirectOrigin: string
+) {
+  const { code } = req.query;
+
+  try {
+    const tagherRedirectUri = KAKAO_REDIRECT_URI.replace('/callback', '/taghere-callback');
+
+    // Exchange code for token
+    const tokenResponse = await fetch('https://kauth.kakao.com/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: KAKAO_CLIENT_ID,
+        client_secret: KAKAO_CLIENT_SECRET,
+        redirect_uri: tagherRedirectUri,
+        code: code as string,
+      }),
+    });
+
+    const tokenData = await tokenResponse.json() as {
+      error?: string;
+      access_token?: string;
+    };
+
+    if (tokenData.error) {
+      console.error('[MyPage Callback] Kakao token error:', tokenData);
+      return res.redirect(`${redirectOrigin}/taghere-my?error=token_error`);
+    }
+
+    // Get user info (kakaoId만 필요)
+    const userResponse = await fetch('https://kapi.kakao.com/v2/user/me', {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`,
+      },
+    });
+
+    const userData = await userResponse.json() as {
+      id?: number;
+    };
+
+    if (!userData.id) {
+      console.error('[MyPage Callback] Kakao user error:', userData);
+      return res.redirect(`${redirectOrigin}/taghere-my?error=user_error`);
+    }
+
+    const kakaoId = userData.id.toString();
+    console.log(`[MyPage Callback] kakaoId: ${kakaoId}`);
+
+    // 적립/포인트 부여 없이 바로 마이페이지로 리다이렉트
+    return res.redirect(`${redirectOrigin}/taghere-my?kakaoId=${kakaoId}`);
+  } catch (error) {
+    console.error('[MyPage Callback] Error:', error);
+    return res.redirect(`${redirectOrigin}/taghere-my?error=server_error`);
+  }
+}
 
 // 스탬프 적립 전용 콜백 핸들러
 async function handleStampCallback(
@@ -1132,7 +1197,7 @@ router.get('/taghere-callback', async (req, res) => {
   // state를 try 바깥에서 파싱하여 catch에서도 접근 가능하도록
   const { code, state, error: oauthError, error_description } = req.query;
 
-  let stateData = { storeId: '', ordersheetId: '', slug: '', isTaghere: true, isStamp: false, origin: PUBLIC_APP_URL };
+  let stateData = { storeId: '', ordersheetId: '', slug: '', isTaghere: true, isStamp: false, isMyPage: false, origin: PUBLIC_APP_URL };
   try {
     stateData = JSON.parse(Buffer.from(state as string, 'base64').toString());
     console.log('[TagHere Kakao Callback] Parsed state:', JSON.stringify(stateData));
@@ -1153,7 +1218,13 @@ router.get('/taghere-callback', async (req, res) => {
       return res.redirect(`${PUBLIC_APP_URL}/taghere-enroll?error=no_code`);
     }
 
-    console.log(`[TagHere Kakao Callback] isStamp: ${stateData.isStamp}, redirectOrigin: ${redirectOrigin}`);
+    console.log(`[TagHere Kakao Callback] isStamp: ${stateData.isStamp}, isMyPage: ${stateData.isMyPage}, redirectOrigin: ${redirectOrigin}`);
+
+    // 마이페이지 조회인 경우 (적립 없이 kakaoId만 추출)
+    if (stateData.isMyPage) {
+      console.log('[TagHere Kakao Callback] Routing to my-page callback handler');
+      return handleMyPageCallback(req, res, stateData, redirectOrigin);
+    }
 
     // 스탬프 적립인 경우 스탬프 전용 콜백으로 처리
     if (stateData.isStamp) {
