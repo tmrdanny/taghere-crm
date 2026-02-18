@@ -85,7 +85,7 @@ const navGroups: NavGroup[] = [
     icon: Store,
     items: [
       { href: 'https://admin.tag-here.com', label: '주문/결제', icon: TabletSmartphone, isExternal: true },
-      { href: '/waiting', label: '웨이팅', icon: ListOrdered, badge: '무료' },
+      { href: '/waiting', label: '웨이팅', icon: ListOrdered },
       { href: '/points', label: '포인트 적립', icon: HandCoins },
       { href: '/stamp-settings', label: '스탬프 설정', icon: Stamp },
     ],
@@ -103,10 +103,10 @@ const navGroups: NavGroup[] = [
   {
     title: '마케팅',
     icon: Send,
-    badge: '30 크레딧',
+    badge: '30건 무료',
     items: [
-      { href: '/automation', label: '자동 마케팅', icon: Zap, isNew: true },
-      { href: '/messages', label: '메시지 발송', icon: MessageSquareMore, badge: '30 크레딧' },
+      { href: '/automation', label: '자동 마케팅', icon: Zap, badge: '30건 무료' },
+      { href: '/messages', label: '메시지 발송', icon: MessageSquareMore },
       { href: '/local-customers', label: '신규 고객 타겟', icon: UserPlus },
       { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
     ],
@@ -116,9 +116,6 @@ const navGroups: NavGroup[] = [
     icon: BarChart3,
     items: [
       { href: '/insights/customers', label: '고객 통계', icon: Users, isNew: true },
-      { href: '/segments', label: '고객 세그먼트', icon: PieChart, isNew: true },
-      { href: '/insights/visit-cycle', label: '방문 주기 분석', icon: Clock, isNew: true },
-      { href: '/insights/revenue', label: '매출 기여', icon: DollarSign, isNew: true },
     ],
   },
 ];
