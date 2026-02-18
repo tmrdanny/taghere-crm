@@ -121,7 +121,7 @@ export default function RewardClaimsPage() {
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-1">
           <Gift className="w-6 h-6 text-amber-500" />
-          <h1 className="text-2xl font-bold text-slate-900">보상 신청</h1>
+          <h1 className="text-2xl font-bold text-slate-900">스탬프 보상 신청</h1>
         </div>
         <p className="text-sm text-slate-500 ml-9">
           고객이 마이페이지에서 신청한 보상 수령 요청을 관리합니다.

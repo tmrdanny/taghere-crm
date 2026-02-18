@@ -57,7 +57,7 @@ const navItems: NavItem[] = [
     children: [
       { href: '/franchise/customers', label: '고객 목록', icon: Users },
       { href: '/franchise/customers/feedback', label: '고객 피드백', icon: MessageSquare },
-      { href: '/franchise/reward-claims', label: '보상 신청', icon: Gift },
+      { href: '/franchise/reward-claims', label: '스탬프 보상 신청', icon: Gift },
     ],
   },
   {
