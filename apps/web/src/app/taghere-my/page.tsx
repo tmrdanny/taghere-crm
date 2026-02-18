@@ -221,15 +221,15 @@ function RewardList({
             </div>
             {selfClaimEnabled && onClaim && (
               <button
-                onClick={() => onClaim(reward.tier, reward.description)}
+                onClick={() => canClaim && onClaim(reward.tier, reward.description)}
                 disabled={!canClaim || !!claimingTier}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                   canClaim && !claimingTier
-                    ? 'bg-[#FFD541] text-[#1d2022]'
-                    : 'bg-[#f0f1f2] text-[#b1b5b8]'
+                    ? 'bg-[#FFD541] text-[#1d2022] active:scale-95'
+                    : 'bg-[#f0f1f2] text-[#b1b5b8] cursor-not-allowed'
                 }`}
               >
-                {isClaiming ? '처리중...' : '신청'}
+                {isClaiming ? '처리중...' : canClaim ? '신청' : `${reward.tier}개 필요`}
               </button>
             )}
           </div>
