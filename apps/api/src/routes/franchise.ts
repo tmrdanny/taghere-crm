@@ -2139,4 +2139,133 @@ router.get('/franchise-customers/:kakaoId', async (req: FranchiseAuthRequest, re
   }
 });
 
+// ─── 보상 수령 신청 관리 ───
+
+// GET /api/franchise/reward-claims — 보상 신청 목록 조회
+router.get('/reward-claims', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { status, page = '1', limit = '20' } = req.query;
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = { franchiseId };
+    if (status && status !== 'ALL') {
+      where.status = status;
+    }
+
+    const [claims, total] = await Promise.all([
+      prisma.rewardClaim.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limitNum,
+      }),
+      prisma.rewardClaim.count({ where }),
+    ]);
+
+    res.json({
+      claims,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+    });
+  } catch (error) {
+    console.error('Get reward claims error:', error);
+    res.status(500).json({ error: '보상 신청 목록 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/franchise/reward-claims/pending-count — PENDING 건수
+router.get('/reward-claims/pending-count', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const count = await prisma.rewardClaim.count({
+      where: { franchiseId, status: 'PENDING' },
+    });
+    res.json({ count });
+  } catch (error) {
+    console.error('Get pending reward claims count error:', error);
+    res.status(500).json({ error: '건수 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// PUT /api/franchise/reward-claims/:id — 상태 변경
+router.put('/reward-claims/:id', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status || !['COMPLETED', 'REJECTED'].includes(status)) {
+      return res.status(400).json({ error: 'status는 COMPLETED 또는 REJECTED만 가능합니다.' });
+    }
+
+    const claim = await prisma.rewardClaim.findFirst({
+      where: { id, franchiseId },
+    });
+
+    if (!claim) {
+      return res.status(404).json({ error: '보상 신청을 찾을 수 없습니다.' });
+    }
+
+    if (claim.status !== 'PENDING') {
+      return res.status(400).json({ error: '이미 처리된 신청입니다.' });
+    }
+
+    // REJECTED인 경우 스탬프 복원
+    if (status === 'REJECTED') {
+      await prisma.$transaction(async (tx) => {
+        // 스탬프 복원
+        await tx.franchiseCustomer.update({
+          where: { id: claim.franchiseCustomerId },
+          data: { totalStamps: { increment: claim.tier } },
+        });
+
+        // 복원 레저 기록
+        const customer = await tx.franchiseCustomer.findUnique({
+          where: { id: claim.franchiseCustomerId },
+        });
+
+        const firstStore = await tx.store.findFirst({
+          where: { franchiseId },
+          select: { id: true },
+        });
+
+        await tx.franchiseStampLedger.create({
+          data: {
+            franchiseId,
+            franchiseCustomerId: claim.franchiseCustomerId,
+            storeId: firstStore!.id,
+            type: 'ADMIN_ADD',
+            delta: claim.tier,
+            balance: customer!.totalStamps,
+            reason: `보상 신청 거절 복원 (${claim.rewardDescription})`,
+          },
+        });
+
+        // 신청 상태 변경
+        await tx.rewardClaim.update({
+          where: { id },
+          data: { status: 'REJECTED', processedAt: new Date() },
+        });
+      });
+    } else {
+      // COMPLETED
+      await prisma.rewardClaim.update({
+        where: { id },
+        data: { status: 'COMPLETED', processedAt: new Date() },
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update reward claim error:', error);
+    res.status(500).json({ error: '보상 신청 처리 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;

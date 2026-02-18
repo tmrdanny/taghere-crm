@@ -18,6 +18,7 @@ import {
   LogOut,
   Menu,
   X,
+  Gift,
 } from 'lucide-react';
 
 interface FranchiseUser {
@@ -56,6 +57,7 @@ const navItems: NavItem[] = [
     children: [
       { href: '/franchise/customers', label: '고객 목록', icon: Users },
       { href: '/franchise/customers/feedback', label: '고객 피드백', icon: MessageSquare },
+      { href: '/franchise/reward-claims', label: '보상 신청', icon: Gift },
     ],
   },
   {
@@ -90,7 +92,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
       return pathname.startsWith('/franchise/campaigns');
     }
     if (href === '#customers') {
-      return pathname.startsWith('/franchise/customers');
+      return pathname.startsWith('/franchise/customers') || pathname.startsWith('/franchise/reward-claims');
     }
     // 정확히 일치하거나, 서브 경로인 경우 (단, 다른 서브메뉴 항목은 제외)
     if (pathname === href) return true;

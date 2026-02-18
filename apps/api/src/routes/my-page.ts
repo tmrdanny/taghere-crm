@@ -210,6 +210,7 @@ router.get('/', async (req, res) => {
           totalPoints: fc.totalPoints,
           visitCount: fc.visitCount,
           lastVisitAt: fc.lastVisitAt,
+          selfClaimEnabled: stampSetting?.selfClaimEnabled ?? false,
           stampRewards,
           storeBreakdown: activeStoreBreakdown,
           recentStampHistory: recentStampHistory.map((h) => ({
@@ -248,6 +249,108 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('[My Page API] Error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/my-page/reward-claim — 보상 수령 신청 (공개, kakaoId 인증)
+router.post('/reward-claim', async (req, res) => {
+  try {
+    const { kakaoId, franchiseId, tier } = req.body;
+
+    if (!kakaoId || !franchiseId || !tier) {
+      return res.status(400).json({ error: 'kakaoId, franchiseId, tier가 필요합니다.' });
+    }
+
+    // 1. FranchiseCustomer 조회
+    const franchiseCustomer = await prisma.franchiseCustomer.findUnique({
+      where: { franchiseId_kakaoId: { franchiseId, kakaoId } },
+    });
+
+    if (!franchiseCustomer) {
+      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
+    }
+
+    // 2. selfClaimEnabled 확인
+    const stampSetting = await prisma.franchiseStampSetting.findUnique({
+      where: { franchiseId },
+    });
+
+    if (!stampSetting?.selfClaimEnabled) {
+      return res.status(400).json({ error: '보상 셀프 신청이 비활성화되어 있습니다.' });
+    }
+
+    // 3. 보상 tier 유효성 검증
+    const rewards: RewardEntry[] = stampSetting.rewards
+      ? (stampSetting.rewards as unknown as RewardEntry[])
+      : buildRewardsFromLegacy(stampSetting as Record<string, any>);
+
+    const targetReward = rewards.find((r) => r.tier === tier);
+    if (!targetReward) {
+      return res.status(400).json({ error: '해당 보상이 존재하지 않습니다.' });
+    }
+
+    // 4. 스탬프 잔액 확인
+    if (franchiseCustomer.totalStamps < tier) {
+      return res.status(400).json({ error: '스탬프가 부족합니다.' });
+    }
+
+    // 5. 트랜잭션: 스탬프 차감 + 레저 + RewardClaim 생성
+    const newBalance = franchiseCustomer.totalStamps - tier;
+
+    // storeId가 필요 — 프랜차이즈 소속 첫 번째 매장 사용
+    const firstStore = await prisma.store.findFirst({
+      where: { franchiseId },
+      select: { id: true },
+    });
+
+    if (!firstStore) {
+      return res.status(400).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 스탬프 차감
+      const updated = await tx.franchiseCustomer.update({
+        where: { id: franchiseCustomer.id },
+        data: { totalStamps: newBalance },
+      });
+
+      // 레저 기록
+      const ledger = await tx.franchiseStampLedger.create({
+        data: {
+          franchiseId,
+          franchiseCustomerId: franchiseCustomer.id,
+          storeId: firstStore.id,
+          type: 'USE',
+          delta: -tier,
+          balance: newBalance,
+          reason: `보상 수령 신청 (${targetReward.description})`,
+        },
+      });
+
+      // RewardClaim 생성
+      await tx.rewardClaim.create({
+        data: {
+          franchiseId,
+          franchiseCustomerId: franchiseCustomer.id,
+          tier,
+          rewardDescription: targetReward.description,
+          status: 'PENDING',
+          customerName: franchiseCustomer.name || null,
+          customerPhone: franchiseCustomer.phone || null,
+          stampLedgerId: ledger.id,
+        },
+      });
+
+      return updated;
+    });
+
+    res.json({
+      success: true,
+      currentStamps: result.totalStamps,
+    });
+  } catch (error) {
+    console.error('[My Page Reward Claim] Error:', error);
+    res.status(500).json({ error: '보상 신청 중 오류가 발생했습니다.' });
   }
 });
 

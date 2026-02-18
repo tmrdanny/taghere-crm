@@ -937,6 +937,7 @@ model Franchise {
   franchiseStampSetting  FranchiseStampSetting?
   franchiseStampLedger   FranchiseStampLedger[]
   franchisePointLedger   FranchisePointLedger[]
+  rewardClaims           RewardClaim[]
 
   @@map("franchises")
 }
@@ -1547,6 +1548,7 @@ model FranchiseCustomer {
   franchise     Franchise              @relation(fields: [franchiseId], references: [id])
   stampLedger   FranchiseStampLedger[]
   pointLedger   FranchisePointLedger[]
+  rewardClaims  RewardClaim[]
 
   @@unique([franchiseId, kakaoId])
   @@index([franchiseId])
@@ -1581,6 +1583,9 @@ model FranchiseStampSetting {
 
   // 알림톡 설정
   alimtalkEnabled       Boolean  @default(true)
+
+  // 고객 셀프 보상 신청
+  selfClaimEnabled      Boolean  @default(false)
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -1718,4 +1723,34 @@ model AutomationLog {
   @@index([storeId, sentAt])
   @@index([couponCode])
   @@map("automation_logs")
+}
+
+// ─── 보상 수령 신청 ───
+
+enum RewardClaimStatus {
+  PENDING     // 신청 대기
+  COMPLETED   // 수령 완료
+  REJECTED    // 거절
+}
+
+model RewardClaim {
+  id                    String             @id @default(cuid())
+  franchiseId           String
+  franchiseCustomerId   String
+  tier                  Int                // 사용 스탬프 수 (5, 10, ...)
+  rewardDescription     String             // 보상 내용
+  status                RewardClaimStatus  @default(PENDING)
+  customerName          String?            // 신청 시점 이름 (원본)
+  customerPhone         String?            // 신청 시점 연락처 (원본, 대시보드 노출)
+  stampLedgerId         String?            // 연결된 FranchiseStampLedger ID
+  processedAt           DateTime?          // 처리 완료 시각
+  createdAt             DateTime           @default(now())
+
+  franchise             Franchise          @relation(fields: [franchiseId], references: [id])
+  franchiseCustomer     FranchiseCustomer  @relation(fields: [franchiseCustomerId], references: [id])
+
+  @@index([franchiseId, status])
+  @@index([franchiseCustomerId])
+  @@index([createdAt])
+  @@map("reward_claims")
 }

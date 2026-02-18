@@ -49,6 +49,7 @@ interface FranchiseData {
   totalPoints: number;
   visitCount: number;
   lastVisitAt: string | null;
+  selfClaimEnabled: boolean;
   stampRewards: StampReward[];
   storeBreakdown: StoreBreakdown[];
   recentStampHistory: HistoryEntry[];
@@ -181,29 +182,59 @@ function StampGrid({ totalStamps, rewards }: { totalStamps: number; rewards: Sta
 
 // ─── 보상 목록 컴포넌트 ─────────────────────
 
-function RewardList({ rewards }: { rewards: StampReward[] }) {
+function RewardList({
+  rewards,
+  totalStamps,
+  selfClaimEnabled,
+  claimingTier,
+  onClaim,
+}: {
+  rewards: StampReward[];
+  totalStamps?: number;
+  selfClaimEnabled?: boolean;
+  claimingTier?: number | null;
+  onClaim?: (tier: number, description: string) => void;
+}) {
   if (rewards.length === 0) return null;
 
   return (
     <div className="rounded-[10px] border border-[#ebeced] overflow-hidden">
-      {rewards.map((reward, idx) => (
-        <div
-          key={reward.tier}
-          className={`px-4 py-3 flex items-center gap-3 ${
-            idx < rewards.length - 1 ? 'border-b border-[#ebeced]' : ''
-          }`}
-        >
-          <div className="w-7 h-7 rounded-full bg-[#FFF4D6] flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-bold">{reward.tier}</span>
+      {rewards.map((reward, idx) => {
+        const canClaim = selfClaimEnabled && totalStamps != null && totalStamps >= reward.tier;
+        const isClaiming = claimingTier === reward.tier;
+
+        return (
+          <div
+            key={reward.tier}
+            className={`px-4 py-3 flex items-center gap-3 ${
+              idx < rewards.length - 1 ? 'border-b border-[#ebeced]' : ''
+            }`}
+          >
+            <div className="w-7 h-7 rounded-full bg-[#FFF4D6] flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-bold">{reward.tier}</span>
+            </div>
+            <div className="flex-1">
+              <p className="text-[11px] text-[#b1b5b8] font-medium">{reward.tier}개 달성 보상</p>
+              <p className="text-sm font-semibold text-[#1d2022]">
+                {reward.isRandom ? '랜덤 보상' : reward.description}
+              </p>
+            </div>
+            {selfClaimEnabled && onClaim && (
+              <button
+                onClick={() => onClaim(reward.tier, reward.description)}
+                disabled={!canClaim || !!claimingTier}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  canClaim && !claimingTier
+                    ? 'bg-[#FFD541] text-[#1d2022]'
+                    : 'bg-[#f0f1f2] text-[#b1b5b8]'
+                }`}
+              >
+                {isClaiming ? '처리중...' : '신청'}
+              </button>
+            )}
           </div>
-          <div>
-            <p className="text-[11px] text-[#b1b5b8] font-medium">{reward.tier}개 달성 보상</p>
-            <p className="text-sm font-semibold text-[#1d2022]">
-              {reward.isRandom ? '랜덤 보상' : reward.description}
-            </p>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -273,7 +304,58 @@ function CollapsibleHistory({
 
 // ─── 프랜차이즈 섹션 ────────────────────────
 
-function FranchiseSection({ franchise }: { franchise: FranchiseData }) {
+function FranchiseSection({
+  franchise,
+  kakaoId,
+  onStampsUpdated,
+}: {
+  franchise: FranchiseData;
+  kakaoId: string;
+  onStampsUpdated: (franchiseId: string, newStamps: number) => void;
+}) {
+  const [claimingTier, setClaimingTier] = useState<number | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ tier: number; description: string } | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const handleClaimRequest = (tier: number, description: string) => {
+    setConfirmModal({ tier, description });
+  };
+
+  const handleConfirmClaim = async () => {
+    if (!confirmModal) return;
+    const { tier, description } = confirmModal;
+    setConfirmModal(null);
+    setClaimingTier(tier);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiUrl}/api/my-page/reward-claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kakaoId,
+          franchiseId: franchise.franchiseId,
+          tier,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || '보상 신청에 실패했습니다.');
+        return;
+      }
+
+      const data = await res.json();
+      onStampsUpdated(franchise.franchiseId, data.currentStamps);
+      setSuccessMessage(`${description} 보상 신청이 완료되었습니다.`);
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } catch {
+      alert('보상 신청 중 오류가 발생했습니다.');
+    } finally {
+      setClaimingTier(null);
+    }
+  };
+
   return (
     <div className="mb-5">
       {/* 프랜차이즈 헤더 배너 */}
@@ -287,6 +369,16 @@ function FranchiseSection({ franchise }: { franchise: FranchiseData }) {
       </div>
 
       <div className="border border-t-0 border-[#ebeced] rounded-b-[12px] p-4 space-y-4">
+        {/* 성공 메시지 */}
+        {successMessage && (
+          <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-[10px] px-4 py-3 flex items-center gap-2">
+            <svg className="w-4 h-4 text-[#22c55e] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <p className="text-sm text-[#15803d]">{successMessage}</p>
+          </div>
+        )}
+
         {/* 스탬프 그리드 */}
         {franchise.stampRewards.length > 0 && (
           <StampGrid
@@ -304,7 +396,13 @@ function FranchiseSection({ franchise }: { franchise: FranchiseData }) {
         )}
 
         {/* 보상 목록 */}
-        <RewardList rewards={franchise.stampRewards} />
+        <RewardList
+          rewards={franchise.stampRewards}
+          totalStamps={franchise.totalStamps}
+          selfClaimEnabled={franchise.selfClaimEnabled}
+          claimingTier={claimingTier}
+          onClaim={handleClaimRequest}
+        />
 
         {/* 매장별 적립 */}
         {franchise.storeBreakdown.length > 0 && (
@@ -333,6 +431,43 @@ function FranchiseSection({ franchise }: { franchise: FranchiseData }) {
           showStoreName
         />
       </div>
+
+      {/* 확인 모달 */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-xl">
+            <div className="w-14 h-14 rounded-full bg-[#FFF4D6] flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">&#127873;</span>
+            </div>
+            <h2 className="text-base font-bold text-[#1d2022] mb-2">
+              보상 수령 신청
+            </h2>
+            <p className="text-sm text-[#55595e] mb-1">
+              스탬프 <span className="font-bold">{confirmModal.tier}개</span>를 사용하여
+            </p>
+            <div className="bg-[#FFF4D6] rounded-xl px-4 py-2.5 mb-4">
+              <p className="text-sm font-bold text-[#1d2022]">{confirmModal.description}</p>
+            </div>
+            <p className="text-xs text-[#91949a] mb-5">
+              신청 후 매장에서 보상을 수령해주세요.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmModal(null)}
+                className="flex-1 py-3 bg-[#f0f1f2] text-[#55595e] font-semibold text-sm rounded-xl"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleConfirmClaim}
+                className="flex-1 py-3 bg-[#FFD541] text-[#1d2022] font-semibold text-sm rounded-xl"
+              >
+                신청하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -586,7 +721,24 @@ function MyPageContent() {
 
           {/* 프랜차이즈 통합 스탬프 섹션 */}
           {data.franchises.map((franchise) => (
-            <FranchiseSection key={franchise.franchiseId} franchise={franchise} />
+            <FranchiseSection
+              key={franchise.franchiseId}
+              franchise={franchise}
+              kakaoId={kakaoId!}
+              onStampsUpdated={(franchiseId, newStamps) => {
+                setData((prev) => {
+                  if (!prev) return prev;
+                  return {
+                    ...prev,
+                    franchises: prev.franchises.map((f) =>
+                      f.franchiseId === franchiseId
+                        ? { ...f, totalStamps: newStamps }
+                        : f
+                    ),
+                  };
+                });
+              }}
+            />
           ))}
 
           {/* 개별 매장 섹션 */}
