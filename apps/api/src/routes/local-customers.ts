@@ -274,15 +274,18 @@ router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: '지역을 선택해주세요.' });
     }
 
-    // 시/군/구 필터가 있는지 확인
-    const hasSigunguFilter = regionFilters.some((r) => r.sigungu);
-
     let externalCount = 0;
     let customerCount = 0;
 
-    // 1. ExternalCustomer 조회 (시/군/구 필터가 없을 때만)
-    if (!hasSigunguFilter) {
-      const regionOrConditions = regionFilters.map((r) => ({ regionSido: r.sido }));
+    // 1. ExternalCustomer 조회
+    {
+      const regionOrConditions = regionFilters.map((r) => {
+        if (r.sigungu) {
+          return { regionSido: r.sido, regionSigungu: r.sigungu };
+        } else {
+          return { regionSido: r.sido };
+        }
+      });
 
       const externalWhere: any = {
         OR: regionOrConditions,
@@ -341,9 +344,9 @@ router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
 
     customerCount = await prisma.customer.count({ where: customerWhere });
 
-    // 3. ExternalCustomer 슬롯 여유 확인 (hasSigunguFilter가 false일 때만)
+    // 3. ExternalCustomer 슬롯 여유 확인
     let availableExternalCount = externalCount;
-    if (!hasSigunguFilter && externalCount > 0) {
+    if (externalCount > 0) {
       const weekStart = getWeekStart(new Date());
       const usedSlots = await prisma.externalCustomerWeeklySlot.findMany({
         where: {
@@ -355,7 +358,13 @@ router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
       const usedCustomerIds = usedSlots.map((s) => s.externalCustomerId);
 
       // 슬롯 여유 있는 ExternalCustomer 수
-      const regionOrConditions = regionFilters.map((r) => ({ regionSido: r.sido }));
+      const regionOrConditions = regionFilters.map((r) => {
+        if (r.sigungu) {
+          return { regionSido: r.sido, regionSigungu: r.sigungu };
+        } else {
+          return { regionSido: r.sido };
+        }
+      });
       const externalWhere: any = {
         OR: regionOrConditions,
         consentMarketing: true,
@@ -479,13 +488,10 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       });
     }
 
-    // 시/군/구 필터가 있는지 확인
-    const hasSigunguFilter = regionFilters.some((r) => r.sigungu);
-
-    // 1. ExternalCustomer 조회 (시/군/구 필터가 없을 때만)
+    // 1. ExternalCustomer 조회
     let externalCustomers: Array<{ id: string; phone: string; source: 'external' }> = [];
 
-    if (!hasSigunguFilter) {
+    {
       // 이번 주 슬롯 여유 있는 ExternalCustomer만
       const weekStart = getWeekStart(new Date());
       const usedSlots = await prisma.externalCustomerWeeklySlot.findMany({
@@ -498,7 +504,13 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       const usedCustomerIds = usedSlots.map((s) => s.externalCustomerId);
 
       // ExternalCustomer 필터 조건
-      const regionOrConditions = regionFilters.map((r) => ({ regionSido: r.sido }));
+      const regionOrConditions = regionFilters.map((r) => {
+        if (r.sigungu) {
+          return { regionSido: r.sido, regionSigungu: r.sigungu };
+        } else {
+          return { regionSido: r.sido };
+        }
+      });
       const externalWhere: any = {
         OR: regionOrConditions,
         consentMarketing: true,
