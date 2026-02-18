@@ -28,7 +28,8 @@ const COLUMN_DEFINITIONS = [
   { id: 'stamps', label: '스탬프', required: false, defaultVisible: true },
   { id: 'points', label: '포인트', required: false, defaultVisible: true },
   { id: 'gender', label: '성별', required: false, defaultVisible: false },
-  { id: 'ageGroup', label: '연령대', required: false, defaultVisible: false },
+  { id: 'birthday', label: '생일(월)', required: false, defaultVisible: true },
+  { id: 'ageGroup', label: '연령대', required: false, defaultVisible: true },
   { id: 'visitSource', label: '방문 경로', required: false, defaultVisible: true },
   { id: 'tableLabel', label: '좌석', required: false, defaultVisible: true },
   { id: 'visitCount', label: '방문횟수', required: false, defaultVisible: true },
@@ -50,6 +51,8 @@ interface Customer {
   phone: string; // already masked
   gender: string | null;
   ageGroup: string | null;
+  birthYear: number | null;
+  birthday: string | null;
   visitCount: number;
   totalPoints: number;
   totalStamps: number;
@@ -1071,6 +1074,11 @@ export default function FranchiseCustomersPage() {
                       성별
                     </th>
                   )}
+                  {isColumnVisible('birthday') && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      생일(월)
+                    </th>
+                  )}
                   {isColumnVisible('ageGroup') && (
                     <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                       연령대
@@ -1143,6 +1151,13 @@ export default function FranchiseCustomersPage() {
                       {isColumnVisible('gender') && (
                         <td className="px-6 py-4 text-sm text-neutral-600 text-center">
                           {customer.gender === 'MALE' ? '남성' : customer.gender === 'FEMALE' ? '여성' : '-'}
+                        </td>
+                      )}
+                      {isColumnVisible('birthday') && (
+                        <td className="px-6 py-4 text-sm text-neutral-600">
+                          {customer.birthday
+                            ? `${parseInt(customer.birthday.split('-')[0], 10)}월`
+                            : '-'}
                         </td>
                       )}
                       {isColumnVisible('ageGroup') && (
