@@ -1002,7 +1002,7 @@ export default function LocalCustomersPage() {
               </div>
               <div className="flex-1 bg-white px-4 py-3 flex flex-col overflow-y-auto">
                 <div className="text-center text-[12px] text-[#8e8e93] font-medium mb-4">문자 메시지<br />오늘 오후 12:30</div>
-                <div className="flex justify-start"><div className="py-3 px-4 rounded-[20px] rounded-bl-[6px] max-w-[85%] text-[15px] leading-[1.5] bg-[#e5e5ea] text-[#1e293b]">{content ? <span className="whitespace-pre-wrap break-words">{`(광고)\n${content}\n무료수신거부 080-500-4233`}</span> : <span className="text-[#94a3b8]">메시지 미리보기</span>}</div></div>
+                <div className="flex justify-start"><div className="py-3 px-4 rounded-[20px] rounded-bl-[6px] max-w-[85%] text-[15px] leading-[1.5] bg-[#e5e5ea] text-[#1e293b]">{content ? <span className="whitespace-pre-wrap break-words">{content}</span> : <span className="text-[#94a3b8]">메시지 미리보기</span>}</div></div>
               </div>
               <div className="py-3 px-4 bg-white border-t border-[#e5e7eb] flex items-center gap-3">
                 <Camera className="w-6 h-6 text-[#007aff]" /><span className="text-[17px] font-bold text-[#007aff]">A</span>
