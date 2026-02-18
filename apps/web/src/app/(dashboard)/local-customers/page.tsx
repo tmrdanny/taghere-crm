@@ -615,7 +615,7 @@ export default function LocalCustomersPage() {
             <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">NEW</span>
           </div>
           <div className="flex bg-[#f1f5f9] rounded-lg p-1 self-start sm:self-auto">
-            <button onClick={() => setActiveTab('kakao')} className={cn('px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all', activeTab === 'kakao' ? 'bg-white shadow-sm text-[#1e293b]' : 'text-[#64748b] hover:text-[#1e293b]')}>카카오톡</button>
+            <button disabled title="준비 중입니다" className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md text-[#c0c5cc] cursor-not-allowed">카카오톡</button>
             <button onClick={() => setActiveTab('sms')} className={cn('px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all', activeTab === 'sms' ? 'bg-white shadow-sm text-[#1e293b]' : 'text-[#64748b] hover:text-[#1e293b]')}>문자 (SMS/LMS)</button>
           </div>
         </div>
