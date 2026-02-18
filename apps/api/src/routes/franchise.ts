@@ -1675,6 +1675,7 @@ router.get('/stamp-setting', async (req: FranchiseAuthRequest, res) => {
         enabled: setting.enabled,
         rewards,
         alimtalkEnabled: setting.alimtalkEnabled,
+        selfClaimEnabled: setting.selfClaimEnabled,
       },
     });
   } catch (error) {
@@ -1687,7 +1688,7 @@ router.get('/stamp-setting', async (req: FranchiseAuthRequest, res) => {
 router.put('/stamp-setting', async (req: FranchiseAuthRequest, res) => {
   try {
     const franchiseId = req.franchiseUser!.franchiseId;
-    const { rewards, alimtalkEnabled } = req.body;
+    const { rewards, alimtalkEnabled, selfClaimEnabled } = req.body;
 
     // rewards 유효성 검증
     if (rewards) {
@@ -1705,12 +1706,14 @@ router.put('/stamp-setting', async (req: FranchiseAuthRequest, res) => {
       update: {
         rewards: rewards ? (rewards as any) : undefined,
         alimtalkEnabled: alimtalkEnabled !== undefined ? alimtalkEnabled : undefined,
+        selfClaimEnabled: selfClaimEnabled !== undefined ? selfClaimEnabled : undefined,
         ...legacyData,
       },
       create: {
         franchiseId,
         rewards: rewards ? (rewards as any) : undefined,
         alimtalkEnabled: alimtalkEnabled !== undefined ? alimtalkEnabled : true,
+        selfClaimEnabled: selfClaimEnabled !== undefined ? selfClaimEnabled : false,
         ...legacyData,
       },
     });
@@ -1726,6 +1729,7 @@ router.put('/stamp-setting', async (req: FranchiseAuthRequest, res) => {
         enabled: setting.enabled,
         rewards: resultRewards,
         alimtalkEnabled: setting.alimtalkEnabled,
+        selfClaimEnabled: setting.selfClaimEnabled,
       },
     });
   } catch (error) {

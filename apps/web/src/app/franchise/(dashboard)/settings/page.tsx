@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Building2, Mail, User, Phone, Store, Link2, Eye, EyeOff, Plus } from 'lucide-react';
+import { Building2, Mail, User, Phone, Store, Link2, Eye, EyeOff, Plus, Gift } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
 interface OrganizationInfo {
@@ -35,6 +35,11 @@ export default function FranchiseSettingsPage() {
   const [orgInfo, setOrgInfo] = useState<OrganizationInfo | null>(null);
   const [isLoadingOrg, setIsLoadingOrg] = useState(true);
 
+  // Stamp self-claim setting
+  const [selfClaimEnabled, setSelfClaimEnabled] = useState(false);
+  const [isLoadingSelfClaim, setIsLoadingSelfClaim] = useState(true);
+  const [isTogglingSelfClaim, setIsTogglingSelfClaim] = useState(false);
+
   // Store connection form
   const [connectEmail, setConnectEmail] = useState('');
   const [connectPassword, setConnectPassword] = useState('');
@@ -65,6 +70,53 @@ export default function FranchiseSettingsPage() {
 
     fetchOrgInfo();
   }, []);
+
+  // Fetch stamp self-claim setting
+  useEffect(() => {
+    const fetchStampSetting = async () => {
+      try {
+        const token = localStorage.getItem('franchiseToken');
+        const res = await fetch(`${API_BASE}/api/franchise/stamp-setting`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSelfClaimEnabled(data.setting?.selfClaimEnabled ?? false);
+        }
+      } catch (error) {
+        console.error('Failed to fetch stamp setting:', error);
+      } finally {
+        setIsLoadingSelfClaim(false);
+      }
+    };
+    fetchStampSetting();
+  }, []);
+
+  const handleToggleSelfClaim = async () => {
+    setIsTogglingSelfClaim(true);
+    try {
+      const token = localStorage.getItem('franchiseToken');
+      const newValue = !selfClaimEnabled;
+      const res = await fetch(`${API_BASE}/api/franchise/stamp-setting`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ selfClaimEnabled: newValue }),
+      });
+      if (res.ok) {
+        setSelfClaimEnabled(newValue);
+        showToast(newValue ? '스탬프 보상 셀프 신청이 활성화되었습니다.' : '스탬프 보상 셀프 신청이 비활성화되었습니다.', 'success');
+      } else {
+        showToast('설정 변경에 실패했습니다.', 'error');
+      }
+    } catch {
+      showToast('설정 변경 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setIsTogglingSelfClaim(false);
+    }
+  };
 
   const handleConnectStore = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -215,6 +267,42 @@ export default function FranchiseSettingsPage() {
                 조직 정보를 불러올 수 없습니다.
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Self Claim Toggle Card */}
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+          <div className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Gift className="w-5 h-5 text-amber-500" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">스탬프 보상 셀프 신청</h2>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    고객이 마이페이지에서 직접 스탬프 보상을 신청할 수 있습니다.
+                  </p>
+                </div>
+              </div>
+              {isLoadingSelfClaim ? (
+                <div className="w-11 h-6 bg-slate-200 rounded-full animate-pulse" />
+              ) : (
+                <button
+                  onClick={handleToggleSelfClaim}
+                  disabled={isTogglingSelfClaim}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${
+                    selfClaimEnabled ? 'bg-franchise-600' : 'bg-slate-200'
+                  } ${isTogglingSelfClaim ? 'opacity-50' : ''}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      selfClaimEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
