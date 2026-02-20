@@ -2951,4 +2951,46 @@ router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: 
   }
 });
 
+// POST /api/admin/customers/export - 전체 고객 데이터 추출
+router.post('/customers/export', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { password } = req.body;
+
+    if (password !== '!Computer5117') {
+      return res.status(403).json({ error: '비밀번호가 올바르지 않습니다.' });
+    }
+
+    const customers = await prisma.customer.findMany({
+      include: {
+        store: {
+          select: { name: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const data = customers.map((c) => ({
+      storeName: c.store.name,
+      name: c.name,
+      phone: c.phone,
+      gender: c.gender,
+      ageGroup: c.ageGroup,
+      birthday: c.birthday,
+      birthYear: c.birthYear,
+      visitCount: c.visitCount,
+      totalPoints: c.totalPoints,
+      totalStamps: c.totalStamps,
+      lastVisitAt: c.lastVisitAt?.toISOString() ?? null,
+      consentMarketing: c.consentMarketing,
+      visitSource: c.visitSource,
+      createdAt: c.createdAt.toISOString(),
+    }));
+
+    res.json({ customers: data, total: data.length });
+  } catch (error) {
+    console.error('Admin customer export error:', error);
+    res.status(500).json({ error: '고객 데이터 추출 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;
