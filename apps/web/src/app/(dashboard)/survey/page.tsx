@@ -1,26 +1,34 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { ClipboardList, GripVertical, Plus, Trash2, Calendar } from 'lucide-react';
+import { ClipboardList, GripVertical, Plus, Trash2, Calendar, Type, ListChecks, X } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+
+type QuestionType = 'DATE' | 'TEXT' | 'CHOICE';
 
 interface SurveyQuestion {
   id: string;
-  type: 'DATE';
+  type: QuestionType;
   label: string;
   description: string | null;
   enabled: boolean;
   required: boolean;
   order: number;
   dateConfig: { minDate?: string; maxDate?: string } | null;
+  choiceOptions: string[] | null;
   _count?: { answers: number };
 }
 
 const MAX_QUESTIONS = 10;
+
+const TYPE_CONFIG: Record<QuestionType, { label: string; icon: typeof Calendar; color: string; bgColor: string }> = {
+  DATE: { label: '날짜', icon: Calendar, color: 'text-blue-600', bgColor: 'bg-blue-50' },
+  TEXT: { label: '텍스트', icon: Type, color: 'text-green-600', bgColor: 'bg-green-50' },
+  CHOICE: { label: '선택', icon: ListChecks, color: 'text-purple-600', bgColor: 'bg-purple-50' },
+};
 
 export default function SurveyPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -32,6 +40,11 @@ export default function SurveyPage() {
 
   // New question input
   const [newLabel, setNewLabel] = useState('');
+  const [newType, setNewType] = useState<QuestionType>('DATE');
+  const [newChoiceOptions, setNewChoiceOptions] = useState<string[]>(['', '']);
+
+  // Track original labels for dirty check on blur
+  const originalLabelsRef = useRef<Record<string, string>>({});
 
   // Drag and drop state
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -47,6 +60,10 @@ export default function SurveyPage() {
       if (res.ok) {
         const data = await res.json();
         setQuestions(data);
+        // Store original labels
+        const labels: Record<string, string> = {};
+        data.forEach((q: SurveyQuestion) => { labels[q.id] = q.label; });
+        originalLabelsRef.current = labels;
       }
     } catch (error) {
       console.error('Failed to fetch survey questions:', error);
@@ -69,25 +86,39 @@ export default function SurveyPage() {
       showToast(`질문은 최대 ${MAX_QUESTIONS}개까지만 추가할 수 있습니다.`, 'error');
       return;
     }
+    if (newType === 'CHOICE') {
+      const validOptions = newChoiceOptions.filter((o) => o.trim());
+      if (validOptions.length < 2) {
+        showToast('선택형 질문은 최소 2개의 선택지를 입력해주세요.', 'error');
+        return;
+      }
+    }
 
     setIsSaving(true);
     try {
+      const body: any = {
+        type: newType,
+        label: newLabel.trim(),
+        enabled: true,
+        required: false,
+      };
+      if (newType === 'CHOICE') {
+        body.choiceOptions = newChoiceOptions.filter((o) => o.trim());
+      }
+
       const res = await fetch(`${apiUrl}/api/survey-questions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${getToken()}`,
         },
-        body: JSON.stringify({
-          type: 'DATE',
-          label: newLabel.trim(),
-          enabled: true,
-          required: false,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {
         setNewLabel('');
+        setNewType('DATE');
+        setNewChoiceOptions(['', '']);
         await fetchQuestions();
         showToast('질문이 추가되었습니다.', 'success');
       } else {
@@ -120,12 +151,23 @@ export default function SurveyPage() {
         await fetchQuestions(); // rollback
         showToast('수정에 실패했습니다.', 'error');
       } else {
+        // Update original label ref on successful save
+        if (updates.label !== undefined) {
+          originalLabelsRef.current[id] = updates.label;
+        }
         showToast('저장되었습니다.', 'success');
       }
     } catch (error) {
       console.error('Failed to update question:', error);
       await fetchQuestions();
       showToast('수정에 실패했습니다.', 'error');
+    }
+  };
+
+  const handleLabelBlur = (id: string, currentValue: string) => {
+    const originalLabel = originalLabelsRef.current[id];
+    if (originalLabel !== currentValue) {
+      handleUpdateQuestion(id, { label: currentValue });
     }
   };
 
@@ -142,6 +184,7 @@ export default function SurveyPage() {
       });
 
       if (res.ok) {
+        delete originalLabelsRef.current[id];
         showToast('질문이 삭제되었습니다.', 'success');
       } else {
         setQuestions(prev);
@@ -151,6 +194,29 @@ export default function SurveyPage() {
       console.error('Failed to delete question:', error);
       setQuestions(prev);
       showToast('삭제에 실패했습니다.', 'error');
+    }
+  };
+
+  const handleUpdateChoiceOptions = async (id: string, options: string[]) => {
+    setQuestions((prev) =>
+      prev.map((q) => (q.id === id ? { ...q, choiceOptions: options } : q))
+    );
+    try {
+      const res = await fetch(`${apiUrl}/api/survey-questions/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ choiceOptions: options }),
+      });
+      if (!res.ok) {
+        await fetchQuestions();
+        showToast('선택지 수정에 실패했습니다.', 'error');
+      }
+    } catch {
+      await fetchQuestions();
+      showToast('선택지 수정에 실패했습니다.', 'error');
     }
   };
 
@@ -215,6 +281,17 @@ export default function SurveyPage() {
     );
   }
 
+  const TypeBadge = ({ type }: { type: QuestionType }) => {
+    const config = TYPE_CONFIG[type];
+    const Icon = config.icon;
+    return (
+      <div className={`flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-md ${config.bgColor}`}>
+        <Icon className={`w-3.5 h-3.5 ${config.color}`} />
+        <span className={`text-xs font-medium ${config.color}`}>{config.label}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="p-6 lg:p-8 max-w-6xl mx-auto">
       {ToastComponent}
@@ -251,7 +328,7 @@ export default function SurveyPage() {
                   <span className="text-xs font-medium">2</span>
                 </div>
                 <p>
-                  현재 <strong>날짜 타입</strong> 질문을 지원합니다. (예: 생년월일, 결혼기념일)
+                  <strong>날짜</strong>, <strong>텍스트</strong>, <strong>선택형</strong> 질문을 지원합니다.
                 </p>
               </div>
               <div className="flex items-start gap-3">
@@ -299,73 +376,140 @@ export default function SurveyPage() {
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, question.id)}
                     onDragEnd={handleDragEnd}
-                    className={`flex items-start gap-3 p-3 bg-neutral-50 rounded-lg transition-all
+                    className={`p-3 bg-neutral-50 rounded-lg transition-all
                       ${draggedId === question.id ? 'opacity-50' : ''}
                       ${dragOverId === question.id ? 'border-2 border-primary border-dashed' : ''}`}
                   >
-                    <GripVertical className="w-4 h-4 text-neutral-400 cursor-grab active:cursor-grabbing shrink-0" />
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Calendar className="w-4 h-4 text-blue-500" />
-                      <span className="text-xs text-blue-600 font-medium">날짜</span>
-                    </div>
-                    <textarea
-                      value={question.label}
-                      onChange={(e) =>
-                        setQuestions((prev) =>
-                          prev.map((q) => (q.id === question.id ? { ...q, label: e.target.value } : q))
-                        )
-                      }
-                      onBlur={(e) => {
-                        const original = questions.find((q) => q.id === question.id);
-                        if (original && original.label !== e.target.value) {
-                          handleUpdateQuestion(question.id, { label: e.target.value });
+                    <div className="flex items-start gap-3">
+                      <GripVertical className="w-4 h-4 text-neutral-400 cursor-grab active:cursor-grabbing shrink-0 mt-2" />
+                      <TypeBadge type={question.type} />
+                      <textarea
+                        value={question.label}
+                        onChange={(e) =>
+                          setQuestions((prev) =>
+                            prev.map((q) => (q.id === question.id ? { ...q, label: e.target.value } : q))
+                          )
                         }
-                      }}
-                      rows={2}
-                      className="flex-1 bg-white rounded-md border border-input px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    />
-                    <Switch
-                      checked={question.enabled}
-                      onCheckedChange={(checked) =>
-                        handleUpdateQuestion(question.id, { enabled: checked })
-                      }
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteQuestion(question.id)}
-                      className="text-neutral-400 hover:text-red-500 shrink-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                        onBlur={(e) => handleLabelBlur(question.id, e.target.value)}
+                        rows={2}
+                        className="flex-1 bg-white rounded-md border border-input px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
+                      <Switch
+                        checked={question.enabled}
+                        onCheckedChange={(checked) =>
+                          handleUpdateQuestion(question.id, { enabled: checked })
+                        }
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteQuestion(question.id)}
+                        className="text-neutral-400 hover:text-red-500 shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    {/* CHOICE 타입 선택지 관리 */}
+                    {question.type === 'CHOICE' && (
+                      <ChoiceOptionsEditor
+                        options={question.choiceOptions || []}
+                        onChange={(options) => handleUpdateChoiceOptions(question.id, options)}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
             )}
 
             {/* 새 질문 추가 */}
-            <div className="flex items-start gap-2 pt-2">
-              <div className="flex items-center gap-1.5 shrink-0 px-2 mt-2">
-                <Calendar className="w-4 h-4 text-blue-500" />
-                <span className="text-xs text-blue-600 font-medium">날짜</span>
+            <div className="border-t border-neutral-200 pt-4 space-y-3">
+              {/* 타입 선택 */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-neutral-600">타입:</span>
+                {(Object.keys(TYPE_CONFIG) as QuestionType[]).map((type) => {
+                  const config = TYPE_CONFIG[type];
+                  const Icon = config.icon;
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => setNewType(type)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        newType === type
+                          ? `${config.bgColor} ${config.color} ring-2 ring-offset-1 ring-current`
+                          : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {config.label}
+                    </button>
+                  );
+                })}
               </div>
-              <textarea
-                value={newLabel}
-                onChange={(e) => setNewLabel(e.target.value)}
-                placeholder="예: 생년월일, 결혼기념일"
-                disabled={questions.length >= MAX_QUESTIONS}
-                rows={2}
-                className="flex-1 bg-white rounded-md border border-input px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-              />
-              <Button
-                onClick={handleAddQuestion}
-                disabled={isSaving || questions.length >= MAX_QUESTIONS}
-                variant="outline"
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                추가
-              </Button>
+
+              {/* 질문 입력 */}
+              <div className="flex items-start gap-2">
+                <textarea
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                  placeholder={
+                    newType === 'DATE' ? '예: 생년월일, 결혼기념일' :
+                    newType === 'TEXT' ? '예: 좋아하는 음식, 알레르기' :
+                    '예: 선호하는 음료'
+                  }
+                  disabled={questions.length >= MAX_QUESTIONS}
+                  rows={2}
+                  className="flex-1 bg-white rounded-md border border-input px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                />
+                <Button
+                  onClick={handleAddQuestion}
+                  disabled={isSaving || questions.length >= MAX_QUESTIONS}
+                  variant="outline"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  추가
+                </Button>
+              </div>
+
+              {/* CHOICE 선택지 입력 */}
+              {newType === 'CHOICE' && (
+                <div className="ml-0 space-y-2">
+                  <p className="text-xs text-neutral-500">선택지를 입력하세요 (최소 2개)</p>
+                  {newChoiceOptions.map((opt, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded-full border-2 border-neutral-300 shrink-0" />
+                      <input
+                        value={opt}
+                        onChange={(e) => {
+                          const updated = [...newChoiceOptions];
+                          updated[idx] = e.target.value;
+                          setNewChoiceOptions(updated);
+                        }}
+                        placeholder={`선택지 ${idx + 1}`}
+                        className="flex-1 bg-white rounded-md border border-input px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
+                      {newChoiceOptions.length > 2 && (
+                        <button
+                          onClick={() => setNewChoiceOptions(newChoiceOptions.filter((_, i) => i !== idx))}
+                          className="text-neutral-400 hover:text-red-500"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {newChoiceOptions.length < 10 && (
+                    <button
+                      onClick={() => setNewChoiceOptions([...newChoiceOptions, ''])}
+                      className="text-xs text-neutral-500 hover:text-neutral-700 flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      선택지 추가
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
+
             {questions.length >= MAX_QUESTIONS && (
               <p className="text-sm text-amber-600">
                 최대 {MAX_QUESTIONS}개까지만 추가할 수 있습니다.
@@ -389,6 +533,72 @@ export default function SurveyPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// CHOICE 선택지 편집 컴포넌트
+function ChoiceOptionsEditor({
+  options,
+  onChange,
+}: {
+  options: string[];
+  onChange: (options: string[]) => void;
+}) {
+  const [localOptions, setLocalOptions] = useState<string[]>(options.length > 0 ? options : ['', '']);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  const saveOptions = (updated: string[]) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const valid = updated.filter((o) => o.trim());
+      if (valid.length >= 2) {
+        onChange(valid);
+      }
+    }, 800);
+  };
+
+  return (
+    <div className="ml-8 mt-2 space-y-1.5">
+      <p className="text-xs text-neutral-400">선택지</p>
+      {localOptions.map((opt, idx) => (
+        <div key={idx} className="flex items-center gap-2">
+          <div className="w-3.5 h-3.5 rounded-full border-2 border-neutral-300 shrink-0" />
+          <input
+            value={opt}
+            onChange={(e) => {
+              const updated = [...localOptions];
+              updated[idx] = e.target.value;
+              setLocalOptions(updated);
+              saveOptions(updated);
+            }}
+            placeholder={`선택지 ${idx + 1}`}
+            className="flex-1 bg-white rounded-md border border-input px-2.5 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          {localOptions.length > 2 && (
+            <button
+              onClick={() => {
+                const updated = localOptions.filter((_, i) => i !== idx);
+                setLocalOptions(updated);
+                const valid = updated.filter((o) => o.trim());
+                if (valid.length >= 2) onChange(valid);
+              }}
+              className="text-neutral-400 hover:text-red-500"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      ))}
+      {localOptions.length < 10 && (
+        <button
+          onClick={() => setLocalOptions([...localOptions, ''])}
+          className="text-xs text-neutral-500 hover:text-neutral-700 flex items-center gap-1"
+        >
+          <Plus className="w-3 h-3" />
+          선택지 추가
+        </button>
+      )}
     </div>
   );
 }

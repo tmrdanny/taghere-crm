@@ -31,10 +31,14 @@ router.get('/', async (req: AuthRequest, res) => {
 router.post('/', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { type, label, description, required: isRequired } = req.body;
+    const { type, label, description, required: isRequired, choiceOptions } = req.body;
 
     if (!type || !label) {
       return res.status(400).json({ error: '질문 타입과 텍스트를 입력해주세요.' });
+    }
+
+    if (type === 'CHOICE' && (!Array.isArray(choiceOptions) || choiceOptions.length < 2)) {
+      return res.status(400).json({ error: '선택형 질문은 최소 2개의 선택지가 필요합니다.' });
     }
 
     const count = await prisma.surveyQuestion.count({ where: { storeId } });
@@ -50,6 +54,7 @@ router.post('/', async (req: AuthRequest, res) => {
         description: description || null,
         required: isRequired ?? false,
         order: count,
+        choiceOptions: type === 'CHOICE' ? (choiceOptions as any) : undefined,
       },
     });
 
@@ -65,7 +70,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
     const { id } = req.params;
-    const { label, description, enabled, required: isRequired, order, dateConfig } = req.body;
+    const { label, description, enabled, required: isRequired, order, dateConfig, choiceOptions } = req.body;
 
     const existing = await prisma.surveyQuestion.findFirst({
       where: { id, storeId },
@@ -84,6 +89,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
         ...(isRequired !== undefined && { required: isRequired }),
         ...(order !== undefined && { order }),
         ...(dateConfig !== undefined && { dateConfig }),
+        ...(choiceOptions !== undefined && { choiceOptions: choiceOptions as any }),
       },
     });
 

@@ -1562,6 +1562,7 @@ router.get('/survey-questions/:slug', async (req, res) => {
         label: true,
         description: true,
         required: true,
+        choiceOptions: true,
       },
     });
 

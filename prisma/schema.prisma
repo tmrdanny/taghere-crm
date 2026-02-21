@@ -1481,6 +1481,8 @@ model ExternalRevenue {
 
 enum SurveyQuestionType {
   DATE
+  TEXT
+  CHOICE
 }
 
 model SurveyQuestion {
@@ -1492,7 +1494,8 @@ model SurveyQuestion {
   enabled     Boolean            @default(true)
   required    Boolean            @default(false)
   order       Int                @default(0)
-  dateConfig  Json?              // { autoSendEnabled, autoSendDaysBefore, autoSendTemplateId }
+  dateConfig    Json?              // { autoSendEnabled, autoSendDaysBefore, autoSendTemplateId }
+  choiceOptions Json?              // CHOICE 타입 선택지 배열: ["옵션1", "옵션2", ...]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -18,6 +18,24 @@ const AGE_GROUP_LABELS: Record<string, string> = {
   SIXTY_PLUS: '60대 이상',
 };
 
+function formatPhone(phone: string | null): string {
+  if (!phone) return '';
+  // +82 10-XXXX-XXXX → 010-XXXX-XXXX
+  let cleaned = phone.replace(/\s+/g, '');
+  if (cleaned.startsWith('+82')) {
+    cleaned = '0' + cleaned.slice(3);
+  }
+  // 숫자만 추출 후 하이픈 포맷팅
+  const digits = cleaned.replace(/[^0-9]/g, '');
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  return phone;
+}
+
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -66,7 +84,7 @@ export default function AdminCustomersExportPage() {
       const rows = customers.map((c: any) => ({
         '매장명': c.storeName ?? '',
         '고객명': c.name ?? '',
-        '전화번호': c.phone ?? '',
+        '전화번호': formatPhone(c.phone),
         '성별': c.gender ? (GENDER_LABELS[c.gender] ?? c.gender) : '',
         '연령대': c.ageGroup ? (AGE_GROUP_LABELS[c.ageGroup] ?? c.ageGroup) : '',
         '생년월일': c.birthday ?? '',

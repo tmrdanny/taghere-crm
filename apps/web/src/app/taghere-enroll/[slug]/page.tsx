@@ -140,10 +140,11 @@ interface SuccessData {
 
 interface SurveyQuestion {
   id: string;
-  type: 'DATE';
+  type: 'DATE' | 'TEXT' | 'CHOICE';
   label: string;
   description: string | null;
   required: boolean;
+  choiceOptions?: string[] | null;
 }
 
 function StarRating({ rating, onRatingChange }: { rating: number; onRatingChange: (rating: number) => void }) {
@@ -260,10 +261,11 @@ function SuccessPopup({
   const handleSurveySubmit = async () => {
     const answersToSubmit = Object.entries(surveyAnswers)
       .filter(([, value]) => value)
-      .map(([questionId, value]) => ({
-        questionId,
-        valueDate: value,
-      }));
+      .map(([questionId, value]) => {
+        const q = surveyQuestions.find((sq) => sq.id === questionId);
+        if (q?.type === 'DATE') return { questionId, valueDate: value };
+        return { questionId, valueText: value };
+      });
 
     if (answersToSubmit.length > 0 && successData?.customerId) {
       try {
@@ -625,14 +627,46 @@ function SuccessPopup({
                         {q.description && (
                           <p className="text-[12px] text-neutral-400 text-center whitespace-pre-line">{q.description}</p>
                         )}
-                        <input
-                          type="date"
-                          value={surveyAnswers[q.id] || ''}
-                          onChange={(e) =>
-                            setSurveyAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
-                          }
-                          className="w-full max-w-[280px] px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[14px] text-neutral-900 text-center focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
-                        />
+                        {q.type === 'DATE' && (
+                          <input
+                            type="date"
+                            value={surveyAnswers[q.id] || ''}
+                            onChange={(e) =>
+                              setSurveyAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
+                            }
+                            className="w-full max-w-[280px] px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[14px] text-neutral-900 text-center focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+                          />
+                        )}
+                        {q.type === 'TEXT' && (
+                          <input
+                            type="text"
+                            value={surveyAnswers[q.id] || ''}
+                            onChange={(e) =>
+                              setSurveyAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
+                            }
+                            placeholder="답변을 입력해주세요"
+                            className="w-full max-w-[280px] px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[14px] text-neutral-900 text-center focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+                          />
+                        )}
+                        {q.type === 'CHOICE' && q.choiceOptions && (
+                          <div className="w-full max-w-[280px] space-y-2">
+                            {q.choiceOptions.map((opt, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() =>
+                                  setSurveyAnswers((prev) => ({ ...prev, [q.id]: opt }))
+                                }
+                                className={`w-full px-4 py-2.5 rounded-lg text-[14px] text-left transition-colors ${
+                                  surveyAnswers[q.id] === opt
+                                    ? 'bg-[#FFD541] text-neutral-900 font-medium'
+                                    : 'bg-neutral-50 border border-neutral-200 text-neutral-700'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
