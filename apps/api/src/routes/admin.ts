@@ -2993,4 +2993,197 @@ router.post('/customers/export', adminAuthMiddleware, async (req: AdminRequest, 
   }
 });
 
+// ===== 자동 마케팅 Admin 엔드포인트 =====
+
+// GET /api/admin/automation-stats — 전체 요약 통계
+router.get('/automation-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const [totalStores, activeStoreIds, totalRulesEnabled, logsThisMonth, ruleTypeCounts] = await Promise.all([
+      prisma.store.count(),
+      prisma.automationRule.findMany({
+        where: { enabled: true },
+        select: { storeId: true },
+        distinct: ['storeId'],
+      }),
+      prisma.automationRule.count({ where: { enabled: true } }),
+      prisma.automationLog.findMany({
+        where: { sentAt: { gte: startOfMonth } },
+        select: { couponUsed: true },
+      }),
+      prisma.automationRule.groupBy({
+        by: ['type'],
+        where: { enabled: true },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const totalSentThisMonth = logsThisMonth.length;
+    const totalCouponUsed = logsThisMonth.filter(l => l.couponUsed).length;
+    const usageRate = totalSentThisMonth > 0 ? Math.round((totalCouponUsed / totalSentThisMonth) * 100) : 0;
+
+    const ruleTypeBreakdown: Record<string, number> = {};
+    ruleTypeCounts.forEach(r => {
+      ruleTypeBreakdown[r.type] = r._count._all;
+    });
+
+    res.json({
+      totalStores,
+      activeStores: activeStoreIds.length,
+      totalRulesEnabled,
+      totalSentThisMonth,
+      totalCouponUsed,
+      usageRate,
+      ruleTypeBreakdown,
+    });
+  } catch (error) {
+    console.error('Admin automation stats error:', error);
+    res.status(500).json({ error: '자동 마케팅 통계 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/admin/automation-stores — 매장별 자동 마케팅 현황
+router.get('/automation-stores', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const stores = await prisma.store.findMany({
+      select: {
+        id: true,
+        name: true,
+        ownerName: true,
+        automationRules: {
+          select: { type: true, enabled: true },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const storeIds = stores.map(s => s.id);
+
+    // 이번 달 로그를 매장별로 집계
+    const logStats = await prisma.automationLog.groupBy({
+      by: ['storeId'],
+      where: {
+        storeId: { in: storeIds },
+        sentAt: { gte: startOfMonth },
+      },
+      _count: { _all: true },
+    });
+
+    const couponStats = await prisma.automationLog.groupBy({
+      by: ['storeId'],
+      where: {
+        storeId: { in: storeIds },
+        sentAt: { gte: startOfMonth },
+        couponUsed: true,
+      },
+      _count: { _all: true },
+    });
+
+    const lastSentMap = await prisma.automationLog.groupBy({
+      by: ['storeId'],
+      where: { storeId: { in: storeIds } },
+      _max: { sentAt: true },
+    });
+
+    const logMap: Record<string, number> = {};
+    logStats.forEach(l => { logMap[l.storeId] = l._count._all; });
+
+    const couponMap: Record<string, number> = {};
+    couponStats.forEach(c => { couponMap[c.storeId] = c._count._all; });
+
+    const lastSentAtMap: Record<string, Date | null> = {};
+    lastSentMap.forEach(l => { lastSentAtMap[l.storeId] = l._max.sentAt; });
+
+    const result = stores.map(store => {
+      const enabledRules = store.automationRules.filter(r => r.enabled).map(r => r.type);
+      const totalSent = logMap[store.id] || 0;
+      const couponUsed = couponMap[store.id] || 0;
+      return {
+        storeId: store.id,
+        storeName: store.name,
+        ownerName: store.ownerName,
+        enabledRules,
+        totalSent,
+        couponUsed,
+        usageRate: totalSent > 0 ? Math.round((couponUsed / totalSent) * 100) : 0,
+        lastSentAt: lastSentAtMap[store.id] || null,
+      };
+    });
+
+    // 활성 매장 우선 정렬
+    result.sort((a, b) => {
+      if (a.enabledRules.length !== b.enabledRules.length) return b.enabledRules.length - a.enabledRules.length;
+      return b.totalSent - a.totalSent;
+    });
+
+    res.json({ stores: result });
+  } catch (error) {
+    console.error('Admin automation stores error:', error);
+    res.status(500).json({ error: '매장별 자동 마케팅 현황 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/admin/automation-trend — 일별 추세 데이터
+router.get('/automation-trend', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const days = parseInt(req.query.days as string) || 30;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    startDate.setHours(0, 0, 0, 0);
+
+    const [logs, activations] = await Promise.all([
+      prisma.automationLog.findMany({
+        where: { sentAt: { gte: startDate } },
+        select: { sentAt: true, couponUsed: true },
+      }),
+      prisma.automationRule.findMany({
+        where: { enabled: true, updatedAt: { gte: startDate } },
+        select: { updatedAt: true },
+      }),
+    ]);
+
+    // 일별 집계
+    const dayMap: Record<string, { sent: number; couponUsed: number; newActivations: number }> = {};
+
+    // 날짜 배열 초기화
+    for (let i = 0; i < days; i++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      dayMap[key] = { sent: 0, couponUsed: 0, newActivations: 0 };
+    }
+
+    logs.forEach(log => {
+      const key = log.sentAt.toISOString().slice(0, 10);
+      if (dayMap[key]) {
+        dayMap[key].sent++;
+        if (log.couponUsed) dayMap[key].couponUsed++;
+      }
+    });
+
+    activations.forEach(rule => {
+      const key = rule.updatedAt.toISOString().slice(0, 10);
+      if (dayMap[key]) {
+        dayMap[key].newActivations++;
+      }
+    });
+
+    const trend = Object.entries(dayMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, data]) => ({ date, ...data }));
+
+    res.json({ trend });
+  } catch (error) {
+    console.error('Admin automation trend error:', error);
+    res.status(500).json({ error: '자동 마케팅 추세 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;

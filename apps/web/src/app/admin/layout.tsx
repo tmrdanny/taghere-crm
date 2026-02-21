@@ -86,6 +86,7 @@ export default function AdminLayout({
     if (pathname === '/admin/banners') return '배너 관리';
     if (pathname === '/admin/store-products') return '스토어 상품';
     if (pathname === '/admin/customers') return '고객 추출';
+    if (pathname === '/admin/automation') return '자동 마케팅';
     return 'Admin';
   };
 
@@ -98,6 +99,7 @@ export default function AdminLayout({
     { href: '/admin/announcements', label: '공지사항', icon: AnnouncementIcon },
     { href: '/admin/banners', label: '배너 관리', icon: BannerIcon },
     { href: '/admin/store-products', label: '스토어 상품', icon: PackageIcon },
+    { href: '/admin/automation', label: '자동 마케팅', icon: ZapIcon },
     { href: '/admin/customers', label: '고객 추출', icon: DownloadIcon },
   ];
 
@@ -293,6 +295,14 @@ function PackageIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+    </svg>
+  );
+}
+
+function ZapIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
     </svg>
   );
 }
