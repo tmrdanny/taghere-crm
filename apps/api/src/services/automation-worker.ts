@@ -15,6 +15,33 @@ import { calculateCostWithCredits, useCredits } from './credit-service.js';
 
 const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1시간
 const AUTOMATION_COST_PER_MESSAGE = 50; // 건당 50원
+const KST_OFFSET = 9 * 60 * 60 * 1000; // UTC+9
+
+/** KST 기준 현재 시각 */
+function getKSTNow(): Date {
+  return new Date(Date.now() + KST_OFFSET);
+}
+
+/** KST 기준 현재 시 (0-23) */
+function getKSTHour(): number {
+  return (new Date().getUTCHours() + 9) % 24;
+}
+
+/** KST 기준 월 시작일 (UTC Date) */
+function getKSTMonthStart(): Date {
+  const kst = getKSTNow();
+  return new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), 1) - KST_OFFSET);
+}
+
+/** KST 기준 연도 시작/끝 (UTC Date) */
+function getKSTYearRange(): { yearStart: Date; yearEnd: Date } {
+  const kst = getKSTNow();
+  const year = kst.getUTCFullYear();
+  return {
+    yearStart: new Date(Date.UTC(year, 0, 1) - KST_OFFSET),
+    yearEnd: new Date(Date.UTC(year + 1, 0, 1) - KST_OFFSET),
+  };
+}
 
 // 쿠폰 코드 생성기 (10자리, 헷갈리는 문자 제외)
 const generateCouponCode = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 10);
@@ -37,24 +64,20 @@ async function processBirthdayRule(rule: any): Promise<number> {
   const config = rule.triggerConfig as TriggerConfig;
   const daysBefore = config.daysBefore || 3;
 
-  // 현재 시각이 설정된 발송 시각인지 확인
-  const now = new Date();
-  const currentHour = now.getHours();
-  if (currentHour !== rule.sendTimeHour) {
+  // 현재 시각이 설정된 발송 시각인지 확인 (KST 기준)
+  if (getKSTHour() !== rule.sendTimeHour) {
     return 0;
   }
 
-  // 타겟 날짜 계산 (D-daysBefore일 후의 생일)
-  const targetDate = new Date();
-  targetDate.setDate(targetDate.getDate() + daysBefore);
-  const targetMM = String(targetDate.getMonth() + 1).padStart(2, '0');
-  const targetDD = String(targetDate.getDate()).padStart(2, '0');
+  // 타겟 날짜 계산 (D-daysBefore일 후의 생일, KST 기준)
+  const targetDate = getKSTNow();
+  targetDate.setUTCDate(targetDate.getUTCDate() + daysBefore);
+  const targetMM = String(targetDate.getUTCMonth() + 1).padStart(2, '0');
+  const targetDD = String(targetDate.getUTCDate()).padStart(2, '0');
   const birthdayPattern = `${targetMM}-${targetDD}`;
 
-  // 올해 이미 발송한 고객 ID 조회
-  const currentYear = now.getFullYear();
-  const yearStart = new Date(currentYear, 0, 1);
-  const yearEnd = new Date(currentYear + 1, 0, 1);
+  // 올해 이미 발송한 고객 ID 조회 (KST 연도 기준)
+  const { yearStart, yearEnd } = getKSTYearRange();
 
   const alreadySent = await prisma.automationLog.findMany({
     where: {
@@ -81,9 +104,9 @@ async function processBirthdayRule(rule: any): Promise<number> {
 
   if (targets.length === 0) return 0;
 
-  // 월 상한 체크
+  // 월 상한 체크 (KST 기준)
   if (rule.monthlyMaxSends) {
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfMonth = getKSTMonthStart();
     const monthSent = await prisma.automationLog.count({
       where: {
         automationRuleId: rule.id,
@@ -106,10 +129,8 @@ async function processChurnRule(rule: any): Promise<number> {
   const config = rule.triggerConfig as TriggerConfig;
   const daysInactive = config.daysInactive || 30;
 
-  // 현재 시각이 설정된 발송 시각인지 확인
-  const now = new Date();
-  const currentHour = now.getHours();
-  if (currentHour !== rule.sendTimeHour) {
+  // 현재 시각이 설정된 발송 시각인지 확인 (KST 기준)
+  if (getKSTHour() !== rule.sendTimeHour) {
     return 0;
   }
 
@@ -146,9 +167,9 @@ async function processChurnRule(rule: any): Promise<number> {
 
   if (targets.length === 0) return 0;
 
-  // 월 상한 체크
+  // 월 상한 체크 (KST 기준)
   if (rule.monthlyMaxSends) {
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfMonth = getKSTMonthStart();
     const monthSent = await prisma.automationLog.count({
       where: {
         automationRuleId: rule.id,
@@ -172,19 +193,16 @@ async function processAnniversaryRule(rule: any): Promise<number> {
   const config = rule.triggerConfig as TriggerConfig;
   const daysBefore = config.daysBefore || 3;
 
-  const now = new Date();
-  if (now.getHours() !== rule.sendTimeHour) return 0;
+  if (getKSTHour() !== rule.sendTimeHour) return 0;
 
-  // 타겟 날짜: daysBefore일 후가 기념일인 고객
-  const targetDate = new Date();
-  targetDate.setDate(targetDate.getDate() + daysBefore);
-  const targetMM = String(targetDate.getMonth() + 1).padStart(2, '0');
-  const targetDD = String(targetDate.getDate()).padStart(2, '0');
+  // 타겟 날짜: daysBefore일 후가 기념일인 고객 (KST 기준)
+  const targetDate = getKSTNow();
+  targetDate.setUTCDate(targetDate.getUTCDate() + daysBefore);
+  const targetMM = String(targetDate.getUTCMonth() + 1).padStart(2, '0');
+  const targetDD = String(targetDate.getUTCDate()).padStart(2, '0');
 
-  // 올해 이미 발송한 고객 제외
-  const currentYear = now.getFullYear();
-  const yearStart = new Date(currentYear, 0, 1);
-  const yearEnd = new Date(currentYear + 1, 0, 1);
+  // 올해 이미 발송한 고객 제외 (KST 연도 기준)
+  const { yearStart, yearEnd } = getKSTYearRange();
 
   const alreadySent = await prisma.automationLog.findMany({
     where: { automationRuleId: rule.id, sentAt: { gte: yearStart, lt: yearEnd } },
@@ -207,17 +225,18 @@ async function processAnniversaryRule(rule: any): Promise<number> {
     select: { id: true, name: true, phone: true, createdAt: true },
   });
 
-  // createdAt의 MM-DD가 타겟 날짜와 일치하는 고객 필터
+  // createdAt의 MM-DD가 타겟 날짜와 일치하는 고객 필터 (KST 기준으로 비교)
   const targets = customers.filter((c) => {
-    const mm = String(c.createdAt.getMonth() + 1).padStart(2, '0');
-    const dd = String(c.createdAt.getDate()).padStart(2, '0');
+    const kstCreated = new Date(c.createdAt.getTime() + KST_OFFSET);
+    const mm = String(kstCreated.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(kstCreated.getUTCDate()).padStart(2, '0');
     return mm === targetMM && dd === targetDD && !sentCustomerIds.has(c.id);
   });
 
   if (targets.length === 0) return 0;
 
   if (rule.monthlyMaxSends) {
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfMonth = getKSTMonthStart();
     const monthSent = await prisma.automationLog.count({
       where: { automationRuleId: rule.id, sentAt: { gte: startOfMonth } },
     });
@@ -235,8 +254,7 @@ async function processFirstVisitFollowupRule(rule: any): Promise<number> {
   const config = rule.triggerConfig as TriggerConfig;
   const daysAfter = config.daysAfterFirstVisit || 3;
 
-  const now = new Date();
-  if (now.getHours() !== rule.sendTimeHour) return 0;
+  if (getKSTHour() !== rule.sendTimeHour) return 0;
 
   // 쿨다운 기간 내 이미 발송한 고객 제외
   const cooldownDate = new Date();
@@ -248,12 +266,11 @@ async function processFirstVisitFollowupRule(rule: any): Promise<number> {
   });
   const sentCustomerIds = new Set(alreadySent.map((l) => l.customerId));
 
-  // N일 전에 첫 방문한 고객 (visitCount == 1 + lastVisitAt이 N일 전)
-  const targetDate = new Date();
-  targetDate.setDate(targetDate.getDate() - daysAfter);
-  const dayStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
+  // N일 전에 첫 방문한 고객 (KST 기준 날짜 경계)
+  const kstTarget = getKSTNow();
+  kstTarget.setUTCDate(kstTarget.getUTCDate() - daysAfter);
+  const dayStart = new Date(Date.UTC(kstTarget.getUTCFullYear(), kstTarget.getUTCMonth(), kstTarget.getUTCDate()) - KST_OFFSET);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
   const customers = await prisma.customer.findMany({
     where: {
@@ -270,7 +287,7 @@ async function processFirstVisitFollowupRule(rule: any): Promise<number> {
   if (targets.length === 0) return 0;
 
   if (rule.monthlyMaxSends) {
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfMonth = getKSTMonthStart();
     const monthSent = await prisma.automationLog.count({
       where: { automationRuleId: rule.id, sentAt: { gte: startOfMonth } },
     });
@@ -288,8 +305,7 @@ async function processVipMilestoneRule(rule: any): Promise<number> {
   const config = rule.triggerConfig as TriggerConfig;
   const milestones = config.milestones || [10, 20, 30, 50, 100];
 
-  const now = new Date();
-  if (now.getHours() !== rule.sendTimeHour) return 0;
+  if (getKSTHour() !== rule.sendTimeHour) return 0;
 
   // 마일스톤에 해당하는 방문 횟수를 가진 고객 조회
   const customers = await prisma.customer.findMany({
@@ -311,8 +327,6 @@ async function processVipMilestoneRule(rule: any): Promise<number> {
   });
 
   // customerId별 발송된 횟수로 마일스톤 매칭
-  // 각 고객의 현재 visitCount 마일스톤이 이미 발송되었는지 확인
-  // 방법: 고객별로 발송 로그 수를 세서, 현재 마일스톤 인덱스와 비교
   const logCountByCustomer = new Map<string, number>();
   for (const log of allLogs) {
     logCountByCustomer.set(log.customerId, (logCountByCustomer.get(log.customerId) || 0) + 1);
@@ -322,14 +336,13 @@ async function processVipMilestoneRule(rule: any): Promise<number> {
     const milestoneIndex = milestones.indexOf(c.visitCount);
     if (milestoneIndex === -1) return false;
     const logCount = logCountByCustomer.get(c.id) || 0;
-    // 이미 이 마일스톤 이상을 발송했으면 스킵
     return logCount <= milestoneIndex;
   });
 
   if (targets.length === 0) return 0;
 
   if (rule.monthlyMaxSends) {
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfMonth = getKSTMonthStart();
     const monthSent = await prisma.automationLog.count({
       where: { automationRuleId: rule.id, sentAt: { gte: startOfMonth } },
     });
@@ -347,8 +360,7 @@ async function processWinbackRule(rule: any): Promise<number> {
   const config = rule.triggerConfig as TriggerConfig;
   const daysInactive = config.daysInactive || 90;
 
-  const now = new Date();
-  if (now.getHours() !== rule.sendTimeHour) return 0;
+  if (getKSTHour() !== rule.sendTimeHour) return 0;
 
   const cooldownDate = new Date();
   cooldownDate.setDate(cooldownDate.getDate() - rule.cooldownDays);
@@ -377,7 +389,7 @@ async function processWinbackRule(rule: any): Promise<number> {
   if (targets.length === 0) return 0;
 
   if (rule.monthlyMaxSends) {
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfMonth = getKSTMonthStart();
     const monthSent = await prisma.automationLog.count({
       where: { automationRuleId: rule.id, sentAt: { gte: startOfMonth } },
     });
@@ -395,11 +407,10 @@ async function processSlowDayRule(rule: any): Promise<number> {
   const config = rule.triggerConfig as TriggerConfig;
   const slowDays = config.slowDays || [1, 2]; // 0=일, 1=월, 2=화, ..., 6=토
 
-  const now = new Date();
-  if (now.getHours() !== rule.sendTimeHour) return 0;
+  if (getKSTHour() !== rule.sendTimeHour) return 0;
 
-  // 오늘이 비수기 요일인지 확인
-  const today = now.getDay(); // 0=일, 1=월, ..., 6=토
+  // 오늘이 비수기 요일인지 확인 (KST 기준)
+  const today = getKSTNow().getUTCDay(); // 0=일, 1=월, ..., 6=토
   if (!slowDays.includes(today)) return 0;
 
   const cooldownDate = new Date();
@@ -426,7 +437,7 @@ async function processSlowDayRule(rule: any): Promise<number> {
   if (targets.length === 0) return 0;
 
   if (rule.monthlyMaxSends) {
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfMonth = getKSTMonthStart();
     const monthSent = await prisma.automationLog.count({
       where: { automationRuleId: rule.id, sentAt: { gte: startOfMonth } },
     });
@@ -455,9 +466,7 @@ async function sendAutomationMessages(
   // 환경변수
   const appUrl = process.env.PUBLIC_APP_URL || 'http://localhost:3999';
   const domain = appUrl.replace(/^https?:\/\//, '');
-  const templateId = messageType === 'AUTO_BIRTHDAY'
-    ? (process.env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON || '')
-    : (process.env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON || '');
+  const templateId = process.env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON || '';
   const pfId = process.env.SOLAPI_PF_ID;
 
   if (!templateId || !pfId) {
@@ -485,10 +494,10 @@ async function sendAutomationMessages(
     }
   }
 
-  // 쿠폰 유효기간 계산
-  const expiryDate = new Date();
+  // 쿠폰 유효기간 계산 (KST 기준)
+  const expiryDate = getKSTNow();
   expiryDate.setDate(expiryDate.getDate() + (rule.couponValidDays || 14));
-  const expiryStr = `${expiryDate.getFullYear()}.${String(expiryDate.getMonth() + 1).padStart(2, '0')}.${String(expiryDate.getDate()).padStart(2, '0')}`;
+  const expiryStr = `${expiryDate.getUTCFullYear()}.${String(expiryDate.getUTCMonth() + 1).padStart(2, '0')}.${String(expiryDate.getUTCDate()).padStart(2, '0')}`;
 
   let sentCount = 0;
 
