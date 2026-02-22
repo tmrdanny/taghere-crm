@@ -1141,8 +1141,8 @@ router.post('/stamp-earn', async (req, res) => {
         if (orderData) {
           const rawPrice = orderData.content?.resultPrice || orderData.resultPrice ||
                            orderData.content?.totalPrice || orderData.totalPrice || 0;
-          totalAmount = typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : rawPrice;
-          totalAmount = totalAmount > 0 ? totalAmount : null;
+          const parsedAmount = typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : Number(rawPrice) || 0;
+          totalAmount = parsedAmount > 0 ? parsedAmount : null;
 
           const rawItems = orderData.content?.items || orderData.orderItems || orderData.items || [];
           orderItems = rawItems.map((item: any) => ({
