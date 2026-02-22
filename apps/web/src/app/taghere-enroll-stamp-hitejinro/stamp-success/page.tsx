@@ -227,7 +227,8 @@ function StampSuccessContent() {
   const slug = searchParams.get('slug') || '';
   const stamps = parseInt(searchParams.get('stamps') || '0');
   const storeName = searchParams.get('storeName') || '';
-  const ordersheetId = searchParams.get('ordersheetId') || searchParams.get('orderId');
+  const rawOrderId = searchParams.get('ordersheetId') || searchParams.get('orderId');
+  const ordersheetId = rawOrderId && /^\{.+\}$/.test(rawOrderId) ? null : rawOrderId;
   const hasOrder = Boolean(ordersheetId);
 
   // 당첨 보상 정보

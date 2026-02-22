@@ -678,7 +678,8 @@ function TaghereEnrollStampContent() {
   const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[]>([]);
 
   const slug = params.slug as string;
-  const ordersheetId = searchParams.get('ordersheetId') || searchParams.get('orderId');
+  const rawOrderId = searchParams.get('ordersheetId') || searchParams.get('orderId');
+  const ordersheetId = rawOrderId && /^\{.+\}$/.test(rawOrderId) ? null : rawOrderId;
   const orderParamName = searchParams.get('orderId') ? 'orderId' : 'ordersheetId';
   const urlError = searchParams.get('error');
 
@@ -908,7 +909,8 @@ function TaghereEnrollStampContent() {
           }
           return;
         } else if (res.status === 404) {
-          setError('존재하지 않는 매장입니다.');
+          const errorData = await res.json().catch(() => ({}));
+          setError(errorData.error === 'Store not found' ? '존재하지 않는 매장입니다.' : '주문 정보를 찾을 수 없습니다.');
         } else {
           const errorData = await res.json();
           setError(errorData.error || '정보를 불러오는데 실패했습니다.');
