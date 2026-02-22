@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk } from '../services/solapi.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
+import { fetchOrder, TaghereOrderData } from '../services/taghere-api.js';
 
 const router = Router();
 
@@ -391,62 +392,10 @@ router.get('/callback', async (req, res) => {
 // TagHere 전용 콜백 (결제 금액 기반 적립률 포인트 적립)
 // ============================================================
 
-const TAGHERE_API_URL = process.env.TAGHERE_API_URL || 'https://api.tag-here.com';
-const TAGHERE_API_TOKEN = process.env.TAGHERE_API_TOKEN_FOR_CRM || '';
-
-// Dev API 설정
-const TAGHERE_DEV_API_URL = process.env.TAGHERE_DEV_API_URL || 'https://api.d.tag-here.com';
-const TAGHERE_DEV_API_TOKEN = process.env.TAGHERE_DEV_API_TOKEN || '';
-
-// Dev API를 사용할 매장 slug 목록
-const DEV_API_STORE_SLUGS = ['zeroclasslab', 'taghere-test'];
-
-interface TaghereOrderData {
-  resultPrice?: number | string;
-  totalPrice?: number | string;
-  tableLabel?: string;
-  tableNumber?: string;
-  orderItems?: any[];
-  items?: any[];
-  content?: {
-    resultPrice?: number | string;
-    totalPrice?: number | string;
-    tableLabel?: string;
-    tableNumber?: string;
-    items?: any[];
-  };
-}
-
-// TagHere API에서 주문 정보 조회 (slug 기반으로 Dev/Prod API 선택)
-async function fetchOrdersheetForCallback(ordersheetId: string, slug?: string): Promise<TaghereOrderData | null> {
-  // Dev API를 사용할 매장인지 확인
-  const useDevApi = slug && DEV_API_STORE_SLUGS.includes(slug) && TAGHERE_DEV_API_TOKEN;
-  const apiUrl = useDevApi ? TAGHERE_DEV_API_URL : TAGHERE_API_URL;
-  const apiToken = useDevApi ? TAGHERE_DEV_API_TOKEN : TAGHERE_API_TOKEN;
-
-  console.log(`[TagHere Kakao] Fetching ordersheet - slug: ${slug}, useDevApi: ${useDevApi}, apiUrl: ${apiUrl}`);
-
-  const response = await fetch(
-    `${apiUrl}/webhook/crm/ordersheet?ordersheetId=${ordersheetId}`,
-    {
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-
-  if (!response.ok) {
-    console.error('[TagHere] API error:', response.status);
-    return null;
-  }
-
-  return response.json() as Promise<TaghereOrderData>;
-}
-
 // GET /auth/kakao/taghere-start - TagHere 전용 카카오 로그인 시작
 router.get('/taghere-start', (req, res) => {
-  const { storeId, ordersheetId, slug, origin, isStamp, isMyPage } = req.query;
+  const { storeId, slug, origin, isStamp, isMyPage, isMembership } = req.query;
+  const ordersheetId = (req.query.ordersheetId || req.query.orderId) as string | undefined;
 
   // origin 검증: 허용된 도메인만 허용 (보안)
   const allowedOrigins = [
@@ -474,6 +423,7 @@ router.get('/taghere-start', (req, res) => {
       isTaghere: true,
       isStamp: isStamp === 'true',  // 스탬프 적립 여부
       isMyPage: isMyPage === 'true',  // 마이페이지 조회
+      isMembership: isMembership === 'true',  // 멤버십 가입
       origin: validOrigin,  // origin을 state에 포함
     })
   ).toString('base64');
@@ -547,6 +497,237 @@ async function handleMyPageCallback(
   } catch (error) {
     console.error('[MyPage Callback] Error:', error);
     return res.redirect(`${redirectOrigin}/taghere-my?error=server_error`);
+  }
+}
+
+// 멤버십 가입 전용 콜백 핸들러 (포인트/스탬프 적립 없이 고객 등록만)
+async function handleMembershipCallback(
+  req: Request,
+  res: Response,
+  stateData: { storeId: string; ordersheetId: string; slug: string; origin: string },
+  redirectOrigin: string
+) {
+  const { code } = req.query;
+
+  const memberBasePath = `/taghere-enroll-member/${stateData.slug || ''}`;
+  const tagherRedirectUri = KAKAO_REDIRECT_URI.replace('/callback', '/taghere-callback');
+
+  try {
+    // Exchange code for token
+    const tokenResponse = await fetch('https://kauth.kakao.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: KAKAO_CLIENT_ID,
+        client_secret: KAKAO_CLIENT_SECRET,
+        redirect_uri: tagherRedirectUri,
+        code: code as string,
+      }),
+    });
+
+    const tokenData = await tokenResponse.json() as { error?: string; access_token?: string };
+    if (tokenData.error) {
+      console.error('[Membership Callback] Kakao token error:', tokenData);
+      return res.redirect(`${redirectOrigin}${memberBasePath}?error=token_error`);
+    }
+
+    // Get user info
+    const userResponse = await fetch('https://kapi.kakao.com/v2/user/me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+
+    const userData = await userResponse.json() as {
+      id?: number;
+      kakao_account?: {
+        phone_number?: string;
+        profile?: { nickname?: string };
+        gender?: string;
+        birthday?: string;
+        birthyear?: string;
+      };
+    };
+
+    if (!userData.id) {
+      console.error('[Membership Callback] Kakao user error:', userData);
+      return res.redirect(`${redirectOrigin}${memberBasePath}?error=user_error`);
+    }
+
+    const kakaoId = userData.id.toString();
+    const kakaoAccount = userData.kakao_account || {};
+    const profile = kakaoAccount.profile || {};
+
+    // Get store
+    const storeId = stateData.storeId;
+    const storeSelect = { id: true, name: true, taghereVersion: true };
+    let store = storeId
+      ? await prisma.store.findUnique({ where: { id: storeId }, select: storeSelect })
+      : null;
+
+    if (!store && stateData.slug) {
+      store = await prisma.store.findFirst({ where: { slug: stateData.slug }, select: storeSelect });
+    }
+
+    if (!store) {
+      return res.redirect(`${redirectOrigin}${memberBasePath}?error=store_not_found`);
+    }
+
+    // 전화번호 정규화
+    const phoneLastDigits = kakaoAccount.phone_number
+      ? kakaoAccount.phone_number.replace(/[^0-9]/g, '').slice(-8)
+      : null;
+
+    // 고객 찾기
+    let customer = await prisma.customer.findFirst({
+      where: { storeId: store.id, kakaoId },
+    });
+
+    if (!customer && phoneLastDigits) {
+      customer = await prisma.customer.findFirst({
+        where: { storeId: store.id, phoneLastDigits },
+      });
+    }
+
+    // 같은 ordersheetId로 이미 등록했는지 확인
+    if (stateData.ordersheetId) {
+      const existingVisit = await prisma.visitOrOrder.findFirst({
+        where: {
+          storeId: store.id,
+          orderId: stateData.ordersheetId,
+        },
+      });
+
+      if (existingVisit) {
+        const alreadyUrl = new URL(`${redirectOrigin}${memberBasePath}`);
+        alreadyUrl.searchParams.set('error', 'already_participated');
+        alreadyUrl.searchParams.set('storeName', store.name);
+        if (stateData.ordersheetId) alreadyUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
+        return res.redirect(alreadyUrl.toString());
+      }
+    }
+
+    // 주문 정보 조회 (VisitOrOrder 기록용)
+    let resultPrice = 0;
+    let orderItems: any[] = [];
+    let tableLabel: string | null = null;
+    if (stateData.ordersheetId) {
+      const orderData = await fetchOrder(stateData.ordersheetId, store.taghereVersion);
+      if (orderData) {
+        const rawPrice = orderData.content?.resultPrice || orderData.resultPrice || orderData.content?.totalPrice || orderData.totalPrice || 0;
+        resultPrice = typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : rawPrice;
+        tableLabel = orderData.content?.tableLabel || orderData.tableLabel || (orderData as any).content?.tableNumber || (orderData as any).tableNumber || null;
+        const rawItems = orderData.content?.items || orderData.orderItems || orderData.items || [];
+        orderItems = rawItems.map((item: any) => ({
+          name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
+          quantity: item.count || item.quantity || item.qty || item.amount || 1,
+          price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+          option: item.option || null,
+        }));
+      }
+    }
+
+    if (!customer) {
+      // 신규 고객 생성
+      customer = await prisma.customer.create({
+        data: {
+          storeId: store.id,
+          kakaoId,
+          name: profile.nickname || null,
+          phone: kakaoAccount.phone_number || null,
+          phoneLastDigits,
+          gender: kakaoAccount.gender === 'male' ? 'MALE' : kakaoAccount.gender === 'female' ? 'FEMALE' : null,
+          birthday: kakaoAccount.birthday
+            ? `${kakaoAccount.birthday.slice(0, 2)}-${kakaoAccount.birthday.slice(2, 4)}`
+            : null,
+          birthYear: kakaoAccount.birthyear ? parseInt(kakaoAccount.birthyear) : null,
+          consentMarketing: true,
+          consentKakao: true,
+          consentAt: new Date(),
+          totalPoints: 0,
+          visitCount: 0,
+        },
+      });
+      console.log(`[Membership Callback] New customer created - customerId: ${customer.id}, storeId: ${store.id}`);
+    } else {
+      // 기존 고객 정보 업데이트
+      customer = await prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          kakaoId: customer.kakaoId || kakaoId,
+          name: profile.nickname || customer.name,
+          phone: kakaoAccount.phone_number || customer.phone,
+          phoneLastDigits: phoneLastDigits || customer.phoneLastDigits,
+          gender: kakaoAccount.gender === 'male' ? 'MALE' : kakaoAccount.gender === 'female' ? 'FEMALE' : customer.gender,
+          birthday: customer.birthday || (kakaoAccount.birthday
+            ? `${kakaoAccount.birthday.slice(0, 2)}-${kakaoAccount.birthday.slice(2, 4)}`
+            : null),
+          birthYear: customer.birthYear || (kakaoAccount.birthyear ? parseInt(kakaoAccount.birthyear) : null),
+        },
+      });
+    }
+
+    // 오늘 첫 방문인지 확인
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const todayVisit = await prisma.visitOrOrder.findFirst({
+      where: {
+        customerId: customer.id,
+        storeId: store.id,
+        visitedAt: { gte: todayStart, lte: todayEnd },
+      },
+    });
+    const isFirstVisitToday = !todayVisit;
+
+    // 멤버십: VisitOrOrder만 기록 (포인트/스탬프 적립 없음)
+    await prisma.$transaction([
+      prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
+          lastVisitAt: new Date(),
+        },
+      }),
+      prisma.visitOrOrder.create({
+        data: {
+          storeId: store.id,
+          customerId: customer.id,
+          orderId: stateData.ordersheetId || null,
+          visitedAt: new Date(),
+          totalAmount: resultPrice > 0 ? resultPrice : null,
+          items: orderItems.length > 0 || tableLabel ? {
+            items: orderItems,
+            tableNumber: tableLabel,
+          } : undefined,
+        },
+      }),
+    ]);
+
+    console.log(`[Membership Callback] Membership registered - customerId: ${customer.id}, storeId: ${store.id}`);
+
+    // 알림톡 발송 (멤버십 환영 — 템플릿 미설정 시 스킵)
+    // TODO: 별도 멤버십 환영 알림톡 템플릿 추가 시 여기서 발송
+
+    // 선호도 존재 여부
+    const hasPreferences = !!(customer as any).preferredCategories;
+
+    // 성공 리다이렉트
+    const successUrl = new URL(`${redirectOrigin}${memberBasePath}`);
+    successUrl.searchParams.set('mode', 'membership');
+    successUrl.searchParams.set('successStoreName', store.name);
+    successUrl.searchParams.set('customerId', customer.id);
+    successUrl.searchParams.set('kakaoId', kakaoId);
+    successUrl.searchParams.set('hasPreferences', hasPreferences.toString());
+    if (stateData.ordersheetId) {
+      successUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
+    }
+
+    res.redirect(successUrl.toString());
+  } catch (error) {
+    console.error('[Membership Callback] Error:', error);
+    res.redirect(`${redirectOrigin}${memberBasePath}?error=callback_error`);
   }
 }
 
@@ -627,6 +808,7 @@ async function handleStampCallback(
     stampSetting: true,
     franchiseStampEnabled: true,
     franchiseId: true,
+    taghereVersion: true,
     franchise: {
       select: {
         id: true,
@@ -832,11 +1014,11 @@ async function handleStampCallback(
 
   if (stateData.ordersheetId) {
     try {
-      const orderData = await fetchOrdersheetForCallback(stateData.ordersheetId, stateData.slug);
+      const orderData = await fetchOrder(stateData.ordersheetId, store!.taghereVersion);
       if (orderData) {
         const rawPrice = orderData.content?.resultPrice || orderData.resultPrice || orderData.content?.totalPrice || orderData.totalPrice || 0;
         totalAmount = typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : rawPrice;
-        tableLabel = orderData.content?.tableLabel || orderData.tableLabel || orderData.content?.tableNumber || orderData.tableNumber || null;
+        tableLabel = orderData.content?.tableLabel || orderData.tableLabel || (orderData as any).content?.tableNumber || (orderData as any).tableNumber || null;
         const rawItems = orderData.content?.items || orderData.orderItems || orderData.items || [];
         orderItems = rawItems.map((item: any) => ({
           name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
@@ -1197,7 +1379,7 @@ router.get('/taghere-callback', async (req, res) => {
   // state를 try 바깥에서 파싱하여 catch에서도 접근 가능하도록
   const { code, state, error: oauthError, error_description } = req.query;
 
-  let stateData = { storeId: '', ordersheetId: '', slug: '', isTaghere: true, isStamp: false, isMyPage: false, origin: PUBLIC_APP_URL };
+  let stateData = { storeId: '', ordersheetId: '', slug: '', isTaghere: true, isStamp: false, isMyPage: false, isMembership: false, origin: PUBLIC_APP_URL };
   try {
     stateData = JSON.parse(Buffer.from(state as string, 'base64').toString());
     console.log('[TagHere Kakao Callback] Parsed state:', JSON.stringify(stateData));
@@ -1230,6 +1412,12 @@ router.get('/taghere-callback', async (req, res) => {
     if (stateData.isStamp) {
       console.log('[TagHere Kakao Callback] Routing to stamp callback handler');
       return handleStampCallback(req, res, stateData, redirectOrigin);
+    }
+
+    // 멤버십 가입인 경우 멤버십 전용 콜백으로 처리
+    if (stateData.isMembership) {
+      console.log('[TagHere Kakao Callback] Routing to membership callback handler');
+      return handleMembershipCallback(req, res, stateData, redirectOrigin);
     }
 
     // TagHere 전용 콜백 URL
@@ -1297,6 +1485,7 @@ router.get('/taghere-callback', async (req, res) => {
       pointRatePercent: true,
       pointsAlimtalkEnabled: true,
       naverPlaceUrl: true,
+      taghereVersion: true,
     };
 
     if (storeId) {
@@ -1358,18 +1547,18 @@ router.get('/taghere-callback', async (req, res) => {
       }
     }
 
-    // TagHere API에서 주문 정보 조회 (slug 기반으로 Dev/Prod API 선택)
+    // TagHere API에서 주문 정보 조회 (V1/V2 자동 분기)
     let resultPrice = 0;
     let orderItems: any[] = [];
     let tableLabel: string | null = null;
     if (stateData.ordersheetId) {
-      const orderData = await fetchOrdersheetForCallback(stateData.ordersheetId, stateData.slug);
+      const orderData = await fetchOrder(stateData.ordersheetId, store.taghereVersion);
       if (orderData) {
         // resultPrice는 content.resultPrice에 있고, 문자열일 수 있음
         const rawPrice = orderData.content?.resultPrice || orderData.resultPrice || orderData.content?.totalPrice || orderData.totalPrice || 0;
         resultPrice = typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : rawPrice;
         // 테이블 레이블 추출 (tableLabel 또는 tableNumber)
-        tableLabel = orderData.content?.tableLabel || orderData.tableLabel || orderData.content?.tableNumber || orderData.tableNumber || null;
+        tableLabel = orderData.content?.tableLabel || orderData.tableLabel || (orderData as any).content?.tableNumber || (orderData as any).tableNumber || null;
         // 주문 아이템 정보 - TagHere API 응답 구조에 따라 추출
         const rawItems = orderData.content?.items || orderData.orderItems || orderData.items || [];
         // items 구조 로깅 (디버깅용)

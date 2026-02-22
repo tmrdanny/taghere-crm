@@ -3,16 +3,9 @@ import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk } from '../services/solapi.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
+import { isValidWebhookToken, fetchOrder, TaghereOrderData } from '../services/taghere-api.js';
 
 const router = Router();
-
-const TAGHERE_API_URL = process.env.TAGHERE_API_URL || 'https://api.tag-here.com';
-const TAGHERE_API_TOKEN = process.env.TAGHERE_API_TOKEN_FOR_CRM || '';
-const TAGHERE_WEBHOOK_TOKEN = process.env.TAGHERE_WEBHOOK_TOKEN || '';
-
-// Dev API 설정 (현재 모든 매장에서 Dev API 사용)
-const TAGHERE_DEV_API_URL = process.env.TAGHERE_DEV_API_URL || 'https://api.d.tag-here.com';
-const TAGHERE_DEV_API_TOKEN = process.env.TAGHERE_DEV_API_TOKEN || '';
 
 // 웹훅 인증 미들웨어
 interface WebhookRequest extends Request {
@@ -32,16 +25,7 @@ const webhookAuthMiddleware = (req: WebhookRequest, res: Response, next: NextFun
 
   const token = authHeader.split(' ')[1];
 
-  if (!TAGHERE_WEBHOOK_TOKEN) {
-    console.error('[Webhook] TAGHERE_WEBHOOK_TOKEN is not configured');
-    return res.status(500).json({
-      success: false,
-      error: 'Webhook not configured',
-      message: '웹훅 토큰이 서버에 설정되지 않았습니다.'
-    });
-  }
-
-  if (token !== TAGHERE_WEBHOOK_TOKEN) {
+  if (!isValidWebhookToken(token)) {
     return res.status(403).json({
       success: false,
       error: 'Invalid token',
@@ -53,59 +37,14 @@ const webhookAuthMiddleware = (req: WebhookRequest, res: Response, next: NextFun
   next();
 };
 
-interface TaghereOrderData {
-  resultPrice?: number | string;
-  totalPrice?: number | string;
-  tableLabel?: string;
-  tableID?: string;
-  orderItems?: any[];
-  items?: any[];
-  content?: {
-    resultPrice?: number | string;
-    totalPrice?: number | string;
-    tableLabel?: string;
-    tableID?: string;
-    items?: any[];
-  };
-}
-
-// TagHere API에서 주문 정보 조회 (운영 API 사용)
-async function fetchOrdersheet(ordersheetId: string): Promise<TaghereOrderData | null> {
-  const apiUrl = TAGHERE_API_URL;
-  const apiToken = TAGHERE_API_TOKEN;
-
-  console.log(`[TagHere] Fetching ordersheet - ordersheetId: ${ordersheetId}, apiUrl: ${apiUrl}`);
-
-  const response = await fetch(
-    `${apiUrl}/webhook/crm/ordersheet?ordersheetId=${ordersheetId}`,
-    {
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[TagHere] API error:', response.status, errorText);
-    // 404인 경우 null 반환 (주문서 없음)
-    if (response.status === 404) {
-      return null;
-    }
-    throw new Error(`TagHere API error: ${response.status}`);
-  }
-
-  return response.json() as Promise<TaghereOrderData>;
-}
-
 // GET /api/taghere/ordersheet - 주문 정보 조회 및 적립 예정 포인트 계산 (공개 API)
 router.get('/ordersheet', async (req, res) => {
   try {
-    const { ordersheetId, slug } = req.query;
+    const ordersheetId = (req.query.ordersheetId || req.query.orderId) as string | undefined;
+    const slug = req.query.slug as string | undefined;
 
     if (!ordersheetId) {
-      return res.status(400).json({ error: 'ordersheetId is required' });
+      return res.status(400).json({ error: 'ordersheetId or orderId is required' });
     }
 
     if (!slug) {
@@ -114,11 +53,12 @@ router.get('/ordersheet', async (req, res) => {
 
     // 매장 정보 조회
     const store = await prisma.store.findFirst({
-      where: { slug: slug as string },
+      where: { slug },
       select: {
         id: true,
         name: true,
         pointRatePercent: true,
+        taghereVersion: true,
       },
     });
 
@@ -126,8 +66,8 @@ router.get('/ordersheet', async (req, res) => {
       return res.status(404).json({ error: 'Store not found' });
     }
 
-    // TagHere API 호출
-    const orderData = await fetchOrdersheet(ordersheetId as string);
+    // TagHere API 호출 (V1/V2 자동 분기)
+    const orderData = await fetchOrder(ordersheetId, store.taghereVersion);
 
     // 주문서를 찾을 수 없는 경우
     if (!orderData) {
@@ -187,14 +127,16 @@ router.get('/ordersheet', async (req, res) => {
 // POST /api/taghere/auto-earn - 기존 고객 자동 포인트 적립 (카카오 로그인 없이)
 router.post('/auto-earn', async (req, res) => {
   try {
-    const { kakaoId, ordersheetId, slug } = req.body;
+    const { kakaoId, slug, mode } = req.body;
+    const ordersheetId = req.body.ordersheetId || req.body.orderId;
+    const isMembership = mode === 'membership';
 
     // 1. 파라미터 검증
     if (!kakaoId || !ordersheetId || !slug) {
       return res.status(400).json({
         success: false,
         error: 'missing_params',
-        message: 'kakaoId, ordersheetId, slug가 필요합니다.',
+        message: 'kakaoId, ordersheetId(또는 orderId), slug가 필요합니다.',
       });
     }
 
@@ -207,7 +149,7 @@ router.post('/auto-earn', async (req, res) => {
       });
     }
 
-    console.log(`[TagHere Auto-Earn] Request - kakaoId: ${kakaoId}, ordersheetId: ${ordersheetId}, slug: ${slug}`);
+    console.log(`[TagHere Auto-Earn] Request - kakaoId: ${kakaoId}, ordersheetId: ${ordersheetId}, slug: ${slug}, mode: ${mode || 'points'}`);
 
     // 2. 매장 조회
     const store = await prisma.store.findFirst({
@@ -216,6 +158,7 @@ router.post('/auto-earn', async (req, res) => {
         id: true,
         name: true,
         pointRatePercent: true,
+        taghereVersion: true,
       },
     });
 
@@ -227,21 +170,33 @@ router.post('/auto-earn', async (req, res) => {
       });
     }
 
-    // 3. 중복 적립 체크 (ordersheetId로 이미 적립했는지)
-    const existingEarn = await prisma.pointLedger.findFirst({
-      where: {
-        storeId: store.id,
-        type: 'EARN',
-        reason: { contains: ordersheetId },
-      },
-    });
-
-    if (existingEarn) {
-      return res.status(409).json({
-        success: false,
-        error: 'already_earned',
-        message: '이미 포인트가 적립된 주문입니다.',
+    // 3. 중복 체크 (멤버십: VisitOrOrder, 포인트: PointLedger)
+    if (isMembership) {
+      const existingVisit = await prisma.visitOrOrder.findFirst({
+        where: { storeId: store.id, orderId: ordersheetId },
       });
+      if (existingVisit) {
+        return res.status(409).json({
+          success: false,
+          error: 'already_earned',
+          message: '이미 등록된 주문입니다.',
+        });
+      }
+    } else {
+      const existingEarn = await prisma.pointLedger.findFirst({
+        where: {
+          storeId: store.id,
+          type: 'EARN',
+          reason: { contains: ordersheetId },
+        },
+      });
+      if (existingEarn) {
+        return res.status(409).json({
+          success: false,
+          error: 'already_earned',
+          message: '이미 포인트가 적립된 주문입니다.',
+        });
+      }
     }
 
     // 4. kakaoId로 해당 매장의 고객 조회
@@ -319,8 +274,8 @@ router.post('/auto-earn', async (req, res) => {
       }
     }
 
-    // 6. TagHere API에서 주문 금액 조회
-    const orderData = await fetchOrdersheet(ordersheetId);
+    // 6. TagHere API에서 주문 금액 조회 (V1/V2 자동 분기)
+    const orderData = await fetchOrder(ordersheetId, store.taghereVersion);
 
     // 주문서를 찾을 수 없는 경우 기본값 사용 (적립은 진행)
     if (!orderData) {
@@ -350,105 +305,148 @@ router.post('/auto-earn', async (req, res) => {
       }
     }
 
-    // 7. 포인트 계산
-    const ratePercent = store.pointRatePercent || 5;
-    const earnPoints = resultPrice > 0 ? Math.round(resultPrice * ratePercent / 100) : 100;
-    const newBalance = customer.totalPoints + earnPoints;
-
-    // 8. 오늘 첫 방문인지 확인
+    // 7. 오늘 첫 방문인지 확인
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    const todayVisit = await prisma.pointLedger.findFirst({
-      where: {
-        customerId: customer.id,
-        storeId: store.id,
-        type: 'EARN',
-        createdAt: {
-          gte: todayStart,
-          lte: todayEnd,
-        },
-      },
-    });
-
-    const isFirstVisitToday = !todayVisit;
-
-    // 9. 포인트 적립 트랜잭션
-    await prisma.$transaction([
-      prisma.customer.update({
-        where: { id: customer.id },
-        data: {
-          totalPoints: newBalance,
-          ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
-          lastVisitAt: new Date(),
-        },
-      }),
-      prisma.pointLedger.create({
-        data: {
-          storeId: store.id,
+    if (isMembership) {
+      // ===== 멤버십 모드: VisitOrOrder만 기록 (포인트 적립 없음) =====
+      const todayVisit = await prisma.visitOrOrder.findFirst({
+        where: {
           customerId: customer.id,
-          delta: earnPoints,
-          balance: newBalance,
-          type: 'EARN',
-          reason: `TagHere 자동 적립 (ordersheetId: ${ordersheetId})`,
-          orderId: ordersheetId,
-          tableLabel: tableLabel,
-        },
-      }),
-      prisma.visitOrOrder.create({
-        data: {
           storeId: store.id,
-          customerId: customer.id,
-          orderId: ordersheetId,
-          visitedAt: new Date(),
-          totalAmount: resultPrice > 0 ? resultPrice : null,
-          items: orderItems.length > 0 || tableLabel ? {
-            items: orderItems,
-            tableNumber: tableLabel,
-          } : undefined,
+          visitedAt: { gte: todayStart, lte: todayEnd },
         },
-      }),
-    ]);
-
-    console.log(`[TagHere Auto-Earn] Points earned - customerId: ${customer.id}, earnPoints: ${earnPoints}, newBalance: ${newBalance}, orderItemsCount: ${orderItems.length}, tableLabel: ${tableLabel}`);
-
-    // 10. 알림톡 발송 (전화번호가 있는 경우만, 비동기)
-    const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
-    if (phoneNumber) {
-      const pointLedger = await prisma.pointLedger.findFirst({
-        where: { customerId: customer.id },
-        orderBy: { createdAt: 'desc' },
       });
+      const isFirstVisitToday = !todayVisit;
 
-      if (pointLedger) {
-        enqueuePointsEarnedAlimTalk({
-          storeId: store.id,
-          customerId: customer.id,
-          pointLedgerId: pointLedger.id,
-          phone: phoneNumber,
-          variables: {
-            storeName: store.name,
-            points: earnPoints,
-            totalPoints: newBalance,
+      await prisma.$transaction([
+        prisma.customer.update({
+          where: { id: customer.id },
+          data: {
+            ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
+            lastVisitAt: new Date(),
           },
-        }).catch((err) => {
-          console.error('[TagHere Auto-Earn] Points AlimTalk enqueue failed:', err);
-        });
-      }
-    }
+        }),
+        prisma.visitOrOrder.create({
+          data: {
+            storeId: store.id,
+            customerId: customer.id,
+            orderId: ordersheetId,
+            visitedAt: new Date(),
+            totalAmount: resultPrice > 0 ? resultPrice : null,
+            items: orderItems.length > 0 || tableLabel ? {
+              items: orderItems,
+              tableNumber: tableLabel,
+            } : undefined,
+          },
+        }),
+      ]);
 
-    // 11. 성공 응답
-    res.json({
-      success: true,
-      points: earnPoints,
-      totalPoints: newBalance,
-      storeName: store.name,
-      customerId: customer.id,
-      resultPrice,
-      isNewCustomer,
-    });
+      console.log(`[TagHere Auto-Earn] Membership registered - customerId: ${customer.id}, storeId: ${store.id}`);
+
+      // 멤버십 성공 응답
+      res.json({
+        success: true,
+        mode: 'membership',
+        storeName: store.name,
+        customerId: customer.id,
+        resultPrice,
+        isNewCustomer,
+        hasExistingPreferences: !!(customer as any).preferredCategories,
+      });
+    } else {
+      // ===== 포인트 모드: 기존 로직 =====
+      const ratePercent = store.pointRatePercent || 5;
+      const earnPoints = resultPrice > 0 ? Math.round(resultPrice * ratePercent / 100) : 100;
+      const newBalance = customer.totalPoints + earnPoints;
+
+      const todayVisit = await prisma.pointLedger.findFirst({
+        where: {
+          customerId: customer.id,
+          storeId: store.id,
+          type: 'EARN',
+          createdAt: { gte: todayStart, lte: todayEnd },
+        },
+      });
+      const isFirstVisitToday = !todayVisit;
+
+      await prisma.$transaction([
+        prisma.customer.update({
+          where: { id: customer.id },
+          data: {
+            totalPoints: newBalance,
+            ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
+            lastVisitAt: new Date(),
+          },
+        }),
+        prisma.pointLedger.create({
+          data: {
+            storeId: store.id,
+            customerId: customer.id,
+            delta: earnPoints,
+            balance: newBalance,
+            type: 'EARN',
+            reason: `TagHere 자동 적립 (ordersheetId: ${ordersheetId})`,
+            orderId: ordersheetId,
+            tableLabel: tableLabel,
+          },
+        }),
+        prisma.visitOrOrder.create({
+          data: {
+            storeId: store.id,
+            customerId: customer.id,
+            orderId: ordersheetId,
+            visitedAt: new Date(),
+            totalAmount: resultPrice > 0 ? resultPrice : null,
+            items: orderItems.length > 0 || tableLabel ? {
+              items: orderItems,
+              tableNumber: tableLabel,
+            } : undefined,
+          },
+        }),
+      ]);
+
+      console.log(`[TagHere Auto-Earn] Points earned - customerId: ${customer.id}, earnPoints: ${earnPoints}, newBalance: ${newBalance}, orderItemsCount: ${orderItems.length}, tableLabel: ${tableLabel}`);
+
+      // 알림톡 발송 (전화번호가 있는 경우만, 비동기)
+      const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
+      if (phoneNumber) {
+        const pointLedger = await prisma.pointLedger.findFirst({
+          where: { customerId: customer.id },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (pointLedger) {
+          enqueuePointsEarnedAlimTalk({
+            storeId: store.id,
+            customerId: customer.id,
+            pointLedgerId: pointLedger.id,
+            phone: phoneNumber,
+            variables: {
+              storeName: store.name,
+              points: earnPoints,
+              totalPoints: newBalance,
+            },
+          }).catch((err) => {
+            console.error('[TagHere Auto-Earn] Points AlimTalk enqueue failed:', err);
+          });
+        }
+      }
+
+      // 포인트 성공 응답
+      res.json({
+        success: true,
+        points: earnPoints,
+        totalPoints: newBalance,
+        storeName: store.name,
+        customerId: customer.id,
+        resultPrice,
+        isNewCustomer,
+      });
+    }
   } catch (error: any) {
     console.error('[TagHere Auto-Earn] Error:', error);
     res.status(500).json({
@@ -646,7 +644,8 @@ router.post('/order-event', authMiddleware, async (req: AuthRequest, res) => {
  *
  * Request Body:
  * {
- *   "ordersheetId": "6666",           // 필수: 취소된 주문 ID
+ *   "ordersheetId": "6666",           // V1: 취소된 주문 ID
+ *   "orderId": "6666",               // V2: 취소된 주문 ID (ordersheetId와 택 1)
  *   "reason": "고객 요청 환불",        // 선택: 취소/환불 사유
  *   "cancelType": "CANCEL" | "REFUND" // 선택: 취소 유형 (기본값: CANCEL)
  * }
@@ -655,14 +654,15 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
   const startTime = Date.now();
 
   try {
-    const { ordersheetId, reason, cancelType = 'CANCEL' } = req.body;
+    const ordersheetId = req.body.ordersheetId || req.body.orderId;
+    const { reason, cancelType = 'CANCEL' } = req.body;
 
     // 1. 필수 파라미터 검증
     if (!ordersheetId) {
       return res.status(400).json({
         success: false,
         error: 'Missing required field',
-        message: 'ordersheetId는 필수입니다.'
+        message: 'ordersheetId 또는 orderId는 필수입니다.'
       });
     }
 
@@ -939,7 +939,8 @@ router.get('/stamp-info/:slug', async (req, res) => {
 // POST /api/taghere/stamp-earn - 스탬프 자동 적립 (카카오 로그인 후)
 router.post('/stamp-earn', async (req, res) => {
   try {
-    const { kakaoId, slug, ordersheetId, earnMethod = 'NFC_TAG' } = req.body;
+    const { kakaoId, slug, earnMethod = 'NFC_TAG' } = req.body;
+    const ordersheetId = req.body.ordersheetId || req.body.orderId;
 
     // 1. 파라미터 검증
     if (!kakaoId || !slug) {
@@ -970,6 +971,7 @@ router.post('/stamp-earn', async (req, res) => {
         stampSetting: true,
         franchiseStampEnabled: true,
         franchiseId: true,
+        taghereVersion: true,
         franchise: {
           select: {
             id: true,
@@ -1127,7 +1129,7 @@ router.post('/stamp-earn', async (req, res) => {
       }
     }
 
-    // 7-1. ordersheetId가 있으면 TagHere API에서 주문 데이터 조회
+    // 7-1. ordersheetId가 있으면 TagHere API에서 주문 데이터 조회 (V1/V2 자동 분기)
     let orderData: TaghereOrderData | null = null;
     let tableLabel: string | null = null;
     let orderItems: any[] = [];
@@ -1135,7 +1137,7 @@ router.post('/stamp-earn', async (req, res) => {
 
     if (ordersheetId) {
       try {
-        orderData = await fetchOrdersheet(ordersheetId);
+        orderData = await fetchOrder(ordersheetId, store.taghereVersion);
         if (orderData) {
           const rawPrice = orderData.content?.resultPrice || orderData.resultPrice ||
                            orderData.content?.totalPrice || orderData.totalPrice || 0;
@@ -1626,63 +1628,54 @@ router.post('/survey-answers', async (req, res) => {
 // 모든 매장의 성공 페이지에서 사용
 router.get('/order-details', async (req, res) => {
   try {
-    const { storeId, ordersheetId } = req.query;
+    const storeId = req.query.storeId as string | undefined;
+    const ordersheetId = (req.query.ordersheetId || req.query.orderId) as string | undefined;
+    const slug = req.query.slug as string | undefined;
 
-    if (!storeId || !ordersheetId) {
-      return res.status(400).json({ error: 'storeId와 ordersheetId가 필요합니다.' });
+    if (!ordersheetId) {
+      return res.status(400).json({ error: 'ordersheetId 또는 orderId가 필요합니다.' });
     }
 
-    // 운영 API 사용
-    const apiUrl = TAGHERE_API_URL;
-    const apiToken = TAGHERE_API_TOKEN;
-
-    if (!apiToken) {
-      return res.status(500).json({ error: 'API 토큰이 설정되지 않았습니다.' });
+    // slug 또는 storeId로 매장 조회하여 version 판별
+    let store = null;
+    if (slug) {
+      store = await prisma.store.findFirst({
+        where: { slug },
+        select: { id: true, name: true, taghereVersion: true },
+      });
+    } else if (storeId) {
+      store = await prisma.store.findUnique({
+        where: { id: storeId },
+        select: { id: true, name: true, taghereVersion: true },
+      });
     }
 
-    console.log(`[TagHere] Fetching order details - storeId: ${storeId}, ordersheetId: ${ordersheetId}`);
+    const version = store?.taghereVersion || 'v1';
 
-    // 태그히어 모바일오더 API 호출
-    const response = await fetch(
-      `${apiUrl}/webhook/crm/order-details?storeId=${storeId}&ordersheetId=${ordersheetId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    console.log(`[TagHere] Fetching order details - storeId: ${storeId}, ordersheetId: ${ordersheetId}, version: ${version}`);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[TagHere] Order details API error:', response.status, errorText);
-      return res.status(response.status).json({ error: '주문 정보를 불러오는데 실패했습니다.' });
+    // 서비스 레이어를 통한 주문 조회 (V1/V2 자동 분기)
+    const orderData = await fetchOrder(ordersheetId, version);
+
+    if (!orderData) {
+      return res.status(404).json({ error: '주문 정보를 찾을 수 없습니다.' });
     }
-
-    const data = await response.json() as {
-      storeName?: string;
-      store?: { name?: string; logoUrl?: string };
-      storeLogoUrl?: string;
-      orderNumber?: string;
-      tableNumber?: string;
-      items?: any[];
-      orderItems?: any[];
-      totalPrice?: string | number;
-      resultPrice?: string | number;
-    };
-    console.log('[TagHere] Order details data:', JSON.stringify(data, null, 2));
 
     // 응답 데이터 가공
     const orderDetails = {
-      storeName: data.storeName || data.store?.name || '태그히어',
-      storeLogoUrl: data.storeLogoUrl || data.store?.logoUrl || null,
-      orderNumber: data.orderNumber || `T-${ordersheetId}`,
-      tableNumber: data.tableNumber || null,
-      items: (data.items || data.orderItems || []).map((item: any) => ({
+      storeName: (orderData as any).storeName || store?.name || '태그히어',
+      storeLogoUrl: (orderData as any).storeLogoUrl || null,
+      orderNumber: (orderData as any).displayOrderNumber || (orderData as any).orderNumber || `T-${ordersheetId}`,
+      tableNumber: orderData.tableLabel || null,
+      items: (orderData.items || orderData.orderItems || []).map((item: any) => ({
         name: item.name || item.menuName || item.label || '상품',
         quantity: item.quantity || item.count || 1,
       })),
-      totalPrice: typeof data.totalPrice === 'string' ? parseInt(data.totalPrice, 10) : (data.totalPrice || data.resultPrice || 0),
+      totalPrice: (() => {
+        const rawPrice = orderData.content?.resultPrice || orderData.resultPrice || orderData.content?.totalPrice || orderData.totalPrice || 0;
+        return typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : rawPrice;
+      })(),
+      menuLink: (orderData as any).menuLink || null,
     };
 
     res.json(orderDetails);

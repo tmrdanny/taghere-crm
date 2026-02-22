@@ -7,6 +7,7 @@ import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
 import { enqueueAlimTalk } from '../services/solapi.js';
 import { generateSlug, getUniqueSlug } from './auth.js';
+import { notifyCrmOn, notifyCrmOff } from '../services/taghere-api.js';
 
 const router = Router();
 
@@ -119,73 +120,6 @@ const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'taghere';
 // 비밀번호는 bcrypt 해시로 저장 (ADMIN_PASSWORD_HASH 환경변수 사용)
 // 해시 생성: npx bcrypt-cli hash "비밀번호"
 const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
-
-// 태그히어 서버 연동 설정
-const TAGHERE_CRM_BASE_URL = process.env.TAGHERE_CRM_BASE_URL || 'https://taghere-crm-web-dev.onrender.com';
-const TAGHERE_API_BASE = process.env.TAGHERE_API_URL || 'https://api.d.tag-here.com';
-const TAGHERE_WEBHOOK_URL = process.env.TAGHERE_WEBHOOK_URL || `${TAGHERE_API_BASE}/webhook/crm`;
-const TAGHERE_WEBHOOK_TOKEN = process.env.TAGHERE_API_TOKEN_FOR_CRM || process.env.TAGHERE_WEBHOOK_TOKEN || process.env.TAGHERE_DEV_API_TOKEN || '';
-
-// CRM 활성화 시 태그히어 서버에 알림
-async function notifyTaghereCrmOn(userId: string, slug: string, isStampMode: boolean = false): Promise<void> {
-  if (!TAGHERE_WEBHOOK_TOKEN) {
-    console.log('[TagHere CRM] TAGHERE_WEBHOOK_TOKEN not configured, skipping notification');
-    return;
-  }
-
-  const path = isStampMode ? 'taghere-enroll-stamp' : 'taghere-enroll';
-  const redirectUrl = `${TAGHERE_CRM_BASE_URL}/${path}/${slug}?ordersheetId={ordersheetId}`;
-
-  try {
-    const response = await fetch(`${TAGHERE_WEBHOOK_URL}/on`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${TAGHERE_WEBHOOK_TOKEN}`,
-      },
-      body: JSON.stringify({ userId, redirectUrl }),
-    });
-
-    if (!response.ok) {
-      console.error('[TagHere CRM] on failed:', response.status, await response.text());
-    } else {
-      console.log(`[TagHere CRM] on success - userId: ${userId}, isStampMode: ${isStampMode}`);
-    }
-  } catch (error) {
-    console.error('[TagHere CRM] on error:', error);
-  }
-}
-
-// CRM 비활성화 시 태그히어 서버에 알림
-async function notifyTaghereCrmOff(userId: string, slug: string, isStampMode: boolean): Promise<void> {
-  if (!TAGHERE_WEBHOOK_TOKEN) {
-    console.log('[TagHere CRM] TAGHERE_WEBHOOK_TOKEN not configured, skipping notification');
-    return;
-  }
-
-  // 해당 매장에서 사용했던 redirectUrl 생성
-  const path = isStampMode ? 'taghere-enroll-stamp' : 'taghere-enroll';
-  const redirectUrl = `${TAGHERE_CRM_BASE_URL}/${path}/${slug}?ordersheetId={ordersheetId}`;
-
-  try {
-    const response = await fetch(`${TAGHERE_WEBHOOK_URL}/off`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${TAGHERE_WEBHOOK_TOKEN}`,
-      },
-      body: JSON.stringify({ userId, redirectUrl }),
-    });
-
-    if (!response.ok) {
-      console.error('[TagHere CRM] off failed:', response.status, await response.text());
-    } else {
-      console.log(`[TagHere CRM] off success - userId: ${userId}, redirectUrl: ${redirectUrl}`);
-    }
-  } catch (error) {
-    console.error('[TagHere CRM] off error:', error);
-  }
-}
 
 interface AdminRequest extends Request {
   isAdmin?: boolean;
@@ -494,26 +428,31 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       },
     });
 
-    // CRM 활성화 상태 변경 시 태그히어 서버에 알림
+    // CRM 활성화 상태 변경 시 태그히어 서버에 알림 (V1/V2 자동 분기)
     const wasCrmEnabled = (existingStore as any).crmEnabled ?? true;
     if (crmEnabled !== undefined && crmEnabled !== wasCrmEnabled) {
       const ownerEmail = existingStore.staffUsers?.[0]?.email;
       const storeSlug = slug || existingStore.slug;
 
-      if (ownerEmail && storeSlug) {
+      if (storeSlug) {
+        const isStampMode = existingStore.stampSetting?.enabled ?? false;
+        const crmParams = {
+          version: existingStore.taghereVersion,
+          userId: ownerEmail,
+          storeName: existingStore.name,
+          slug: storeSlug,
+          isStampMode,
+        };
+
         if (crmEnabled) {
-          // CRM ON → 스탬프 모드 확인 후 적절한 URL 전송
-          const isStampMode = existingStore.stampSetting?.enabled ?? false;
-          await notifyTaghereCrmOn(ownerEmail, storeSlug, isStampMode);
-          console.log(`[Admin] CRM enabled for store ${storeId}, isStampMode: ${isStampMode}`);
+          await notifyCrmOn(crmParams);
+          console.log(`[Admin] CRM enabled for store ${storeId}, version: ${existingStore.taghereVersion}, isStampMode: ${isStampMode}`);
         } else {
-          // CRM OFF → 해당 매장의 redirectUrl과 함께 전송
-          const isStampMode = existingStore.stampSetting?.enabled ?? false;
-          await notifyTaghereCrmOff(ownerEmail, storeSlug, isStampMode);
-          console.log(`[Admin] CRM disabled for store ${storeId}, isStampMode: ${isStampMode}`);
+          await notifyCrmOff(crmParams);
+          console.log(`[Admin] CRM disabled for store ${storeId}, version: ${existingStore.taghereVersion}, isStampMode: ${isStampMode}`);
         }
       } else {
-        console.log(`[Admin] Store ${storeId} missing owner email or slug, skipped TagHere notification`);
+        console.log(`[Admin] Store ${storeId} missing slug, skipped TagHere notification`);
       }
     }
 
@@ -3183,6 +3122,165 @@ router.get('/automation-trend', adminAuthMiddleware, async (req: AdminRequest, r
   } catch (error) {
     console.error('Admin automation trend error:', error);
     res.status(500).json({ error: '자동 마케팅 추세 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// ===== 매장 enrollmentMode 관리 =====
+
+// GET /api/admin/stores/enrollment-stats - 등록 모드별 매장 현황
+router.get('/stores/enrollment-stats', adminAuthMiddleware, async (req, res) => {
+  try {
+    const stores = await prisma.store.findMany({
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        enrollmentMode: true,
+        crmEnabled: true,
+        _count: { select: { customers: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const stats = {
+      total: stores.length,
+      byMode: {
+        POINTS: stores.filter(s => s.enrollmentMode === 'POINTS').length,
+        STAMP: stores.filter(s => s.enrollmentMode === 'STAMP').length,
+        MEMBERSHIP: stores.filter(s => s.enrollmentMode === 'MEMBERSHIP').length,
+      },
+      withoutSlug: stores.filter(s => !s.slug).length,
+      crmDisabled: stores.filter(s => !s.crmEnabled).length,
+    };
+
+    res.json({
+      stats,
+      stores: stores.map(s => ({
+        id: s.id,
+        name: s.name,
+        slug: s.slug,
+        enrollmentMode: s.enrollmentMode,
+        crmEnabled: s.crmEnabled,
+        customerCount: s._count.customers,
+      })),
+    });
+  } catch (error) {
+    console.error('Admin enrollment stats error:', error);
+    res.status(500).json({ error: '등록 모드 통계 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// PUT /api/admin/stores/:storeId/enrollment-mode - 개별 매장 등록 모드 변경
+router.put('/stores/:storeId/enrollment-mode', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const { mode } = req.body;
+
+    if (!['POINTS', 'STAMP', 'MEMBERSHIP'].includes(mode)) {
+      return res.status(400).json({ error: 'mode는 POINTS, STAMP, MEMBERSHIP 중 하나여야 합니다.' });
+    }
+
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { id: true, name: true, slug: true },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    // slug 없으면 자동 생성
+    let slug = store.slug;
+    if (!slug) {
+      const baseSlug = generateSlug(store.name);
+      slug = await getUniqueSlug(baseSlug);
+    }
+
+    await prisma.store.update({
+      where: { id: storeId },
+      data: {
+        enrollmentMode: mode,
+        crmEnabled: true,
+        slug,
+      },
+    });
+
+    res.json({ success: true, storeId, mode, slug });
+  } catch (error) {
+    console.error('Admin enrollment mode update error:', error);
+    res.status(500).json({ error: '등록 모드 변경 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/stores/batch-membership-enable - 일괄 멤버십 모드 활성화
+router.post('/stores/batch-membership-enable', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { storeIds, dryRun = false } = req.body;
+
+    // storeIds가 없으면 모든 POINTS 모드 매장 대상
+    let targetStores;
+    if (storeIds && Array.isArray(storeIds) && storeIds.length > 0) {
+      targetStores = await prisma.store.findMany({
+        where: { id: { in: storeIds } },
+        select: { id: true, name: true, slug: true, enrollmentMode: true, crmEnabled: true },
+      });
+    } else {
+      targetStores = await prisma.store.findMany({
+        where: { enrollmentMode: { not: 'MEMBERSHIP' } },
+        select: { id: true, name: true, slug: true, enrollmentMode: true, crmEnabled: true },
+      });
+    }
+
+    if (dryRun) {
+      return res.json({
+        dryRun: true,
+        total: targetStores.length,
+        stores: targetStores.map(s => ({
+          id: s.id,
+          name: s.name,
+          currentMode: s.enrollmentMode,
+          hasSlug: !!s.slug,
+        })),
+      });
+    }
+
+    let enabled = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (const store of targetStores) {
+      try {
+        let slug = store.slug;
+        if (!slug) {
+          const baseSlug = generateSlug(store.name);
+          slug = await getUniqueSlug(baseSlug);
+        }
+
+        await prisma.store.update({
+          where: { id: store.id },
+          data: {
+            enrollmentMode: 'MEMBERSHIP',
+            crmEnabled: true,
+            slug,
+          },
+        });
+        enabled++;
+      } catch (err: any) {
+        errors.push(`${store.name} (${store.id}): ${err.message}`);
+        skipped++;
+      }
+    }
+
+    res.json({
+      dryRun: false,
+      total: targetStores.length,
+      enabled,
+      skipped,
+      errors,
+    });
+  } catch (error) {
+    console.error('Admin batch membership enable error:', error);
+    res.status(500).json({ error: '일괄 멤버십 활성화 중 오류가 발생했습니다.' });
   }
 });
 

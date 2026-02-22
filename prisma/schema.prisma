@@ -46,6 +46,12 @@ model Store {
   franchise             Franchise? @relation(fields: [franchiseId], references: [id])
   franchiseStampEnabled Boolean    @default(false)  // 통합 스탬프 참여 여부
 
+  // 태그히어 모바일오더 연동 버전 ("v1" | "v2")
+  taghereVersion        String     @default("v1")
+
+  // 고객 등록 모드: "POINTS" = 포인트 적립, "STAMP" = 스탬프, "MEMBERSHIP" = 태그히어 멤버십
+  enrollmentMode        String     @default("POINTS")
+
   // Relations
   staffUsers            StaffUser[]
   customers             Customer[]
