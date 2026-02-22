@@ -198,7 +198,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res: Response) => 
               '#{상호}': store.name,
               '#{쿠폰내용}': couponContent.trim(),
               '#{유효기간}': expiryDate.trim(),
-              '#{네이버플레이스}': naverPlaceUrl || store.naverPlaceUrl || '',
+              '#{네이버플레이스}': (naverPlaceUrl || store.naverPlaceUrl || '').replace(/^https?:\/\//, ''),
               '#{직원확인}': verifyUrl,
             },
             idempotencyKey,

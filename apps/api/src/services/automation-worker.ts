@@ -497,7 +497,7 @@ async function sendAutomationMessages(
   // 쿠폰 유효기간 계산 (KST 기준)
   const expiryDate = getKSTNow();
   expiryDate.setDate(expiryDate.getDate() + (rule.couponValidDays || 14));
-  const expiryStr = `${expiryDate.getUTCFullYear()}.${String(expiryDate.getUTCMonth() + 1).padStart(2, '0')}.${String(expiryDate.getUTCDate()).padStart(2, '0')}`;
+  const expiryStr = `${expiryDate.getUTCFullYear()}.${String(expiryDate.getUTCMonth() + 1).padStart(2, '0')}.${String(expiryDate.getUTCDate()).padStart(2, '0')} 까지`;
 
   let sentCount = 0;
 
@@ -547,7 +547,7 @@ async function sendAutomationMessages(
             '#{상호}': store.name,
             '#{쿠폰내용}': couponContent,
             '#{유효기간}': expiryStr,
-            '#{네이버플레이스}': store.naverPlaceUrl || '',
+            '#{네이버플레이스}': (store.naverPlaceUrl || '').replace(/^https?:\/\//, ''),
             '#{직원확인}': verifyUrl,
           },
           idempotencyKey,
