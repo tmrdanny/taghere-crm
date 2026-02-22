@@ -367,8 +367,8 @@ function OrderSuccessContent() {
   // 모든 매장에서 바텀 모달 표시
   const shouldShowModal = true;
 
-  // ordersheetId가 유효한 MongoDB ObjectId 형식인지 확인 (24자 hex)
-  const isValidOrdersheetId = ordersheetId && /^[a-f0-9]{24}$/i.test(ordersheetId);
+  // ordersheetId/orderId 유효성 확인 (V1: 24자 hex MongoDB ObjectId, V2: OR로 시작하는 ID)
+  const isValidOrdersheetId = ordersheetId && (/^[a-f0-9]{24}$/i.test(ordersheetId) || /^OR/.test(ordersheetId));
 
   useEffect(() => {
     // 스탬프 타입이면 ordersheetId 없어도 기본 UI 표시

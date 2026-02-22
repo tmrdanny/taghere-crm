@@ -679,6 +679,7 @@ function TaghereEnrollStampContent() {
 
   const slug = params.slug as string;
   const ordersheetId = searchParams.get('ordersheetId') || searchParams.get('orderId');
+  const orderParamName = searchParams.get('orderId') ? 'orderId' : 'ordersheetId';
   const urlError = searchParams.get('error');
 
   // Success params from redirect
@@ -956,7 +957,7 @@ function TaghereEnrollStampContent() {
         params.set('storeId', stampInfo.storeId);
         params.set('slug', slug);
         params.set('isStamp', 'true');
-        if (ordersheetId) params.set('ordersheetId', ordersheetId);
+        if (ordersheetId) params.set(orderParamName, ordersheetId);
         params.set('origin', window.location.origin);
         window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
       }
@@ -967,7 +968,7 @@ function TaghereEnrollStampContent() {
     // 스탬프 누적 현황 페이지로 이동
     const url = new URL(window.location.origin + '/taghere-enroll-stamp/stamp-success');
     url.searchParams.set('slug', slug);
-    if (ordersheetId) url.searchParams.set('ordersheetId', ordersheetId);
+    if (ordersheetId) url.searchParams.set(orderParamName, ordersheetId);
     if (successData) {
       url.searchParams.set('stamps', String(successData.currentStamps || 0));
       url.searchParams.set('storeName', successData.storeName || '');
@@ -1025,7 +1026,7 @@ function TaghereEnrollStampContent() {
     url.searchParams.set('type', 'stamp');
     url.searchParams.set('slug', slug);
     if (ordersheetId) {
-      url.searchParams.set('ordersheetId', ordersheetId);
+      url.searchParams.set(orderParamName, ordersheetId);
     }
     window.location.href = url.toString();
   };

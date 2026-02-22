@@ -712,7 +712,8 @@ function TaghereMemberEnrollContent() {
   const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[]>([]);
 
   const slug = params.slug as string;
-  const ordersheetId = searchParams.get('ordersheetId');
+  const ordersheetId = searchParams.get('ordersheetId') || searchParams.get('orderId');
+  const orderParamName = searchParams.get('orderId') ? 'orderId' : 'ordersheetId';
   const urlError = searchParams.get('error');
 
   // Success params from redirect
@@ -919,7 +920,7 @@ function TaghereMemberEnrollContent() {
         const params = new URLSearchParams();
         params.set('storeId', orderInfo.storeId);
         params.set('slug', slug);
-        if (ordersheetId) params.set('ordersheetId', ordersheetId);
+        if (ordersheetId) params.set(orderParamName, ordersheetId);
         params.set('origin', window.location.origin);
         params.set('isMembership', 'true');
         window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
@@ -931,7 +932,7 @@ function TaghereMemberEnrollContent() {
     setSuccessData(null);
 
     const url = new URL(window.location.origin + '/taghere-enroll-member/order-success');
-    if (ordersheetId) url.searchParams.set('ordersheetId', ordersheetId);
+    if (ordersheetId) url.searchParams.set(orderParamName, ordersheetId);
     url.searchParams.set('slug', slug);
     window.location.href = url.toString();
   };
@@ -970,7 +971,7 @@ function TaghereMemberEnrollContent() {
   // X 버튼 클릭 시 주문완료 페이지로 이동
   const handleSkipEarn = () => {
     const url = new URL(window.location.origin + '/taghere-enroll-member/order-success');
-    if (ordersheetId) url.searchParams.set('ordersheetId', ordersheetId);
+    if (ordersheetId) url.searchParams.set(orderParamName, ordersheetId);
     url.searchParams.set('slug', slug);
     window.location.href = url.toString();
   };
@@ -1107,7 +1108,7 @@ function TaghereMemberEnrollContent() {
             <button
               onClick={() => {
                 const url = new URL(window.location.origin + '/taghere-enroll-member/order-success');
-                if (ordersheetId) url.searchParams.set('ordersheetId', ordersheetId);
+                if (ordersheetId) url.searchParams.set(orderParamName, ordersheetId);
                 url.searchParams.set('slug', slug);
                 window.location.href = url.toString();
               }}

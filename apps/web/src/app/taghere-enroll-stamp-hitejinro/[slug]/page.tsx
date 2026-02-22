@@ -524,6 +524,7 @@ function HitejinroEnrollStampContent() {
 
   const slug = params.slug as string;
   const ordersheetId = searchParams.get('ordersheetId') || searchParams.get('orderId');
+  const orderParamName = searchParams.get('orderId') ? 'orderId' : 'ordersheetId';
   const urlError = searchParams.get('error');
 
   // Success params from redirect
@@ -754,7 +755,7 @@ function HitejinroEnrollStampContent() {
       params.set('isStamp', 'true');
       params.set('isHitejinro', 'true');
       params.set('barcode', barcode);
-      if (ordersheetId) params.set('ordersheetId', ordersheetId);
+      if (ordersheetId) params.set(orderParamName, ordersheetId);
       params.set('origin', window.location.origin);
       params.set('returnPath', `/taghere-enroll-stamp-hitejinro/${slug}`);
       window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
@@ -794,7 +795,7 @@ function HitejinroEnrollStampContent() {
       params.set('isStamp', 'true');
       params.set('isHitejinro', 'true');
       params.set('barcode', barcode);
-      if (ordersheetId) params.set('ordersheetId', ordersheetId);
+      if (ordersheetId) params.set(orderParamName, ordersheetId);
       params.set('origin', window.location.origin);
       params.set('returnPath', `/taghere-enroll-stamp-hitejinro/${slug}`);
       window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
@@ -1007,7 +1008,7 @@ function HitejinroEnrollStampContent() {
   const handleCloseSuccessPopup = () => {
     const url = new URL(window.location.origin + '/taghere-enroll-stamp-hitejinro/stamp-success');
     url.searchParams.set('slug', slug);
-    if (ordersheetId) url.searchParams.set('ordersheetId', ordersheetId);
+    if (ordersheetId) url.searchParams.set(orderParamName, ordersheetId);
     if (successData) {
       url.searchParams.set('stamps', String(successData.currentStamps || 0));
       url.searchParams.set('storeName', successData.storeName || '');
@@ -1033,7 +1034,7 @@ function HitejinroEnrollStampContent() {
     url.searchParams.set('type', 'stamp');
     url.searchParams.set('slug', slug);
     if (ordersheetId) {
-      url.searchParams.set('ordersheetId', ordersheetId);
+      url.searchParams.set(orderParamName, ordersheetId);
     }
     window.location.href = url.toString();
   };

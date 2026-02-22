@@ -744,6 +744,7 @@ function TaghereEnrollContent() {
 
   const slug = params.slug as string;
   const ordersheetId = searchParams.get('ordersheetId') || searchParams.get('orderId');
+  const orderParamName = searchParams.get('orderId') ? 'orderId' : 'ordersheetId';
   const urlError = searchParams.get('error');
 
   // Success params from redirect
@@ -969,7 +970,7 @@ function TaghereEnrollContent() {
         const params = new URLSearchParams();
         params.set('storeId', orderInfo.storeId);
         params.set('slug', slug);
-        if (ordersheetId) params.set('ordersheetId', ordersheetId);
+        if (ordersheetId) params.set(orderParamName, ordersheetId);
         params.set('origin', window.location.origin);
         window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
       }
@@ -981,7 +982,7 @@ function TaghereEnrollContent() {
 
     // order-success 페이지로 리다이렉트
     const url = new URL(window.location.origin + '/taghere-enroll/order-success');
-    if (ordersheetId) url.searchParams.set('ordersheetId', ordersheetId);
+    if (ordersheetId) url.searchParams.set(orderParamName, ordersheetId);
     url.searchParams.set('slug', slug);
     window.location.href = url.toString();
   };
@@ -1020,7 +1021,7 @@ function TaghereEnrollContent() {
   // X 버튼 클릭 시 주문완료 페이지로 이동
   const handleSkipEarn = () => {
     const url = new URL(window.location.origin + '/taghere-enroll/order-success');
-    if (ordersheetId) url.searchParams.set('ordersheetId', ordersheetId);
+    if (ordersheetId) url.searchParams.set(orderParamName, ordersheetId);
     url.searchParams.set('slug', slug);
     window.location.href = url.toString();
   };
@@ -1164,7 +1165,7 @@ function TaghereEnrollContent() {
               onClick={() => {
                 // order-success 페이지로 이동
                 const url = new URL(window.location.origin + '/taghere-enroll/order-success');
-                if (ordersheetId) url.searchParams.set('ordersheetId', ordersheetId);
+                if (ordersheetId) url.searchParams.set(orderParamName, ordersheetId);
                 url.searchParams.set('slug', slug);
                 window.location.href = url.toString();
               }}
