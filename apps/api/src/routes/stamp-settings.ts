@@ -2,44 +2,9 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { validateRewards, buildRewardsFromLegacy, buildLegacyFromRewards, RewardEntry } from '../utils/random-reward.js';
+import { notifyCrmOn } from '../services/taghere-api.js';
 
 const router = Router();
-
-// 태그히어 서버 연동 설정
-const TAGHERE_CRM_BASE_URL = process.env.TAGHERE_CRM_BASE_URL || 'https://taghere-crm-web-dev.onrender.com';
-const TAGHERE_API_BASE = process.env.TAGHERE_API_URL || 'https://api.d.tag-here.com';
-const TAGHERE_WEBHOOK_URL = process.env.TAGHERE_WEBHOOK_URL || `${TAGHERE_API_BASE}/webhook/crm`;
-const TAGHERE_WEBHOOK_TOKEN = process.env.TAGHERE_API_TOKEN_FOR_CRM || process.env.TAGHERE_WEBHOOK_TOKEN || process.env.TAGHERE_DEV_API_TOKEN || '';
-
-// 태그히어 서버에 CRM 활성화 알림 (스탬프/포인트 모드)
-async function notifyTaghereCrmOn(userId: string, slug: string, isStampMode: boolean): Promise<void> {
-  if (!TAGHERE_WEBHOOK_TOKEN) {
-    console.log('[TagHere CRM] TAGHERE_WEBHOOK_TOKEN not configured, skipping notification');
-    return;
-  }
-
-  const path = isStampMode ? 'taghere-enroll-stamp' : 'taghere-enroll';
-  const redirectUrl = `${TAGHERE_CRM_BASE_URL}/${path}/${slug}?ordersheetId={ordersheetId}`;
-
-  try {
-    const response = await fetch(`${TAGHERE_WEBHOOK_URL}/on`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${TAGHERE_WEBHOOK_TOKEN}`,
-      },
-      body: JSON.stringify({ userId, redirectUrl }),
-    });
-
-    if (!response.ok) {
-      console.error('[TagHere CRM] on failed:', response.status, await response.text());
-    } else {
-      console.log(`[TagHere CRM] on success - userId: ${userId}, isStampMode: ${isStampMode}, redirectUrl: ${redirectUrl}`);
-    }
-  } catch (error) {
-    console.error('[TagHere CRM] on error:', error);
-  }
-}
 
 // 인증 미들웨어 적용
 router.use(authMiddleware);
@@ -275,6 +240,8 @@ async function handleEnabledChange(storeId: string, enabled: boolean) {
     where: { id: storeId },
     select: {
       slug: true,
+      name: true,
+      taghereVersion: true,
       staffUsers: {
         where: { role: 'OWNER' },
         select: { email: true },
@@ -283,16 +250,15 @@ async function handleEnabledChange(storeId: string, enabled: boolean) {
     },
   });
 
-  const ownerEmail = store?.staffUsers?.[0]?.email;
-
-  if (ownerEmail && store?.slug) {
-    if (enabled) {
-      await notifyTaghereCrmOn(ownerEmail, store.slug, true);
-      console.log(`[Stamp Settings] Stamp enabled for store ${storeId}, notified TagHere with stamp URL`);
-    } else {
-      await notifyTaghereCrmOn(ownerEmail, store.slug, false);
-      console.log(`[Stamp Settings] Stamp disabled for store ${storeId}, notified TagHere with point URL`);
-    }
+  if (store?.slug) {
+    await notifyCrmOn({
+      version: store.taghereVersion,
+      userId: store.staffUsers?.[0]?.email,
+      storeName: store.name,
+      slug: store.slug,
+      isStampMode: enabled,
+    });
+    console.log(`[Stamp Settings] Stamp ${enabled ? 'enabled' : 'disabled'} for store ${storeId}, version: ${store.taghereVersion}`);
   }
 }
 

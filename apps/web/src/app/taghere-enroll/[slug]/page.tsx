@@ -743,7 +743,7 @@ function TaghereEnrollContent() {
   const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[]>([]);
 
   const slug = params.slug as string;
-  const ordersheetId = searchParams.get('ordersheetId');
+  const ordersheetId = searchParams.get('ordersheetId') || searchParams.get('orderId');
   const urlError = searchParams.get('error');
 
   // Success params from redirect

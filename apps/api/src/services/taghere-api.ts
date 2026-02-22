@@ -55,6 +55,12 @@ export function isValidWebhookToken(token: string): boolean {
  * 통합 주문 조회 — version에 따라 V1 또는 V2 API 호출
  */
 export async function fetchOrder(orderIdentifier: string, version: string): Promise<TaghereOrderData | null> {
+  // 템플릿 플레이스홀더 가드 — {ordersheetId}, {orderId} 등 미치환 값 차단
+  if (!orderIdentifier || /^\{.+\}$/.test(orderIdentifier)) {
+    console.warn(`[TagHere] Invalid order identifier (template placeholder): ${orderIdentifier}`);
+    return null;
+  }
+
   if (version === 'v2') {
     return fetchOrderV2(orderIdentifier);
   }
@@ -78,7 +84,8 @@ async function fetchOrderV1(ordersheetId: string): Promise<TaghereOrderData | nu
   if (!response.ok) {
     const errorText = await response.text();
     console.error('[TagHere V1] API error:', response.status, errorText);
-    if (response.status === 404) return null;
+    // 4xx 에러는 잘못된 요청이므로 null 반환 (404, 422 등)
+    if (response.status >= 400 && response.status < 500) return null;
     throw new Error(`TagHere V1 API error: ${response.status}`);
   }
 

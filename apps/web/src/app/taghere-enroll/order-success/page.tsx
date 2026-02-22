@@ -358,7 +358,7 @@ function OrderSuccessContent() {
   const [showBottomModal, setShowBottomModal] = useState(false);
   const [banners, setBanners] = useState<Banner[]>([]);
 
-  const ordersheetId = searchParams.get('ordersheetId');
+  const ordersheetId = searchParams.get('ordersheetId') || searchParams.get('orderId');
   const slug = searchParams.get('slug') || 'taghere-test';
   const type = searchParams.get('type'); // 'stamp' or null
   const isStamp = type === 'stamp';
