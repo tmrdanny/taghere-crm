@@ -450,19 +450,24 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
         const isStampMode = existingStore.stampSetting?.enabled ?? false;
         const effectiveVersion = taghereVersion || existingStore.taghereVersion;
         const effectiveCrmEnabled = crmEnabled ?? wasCrmEnabled;
-        const crmParams = {
-          version: effectiveVersion,
+        const baseParams = {
           userId: ownerEmail,
           storeName: existingStore.name,
           slug: storeSlug,
           isStampMode,
         };
 
-        if (effectiveCrmEnabled) {
-          await notifyCrmOn(crmParams);
+        if (versionChanged && effectiveCrmEnabled) {
+          // 버전 변경 시: 구 버전 OFF → 신 버전 ON (redirect URL 파라미터명 변경)
+          await notifyCrmOff({ ...baseParams, version: wasVersion });
+          console.log(`[Admin] CRM off (old version ${wasVersion}) for store ${storeId}`);
+          await notifyCrmOn({ ...baseParams, version: effectiveVersion });
+          console.log(`[Admin] CRM on (new version ${effectiveVersion}) for store ${storeId}, isStampMode: ${isStampMode}`);
+        } else if (effectiveCrmEnabled) {
+          await notifyCrmOn({ ...baseParams, version: effectiveVersion });
           console.log(`[Admin] CRM on for store ${storeId}, version: ${effectiveVersion}, isStampMode: ${isStampMode}`);
         } else {
-          await notifyCrmOff(crmParams);
+          await notifyCrmOff({ ...baseParams, version: effectiveVersion });
           console.log(`[Admin] CRM off for store ${storeId}, version: ${effectiveVersion}, isStampMode: ${isStampMode}`);
         }
       } else {
