@@ -226,6 +226,8 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         pointUsageRule: true,
         pointsAlimtalkEnabled: true,
         crmEnabled: true,
+        enrollmentMode: true,
+        taghereVersion: true,
         staffUsers: {
           select: {
             id: true,
@@ -296,6 +298,8 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         pointUsageRule: store.pointUsageRule,
         pointsAlimtalkEnabled: store.pointsAlimtalkEnabled,
         crmEnabled: (store as any).crmEnabled ?? true,
+        enrollmentMode: (store as any).enrollmentMode ?? 'POINTS',
+        taghereVersion: (store as any).taghereVersion ?? 'v1',
         // Wallet balance 포함
         walletBalance: store.wallet?.balance || 0,
         // 월별 무료 크레딧 정보
@@ -377,6 +381,8 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       pointUsageRule,
       pointsAlimtalkEnabled,
       crmEnabled,
+      enrollmentMode,
+      taghereVersion,
     } = req.body;
 
     // 매장 확인 (스탬프 설정과 OWNER 이메일도 함께 조회)
@@ -425,31 +431,39 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
         ...(pointUsageRule !== undefined && { pointUsageRule: pointUsageRule || null }),
         ...(pointsAlimtalkEnabled !== undefined && { pointsAlimtalkEnabled }),
         ...(crmEnabled !== undefined && { crmEnabled }),
+        ...(enrollmentMode !== undefined && ['POINTS', 'STAMP', 'MEMBERSHIP'].includes(enrollmentMode) && { enrollmentMode }),
+        ...(taghereVersion !== undefined && ['v1', 'v2'].includes(taghereVersion) && { taghereVersion }),
       },
     });
 
-    // CRM 활성화 상태 변경 시 태그히어 서버에 알림 (V1/V2 자동 분기)
+    // CRM 활성화 상태 변경 또는 taghereVersion 변경 시 태그히어 서버에 알림
     const wasCrmEnabled = (existingStore as any).crmEnabled ?? true;
-    if (crmEnabled !== undefined && crmEnabled !== wasCrmEnabled) {
+    const wasVersion = existingStore.taghereVersion;
+    const versionChanged = taghereVersion !== undefined && taghereVersion !== wasVersion;
+    const crmToggled = crmEnabled !== undefined && crmEnabled !== wasCrmEnabled;
+
+    if (crmToggled || versionChanged) {
       const ownerEmail = existingStore.staffUsers?.[0]?.email;
       const storeSlug = slug || existingStore.slug;
 
       if (storeSlug) {
         const isStampMode = existingStore.stampSetting?.enabled ?? false;
+        const effectiveVersion = taghereVersion || existingStore.taghereVersion;
+        const effectiveCrmEnabled = crmEnabled ?? wasCrmEnabled;
         const crmParams = {
-          version: existingStore.taghereVersion,
+          version: effectiveVersion,
           userId: ownerEmail,
           storeName: existingStore.name,
           slug: storeSlug,
           isStampMode,
         };
 
-        if (crmEnabled) {
+        if (effectiveCrmEnabled) {
           await notifyCrmOn(crmParams);
-          console.log(`[Admin] CRM enabled for store ${storeId}, version: ${existingStore.taghereVersion}, isStampMode: ${isStampMode}`);
+          console.log(`[Admin] CRM on for store ${storeId}, version: ${effectiveVersion}, isStampMode: ${isStampMode}`);
         } else {
           await notifyCrmOff(crmParams);
-          console.log(`[Admin] CRM disabled for store ${storeId}, version: ${existingStore.taghereVersion}, isStampMode: ${isStampMode}`);
+          console.log(`[Admin] CRM off for store ${storeId}, version: ${effectiveVersion}, isStampMode: ${isStampMode}`);
         }
       } else {
         console.log(`[Admin] Store ${storeId} missing slug, skipped TagHere notification`);

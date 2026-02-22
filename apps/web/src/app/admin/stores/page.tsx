@@ -62,6 +62,8 @@ interface Store {
   pointsAlimtalkEnabled?: boolean;
   // CRM settings
   crmEnabled?: boolean;
+  enrollmentMode?: string;
+  taghereVersion?: string;
   // Monthly credit
   monthlyCredit?: {
     total: number;
@@ -254,6 +256,8 @@ export default function AdminStoresPage() {
       pointUsageRule: store.pointUsageRule,
       pointsAlimtalkEnabled: store.pointsAlimtalkEnabled ?? true,
       crmEnabled: store.crmEnabled ?? true,
+      enrollmentMode: store.enrollmentMode ?? 'POINTS',
+      taghereVersion: store.taghereVersion ?? 'v1',
     });
     setPointRateInput(String(store.pointRatePercent ?? 5));
     setIsEditMode(false);
@@ -1090,6 +1094,52 @@ export default function AdminStoresPage() {
                   )}
                 </div>
 
+                {/* 멤버십 등록 링크 (태그히어 사용) */}
+                <div className="rounded-xl p-4 bg-purple-50">
+                  <label className="block text-[12px] text-purple-600 mb-1">멤버십 등록 링크 (태그히어 사용)</label>
+                  {selectedStore.slug ? (
+                    <div className="flex items-center gap-2">
+                      <code className="text-[13px] text-purple-700 font-mono truncate flex-1">
+                        /taghere-enroll-member/{selectedStore.slug}?ordersheetId={'{ordersheetId}'}
+                      </code>
+                      <button
+                        onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll-member/${selectedStore.slug}?ordersheetId={ordersheetId}`, e)}
+                        className="p-1 text-purple-400 hover:text-purple-600 transition-colors flex-shrink-0"
+                        title="복사"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[14px] text-purple-400">slug 없음</span>
+                  )}
+                </div>
+
+                {/* 멤버십 등록 링크 (태그히어 사용 X) */}
+                <div className="rounded-xl p-4 bg-purple-50">
+                  <label className="block text-[12px] text-purple-600 mb-1">멤버십 등록 링크 (태그히어 사용 X)</label>
+                  {selectedStore.slug ? (
+                    <div className="flex items-center gap-2">
+                      <code className="text-[13px] text-purple-700 font-mono truncate flex-1">
+                        /taghere-enroll-member/{selectedStore.slug}
+                      </code>
+                      <button
+                        onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll-member/${selectedStore.slug}`, e)}
+                        className="p-1 text-purple-400 hover:text-purple-600 transition-colors flex-shrink-0"
+                        title="복사"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[14px] text-purple-400">slug 없음</span>
+                  )}
+                </div>
+
                 {/* 웨이팅 태블릿 링크 */}
                 <div className="rounded-xl p-4 bg-blue-50">
                   <label className="block text-[12px] text-blue-600 mb-1">웨이팅 태블릿 링크</label>
@@ -1171,6 +1221,99 @@ export default function AdminStoresPage() {
                         : 'bg-neutral-200 text-neutral-600'
                     }`}>
                       {selectedStore.crmEnabled !== false ? '활성화' : '비활성화'}
+                    </span>
+                  )}
+                </div>
+
+                {/* 등록 모드 셀렉터 */}
+                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
+                  <label className="block text-[12px] text-neutral-500 mb-2">등록 모드</label>
+                  {isEditMode ? (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, enrollmentMode: 'POINTS' })}
+                        className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-lg border transition-all ${
+                          editForm.enrollmentMode === 'POINTS'
+                            ? 'bg-blue-500 text-white border-blue-500'
+                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        포인트 적립
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, enrollmentMode: 'STAMP' })}
+                        className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-lg border transition-all ${
+                          editForm.enrollmentMode === 'STAMP'
+                            ? 'bg-amber-500 text-white border-amber-500'
+                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        스탬프 적립
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, enrollmentMode: 'MEMBERSHIP' })}
+                        className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-lg border transition-all ${
+                          editForm.enrollmentMode === 'MEMBERSHIP'
+                            ? 'bg-purple-500 text-white border-purple-500'
+                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        멤버십 등록
+                      </button>
+                    </div>
+                  ) : (
+                    <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-lg ${
+                      selectedStore.enrollmentMode === 'MEMBERSHIP'
+                        ? 'bg-purple-100 text-purple-700'
+                        : selectedStore.enrollmentMode === 'STAMP'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {selectedStore.enrollmentMode === 'MEMBERSHIP' ? '멤버십 등록'
+                        : selectedStore.enrollmentMode === 'STAMP' ? '스탬프 적립'
+                        : '포인트 적립'}
+                    </span>
+                  )}
+                </div>
+
+                {/* 태그히어 버전 */}
+                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
+                  <label className="block text-[12px] text-neutral-500 mb-2">태그히어 버전</label>
+                  {isEditMode ? (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, taghereVersion: 'v1' })}
+                        className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-lg border transition-all ${
+                          editForm.taghereVersion !== 'v2'
+                            ? 'bg-blue-500 text-white border-blue-500'
+                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        V1
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, taghereVersion: 'v2' })}
+                        className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-lg border transition-all ${
+                          editForm.taghereVersion === 'v2'
+                            ? 'bg-green-500 text-white border-green-500'
+                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        V2
+                      </button>
+                    </div>
+                  ) : (
+                    <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-lg ${
+                      selectedStore.taghereVersion === 'v2'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {selectedStore.taghereVersion === 'v2' ? 'V2' : 'V1'}
                     </span>
                   )}
                 </div>
