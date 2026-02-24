@@ -1264,9 +1264,9 @@ export default function CustomersPage() {
           {/* 하단: 3개 지표 카드 */}
           <div className="grid grid-cols-3 gap-3 px-5 pb-4 pt-1">
             <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
-              <Bell className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
-              <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.CHURN_PREVENTION?.thisMonthEstimate ?? 0}명</p>
-              <p className="text-sm text-neutral-500 mt-1">이탈 위험 · 쿠폰 없이 이탈 중</p>
+              <HandMetal className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
+              <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.FIRST_VISIT_FOLLOWUP?.thisMonthEstimate ?? 0}명</p>
+              <p className="text-sm text-neutral-500 mt-1">첫 방문 · 재방문 쿠폰 미발송</p>
             </div>
             <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
               <Cake className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
@@ -1274,9 +1274,9 @@ export default function CustomersPage() {
               <p className="text-sm text-neutral-500 mt-1">이번 달 생일 · 축하 미발송</p>
             </div>
             <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
-              <HandMetal className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
-              <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.FIRST_VISIT_FOLLOWUP?.thisMonthEstimate ?? 0}명</p>
-              <p className="text-sm text-neutral-500 mt-1">첫 방문 · 재방문 쿠폰 미발송</p>
+              <Bell className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
+              <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.CHURN_PREVENTION?.thisMonthEstimate ?? 0}명</p>
+              <p className="text-sm text-neutral-500 mt-1">이탈 위험 · 쿠폰 없이 이탈 중</p>
             </div>
           </div>
         </div>
