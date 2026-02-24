@@ -1266,17 +1266,17 @@ export default function CustomersPage() {
             <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
               <Bell className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
               <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.CHURN_PREVENTION?.thisMonthEstimate ?? 0}명</p>
-              <p className="text-[11px] text-neutral-500 mt-0.5">이탈 위험 · 쿠폰 없이 이탈 중</p>
+              <p className="text-sm text-neutral-500 mt-1">이탈 위험 · 쿠폰 없이 이탈 중</p>
             </div>
             <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
               <Cake className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
               <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.BIRTHDAY?.thisMonthEstimate ?? 0}명</p>
-              <p className="text-[11px] text-neutral-500 mt-0.5">이번 달 생일 · 축하 미발송</p>
+              <p className="text-sm text-neutral-500 mt-1">이번 달 생일 · 축하 미발송</p>
             </div>
             <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
               <HandMetal className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
               <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.FIRST_VISIT_FOLLOWUP?.thisMonthEstimate ?? 0}명</p>
-              <p className="text-[11px] text-neutral-500 mt-0.5">첫 방문 · 재방문 쿠폰 미발송</p>
+              <p className="text-sm text-neutral-500 mt-1">첫 방문 · 재방문 쿠폰 미발송</p>
             </div>
           </div>
         </div>
