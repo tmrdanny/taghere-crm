@@ -13,7 +13,7 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatPhone, formatNumber, formatDate, getRelativeTime, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
-import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Upload, Settings2, Download, FileSpreadsheet } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Upload, Settings2, Download, FileSpreadsheet, Zap, ArrowRight } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
@@ -277,6 +277,12 @@ export default function CustomersPage() {
   // Announcements
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
+  // 자동 마케팅 상태
+  const [automationStatus, setAutomationStatus] = useState<{
+    hasActiveRules: boolean;
+    previews: Record<string, { totalEligible: number; thisMonthEstimate: number }> | null;
+  } | null>(null);
+
   // 스탬프 보상 티어 목록 (매장 설정 기반)
   const [stampRewardTiers, setStampRewardTiers] = useState<number[]>([5, 10, 15, 20, 25, 30]);
 
@@ -326,6 +332,39 @@ export default function CustomersPage() {
     };
 
     fetchAnnouncements();
+  }, [apiUrl]);
+
+  // Fetch automation marketing status
+  useEffect(() => {
+    const fetchAutomationStatus = async () => {
+      try {
+        const token = getAuthToken();
+        const headers = { Authorization: `Bearer ${token}` };
+
+        const [rulesRes, previewRes] = await Promise.all([
+          fetch(`${apiUrl}/api/automation/rules`, { headers }),
+          fetch(`${apiUrl}/api/automation/preview-all`, { headers }),
+        ]);
+
+        let hasActiveRules = false;
+        let previews = null;
+
+        if (rulesRes.ok) {
+          const data = await rulesRes.json();
+          hasActiveRules = data.rules?.some((r: { enabled: boolean }) => r.enabled) ?? false;
+        }
+        if (previewRes.ok) {
+          const data = await previewRes.json();
+          previews = data.previews;
+        }
+
+        setAutomationStatus({ hasActiveRules, previews });
+      } catch (error) {
+        console.error('Failed to fetch automation status:', error);
+      }
+    };
+
+    fetchAutomationStatus();
   }, [apiUrl]);
 
   // Fetch stamp reward tiers from stamp settings
@@ -1198,6 +1237,36 @@ export default function CustomersPage() {
           </Button>
         </div>
       </div>
+
+      {/* 자동 마케팅 컴팩트 배너 */}
+      {automationStatus && !automationStatus.hasActiveRules && (
+        <div
+          className="mb-6 flex items-center justify-between gap-4 px-5 py-3 rounded-xl bg-gradient-to-r from-brand-50 to-white border border-brand-200 cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => router.push('/automation')}
+        >
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <Zap className="w-4 h-4 text-brand-700" />
+              <span className="text-sm font-bold text-neutral-900">자동 마케팅</span>
+            </div>
+            <div className="hidden md:flex items-center gap-1 text-sm text-neutral-600">
+              <span>이탈 위험 <span className="font-semibold text-brand-700">{automationStatus.previews?.CHURN_PREVENTION?.thisMonthEstimate ?? 0}명</span></span>
+              <span className="text-neutral-300 mx-1">·</span>
+              <span>이번 달 생일 <span className="font-semibold text-brand-700">{automationStatus.previews?.BIRTHDAY?.thisMonthEstimate ?? 0}명</span></span>
+              <span className="text-neutral-300 mx-1">·</span>
+              <span>첫 방문 <span className="font-semibold text-brand-700">{automationStatus.previews?.FIRST_VISIT_FOLLOWUP?.thisMonthEstimate ?? 0}명</span></span>
+            </div>
+            <span className="md:hidden text-sm text-neutral-600">월 30건 무료! 자동 마케팅을 시작해보세요</span>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="hidden sm:inline text-xs font-medium text-brand-600 bg-brand-100 px-2 py-0.5 rounded-full">월 30건 무료</span>
+            <div className="flex items-center gap-1 text-sm font-semibold text-brand-700">
+              시작하기
+              <ArrowRight className="w-3.5 h-3.5" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search and Filters */}
       <Card className="p-4 mb-6">
