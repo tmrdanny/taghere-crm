@@ -116,8 +116,8 @@ function removeStoredKakaoId(): void {
 interface OrderInfo {
   storeId: string;
   storeName: string;
-  ordersheetId: string;
-  resultPrice: number;
+  ordersheetId?: string;
+  resultPrice?: number;
 }
 
 interface VisitSourceOption {
@@ -835,56 +835,94 @@ function TaghereMemberEnrollContent() {
       return;
     }
 
-    if (!ordersheetId) {
-      setError('주문 정보가 없습니다.');
-      setIsLoading(false);
-      return;
-    }
-
     const fetchOrderInfo = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-        const res = await fetch(`${apiUrl}/api/taghere/ordersheet?ordersheetId=${ordersheetId}&slug=${slug}&mode=membership`);
-        if (res.ok) {
-          const data = await res.json();
+        if (ordersheetId) {
+          // ordersheetId가 있으면 주문 정보와 함께 조회
+          const res = await fetch(`${apiUrl}/api/taghere/ordersheet?ordersheetId=${ordersheetId}&slug=${slug}&mode=membership`);
+          if (res.ok) {
+            const data = await res.json();
 
-          if (data.alreadyEarned) {
-            setShowAlreadyRegistered(true);
-            setIsLoading(false);
-          } else {
-            // 자동 등록 시도
-            let shouldAutoEarn = false;
-            let storedKakaoId: string | null = null;
+            if (data.alreadyEarned) {
+              setShowAlreadyRegistered(true);
+              setIsLoading(false);
+            } else {
+              // 자동 등록 시도
+              let shouldAutoEarn = false;
+              let storedKakaoId: string | null = null;
 
-            if (!autoEarnAttemptedRef.current) {
-              autoEarnAttemptedRef.current = true;
-              storedKakaoId = getStoredKakaoId();
-              if (storedKakaoId) {
-                shouldAutoEarn = true;
-                setIsAutoEarning(true);
+              if (!autoEarnAttemptedRef.current) {
+                autoEarnAttemptedRef.current = true;
+                storedKakaoId = getStoredKakaoId();
+                if (storedKakaoId) {
+                  shouldAutoEarn = true;
+                  setIsAutoEarning(true);
+                }
+              }
+
+              setOrderInfo(data);
+              setIsLoading(false);
+
+              if (shouldAutoEarn && storedKakaoId) {
+                attemptAutoEarn(storedKakaoId, data);
               }
             }
-
-            setOrderInfo(data);
+            return;
+          } else if (res.status === 404) {
+            const errorData = await res.json().catch(() => ({}));
+            if (errorData.error === 'Store not found') {
+              setError('존재하지 않는 매장입니다.');
+              setIsLoading(false);
+              return;
+            }
+            // 주문 정보를 못 찾은 경우 → 매장 정보만으로 진행
+          } else {
+            const errorData = await res.json();
+            setError(errorData.error || '정보를 불러오는데 실패했습니다.');
             setIsLoading(false);
+            return;
+          }
+        }
 
-            if (shouldAutoEarn && storedKakaoId) {
-              attemptAutoEarn(storedKakaoId, data);
+        // ordersheetId 없거나 주문 조회 실패 → 매장 정보만으로 멤버십 등록
+        const storeRes = await fetch(`${apiUrl}/api/stores/by-slug/${slug}`);
+        if (storeRes.ok) {
+          const storeData = await storeRes.json();
+
+          let shouldAutoEarn = false;
+          let storedKakaoId: string | null = null;
+
+          if (!autoEarnAttemptedRef.current) {
+            autoEarnAttemptedRef.current = true;
+            storedKakaoId = getStoredKakaoId();
+            if (storedKakaoId) {
+              shouldAutoEarn = true;
+              setIsAutoEarning(true);
             }
           }
-          return;
-        } else if (res.status === 404) {
-          const errorData = await res.json().catch(() => ({}));
-          setError(errorData.error === 'Store not found' ? '존재하지 않는 매장입니다.' : '주문 정보를 찾을 수 없습니다.');
+
+          const info: OrderInfo = {
+            storeId: storeData.id,
+            storeName: storeData.name,
+          };
+          setOrderInfo(info);
+          setIsLoading(false);
+
+          if (shouldAutoEarn && storedKakaoId) {
+            attemptAutoEarn(storedKakaoId, info);
+          }
+        } else if (storeRes.status === 404) {
+          setError('존재하지 않는 매장입니다.');
+          setIsLoading(false);
         } else {
-          const errorData = await res.json();
-          setError(errorData.error || '주문 정보를 불러오는데 실패했습니다.');
+          setError('매장 정보를 불러오는데 실패했습니다.');
+          setIsLoading(false);
         }
-        setIsLoading(false);
       } catch (e) {
         console.error('Failed to fetch order info:', e);
-        setError('주문 정보를 불러오는데 실패했습니다.');
+        setError('정보를 불러오는데 실패했습니다.');
         setIsLoading(false);
       }
     };
