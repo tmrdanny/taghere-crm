@@ -166,6 +166,7 @@ export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [usePointsModal, setUsePointsModal] = useState(false);
+  const [useConfirmModal, setUseConfirmModal] = useState(false);
   const [useAmount, setUseAmount] = useState('');
   const [useReason, setUseReason] = useState('');
   const [earnPointsModal, setEarnPointsModal] = useState(false);
@@ -1854,7 +1855,10 @@ export default function CustomersPage() {
               취소
             </Button>
             <Button
-              onClick={handleUsePoints}
+              onClick={() => {
+                setUsePointsModal(false);
+                setUseConfirmModal(true);
+              }}
               disabled={
                 !useAmount ||
                 parseInt(useAmount) <= 0 ||
@@ -1863,7 +1867,54 @@ export default function CustomersPage() {
               }
               className="flex-1"
             >
-              {submittingUse ? '처리 중...' : '사용하기'}
+              사용하기
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Use Points Confirm Modal */}
+      <Modal open={useConfirmModal} onOpenChange={(open) => {
+        setUseConfirmModal(open);
+        if (!open) {
+          setUsePointsModal(true);
+        }
+      }}>
+        <ModalContent className="sm:max-w-sm">
+          <ModalHeader>
+            <ModalTitle>포인트 사용 확인</ModalTitle>
+          </ModalHeader>
+          <div className="py-4 text-center space-y-2">
+            <p className="text-neutral-600">
+              <span className="font-semibold text-neutral-900">{maskNickname(selectedCustomer?.name)}</span> 님의 포인트를
+            </p>
+            <p className="text-2xl font-bold text-red-500">
+              {formatNumber(parseInt(useAmount) || 0)} p 사용
+            </p>
+            <p className="text-sm text-neutral-500">
+              사용 후 잔액: {formatNumber(Math.max(0, (selectedCustomer?.totalPoints || 0) - (parseInt(useAmount) || 0)))} p
+            </p>
+          </div>
+          <ModalFooter>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setUseConfirmModal(false);
+                setUsePointsModal(true);
+              }}
+              className="flex-1"
+            >
+              돌아가기
+            </Button>
+            <Button
+              onClick={() => {
+                setUseConfirmModal(false);
+                handleUsePoints();
+              }}
+              disabled={submittingUse}
+              className="flex-1 bg-red-500 hover:bg-red-600"
+            >
+              {submittingUse ? '처리 중...' : '확인'}
             </Button>
           </ModalFooter>
         </ModalContent>
