@@ -81,6 +81,7 @@ const SCENARIOS = [
     description: '생일 3일 전, 축하 쿠폰을 자동 발송합니다',
     available: true,
     recommended: true,
+    best: true,
     targetLabel: '생일 정보 고객',
   },
   {
@@ -90,6 +91,7 @@ const SCENARIOS = [
     description: '30일 이상 미방문 고객에게 재방문 쿠폰 발송',
     available: true,
     recommended: true,
+    best: false,
     targetLabel: '이탈 위험 고객',
   },
   {
@@ -99,6 +101,7 @@ const SCENARIOS = [
     description: '첫 방문 3일 후, 감사 메시지 + 재방문 쿠폰',
     available: true,
     recommended: true,
+    best: true,
     targetLabel: '첫 방문 고객',
   },
   {
@@ -452,9 +455,11 @@ export default function AutomationPage() {
                       <h3 className="font-medium text-neutral-900">
                         {scenario.label}
                       </h3>
-                      {scenario.recommended && (
+                      {scenario.best ? (
+                        <Badge className="bg-gradient-to-r from-amber-400 to-orange-400 text-white border-0 shadow-sm">Best</Badge>
+                      ) : scenario.recommended ? (
                         <Badge variant="success">추천</Badge>
-                      )}
+                      ) : null}
                     </div>
                     <p className="text-sm text-neutral-500 mt-0.5">
                       {scenario.description}

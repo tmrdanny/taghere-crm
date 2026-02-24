@@ -396,14 +396,14 @@ function SuccessPopup({
           {/* Membership Success Display */}
           <div className="text-center mb-4 mt-4">
             <p className="text-[38px] font-bold text-[#6BA3FF] leading-none">
-              멤버십 가입 완료!
+              매월 다양한 브랜드의 쿠폰을 보내드릴게요!
             </p>
           </div>
 
           {/* Main Message */}
           <div className="text-center mb-5">
             <h2 className="text-[18px] font-bold text-neutral-900 mb-1">
-              매 월 할인 쿠폰을 보내드릴게요!
+              매월 할인 쿠폰을 보내드릴게요!
             </h2>
             <p className="text-[14px] text-neutral-400">
               소중한 의견은 큰 도움이 돼요
@@ -1044,7 +1044,7 @@ function TaghereMemberEnrollContent() {
             <div className="flex-1 flex flex-col justify-end pb-4">
               <div className="text-center px-5">
                 <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
-                  매 월 우리동네 맛집들의
+                  매월 우리 동네 맛집들의
                   <br />
                   <span className="text-[#6BA3FF]">파격적인 할인 쿠폰</span>을
                   <br />
@@ -1077,7 +1077,7 @@ function TaghereMemberEnrollContent() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-start gap-1">
                     <p className="text-[14px] font-medium leading-[140%] text-[#55595e]">
-                      멤버십 가입을 위해 전국 매장 혜택 수신 동의가 필요해요.
+                      쿠폰을 받기 위해 전국 매장 혜택 수신 동의가 필요해요.
                     </p>
                     <span className="text-[#ff6b6b] text-[14px]">*</span>
                   </div>
@@ -1127,7 +1127,7 @@ function TaghereMemberEnrollContent() {
                 disabled={isOpening}
                 className="w-full py-4 font-semibold text-base rounded-[10px] transition-colors bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022]"
               >
-                {isOpening ? '가입 중...' : '멤버십 가입하기'}
+                {isOpening ? '가입 중...' : '매월 쿠폰 받기'}
               </button>
             </div>
           </div>

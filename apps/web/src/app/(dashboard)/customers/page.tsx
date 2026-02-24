@@ -13,7 +13,7 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatPhone, formatNumber, formatDate, getRelativeTime, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
-import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Upload, Settings2, Download, FileSpreadsheet, Zap, ArrowRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Upload, Settings2, Download, FileSpreadsheet, Zap, ArrowRight, Bell, Cake, HandMetal } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
@@ -1238,31 +1238,45 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      {/* 자동 마케팅 컴팩트 배너 */}
+      {/* 자동 마케팅 배너 */}
       {automationStatus && !automationStatus.hasActiveRules && (
         <div
-          className="mb-6 flex items-center justify-between gap-4 px-5 py-3 rounded-xl bg-gradient-to-r from-brand-50 to-white border border-brand-200 cursor-pointer hover:shadow-md transition-shadow"
+          className="mb-6 rounded-xl bg-gradient-to-r from-brand-50 via-white to-orange-50 border border-brand-200 cursor-pointer hover:shadow-lg transition-all"
           onClick={() => router.push('/automation')}
         >
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <Zap className="w-4 h-4 text-brand-700" />
-              <span className="text-sm font-bold text-neutral-900">자동 마케팅</span>
+          {/* 상단: 타이틀 + CTA */}
+          <div className="flex items-center justify-between px-5 pt-4 pb-2">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-brand-100 rounded-lg">
+                <Zap className="w-4 h-4 text-brand-700" />
+              </div>
+              <span className="text-base font-bold text-neutral-900">놓치고 있는 고객이 있어요</span>
             </div>
-            <div className="hidden md:flex items-center gap-1 text-sm text-neutral-600">
-              <span>이탈 위험 <span className="font-semibold text-brand-700">{automationStatus.previews?.CHURN_PREVENTION?.thisMonthEstimate ?? 0}명</span></span>
-              <span className="text-neutral-300 mx-1">·</span>
-              <span>이번 달 생일 <span className="font-semibold text-brand-700">{automationStatus.previews?.BIRTHDAY?.thisMonthEstimate ?? 0}명</span></span>
-              <span className="text-neutral-300 mx-1">·</span>
-              <span>첫 방문 <span className="font-semibold text-brand-700">{automationStatus.previews?.FIRST_VISIT_FOLLOWUP?.thisMonthEstimate ?? 0}명</span></span>
+            <div className="flex items-center gap-2">
+              <span className="hidden sm:inline text-xs font-medium text-brand-600 bg-brand-100 px-2.5 py-1 rounded-full">월 30건 무료</span>
+              <div className="flex items-center gap-1 text-sm font-semibold text-white bg-brand-700 px-3 py-1.5 rounded-lg hover:bg-brand-800 transition-colors">
+                시작하기
+                <ArrowRight className="w-3.5 h-3.5" />
+              </div>
             </div>
-            <span className="md:hidden text-sm text-neutral-600">월 30건 무료! 자동 마케팅을 시작해보세요</span>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="hidden sm:inline text-xs font-medium text-brand-600 bg-brand-100 px-2 py-0.5 rounded-full">월 30건 무료</span>
-            <div className="flex items-center gap-1 text-sm font-semibold text-brand-700">
-              시작하기
-              <ArrowRight className="w-3.5 h-3.5" />
+
+          {/* 하단: 3개 지표 카드 */}
+          <div className="grid grid-cols-3 gap-3 px-5 pb-4 pt-1">
+            <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
+              <Bell className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
+              <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.CHURN_PREVENTION?.thisMonthEstimate ?? 0}명</p>
+              <p className="text-[11px] text-neutral-500 mt-0.5">이탈 위험 · 쿠폰 없이 이탈 중</p>
+            </div>
+            <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
+              <Cake className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
+              <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.BIRTHDAY?.thisMonthEstimate ?? 0}명</p>
+              <p className="text-[11px] text-neutral-500 mt-0.5">이번 달 생일 · 축하 미발송</p>
+            </div>
+            <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
+              <HandMetal className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
+              <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.FIRST_VISIT_FOLLOWUP?.thisMonthEstimate ?? 0}명</p>
+              <p className="text-[11px] text-neutral-500 mt-0.5">첫 방문 · 재방문 쿠폰 미발송</p>
             </div>
           </div>
         </div>
