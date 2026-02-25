@@ -102,7 +102,7 @@ router.put('/', async (req: AuthRequest, res) => {
       });
       const wasEnabled = existingSetting?.enabled ?? false;
 
-      const parsedBonus = firstStampBonus !== undefined ? Math.max(0, Math.min(10, Number(firstStampBonus) || 0)) : undefined;
+      const parsedBonus = firstStampBonus !== undefined ? Math.max(1, Math.min(10, Number(firstStampBonus) || 1)) : undefined;
 
       const setting = await prisma.stampSetting.upsert({
         where: { storeId },
@@ -110,7 +110,7 @@ router.put('/', async (req: AuthRequest, res) => {
           storeId,
           enabled: enabled ?? false,
           rewards: (rewardsArr.length > 0 ? rewardsArr : undefined) as any,
-          firstStampBonus: parsedBonus ?? 0,
+          firstStampBonus: parsedBonus ?? 1,
           alimtalkEnabled: alimtalkEnabled ?? true,
           ...legacyData,
         },

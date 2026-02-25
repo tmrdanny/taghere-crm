@@ -167,7 +167,8 @@ export default function StampSettingsPage() {
 
   // Settings state
   const [enabled, setEnabled] = useState(true);
-  const [firstStampBonus, setFirstStampBonus] = useState(0);
+  const [firstStampBonus, setFirstStampBonus] = useState(1);
+  const [isSavingBonus, setIsSavingBonus] = useState(false);
   const [selectedTiers, setSelectedTiers] = useState<number[]>([]);
   const [rewardOptions, setRewardOptions] = useState<Record<number, RewardOption[]>>({});
 
@@ -215,7 +216,7 @@ export default function StampSettingsPage() {
         if (res.ok) {
           const data = await res.json();
           setEnabled(data.enabled);
-          setFirstStampBonus(data.firstStampBonus ?? 0);
+          setFirstStampBonus(data.firstStampBonus && data.firstStampBonus >= 1 ? data.firstStampBonus : 1);
 
           // rewards JSON 기반으로 로드
           const rewards: RewardEntry[] = data.rewards || [];
@@ -444,15 +445,15 @@ export default function StampSettingsPage() {
           </CardContent>
         </Card>
 
-        {/* 첫 적립 보너스 */}
+        {/* 첫 적립 스탬프 개수 */}
         <Card className={!enabled ? 'opacity-50 pointer-events-none' : ''}>
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Gift className="w-5 h-5 text-neutral-600" />
-              <CardTitle className="text-lg">첫 적립 보너스</CardTitle>
+              <CardTitle className="text-lg">첫 적립 스탬프 개수</CardTitle>
             </div>
             <p className="text-sm text-neutral-500 mt-1">
-              첫 방문 고객에게 스탬프를 추가로 적립해줍니다.
+              첫 방문 고객이 받을 스탬프 개수를 설정합니다.
             </p>
           </CardHeader>
           <CardContent>
@@ -461,19 +462,50 @@ export default function StampSettingsPage() {
               <Input
                 type="number"
                 value={firstStampBonus}
-                onChange={(e) => setFirstStampBonus(Math.max(0, Math.min(10, Number(e.target.value) || 0)))}
-                min={0}
+                onChange={(e) => setFirstStampBonus(Math.max(1, Math.min(10, Number(e.target.value) || 1)))}
+                min={1}
                 max={10}
                 disabled={!enabled}
                 className="w-20 text-center"
               />
-              <span className="text-sm text-neutral-700">개 추가 적립</span>
+              <span className="text-sm text-neutral-700">개 적립</span>
             </div>
             <p className="text-xs text-neutral-400 mt-2">
-              {firstStampBonus > 0
-                ? `첫 방문 고객은 총 ${1 + firstStampBonus}개의 스탬프가 적립됩니다. (기본 1개 + 보너스 ${firstStampBonus}개)`
-                : '0으로 설정하면 보너스 없이 기본 1개만 적립됩니다.'}
+              {firstStampBonus > 1
+                ? `첫 방문 고객은 ${firstStampBonus}개의 스탬프가 한번에 적립됩니다. (2회차부터 1개씩 적립)`
+                : '기본값: 첫 방문 포함 모든 방문에서 1개씩 적립됩니다.'}
             </p>
+            <div className="mt-4 flex justify-end">
+              <Button
+                size="sm"
+                disabled={!enabled || isSavingBonus}
+                onClick={async () => {
+                  setIsSavingBonus(true);
+                  try {
+                    const token = localStorage.getItem('token');
+                    const res = await fetch(`${apiUrl}/api/stamp-settings`, {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({ firstStampBonus }),
+                    });
+                    if (res.ok) {
+                      showToast('첫 적립 스탬프 개수가 저장되었습니다.', 'success');
+                    } else {
+                      showToast('저장 중 오류가 발생했습니다.', 'error');
+                    }
+                  } catch {
+                    showToast('저장 중 오류가 발생했습니다.', 'error');
+                  } finally {
+                    setIsSavingBonus(false);
+                  }
+                }}
+              >
+                {isSavingBonus ? '저장 중...' : '저장'}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

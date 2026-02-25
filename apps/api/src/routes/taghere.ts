@@ -1362,9 +1362,9 @@ router.post('/stamp-earn', async (req, res) => {
     // 8. 스탬프 적립 (트랜잭션) - 스탬프 적립 시 무조건 방문횟수 +1
     const previousStamps = customer!.totalStamps ?? 0;
     const isFirstEarn = (customer!.visitCount ?? 0) === 0;
-    const firstStampBonus = isFirstEarn ? (store.stampSetting?.firstStampBonus ?? 0) : 0;
-    const stampDelta = 1 + firstStampBonus;
-    console.log(`[TagHere Stamp-Earn] Before transaction - customerId: ${customer!.id}, previousStamps: ${previousStamps}${firstStampBonus > 0 ? `, firstStampBonus: +${firstStampBonus}` : ''}`);
+    const firstStampCount = store.stampSetting?.firstStampBonus ?? 1;
+    const stampDelta = isFirstEarn && firstStampCount > 1 ? firstStampCount : 1;
+    console.log(`[TagHere Stamp-Earn] Before transaction - customerId: ${customer!.id}, previousStamps: ${previousStamps}${stampDelta > 1 ? `, firstStampCount: ${stampDelta}` : ''}`);
 
     const result = await prisma.$transaction(async (tx) => {
       const newBalance = previousStamps + stampDelta;
@@ -1390,8 +1390,8 @@ router.post('/stamp-earn', async (req, res) => {
           ordersheetId: ordersheetId || null,
           earnMethod: earnMethod as any,
           tableLabel: tableLabel,
-          reason: firstStampBonus > 0
-            ? `첫 방문 보너스 적립 (1+${firstStampBonus}개)`
+          reason: stampDelta > 1
+            ? `첫 방문 스탬프 적립 (${stampDelta}개)`
             : (ordersheetId ? `태그히어 주문 적립 (${ordersheetId})` : '스탬프 적립'),
         },
       });
