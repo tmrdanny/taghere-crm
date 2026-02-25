@@ -83,6 +83,17 @@ router.put('/', async (req: AuthRequest, res) => {
       reward30Options,
     } = req.body;
 
+    // firstStampBonus만 단독 저장 요청인 경우
+    if (firstStampBonus !== undefined && rewards === undefined && enabled === undefined && alimtalkEnabled === undefined) {
+      const parsedBonus = Math.max(1, Math.min(10, Number(firstStampBonus) || 1));
+      const setting = await prisma.stampSetting.upsert({
+        where: { storeId },
+        create: { storeId, firstStampBonus: parsedBonus },
+        update: { firstStampBonus: parsedBonus },
+      });
+      return res.json({ firstStampBonus: setting.firstStampBonus });
+    }
+
     // rewards JSON이 전달된 경우 (신규 클라이언트)
     if (rewards !== undefined) {
       if (rewards !== null && Array.isArray(rewards) && rewards.length > 0) {
