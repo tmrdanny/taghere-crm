@@ -37,6 +37,7 @@ router.get('/', async (req: AuthRequest, res) => {
     res.json({
       enabled: setting.enabled,
       rewards,
+      firstStampBonus: setting.firstStampBonus,
       alimtalkEnabled: setting.alimtalkEnabled,
       // 레거시 호환 필드 (기존 클라이언트용)
       reward5Description: setting.reward5Description,
@@ -65,6 +66,7 @@ router.put('/', async (req: AuthRequest, res) => {
     const {
       enabled,
       rewards,
+      firstStampBonus,
       alimtalkEnabled,
       // 레거시 필드 (기존 클라이언트 호환)
       reward5Description,
@@ -100,18 +102,22 @@ router.put('/', async (req: AuthRequest, res) => {
       });
       const wasEnabled = existingSetting?.enabled ?? false;
 
+      const parsedBonus = firstStampBonus !== undefined ? Math.max(0, Math.min(10, Number(firstStampBonus) || 0)) : undefined;
+
       const setting = await prisma.stampSetting.upsert({
         where: { storeId },
         create: {
           storeId,
           enabled: enabled ?? false,
           rewards: (rewardsArr.length > 0 ? rewardsArr : undefined) as any,
+          firstStampBonus: parsedBonus ?? 0,
           alimtalkEnabled: alimtalkEnabled ?? true,
           ...legacyData,
         },
         update: {
           ...(enabled !== undefined && { enabled }),
           ...(alimtalkEnabled !== undefined && { alimtalkEnabled }),
+          ...(parsedBonus !== undefined && { firstStampBonus: parsedBonus }),
           rewards: (rewardsArr.length > 0 ? rewardsArr : undefined) as any,
           ...legacyData,
         },
@@ -129,6 +135,7 @@ router.put('/', async (req: AuthRequest, res) => {
       return res.json({
         enabled: setting.enabled,
         rewards: responseRewards,
+        firstStampBonus: setting.firstStampBonus,
         alimtalkEnabled: setting.alimtalkEnabled,
       });
     }
@@ -215,6 +222,7 @@ router.put('/', async (req: AuthRequest, res) => {
     res.json({
       enabled: setting.enabled,
       rewards: builtRewards,
+      firstStampBonus: setting.firstStampBonus,
       reward5Description: setting.reward5Description,
       reward10Description: setting.reward10Description,
       reward15Description: setting.reward15Description,

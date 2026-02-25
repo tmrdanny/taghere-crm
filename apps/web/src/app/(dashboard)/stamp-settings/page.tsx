@@ -167,6 +167,7 @@ export default function StampSettingsPage() {
 
   // Settings state
   const [enabled, setEnabled] = useState(true);
+  const [firstStampBonus, setFirstStampBonus] = useState(0);
   const [selectedTiers, setSelectedTiers] = useState<number[]>([]);
   const [rewardOptions, setRewardOptions] = useState<Record<number, RewardOption[]>>({});
 
@@ -214,6 +215,7 @@ export default function StampSettingsPage() {
         if (res.ok) {
           const data = await res.json();
           setEnabled(data.enabled);
+          setFirstStampBonus(data.firstStampBonus ?? 0);
 
           // rewards JSON 기반으로 로드
           const rewards: RewardEntry[] = data.rewards || [];
@@ -305,7 +307,7 @@ export default function StampSettingsPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ enabled, rewards }),
+        body: JSON.stringify({ enabled, rewards, firstStampBonus }),
       });
 
       if (res.ok) {
@@ -439,6 +441,39 @@ export default function StampSettingsPage() {
                 onCheckedChange={handleToggleEnabled}
               />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* 첫 적립 보너스 */}
+        <Card className={!enabled ? 'opacity-50 pointer-events-none' : ''}>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <Gift className="w-5 h-5 text-neutral-600" />
+              <CardTitle className="text-lg">첫 적립 보너스</CardTitle>
+            </div>
+            <p className="text-sm text-neutral-500 mt-1">
+              첫 방문 고객에게 스탬프를 추가로 적립해줍니다.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-neutral-700">첫 적립 시</span>
+              <Input
+                type="number"
+                value={firstStampBonus}
+                onChange={(e) => setFirstStampBonus(Math.max(0, Math.min(10, Number(e.target.value) || 0)))}
+                min={0}
+                max={10}
+                disabled={!enabled}
+                className="w-20 text-center"
+              />
+              <span className="text-sm text-neutral-700">개 추가 적립</span>
+            </div>
+            <p className="text-xs text-neutral-400 mt-2">
+              {firstStampBonus > 0
+                ? `첫 방문 고객은 총 ${1 + firstStampBonus}개의 스탬프가 적립됩니다. (기본 1개 + 보너스 ${firstStampBonus}개)`
+                : '0으로 설정하면 보너스 없이 기본 1개만 적립됩니다.'}
+            </p>
           </CardContent>
         </Card>
 
