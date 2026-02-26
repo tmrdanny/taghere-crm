@@ -596,17 +596,40 @@ function HitejinroEnrollStampContent() {
     setScannerError(null);
 
     try {
-      // 카메라 열기 (고해상도 + 연속 오토포커스)
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1920, min: 1280 },
-          height: { ideal: 1080, min: 720 },
-          focusMode: { ideal: 'continuous' },
-        } as MediaTrackConstraints,
-      });
+      // 카메라 열기 — 바코드 인식에 적합한 해상도 (1280x720)
+      // 너무 높은 해상도는 일부 Android (Galaxy S24 등)에서 프레임 처리 부하 발생
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        });
+      } catch {
+        // Fallback: 기본 후면 카메라
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+        });
+      }
 
       streamRef.current = stream;
+
+      // 오토포커스 활성화 (applyConstraints — 삼성/Android 호환성 향상)
+      const track = stream.getVideoTracks()[0];
+      if (track) {
+        try {
+          const capabilities = track.getCapabilities?.() as any;
+          if (capabilities?.focusMode?.includes?.('continuous')) {
+            await track.applyConstraints({
+              advanced: [{ focusMode: 'continuous' } as any],
+            });
+          }
+        } catch {
+          // 오토포커스 미지원 기기 — 무시
+        }
+      }
 
       // 비디오 엘리먼트에 스트림 연결
       const video = videoRef.current;
@@ -624,7 +647,7 @@ function HitejinroEnrollStampContent() {
       // 처리 중복 방지용 플래그
       let isHandlingBarcode = false;
 
-      // 주기적 프레임 스캔 (200ms 간격)
+      // 주기적 프레임 스캔 (350ms 간격 — 포커스 안정화 시간 확보)
       scanIntervalRef.current = setInterval(async () => {
         if (isHandlingBarcode || !video || video.readyState < 2) return;
 
@@ -665,7 +688,7 @@ function HitejinroEnrollStampContent() {
         } catch (e) {
           // 프레임 디코딩 실패 (무시)
         }
-      }, 200);
+      }, 350);
 
       setIsScannerActive(true);
     } catch (err) {
