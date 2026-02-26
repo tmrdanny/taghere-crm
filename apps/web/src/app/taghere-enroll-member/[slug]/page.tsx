@@ -195,6 +195,7 @@ function CoinImage({ onClick, isOpening }: { onClick: () => void; isOpening: boo
           width: 240px;
           height: 240px;
           object-fit: contain;
+          mix-blend-mode: multiply;
         }
 
         @keyframes gentleFloat {
