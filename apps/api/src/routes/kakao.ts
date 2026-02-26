@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk } from '../services/solapi.js';
+import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk } from '../services/solapi.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 import { fetchOrder, TaghereOrderData } from '../services/taghere-api.js';
 
@@ -1181,22 +1181,40 @@ async function handleStampCallback(
 
       const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
 
-      enqueueStampEarnedAlimTalk({
-        storeId: store.id,
-        customerId: customer!.id,
-        stampLedgerId: franchiseResult.ledger.id,
-        phone: phoneNumber,
-        variables: {
-          storeName: `${franchiseName} ${store.name}`,
-          earnedStamps: 1,
-          totalStamps: franchiseResult.customer.totalStamps,
-          stampUsageRule,
-          reviewGuide,
-        },
-        skipAlimtalkCheck: true, // 프랜차이즈 통합: franchiseStampSetting.alimtalkEnabled 이미 검증됨
-      }).catch((err) => {
-        console.error('[Kakao Stamp] Franchise Stamp AlimTalk enqueue failed:', err);
-      });
+      if (stateData.isHitejinro) {
+        // 하이트진로 전용 템플릿
+        enqueueHitejinroStampEarnedAlimTalk({
+          storeId: store.id,
+          customerId: customer!.id,
+          stampLedgerId: franchiseResult.ledger.id,
+          phone: phoneNumber,
+          variables: {
+            storeName: `${franchiseName} ${store.name}`,
+            earnedStamps: 1,
+            totalStamps: franchiseResult.customer.totalStamps,
+            stampRewards: stampUsageRule,
+          },
+        }).catch((err) => {
+          console.error('[Kakao Stamp] HiteJinro Stamp AlimTalk enqueue failed:', err);
+        });
+      } else {
+        enqueueStampEarnedAlimTalk({
+          storeId: store.id,
+          customerId: customer!.id,
+          stampLedgerId: franchiseResult.ledger.id,
+          phone: phoneNumber,
+          variables: {
+            storeName: `${franchiseName} ${store.name}`,
+            earnedStamps: 1,
+            totalStamps: franchiseResult.customer.totalStamps,
+            stampUsageRule,
+            reviewGuide,
+          },
+          skipAlimtalkCheck: true,
+        }).catch((err) => {
+          console.error('[Kakao Stamp] Franchise Stamp AlimTalk enqueue failed:', err);
+        });
+      }
     }
 
     // 리다이렉트

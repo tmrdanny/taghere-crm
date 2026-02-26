@@ -770,6 +770,71 @@ export async function enqueueStampEarnedAlimTalk(params: {
   });
 }
 
+// 하이트진로 스탬프 적립 알림톡 발송 요청
+export async function enqueueHitejinroStampEarnedAlimTalk(params: {
+  storeId: string;
+  customerId: string;
+  stampLedgerId: string;
+  phone: string;
+  variables: {
+    storeName: string;
+    earnedStamps: number;
+    totalStamps: number;
+    stampRewards: string; // 줄바꿈 + 리스트 형태 보상 목록
+  };
+}): Promise<{ success: boolean; error?: string }> {
+  console.log(`[AlimTalk] enqueueHitejinroStampEarnedAlimTalk called:`, {
+    storeId: params.storeId,
+    customerId: params.customerId,
+    phone: params.phone,
+  });
+
+  // 충전금 확인
+  const wallet = await prisma.wallet.findUnique({
+    where: { storeId: params.storeId },
+  });
+
+  if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
+    console.log(`[AlimTalk] Insufficient balance for store: ${params.storeId}`);
+    return { success: false, error: 'Insufficient wallet balance' };
+  }
+
+  const templateId = process.env.SOLAPI_TEMPLATE_ID_STAMP_HITEJINRO;
+  if (!templateId) {
+    console.log(`[AlimTalk] HiteJinro stamp template not configured (SOLAPI_TEMPLATE_ID_STAMP_HITEJINRO)`);
+    return { success: false, error: 'AlimTalk template not configured' };
+  }
+
+  const idempotencyKey = `stamp_hitejinro:${params.storeId}:${params.customerId}:${params.stampLedgerId}`;
+
+  // 지연 발송 설정
+  const storeDelaySetting = await prisma.store.findUnique({
+    where: { id: params.storeId },
+    select: { alimtalkDelayEnabled: true, alimtalkDelayMinutes: true },
+  });
+  const scheduledAt = storeDelaySetting?.alimtalkDelayEnabled && storeDelaySetting.alimtalkDelayMinutes > 0
+    ? new Date(Date.now() + storeDelaySetting.alimtalkDelayMinutes * 60_000)
+    : undefined;
+
+  return enqueueAlimTalk({
+    storeId: params.storeId,
+    customerId: params.customerId,
+    phone: params.phone,
+    messageType: 'STAMP_EARNED',
+    templateId,
+    variables: {
+      '#{매장명}': params.variables.storeName,
+      '#{적립스탬프}': String(params.variables.earnedStamps),
+      '#{모은스탬프}': String(params.variables.totalStamps),
+      '#{스탬프보상}': params.variables.stampRewards,
+      '#{스탬프참여매장}': 'naver.me/FnsNo9P2',
+      '#{보상신청}': 'taghere-crm-web-g96p.onrender.com/taghere-my',
+    },
+    idempotencyKey,
+    scheduledAt,
+  });
+}
+
 // 충전금 부족 안내 알림톡 발송 요청 (매장 소유자에게)
 export async function sendLowBalanceAlimTalk(params: {
   storeId: string;
