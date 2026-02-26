@@ -1343,21 +1343,39 @@ async function handleStampCallback(
     // 리뷰 작성 안내 문구
     const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
 
-    enqueueStampEarnedAlimTalk({
-      storeId: store.id,
-      customerId: customer.id,
-      stampLedgerId: result.ledger.id,
-      phone: phoneNumber,
-      variables: {
-        storeName: store.name,
-        earnedStamps: 1,
-        totalStamps: result.customer.totalStamps,
-        stampUsageRule,
-        reviewGuide,
-      },
-    }).catch((err) => {
-      console.error('[Kakao Stamp] Stamp AlimTalk enqueue failed:', err);
-    });
+    if (stateData.isHitejinro) {
+      // 하이트진로 전용 템플릿
+      enqueueHitejinroStampEarnedAlimTalk({
+        storeId: store.id,
+        customerId: customer.id,
+        stampLedgerId: result.ledger.id,
+        phone: phoneNumber,
+        variables: {
+          storeName: store.name,
+          earnedStamps: 1,
+          totalStamps: result.customer.totalStamps,
+          stampRewards: stampUsageRule,
+        },
+      }).catch((err) => {
+        console.error('[Kakao Stamp] HiteJinro Stamp AlimTalk enqueue failed:', err);
+      });
+    } else {
+      enqueueStampEarnedAlimTalk({
+        storeId: store.id,
+        customerId: customer.id,
+        stampLedgerId: result.ledger.id,
+        phone: phoneNumber,
+        variables: {
+          storeName: store.name,
+          earnedStamps: 1,
+          totalStamps: result.customer.totalStamps,
+          stampUsageRule,
+          reviewGuide,
+        },
+      }).catch((err) => {
+        console.error('[Kakao Stamp] Stamp AlimTalk enqueue failed:', err);
+      });
+    }
   }
 
   // Check if customer already has preferredCategories
