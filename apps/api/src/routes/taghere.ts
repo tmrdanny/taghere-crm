@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk } from '../services/solapi.js';
+import { enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk } from '../services/solapi.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 import { isValidWebhookToken, fetchOrder, TaghereOrderData } from '../services/taghere-api.js';
 
@@ -939,7 +939,7 @@ router.get('/stamp-info/:slug', async (req, res) => {
 // POST /api/taghere/stamp-earn - 스탬프 자동 적립 (카카오 로그인 후)
 router.post('/stamp-earn', async (req, res) => {
   try {
-    const { kakaoId, slug, earnMethod = 'NFC_TAG' } = req.body;
+    const { kakaoId, slug, earnMethod = 'NFC_TAG', isHitejinro } = req.body;
     const ordersheetId = req.body.ordersheetId || req.body.orderId;
 
     // 1. 파라미터 검증
@@ -1001,7 +1001,8 @@ router.post('/stamp-earn', async (req, res) => {
     );
 
     // 3. 스탬프 기능 활성화 확인
-    if (!isFranchiseStampMode && !store.stampSetting?.enabled) {
+    // 하이트진로 전용 링크는 매장 스탬프 설정과 무관하게 적립 허용
+    if (!isHitejinro && !isFranchiseStampMode && !store.stampSetting?.enabled) {
       return res.status(400).json({
         success: false,
         error: 'stamp_disabled',
@@ -1302,8 +1303,9 @@ router.post('/stamp-earn', async (req, res) => {
       console.log(`[TagHere Stamp-Earn] Franchise stamp earned - franchiseCustomerId: ${franchiseCustomer.id}, newBalance: ${franchiseResult.customer.totalStamps}${franchiseResult.milestoneResult ? `, milestone: ${franchiseResult.milestoneResult.tier}개` : ''}`);
 
       // 알림톡
+      // 하이트진로 전용 링크: alimtalkEnabled 설정과 무관하게 발송
       const phoneNumber = customer!.phone?.replace(/[^0-9]/g, '');
-      if (franchiseStampSetting.alimtalkEnabled && phoneNumber) {
+      if ((isHitejinro || franchiseStampSetting.alimtalkEnabled) && phoneNumber) {
         const rewardsForAlimtalk: RewardEntry[] = franchiseStampSetting.rewards
           ? (franchiseStampSetting.rewards as unknown as RewardEntry[])
           : buildRewardsFromLegacy(franchiseStampSetting as any);
@@ -1316,24 +1318,42 @@ router.post('/stamp-earn', async (req, res) => {
         const stampUsageRule = rules.length > 0
           ? '\n' + rules.join('\n')
           : '\n- 10개 모을시 매장 선물 증정!';
-        const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
 
-        enqueueStampEarnedAlimTalk({
-          storeId: store.id,
-          customerId: customer!.id,
-          stampLedgerId: franchiseResult.ledger.id,
-          phone: phoneNumber,
-          variables: {
-            storeName: `${franchiseName} ${store.name}`,
-            earnedStamps: 1,
-            totalStamps: franchiseResult.customer.totalStamps,
-            stampUsageRule,
-            reviewGuide,
-          },
-          skipAlimtalkCheck: true, // 프랜차이즈 통합: franchiseStampSetting.alimtalkEnabled 이미 검증됨
-        }).catch((err) => {
-          console.error('[TagHere Stamp-Earn] Franchise Stamp AlimTalk enqueue failed:', err);
-        });
+        if (isHitejinro) {
+          // 하이트진로 전용 템플릿
+          enqueueHitejinroStampEarnedAlimTalk({
+            storeId: store.id,
+            customerId: customer!.id,
+            stampLedgerId: franchiseResult.ledger.id,
+            phone: phoneNumber,
+            variables: {
+              storeName: `${franchiseName} ${store.name}`,
+              earnedStamps: 1,
+              totalStamps: franchiseResult.customer.totalStamps,
+              stampRewards: stampUsageRule,
+            },
+          }).catch((err) => {
+            console.error('[TagHere Stamp-Earn] HiteJinro Franchise Stamp AlimTalk enqueue failed:', err);
+          });
+        } else {
+          const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
+          enqueueStampEarnedAlimTalk({
+            storeId: store.id,
+            customerId: customer!.id,
+            stampLedgerId: franchiseResult.ledger.id,
+            phone: phoneNumber,
+            variables: {
+              storeName: `${franchiseName} ${store.name}`,
+              earnedStamps: 1,
+              totalStamps: franchiseResult.customer.totalStamps,
+              stampUsageRule,
+              reviewGuide,
+            },
+            skipAlimtalkCheck: true,
+          }).catch((err) => {
+            console.error('[TagHere Stamp-Earn] Franchise Stamp AlimTalk enqueue failed:', err);
+          });
+        }
       }
 
       // 성공 응답
@@ -1429,12 +1449,25 @@ router.post('/stamp-earn', async (req, res) => {
     console.log(`[TagHere Stamp-Earn] Stamp earned - customerId: ${customer.id}, newBalance: ${result.customer.totalStamps}, orderItemsCount: ${orderItems.length}, tableLabel: ${tableLabel}${result.milestoneResult ? `, milestone: ${result.milestoneResult.tier}개 - ${result.milestoneResult.reward}` : ''}`);
 
     // 9. 알림톡 발송 (비동기)
+    // 하이트진로 전용 링크: alimtalkEnabled 설정과 무관하게 발송
     const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
-    if (store.stampSetting!.alimtalkEnabled && phoneNumber) {
-      // 스탬프 사용 규칙 생성 (rewards JSON 기반)
-      const rewardsForAlimtalk: RewardEntry[] = store.stampSetting!.rewards
-        ? (store.stampSetting!.rewards as unknown as RewardEntry[])
-        : buildRewardsFromLegacy(store.stampSetting as any);
+    const shouldSendAlimtalk = isHitejinro
+      ? !!phoneNumber
+      : !!(store.stampSetting?.alimtalkEnabled && phoneNumber);
+
+    if (shouldSendAlimtalk) {
+      // 하이트진로: 프랜차이즈 통합 스탬프 보상 설정에서 가져옴
+      let rewardsForAlimtalk: RewardEntry[];
+      if (isHitejinro && store.franchise?.franchiseStampSetting) {
+        const fss = store.franchise.franchiseStampSetting;
+        rewardsForAlimtalk = fss.rewards
+          ? (fss.rewards as unknown as RewardEntry[])
+          : buildRewardsFromLegacy(fss as any);
+      } else {
+        rewardsForAlimtalk = store.stampSetting?.rewards
+          ? (store.stampSetting.rewards as unknown as RewardEntry[])
+          : store.stampSetting ? buildRewardsFromLegacy(store.stampSetting as any) : [];
+      }
       const rules = rewardsForAlimtalk
         .sort((a, b) => a.tier - b.tier)
         .map(r => {
@@ -1445,24 +1478,40 @@ router.post('/stamp-earn', async (req, res) => {
         ? '\n' + rules.join('\n')
         : '\n- 10개 모을시 매장 선물 증정!';
 
-      // 리뷰 작성 안내 문구
-      const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
-
-      enqueueStampEarnedAlimTalk({
-        storeId: store.id,
-        customerId: customer.id,
-        stampLedgerId: result.ledger.id,
-        phone: phoneNumber,
-        variables: {
-          storeName: store.name,
-          earnedStamps: stampDelta,
-          totalStamps: result.customer.totalStamps,
-          stampUsageRule,
-          reviewGuide,
-        },
-      }).catch((err) => {
-        console.error('[TagHere Stamp-Earn] Stamp AlimTalk enqueue failed:', err);
-      });
+      if (isHitejinro) {
+        // 하이트진로 전용 템플릿
+        enqueueHitejinroStampEarnedAlimTalk({
+          storeId: store.id,
+          customerId: customer.id,
+          stampLedgerId: result.ledger.id,
+          phone: phoneNumber!,
+          variables: {
+            storeName: store.name,
+            earnedStamps: stampDelta,
+            totalStamps: result.customer.totalStamps,
+            stampRewards: stampUsageRule,
+          },
+        }).catch((err) => {
+          console.error('[TagHere Stamp-Earn] HiteJinro Stamp AlimTalk enqueue failed:', err);
+        });
+      } else {
+        const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
+        enqueueStampEarnedAlimTalk({
+          storeId: store.id,
+          customerId: customer.id,
+          stampLedgerId: result.ledger.id,
+          phone: phoneNumber!,
+          variables: {
+            storeName: store.name,
+            earnedStamps: stampDelta,
+            totalStamps: result.customer.totalStamps,
+            stampUsageRule,
+            reviewGuide,
+          },
+        }).catch((err) => {
+          console.error('[TagHere Stamp-Earn] Stamp AlimTalk enqueue failed:', err);
+        });
+      }
     }
 
     // 10. 성공 응답
