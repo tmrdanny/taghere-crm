@@ -394,7 +394,7 @@ router.get('/callback', async (req, res) => {
 
 // GET /auth/kakao/taghere-start - TagHere 전용 카카오 로그인 시작
 router.get('/taghere-start', (req, res) => {
-  const { storeId, slug, origin, isStamp, isMyPage, isMembership } = req.query;
+  const { storeId, slug, origin, isStamp, isMyPage, isMembership, isHitejinro, barcode, returnPath } = req.query;
   const ordersheetId = (req.query.ordersheetId || req.query.orderId) as string | undefined;
 
   // origin 검증: 허용된 도메인만 허용 (보안)
@@ -424,6 +424,9 @@ router.get('/taghere-start', (req, res) => {
       isStamp: isStamp === 'true',  // 스탬프 적립 여부
       isMyPage: isMyPage === 'true',  // 마이페이지 조회
       isMembership: isMembership === 'true',  // 멤버십 가입
+      isHitejinro: isHitejinro === 'true',  // 하이트진로 프랜차이즈
+      ...(barcode ? { barcode: String(barcode) } : {}),
+      ...(returnPath ? { returnPath: String(returnPath) } : {}),
       origin: validOrigin,  // origin을 state에 포함
     })
   ).toString('base64');
