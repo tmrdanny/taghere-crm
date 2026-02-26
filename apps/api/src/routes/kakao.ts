@@ -1334,9 +1334,18 @@ async function handleStampCallback(
 
   if (shouldSendAlimtalk) {
     // 스탬프 사용 규칙 생성 (rewards JSON 또는 레거시 컬럼에서)
-    const rewardsForAlimtalk: RewardEntry[] = store.stampSetting?.rewards
-      ? (store.stampSetting.rewards as unknown as RewardEntry[])
-      : store.stampSetting ? buildRewardsFromLegacy(store.stampSetting as any) : [];
+    // 하이트진로: 프랜차이즈 통합 스탬프 보상 설정에서 가져옴
+    let rewardsForAlimtalk: RewardEntry[];
+    if (stateData.isHitejinro && store.franchise?.franchiseStampSetting) {
+      const fss = store.franchise.franchiseStampSetting;
+      rewardsForAlimtalk = fss.rewards
+        ? (fss.rewards as unknown as RewardEntry[])
+        : buildRewardsFromLegacy(fss as any);
+    } else {
+      rewardsForAlimtalk = store.stampSetting?.rewards
+        ? (store.stampSetting.rewards as unknown as RewardEntry[])
+        : store.stampSetting ? buildRewardsFromLegacy(store.stampSetting as any) : [];
+    }
     const rules = rewardsForAlimtalk
       .sort((a, b) => a.tier - b.tier)
       .map(r => {
