@@ -850,7 +850,8 @@ async function handleStampCallback(
   );
 
   // 스탬프 기능 활성화 확인 (통합 스탬프 또는 개별 스탬프)
-  if (!isFranchiseStampMode && !store.stampSetting?.enabled) {
+  // 하이트진로 전용 링크는 매장 스탬프 설정과 무관하게 적립 허용
+  if (!stateData.isHitejinro && !isFranchiseStampMode && !store.stampSetting?.enabled) {
     return res.redirect(`${redirectOrigin}${stampBasePath}?error=stamp_disabled`);
   }
 
@@ -1167,8 +1168,9 @@ async function handleStampCallback(
     console.log(`[Kakao Stamp] Franchise stamp earned - franchiseCustomerId: ${franchiseCustomer.id}, newBalance: ${franchiseResult.customer.totalStamps}${franchiseResult.milestoneResult ? `, milestone: ${franchiseResult.milestoneResult.tier}개 - ${franchiseResult.milestoneResult.reward}` : ''}`);
 
     // 알림톡 발송 (비동기)
+    // 하이트진로 전용 링크: alimtalkEnabled 설정과 무관하게 발송
     const phoneNumber = customer!.phone?.replace(/[^0-9]/g, '');
-    if (franchiseStampSetting.alimtalkEnabled && phoneNumber) {
+    if ((stateData.isHitejinro || franchiseStampSetting.alimtalkEnabled) && phoneNumber) {
       const rewardsForAlimtalk: RewardEntry[] = franchiseStampSetting.rewards
         ? (franchiseStampSetting.rewards as unknown as RewardEntry[])
         : buildRewardsFromLegacy(franchiseStampSetting as any);
@@ -1325,11 +1327,16 @@ async function handleStampCallback(
 
   // 알림톡 발송 (비동기)
   const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
-  if (store.stampSetting?.alimtalkEnabled && phoneNumber) {
+  // 하이트진로 전용 링크: alimtalkEnabled 설정과 무관하게 발송
+  const shouldSendAlimtalk = stateData.isHitejinro
+    ? !!phoneNumber
+    : !!(store.stampSetting?.alimtalkEnabled && phoneNumber);
+
+  if (shouldSendAlimtalk) {
     // 스탬프 사용 규칙 생성 (rewards JSON 또는 레거시 컬럼에서)
-    const rewardsForAlimtalk: RewardEntry[] = store.stampSetting.rewards
+    const rewardsForAlimtalk: RewardEntry[] = store.stampSetting?.rewards
       ? (store.stampSetting.rewards as unknown as RewardEntry[])
-      : buildRewardsFromLegacy(store.stampSetting as any);
+      : store.stampSetting ? buildRewardsFromLegacy(store.stampSetting as any) : [];
     const rules = rewardsForAlimtalk
       .sort((a, b) => a.tier - b.tier)
       .map(r => {
@@ -1349,7 +1356,7 @@ async function handleStampCallback(
         storeId: store.id,
         customerId: customer.id,
         stampLedgerId: result.ledger.id,
-        phone: phoneNumber,
+        phone: phoneNumber!,
         variables: {
           storeName: store.name,
           earnedStamps: 1,
@@ -1364,7 +1371,7 @@ async function handleStampCallback(
         storeId: store.id,
         customerId: customer.id,
         stampLedgerId: result.ledger.id,
-        phone: phoneNumber,
+        phone: phoneNumber!,
         variables: {
           storeName: store.name,
           earnedStamps: 1,
