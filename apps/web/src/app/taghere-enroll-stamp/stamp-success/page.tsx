@@ -348,7 +348,7 @@ function StampSuccessContent() {
               {Array.from({ length: 10 }, (_, i) => {
                 const num = i + 1;
                 const isFilled = num <= displayStamps;
-                const isMilestone = num === 5 || num === 10;
+                const hasReward = rewardList.some(r => r.count === num);
 
                 return (
                   <div key={num} className="flex flex-col items-center gap-1">
@@ -366,10 +366,8 @@ function StampSuccessContent() {
                         <span className="text-sm font-medium text-[#b1b5b8]">{num}</span>
                       )}
                     </div>
-                    {isMilestone && (
-                      <span className="text-[10px] font-semibold text-[#FFB800]">
-                        {num === 5 ? '보상' : '보상'}
-                      </span>
+                    {hasReward && (
+                      <span className="text-[10px] font-semibold text-[#FFB800]">보상</span>
                     )}
                   </div>
                 );
