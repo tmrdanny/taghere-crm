@@ -2846,12 +2846,11 @@ router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: 
       try {
         const baseSlug = generateSlug(storeName);
         const slug = await getUniqueSlug(baseSlug);
+        const validEnrollmentMode = enrollmentMode && ['POINTS', 'STAMP', 'MEMBERSHIP'].includes(enrollmentMode)
+          ? enrollmentMode
+          : undefined;
 
         await prisma.$transaction(async (tx) => {
-          const validEnrollmentMode = enrollmentMode && ['POINTS', 'STAMP', 'MEMBERSHIP'].includes(enrollmentMode)
-            ? enrollmentMode
-            : undefined;
-
           const store = await tx.store.create({
             data: {
               name: storeName,
@@ -2899,6 +2898,18 @@ router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: 
         emailsInBatch.add(email);
         existingEmails.add(email);
         created.push({ row: rowNum, storeName, email });
+
+        // 태그히어 서버에 CRM ON 알림 (리다이렉트 URL 등록)
+        notifyCrmOn({
+          version: 'v1',
+          userId: email,
+          storeName,
+          slug,
+          isStampMode: false,
+          enrollmentMode: validEnrollmentMode || 'POINTS',
+        }).catch((err) => {
+          console.error(`[Admin Bulk] notifyCrmOn failed for ${storeName}:`, err);
+        });
       } catch (err: any) {
         errors.push({ row: rowNum, storeName, reason: err.message || '생성 중 오류' });
       }
