@@ -2783,7 +2783,7 @@ router.get('/store-orders', adminAuthMiddleware, async (req: AdminRequest, res: 
 // POST /api/admin/stores/bulk - 매장 대량 등록
 router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    const { stores: storeRows, defaultPassword, franchiseId } = req.body;
+    const { stores: storeRows, defaultPassword, franchiseId, enrollmentMode } = req.body;
 
     if (!Array.isArray(storeRows) || storeRows.length === 0) {
       return res.status(400).json({ error: '등록할 매장 데이터가 없습니다.' });
@@ -2848,6 +2848,10 @@ router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: 
         const slug = await getUniqueSlug(baseSlug);
 
         await prisma.$transaction(async (tx) => {
+          const validEnrollmentMode = enrollmentMode && ['POINTS', 'STAMP', 'MEMBERSHIP'].includes(enrollmentMode)
+            ? enrollmentMode
+            : undefined;
+
           const store = await tx.store.create({
             data: {
               name: storeName,
@@ -2859,6 +2863,7 @@ router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: 
               category: category || null,
               pointRatePercent: 5,
               franchiseId: franchiseId || null,
+              ...(validEnrollmentMode && { enrollmentMode: validEnrollmentMode }),
             },
           });
 

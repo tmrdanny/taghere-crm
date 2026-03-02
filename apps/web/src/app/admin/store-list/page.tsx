@@ -113,6 +113,7 @@ export default function StoreListPage() {
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
+  const [bulkEnrollmentMode, setBulkEnrollmentMode] = useState<'POINTS' | 'STAMP' | 'MEMBERSHIP'>('POINTS');
 
   useEffect(() => {
     fetchStores();
@@ -247,7 +248,7 @@ export default function StoreListPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ stores: bulkParsedData }),
+        body: JSON.stringify({ stores: bulkParsedData, enrollmentMode: bulkEnrollmentMode }),
       });
 
       const result = await res.json();
@@ -310,7 +311,7 @@ export default function StoreListPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { setBulkModal(true); setBulkParsedData([]); setBulkResult(null); }}
+              onClick={() => { setBulkModal(true); setBulkParsedData([]); setBulkResult(null); setBulkEnrollmentMode('POINTS'); }}
               className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-2"
             >
               <UploadIcon className="w-4 h-4" />
@@ -529,6 +530,31 @@ export default function StoreListPage() {
                     ? `${bulkParsedData.length}건 로드됨 (다시 선택하려면 클릭)`
                     : '엑셀 파일 선택 (.xlsx, .xls, .csv)'}
                 </button>
+              </div>
+
+              {/* 등록 모드 선택 */}
+              <div className="p-4 bg-neutral-50 rounded-xl">
+                <p className="text-[13px] font-medium text-neutral-700 mb-2">등록 모드</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: 'POINTS' as const, label: '포인트 적립' },
+                    { value: 'STAMP' as const, label: '스탬프 적립' },
+                    { value: 'MEMBERSHIP' as const, label: '멤버십 등록' },
+                  ]).map((mode) => (
+                    <button
+                      key={mode.value}
+                      type="button"
+                      onClick={() => setBulkEnrollmentMode(mode.value)}
+                      className={`py-2.5 px-3 rounded-lg text-[13px] font-medium transition-colors ${
+                        bulkEnrollmentMode === mode.value
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-300'
+                      }`}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* 미리보기 테이블 */}

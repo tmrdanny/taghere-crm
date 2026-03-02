@@ -240,8 +240,6 @@ export default function CustomersPage() {
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ created: number; skipped: number; errors: Array<{ row: number; phone: string; reason: string }> } | null>(null);
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
-  const [bulkEnrollmentMode, setBulkEnrollmentMode] = useState<'POINTS' | 'STAMP' | 'MEMBERSHIP'>('POINTS');
-
   // Edit modal tab and feedback states
   const [editModalTab, setEditModalTab] = useState<'feedback' | 'history' | 'orders' | 'messages'>('orders');
   const [editFeedbackRating, setEditFeedbackRating] = useState(0);
@@ -1058,7 +1056,7 @@ export default function CustomersPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${getAuthToken()}`,
         },
-        body: JSON.stringify({ customers: bulkParsedData, enrollmentMode: bulkEnrollmentMode }),
+        body: JSON.stringify({ customers: bulkParsedData }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -2926,31 +2924,6 @@ export default function CustomersPage() {
                   ? `${bulkParsedData.length}건 로드됨 (다시 선택하려면 클릭)`
                   : '엑셀 파일 선택 (.xlsx, .xls, .csv)'}
               </Button>
-            </div>
-
-            {/* 등록 모드 선택 */}
-            <div className="p-4 bg-neutral-50 rounded-xl">
-              <p className="text-sm font-medium text-neutral-700 mb-2">등록 모드</p>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { value: 'POINTS' as const, label: '포인트 적립' },
-                  { value: 'STAMP' as const, label: '스탬프 적립' },
-                  { value: 'MEMBERSHIP' as const, label: '멤버십 등록' },
-                ]).map((mode) => (
-                  <button
-                    key={mode.value}
-                    type="button"
-                    onClick={() => setBulkEnrollmentMode(mode.value)}
-                    className={`py-2.5 px-3 rounded-lg text-sm font-medium transition-colors ${
-                      bulkEnrollmentMode === mode.value
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-300'
-                    }`}
-                  >
-                    {mode.label}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* 미리보기 테이블 */}

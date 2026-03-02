@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
-import { notifyCrmOn } from '../services/taghere-api.js';
 
 const router = Router();
 
@@ -405,7 +404,7 @@ router.get('/search/phone/:digits', authMiddleware, async (req: AuthRequest, res
 router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { customers, enrollmentMode } = req.body;
+    const { customers } = req.body;
 
     if (!Array.isArray(customers) || customers.length === 0) {
       return res.status(400).json({ error: '등록할 고객 데이터가 없습니다.' });
@@ -512,7 +511,6 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
       });
 
       // 3. 일괄 생성
-      const isMembership = enrollmentMode === 'MEMBERSHIP';
       if (toCreate.length > 0) {
         await prisma.customer.createMany({
           data: toCreate.map(r => ({
@@ -526,42 +524,8 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
             memo: r.memo,
             visitCount: 0,
             lastVisitAt: null,
-            ...(isMembership && { consentMarketing: true }),
           })),
         });
-      }
-
-      // 4. 매장 등록 모드 업데이트 + 태그히어 리다이렉트 URL 갱신
-      if (enrollmentMode && ['POINTS', 'STAMP', 'MEMBERSHIP'].includes(enrollmentMode)) {
-        await prisma.store.update({
-          where: { id: storeId },
-          data: { enrollmentMode },
-        });
-
-        // 태그히어 서버에 리다이렉트 URL 업데이트
-        const store = await prisma.store.findUnique({
-          where: { id: storeId },
-          select: {
-            slug: true,
-            name: true,
-            taghereVersion: true,
-            stampSetting: { select: { enabled: true } },
-            staffUsers: { where: { role: 'OWNER' }, select: { email: true }, take: 1 },
-          },
-        });
-
-        if (store?.slug) {
-          notifyCrmOn({
-            version: store.taghereVersion || 'v1',
-            userId: store.staffUsers?.[0]?.email,
-            storeName: store.name,
-            slug: store.slug,
-            isStampMode: store.stampSetting?.enabled ?? false,
-            enrollmentMode,
-          }).catch((err) => {
-            console.error('[Bulk Upload] Failed to notify TagHere on enrollmentMode change:', err);
-          });
-        }
       }
 
       res.json({
