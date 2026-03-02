@@ -404,7 +404,7 @@ router.get('/search/phone/:digits', authMiddleware, async (req: AuthRequest, res
 router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { customers } = req.body;
+    const { customers, enrollmentMode } = req.body;
 
     if (!Array.isArray(customers) || customers.length === 0) {
       return res.status(400).json({ error: '등록할 고객 데이터가 없습니다.' });
@@ -511,6 +511,7 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
       });
 
       // 3. 일괄 생성
+      const isMembership = enrollmentMode === 'MEMBERSHIP';
       if (toCreate.length > 0) {
         await prisma.customer.createMany({
           data: toCreate.map(r => ({
@@ -524,7 +525,16 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
             memo: r.memo,
             visitCount: 0,
             lastVisitAt: null,
+            ...(isMembership && { consentMarketing: true }),
           })),
+        });
+      }
+
+      // 4. 매장 등록 모드 업데이트
+      if (enrollmentMode && ['POINTS', 'STAMP', 'MEMBERSHIP'].includes(enrollmentMode)) {
+        await prisma.store.update({
+          where: { id: storeId },
+          data: { enrollmentMode },
         });
       }
 
