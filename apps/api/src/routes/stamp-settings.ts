@@ -261,6 +261,7 @@ async function handleEnabledChange(storeId: string, enabled: boolean) {
       slug: true,
       name: true,
       taghereVersion: true,
+      enrollmentMode: true,
       staffUsers: {
         where: { role: 'OWNER' },
         select: { email: true },
@@ -276,6 +277,7 @@ async function handleEnabledChange(storeId: string, enabled: boolean) {
       storeName: store.name,
       slug: store.slug,
       isStampMode: enabled,
+      enrollmentMode: store.enrollmentMode,
     });
     console.log(`[Stamp Settings] Stamp ${enabled ? 'enabled' : 'disabled'} for store ${storeId}, version: ${store.taghereVersion}`);
   }

@@ -450,11 +450,13 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
         const isStampMode = existingStore.stampSetting?.enabled ?? false;
         const effectiveVersion = taghereVersion || existingStore.taghereVersion;
         const effectiveCrmEnabled = crmEnabled ?? wasCrmEnabled;
+        const effectiveEnrollmentMode = enrollmentMode || existingStore.enrollmentMode;
         const baseParams = {
           userId: ownerEmail,
           storeName: existingStore.name,
           slug: storeSlug,
           isStampMode,
+          enrollmentMode: effectiveEnrollmentMode,
         };
 
         if (versionChanged && effectiveCrmEnabled) {

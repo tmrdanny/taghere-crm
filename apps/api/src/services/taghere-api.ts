@@ -152,10 +152,13 @@ export async function notifyCrmOn(params: {
   slug: string;
   isStampMode: boolean;
   isHitejinro?: boolean;
+  enrollmentMode?: string; // 'POINTS' | 'STAMP' | 'MEMBERSHIP'
 }): Promise<void> {
   const orderParam = params.version === 'v2' ? 'orderId' : 'ordersheetId';
   let pathSegment = 'taghere-enroll';
-  if (params.isStampMode) {
+  if (params.enrollmentMode === 'MEMBERSHIP') {
+    pathSegment = 'taghere-enroll-member';
+  } else if (params.enrollmentMode === 'STAMP' || params.isStampMode) {
     pathSegment = params.isHitejinro ? 'taghere-enroll-stamp-hitejinro' : 'taghere-enroll-stamp';
   }
   const redirectUrl = `${CRM_BASE_URL}/${pathSegment}/${params.slug}?${orderParam}={${orderParam}}`;
@@ -219,10 +222,13 @@ export async function notifyCrmOff(params: {
   slug: string;
   isStampMode: boolean;
   isHitejinro?: boolean;
+  enrollmentMode?: string;
 }): Promise<void> {
   const orderParam = params.version === 'v2' ? 'orderId' : 'ordersheetId';
   let pathSegment = 'taghere-enroll';
-  if (params.isStampMode) {
+  if (params.enrollmentMode === 'MEMBERSHIP') {
+    pathSegment = 'taghere-enroll-member';
+  } else if (params.enrollmentMode === 'STAMP' || params.isStampMode) {
     pathSegment = params.isHitejinro ? 'taghere-enroll-stamp-hitejinro' : 'taghere-enroll-stamp';
   }
   const redirectUrl = `${CRM_BASE_URL}/${pathSegment}/${params.slug}?${orderParam}={${orderParam}}`;

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
+import { notifyCrmOn } from '../services/taghere-api.js';
 
 const router = Router();
 
@@ -530,12 +531,37 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
         });
       }
 
-      // 4. 매장 등록 모드 업데이트
+      // 4. 매장 등록 모드 업데이트 + 태그히어 리다이렉트 URL 갱신
       if (enrollmentMode && ['POINTS', 'STAMP', 'MEMBERSHIP'].includes(enrollmentMode)) {
         await prisma.store.update({
           where: { id: storeId },
           data: { enrollmentMode },
         });
+
+        // 태그히어 서버에 리다이렉트 URL 업데이트
+        const store = await prisma.store.findUnique({
+          where: { id: storeId },
+          select: {
+            slug: true,
+            name: true,
+            taghereVersion: true,
+            stampSetting: { select: { enabled: true } },
+            staffUsers: { where: { role: 'OWNER' }, select: { email: true }, take: 1 },
+          },
+        });
+
+        if (store?.slug) {
+          notifyCrmOn({
+            version: store.taghereVersion || 'v1',
+            userId: store.staffUsers?.[0]?.email,
+            storeName: store.name,
+            slug: store.slug,
+            isStampMode: store.stampSetting?.enabled ?? false,
+            enrollmentMode,
+          }).catch((err) => {
+            console.error('[Bulk Upload] Failed to notify TagHere on enrollmentMode change:', err);
+          });
+        }
       }
 
       res.json({
