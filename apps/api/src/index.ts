@@ -55,6 +55,7 @@ import stampSettingsRoutes from './routes/stamp-settings.js';
 import stampsRoutes from './routes/stamps.js';
 import monthlyCreditRoutes from './routes/monthly-credit.js';
 import visitSourceSettingsRoutes from './routes/visit-source-settings.js';
+import tableLinkSettingsRoutes from './routes/table-link-settings.js';
 import insightsRoutes from './routes/insights.js';
 import retargetCouponRoutes from './routes/retarget-coupon.js';
 import automationRoutes from './routes/automation.js';
@@ -246,6 +247,9 @@ app.use('/api/monthly-credit', monthlyCreditRoutes);
 
 // Visit source settings routes
 app.use('/api/visit-source-settings', visitSourceSettingsRoutes);
+
+// Table link settings routes
+app.use('/api/table-link-settings', tableLinkSettingsRoutes);
 
 // Insights routes
 app.use('/api/insights', insightsRoutes);

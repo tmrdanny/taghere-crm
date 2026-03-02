@@ -34,6 +34,7 @@ import {
   PieChart,
   Clock,
   DollarSign,
+  Link2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -88,6 +89,7 @@ const navGroups: NavGroup[] = [
       { href: '/waiting', label: '웨이팅', icon: ListOrdered },
       { href: '/points', label: '포인트 적립', icon: HandCoins },
       { href: '/stamp-settings', label: '스탬프 설정', icon: Stamp },
+      { href: '/table-link', label: '테이블 링크', icon: Link2, isNew: true },
     ],
   },
   {

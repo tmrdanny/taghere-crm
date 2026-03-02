@@ -80,6 +80,9 @@ model Store {
   // 방문 경로 추적
   visitSourceSetting    VisitSourceSetting?
 
+  // 테이블 링크
+  tableLinkSetting      TableLinkSetting?
+
   // 리타겟 쿠폰
   retargetCoupons       RetargetCoupon[]
 
@@ -1222,6 +1225,26 @@ model VisitSourceSetting {
   store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@map("visit_source_settings")
+}
+
+// 테이블 링크 설정 (중앙 QR → 테이블 번호 입력 → 주문 URL 리다이렉트)
+model TableLinkSetting {
+  id               String   @id @default(cuid())
+  storeId          String   @unique
+
+  enabled          Boolean  @default(false)
+  customerTitle    String?
+  customerSubtitle String?
+
+  // [{tableNumber: "1", url: "https://...", label?: "창가"}]
+  tables           Json?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  store            Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("table_link_settings")
 }
 
 // ============================================
