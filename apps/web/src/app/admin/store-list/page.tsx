@@ -19,6 +19,11 @@ interface BulkResult {
   created: number;
   errors: Array<{ row: number; storeName: string; reason: string }>;
   defaultPassword: string;
+  crmOn?: {
+    success: number;
+    failed: number;
+    failures: Array<{ storeName: string; error?: string }>;
+  };
 }
 
 // 업종 분류
@@ -601,19 +606,31 @@ export default function StoreListPage() {
               {/* 결과 */}
               {bulkResult && (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="bg-green-50 rounded-lg p-3 text-center">
                       <p className="text-[12px] text-green-600">등록 성공</p>
                       <p className="text-2xl font-bold text-green-700">{bulkResult.created}</p>
                     </div>
                     <div className="bg-red-50 rounded-lg p-3 text-center">
-                      <p className="text-[12px] text-red-600">실패</p>
+                      <p className="text-[12px] text-red-600">등록 실패</p>
                       <p className="text-2xl font-bold text-red-700">{bulkResult.errors.length}</p>
+                    </div>
+                    <div className={`rounded-lg p-3 text-center ${
+                      bulkResult.crmOn && bulkResult.crmOn.failed > 0 ? 'bg-amber-50' : 'bg-blue-50'
+                    }`}>
+                      <p className={`text-[12px] ${
+                        bulkResult.crmOn && bulkResult.crmOn.failed > 0 ? 'text-amber-600' : 'text-blue-600'
+                      }`}>CRM ON</p>
+                      <p className={`text-2xl font-bold ${
+                        bulkResult.crmOn && bulkResult.crmOn.failed > 0 ? 'text-amber-700' : 'text-blue-700'
+                      }`}>
+                        {bulkResult.crmOn ? `${bulkResult.crmOn.success}/${bulkResult.created}` : '-'}
+                      </p>
                     </div>
                   </div>
                   {bulkResult.errors.length > 0 && (
                     <div className="bg-red-50 rounded-lg p-3">
-                      <p className="text-[12px] font-semibold text-red-700 mb-1">오류 상세</p>
+                      <p className="text-[12px] font-semibold text-red-700 mb-1">등록 오류</p>
                       <ul className="text-[12px] text-red-600 space-y-0.5">
                         {bulkResult.errors.slice(0, 15).map((err, i) => (
                           <li key={i}>{err.row}행 [{err.storeName}]: {err.reason}</li>
@@ -621,6 +638,16 @@ export default function StoreListPage() {
                         {bulkResult.errors.length > 15 && (
                           <li>외 {bulkResult.errors.length - 15}건...</li>
                         )}
+                      </ul>
+                    </div>
+                  )}
+                  {bulkResult.crmOn && bulkResult.crmOn.failed > 0 && (
+                    <div className="bg-amber-50 rounded-lg p-3">
+                      <p className="text-[12px] font-semibold text-amber-700 mb-1">CRM ON 실패 (수동 ON/OFF 필요)</p>
+                      <ul className="text-[12px] text-amber-600 space-y-0.5">
+                        {bulkResult.crmOn.failures.map((f, i) => (
+                          <li key={i}>[{f.storeName}]: {f.error || 'CRM ON 실패'}</li>
+                        ))}
                       </ul>
                     </div>
                   )}

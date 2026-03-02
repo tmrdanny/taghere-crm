@@ -2803,6 +2803,7 @@ router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: 
 
     const created: Array<{ row: number; storeName: string; email: string }> = [];
     const errors: Array<{ row: number; storeName: string; reason: string }> = [];
+    const crmOnResults: Array<{ storeName: string; success: boolean; error?: string }> = [];
     const emailsInBatch = new Set<string>();
 
     for (let i = 0; i < storeRows.length; i++) {
@@ -2900,26 +2901,38 @@ router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: 
         created.push({ row: rowNum, storeName, email });
 
         // 태그히어 서버에 CRM ON 알림 (리다이렉트 URL 등록)
-        notifyCrmOn({
-          version: 'v1',
-          userId: email,
-          storeName,
-          slug,
-          isStampMode: false,
-          enrollmentMode: validEnrollmentMode || 'POINTS',
-        }).catch((err) => {
-          console.error(`[Admin Bulk] notifyCrmOn failed for ${storeName}:`, err);
-        });
+        try {
+          await notifyCrmOn({
+            version: 'v1',
+            userId: email,
+            storeName,
+            slug,
+            isStampMode: false,
+            enrollmentMode: validEnrollmentMode || 'POINTS',
+          });
+          crmOnResults.push({ storeName, success: true });
+        } catch (crmErr: any) {
+          console.error(`[Admin Bulk] notifyCrmOn failed for ${storeName}:`, crmErr);
+          crmOnResults.push({ storeName, success: false, error: crmErr.message || 'CRM ON 실패' });
+        }
       } catch (err: any) {
         errors.push({ row: rowNum, storeName, reason: err.message || '생성 중 오류' });
       }
     }
+
+    const crmOnSuccess = crmOnResults.filter(r => r.success).length;
+    const crmOnFailed = crmOnResults.filter(r => !r.success);
 
     res.json({
       total: storeRows.length,
       created: created.length,
       errors,
       defaultPassword: password,
+      crmOn: {
+        success: crmOnSuccess,
+        failed: crmOnFailed.length,
+        failures: crmOnFailed,
+      },
     });
   } catch (error) {
     console.error('Admin bulk store registration error:', error);
