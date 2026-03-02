@@ -396,7 +396,7 @@ function SuccessPopup({
         <div className="flex-1 flex flex-col px-5 py-6 overflow-y-auto">
           {/* Membership Success Display */}
           <div className="text-center mb-4 mt-4">
-            <p className="text-[38px] font-bold text-[#6BA3FF] leading-none">
+            <p className="text-[24px] font-bold text-[#6BA3FF] leading-tight">
               매월 다양한 브랜드의 쿠폰을 보내드릴게요!
             </p>
           </div>
