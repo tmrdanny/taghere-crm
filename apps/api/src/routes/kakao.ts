@@ -1263,10 +1263,13 @@ async function handleStampCallback(
 
   // 스탬프 적립 (트랜잭션) - 스탬프 적립 시 무조건 방문횟수 +1
   const previousStamps = customer!.totalStamps ?? 0;
-  console.log(`[Kakao Stamp] Before transaction - customerId: ${customer!.id}, previousStamps: ${previousStamps}`);
+  const isFirstEarn = (customer!.visitCount ?? 0) === 0;
+  const firstStampCount = store.stampSetting?.firstStampBonus ?? 1;
+  const stampDelta = isFirstEarn && firstStampCount > 1 ? firstStampCount : 1;
+  console.log(`[Kakao Stamp] Before transaction - customerId: ${customer!.id}, previousStamps: ${previousStamps}${stampDelta > 1 ? `, firstStampCount: ${stampDelta}` : ''}`);
 
   const result = await prisma.$transaction(async (tx) => {
-    const newBalance = previousStamps + 1;
+    const newBalance = previousStamps + stampDelta;
 
     // 고객 스탬프 업데이트
     const updatedCustomer = await tx.customer.update({
@@ -1284,12 +1287,14 @@ async function handleStampCallback(
         storeId: store!.id,
         customerId: customer!.id,
         type: 'EARN',
-        delta: 1,
+        delta: stampDelta,
         balance: newBalance,
         ordersheetId: stateData.ordersheetId || null,
         earnMethod: 'NFC_TAG',
         tableLabel: tableLabel,
-        reason: stateData.ordersheetId ? `태그히어 주문 적립 (${stateData.ordersheetId})` : '카카오 로그인 스탬프 적립',
+        reason: stampDelta > 1
+          ? `첫 방문 스탬프 적립 (${stampDelta}개)`
+          : (stateData.ordersheetId ? `태그히어 주문 적립 (${stateData.ordersheetId})` : '카카오 로그인 스탬프 적립'),
       },
     });
 
@@ -1368,7 +1373,7 @@ async function handleStampCallback(
         phone: phoneNumber!,
         variables: {
           storeName: store.name,
-          earnedStamps: 1,
+          earnedStamps: stampDelta,
           totalStamps: result.customer.totalStamps,
           stampRewards: stampUsageRule,
         },
@@ -1383,7 +1388,7 @@ async function handleStampCallback(
         phone: phoneNumber!,
         variables: {
           storeName: store.name,
-          earnedStamps: 1,
+          earnedStamps: stampDelta,
           totalStamps: result.customer.totalStamps,
           stampUsageRule,
           reviewGuide,

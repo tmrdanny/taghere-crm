@@ -2940,6 +2940,57 @@ router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: 
   }
 });
 
+// POST /api/admin/backfill-coupon-usage - 과거 직원확인 내역 재집계
+router.post('/backfill-coupon-usage', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    // couponCode가 있는 AutomationLog 중 couponUsed=false인 것들 조회
+    const pendingLogs = await prisma.automationLog.findMany({
+      where: {
+        couponCode: { not: null },
+        couponUsed: false,
+      },
+      select: {
+        id: true,
+        couponCode: true,
+      },
+    });
+
+    if (pendingLogs.length === 0) {
+      return res.json({ message: '재집계할 내역이 없습니다.', updated: 0, total: 0 });
+    }
+
+    let updated = 0;
+
+    for (const log of pendingLogs) {
+      // RetargetCoupon에서 실제 사용된 쿠폰인지 확인
+      const coupon = await (prisma as any).retargetCoupon.findUnique({
+        where: { code: log.couponCode },
+        select: { usedAt: true },
+      });
+
+      if (coupon?.usedAt) {
+        await prisma.automationLog.update({
+          where: { id: log.id },
+          data: {
+            couponUsed: true,
+            couponUsedAt: coupon.usedAt,
+          },
+        });
+        updated++;
+      }
+    }
+
+    res.json({
+      message: `재집계 완료: ${updated}건 업데이트`,
+      updated,
+      total: pendingLogs.length,
+    });
+  } catch (error) {
+    console.error('Backfill coupon usage error:', error);
+    res.status(500).json({ error: '재집계 중 오류가 발생했습니다.' });
+  }
+});
+
 // POST /api/admin/customers/export - 전체 고객 데이터 추출
 router.post('/customers/export', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {

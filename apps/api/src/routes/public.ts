@@ -235,13 +235,28 @@ router.post('/coupon/:code/use', async (req: Request, res: Response) => {
     const { staffName } = req.body || {};
 
     // 쿠폰 사용 처리
+    const now = new Date();
     const updatedCoupon = await (prisma as any).retargetCoupon.update({
       where: { code },
       data: {
-        usedAt: new Date(),
+        usedAt: now,
         usedBy: staffName || '직원 확인',
       },
     });
+
+    // 자동 마케팅 성과 추적: AutomationLog 업데이트
+    const automationLog = await prisma.automationLog.findFirst({
+      where: { couponCode: code },
+    });
+    if (automationLog) {
+      await prisma.automationLog.update({
+        where: { id: automationLog.id },
+        data: {
+          couponUsed: true,
+          couponUsedAt: now,
+        },
+      });
+    }
 
     res.json({
       success: true,
