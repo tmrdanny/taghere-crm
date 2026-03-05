@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk } from '../services/solapi.js';
+import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk, enqueueCorporateAdAlimTalk } from '../services/solapi.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 import { fetchOrder, TaghereOrderData } from '../services/taghere-api.js';
 
@@ -710,8 +710,14 @@ async function handleMembershipCallback(
 
     console.log(`[Membership Callback] Membership registered - customerId: ${customer.id}, storeId: ${store.id}`);
 
-    // 알림톡 발송 (멤버십 환영 — 템플릿 미설정 시 스킵)
-    // TODO: 별도 멤버십 환영 알림톡 템플릿 추가 시 여기서 발송
+    // 기업광고 쿠폰 알림톡 발송
+    if (customer.phone) {
+      enqueueCorporateAdAlimTalk({
+        storeId: store.id,
+        customerId: customer.id,
+        phone: customer.phone,
+      }).catch((err) => console.error('[Membership] Corporate ad alimtalk error:', err));
+    }
 
     // 선호도 존재 여부
     const hasPreferences = !!(customer as any).preferredCategories;

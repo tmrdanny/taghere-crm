@@ -3581,4 +3581,90 @@ router.post('/table-link-settings/:storeId/bulk-add', adminAuthMiddleware, async
   }
 });
 
+// ============================================
+// 기업광고 알림톡 설정
+// ============================================
+
+// GET /api/admin/corporate-ad - 기업광고 설정 조회
+router.get('/corporate-ad', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const corporateAd = await prisma.corporateAd.findFirst();
+
+    if (!corporateAd) {
+      return res.json({
+        templateId: 'KA01TP250930075547299ikOWJ6bArTY',
+        couponName: '',
+        couponContent: '',
+        couponAmount: '',
+        expiryDate: '',
+        registrationMethod: '',
+        landingLink: '',
+        couponLink: '',
+        enabled: true,
+      });
+    }
+
+    res.json(corporateAd);
+  } catch (error) {
+    console.error('Corporate ad get error:', error);
+    res.status(500).json({ error: '기업광고 설정 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// PUT /api/admin/corporate-ad - 기업광고 설정 저장
+router.put('/corporate-ad', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const {
+      templateId,
+      couponName,
+      couponContent,
+      couponAmount,
+      expiryDate,
+      registrationMethod,
+      landingLink,
+      couponLink,
+      enabled,
+    } = req.body;
+
+    const existing = await prisma.corporateAd.findFirst();
+
+    let corporateAd;
+    if (existing) {
+      corporateAd = await prisma.corporateAd.update({
+        where: { id: existing.id },
+        data: {
+          templateId,
+          couponName,
+          couponContent,
+          couponAmount,
+          expiryDate,
+          registrationMethod,
+          landingLink,
+          couponLink,
+          enabled,
+        },
+      });
+    } else {
+      corporateAd = await prisma.corporateAd.create({
+        data: {
+          templateId,
+          couponName,
+          couponContent,
+          couponAmount,
+          expiryDate,
+          registrationMethod,
+          landingLink,
+          couponLink,
+          enabled,
+        },
+      });
+    }
+
+    res.json(corporateAd);
+  } catch (error) {
+    console.error('Corporate ad save error:', error);
+    res.status(500).json({ error: '기업광고 설정 저장 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;

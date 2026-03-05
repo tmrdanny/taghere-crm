@@ -884,3 +884,48 @@ export async function sendLowBalanceAlimTalk(params: {
     idempotencyKey,
   });
 }
+
+// 기업광고 쿠폰 알림톡 발송 요청
+export async function enqueueCorporateAdAlimTalk(params: {
+  storeId: string;
+  customerId: string;
+  phone: string;
+}): Promise<{ success: boolean; error?: string }> {
+  // 기업광고 설정 조회
+  const corporateAd = await prisma.corporateAd.findFirst();
+
+  if (!corporateAd || !corporateAd.enabled) {
+    console.log(`[AlimTalk] Corporate ad disabled or not configured`);
+    return { success: false, error: 'Corporate ad not configured' };
+  }
+
+  // 충전금 확인
+  const wallet = await prisma.wallet.findUnique({
+    where: { storeId: params.storeId },
+  });
+
+  if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
+    console.log(`[AlimTalk] Insufficient balance for corporate ad, store: ${params.storeId}`);
+    return { success: false, error: 'Insufficient wallet balance' };
+  }
+
+  const idempotencyKey = `corporate_ad:${params.storeId}:${params.customerId}:${Date.now()}`;
+
+  return enqueueAlimTalk({
+    storeId: params.storeId,
+    customerId: params.customerId,
+    phone: params.phone,
+    messageType: 'CORPORATE_AD',
+    templateId: corporateAd.templateId,
+    variables: {
+      '#{쿠폰명}': corporateAd.couponName,
+      '#{쿠폰 내용}': corporateAd.couponContent,
+      '#{쿠폰 금액}': corporateAd.couponAmount,
+      '#{유효기간}': corporateAd.expiryDate,
+      '#{등록방법}': corporateAd.registrationMethod,
+      '#{랜딩 링크}': corporateAd.landingLink,
+      '#{쿠폰 링크}': corporateAd.couponLink,
+    },
+    idempotencyKey,
+  });
+}

@@ -530,6 +530,7 @@ enum AlimTalkType {
   AUTO_VIP_MILESTONE    // VIP 마일스톤 자동화
   AUTO_WINBACK          // 장기 미방문 윈백 자동화
   AUTO_SLOW_DAY         // 비수기 프로모션 자동화
+  CORPORATE_AD          // 기업광고 쿠폰 알림톡
 }
 
 enum AlimTalkStatus {
@@ -1788,4 +1789,25 @@ model RewardClaim {
   @@index([franchiseCustomerId])
   @@index([createdAt])
   @@map("reward_claims")
+}
+
+// ============================================
+// 기업광고 알림톡 설정
+// ============================================
+
+model CorporateAd {
+  id                  String   @id @default(cuid())
+  templateId          String   @default("KA01TP250930075547299ikOWJ6bArTY")
+  couponName          String   @default("")
+  couponContent       String   @default("")
+  couponAmount        String   @default("")
+  expiryDate          String   @default("")
+  registrationMethod  String   @default("")
+  landingLink         String   @default("")
+  couponLink          String   @default("")
+  enabled             Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("corporate_ads")
 }
