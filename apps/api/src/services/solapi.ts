@@ -891,11 +891,17 @@ export async function enqueueCorporateAdAlimTalk(params: {
   customerId: string;
   phone: string;
 }): Promise<{ success: boolean; error?: string }> {
+  console.log(`[AlimTalk] enqueueCorporateAdAlimTalk called:`, {
+    storeId: params.storeId,
+    customerId: params.customerId,
+    phone: params.phone,
+  });
+
   // 기업광고 설정 조회
   const corporateAd = await prisma.corporateAd.findFirst();
 
   if (!corporateAd || !corporateAd.enabled) {
-    console.log(`[AlimTalk] Corporate ad disabled or not configured`);
+    console.log(`[AlimTalk] Corporate ad disabled or not configured, found:`, corporateAd ? { enabled: corporateAd.enabled, templateId: corporateAd.templateId } : 'null');
     return { success: false, error: 'Corporate ad not configured' };
   }
 

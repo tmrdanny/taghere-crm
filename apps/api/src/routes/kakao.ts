@@ -711,12 +711,17 @@ async function handleMembershipCallback(
     console.log(`[Membership Callback] Membership registered - customerId: ${customer.id}, storeId: ${store.id}`);
 
     // 기업광고 쿠폰 알림톡 발송
+    console.log(`[Membership] Corporate ad check - customerId: ${customer.id}, phone: ${customer.phone || 'NONE'}`);
     if (customer.phone) {
       enqueueCorporateAdAlimTalk({
         storeId: store.id,
         customerId: customer.id,
         phone: customer.phone,
+      }).then((result) => {
+        console.log(`[Membership] Corporate ad alimtalk result:`, JSON.stringify(result));
       }).catch((err) => console.error('[Membership] Corporate ad alimtalk error:', err));
+    } else {
+      console.log(`[Membership] Skipping corporate ad alimtalk - no phone number for customer ${customer.id}`);
     }
 
     // 선호도 존재 여부
