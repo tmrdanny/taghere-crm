@@ -975,6 +975,7 @@ function TaghereMemberEnrollContent() {
     const url = new URL(window.location.origin + '/taghere-enroll-member/order-success');
     if (ordersheetId) url.searchParams.set(orderParamName, ordersheetId);
     url.searchParams.set('slug', slug);
+    url.searchParams.set('type', 'membership');
     window.location.href = url.toString();
   };
 
@@ -1014,6 +1015,7 @@ function TaghereMemberEnrollContent() {
     const url = new URL(window.location.origin + '/taghere-enroll-member/order-success');
     if (ordersheetId) url.searchParams.set(orderParamName, ordersheetId);
     url.searchParams.set('slug', slug);
+    url.searchParams.set('type', 'membership');
     window.location.href = url.toString();
   };
 
@@ -1151,6 +1153,7 @@ function TaghereMemberEnrollContent() {
                 const url = new URL(window.location.origin + '/taghere-enroll-member/order-success');
                 if (ordersheetId) url.searchParams.set(orderParamName, ordersheetId);
                 url.searchParams.set('slug', slug);
+                url.searchParams.set('type', 'membership');
                 window.location.href = url.toString();
               }}
               className="w-full py-3 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
