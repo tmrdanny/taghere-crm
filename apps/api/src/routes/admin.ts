@@ -3667,4 +3667,113 @@ router.put('/corporate-ad', adminAuthMiddleware, async (req: AdminRequest, res: 
   }
 });
 
+// ============================================
+// 기업광고 알림톡 통계
+// ============================================
+
+// GET /api/admin/corporate-ad-stats - 기업광고 알림톡 발송 및 멤버십 가입 통계
+router.get('/corporate-ad-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { days = '30' } = req.query;
+    const daysNum = days === 'all' ? 365 : parseInt(days as string);
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - daysNum);
+    startDate.setHours(0, 0, 0, 0);
+
+    // 기업광고 알림톡 발송 내역 (CORPORATE_AD 타입)
+    const alimTalkMessages = await prisma.alimTalkOutbox.findMany({
+      where: {
+        messageType: 'CORPORATE_AD',
+        createdAt: { gte: startDate },
+      },
+      select: {
+        createdAt: true,
+        status: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // 멤버십 가입 고객 (visitOrOrder가 있고 pointLedger가 없는 고객 = 멤버십만 가입)
+    // 간단하게 VisitOrOrder 기준으로 집계 (멤버십 모드에서는 VisitOrOrder만 기록)
+    const membershipVisits = await prisma.visitOrOrder.findMany({
+      where: {
+        visitedAt: { gte: startDate },
+      },
+      select: {
+        visitedAt: true,
+        customerId: true,
+      },
+      orderBy: { visitedAt: 'asc' },
+    });
+
+    // 일별 집계
+    const alimTalkByDate = new Map<string, { sent: number; failed: number; total: number }>();
+    const membershipByDate = new Map<string, Set<string>>();
+
+    alimTalkMessages.forEach((msg) => {
+      const dateStr = msg.createdAt.toISOString().split('T')[0];
+      const entry = alimTalkByDate.get(dateStr) || { sent: 0, failed: 0, total: 0 };
+      entry.total++;
+      if (msg.status === 'SENT') entry.sent++;
+      else if (msg.status === 'FAILED') entry.failed++;
+      alimTalkByDate.set(dateStr, entry);
+    });
+
+    membershipVisits.forEach((visit) => {
+      const dateStr = visit.visitedAt.toISOString().split('T')[0];
+      const customers = membershipByDate.get(dateStr) || new Set();
+      customers.add(visit.customerId);
+      membershipByDate.set(dateStr, customers);
+    });
+
+    // 기간 내 모든 날짜 생성
+    const dailyData: {
+      date: string;
+      alimTalkSent: number;
+      alimTalkFailed: number;
+      alimTalkTotal: number;
+      membershipCount: number;
+    }[] = [];
+
+    const currentDate = new Date(startDate);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    while (currentDate <= today) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const alimTalk = alimTalkByDate.get(dateStr) || { sent: 0, failed: 0, total: 0 };
+      const membershipCustomers = membershipByDate.get(dateStr);
+
+      dailyData.push({
+        date: dateStr,
+        alimTalkSent: alimTalk.sent,
+        alimTalkFailed: alimTalk.failed,
+        alimTalkTotal: alimTalk.total,
+        membershipCount: membershipCustomers ? membershipCustomers.size : 0,
+      });
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    const totalAlimTalk = alimTalkMessages.length;
+    const totalSent = alimTalkMessages.filter((m) => m.status === 'SENT').length;
+    const totalFailed = alimTalkMessages.filter((m) => m.status === 'FAILED').length;
+    const uniqueMembershipCustomers = new Set(membershipVisits.map((v) => v.customerId));
+
+    res.json({
+      trend: dailyData,
+      summary: {
+        totalAlimTalk,
+        totalSent,
+        totalFailed,
+        totalMembership: uniqueMembershipCustomers.size,
+      },
+    });
+  } catch (error) {
+    console.error('Corporate ad stats error:', error);
+    res.status(500).json({ error: '기업광고 통계 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;

@@ -75,6 +75,24 @@ interface DemographicStats {
   ageGroupDistribution: DemographicItem[];
 }
 
+interface CorporateAdTrendData {
+  date: string;
+  alimTalkSent: number;
+  alimTalkFailed: number;
+  alimTalkTotal: number;
+  membershipCount: number;
+}
+
+interface CorporateAdStats {
+  trend: CorporateAdTrendData[];
+  summary: {
+    totalAlimTalk: number;
+    totalSent: number;
+    totalFailed: number;
+    totalMembership: number;
+  };
+}
+
 interface StoreOrderItem {
   id: string;
   productName: string;
@@ -125,6 +143,11 @@ export default function AdminHomePage() {
   const [demographicStats, setDemographicStats] = useState<DemographicStats | null>(null);
   const [isDemographicLoading, setIsDemographicLoading] = useState(false);
 
+  // Corporate Ad Stats
+  const [corporateAdStats, setCorporateAdStats] = useState<CorporateAdStats | null>(null);
+  const [corporateAdPeriod, setCorporateAdPeriod] = useState<PeriodType>('30');
+  const [isCorporateAdLoading, setIsCorporateAdLoading] = useState(false);
+
   // Store Orders
   const [storeOrders, setStoreOrders] = useState<StoreOrder[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
@@ -154,6 +177,10 @@ export default function AdminHomePage() {
   useEffect(() => {
     fetchDemographicStats();
   }, []);
+
+  useEffect(() => {
+    fetchCorporateAdStats(corporateAdPeriod);
+  }, [corporateAdPeriod]);
 
   const fetchData = async () => {
     const token = localStorage.getItem('adminToken');
@@ -274,6 +301,27 @@ export default function AdminHomePage() {
       console.error('Failed to fetch demographic stats:', error);
     } finally {
       setIsDemographicLoading(false);
+    }
+  };
+
+  const fetchCorporateAdStats = async (period: PeriodType) => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsCorporateAdLoading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/corporate-ad-stats?days=${period}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setCorporateAdStats(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch corporate ad stats:', error);
+    } finally {
+      setIsCorporateAdLoading(false);
     }
   };
 
@@ -462,6 +510,76 @@ export default function AdminHomePage() {
               </div>
               <div className="h-48 relative">
                 <CustomerTrendChart data={customerTrend.trend} />
+              </div>
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-neutral-400">
+              데이터가 없습니다
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Corporate Ad Stats */}
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-[18px] font-semibold text-neutral-900">기업광고 알림톡 / 멤버십 가입</h2>
+          <div className="flex gap-1">
+            {(['7', '30', '90', 'all'] as PeriodType[]).map((period) => (
+              <button
+                key={period}
+                onClick={() => setCorporateAdPeriod(period)}
+                className={`px-3 py-1.5 text-[13px] rounded-lg transition-colors ${
+                  corporateAdPeriod === period
+                    ? 'bg-neutral-900 text-white'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                }`}
+              >
+                {period === 'all' ? 'All' : `${period}일`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+          {isCorporateAdLoading ? (
+            <div className="h-64 flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : corporateAdStats && corporateAdStats.trend.length > 0 ? (
+            <div>
+              <div className="flex items-center gap-6 mb-4">
+                <div>
+                  <p className="text-[13px] text-neutral-500">알림톡 발송</p>
+                  <p className="text-[24px] font-semibold text-[#6BA3FF]">
+                    {formatNumber(corporateAdStats.summary.totalSent)}건
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[13px] text-neutral-500">발송 실패</p>
+                  <p className="text-[24px] font-semibold text-red-500">
+                    {formatNumber(corporateAdStats.summary.totalFailed)}건
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[13px] text-neutral-500">멤버십 가입</p>
+                  <p className="text-[24px] font-semibold text-emerald-600">
+                    {formatNumber(corporateAdStats.summary.totalMembership)}명
+                  </p>
+                </div>
+              </div>
+              <div className="h-48 relative">
+                <CorporateAdChart data={corporateAdStats.trend} />
+              </div>
+              <div className="flex items-center gap-4 mt-3 text-[12px] text-neutral-500">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-[3px] bg-[#6BA3FF] rounded-full" />
+                  <span>알림톡 발송</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-[3px] bg-emerald-500 rounded-full" />
+                  <span>멤버십 가입</span>
+                </div>
               </div>
             </div>
           ) : (
@@ -1072,6 +1190,153 @@ function CustomerTrendChart({ data }: { data: TrendData[] }) {
 
       {/* X-axis labels */}
       <div className="absolute left-12 right-0 bottom-0 h-6 flex justify-between text-[11px] text-neutral-400">
+        {xLabels.map((label, i) => (
+          <span key={i}>{label}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Dual-line chart for Corporate Ad AlimTalk + Membership signups
+function CorporateAdChart({ data }: { data: CorporateAdTrendData[] }) {
+  const [hoveredPoint, setHoveredPoint] = useState<{
+    x: number;
+    yAlimTalk: number;
+    yMembership: number;
+    data: CorporateAdTrendData;
+  } | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  if (data.length === 0) return null;
+
+  const maxAlimTalk = Math.max(...data.map((d) => d.alimTalkTotal), 1);
+  const maxMembership = Math.max(...data.map((d) => d.membershipCount), 1);
+  const maxValue = Math.max(maxAlimTalk, maxMembership);
+
+  const points = data.map((d, i) => {
+    const x = (i / (data.length - 1 || 1)) * 100;
+    const yAlimTalk = 100 - (d.alimTalkTotal / maxValue) * 100;
+    const yMembership = 100 - (d.membershipCount / maxValue) * 100;
+    return { x, yAlimTalk, yMembership, data: d };
+  });
+
+  const alimTalkPath = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.yAlimTalk}`)
+    .join(' ');
+  const membershipPath = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.yMembership}`)
+    .join(' ');
+
+  const yLabels = [maxValue, Math.round(maxValue / 2), 0];
+  const xLabels =
+    data.length > 2
+      ? [
+          data[0].date.slice(5),
+          data[Math.floor(data.length / 2)].date.slice(5),
+          data[data.length - 1].date.slice(5),
+        ]
+      : data.map((d) => d.date.slice(5));
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!chartRef.current) return;
+    const rect = chartRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+
+    let closestPoint = points[0];
+    let minDist = Math.abs(x - points[0].x);
+    for (const p of points) {
+      const dist = Math.abs(x - p.x);
+      if (dist < minDist) {
+        minDist = dist;
+        closestPoint = p;
+      }
+    }
+    setHoveredPoint(closestPoint);
+  };
+
+  return (
+    <div className="w-full h-full relative">
+      {/* Y-axis labels */}
+      <div className="absolute left-0 top-0 bottom-6 w-10 flex flex-col justify-between text-[11px] text-neutral-400">
+        {yLabels.map((label, i) => (
+          <span key={i}>{label.toLocaleString()}</span>
+        ))}
+      </div>
+
+      {/* Chart area */}
+      <div
+        ref={chartRef}
+        className="absolute left-12 right-0 top-0 bottom-6 cursor-crosshair"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setHoveredPoint(null)}
+      >
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+          {/* Grid lines */}
+          <line x1="0" y1="0" x2="100" y2="0" stroke="#E5E5E5" strokeWidth="0.5" />
+          <line x1="0" y1="50" x2="100" y2="50" stroke="#E5E5E5" strokeWidth="0.5" />
+          <line x1="0" y1="100" x2="100" y2="100" stroke="#E5E5E5" strokeWidth="0.5" />
+
+          {/* AlimTalk line */}
+          <path d={alimTalkPath} fill="none" stroke="#6BA3FF" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+
+          {/* Membership line */}
+          <path d={membershipPath} fill="none" stroke="#10B981" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+
+          {/* Hover indicator */}
+          {hoveredPoint && (
+            <>
+              <line
+                x1={hoveredPoint.x}
+                y1="0"
+                x2={hoveredPoint.x}
+                y2="100"
+                stroke="#9CA3AF"
+                strokeWidth="1"
+                vectorEffect="non-scaling-stroke"
+                strokeDasharray="4 4"
+              />
+              <circle
+                cx={hoveredPoint.x}
+                cy={hoveredPoint.yAlimTalk}
+                r="4"
+                fill="#6BA3FF"
+                stroke="white"
+                strokeWidth="2"
+                vectorEffect="non-scaling-stroke"
+              />
+              <circle
+                cx={hoveredPoint.x}
+                cy={hoveredPoint.yMembership}
+                r="4"
+                fill="#10B981"
+                stroke="white"
+                strokeWidth="2"
+                vectorEffect="non-scaling-stroke"
+              />
+            </>
+          )}
+        </svg>
+
+        {/* Tooltip */}
+        {hoveredPoint && (
+          <div
+            className="absolute bg-neutral-900 text-white text-[12px] px-3 py-2 rounded-lg shadow-lg pointer-events-none z-10"
+            style={{
+              left: `${Math.min(Math.max(hoveredPoint.x, 15), 85)}%`,
+              top: '-8px',
+              transform: 'translate(-50%, -100%)',
+            }}
+          >
+            <p className="font-medium">{hoveredPoint.data.date}</p>
+            <p className="text-[#93C5FD]">알림톡: {hoveredPoint.data.alimTalkTotal}건 (성공 {hoveredPoint.data.alimTalkSent})</p>
+            <p className="text-emerald-300">멤버십: {hoveredPoint.data.membershipCount}명</p>
+          </div>
+        )}
+      </div>
+
+      {/* X-axis labels */}
+      <div className="absolute left-12 right-0 bottom-0 flex justify-between text-[11px] text-neutral-400">
         {xLabels.map((label, i) => (
           <span key={i}>{label}</span>
         ))}
