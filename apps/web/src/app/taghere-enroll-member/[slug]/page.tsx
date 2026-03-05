@@ -397,14 +397,14 @@ function SuccessPopup({
           {/* Membership Success Display */}
           <div className="text-center mb-4 mt-4">
             <p className="text-[24px] font-bold text-[#6BA3FF] leading-tight">
-              매월 다양한 브랜드의 쿠폰을 보내드릴게요!
+              알림톡으로 쿠폰을 보내드렸어요
             </p>
           </div>
 
           {/* Main Message */}
           <div className="text-center mb-5">
             <h2 className="text-[18px] font-bold text-neutral-900 mb-1">
-              매월 할인 쿠폰을 보내드릴게요!
+              매장 경험에 대한 솔직한 피드백을 남겨주세요.
             </h2>
             <p className="text-[14px] text-neutral-400">
               소중한 의견은 큰 도움이 돼요
