@@ -905,16 +905,6 @@ export async function enqueueCorporateAdAlimTalk(params: {
     return { success: false, error: 'Corporate ad not configured' };
   }
 
-  // 충전금 확인
-  const wallet = await prisma.wallet.findUnique({
-    where: { storeId: params.storeId },
-  });
-
-  if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
-    console.log(`[AlimTalk] Insufficient balance for corporate ad, store: ${params.storeId}`);
-    return { success: false, error: 'Insufficient wallet balance' };
-  }
-
   const idempotencyKey = `corporate_ad:${params.storeId}:${params.customerId}:${Date.now()}`;
 
   return enqueueAlimTalk({

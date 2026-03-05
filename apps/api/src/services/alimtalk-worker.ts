@@ -86,9 +86,10 @@ async function processMessage(messageId: string): Promise<void> {
         if (statusResult.status === 'SENT') {
           // 발송 성공 확인됨
           const isLowBalanceMessage = msg.messageType === 'LOW_BALANCE';
-          const cost = isLowBalanceMessage ? 0 : (ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST);
+          const isFreeMsg = isLowBalanceMessage || msg.messageType === 'CORPORATE_AD';
+          const cost = isFreeMsg ? 0 : (ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST);
 
-          if (isLowBalanceMessage) {
+          if (isFreeMsg) {
             await prisma.alimTalkOutbox.update({
               where: { id: messageId },
               data: { status: 'SENT', sentAt: new Date(), updatedAt: new Date() },
@@ -135,11 +136,12 @@ async function processMessage(messageId: string): Promise<void> {
   }
 
   try {
-    // LOW_BALANCE 타입은 비용 없이 무료 발송 (충전금 부족 안내이므로)
+    // LOW_BALANCE, CORPORATE_AD 타입은 비용 없이 무료 발송
     const isLowBalanceMessage = msg.messageType === 'LOW_BALANCE';
+    const isFreeMessage = isLowBalanceMessage || msg.messageType === 'CORPORATE_AD';
 
-    // 메시지 타입에 따른 비용 결정 (LOW_BALANCE는 무료)
-    const cost = isLowBalanceMessage ? 0 : (ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST);
+    // 메시지 타입에 따른 비용 결정 (무료 타입은 0원)
+    const cost = isFreeMessage ? 0 : (ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST);
 
     // LOW_BALANCE가 아닌 경우에만 잔액 확인
     // RETARGET_COUPON 및 자동화 메시지는 무료 크레딧 적용 가능
@@ -147,7 +149,7 @@ async function processMessage(messageId: string): Promise<void> {
     const isAutomation = msg.messageType.startsWith('AUTO_');
     let useFreeCredit = false;
 
-    if (!isLowBalanceMessage) {
+    if (!isFreeMessage) {
       // 리타겟 쿠폰 또는 자동화 메시지이면 무료 크레딧 확인
       if (isRetargetCoupon || isAutomation) {
         const remainingCredits = await getRemainingCredits(msg.storeId);
@@ -226,8 +228,8 @@ async function processMessage(messageId: string): Promise<void> {
         console.log(`[Worker] Message ${messageId} delivery FAILED: ${failReason}`);
       } else if (finalStatus === 'SENT') {
         // 발송 성공
-        if (isLowBalanceMessage) {
-          // LOW_BALANCE 메시지는 무료 - 상태만 업데이트
+        if (isFreeMessage) {
+          // LOW_BALANCE, CORPORATE_AD 메시지는 무료 - 상태만 업데이트
           await prisma.alimTalkOutbox.update({
             where: { id: messageId },
             data: {
@@ -238,7 +240,7 @@ async function processMessage(messageId: string): Promise<void> {
               failReason: null, // 성공 시 failReason 초기화
             },
           });
-          console.log(`[Worker] Low balance notification ${messageId} sent successfully (free), SOLAPI ID: ${result.messageId}`);
+          console.log(`[Worker] Free message ${messageId} (${msg.messageType}) sent successfully, SOLAPI ID: ${result.messageId}`);
         } else if (useFreeCredit) {
           // 무료 크레딧 사용 - 지갑 차감 없이 크레딧만 사용
           await prisma.alimTalkOutbox.update({

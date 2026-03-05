@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk } from '../services/solapi.js';
+import { enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk, enqueueCorporateAdAlimTalk } from '../services/solapi.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 import { isValidWebhookToken, fetchOrder, TaghereOrderData } from '../services/taghere-api.js';
 
@@ -346,6 +346,19 @@ router.post('/auto-earn', async (req, res) => {
       ]);
 
       console.log(`[TagHere Auto-Earn] Membership registered - customerId: ${customer.id}, storeId: ${store.id}`);
+
+      // 기업광고 쿠폰 알림톡 발송
+      if (customer.phone) {
+        enqueueCorporateAdAlimTalk({
+          storeId: store.id,
+          customerId: customer.id,
+          phone: customer.phone,
+        }).then((result) => {
+          console.log(`[TagHere Auto-Earn] Corporate ad alimtalk result:`, JSON.stringify(result));
+        }).catch((err) => console.error('[TagHere Auto-Earn] Corporate ad alimtalk error:', err));
+      } else {
+        console.log(`[TagHere Auto-Earn] Skipping corporate ad - no phone for customer ${customer.id}`);
+      }
 
       // 멤버십 성공 응답
       res.json({
