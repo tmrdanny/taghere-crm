@@ -1047,11 +1047,10 @@ function TaghereMemberEnrollContent() {
             <div className="flex-1 flex flex-col justify-end pb-4">
               <div className="text-center px-5">
                 <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
-                  매월 우리 동네 맛집들의
+                  세븐일레븐 <span className="text-[#6BA3FF]">10,000원</span>
                   <br />
-                  <span className="text-[#6BA3FF]">파격적인 할인 쿠폰</span>을
+                  쿠폰이 도착했어요
                   <br />
-                  받아보세요
                 </p>
               </div>
             </div>
@@ -1130,7 +1129,7 @@ function TaghereMemberEnrollContent() {
                 disabled={isOpening}
                 className="w-full py-4 font-semibold text-base rounded-[10px] transition-colors bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022]"
               >
-                {isOpening ? '가입 중...' : '매월 쿠폰 받기'}
+                {isOpening ? '가입 중...' : '쿠폰 받기'}
               </button>
             </div>
           </div>
