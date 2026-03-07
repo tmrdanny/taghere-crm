@@ -905,7 +905,21 @@ export async function enqueueCorporateAdAlimTalk(params: {
     return { success: false, error: 'Corporate ad not configured' };
   }
 
-  const idempotencyKey = `corporate_ad:${params.storeId}:${params.customerId}:${Date.now()}`;
+  // 이미 발송된 적 있는지 확인 (고객당 1회만 발송)
+  const alreadySent = await prisma.alimTalkOutbox.findFirst({
+    where: {
+      customerId: params.customerId,
+      messageType: 'CORPORATE_AD',
+      status: { not: 'FAILED' },
+    },
+  });
+
+  if (alreadySent) {
+    console.log(`[AlimTalk] Corporate ad already sent to customer ${params.customerId}, skipping`);
+    return { success: false, error: 'Already sent' };
+  }
+
+  const idempotencyKey = `corporate_ad:${params.storeId}:${params.customerId}`;
 
   return enqueueAlimTalk({
     storeId: params.storeId,

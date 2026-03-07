@@ -172,7 +172,7 @@ function CoinImage({ onClick, isOpening }: { onClick: () => void; isOpening: boo
       onClick={!isOpening ? onClick : undefined}
     >
       <img
-        src="/images/3d-coupon-atm.webp"
+        src="/images/7-money.webp"
         alt="멤버십 가입"
         className="coin-image"
       />
