@@ -3694,11 +3694,13 @@ router.get('/corporate-ad-stats', adminAuthMiddleware, async (req: AdminRequest,
       orderBy: { createdAt: 'asc' },
     });
 
-    // 멤버십 가입 고객 (visitOrOrder가 있고 pointLedger가 없는 고객 = 멤버십만 가입)
-    // 간단하게 VisitOrOrder 기준으로 집계 (멤버십 모드에서는 VisitOrOrder만 기록)
+    // 멤버십 가입 고객 (enrollmentMode가 MEMBERSHIP인 매장의 방문만 집계)
     const membershipVisits = await prisma.visitOrOrder.findMany({
       where: {
         visitedAt: { gte: startDate },
+        store: {
+          enrollmentMode: 'MEMBERSHIP',
+        },
       },
       select: {
         visitedAt: true,
