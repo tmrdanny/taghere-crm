@@ -59,6 +59,8 @@ router.get('/ordersheet', async (req, res) => {
         name: true,
         pointRatePercent: true,
         taghereVersion: true,
+        addressSido: true,
+        addressSigungu: true,
       },
     });
 
@@ -159,6 +161,8 @@ router.post('/auto-earn', async (req, res) => {
         name: true,
         pointRatePercent: true,
         taghereVersion: true,
+        addressSido: true,
+        addressSigungu: true,
       },
     });
 
@@ -264,6 +268,8 @@ router.post('/auto-earn', async (req, res) => {
           consentMarketing: true,
           consentKakao: true,
           consentAt: new Date(),
+          regionSido: store.addressSido ?? null,
+          regionSigungu: store.addressSigungu ?? null,
         },
       });
 
@@ -1064,6 +1070,8 @@ router.post('/stamp-earn', async (req, res) => {
         franchiseStampEnabled: true,
         franchiseId: true,
         taghereVersion: true,
+        addressSido: true,
+        addressSigungu: true,
         franchise: {
           select: {
             id: true,
@@ -1166,6 +1174,8 @@ router.post('/stamp-earn', async (req, res) => {
           consentMarketing: true,
           consentKakao: true,
           consentAt: new Date(),
+          regionSido: store.addressSido ?? null,
+          regionSigungu: store.addressSigungu ?? null,
         },
       });
 

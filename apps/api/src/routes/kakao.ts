@@ -122,6 +122,8 @@ router.get('/callback', async (req, res) => {
       name: true,
       pointsAlimtalkEnabled: true,
       naverPlaceUrl: true,
+      addressSido: true,
+      addressSigungu: true,
     };
 
     if (storeId) {
@@ -193,6 +195,8 @@ router.get('/callback', async (req, res) => {
           consentAt: new Date(),
           totalPoints: 0,
           visitCount: 0,
+          regionSido: store.addressSido ?? null,
+          regionSigungu: store.addressSigungu ?? null,
         },
       });
     } else {
@@ -562,7 +566,7 @@ async function handleMembershipCallback(
 
     // Get store
     const storeId = stateData.storeId;
-    const storeSelect = { id: true, name: true, taghereVersion: true };
+    const storeSelect = { id: true, name: true, taghereVersion: true, addressSido: true, addressSigungu: true };
     let store = storeId
       ? await prisma.store.findUnique({ where: { id: storeId }, select: storeSelect })
       : null;
@@ -648,6 +652,8 @@ async function handleMembershipCallback(
           consentAt: new Date(),
           totalPoints: 0,
           visitCount: 0,
+          regionSido: store.addressSido ?? null,
+          regionSigungu: store.addressSigungu ?? null,
         },
       });
       console.log(`[Membership Callback] New customer created - customerId: ${customer.id}, storeId: ${store.id}`);
@@ -833,6 +839,8 @@ async function handleStampCallback(
     reviewAutomationSetting: {
       select: { benefitText: true },
     },
+    addressSido: true,
+    addressSigungu: true,
   };
 
   if (stateData.storeId) {
@@ -1002,6 +1010,8 @@ async function handleStampCallback(
         consentMarketing: true,
         consentKakao: true,
         consentAt: new Date(),
+        regionSido: store.addressSido ?? null,
+        regionSigungu: store.addressSigungu ?? null,
       },
     });
   } else {
@@ -1557,6 +1567,8 @@ router.get('/taghere-callback', async (req, res) => {
       pointsAlimtalkEnabled: true,
       naverPlaceUrl: true,
       taghereVersion: true,
+      addressSido: true,
+      addressSigungu: true,
     };
 
     if (storeId) {
@@ -1669,6 +1681,8 @@ router.get('/taghere-callback', async (req, res) => {
           consentAt: new Date(),
           totalPoints: 0,
           visitCount: 0,
+          regionSido: store.addressSido ?? null,
+          regionSigungu: store.addressSigungu ?? null,
         },
       });
     } else {

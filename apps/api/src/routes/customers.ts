@@ -575,6 +575,12 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: '이미 등록된 전화번호입니다.' });
     }
 
+    // 매장 지역 정보 조회
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { addressSido: true, addressSigungu: true },
+    });
+
     // 고객 생성
     const customer = await prisma.customer.create({
       data: {
@@ -592,6 +598,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         feedbackRating: feedbackRating || null,
         feedbackText: feedbackText || null,
         feedbackAt: feedbackRating || feedbackText ? new Date() : null,
+        regionSido: store?.addressSido || null,
+        regionSigungu: store?.addressSigungu || null,
       },
     });
 

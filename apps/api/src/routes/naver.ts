@@ -132,6 +132,8 @@ router.get('/callback', async (req, res) => {
       name: true,
       pointsAlimtalkEnabled: true,
       naverPlaceUrl: true,
+      addressSido: true,
+      addressSigungu: true,
     };
 
     if (storeId) {
@@ -207,6 +209,8 @@ router.get('/callback', async (req, res) => {
           consentAt: new Date(),
           totalPoints: 0,
           visitCount: 1, // 신규 고객은 첫 방문
+          regionSido: store.addressSido ?? null,
+          regionSigungu: store.addressSigungu ?? null,
         },
       });
     } else {
