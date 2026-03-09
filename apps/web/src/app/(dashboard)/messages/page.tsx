@@ -278,6 +278,9 @@ export default function MessagesPage() {
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [tempSelectedCustomers, setTempSelectedCustomers] = useState<SelectedCustomer[]>([]);
   const [customerTotalCount, setCustomerTotalCount] = useState(0);
+  const [customerPage, setCustomerPage] = useState(1);
+  const [customerTotalPages, setCustomerTotalPages] = useState(1);
+  const [isSelectingAll, setIsSelectingAll] = useState(false);
 
   // Test send modal states
   const [showTestModal, setShowTestModal] = useState(false);
@@ -976,14 +979,15 @@ export default function MessagesPage() {
   };
 
   // Fetch customers for modal
-  const fetchCustomers = useCallback(async (search?: string) => {
+  const fetchCustomers = useCallback(async (search?: string, page = 1) => {
     setIsLoadingCustomers(true);
     try {
       const params = new URLSearchParams();
       if (search) {
         params.set('search', search);
       }
-      params.set('limit', '100'); // 최대 100명
+      params.set('page', String(page));
+      params.set('limit', '100');
 
       const res = await fetch(`${API_BASE}/api/customers?${params}`, {
         headers: { Authorization: `Bearer ${getAuthToken()}` },
@@ -994,7 +998,8 @@ export default function MessagesPage() {
         // 전화번호 있는 고객만 필터링
         const customersWithPhone = (data.customers || []).filter((c: CustomerListItem) => c.phone);
         setCustomerList(customersWithPhone);
-        setCustomerTotalCount(data.total || 0);
+        setCustomerTotalCount(data.pagination?.total || data.total || 0);
+        setCustomerTotalPages(data.pagination?.totalPages || 1);
       }
     } catch (error) {
       console.error('Failed to fetch customers:', error);
@@ -1007,8 +1012,9 @@ export default function MessagesPage() {
   const openCustomerModal = () => {
     setTempSelectedCustomers([...selectedCustomers]);
     setCustomerSearch('');
+    setCustomerPage(1);
     setShowCustomerModal(true);
-    fetchCustomers();
+    fetchCustomers('', 1);
   };
 
   // Toggle customer selection in modal
@@ -1025,14 +1031,48 @@ export default function MessagesPage() {
     }
   };
 
-  // Select all customers
-  const selectAllCustomers = () => {
-    const allCustomers = customerList.map(c => ({
-      id: c.id,
-      name: c.name,
-      phone: c.phone,
-    }));
-    setTempSelectedCustomers(allCustomers);
+  // Select all customers (all pages)
+  const selectAllCustomers = async () => {
+    if (customerTotalPages <= 1) {
+      // 1페이지뿐이면 현재 리스트에서 바로 선택
+      const allCustomers = customerList.map(c => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+      }));
+      setTempSelectedCustomers(allCustomers);
+      return;
+    }
+
+    // 여러 페이지면 전체 고객 조회
+    setIsSelectingAll(true);
+    try {
+      const params = new URLSearchParams();
+      if (customerSearch) {
+        params.set('search', customerSearch);
+      }
+      params.set('limit', '10000');
+
+      const res = await fetch(`${API_BASE}/api/customers?${params}`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const allWithPhone = (data.customers || [])
+          .filter((c: CustomerListItem) => c.phone)
+          .map((c: CustomerListItem) => ({
+            id: c.id,
+            name: c.name,
+            phone: c.phone,
+          }));
+        setTempSelectedCustomers(allWithPhone);
+      }
+    } catch (error) {
+      console.error('Failed to fetch all customers:', error);
+    } finally {
+      setIsSelectingAll(false);
+    }
   };
 
   // Deselect all customers
@@ -1054,11 +1094,11 @@ export default function MessagesPage() {
     if (!showCustomerModal) return;
 
     const debounce = setTimeout(() => {
-      fetchCustomers(customerSearch);
+      fetchCustomers(customerSearch, customerPage);
     }, 300);
 
     return () => clearTimeout(debounce);
-  }, [customerSearch, showCustomerModal, fetchCustomers]);
+  }, [customerSearch, customerPage, showCustomerModal, fetchCustomers]);
 
   // Image delete handler
   const handleImageDelete = async () => {
@@ -2268,7 +2308,7 @@ export default function MessagesPage() {
               <input
                 type="text"
                 value={customerSearch}
-                onChange={(e) => setCustomerSearch(e.target.value)}
+                onChange={(e) => { setCustomerSearch(e.target.value); setCustomerPage(1); }}
                 placeholder="이름 또는 전화번호로 검색..."
                 className="w-full pl-10 pr-4 py-2.5 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
               />
@@ -2281,9 +2321,9 @@ export default function MessagesPage() {
                   variant="outline"
                   size="sm"
                   onClick={selectAllCustomers}
-                  disabled={customerList.length === 0}
+                  disabled={customerList.length === 0 || isSelectingAll}
                 >
-                  전체 선택
+                  {isSelectingAll ? '전체 선택 중...' : '전체 선택'}
                 </Button>
                 <Button
                   variant="outline"
@@ -2361,6 +2401,29 @@ export default function MessagesPage() {
                 </div>
               )}
             </div>
+
+            {/* Pagination */}
+            {customerTotalPages > 1 && (
+              <div className="flex items-center justify-center gap-3 py-2">
+                <button
+                  onClick={() => setCustomerPage(Math.max(1, customerPage - 1))}
+                  disabled={customerPage <= 1 || isLoadingCustomers}
+                  className="px-3 py-1.5 text-sm rounded-lg border border-[#e5e7eb] disabled:opacity-40 hover:bg-[#f8fafc] transition-colors"
+                >
+                  이전
+                </button>
+                <span className="text-sm text-[#64748b]">
+                  {customerPage} / {customerTotalPages}
+                </span>
+                <button
+                  onClick={() => setCustomerPage(Math.min(customerTotalPages, customerPage + 1))}
+                  disabled={customerPage >= customerTotalPages || isLoadingCustomers}
+                  className="px-3 py-1.5 text-sm rounded-lg border border-[#e5e7eb] disabled:opacity-40 hover:bg-[#f8fafc] transition-colors"
+                >
+                  다음
+                </button>
+              </div>
+            )}
           </div>
 
           <ModalFooter>
