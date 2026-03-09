@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { notifyCrmOn } from '../services/taghere-api.js';
+import { parseKoreanAddress } from '../utils/address-parser.js';
 
 const router = Router();
 
@@ -124,6 +125,9 @@ router.post('/register', async (req, res) => {
     // 트랜잭션으로 Store, StaffUser, Wallet 동시 생성
     const result = await prisma.$transaction(async (tx) => {
       // Store 생성 (기본 포인트 적립률 5%)
+      // 주소 자동 정규화
+      const parsedAddress = address ? parseKoreanAddress(address) : null;
+
       const store = await tx.store.create({
         data: {
           name: storeName,
@@ -133,6 +137,9 @@ router.post('/register', async (req, res) => {
           phone,
           businessRegNumber,
           address,
+          addressSido: parsedAddress?.sido || null,
+          addressSigungu: parsedAddress?.sigungu || null,
+          addressDetail: parsedAddress?.detail || null,
           naverPlaceUrl: naverPlaceUrl?.trim() || null,
           pointRatePercent: 5,
         },
