@@ -436,13 +436,15 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       },
     });
 
-    // CRM 활성화 상태 변경 또는 taghereVersion 변경 시 태그히어 서버에 알림
+    // CRM 활성화 상태 변경, taghereVersion 변경, 또는 enrollmentMode 변경 시 태그히어 서버에 알림
     const wasCrmEnabled = (existingStore as any).crmEnabled ?? true;
     const wasVersion = existingStore.taghereVersion;
+    const wasEnrollmentMode = existingStore.enrollmentMode;
     const versionChanged = taghereVersion !== undefined && taghereVersion !== wasVersion;
     const crmToggled = crmEnabled !== undefined && crmEnabled !== wasCrmEnabled;
+    const enrollmentModeChanged = enrollmentMode !== undefined && enrollmentMode !== wasEnrollmentMode;
 
-    if (crmToggled || versionChanged) {
+    if (crmToggled || versionChanged || enrollmentModeChanged) {
       const ownerEmail = existingStore.staffUsers?.[0]?.email;
       const storeSlug = slug || existingStore.slug;
 

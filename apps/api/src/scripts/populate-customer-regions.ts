@@ -68,17 +68,22 @@ async function populateCustomerRegions() {
 
       console.log(`\n📦 배치 #${batchNumber} 처리 중 (${customers.length}명)...`);
 
-      await Promise.all(
-        customers.map((customer) =>
-          prisma.customer.update({
-            where: { id: customer.id },
-            data: {
-              regionSido: customer.store.addressSido,
-              regionSigungu: customer.store.addressSigungu,
-            },
-          })
-        )
-      );
+      // 커넥션 풀 초과 방지: 50개씩 나눠서 트랜잭션 처리
+      const chunkSize = 50;
+      for (let i = 0; i < customers.length; i += chunkSize) {
+        const chunk = customers.slice(i, i + chunkSize);
+        await prisma.$transaction(
+          chunk.map((customer) =>
+            prisma.customer.update({
+              where: { id: customer.id },
+              data: {
+                regionSido: customer.store.addressSido,
+                regionSigungu: customer.store.addressSigungu,
+              },
+            })
+          )
+        );
+      }
 
       successCount += customers.length;
       console.log(`   ✅ ${customers.length}명 업데이트 완료`);
