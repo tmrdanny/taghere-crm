@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
+import { sidoToShort } from '../utils/address-parser.js';
 
 const router = Router();
 
@@ -209,7 +210,7 @@ router.get('/callback', async (req, res) => {
           consentAt: new Date(),
           totalPoints: 0,
           visitCount: 1, // 신규 고객은 첫 방문
-          regionSido: store.addressSido ?? null,
+          regionSido: sidoToShort(store.addressSido) ?? null,
           regionSigungu: store.addressSigungu ?? null,
         },
       });

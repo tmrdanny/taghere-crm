@@ -1,5 +1,6 @@
 import { prisma as prismaClient } from '../lib/prisma.js';
 import { enqueueAlimTalk } from './solapi.js';
+import { sidoToShort } from '../utils/address-parser.js';
 
 const prisma = prismaClient as any;
 
@@ -380,7 +381,7 @@ export async function seatWaiting(
             consentMarketing: waiting.consentMarketing,
             visitCount: 1,
             lastVisitAt: new Date(),
-            regionSido: store?.addressSido,
+            regionSido: sidoToShort(store?.addressSido ?? null),
             regionSigungu: store?.addressSigungu,
           },
         });

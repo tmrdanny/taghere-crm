@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
+import { sidoToShort } from '../utils/address-parser.js';
 
 const router = Router();
 
@@ -598,7 +599,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         feedbackRating: feedbackRating || null,
         feedbackText: feedbackText || null,
         feedbackAt: feedbackRating || feedbackText ? new Date() : null,
-        regionSido: store?.addressSido || null,
+        regionSido: sidoToShort(store?.addressSido ?? null),
         regionSigungu: store?.addressSigungu || null,
       },
     });

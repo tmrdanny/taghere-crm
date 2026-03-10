@@ -4,6 +4,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { sidoToShort } from '../utils/address-parser';
 
 const prisma = new PrismaClient();
 
@@ -77,7 +78,7 @@ async function populateCustomerRegions() {
             prisma.customer.update({
               where: { id: customer.id },
               data: {
-                regionSido: customer.store.addressSido,
+                regionSido: sidoToShort(customer.store.addressSido),
                 regionSigungu: customer.store.addressSigungu,
               },
             })

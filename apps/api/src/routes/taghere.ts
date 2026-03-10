@@ -4,6 +4,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk, enqueueCorporateAdAlimTalk } from '../services/solapi.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 import { isValidWebhookToken, fetchOrder, TaghereOrderData } from '../services/taghere-api.js';
+import { sidoToShort } from '../utils/address-parser.js';
 
 const router = Router();
 
@@ -268,7 +269,7 @@ router.post('/auto-earn', async (req, res) => {
           consentMarketing: true,
           consentKakao: true,
           consentAt: new Date(),
-          regionSido: store.addressSido ?? null,
+          regionSido: sidoToShort(store.addressSido) ?? null,
           regionSigungu: store.addressSigungu ?? null,
         },
       });
@@ -1174,7 +1175,7 @@ router.post('/stamp-earn', async (req, res) => {
           consentMarketing: true,
           consentKakao: true,
           consentAt: new Date(),
-          regionSido: store.addressSido ?? null,
+          regionSido: sidoToShort(store.addressSido) ?? null,
           regionSigungu: store.addressSigungu ?? null,
         },
       });

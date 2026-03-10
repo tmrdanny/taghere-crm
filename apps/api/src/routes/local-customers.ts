@@ -313,13 +313,12 @@ router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
-    // Customer는 정식명칭(서울특별시, 경기도) 사용하므로 변환 필요
+    // Customer도 줄임말(서울, 경기) 사용 - ExternalCustomer와 동일
     const customerRegionOrConditions = regionFilters.map((r) => {
-      const fullSido = SIDO_SHORT_TO_FULL[r.sido] || r.sido;
       if (r.sigungu) {
-        return { regionSido: fullSido, regionSigungu: r.sigungu };
+        return { regionSido: r.sido, regionSigungu: r.sigungu };
       } else {
-        return { regionSido: fullSido };
+        return { regionSido: r.sido };
       }
     });
 
@@ -482,13 +481,12 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
     let customers: Array<{ id: string; phone: string; source: 'customer' }> = [];
 
-    // Customer는 정식명칭(서울특별시, 경기도) 사용하므로 변환 필요
+    // Customer도 줄임말(서울, 경기) 사용 - ExternalCustomer와 동일
     const customerRegionOrConditions = regionFilters.map((r) => {
-      const fullSido = SIDO_SHORT_TO_FULL[r.sido] || r.sido;
       if (r.sigungu) {
-        return { regionSido: fullSido, regionSigungu: r.sigungu };
+        return { regionSido: r.sido, regionSigungu: r.sigungu };
       } else {
-        return { regionSido: fullSido };
+        return { regionSido: r.sido };
       }
     });
 
@@ -1082,13 +1080,12 @@ router.post('/coupon-alimtalk/send', authMiddleware, async (req: AuthRequest, re
       select: { id: true, phone: true },
     });
 
-    // 2. Customer 조회 - 정식명칭(서울특별시, 경기도) 변환 필요
+    // 2. Customer 조회 - 줄임말(서울, 경기) 사용 - ExternalCustomer와 동일
     const customerRegionOrConditions = regionFilters.map((r: any) => {
-      const fullSido = SIDO_SHORT_TO_FULL[r.sido] || r.sido;
       if (r.sigungu) {
-        return { regionSido: fullSido, regionSigungu: r.sigungu };
+        return { regionSido: r.sido, regionSigungu: r.sigungu };
       } else {
-        return { regionSido: fullSido };
+        return { regionSido: r.sido };
       }
     });
 

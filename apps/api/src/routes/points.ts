@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { enqueuePointsEarnedAlimTalk, enqueueNaverReviewAlimTalk, enqueuePointsUsedAlimTalk } from '../services/solapi.js';
+import { sidoToShort } from '../utils/address-parser.js';
 
 const router = Router();
 
@@ -46,7 +47,7 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
             phone: `010-${phoneLastDigits.slice(0, 4)}-${phoneLastDigits.slice(4)}`,
             totalPoints: 0,
             visitCount: 0,
-            regionSido: store?.addressSido || null,
+            regionSido: sidoToShort(store?.addressSido ?? null),
             regionSigungu: store?.addressSigungu || null,
             consentMarketing: true,
             consentAt: new Date(),
@@ -361,7 +362,7 @@ router.post('/tablet-earn', authMiddleware, async (req: AuthRequest, res) => {
           consentAt: new Date(),
           totalPoints: 0,
           visitCount: 0,
-          regionSido: store.addressSido || null,
+          regionSido: sidoToShort(store.addressSido) ?? null,
           regionSigungu: store.addressSigungu || null,
         },
       });
@@ -680,7 +681,7 @@ router.post('/session/:id/complete', authMiddleware, async (req: AuthRequest, re
           consentAt: new Date(),
           totalPoints: 0,
           visitCount: 0,
-          regionSido: store?.addressSido || null,
+          regionSido: sidoToShort(store?.addressSido ?? null),
           regionSigungu: store?.addressSigungu || null,
         },
       });

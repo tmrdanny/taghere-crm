@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk, enqueueCorporateAdAlimTalk } from '../services/solapi.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 import { fetchOrder, TaghereOrderData } from '../services/taghere-api.js';
+import { sidoToShort } from '../utils/address-parser.js';
 
 const router = Router();
 
@@ -195,7 +196,7 @@ router.get('/callback', async (req, res) => {
           consentAt: new Date(),
           totalPoints: 0,
           visitCount: 0,
-          regionSido: store.addressSido ?? null,
+          regionSido: sidoToShort(store.addressSido) ?? null,
           regionSigungu: store.addressSigungu ?? null,
         },
       });
@@ -652,7 +653,7 @@ async function handleMembershipCallback(
           consentAt: new Date(),
           totalPoints: 0,
           visitCount: 0,
-          regionSido: store.addressSido ?? null,
+          regionSido: sidoToShort(store.addressSido) ?? null,
           regionSigungu: store.addressSigungu ?? null,
         },
       });
@@ -1010,7 +1011,7 @@ async function handleStampCallback(
         consentMarketing: true,
         consentKakao: true,
         consentAt: new Date(),
-        regionSido: store.addressSido ?? null,
+        regionSido: sidoToShort(store.addressSido) ?? null,
         regionSigungu: store.addressSigungu ?? null,
       },
     });
@@ -1681,7 +1682,7 @@ router.get('/taghere-callback', async (req, res) => {
           consentAt: new Date(),
           totalPoints: 0,
           visitCount: 0,
-          regionSido: store.addressSido ?? null,
+          regionSido: sidoToShort(store.addressSido) ?? null,
           regionSigungu: store.addressSigungu ?? null,
         },
       });
