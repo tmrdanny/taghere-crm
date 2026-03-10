@@ -192,8 +192,8 @@ function CoinImage({ onClick, isOpening }: { onClick: () => void; isOpening: boo
         }
 
         .coin-image {
-          width: 240px;
-          height: 240px;
+          width: 360px;
+          height: 360px;
           object-fit: contain;
           mix-blend-mode: multiply;
         }
