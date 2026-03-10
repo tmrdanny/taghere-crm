@@ -102,6 +102,7 @@ export default function LocalCustomersPage() {
   // 쿠폰 알림톡 전용 상태
   const [couponContent, setCouponContent] = useState('');
   const [couponExpiryDate, setCouponExpiryDate] = useState('');
+  const [couponStoreName, setCouponStoreName] = useState('');
   const [isCouponSending, setIsCouponSending] = useState(false);
   const [kakaoEstimate, setKakaoEstimate] = useState<{
     costPerMessage: number;
@@ -160,7 +161,23 @@ export default function LocalCustomersPage() {
     fetchInitialData();
   }, []);
 
-  // (쿠폰 알림톡은 시간 제한 없으므로 발송 가능 시간 체크 제거)
+  // 쿠폰 설정 불러오기 (매장명)
+  useEffect(() => {
+    const fetchCouponSettings = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/retarget-coupon/settings`, {
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCouponStoreName(data.storeName || '');
+        }
+      } catch (error) {
+        console.error('Failed to fetch coupon settings:', error);
+      }
+    };
+    fetchCouponSettings();
+  }, []);
 
   // 결제 완료 후 잔액 갱신
   useEffect(() => {
@@ -864,22 +881,33 @@ export default function LocalCustomersPage() {
                         <p className="text-[10px] text-neutral-600 mb-0.5">태그히어</p>
                         <div className="relative">
                           <div className="absolute -top-1 -right-1 z-10"><span className="bg-neutral-700 text-white text-[8px] px-1 py-0.5 rounded-full font-medium">kakao</span></div>
-                          <div className="bg-[#FEE500] rounded-t-md px-2 py-1.5"><span className="text-xs font-medium text-neutral-800">쿠폰 알림톡</span></div>
+                          {/* 알림톡 도착 배너 */}
+                          <div className="bg-[#FEE500] rounded-t-md px-2 py-1.5">
+                            <span className="text-xs font-medium text-neutral-800">알림톡 도착</span>
+                          </div>
                           <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
-                            <div className="p-3 space-y-2">
-                              <p className="text-xs font-medium text-neutral-800">[매장명] 특별 쿠폰 안내</p>
-                              <div className="border-t border-neutral-100 pt-2">
-                                <p className="text-[11px] text-neutral-600">쿠폰 내용</p>
-                                <p className="text-xs font-medium text-neutral-800">{couponContent || '아메리카노 1잔 무료'}</p>
+                            <img src="/images/coupon_kakao.png" alt="쿠폰 이미지" className="w-full h-auto" />
+                            <div className="px-4 py-4">
+                              <p className="text-xs font-semibold text-neutral-800 mb-4">태그히어 고객 대상 쿠폰</p>
+                              <div className="space-y-1 text-xs text-neutral-700">
+                                <p>
+                                  <span className="text-[#6BA3FF]">{couponStoreName || '매장명'}</span>에서 쿠폰을 보냈어요!
+                                </p>
+                                <p className="text-neutral-500 mb-4">
+                                  태그히어 이용 고객에게만 제공되는 쿠폰이에요.
+                                </p>
+                                <div className="space-y-1 mb-4">
+                                  <p>📌 {couponContent || '쿠폰 내용을 입력해주세요'}</p>
+                                  <p>📌 {couponExpiryDate || '유효기간을 입력해주세요'}</p>
+                                </div>
+                                <p className="text-neutral-500">
+                                  결제 시 직원 확인을 통해 사용할 수 있어요.
+                                </p>
                               </div>
-                              <div>
-                                <p className="text-[11px] text-neutral-600">유효기간</p>
-                                <p className="text-xs font-medium text-neutral-800">{couponExpiryDate || '2025년 3월 31일까지'}</p>
-                              </div>
-                              <div className="mt-3 space-y-1.5">
-                                <button className="w-full py-2 border border-neutral-300 rounded-md text-xs font-medium text-neutral-800 bg-white">네이버 플레이스 방문</button>
-                                <button className="w-full py-2 border border-neutral-300 rounded-md text-xs font-medium text-neutral-800 bg-white">직원 확인</button>
-                              </div>
+                            </div>
+                            <div className="px-4 pb-4 space-y-2">
+                              <button className="w-full py-2.5 bg-white text-neutral-800 text-xs font-medium rounded border border-neutral-300">네이버 길찾기</button>
+                              <button className="w-full py-2.5 bg-white text-neutral-800 text-xs font-medium rounded border border-neutral-300">직원 확인</button>
                             </div>
                           </div>
                         </div>
