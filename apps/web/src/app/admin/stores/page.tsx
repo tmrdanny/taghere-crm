@@ -95,6 +95,7 @@ export default function AdminStoresPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [resettingStoreId, setResettingStoreId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'newest' | 'customers' | 'balance' | 'name'>('newest');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [topupModal, setTopupModal] = useState<TopupModalData | null>(null);
   const [topupAmount, setTopupAmount] = useState('');
@@ -478,15 +479,29 @@ export default function AdminStoresPage() {
     }
   };
 
-  const filteredStores = stores.filter((store) => {
-    const query = searchQuery.toLowerCase();
-    return (
-      store.name.toLowerCase().includes(query) ||
-      store.id.toLowerCase().includes(query) ||
-      store.ownerEmail?.toLowerCase().includes(query) ||
-      store.businessRegNumber?.includes(query)
-    );
-  });
+  const filteredStores = stores
+    .filter((store) => {
+      const query = searchQuery.toLowerCase();
+      return (
+        store.name.toLowerCase().includes(query) ||
+        store.id.toLowerCase().includes(query) ||
+        store.ownerEmail?.toLowerCase().includes(query) ||
+        store.businessRegNumber?.includes(query)
+      );
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'customers':
+          return b.customerCount - a.customerCount;
+        case 'balance':
+          return (b.walletBalance ?? 0) - (a.walletBalance ?? 0);
+        case 'name':
+          return a.name.localeCompare(b.name, 'ko');
+        case 'newest':
+        default:
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+    });
 
   // 발송잔액 부족 대상 매장 (300원 미만, 전화번호 있음)
   const lowBalanceStores = stores.filter(
@@ -636,28 +651,40 @@ export default function AdminStoresPage() {
               )}
             </button>
           </div>
-          {/* 하단: 검색창 */}
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="매장명, ID, 이메일 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 pl-10 pr-4 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
-            />
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          {/* 하단: 검색창 + 정렬 */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="매장명, ID, 이메일 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-10 pl-10 pr-4 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
               />
-            </svg>
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[13px] text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541] cursor-pointer"
+            >
+              <option value="newest">최신순</option>
+              <option value="customers">고객 많은순</option>
+              <option value="balance">충전금순</option>
+              <option value="name">이름순</option>
+            </select>
           </div>
         </div>
       </div>
