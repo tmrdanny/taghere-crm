@@ -66,6 +66,33 @@ function getNextSendableTime(): Date {
 
 
 
+// 지역 필터 조건 빌드 헬퍼
+// ExternalCustomer용 (regionSido: String, non-nullable)
+function buildExternalRegionOrConditions(regionFilters: Array<{ sido: string; sigungu?: string }>) {
+  return regionFilters.map((r) => {
+    if (r.sido === '미지정') {
+      return { regionSido: '' };
+    }
+    if (r.sigungu) {
+      return { regionSido: r.sido, regionSigungu: r.sigungu };
+    }
+    return { regionSido: r.sido };
+  });
+}
+
+// Customer용 (regionSido: String?, nullable)
+function buildCustomerRegionOrConditions(regionFilters: Array<{ sido: string; sigungu?: string }>) {
+  return regionFilters.map((r) => {
+    if (r.sido === '미지정') {
+      return { OR: [{ regionSido: null }, { regionSido: '' }] } as any;
+    }
+    if (r.sigungu) {
+      return { regionSido: r.sido, regionSigungu: r.sigungu };
+    }
+    return { regionSido: r.sido };
+  });
+}
+
 // GET /api/local-customers/regions - 지역 목록 조회 (ExternalCustomer 기반)
 router.get('/regions', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -231,6 +258,20 @@ router.get('/region-counts', authMiddleware, async (req: AuthRequest, res) => {
       }
     });
 
+    // 미지정 고객 수 (ExternalCustomer: 빈 문자열, Customer: null 또는 빈 문자열)
+    const [externalUnknown, customerUnknown] = await Promise.all([
+      prisma.externalCustomer.count({
+        where: { consentMarketing: true, regionSido: '' },
+      }),
+      prisma.customer.count({
+        where: { consentMarketing: true, OR: [{ regionSido: null }, { regionSido: '' }] },
+      }),
+    ]);
+    const unknownCount = externalUnknown + customerUnknown;
+    if (unknownCount > 0) {
+      sidoCountMap['미지정'] = unknownCount;
+    }
+
     res.json({
       sidoCounts: sidoCountMap,
       sigunguCounts: sigunguCountMap,
@@ -278,13 +319,7 @@ router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
 
     // 1. ExternalCustomer 조회
     {
-      const regionOrConditions = regionFilters.map((r) => {
-        if (r.sigungu) {
-          return { regionSido: r.sido, regionSigungu: r.sigungu };
-        } else {
-          return { regionSido: r.sido };
-        }
-      });
+      const regionOrConditions = buildExternalRegionOrConditions(regionFilters);
 
       // categories가 있으면 AND로 지역+카테고리 결합 (OR 덮어쓰기 방지)
       const categoryList = categories ? (categories as string).split(',').filter(Boolean) : [];
@@ -313,14 +348,7 @@ router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
-    // Customer도 줄임말(서울, 경기) 사용 - ExternalCustomer와 동일
-    const customerRegionOrConditions = regionFilters.map((r) => {
-      if (r.sigungu) {
-        return { regionSido: r.sido, regionSigungu: r.sigungu };
-      } else {
-        return { regionSido: r.sido };
-      }
-    });
+    const customerRegionOrConditions = buildCustomerRegionOrConditions(regionFilters);
 
     const customerWhere: any = {
       OR: customerRegionOrConditions,
@@ -440,14 +468,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     let externalCustomers: Array<{ id: string; phone: string; source: 'external' }> = [];
 
     {
-      // ExternalCustomer 필터 조건
-      const regionOrConditions = regionFilters.map((r) => {
-        if (r.sigungu) {
-          return { regionSido: r.sido, regionSigungu: r.sigungu };
-        } else {
-          return { regionSido: r.sido };
-        }
-      });
+      const regionOrConditions = buildExternalRegionOrConditions(regionFilters);
       // categories가 있으면 AND로 지역+카테고리 결합 (OR 덮어쓰기 방지)
       const externalWhere: any = {
         AND: [
@@ -481,14 +502,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
     let customers: Array<{ id: string; phone: string; source: 'customer' }> = [];
 
-    // Customer도 줄임말(서울, 경기) 사용 - ExternalCustomer와 동일
-    const customerRegionOrConditions = regionFilters.map((r) => {
-      if (r.sigungu) {
-        return { regionSido: r.sido, regionSigungu: r.sigungu };
-      } else {
-        return { regionSido: r.sido };
-      }
-    });
+    const customerRegionOrConditions = buildCustomerRegionOrConditions(regionFilters);
 
     const customerWhere: any = {
       OR: customerRegionOrConditions,
@@ -1049,13 +1063,7 @@ router.post('/coupon-alimtalk/send', authMiddleware, async (req: AuthRequest, re
     const regionFilters: Array<{ sido: string; sigungu?: string }> = regions;
 
     // 1. ExternalCustomer 조회
-    const regionOrConditions = regionFilters.map((r: any) => {
-      if (r.sigungu) {
-        return { regionSido: r.sido, regionSigungu: r.sigungu };
-      } else {
-        return { regionSido: r.sido };
-      }
-    });
+    const regionOrConditions = buildExternalRegionOrConditions(regionFilters);
 
     // categories가 있으면 AND로 지역+카테고리 결합 (OR 덮어쓰기 방지)
     const externalWhere: any = {
@@ -1080,14 +1088,8 @@ router.post('/coupon-alimtalk/send', authMiddleware, async (req: AuthRequest, re
       select: { id: true, phone: true },
     });
 
-    // 2. Customer 조회 - 줄임말(서울, 경기) 사용 - ExternalCustomer와 동일
-    const customerRegionOrConditions = regionFilters.map((r: any) => {
-      if (r.sigungu) {
-        return { regionSido: r.sido, regionSigungu: r.sigungu };
-      } else {
-        return { regionSido: r.sido };
-      }
-    });
+    // 2. Customer 조회
+    const customerRegionOrConditions = buildCustomerRegionOrConditions(regionFilters);
 
     const customerWhere: any = {
       OR: customerRegionOrConditions,

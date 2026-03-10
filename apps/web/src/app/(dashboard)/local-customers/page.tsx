@@ -25,10 +25,10 @@ import { ChargeModal } from '@/components/ChargeModal';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-// 대한민국 17개 시/도 목록
+// 대한민국 17개 시/도 목록 + 미지정
 const KOREA_SIDOS = [
   '서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종',
-  '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'
+  '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주', '미지정'
 ];
 
 // 연령대 옵션
