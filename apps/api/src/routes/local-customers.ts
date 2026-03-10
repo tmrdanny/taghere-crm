@@ -286,8 +286,15 @@ router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
         }
       });
 
+      // categories가 있으면 AND로 지역+카테고리 결합 (OR 덮어쓰기 방지)
+      const categoryList = categories ? (categories as string).split(',').filter(Boolean) : [];
       const externalWhere: any = {
-        OR: regionOrConditions,
+        AND: [
+          { OR: regionOrConditions },
+          ...(categoryList.length > 0
+            ? [{ OR: categoryList.map((cat) => ({ preferredCategories: { contains: cat } })) }]
+            : []),
+        ],
         consentMarketing: true,
       };
 
@@ -302,26 +309,17 @@ router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
         externalWhere.gender = gender as string;
       }
 
-      // 선호 업종 필터
-      if (categories) {
-        const categoryList = (categories as string).split(',').filter(Boolean);
-        if (categoryList.length > 0) {
-          externalWhere.OR = categoryList.map((cat) => ({
-            preferredCategories: { contains: cat },
-          }));
-        }
-      }
-
       externalCount = await prisma.externalCustomer.count({ where: externalWhere });
     }
 
     // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
-    // Customer DB도 줄임말 사용 (서울, 경기) - ExternalCustomer와 동일
+    // Customer는 정식명칭(서울특별시, 경기도) 사용하므로 변환 필요
     const customerRegionOrConditions = regionFilters.map((r) => {
+      const fullSido = SIDO_SHORT_TO_FULL[r.sido] || r.sido;
       if (r.sigungu) {
-        return { regionSido: r.sido, regionSigungu: r.sigungu };
+        return { regionSido: fullSido, regionSigungu: r.sigungu };
       } else {
-        return { regionSido: r.sido };
+        return { regionSido: fullSido };
       }
     });
 
@@ -451,8 +449,14 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
           return { regionSido: r.sido };
         }
       });
+      // categories가 있으면 AND로 지역+카테고리 결합 (OR 덮어쓰기 방지)
       const externalWhere: any = {
-        OR: regionOrConditions,
+        AND: [
+          { OR: regionOrConditions },
+          ...(categories && categories.length > 0
+            ? [{ OR: categories.map((cat: string) => ({ preferredCategories: { contains: cat } })) }]
+            : []),
+        ],
         consentMarketing: true,
       };
 
@@ -462,12 +466,6 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
 
       if (gender && gender !== 'all') {
         externalWhere.gender = gender;
-      }
-
-      if (categories && categories.length > 0) {
-        externalWhere.OR = categories.map((cat: string) => ({
-          preferredCategories: { contains: cat },
-        }));
       }
 
       const externalResult = await prisma.externalCustomer.findMany({
@@ -484,12 +482,13 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
     let customers: Array<{ id: string; phone: string; source: 'customer' }> = [];
 
-    // Customer DB도 줄임말 사용 (서울, 경기) - ExternalCustomer와 동일
+    // Customer는 정식명칭(서울특별시, 경기도) 사용하므로 변환 필요
     const customerRegionOrConditions = regionFilters.map((r) => {
+      const fullSido = SIDO_SHORT_TO_FULL[r.sido] || r.sido;
       if (r.sigungu) {
-        return { regionSido: r.sido, regionSigungu: r.sigungu };
+        return { regionSido: fullSido, regionSigungu: r.sigungu };
       } else {
-        return { regionSido: r.sido };
+        return { regionSido: fullSido };
       }
     });
 
@@ -1060,8 +1059,14 @@ router.post('/coupon-alimtalk/send', authMiddleware, async (req: AuthRequest, re
       }
     });
 
+    // categories가 있으면 AND로 지역+카테고리 결합 (OR 덮어쓰기 방지)
     const externalWhere: any = {
-      OR: regionOrConditions,
+      AND: [
+        { OR: regionOrConditions },
+        ...(categories && categories.length > 0
+          ? [{ OR: categories.map((cat: string) => ({ preferredCategories: { contains: cat } })) }]
+          : []),
+      ],
       consentMarketing: true,
     };
 
@@ -1071,20 +1076,24 @@ router.post('/coupon-alimtalk/send', authMiddleware, async (req: AuthRequest, re
     if (gender && gender !== 'all') {
       externalWhere.gender = gender;
     }
-    if (categories && categories.length > 0) {
-      externalWhere.OR = categories.map((cat: string) => ({
-        preferredCategories: { contains: cat },
-      }));
-    }
 
     const externalCustomers = await prisma.externalCustomer.findMany({
       where: externalWhere,
       select: { id: true, phone: true },
     });
 
-    // 2. Customer 조회
+    // 2. Customer 조회 - 정식명칭(서울특별시, 경기도) 변환 필요
+    const customerRegionOrConditions = regionFilters.map((r: any) => {
+      const fullSido = SIDO_SHORT_TO_FULL[r.sido] || r.sido;
+      if (r.sigungu) {
+        return { regionSido: fullSido, regionSigungu: r.sigungu };
+      } else {
+        return { regionSido: fullSido };
+      }
+    });
+
     const customerWhere: any = {
-      OR: regionOrConditions,
+      OR: customerRegionOrConditions,
       consentMarketing: true,
       phone: { not: null },
     };
