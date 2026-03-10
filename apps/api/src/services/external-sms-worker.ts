@@ -28,15 +28,6 @@ function getSolapiService(): SolapiService | null {
   return globalSolapiService;
 }
 
-// 월요일 기준 주차 시작일 계산
-function getWeekStart(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
 
 // 단일 메시지 처리
 async function processMessage(messageId: string): Promise<void> {
@@ -81,8 +72,6 @@ async function processMessage(messageId: string): Promise<void> {
       return; // 다음 폴링에서 재시도
     }
 
-    const weekStart = getWeekStart(new Date());
-
     if (statusResult.status === 'SENT') {
       // 발송 성공 - 트랜잭션으로 상태 업데이트 + 비용 차감
       await prisma.$transaction(async (tx) => {
@@ -112,23 +101,6 @@ async function processMessage(messageId: string): Promise<void> {
           },
         });
 
-        // 5. 외부 고객 주간 슬롯 증가 (externalCustomerId가 있는 경우에만)
-        if (msg.externalCustomerId) {
-          await tx.externalCustomerWeeklySlot.upsert({
-            where: {
-              externalCustomerId_weekStart: {
-                externalCustomerId: msg.externalCustomerId,
-                weekStart,
-              },
-            },
-            update: { slotUsed: { increment: 1 } },
-            create: {
-              externalCustomerId: msg.externalCustomerId,
-              weekStart,
-              slotUsed: 1,
-            },
-          });
-        }
       });
 
     } else if (statusResult.status === 'FAILED') {

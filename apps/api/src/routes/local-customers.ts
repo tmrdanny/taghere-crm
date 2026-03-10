@@ -57,15 +57,7 @@ function getNextSendableTime(): Date {
   return new Date(nextSendable.getTime() - kstOffset);
 }
 
-// 월요일 기준 주차 시작일 계산
-function getWeekStart(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
+
 
 // GET /api/local-customers/regions - 지역 목록 조회 (ExternalCustomer 기반)
 router.get('/regions', authMiddleware, async (req: AuthRequest, res) => {
@@ -344,57 +336,9 @@ router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
 
     customerCount = await prisma.customer.count({ where: customerWhere });
 
-    // 3. ExternalCustomer 슬롯 여유 확인
-    let availableExternalCount = externalCount;
-    if (externalCount > 0) {
-      const weekStart = getWeekStart(new Date());
-      const usedSlots = await prisma.externalCustomerWeeklySlot.findMany({
-        where: {
-          weekStart,
-          slotUsed: { gte: 2 },
-        },
-        select: { externalCustomerId: true },
-      });
-      const usedCustomerIds = usedSlots.map((s) => s.externalCustomerId);
-
-      // 슬롯 여유 있는 ExternalCustomer 수
-      const regionOrConditions = regionFilters.map((r) => {
-        if (r.sigungu) {
-          return { regionSido: r.sido, regionSigungu: r.sigungu };
-        } else {
-          return { regionSido: r.sido };
-        }
-      });
-      const externalWhere: any = {
-        OR: regionOrConditions,
-        consentMarketing: true,
-        id: { notIn: usedCustomerIds },
-      };
-
-      if (ageGroups) {
-        const ageGroupList = (ageGroups as string).split(',');
-        externalWhere.ageGroup = { in: ageGroupList };
-      }
-
-      if (gender && gender !== 'all') {
-        externalWhere.gender = gender as string;
-      }
-
-      if (categories) {
-        const categoryList = (categories as string).split(',').filter(Boolean);
-        if (categoryList.length > 0) {
-          externalWhere.OR = categoryList.map((cat) => ({
-            preferredCategories: { contains: cat },
-          }));
-        }
-      }
-
-      availableExternalCount = await prisma.externalCustomer.count({ where: externalWhere });
-    }
-
-    // 4. 통합 카운트 반환
+    // 3. 통합 카운트 반환
     const totalCount = externalCount + customerCount;
-    const availableCount = availableExternalCount + customerCount;
+    const availableCount = totalCount;
 
     res.json({
       totalCount,
@@ -492,17 +436,6 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     let externalCustomers: Array<{ id: string; phone: string; source: 'external' }> = [];
 
     {
-      // 이번 주 슬롯 여유 있는 ExternalCustomer만
-      const weekStart = getWeekStart(new Date());
-      const usedSlots = await prisma.externalCustomerWeeklySlot.findMany({
-        where: {
-          weekStart,
-          slotUsed: { gte: 2 },
-        },
-        select: { externalCustomerId: true },
-      });
-      const usedCustomerIds = usedSlots.map((s) => s.externalCustomerId);
-
       // ExternalCustomer 필터 조건
       const regionOrConditions = regionFilters.map((r) => {
         if (r.sigungu) {
@@ -514,7 +447,6 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       const externalWhere: any = {
         OR: regionOrConditions,
         consentMarketing: true,
-        id: { notIn: usedCustomerIds },
       };
 
       if (ageGroups && ageGroups.length > 0) {
@@ -950,25 +882,9 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
       }));
     }
 
-    // 이번 주 슬롯 여유 있는 고객만 조회
-    const weekStart = getWeekStart(new Date());
-
-    const usedSlots = await prisma.externalCustomerWeeklySlot.findMany({
-      where: {
-        weekStart,
-        slotUsed: { gte: 2 },
-      },
-      select: { externalCustomerId: true },
-    });
-
-    const usedCustomerIds = usedSlots.map((s) => s.externalCustomerId);
-
     // 가용 고객 수 확인
     const availableCount = await prisma.externalCustomer.count({
-      where: {
-        ...where,
-        id: { notIn: usedCustomerIds },
-      },
+      where,
     });
 
     if (sendCount > availableCount) {
@@ -980,10 +896,7 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
 
     // 고객 선택
     const customers = await prisma.externalCustomer.findMany({
-      where: {
-        ...where,
-        id: { notIn: usedCustomerIds },
-      },
+      where,
       take: sendCount,
       orderBy: {
         id: 'asc',
