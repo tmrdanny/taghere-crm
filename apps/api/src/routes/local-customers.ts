@@ -2,16 +2,23 @@ import { Router } from 'express';
 import { SolapiMessageService } from 'solapi';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { SolapiService, BrandMessageButton } from '../services/solapi.js';
+import { SolapiService, BrandMessageButton, enqueueAlimTalk } from '../services/solapi.js';
+import { customAlphabet } from 'nanoid';
 
 const router = Router();
 
 // 건당 비용 (외부 고객 SMS)
 const EXTERNAL_SMS_COST = 150;
 
-// 카카오톡 브랜드 메시지 비용 (건당)
+// 카카오톡 브랜드 메시지 비용 (건당) - 레거시
 const EXTERNAL_KAKAO_TEXT_COST = 200;
 const EXTERNAL_KAKAO_IMAGE_COST = 230;
+
+// 쿠폰 알림톡 비용 (건당)
+const COUPON_ALIMTALK_COST = 150;
+
+// 쿠폰 코드 생성기 (10자리, 헷갈리는 문자 제외)
+const generateCouponCode = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 10);
 
 // SOLAPI 서비스 인스턴스 (카카오톡용)
 let solapiServiceInstance: SolapiService | null = null;
@@ -1008,6 +1015,199 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Kakao send error:', error);
     res.status(500).json({ error: '카카오톡 발송 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/local-customers/coupon-alimtalk/send - 쿠폰 알림톡 발송
+router.post('/coupon-alimtalk/send', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { regions, sendCount, couponContent, expiryDate, ageGroups, gender, categories } = req.body;
+
+    // Validation
+    if (!regions || regions.length === 0) return res.status(400).json({ error: '지역을 선택해주세요.' });
+    if (!couponContent?.trim()) return res.status(400).json({ error: '쿠폰 내용을 입력해주세요.' });
+    if (!expiryDate?.trim()) return res.status(400).json({ error: '유효기간을 입력해주세요.' });
+    if (!sendCount || sendCount <= 0) return res.status(400).json({ error: '발송 수량을 입력해주세요.' });
+
+    const totalCost = sendCount * COUPON_ALIMTALK_COST;
+
+    // Check wallet
+    const wallet = await prisma.wallet.findUnique({ where: { storeId } });
+    if (!wallet || wallet.balance < totalCost) {
+      return res.status(400).json({ error: '잔액이 부족합니다.', walletBalance: wallet?.balance || 0, requiredAmount: totalCost });
+    }
+
+    // Get store info
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { name: true, slug: true, naverPlaceUrl: true },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    // Build region filters
+    const regionFilters: Array<{ sido: string; sigungu?: string }> = regions;
+
+    // 1. ExternalCustomer 조회
+    const regionOrConditions = regionFilters.map((r: any) => {
+      if (r.sigungu) {
+        return { regionSido: r.sido, regionSigungu: r.sigungu };
+      } else {
+        return { regionSido: r.sido };
+      }
+    });
+
+    const externalWhere: any = {
+      OR: regionOrConditions,
+      consentMarketing: true,
+    };
+
+    if (ageGroups && ageGroups.length > 0) {
+      externalWhere.ageGroup = { in: ageGroups };
+    }
+    if (gender && gender !== 'all') {
+      externalWhere.gender = gender;
+    }
+    if (categories && categories.length > 0) {
+      externalWhere.OR = categories.map((cat: string) => ({
+        preferredCategories: { contains: cat },
+      }));
+    }
+
+    const externalCustomers = await prisma.externalCustomer.findMany({
+      where: externalWhere,
+      select: { id: true, phone: true },
+    });
+
+    // 2. Customer 조회
+    const customerWhere: any = {
+      OR: regionOrConditions,
+      consentMarketing: true,
+      phone: { not: null },
+    };
+    if (ageGroups && ageGroups.length > 0) {
+      customerWhere.ageGroup = { in: ageGroups };
+    }
+    if (gender && gender !== 'all') {
+      customerWhere.gender = gender;
+    }
+
+    const customerResult = await prisma.customer.findMany({
+      where: customerWhere,
+      select: { id: true, phone: true },
+    });
+
+    // 3. 통합 고객 목록
+    const allCustomers: Array<{ id: string; phone: string; source: 'external' | 'customer' }> = [
+      ...externalCustomers.map((c) => ({ id: c.id, phone: c.phone, source: 'external' as const })),
+      ...customerResult.filter((c) => c.phone).map((c) => ({ id: c.id, phone: c.phone!, source: 'customer' as const })),
+    ];
+
+    if (sendCount > allCustomers.length) {
+      return res.status(400).json({
+        error: `발송 가능한 고객이 ${allCustomers.length}명입니다.`,
+        availableCount: allCustomers.length,
+      });
+    }
+
+    const selectedCustomers = allCustomers.slice(0, sendCount);
+
+    // Get template ID from env
+    const templateId = process.env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON;
+    if (!templateId) return res.status(500).json({ error: '알림톡 템플릿이 설정되지 않았습니다.' });
+
+    const pfId = process.env.SOLAPI_PF_ID;
+    if (!pfId) return res.status(500).json({ error: 'SOLAPI 채널이 설정되지 않았습니다.' });
+
+    // 도메인 설정 (환경별)
+    const appUrl = process.env.PUBLIC_APP_URL || 'http://localhost:3999';
+    const domain = appUrl.replace(/^https?:\/\//, '');
+
+    // For each customer phone, create coupon + AlimTalkOutbox record
+    let sentCount = 0;
+    let failedCount = 0;
+
+    for (const customer of selectedCustomers) {
+      try {
+        const code = generateCouponCode();
+        const verifyUrl = `${domain}/coupon/verify/${code}`;
+
+        // 쿠폰 레코드 생성
+        await (prisma as any).retargetCoupon.create({
+          data: {
+            code,
+            storeId,
+            customerId: customer.source === 'customer' ? customer.id : null,
+            phone: customer.phone,
+            couponContent: couponContent.trim(),
+            expiryDate: expiryDate.trim(),
+            naverPlaceUrl: store.naverPlaceUrl || null,
+          },
+        });
+
+        // 알림톡 큐 등록
+        const idempotencyKey = `local-coupon-${storeId}-${customer.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+        await enqueueAlimTalk({
+          storeId,
+          customerId: customer.source === 'customer' ? customer.id : undefined,
+          phone: customer.phone,
+          messageType: 'LOCAL_COUPON',
+          templateId,
+          variables: {
+            '#{상호}': store.name,
+            '#{쿠폰내용}': couponContent.trim(),
+            '#{유효기간}': expiryDate.trim(),
+            '#{네이버플레이스}': (store.naverPlaceUrl || '').replace(/^https?:\/\//, ''),
+            '#{직원확인}': verifyUrl,
+          },
+          idempotencyKey,
+        });
+
+        sentCount++;
+      } catch (err: any) {
+        console.error(`[CouponAlimTalk] Send error for ${customer.phone}:`, err.message);
+        failedCount++;
+      }
+    }
+
+    // Deduct wallet (only for successfully enqueued)
+    const actualCost = sentCount * COUPON_ALIMTALK_COST;
+    if (actualCost > 0) {
+      await prisma.wallet.update({
+        where: { storeId },
+        data: { balance: { decrement: actualCost } },
+      });
+    }
+
+    // Create campaign record for tracking
+    const regionSidoList = [...new Set(regionFilters.map((r) => r.sido))];
+    const regionSigunguList = regionFilters.filter((r) => r.sigungu).map((r) => r.sigungu);
+
+    await prisma.externalSmsCampaign.create({
+      data: {
+        storeId,
+        title: `쿠폰 알림톡 - ${new Date().toLocaleDateString('ko-KR')}`,
+        content: `쿠폰: ${couponContent.trim()} / 유효기간: ${expiryDate.trim()}`,
+        filterAgeGroups: JSON.stringify(ageGroups || []),
+        filterGender: gender || null,
+        filterRegionSido: regionSidoList.join(','),
+        filterRegionSigungu: regionSigunguList.join(','),
+        filterCategories: categories && categories.length > 0 ? JSON.stringify(categories) : null,
+        targetCount: sendCount,
+        costPerMessage: COUPON_ALIMTALK_COST,
+        failedCount,
+        status: sentCount > 0 ? 'SENDING' : 'COMPLETED',
+      },
+    });
+
+    res.json({ success: true, sentCount, failedCount, totalCost: actualCost });
+  } catch (error) {
+    console.error('Coupon alimtalk send error:', error);
+    res.status(500).json({ error: '발송 중 오류가 발생했습니다.' });
   }
 });
 
