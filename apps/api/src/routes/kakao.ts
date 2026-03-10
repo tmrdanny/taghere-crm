@@ -733,6 +733,8 @@ async function handleMembershipCallback(
 
     // 선호도 존재 여부
     const hasPreferences = !!(customer as any).preferredCategories;
+    // 방문경로 존재 여부
+    const hasVisitSource = !!(customer as any).visitSource;
 
     // 성공 리다이렉트
     const successUrl = new URL(`${redirectOrigin}${memberBasePath}`);
@@ -741,6 +743,7 @@ async function handleMembershipCallback(
     successUrl.searchParams.set('customerId', customer.id);
     successUrl.searchParams.set('kakaoId', kakaoId);
     successUrl.searchParams.set('hasPreferences', hasPreferences.toString());
+    successUrl.searchParams.set('hasVisitSource', hasVisitSource.toString());
     if (stateData.ordersheetId) {
       successUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
     }

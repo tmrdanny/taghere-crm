@@ -288,7 +288,7 @@ function SuccessPopup({
   };
 
   // 단계별 UI: 방문 경로 활성화 시 1/2 → 2/2 단계로 진행
-  const showVisitSourceStep = visitSourceEnabled && visitSourceOptions.length > 0;
+  const showVisitSourceStep = visitSourceEnabled && visitSourceOptions.length > 0 && !successData.hasVisitSource;
   const showCategoryStep = !successData.hasExistingPreferences;
   const totalSteps = (showVisitSourceStep ? 1 : 0) + (showCategoryStep ? 1 : 0);
   const [currentStep, setCurrentStep] = useState(1); // 1 = 방문경로, 2 = 선호업종
@@ -724,6 +724,7 @@ function TaghereMemberEnrollContent() {
   const customerId = searchParams.get('customerId');
   const urlKakaoId = searchParams.get('kakaoId');
   const hasPreferences = searchParams.get('hasPreferences') === 'true';
+  const hasVisitSourceParam = searchParams.get('hasVisitSource') === 'true';
 
   // 자동 등록 시도 함수
   const attemptAutoEarn = async (kakaoId: string, orderData: OrderInfo) => {
@@ -821,6 +822,7 @@ function TaghereMemberEnrollContent() {
         storeName: successStoreName || '태그히어',
         customerId,
         hasExistingPreferences: hasPreferences,
+        hasVisitSource: hasVisitSourceParam,
       });
       setIsLoading(false);
       return;
