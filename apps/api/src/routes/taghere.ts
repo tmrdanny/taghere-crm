@@ -376,6 +376,7 @@ router.post('/auto-earn', async (req, res) => {
         resultPrice,
         isNewCustomer,
         hasExistingPreferences: !!(customer as any).preferredCategories,
+        hasVisitSource: !!(customer as any).visitSource,
       });
     } else {
       // ===== 포인트 모드: 기존 로직 =====

@@ -750,6 +750,7 @@ function TaghereMemberEnrollContent() {
           storeName: data.storeName,
           customerId: data.customerId,
           hasExistingPreferences: data.hasExistingPreferences || false,
+          hasVisitSource: data.hasVisitSource || false,
         });
         setOrderInfo(null);
       } else {
