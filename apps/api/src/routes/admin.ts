@@ -2896,6 +2896,25 @@ router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: 
               role: 'OWNER',
             },
           });
+
+          // 방문경로 설정 기본 활성화
+          await tx.visitSourceSetting.create({
+            data: {
+              storeId: store.id,
+              enabled: true,
+              options: [
+                { id: 'revisit', label: '단순 재방문', order: 1, enabled: true },
+                { id: 'friend', label: '지인 추천', order: 2, enabled: true },
+                { id: 'naver', label: '네이버', order: 3, enabled: true },
+                { id: 'youtube', label: '유튜브', order: 4, enabled: true },
+                { id: 'daangn', label: '당근', order: 5, enabled: true },
+                { id: 'instagram', label: '인스타그램', order: 6, enabled: true },
+                { id: 'sms', label: '문자', order: 7, enabled: true },
+                { id: 'kakao', label: '카카오톡', order: 8, enabled: true },
+                { id: 'passby', label: '지나가다 방문', order: 9, enabled: true },
+              ],
+            },
+          });
         });
 
         emailsInBatch.add(email);
