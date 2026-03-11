@@ -7,6 +7,12 @@ import { sidoToShort } from '../utils/address-parser.js';
 
 const router = Router();
 
+// 방문경로 24시간 내 응답 여부 체크
+function isVisitSourceRecent(updatedAt: Date | null | undefined): boolean {
+  if (!updatedAt) return false;
+  return Date.now() - new Date(updatedAt).getTime() < 24 * 60 * 60 * 1000;
+}
+
 const KAKAO_CLIENT_ID = process.env.KAKAO_CLIENT_ID || '';
 const KAKAO_CLIENT_SECRET = process.env.KAKAO_CLIENT_SECRET || '';
 const KAKAO_REDIRECT_URI = process.env.KAKAO_REDIRECT_URI || 'http://localhost:4000/auth/kakao/callback';
@@ -733,8 +739,8 @@ async function handleMembershipCallback(
 
     // 선호도 존재 여부
     const hasPreferences = !!(customer as any).preferredCategories;
-    // 방문경로 존재 여부
-    const hasVisitSource = !!(customer as any).visitSource;
+    // 방문경로 24시간 내 응답 여부
+    const hasVisitSource = isVisitSourceRecent((customer as any).visitSourceUpdatedAt);
 
     // 성공 리다이렉트
     const successUrl = new URL(`${redirectOrigin}${memberBasePath}`);
@@ -1249,7 +1255,7 @@ async function handleStampCallback(
 
     // 리다이렉트
     const hasPreferences = !!(customer as any).preferredCategories;
-    const hasVisitSource = !!(customer as any).visitSource;
+    const hasVisitSource = isVisitSourceRecent((customer as any).visitSourceUpdatedAt);
 
     const successUrl = new URL(`${redirectOrigin}${stampBasePath}`);
     successUrl.searchParams.set('stamps', franchiseResult.customer.totalStamps.toString());
@@ -1426,7 +1432,7 @@ async function handleStampCallback(
 
   // Check if customer already has preferredCategories
   const hasPreferences = !!(customer as any).preferredCategories;
-  const hasVisitSource = !!(customer as any).visitSource;
+  const hasVisitSource = isVisitSourceRecent((customer as any).visitSourceUpdatedAt);
 
   // Redirect back to stamp enroll page with success data
   const successUrl = new URL(`${redirectOrigin}${stampBasePath}`);
@@ -1831,6 +1837,7 @@ router.get('/taghere-callback', async (req, res) => {
     // Check if customer already has preferredCategories
     // The customer object includes all fields by default from findFirst/create/update
     const hasPreferences = !!(customer as any).preferredCategories;
+    const hasVisitSource = isVisitSourceRecent((customer as any).visitSourceUpdatedAt);
 
     // Redirect back to enroll page with success data (shows popup with feedback)
     const successUrl = new URL(`${redirectOrigin}/taghere-enroll/${stateData.slug || ''}`);
@@ -1840,6 +1847,7 @@ router.get('/taghere-callback', async (req, res) => {
     successUrl.searchParams.set('resultPrice', resultPrice.toString());
     successUrl.searchParams.set('kakaoId', kakaoId);  // 자동 적립을 위해 kakaoId 전달
     successUrl.searchParams.set('hasPreferences', hasPreferences.toString());  // 선호도 선택 여부 전달
+    successUrl.searchParams.set('hasVisitSource', hasVisitSource.toString());
     if (stateData.ordersheetId) {
       successUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
     }

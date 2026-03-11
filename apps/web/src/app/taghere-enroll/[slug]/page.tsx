@@ -293,7 +293,7 @@ function SuccessPopup({
   };
 
   // 단계별 UI: 방문 경로 활성화 시 1/2 → 2/2 단계로 진행
-  const showVisitSourceStep = visitSourceEnabled && visitSourceOptions.length > 0;
+  const showVisitSourceStep = visitSourceEnabled && visitSourceOptions.length > 0 && !successData.hasVisitSource;
   const showCategoryStep = !successData.hasExistingPreferences;
   const totalSteps = (showVisitSourceStep ? 1 : 0) + (showCategoryStep ? 1 : 0);
   const [currentStep, setCurrentStep] = useState(1); // 1 = 방문경로, 2 = 선호업종
@@ -755,6 +755,7 @@ function TaghereEnrollContent() {
   const successResultPrice = searchParams.get('resultPrice');
   const urlKakaoId = searchParams.get('kakaoId');
   const hasPreferences = searchParams.get('hasPreferences') === 'true';
+  const hasVisitSourceParam = searchParams.get('hasVisitSource') === 'true';
 
   // 자동 적립 시도 함수
   const attemptAutoEarn = async (kakaoId: string, orderData: OrderInfo) => {
@@ -782,6 +783,7 @@ function TaghereEnrollContent() {
           customerId: data.customerId,
           resultPrice: data.resultPrice,
           hasExistingPreferences: data.hasExistingPreferences || false,
+          hasVisitSource: data.hasVisitSource || false,
         });
         setOrderInfo(null); // 기본 UI 숨김
       } else {
@@ -865,6 +867,7 @@ function TaghereEnrollContent() {
         customerId,
         resultPrice: parseInt(successResultPrice || '0'),
         hasExistingPreferences: hasPreferences,
+        hasVisitSource: hasVisitSourceParam,
       });
       setIsLoading(false);
       return;

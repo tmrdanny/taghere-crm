@@ -736,10 +736,10 @@ router.post('/visit-source', async (req, res) => {
       return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
     }
 
-    // Update visit source (기존 값이 있어도 덮어씀)
+    // Update visit source (기존 값이 있어도 덮어씀) + 응답 시각 기록
     const updatedCustomer = await prisma.customer.update({
       where: { id: customerId },
-      data: { visitSource },
+      data: { visitSource, visitSourceUpdatedAt: new Date() },
     });
 
     res.json({ success: true, visitSource: updatedCustomer.visitSource });

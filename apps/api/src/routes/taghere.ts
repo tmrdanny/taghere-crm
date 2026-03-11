@@ -8,6 +8,12 @@ import { sidoToShort } from '../utils/address-parser.js';
 
 const router = Router();
 
+// 방문경로 24시간 내 응답 여부 체크
+function isVisitSourceRecent(updatedAt: Date | null | undefined): boolean {
+  if (!updatedAt) return false;
+  return Date.now() - new Date(updatedAt).getTime() < 24 * 60 * 60 * 1000;
+}
+
 // 웹훅 인증 미들웨어
 interface WebhookRequest extends Request {
   webhookVerified?: boolean;
@@ -376,7 +382,7 @@ router.post('/auto-earn', async (req, res) => {
         resultPrice,
         isNewCustomer,
         hasExistingPreferences: !!(customer as any).preferredCategories,
-        hasVisitSource: !!(customer as any).visitSource,
+        hasVisitSource: isVisitSourceRecent((customer as any).visitSourceUpdatedAt),
       });
     } else {
       // ===== 포인트 모드: 기존 로직 =====
@@ -466,6 +472,8 @@ router.post('/auto-earn', async (req, res) => {
         customerId: customer.id,
         resultPrice,
         isNewCustomer,
+        hasExistingPreferences: !!(customer as any).preferredCategories,
+        hasVisitSource: isVisitSourceRecent((customer as any).visitSourceUpdatedAt),
       });
     }
   } catch (error: any) {
@@ -1472,7 +1480,7 @@ router.post('/stamp-earn', async (req, res) => {
         storeName: store.name,
         franchiseName,
         isNewCustomer,
-        hasVisitSource: !!customer!.visitSource,
+        hasVisitSource: isVisitSourceRecent(customer!.visitSourceUpdatedAt),
         rewards: successRewards,
         drawnReward: franchiseResult.milestoneResult?.reward || null,
         drawnRewardTier: franchiseResult.milestoneResult?.tier || null,
@@ -1634,7 +1642,7 @@ router.post('/stamp-earn', async (req, res) => {
       customerId: customer.id,
       storeName: store.name,
       isNewCustomer,
-      hasVisitSource: !!customer.visitSource,
+      hasVisitSource: isVisitSourceRecent(customer.visitSourceUpdatedAt),
       rewards: successRewards,
       ...successLegacy,
       drawnReward: result.milestoneResult?.reward || null,

@@ -281,7 +281,7 @@ function SuccessPopup({
             <StarRating rating={feedbackRating} onRatingChange={setFeedbackRating} />
           </div>
 
-          {visitSourceEnabled && visitSourceOptions.length > 0 && (
+          {visitSourceEnabled && visitSourceOptions.length > 0 && !successData.hasVisitSource && (
             <div className="mb-4 mt-5">
               <p className="text-[15px] font-semibold text-neutral-900 mb-1.5 text-center">어떻게 저희 매장을 알게 되셨나요?</p>
               <p className="text-[13px] text-neutral-500 mb-3 text-center">더 나은 서비스를 위해 알려주세요</p>

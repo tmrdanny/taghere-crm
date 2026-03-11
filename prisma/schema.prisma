@@ -199,7 +199,8 @@ model Customer {
   consentAt        DateTime?
 
   // 방문 경로
-  visitSource      String?   // 방문 경로 옵션 ID (예: "naver", "instagram", "friend")
+  visitSource          String?    // 방문 경로 옵션 ID (예: "naver", "instagram", "friend")
+  visitSourceUpdatedAt DateTime?  // 방문 경로 마지막 응답 시각 (24시간 후 재질문)
 
   // 통계
   visitCount       Int       @default(0)
