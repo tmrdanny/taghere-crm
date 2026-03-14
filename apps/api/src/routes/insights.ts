@@ -160,18 +160,17 @@ router.get('/customers', async (req: AuthRequest, res) => {
         return (ageOrder[a.ageGroup] || 99) - (ageOrder[b.ageGroup] || 99);
       });
 
-    // 5. 재방문율 (7일, 30일)
+    // 5. 재방문율 (7일, 30일) - VisitOrOrder 기준 (모든 모드 공통)
     const now = new Date();
     const date7DaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const date30DaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     // 7일 내 방문 고객
-    const visits7Days = await prisma.pointLedger.groupBy({
+    const visits7Days = await prisma.visitOrOrder.groupBy({
       by: ['customerId'],
       where: {
         storeId,
-        type: 'EARN',
-        createdAt: { gte: date7DaysAgo },
+        visitedAt: { gte: date7DaysAgo },
       },
       _count: { id: true },
     });
@@ -181,12 +180,11 @@ router.get('/customers', async (req: AuthRequest, res) => {
     const retention7 = total7Days > 0 ? Math.round((revisit7Days / total7Days) * 100) : 0;
 
     // 30일 내 방문 고객
-    const visits30Days = await prisma.pointLedger.groupBy({
+    const visits30Days = await prisma.visitOrOrder.groupBy({
       by: ['customerId'],
       where: {
         storeId,
-        type: 'EARN',
-        createdAt: { gte: date30DaysAgo },
+        visitedAt: { gte: date30DaysAgo },
       },
       _count: { id: true },
     });
