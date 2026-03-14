@@ -90,8 +90,9 @@ router.get('/ordersheet', async (req, res) => {
     const resultPrice = typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : rawPrice;
 
     // 적립률 계산 (기본 5%)
-    const ratePercent = store.pointRatePercent || 5;
+    const ratePercent = store.pointRatePercent ?? 5;
     const earnPoints = Math.round(resultPrice * ratePercent / 100);
+    console.log(`[TagHere Earn] storeId: ${store.id}, resultPrice: ${resultPrice}, ratePercent: ${ratePercent}, earnPoints: ${earnPoints}`);
 
     // 이미 적립된 ordersheetId인지 확인
     const existingEarn = await prisma.pointLedger.findFirst({
@@ -386,8 +387,9 @@ router.post('/auto-earn', async (req, res) => {
       });
     } else {
       // ===== 포인트 모드: 기존 로직 =====
-      const ratePercent = store.pointRatePercent || 5;
+      const ratePercent = store.pointRatePercent ?? 5;
       const earnPoints = resultPrice > 0 ? Math.round(resultPrice * ratePercent / 100) : 100;
+      console.log(`[TagHere Auto-Earn Points] storeId: ${store.id}, resultPrice: ${resultPrice}, ratePercent: ${ratePercent}, earnPoints: ${earnPoints}`);
       const newBalance = customer.totalPoints + earnPoints;
 
       const todayVisit = await prisma.pointLedger.findFirst({

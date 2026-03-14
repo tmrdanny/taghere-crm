@@ -914,7 +914,7 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
     }
 
     // Calculate points to deduct using store's pointRatePercent (same as earn logic)
-    const pointRatePercent = customer.store.pointRatePercent || 5; // 기본값 5%
+    const pointRatePercent = customer.store.pointRatePercent ?? 5; // 기본값 5%
 
     // Debug: log the target item structure
     console.log('[Cancel Order Item] targetItem:', JSON.stringify(targetItem, null, 2));

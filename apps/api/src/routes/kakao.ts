@@ -1669,8 +1669,9 @@ router.get('/taghere-callback', async (req, res) => {
     }
 
     // 적립률 기반 포인트 계산 (기본 5%)
-    const ratePercent = store.pointRatePercent || 5;
+    const ratePercent = store.pointRatePercent ?? 5;
     const earnPoints = resultPrice > 0 ? Math.round(resultPrice * ratePercent / 100) : 100;
+    console.log(`[TagHere Kakao Earn] storeId: ${store.id}, resultPrice: ${resultPrice}, ratePercent: ${ratePercent}, earnPoints: ${earnPoints}`);
 
     if (!customer) {
       // 신규 고객 생성
