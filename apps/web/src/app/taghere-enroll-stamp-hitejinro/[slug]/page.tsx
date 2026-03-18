@@ -1148,14 +1148,14 @@ function HitejinroEnrollStampContent() {
               </div>
 
               {/* 바코드 스캐너 영역 */}
-              <div className="flex flex-col items-center px-5 pb-4">
-                <div className="w-full max-w-[342px] flex flex-col gap-1.5 items-center">
-                  <div className="w-full aspect-[2/1] bg-neutral-900 rounded-2xl overflow-hidden relative" ref={scannerContainerRef}>
+              <div className="flex flex-col items-center px-11">
+                <div className="w-full flex flex-col gap-2 items-center">
+                  <div className="w-full aspect-[4/3] bg-neutral-900 rounded-2xl overflow-hidden relative" ref={scannerContainerRef}>
                     <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
 
                     {!isScannerActive && !scannerError && !isProcessing && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900">
-                        <svg className="w-14 h-14 text-neutral-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-16 h-16 text-neutral-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
@@ -1179,20 +1179,20 @@ function HitejinroEnrollStampContent() {
                       </div>
                     )}
                   </div>
-                  <p className="text-[13px] font-medium text-[#91959a] leading-[130%]">
+                  <p className="text-[14px] font-medium text-[#91959a] leading-[130%]">
                     {isScannerActive ? '바코드를 카메라에 비춰주세요' : '카메라 대기중'}
                   </p>
                 </div>
               </div>
 
               {/* 스탬프 보상 */}
-              <div className="px-10 py-3 flex flex-col gap-2 items-center">
-                <p className="text-[14px] font-semibold text-black leading-[130%] text-center w-full">스탬프 보상</p>
-                <div className="w-full flex flex-col gap-1.5">
+              <div className="px-10 py-5 flex flex-col gap-3 items-center">
+                <p className="text-[16px] font-semibold text-black leading-[130%] text-center w-full">스탬프 보상</p>
+                <div className="w-full flex flex-col gap-2">
                   {rewardCards.map((card, i) => (
-                    <div key={i} className="bg-[#f2f3f4] rounded-[4px] flex items-center gap-3 px-3 py-2 w-full">
-                      <span className="text-[13px] font-medium text-[#1d2022] leading-[130%] whitespace-nowrap">{card.tier}개</span>
-                      <span className="text-[13px] font-medium text-[#6eadff] leading-[130%]">{card.description}</span>
+                    <div key={i} className="bg-[#f2f3f4] rounded-[4px] flex items-center gap-3 px-3 py-3.5 w-full">
+                      <span className="text-[15px] font-medium text-[#1d2022] leading-[130%] whitespace-nowrap">{card.tier}개</span>
+                      <span className="text-[15px] font-medium text-[#6eadff] leading-[130%]">{card.description}</span>
                     </div>
                   ))}
                 </div>
