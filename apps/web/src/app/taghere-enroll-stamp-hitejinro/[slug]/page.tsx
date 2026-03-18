@@ -616,18 +616,28 @@ function HitejinroEnrollStampContent() {
 
       streamRef.current = stream;
 
-      // 오토포커스 활성화 (applyConstraints — 삼성/Android 호환성 향상)
+      // 오토포커스 + 토치 활성화 (Android Chrome 호환성 향상)
       const track = stream.getVideoTracks()[0];
       if (track) {
         try {
           const capabilities = track.getCapabilities?.() as any;
+          const advancedConstraints: any[] = [];
+
+          // 연속 오토포커스 설정
           if (capabilities?.focusMode?.includes?.('continuous')) {
-            await track.applyConstraints({
-              advanced: [{ focusMode: 'continuous' } as any],
-            });
+            advancedConstraints.push({ focusMode: 'continuous' });
+          }
+
+          // 근거리 초점 힌트 (바코드 스캔 거리 ~20-30cm)
+          if (capabilities?.focusDistance) {
+            advancedConstraints.push({ focusDistance: 0.25 });
+          }
+
+          if (advancedConstraints.length > 0) {
+            await track.applyConstraints({ advanced: advancedConstraints });
           }
         } catch {
-          // 오토포커스 미지원 기기 — 무시
+          // 미지원 기기 — 무시
         }
       }
 
@@ -647,7 +657,7 @@ function HitejinroEnrollStampContent() {
       // 처리 중복 방지용 플래그
       let isHandlingBarcode = false;
 
-      // 주기적 프레임 스캔 (350ms 간격 — 포커스 안정화 시간 확보)
+      // 주기적 프레임 스캔 (200ms 간격 — 포커스 맞는 순간 빠르게 캐치)
       scanIntervalRef.current = setInterval(async () => {
         if (isHandlingBarcode || !video || video.readyState < 2) return;
 
@@ -688,7 +698,7 @@ function HitejinroEnrollStampContent() {
         } catch (e) {
           // 프레임 디코딩 실패 (무시)
         }
-      }, 350);
+      }, 200);
 
       setIsScannerActive(true);
     } catch (err) {
