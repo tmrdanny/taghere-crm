@@ -1104,11 +1104,12 @@ function HitejinroEnrollStampContent() {
     );
   }
 
-  const rewardCards = (() => {
-    if (!stampInfo) return [{ tier: 10, description: '선물이 있어요' }];
+  const rewardLines = (() => {
+    if (!stampInfo) return ['10개 모으면 선물이 있어요'];
     const rewards = stampInfo.rewards || [];
-    if (rewards.length === 0) return [{ tier: 10, description: '보상을 받으세요' }];
-    return [...rewards].sort((a, b) => a.tier - b.tier);
+    if (rewards.length === 0) return ['스탬프를 모아 보상을 받으세요'];
+    const sorted = [...rewards].sort((a, b) => a.tier - b.tier);
+    return sorted.map(r => `${r.tier}개 모으면 ${r.description} 증정`);
   })();
 
   return (
@@ -1145,31 +1146,14 @@ function HitejinroEnrollStampContent() {
               </div>
             </div>
 
-            {/* 보상 슬라이드 */}
-            {rewardCards.length > 0 && (
-              <div className="w-full overflow-hidden py-2">
-                <style>{`
-                  @keyframes rewardScroll {
-                    0% { transform: translateX(0); }
-                    100% { transform: translateX(-50%); }
-                  }
-                `}</style>
-                <div
-                  className="flex gap-3 w-max"
-                  style={{ animation: `rewardScroll ${rewardCards.length * 4}s linear infinite` }}
-                >
-                  {[...rewardCards, ...rewardCards].map((card, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#f5f6f7] rounded-full whitespace-nowrap"
-                    >
-                      <span className="text-[13px] font-semibold text-[#1d2022]">{card.tier}개</span>
-                      <span className="text-[13px] text-[#555]">{card.description}</span>
-                    </div>
-                  ))}
-                </div>
+            {/* 보상 텍스트 */}
+            <div className="px-5 pb-2">
+              <div className="flex flex-col gap-0.5 text-center">
+                {rewardLines.map((line, i) => (
+                  <p key={i} className="text-[13px] text-neutral-500">{line}</p>
+                ))}
               </div>
-            )}
+            </div>
 
             {/* 바코드 스캐너 영역 */}
             <div className="flex-1 flex flex-col items-center justify-center px-5">
