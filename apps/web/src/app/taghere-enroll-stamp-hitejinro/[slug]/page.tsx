@@ -1204,7 +1204,7 @@ function HitejinroEnrollStampContent() {
               <div className={`rounded-[12px] mb-4 p-4 transition-colors ${showAgreementWarning && !isAgreed ? 'bg-[#fff0f3] border border-[#ffb3c1]' : 'bg-[#f8f9fa]'}`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-start gap-1">
-                    <p className="text-[14px] font-medium leading-[140%] text-[#55595e]">스탬프 적립을 위해 전국 매장 혜택 수신 동의가 필요해요.</p>
+                    <p className="text-[14px] font-medium leading-[140%] text-[#55595e]">적립을 위해 전국 매장 혜택 수신 동의가 필요해요.</p>
                     <span className="text-[#ff6b6b] text-[14px]">*</span>
                   </div>
                   <a
