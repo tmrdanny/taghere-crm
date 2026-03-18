@@ -1131,68 +1131,71 @@ function HitejinroEnrollStampContent() {
               </svg>
             </button>
 
-            {/* Title */}
-            <div className="pt-8 pb-3 px-2.5 flex-shrink-0">
-              <div className="text-center">
-                <p className="text-[20px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.4px]">
-                  테라/켈리 주문 후
-                  <br />
-                  병에 있는 바코드를 스캔하면
-                </p>
-                <p className="text-[20px] font-bold text-[#00ab4f] leading-[130%] tracking-[-0.4px]">
-                  스탬프 획득
-                </p>
-              </div>
-            </div>
-
-            {/* 바코드 스캐너 영역 */}
-            <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-5">
-              <div className="w-full max-w-[342px] flex flex-col gap-1.5 items-center">
-                <div className="w-full aspect-[4/3] bg-neutral-900 rounded-2xl overflow-hidden relative" ref={scannerContainerRef}>
-                  <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
-
-                  {!isScannerActive && !scannerError && !isProcessing && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900">
-                      <svg className="w-16 h-16 text-neutral-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <p className="text-neutral-400 text-sm">카메라 대기 중</p>
-                    </div>
-                  )}
-
-                  {isProcessing && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/80">
-                      <div className="w-8 h-8 border-2 border-[#00A859] border-t-transparent rounded-full animate-spin mb-3" />
-                      <p className="text-white text-sm">스탬프 적립 중...</p>
-                    </div>
-                  )}
-
-                  {scannerError && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900 p-4">
-                      <svg className="w-12 h-12 text-red-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      <p className="text-red-400 text-sm text-center">{scannerError}</p>
-                    </div>
-                  )}
+            {/* 스크롤 가능한 상단 영역 */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              {/* Title */}
+              <div className="pt-8 pb-3 px-2.5">
+                <div className="text-center">
+                  <p className="text-[20px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.4px]">
+                    테라/켈리 주문 후
+                    <br />
+                    병에 있는 바코드를 스캔하면
+                  </p>
+                  <p className="text-[20px] font-bold text-[#00ab4f] leading-[130%] tracking-[-0.4px]">
+                    스탬프 획득
+                  </p>
                 </div>
-                <p className="text-[13px] font-medium text-[#91959a] leading-[130%]">
-                  {isScannerActive ? '바코드를 카메라에 비춰주세요' : '카메라 대기중'}
-                </p>
               </div>
-            </div>
 
-            {/* 스탬프 보상 */}
-            <div className="flex-shrink-0 px-10 py-3 flex flex-col gap-2 items-center">
-              <p className="text-[14px] font-semibold text-black leading-[130%] text-center w-full">스탬프 보상</p>
-              <div className="w-full flex flex-col gap-1.5">
-                {rewardCards.map((card, i) => (
-                  <div key={i} className="bg-[#f2f3f4] rounded-[4px] flex items-center gap-3 px-3 py-2 w-full">
-                    <span className="text-[13px] font-medium text-[#1d2022] leading-[130%] whitespace-nowrap">{card.tier}개</span>
-                    <span className="text-[13px] font-medium text-[#6eadff] leading-[130%]">{card.description}</span>
+              {/* 바코드 스캐너 영역 */}
+              <div className="flex flex-col items-center px-5 pb-4">
+                <div className="w-full max-w-[342px] flex flex-col gap-1.5 items-center">
+                  <div className="w-full aspect-[2/1] bg-neutral-900 rounded-2xl overflow-hidden relative" ref={scannerContainerRef}>
+                    <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+
+                    {!isScannerActive && !scannerError && !isProcessing && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900">
+                        <svg className="w-14 h-14 text-neutral-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <p className="text-neutral-400 text-sm">카메라 대기 중</p>
+                      </div>
+                    )}
+
+                    {isProcessing && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/80">
+                        <div className="w-8 h-8 border-2 border-[#00A859] border-t-transparent rounded-full animate-spin mb-3" />
+                        <p className="text-white text-sm">스탬프 적립 중...</p>
+                      </div>
+                    )}
+
+                    {scannerError && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900 p-4">
+                        <svg className="w-12 h-12 text-red-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <p className="text-red-400 text-sm text-center">{scannerError}</p>
+                      </div>
+                    )}
                   </div>
-                ))}
+                  <p className="text-[13px] font-medium text-[#91959a] leading-[130%]">
+                    {isScannerActive ? '바코드를 카메라에 비춰주세요' : '카메라 대기중'}
+                  </p>
+                </div>
+              </div>
+
+              {/* 스탬프 보상 */}
+              <div className="px-10 py-3 flex flex-col gap-2 items-center">
+                <p className="text-[14px] font-semibold text-black leading-[130%] text-center w-full">스탬프 보상</p>
+                <div className="w-full flex flex-col gap-1.5">
+                  {rewardCards.map((card, i) => (
+                    <div key={i} className="bg-[#f2f3f4] rounded-[4px] flex items-center gap-3 px-3 py-2 w-full">
+                      <span className="text-[13px] font-medium text-[#1d2022] leading-[130%] whitespace-nowrap">{card.tier}개</span>
+                      <span className="text-[13px] font-medium text-[#6eadff] leading-[130%]">{card.description}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
