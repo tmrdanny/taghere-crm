@@ -1104,12 +1104,11 @@ function HitejinroEnrollStampContent() {
     );
   }
 
-  const rewardLines = (() => {
-    if (!stampInfo) return [{ prefix: '', highlight: '10개 모으면 선물이 있어요', suffix: '' }];
+  const rewardCards = (() => {
+    if (!stampInfo) return [{ tier: 10, description: '선물이 있어요' }];
     const rewards = stampInfo.rewards || [];
-    if (rewards.length === 0) return [{ prefix: '', highlight: '스탬프를 모아 보상을 받으세요', suffix: '' }];
-    const sorted = [...rewards].sort((a, b) => a.tier - b.tier);
-    return sorted.map(r => ({ prefix: `${r.tier}개 모으면 `, highlight: r.description, suffix: ' 증정' }));
+    if (rewards.length === 0) return [{ tier: 10, description: '보상을 받으세요' }];
+    return [...rewards].sort((a, b) => a.tier - b.tier);
   })();
 
   return (
@@ -1133,43 +1132,44 @@ function HitejinroEnrollStampContent() {
             </button>
 
             {/* Title */}
-            <div className="pt-12 pb-4 px-5">
+            <div className="pt-12 pb-2 px-5">
               <div className="text-center">
-                {stampInfo?.franchiseStampEnabled && stampInfo.franchiseName ? (
-                  <>
-                    <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
-                      {stampInfo.franchiseName}
-                      <br />
-                      <span className="text-[#00A859]">통합 스탬프 적립!</span>
-                    </p>
-                    <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">테라와 켈리 병에 있는 바코드를 스캔해보세요.</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
-                      테라, 켈리 주문하고
-                      <br />
-                      <span className="text-[#00A859]">스탬프 적립해요</span>
-                    </p>
-                    <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">1. 테라 또는 켈리 주문하기</p>
-                    <br />
-                    <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">2. 제품 하단의 바코드를 스캔</p>
-                    <br />
-                    <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">3. 동네 맛집 스탬프 획득!</p>
-                    <br />
-                    <br />
-                    <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">아래 "바코드 스캔하기"를 눌러주세요!</p>
-                  </>
-                )}
-                <div className="mt-3 flex flex-col gap-1">
-                  {rewardLines.map((line, i) => (
-                    <p key={i} className="text-[13px] text-neutral-500">
-                      {line.prefix}<span className="font-semibold text-[#00A859] underline">{line.highlight}</span>{line.suffix}
-                    </p>
+                <p className="text-[22px] font-bold text-[#1d2022] leading-[140%] tracking-[-0.6px]">
+                  테라/켈리 주문 후
+                  <br />
+                  병에 있는 바코드를 스캔하면
+                </p>
+                <p className="text-[22px] font-bold text-[#00A859] leading-[140%] tracking-[-0.6px]">
+                  스탬프 획득
+                </p>
+              </div>
+            </div>
+
+            {/* 보상 슬라이드 */}
+            {rewardCards.length > 0 && (
+              <div className="w-full overflow-hidden py-2">
+                <style>{`
+                  @keyframes rewardScroll {
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(-50%); }
+                  }
+                `}</style>
+                <div
+                  className="flex gap-3 w-max"
+                  style={{ animation: `rewardScroll ${rewardCards.length * 4}s linear infinite` }}
+                >
+                  {[...rewardCards, ...rewardCards].map((card, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-2 px-4 py-2 bg-[#f5f6f7] rounded-full whitespace-nowrap"
+                    >
+                      <span className="text-[13px] font-semibold text-[#1d2022]">{card.tier}개</span>
+                      <span className="text-[13px] text-[#555]">{card.description}</span>
+                    </div>
                   ))}
                 </div>
               </div>
-            </div>
+            )}
 
             {/* 바코드 스캐너 영역 */}
             <div className="flex-1 flex flex-col items-center justify-center px-5">
