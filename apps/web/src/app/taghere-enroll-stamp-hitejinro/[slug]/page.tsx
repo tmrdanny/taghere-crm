@@ -1104,13 +1104,12 @@ function HitejinroEnrollStampContent() {
     );
   }
 
-  const rewardText = (() => {
-    if (!stampInfo) return '10개 모으면 선물이 있어요';
+  const rewardLines = (() => {
+    if (!stampInfo) return ['10개 모으면 선물이 있어요'];
     const rewards = stampInfo.rewards || [];
-    if (rewards.length === 0) return '스탬프를 모아 보상을 받으세요';
+    if (rewards.length === 0) return ['스탬프를 모아 보상을 받으세요'];
     const sorted = [...rewards].sort((a, b) => a.tier - b.tier);
-    const first = sorted[0];
-    return `${first.tier}개 모으면 ${first.description} 증정`;
+    return sorted.map(r => `${r.tier}개 모으면 ${r.description} 증정`);
   })();
 
   return (
@@ -1150,12 +1149,23 @@ function HitejinroEnrollStampContent() {
                     <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
                       테라, 켈리 주문하고
                       <br />
-                      <span className="text-[#00A859]">해외여행 가자!!</span>
+                      <span className="text-[#00A859]">스탬프 적립해요</span>
                     </p>
-                    <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">테라와 켈리 병에 있는 바코드를 스캔해보세요.</p>
+                    <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">1. 테라 또는 켈리 주문하기</p>
+                    <br />
+                    <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">2. 제품 하단의 바코드를 스캔</p>
+                    <br />
+                    <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">3. 동네 맛집 스탬프 획득!</p>
+                    <br />
+                    <br />
+                    <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">아래 "바코드 스캔하기"를 눌러주세요!</p>
                   </>
                 )}
-                <p className="text-[12px] text-neutral-400 mt-1">{rewardText}</p>
+                <div className="mt-1 flex flex-col gap-0.5">
+                  {rewardLines.map((line, i) => (
+                    <p key={i} className="text-[12px] text-neutral-400">{line}</p>
+                  ))}
+                </div>
               </div>
             </div>
 
