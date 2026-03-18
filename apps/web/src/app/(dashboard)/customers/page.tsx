@@ -172,6 +172,10 @@ export default function CustomersPage() {
   const [earnPointsModal, setEarnPointsModal] = useState(false);
   const [earnAmount, setEarnAmount] = useState('');
   const [earnReason, setEarnReason] = useState('');
+  const [earnStampsModal, setEarnStampsModal] = useState(false);
+  const [earnStampAmount, setEarnStampAmount] = useState('1');
+  const [earnStampReason, setEarnStampReason] = useState('');
+  const [submittingEarnStamp, setSubmittingEarnStamp] = useState(false);
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -669,6 +673,42 @@ export default function CustomersPage() {
       showToast(err.message || '포인트 적립 중 오류가 발생했습니다.', 'error');
     } finally {
       setSubmittingEarn(false);
+    }
+  };
+
+  const handleEarnStamps = async () => {
+    if (!selectedCustomer || !earnStampAmount) return;
+    setSubmittingEarnStamp(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/stamps/adjust`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+        body: JSON.stringify({
+          customerId: selectedCustomer.id,
+          delta: parseInt(earnStampAmount, 10),
+          reason: earnStampReason || '스탬프 수동 적립',
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || '스탬프 적립 중 오류가 발생했습니다.');
+      }
+
+      setEarnStampsModal(false);
+      setEarnStampAmount('1');
+      setEarnStampReason('');
+      setSelectedCustomer(null);
+      setPage(1);
+      setRefreshKey((key) => key + 1);
+      showToast('스탬프가 적립되었습니다.', 'success');
+    } catch (err: any) {
+      showToast(err.message || '스탬프 적립 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setSubmittingEarnStamp(false);
     }
   };
 
@@ -1811,6 +1851,18 @@ export default function CustomersPage() {
                             >
                               포인트 적립
                             </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedCustomer(customer);
+                                setEarnStampAmount('1');
+                                setEarnStampReason('');
+                                setEarnStampsModal(true);
+                              }}
+                            >
+                              스탬프 적립
+                            </Button>
                           </div>
                         </td>
                       )}
@@ -2076,6 +2128,82 @@ export default function CustomersPage() {
               className="flex-1"
             >
               {submittingEarn ? '처리 중...' : '적립하기'}
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Earn Stamps Modal */}
+      <Modal open={earnStampsModal} onOpenChange={setEarnStampsModal}>
+        <ModalContent className="sm:max-w-lg">
+          <ModalHeader>
+            <ModalTitle>스탬프 적립</ModalTitle>
+          </ModalHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-600">적립 대상</label>
+              <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
+                <span className="text-neutral-400">적립 대상</span>
+                <span className="font-medium text-neutral-900">{maskNickname(selectedCustomer?.name)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-600">현재 보유 스탬프</label>
+              <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
+                <span className="text-neutral-400">보유 스탬프</span>
+                <span className="font-semibold text-neutral-900">
+                  {formatNumber(selectedCustomer?.totalStamps || 0)}개
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-600">적립할 스탬프 수</label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="1"
+                  value={earnStampAmount}
+                  onChange={(e) => setEarnStampAmount(e.target.value)}
+                  className="pr-8"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">개</span>
+              </div>
+              <div className="text-right text-sm text-neutral-500">
+                적립 후 잔액{' '}
+                <span className="font-medium text-neutral-900">
+                  {formatNumber((selectedCustomer?.totalStamps || 0) + (parseInt(earnStampAmount) || 0))}개
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-600">적립 사유 (선택)</label>
+              <Input
+                placeholder="예: 수동 적립"
+                value={earnStampReason}
+                onChange={(e) => setEarnStampReason(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <ModalFooter>
+            <Button
+              variant="secondary"
+              onClick={() => setEarnStampsModal(false)}
+              className="flex-1"
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleEarnStamps}
+              disabled={!earnStampAmount || parseInt(earnStampAmount) <= 0 || submittingEarnStamp}
+              className="flex-1"
+            >
+              {submittingEarnStamp ? '처리 중...' : '적립하기'}
             </Button>
           </ModalFooter>
         </ModalContent>
