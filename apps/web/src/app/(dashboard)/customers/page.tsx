@@ -234,6 +234,8 @@ export default function CustomersPage() {
     birthYear?: string | number;
     birthday?: string;
     memo?: string;
+    initialPoints?: number;
+    initialStamps?: number;
   }
   const [bulkModal, setBulkModal] = useState(false);
   const [bulkParsedData, setBulkParsedData] = useState<BulkRow[]>([]);
@@ -961,13 +963,13 @@ export default function CustomersPage() {
 
   // 샘플 엑셀 다운로드
   const handleDownloadSampleExcel = () => {
-    const headers = ['전화번호', '이름', '성별', '생년(YYYY)', '생일(MM-DD)', '메모'];
+    const headers = ['전화번호', '이름', '성별', '생년(YYYY)', '생일(MM-DD)', '메모', '포인트 적립', '스탬프 적립'];
     const sampleData = [
-      ['01012345678', '홍길동', '남', 1990, '03-15', 'VIP고객'],
-      ['01098765432', '김영희', '여', 1985, '11-20', ''],
+      ['01012345678', '홍길동', '남', 1990, '03-15', 'VIP고객', 500, 3],
+      ['01098765432', '김영희', '여', 1985, '11-20', '', 0, 0],
     ];
     const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
-    ws['!cols'] = [{ wch: 15 }, { wch: 12 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
+    ws['!cols'] = [{ wch: 15 }, { wch: 12 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 12 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '고객목록');
     XLSX.writeFile(wb, '대량_고객등록_샘플.xlsx');
@@ -1001,6 +1003,8 @@ export default function CustomersPage() {
           else if (h.includes('생년') || h.includes('birthYear') || h.includes('Birth') && h.includes('Y')) colMap.birthYear = idx;
           else if (h.includes('생일') || h.includes('birthday') || h.includes('Birth') && h.includes('D')) colMap.birthday = idx;
           else if (h.includes('메모') || h.includes('memo') || h.includes('Memo')) colMap.memo = idx;
+          else if (h.includes('포인트') || h.includes('point') || h.includes('Point')) colMap.initialPoints = idx;
+          else if (h.includes('스탬프') || h.includes('stamp') || h.includes('Stamp')) colMap.initialStamps = idx;
         });
 
         if (colMap.phone === undefined) {
@@ -1022,6 +1026,8 @@ export default function CustomersPage() {
             birthYear: colMap.birthYear !== undefined ? row[colMap.birthYear] : undefined,
             birthday: colMap.birthday !== undefined ? (row[colMap.birthday] ? String(row[colMap.birthday]).trim() : undefined) : undefined,
             memo: colMap.memo !== undefined ? (row[colMap.memo] ? String(row[colMap.memo]).trim() : undefined) : undefined,
+            initialPoints: colMap.initialPoints !== undefined ? (parseInt(String(row[colMap.initialPoints] || 0), 10) || 0) : undefined,
+            initialStamps: colMap.initialStamps !== undefined ? (parseInt(String(row[colMap.initialStamps] || 0), 10) || 0) : undefined,
           });
         }
 
@@ -1029,8 +1035,8 @@ export default function CustomersPage() {
           showToast('등록할 데이터가 없습니다.', 'error');
           return;
         }
-        if (parsed.length > 500) {
-          showToast(`최대 500건까지 등록 가능합니다. (현재 ${parsed.length}건)`, 'error');
+        if (parsed.length > 10000) {
+          showToast(`최대 10,000건까지 등록 가능합니다. (현재 ${parsed.length}건)`, 'error');
           return;
         }
 

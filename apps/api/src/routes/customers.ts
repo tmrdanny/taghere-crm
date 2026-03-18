@@ -410,8 +410,8 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
     if (!Array.isArray(customers) || customers.length === 0) {
       return res.status(400).json({ error: '등록할 고객 데이터가 없습니다.' });
     }
-    if (customers.length > 500) {
-      return res.status(400).json({ error: '한 번에 최대 500건까지 등록할 수 있습니다.' });
+    if (customers.length > 10000) {
+      return res.status(400).json({ error: '한 번에 최대 10,000건까지 등록할 수 있습니다.' });
     }
 
     const errors: Array<{ row: number; phone: string; reason: string }> = [];
@@ -424,6 +424,8 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
       birthYear: number | null;
       birthday: string | null;
       memo: string | null;
+      initialPoints: number;
+      initialStamps: number;
     }> = [];
 
     // 1. 각 row 검증 + 정규화
@@ -487,6 +489,8 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
         birthYear,
         birthday,
         memo: row.memo ? String(row.memo).trim() : null,
+        initialPoints: parseInt(String(row.initialPoints || 0), 10) || 0,
+        initialStamps: parseInt(String(row.initialStamps || 0), 10) || 0,
       });
     }
 
@@ -523,10 +527,62 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
             birthYear: r.birthYear,
             birthday: r.birthday,
             memo: r.memo,
+            totalPoints: r.initialPoints,
             visitCount: 0,
             lastVisitAt: null,
           })),
         });
+
+        // 포인트 적립 내역 생성 (initialPoints > 0인 고객만)
+        const pointRows = toCreate.filter(r => r.initialPoints > 0);
+        if (pointRows.length > 0) {
+          const createdCustomers = await prisma.customer.findMany({
+            where: { storeId, phoneLastDigits: { in: pointRows.map(r => r.phoneLastDigits) } },
+            select: { id: true, phoneLastDigits: true, totalPoints: true },
+          });
+          const phoneToCustomer = new Map(createdCustomers.map(c => [c.phoneLastDigits, c]));
+          await prisma.pointLedger.createMany({
+            data: pointRows
+              .filter(r => phoneToCustomer.has(r.phoneLastDigits))
+              .map(r => {
+                const c = phoneToCustomer.get(r.phoneLastDigits)!;
+                return {
+                  storeId,
+                  customerId: c.id,
+                  delta: r.initialPoints,
+                  balance: r.initialPoints,
+                  type: 'EARN' as const,
+                  reason: '엑셀 대량 등록 초기 포인트',
+                };
+              }),
+          });
+        }
+
+        // 스탬프 적립 내역 생성 (initialStamps > 0인 고객만)
+        const stampRows = toCreate.filter(r => r.initialStamps > 0);
+        if (stampRows.length > 0) {
+          const createdCustomers = await prisma.customer.findMany({
+            where: { storeId, phoneLastDigits: { in: stampRows.map(r => r.phoneLastDigits) } },
+            select: { id: true, phoneLastDigits: true },
+          });
+          const phoneToCustomer = new Map(createdCustomers.map(c => [c.phoneLastDigits, c]));
+
+          await prisma.stampLedger.createMany({
+            data: stampRows
+              .filter(r => phoneToCustomer.has(r.phoneLastDigits))
+              .map(r => {
+                const c = phoneToCustomer.get(r.phoneLastDigits)!;
+                return {
+                  storeId,
+                  customerId: c.id,
+                  delta: r.initialStamps,
+                  balance: r.initialStamps,
+                  type: 'EARN' as const,
+                  reason: '엑셀 대량 등록 초기 스탬프',
+                };
+              }),
+          });
+        }
       }
 
       res.json({
