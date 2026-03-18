@@ -1616,7 +1616,7 @@ router.post('/alimtalk/low-balance-bulk', adminAuthMiddleware, async (req: Admin
 router.post('/alimtalk/customer-count-bulk', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
     const { minCustomers = 0, maxCustomers, excludeStoreIds = [] } = req.body;
-    const templateId = 'KA01TP260312145107000ksJdYHQKHhv';
+    const templateId = 'KA01TP260318032138795sPQKm0yXShn';
 
     // 매장 조회 (전화번호가 있는 매장만, 고객수 포함)
     const stores = await prisma.store.findMany({
