@@ -1105,11 +1105,11 @@ function HitejinroEnrollStampContent() {
   }
 
   const rewardLines = (() => {
-    if (!stampInfo) return ['10개 모으면 선물이 있어요'];
+    if (!stampInfo) return [{ prefix: '', highlight: '10개 모으면 선물이 있어요', suffix: '' }];
     const rewards = stampInfo.rewards || [];
-    if (rewards.length === 0) return ['스탬프를 모아 보상을 받으세요'];
+    if (rewards.length === 0) return [{ prefix: '', highlight: '스탬프를 모아 보상을 받으세요', suffix: '' }];
     const sorted = [...rewards].sort((a, b) => a.tier - b.tier);
-    return sorted.map(r => `${r.tier}개 모으면 ${r.description} 증정`);
+    return sorted.map(r => ({ prefix: `${r.tier}개 모으면 `, highlight: r.description, suffix: ' 증정' }));
   })();
 
   return (
@@ -1161,9 +1161,11 @@ function HitejinroEnrollStampContent() {
                     <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">아래 "바코드 스캔하기"를 눌러주세요!</p>
                   </>
                 )}
-                <div className="mt-1 flex flex-col gap-0.5">
+                <div className="mt-3 flex flex-col gap-1">
                   {rewardLines.map((line, i) => (
-                    <p key={i} className="text-[12px] text-neutral-400">{line}</p>
+                    <p key={i} className="text-[13px] text-neutral-500">
+                      {line.prefix}<span className="font-semibold text-[#00A859] underline">{line.highlight}</span>{line.suffix}
+                    </p>
                   ))}
                 </div>
               </div>
