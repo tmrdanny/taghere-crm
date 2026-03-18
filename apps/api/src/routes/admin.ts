@@ -1612,6 +1612,79 @@ router.post('/alimtalk/low-balance-bulk', adminAuthMiddleware, async (req: Admin
   }
 });
 
+// POST /api/admin/alimtalk/customer-count-bulk - 누적 고객 알림 일괄 발송
+router.post('/alimtalk/customer-count-bulk', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { minCustomers = 0, maxCustomers, excludeStoreIds = [] } = req.body;
+    const templateId = 'KA01TP260312145107000ksJdYHQKHhv';
+
+    // 매장 조회 (전화번호가 있는 매장만, 고객수 포함)
+    const stores = await prisma.store.findMany({
+      where: {
+        phone: { not: null },
+        id: { notIn: excludeStoreIds },
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        _count: { select: { customers: true } },
+      },
+    });
+
+    // 고객수 필터링
+    const filtered = stores.filter((s) => {
+      const count = s._count.customers;
+      if (count < minCustomers) return false;
+      if (maxCustomers !== undefined && maxCustomers !== null && count > maxCustomers) return false;
+      return true;
+    });
+
+    let sent = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const store of filtered) {
+      const customerCount = store._count.customers;
+      const idempotencyKey = `admin_customer_count_bulk:${store.id}:${Date.now()}`;
+
+      try {
+        const result = await enqueueAlimTalk({
+          storeId: store.id,
+          phone: store.phone!,
+          messageType: 'CUSTOMER_COUNT',
+          templateId,
+          variables: {
+            '#{고객수}': customerCount.toLocaleString(),
+          },
+          idempotencyKey,
+        });
+
+        if (result.success) {
+          sent++;
+        } else {
+          failed++;
+          if (result.error) errors.push(`${store.name}: ${result.error}`);
+        }
+      } catch (err: any) {
+        failed++;
+        errors.push(`${store.name}: ${err.message}`);
+      }
+    }
+
+    res.json({
+      success: true,
+      totalStores: filtered.length,
+      sent,
+      failed,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error: any) {
+    console.error('Customer count bulk notification error:', error);
+    res.status(500).json({ error: error.message || '알림 발송 중 오류가 발생했습니다.' });
+  }
+});
+
 // ============================================
 // 프랜차이즈 관리 API
 // ============================================

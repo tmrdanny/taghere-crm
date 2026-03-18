@@ -533,6 +533,7 @@ enum AlimTalkType {
   AUTO_SLOW_DAY         // 비수기 프로모션 자동화
   CORPORATE_AD          // 기업광고 쿠폰 알림톡
   LOCAL_COUPON          // 지역 고객 쿠폰 알림톡
+  CUSTOMER_COUNT        // 누적 고객 수 알림
 }
 
 enum AlimTalkStatus {

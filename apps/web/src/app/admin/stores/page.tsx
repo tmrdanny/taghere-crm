@@ -124,6 +124,14 @@ export default function AdminStoresPage() {
   const [isSendingLowBalance, setIsSendingLowBalance] = useState(false);
   const [lowBalancePassword, setLowBalancePassword] = useState('');
 
+  // 누적 고객 알림 모달
+  const [customerCountModal, setCustomerCountModal] = useState(false);
+  const [ccMinCustomers, setCcMinCustomers] = useState('0');
+  const [ccMaxCustomers, setCcMaxCustomers] = useState('');
+  const [ccExcludedIds, setCcExcludedIds] = useState<Set<string>>(new Set());
+  const [isSendingCc, setIsSendingCc] = useState(false);
+  const [ccPassword, setCcPassword] = useState('');
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -572,6 +580,73 @@ export default function AdminStoresPage() {
     setLowBalanceModal(true);
   };
 
+  // 누적 고객 알림 - 필터링된 매장
+  const ccFilteredStores = stores.filter((s) => {
+    if (!s.phone) return false;
+    const count = s.customerCount;
+    const min = parseInt(ccMinCustomers) || 0;
+    const max = ccMaxCustomers ? parseInt(ccMaxCustomers) : null;
+    if (count < min) return false;
+    if (max !== null && count > max) return false;
+    return true;
+  });
+
+  const ccTargetStores = ccFilteredStores.filter((s) => !ccExcludedIds.has(s.id));
+
+  const openCustomerCountModal = () => {
+    setCcMinCustomers('0');
+    setCcMaxCustomers('');
+    setCcExcludedIds(new Set());
+    setCcPassword('');
+    setCustomerCountModal(true);
+  };
+
+  const handleSendCustomerCountNotification = async () => {
+    if (ccPassword !== '0614') {
+      setToast({ message: '비밀번호가 올바르지 않습니다.', type: 'error' });
+      return;
+    }
+    if (ccTargetStores.length === 0) {
+      setToast({ message: '발송 대상 매장이 없습니다.', type: 'error' });
+      return;
+    }
+
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsSendingCc(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/alimtalk/customer-count-bulk`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            minCustomers: parseInt(ccMinCustomers) || 0,
+            maxCustomers: ccMaxCustomers ? parseInt(ccMaxCustomers) : undefined,
+            excludeStoreIds: Array.from(ccExcludedIds),
+          }),
+        }
+      );
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setToast({
+          message: `${data.sent}개 매장에 누적 고객 알림톡 발송 완료${data.failed > 0 ? ` (실패: ${data.failed}개)` : ''}`,
+          type: 'success',
+        });
+        setCustomerCountModal(false);
+        setCcPassword('');
+        setCcExcludedIds(new Set());
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      setToast({ message: error.message || '발송에 실패했습니다.', type: 'error' });
+    } finally {
+      setIsSendingCc(false);
+    }
+  };
+
   // 홈 화면 열기 (매장 대리 로그인)
   const handleOpenStoreHome = async (storeId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -638,18 +713,27 @@ export default function AdminStoresPage() {
               <h2 className="text-[15px] sm:text-[16px] font-semibold text-neutral-900">매장 목록</h2>
               <p className="text-[12px] sm:text-[13px] text-neutral-500 mt-0.5">총 {stores.length}개 매장</p>
             </div>
-            {/* 발송잔액 부족 알림 버튼 */}
-            <button
-              onClick={openLowBalanceModal}
-              className="h-9 sm:h-10 px-3 sm:px-4 bg-orange-500 hover:bg-orange-600 text-white text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap"
-            >
-              <span className="hidden sm:inline">잔액부족</span>
-              {lowBalanceStores.length > 0 && (
-                <span className="bg-white/20 px-1.5 py-0.5 rounded text-[11px]">
-                  {lowBalanceStores.length}
-                </span>
-              )}
-            </button>
+            <div className="flex gap-2">
+              {/* 발송잔액 부족 알림 버튼 */}
+              <button
+                onClick={openLowBalanceModal}
+                className="h-9 sm:h-10 px-3 sm:px-4 bg-orange-500 hover:bg-orange-600 text-white text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap"
+              >
+                <span className="hidden sm:inline">잔액부족</span>
+                {lowBalanceStores.length > 0 && (
+                  <span className="bg-white/20 px-1.5 py-0.5 rounded text-[11px]">
+                    {lowBalanceStores.length}
+                  </span>
+                )}
+              </button>
+              {/* 누적 고객 알림 버튼 */}
+              <button
+                onClick={openCustomerCountModal}
+                className="h-9 sm:h-10 px-3 sm:px-4 bg-blue-500 hover:bg-blue-600 text-white text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap"
+              >
+                <span className="hidden sm:inline">누적고객</span>
+              </button>
+            </div>
           </div>
           {/* 하단: 검색창 + 정렬 */}
           <div className="flex gap-2">
@@ -1817,6 +1901,161 @@ export default function AdminStoresPage() {
                   </>
                 ) : (
                   `발송 (${targetLowBalanceStores.length}개)`
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 누적 고객 알림 모달 */}
+      {customerCountModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-lg w-full max-h-[80vh] flex flex-col">
+            <h3 className="text-[16px] font-semibold text-neutral-900 mb-4">
+              누적 고객 알림톡 발송
+            </h3>
+
+            {/* 고객수 필터 */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <p className="text-[13px] font-medium text-blue-700 mb-3">고객수 필터</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  value={ccMinCustomers}
+                  onChange={(e) => setCcMinCustomers(e.target.value)}
+                  placeholder="최소"
+                  className="w-24 h-9 px-3 bg-white border border-blue-300 rounded-lg text-[13px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                />
+                <span className="text-[13px] text-neutral-500">명 이상</span>
+                <span className="text-neutral-300 mx-1">~</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={ccMaxCustomers}
+                  onChange={(e) => setCcMaxCustomers(e.target.value)}
+                  placeholder="제한없음"
+                  className="w-24 h-9 px-3 bg-white border border-blue-300 rounded-lg text-[13px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                />
+                <span className="text-[13px] text-neutral-500">명 이하</span>
+              </div>
+            </div>
+
+            {/* 통계 */}
+            <div className="grid grid-cols-3 gap-4 text-center bg-neutral-50 rounded-lg p-3 mb-4">
+              <div>
+                <p className="text-[12px] text-neutral-500">필터 결과</p>
+                <p className="text-[18px] font-bold text-blue-700">{ccFilteredStores.length}개</p>
+              </div>
+              <div>
+                <p className="text-[12px] text-neutral-500">제외</p>
+                <p className="text-[18px] font-bold text-neutral-600">{ccExcludedIds.size}개</p>
+              </div>
+              <div>
+                <p className="text-[12px] text-neutral-500">발송 대상</p>
+                <p className="text-[18px] font-bold text-blue-700">{ccTargetStores.length}개</p>
+              </div>
+            </div>
+
+            {/* 안내 문구 */}
+            <p className="text-[13px] text-neutral-500 mb-2">
+              각 매장의 실제 누적 고객수가 #{'{'}고객수{'}'} 변수로 들어갑니다.
+            </p>
+
+            {/* 전체 선택/해제 */}
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={() => setCcExcludedIds(new Set())}
+                className="text-[12px] text-blue-600 hover:underline"
+              >
+                전체 선택
+              </button>
+              <span className="text-neutral-300">|</span>
+              <button
+                onClick={() => setCcExcludedIds(new Set(ccFilteredStores.map(s => s.id)))}
+                className="text-[12px] text-blue-600 hover:underline"
+              >
+                전체 해제
+              </button>
+            </div>
+
+            {/* 매장 목록 */}
+            <div className="flex-1 overflow-y-auto border border-[#EAEAEA] rounded-lg mb-4">
+              {ccFilteredStores.length === 0 ? (
+                <div className="p-4 text-center text-neutral-500 text-[13px]">
+                  조건에 맞는 매장이 없습니다.
+                </div>
+              ) : (
+                <div className="divide-y divide-[#EAEAEA]">
+                  {ccFilteredStores.map((store) => (
+                    <label
+                      key={store.id}
+                      className="flex items-center gap-3 p-3 hover:bg-neutral-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!ccExcludedIds.has(store.id)}
+                        onChange={(e) => {
+                          const newSet = new Set(ccExcludedIds);
+                          if (e.target.checked) newSet.delete(store.id);
+                          else newSet.add(store.id);
+                          setCcExcludedIds(newSet);
+                        }}
+                        className="w-4 h-4 rounded border-neutral-300 text-blue-500 focus:ring-blue-500"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-medium text-neutral-900 truncate">
+                          {store.name}
+                        </p>
+                        <p className="text-[12px] text-neutral-500">
+                          고객: {formatNumber(store.customerCount)}명 · {store.phone}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 비밀번호 */}
+            <div className="mb-4">
+              <label className="block text-[13px] font-medium text-neutral-700 mb-1">
+                관리자 비밀번호
+              </label>
+              <input
+                type="password"
+                value={ccPassword}
+                onChange={(e) => setCcPassword(e.target.value)}
+                placeholder="비밀번호 입력"
+                className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+              />
+            </div>
+
+            {/* 버튼 */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setCustomerCountModal(false);
+                  setCcPassword('');
+                  setCcExcludedIds(new Set());
+                }}
+                className="flex-1 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg text-[14px] font-medium transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSendCustomerCountNotification}
+                disabled={isSendingCc || ccTargetStores.length === 0}
+                className="flex-1 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-[14px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSendingCc ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    발송 중...
+                  </>
+                ) : (
+                  `발송 (${ccTargetStores.length}개)`
                 )}
               </button>
             </div>
