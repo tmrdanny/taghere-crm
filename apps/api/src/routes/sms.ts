@@ -511,74 +511,89 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     // 무료 크레딧 한도 (순서대로 무료 적용)
     const freeCreditsLimit = usedFreeCredits;
 
-    // 개별 메시지 생성 및 발송 (병렬 처리, 대기 없이 즉시 응답)
-    const sendPromises = customers.map(async (customer, index) => {
-      const personalizedContent = formattedContent.replace(/{고객명}/g, customer.name || '고객');
-      const normalizedPhone = normalizePhoneNumber(customer.phone!);
+    // 배치 발송 (동시성 제한: 5건씩 순차 발송, SOLAPI rate limit 방지)
+    const BATCH_SIZE = 5;
+    const BATCH_DELAY_MS = 200; // 배치 간 200ms 대기
+    const results: { success: boolean; phone: string }[] = [];
 
-      // 순서대로 무료 크레딧 적용 (index 기준)
-      const isFreeMessage = index < freeCreditsLimit;
-      const messageCost = isFreeMessage ? 0 : costPerMessage;
+    for (let i = 0; i < customers.length; i += BATCH_SIZE) {
+      const batch = customers.slice(i, i + BATCH_SIZE);
 
-      try {
-        // SOLAPI 발송 옵션
-        const sendOptions: any = {
-          to: normalizedPhone,
-          from: '07041380263', // 발신번호 고정
-          text: personalizedContent,
-          type: messageType,
-        };
+      const batchResults = await Promise.all(
+        batch.map(async (customer, batchIndex) => {
+          const index = i + batchIndex;
+          const personalizedContent = formattedContent.replace(/{고객명}/g, customer.name || '고객');
+          const normalizedPhone = normalizePhoneNumber(customer.phone!);
 
-        // MMS인 경우 이미지 추가 (SOLAPI에서 받은 imageId 사용)
-        if (hasImage && imageId) {
-          sendOptions.imageId = imageId;
-        }
+          // 순서대로 무료 크레딧 적용 (index 기준)
+          const isFreeMessage = index < freeCreditsLimit;
+          const messageCost = isFreeMessage ? 0 : costPerMessage;
 
-        const result = await messageService.send(sendOptions);
-        const groupInfo = result.groupInfo;
-        const groupId = groupInfo?.groupId;
+          try {
+            // SOLAPI 발송 옵션
+            const sendOptions: any = {
+              to: normalizedPhone,
+              from: '07041380263', // 발신번호 고정
+              text: personalizedContent,
+              type: messageType,
+            };
 
-        console.log(`[SMS] Sent to ${normalizedPhone}, groupId: ${groupId}, free: ${isFreeMessage}`);
+            // MMS인 경우 이미지 추가 (SOLAPI에서 받은 imageId 사용)
+            if (hasImage && imageId) {
+              sendOptions.imageId = imageId;
+            }
 
-        // 즉시 PENDING 상태로 저장 (결과는 워커에서 확인)
-        await prisma.smsMessage.create({
-          data: {
-            campaignId: campaign.id,
-            storeId,
-            customerId: customer.id,
-            phone: normalizedPhone,
-            content: personalizedContent,
-            status: 'PENDING', // 워커에서 결과 확인 후 업데이트
-            solapiGroupId: groupId, // 결과 조회용
-            solapiMessageId: groupInfo?.groupId, // groupId를 messageId로도 사용
-            cost: messageCost, // 무료 크레딧이면 0, 유료면 실제 비용
-          },
-        });
+            const result = await messageService.send(sendOptions);
+            const groupInfo = result.groupInfo;
+            const groupId = groupInfo?.groupId;
 
-        return { success: true, phone: normalizedPhone };
-      } catch (error: any) {
-        // API 호출 자체가 실패한 경우
-        console.error(`[SMS] Send error for ${normalizedPhone}:`, error.message);
+            console.log(`[SMS] Sent to ${normalizedPhone}, groupId: ${groupId}, free: ${isFreeMessage}, batch: ${Math.floor(i / BATCH_SIZE) + 1}`);
 
-        await prisma.smsMessage.create({
-          data: {
-            campaignId: campaign.id,
-            storeId,
-            customerId: customer.id,
-            phone: normalizedPhone,
-            content: personalizedContent,
-            status: 'FAILED',
-            cost: 0, // 실패 시 비용 0
-            failReason: error.message || 'Unknown error',
-          },
-        });
+            // 즉시 PENDING 상태로 저장 (결과는 워커에서 확인)
+            await prisma.smsMessage.create({
+              data: {
+                campaignId: campaign.id,
+                storeId,
+                customerId: customer.id,
+                phone: normalizedPhone,
+                content: personalizedContent,
+                status: 'PENDING',
+                solapiGroupId: groupId,
+                solapiMessageId: groupInfo?.groupId,
+                cost: messageCost,
+              },
+            });
 
-        return { success: false, phone: normalizedPhone };
+            return { success: true, phone: normalizedPhone };
+          } catch (error: any) {
+            console.error(`[SMS] Send error for ${normalizedPhone}:`, error.message);
+
+            await prisma.smsMessage.create({
+              data: {
+                campaignId: campaign.id,
+                storeId,
+                customerId: customer.id,
+                phone: normalizedPhone,
+                content: personalizedContent,
+                status: 'FAILED',
+                cost: 0,
+                failReason: error.message || 'Unknown error',
+              },
+            });
+
+            return { success: false, phone: normalizedPhone };
+          }
+        })
+      );
+
+      results.push(...batchResults);
+
+      // 배치 간 딜레이 (마지막 배치 제외)
+      if (i + BATCH_SIZE < customers.length) {
+        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
       }
-    });
+    }
 
-    // 모든 발송 요청 병렬 처리
-    const results = await Promise.all(sendPromises);
     sentCount = results.filter((r) => r.success).length;
     failedCount = results.filter((r) => !r.success).length;
 
