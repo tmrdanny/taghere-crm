@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { SolapiMessageService } from 'solapi';
 import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
-import { SolapiService, BrandMessageButton } from '../services/solapi.js';
+import { SolapiService, BrandMessageButton, buildPhoneResultMap } from '../services/solapi.js';
 
 const router = Router();
 
@@ -529,87 +529,45 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       return res.status(500).json({ error: 'SMS 발송 설정이 되어있지 않습니다.' });
     }
 
-    const messageService = new SolapiMessageService(apiKey, apiSecret);
+    const solapiService = new SolapiService(apiKey, apiSecret);
 
-    // 개별 메시지 생성 및 발송
+    // 벌크 메시지 배열 구성
+    const bulkMessages = selectedCustomers.map((selected) => ({
+      to: selected.phone,
+      text: formattedContent,
+    }));
+
+    // 그룹 메시지 벌크 발송
+    const batchResults = await solapiService.sendBulkSms(bulkMessages);
+    const { successGroupIds, failureMap } = buildPhoneResultMap(batchResults);
+    const groupId = successGroupIds[0] || null;
+
+    console.log(`[SMS] Bulk send complete: ${successGroupIds.length} groups, ${failureMap.size} failed phones`);
+
+    // 결과를 기반으로 DB 레코드 생성
     let pendingCount = 0;
     let failedCount = 0;
 
     for (const selected of selectedCustomers) {
-      try {
-        console.log(`[SMS 발송] ${selected.source} 고객 전화번호: ${selected.phone}`);
+      const normalizedPhone = selected.phone.replace(/[^0-9]/g, '');
+      const phoneLookup = normalizedPhone.startsWith('82') ? '0' + normalizedPhone.slice(2) : (normalizedPhone.startsWith('0') ? normalizedPhone : '0' + normalizedPhone);
+      const isFailed = failureMap.has(phoneLookup);
 
-        // SOLAPI 발송 (전화번호 그대로 전달)
-        const result = await messageService.send({
-          to: selected.phone,
-          from: '07041380263', // 발신번호 고정
-          text: formattedContent,
-        });
+      await prisma.externalSmsMessage.create({
+        data: {
+          campaignId: campaign.id,
+          franchiseId,
+          externalCustomerId: selected.source === 'external' ? selected.id : null,
+          content: formattedContent,
+          status: isFailed ? 'FAILED' : 'PENDING',
+          solapiGroupId: isFailed ? undefined : groupId,
+          cost: isFailed ? 0 : EXTERNAL_SMS_COST,
+          failReason: isFailed ? failureMap.get(phoneLookup) : undefined,
+        },
+      });
 
-        const groupInfo = result.groupInfo;
-        const groupId = groupInfo?.groupId;
-
-        // 메시지 레코드 생성 (소스 구분)
-        if (selected.source === 'external') {
-          await prisma.externalSmsMessage.create({
-            data: {
-              campaignId: campaign.id,
-              franchiseId,
-              externalCustomerId: selected.id,
-              content: formattedContent,
-              status: 'PENDING',
-              solapiGroupId: groupId,
-              cost: EXTERNAL_SMS_COST,
-            },
-          });
-        } else {
-          // Customer의 경우 externalCustomerId를 null로 저장
-          await prisma.externalSmsMessage.create({
-            data: {
-              campaignId: campaign.id,
-              franchiseId,
-              externalCustomerId: null,
-              content: formattedContent,
-              status: 'PENDING',
-              solapiGroupId: groupId,
-              cost: EXTERNAL_SMS_COST,
-            },
-          });
-        }
-
-        pendingCount++;
-      } catch (err: any) {
-        console.error(`[SMS] Send error for ${selected.source} customer ${selected.phone}:`, err.message);
-
-        // 실패 레코드 생성
-        if (selected.source === 'external') {
-          await prisma.externalSmsMessage.create({
-            data: {
-              campaignId: campaign.id,
-              franchiseId,
-              externalCustomerId: selected.id,
-              content: formattedContent,
-              status: 'FAILED',
-              cost: 0,
-              failReason: err.message || 'Unknown error',
-            },
-          });
-        } else {
-          await prisma.externalSmsMessage.create({
-            data: {
-              campaignId: campaign.id,
-              franchiseId,
-              externalCustomerId: null,
-              content: formattedContent,
-              status: 'FAILED',
-              cost: 0,
-              failReason: err.message || 'Unknown error',
-            },
-          });
-        }
-
-        failedCount++;
-      }
+      if (isFailed) failedCount++;
+      else pendingCount++;
     }
 
     // 캠페인 상태 업데이트
@@ -892,56 +850,49 @@ router.post('/kakao/send', franchiseAuthMiddleware, async (req: FranchiseAuthReq
       },
     });
 
-    // 개별 메시지 발송
+    // 벌크 브랜드 메시지 발송
+    const bulkBrandMessages = customers.map((customer) => ({
+      to: customer.phone,
+      content,
+    }));
+
+    const batchResults = await solapiService.sendBulkBrandMessage({
+      messages: bulkBrandMessages,
+      pfId,
+      messageType: messageType as 'TEXT' | 'IMAGE',
+      imageId,
+      buttons: buttons as BrandMessageButton[],
+      scheduledAt,
+    });
+    const { successGroupIds, failureMap } = buildPhoneResultMap(batchResults);
+    const groupId = successGroupIds[0] || null;
+
+    console.log(`[ExternalKakao] Bulk send complete: ${successGroupIds.length} groups, ${failureMap.size} failed phones`);
+
+    // 결과를 기반으로 DB 레코드 생성
     let pendingCount = 0;
     let failedCount = 0;
 
     for (const customer of customers) {
-      try {
-        console.log(`[브랜드 메시지 발송] 고객 전화번호 (DB): ${customer.phone}`);
+      const normalizedPhone = customer.phone.replace(/[^0-9]/g, '');
+      const phoneLookup = normalizedPhone.startsWith('82') ? '0' + normalizedPhone.slice(2) : (normalizedPhone.startsWith('0') ? normalizedPhone : '0' + normalizedPhone);
+      const isFailed = failureMap.has(phoneLookup);
 
-        const result = await solapiService.sendBrandMessage({
-          to: customer.phone,
-          pfId,
+      await prisma.externalSmsMessage.create({
+        data: {
+          campaignId: campaign.id,
+          franchiseId,
+          externalCustomerId: customer.id,
           content,
-          messageType: messageType as 'TEXT' | 'IMAGE',
-          imageId,
-          buttons: buttons as BrandMessageButton[],
-          scheduledAt,
-        });
+          status: isFailed ? 'FAILED' : 'PENDING',
+          solapiGroupId: isFailed ? undefined : groupId,
+          cost: isFailed ? 0 : costPerMessage,
+          failReason: isFailed ? failureMap.get(phoneLookup) : undefined,
+        },
+      });
 
-        if (result.success && result.groupId) {
-          await prisma.externalSmsMessage.create({
-            data: {
-              campaignId: campaign.id,
-              externalCustomerId: customer.id,
-              content,
-              status: 'PENDING',
-              solapiGroupId: result.groupId,
-              cost: costPerMessage,
-            },
-          });
-          pendingCount++;
-        } else {
-          throw new Error(result.error || 'Unknown error');
-        }
-      } catch (err: any) {
-        console.error(`[ExternalKakao] Send error for ${customer.phone}:`, err.message);
-
-        await prisma.externalSmsMessage.create({
-          data: {
-            campaignId: campaign.id,
-            franchiseId,
-            externalCustomerId: customer.id,
-            content,
-            status: 'FAILED',
-            cost: 0,
-            failReason: err.message || 'Unknown error',
-          },
-        });
-
-        failedCount++;
-      }
+      if (isFailed) failedCount++;
+      else pendingCount++;
     }
 
     // 캠페인 상태 업데이트

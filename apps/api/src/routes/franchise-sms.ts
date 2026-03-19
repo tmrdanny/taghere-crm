@@ -6,7 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
-import { SolapiService } from '../services/solapi.js';
+import { SolapiService, buildPhoneResultMap } from '../services/solapi.js';
 import { maskName, maskPhone } from '../utils/masking.js';
 
 const router = Router();
@@ -783,7 +783,7 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
         }
       });
 
-      // 5. SOLAPI 발송 (비동기)
+      // 5. SOLAPI 벌크 발송 (비동기)
       setImmediate(async () => {
         try {
           const apiKey = process.env.SOLAPI_API_KEY;
@@ -794,46 +794,33 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
             return;
           }
 
-          const messageService = new SolapiMessageService(apiKey, apiSecret);
+          const solapiService = new SolapiService(apiKey, apiSecret);
           const bytes = getByteLength(content);
           const msgType = imageId ? 'MMS' : (bytes <= 90 ? 'SMS' : 'LMS');
 
-          // 개별 발송 (병렬 처리)
-          const sendPromises = customers.map(async (customer) => {
-            const normalizedPhone = normalizePhoneNumber(customer.phone!);
+          // 벌크 메시지 배열 구성
+          const bulkMessages = customers.map((customer) => ({
+            to: normalizePhoneNumber(customer.phone!),
+            text: content,
+            type: msgType as 'SMS' | 'LMS' | 'MMS',
+            ...(imageId ? { imageId } : {}),
+          }));
 
-            try {
-              // SOLAPI 발송 옵션
-              const sendOptions: any = {
-                to: normalizedPhone,
-                from: '07041380263', // 발신번호 고정
-                text: content,
-                type: msgType,
-              };
+          // 그룹 메시지 벌크 발송
+          const batchResults = await solapiService.sendBulkSms(bulkMessages);
+          const { successGroupIds, failureMap } = buildPhoneResultMap(batchResults);
+          const groupId = successGroupIds[0] || null;
 
-              // MMS인 경우 이미지 추가 (SOLAPI에서 받은 imageId 사용)
-              if (imageId) {
-                sendOptions.imageId = imageId;
-              }
+          console.log(`[Franchise SMS] Bulk send complete: ${successGroupIds.length} groups, ${failureMap.size} failed phones`);
 
-              const result = await messageService.send(sendOptions);
-              const groupInfo = result.groupInfo;
-              const groupId = groupInfo?.groupId;
+          // 6. 개별 메시지 기록 (결과 기반)
+          let sentCount = 0;
+          let failedCount = 0;
 
-              console.log(`[Franchise SMS] Sent to ${normalizedPhone}, groupId: ${groupId}`);
-              return { success: true, phone: normalizedPhone };
-            } catch (error: any) {
-              console.error(`[Franchise SMS] Send error for ${normalizedPhone}:`, error.message);
-              return { success: false, phone: normalizedPhone };
-            }
-          });
-
-          const results = await Promise.all(sendPromises);
-          const sentCount = results.filter((r) => r.success).length;
-          const failedCount = results.filter((r) => !r.success).length;
-
-          // 6. 개별 메시지 기록
           for (const customer of customers) {
+            const normalizedPhone = normalizePhoneNumber(customer.phone!);
+            const isFailed = failureMap.has(normalizedPhone);
+
             await prisma.franchiseSmsMessage.create({
               data: {
                 campaignId: campaign.id,
@@ -841,18 +828,21 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
                 phone: customer.phone!,
                 content,
                 messageType,
-                cost: costPerMessage,
-                status: 'SENT'
+                cost: isFailed ? 0 : costPerMessage,
+                status: isFailed ? 'FAILED' : 'PENDING',
               }
             });
+
+            if (isFailed) failedCount++;
+            else sentCount++;
           }
 
           // 7. 캠페인 완료 업데이트
           await prisma.franchiseSmsCampaign.update({
             where: { id: campaign.id },
             data: {
-              status: 'COMPLETED',
-              sentCount: customers.length
+              status: sentCount > 0 ? 'SENDING' : 'FAILED',
+              sentCount,
             }
           });
         } catch (error) {

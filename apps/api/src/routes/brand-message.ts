@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { SolapiService, BrandMessageButton } from '../services/solapi.js';
+import { SolapiService, BrandMessageButton, buildPhoneResultMap } from '../services/solapi.js';
 import { calculateCostWithCredits } from '../services/credit-service.js';
 
 const router = Router();
@@ -522,77 +522,50 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       },
     });
 
-    // 발송 결과 추적
+    // 벌크 브랜드 메시지 발송
+    const bulkBrandMessages = customers.map((customer) => ({
+      to: normalizePhoneNumber(customer.phone!),
+      content: formattedContent.replace(/{고객명}/g, customer.name || '고객'),
+    }));
+
+    const batchResults = await solapiService.sendBulkBrandMessage({
+      messages: bulkBrandMessages,
+      pfId,
+      messageType: messageType as 'TEXT' | 'IMAGE',
+      imageId,
+      buttons: buttons as BrandMessageButton[],
+    });
+    const { successGroupIds, failureMap } = buildPhoneResultMap(batchResults);
+    const groupId = successGroupIds[0] || null;
+
+    console.log(`[BrandMessage] Bulk send complete: ${successGroupIds.length} groups, ${failureMap.size} failed phones`);
+
+    // 결과를 기반으로 DB 레코드 생성
     let pendingCount = 0;
     let failedCount = 0;
 
-    // 개별 메시지 발송
-    const sendPromises = customers.map(async (customer) => {
-      const personalizedContent = formattedContent.replace(/{고객명}/g, customer.name || '고객');
+    for (const customer of customers) {
       const normalizedPhone = normalizePhoneNumber(customer.phone!);
+      const personalizedContent = formattedContent.replace(/{고객명}/g, customer.name || '고객');
+      const isFailed = failureMap.has(normalizedPhone);
 
-      try {
-        const result = await solapiService.sendBrandMessage({
-          to: normalizedPhone,
-          pfId,
+      await prisma.brandMessage.create({
+        data: {
+          campaignId: campaign.id,
+          storeId,
+          customerId: customer.id,
+          phone: normalizedPhone,
           content: personalizedContent,
-          messageType: messageType as 'TEXT' | 'IMAGE',
-          imageId,
-          buttons: buttons as BrandMessageButton[],
-        });
+          status: isFailed ? 'FAILED' : 'PENDING',
+          solapiGroupId: isFailed ? undefined : groupId,
+          cost: isFailed ? 0 : costPerMessage,
+          failReason: isFailed ? failureMap.get(normalizedPhone) : undefined,
+        },
+      });
 
-        if (result.success && result.groupId) {
-          await prisma.brandMessage.create({
-            data: {
-              campaignId: campaign.id,
-              storeId,
-              customerId: customer.id,
-              phone: normalizedPhone,
-              content: personalizedContent,
-              status: 'PENDING',
-              solapiGroupId: result.groupId,
-              cost: costPerMessage,
-            },
-          });
-          return { success: true, phone: normalizedPhone };
-        } else {
-          await prisma.brandMessage.create({
-            data: {
-              campaignId: campaign.id,
-              storeId,
-              customerId: customer.id,
-              phone: normalizedPhone,
-              content: personalizedContent,
-              status: 'FAILED',
-              failReason: result.error || 'Unknown error',
-              cost: 0,
-            },
-          });
-          return { success: false, phone: normalizedPhone };
-        }
-      } catch (error: any) {
-        console.error(`[BrandMessage] Send error for ${normalizedPhone}:`, error.message);
-
-        await prisma.brandMessage.create({
-          data: {
-            campaignId: campaign.id,
-            storeId,
-            customerId: customer.id,
-            phone: normalizedPhone,
-            content: personalizedContent,
-            status: 'FAILED',
-            failReason: error.message || 'Unknown error',
-            cost: 0,
-          },
-        });
-
-        return { success: false, phone: normalizedPhone };
-      }
-    });
-
-    const results = await Promise.all(sendPromises);
-    pendingCount = results.filter((r) => r.success).length;
-    failedCount = results.filter((r) => !r.success).length;
+      if (isFailed) failedCount++;
+      else pendingCount++;
+    }
 
     // 캠페인 상태 업데이트
     await prisma.brandMessageCampaign.update({

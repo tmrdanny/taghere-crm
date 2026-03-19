@@ -377,6 +377,183 @@ export class SolapiService {
       return { success: false, error: error.message || 'Unknown error' };
     }
   }
+  // ===== 그룹 메시지 벌크 발송 유틸리티 =====
+
+  // SMS/LMS/MMS 벌크 발송 (SDK send() 배열 지원 활용)
+  async sendBulkSms(messages: Array<{
+    to: string;
+    from?: string;
+    text: string;
+    type?: 'SMS' | 'LMS' | 'MMS';
+    imageId?: string;
+  }>): Promise<Array<{
+    groupId: string;
+    acceptedCount: number;
+    failedPhones: Map<string, string>;
+  }>> {
+    if (!this.messageService) {
+      throw new Error('SOLAPI not configured');
+    }
+
+    const CHUNK_SIZE = 1000;
+    const CHUNK_DELAY_MS = 100;
+    const results: Array<{ groupId: string; acceptedCount: number; failedPhones: Map<string, string> }> = [];
+
+    for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
+      const chunk = messages.slice(i, i + CHUNK_SIZE).map((msg) => ({
+        to: this.normalizePhoneNumber(msg.to),
+        from: msg.from || '07041380263',
+        text: msg.text,
+        type: msg.type || undefined,
+        ...(msg.imageId ? { imageId: msg.imageId } : {}),
+      }));
+
+      try {
+        const result = await this.messageService.send(chunk as any);
+        const groupId = result.groupInfo?.groupId || '';
+        const acceptedCount = result.groupInfo?.count?.total || chunk.length;
+        const failedPhones = new Map<string, string>();
+
+        if (result.failedMessageList && result.failedMessageList.length > 0) {
+          for (const failed of result.failedMessageList) {
+            failedPhones.set((failed as any).to || '', (failed as any).reason || 'Unknown error');
+          }
+        }
+
+        console.log(`[SOLAPI Bulk SMS] Chunk ${Math.floor(i / CHUNK_SIZE) + 1}: groupId=${groupId}, accepted=${acceptedCount}, failed=${failedPhones.size}`);
+        results.push({ groupId, acceptedCount, failedPhones });
+      } catch (error: any) {
+        console.error(`[SOLAPI Bulk SMS] Chunk ${Math.floor(i / CHUNK_SIZE) + 1} error:`, error.message);
+        // 청크 전체 실패 시 모든 번호를 실패로 처리
+        const failedPhones = new Map<string, string>();
+        for (const msg of chunk) {
+          failedPhones.set(msg.to, error.message || 'Chunk send failed');
+        }
+        results.push({ groupId: '', acceptedCount: 0, failedPhones });
+      }
+
+      // 청크 간 딜레이 (마지막 제외)
+      if (i + CHUNK_SIZE < messages.length) {
+        await new Promise((resolve) => setTimeout(resolve, CHUNK_DELAY_MS));
+      }
+    }
+
+    return results;
+  }
+
+  // 브랜드 메시지(BMS_FREE) 벌크 발송
+  async sendBulkBrandMessage(params: {
+    messages: Array<{ to: string; content: string }>;
+    pfId: string;
+    messageType: 'TEXT' | 'IMAGE';
+    imageId?: string;
+    buttons?: BrandMessageButton[];
+    scheduledAt?: Date;
+  }): Promise<Array<{
+    groupId: string;
+    acceptedCount: number;
+    failedPhones: Map<string, string>;
+  }>> {
+    if (!this.apiKey || !this.apiSecret) {
+      throw new Error('SOLAPI not configured');
+    }
+
+    const CHUNK_SIZE = 1000;
+    const CHUNK_DELAY_MS = 100;
+    const results: Array<{ groupId: string; acceptedCount: number; failedPhones: Map<string, string> }> = [];
+
+    const bmsButtons = params.buttons?.length
+      ? params.buttons.map((btn) => ({
+          name: btn.name,
+          linkType: 'WL',
+          linkMobile: btn.linkMo,
+          linkPc: btn.linkPc || btn.linkMo,
+        }))
+      : undefined;
+
+    for (let i = 0; i < params.messages.length; i += CHUNK_SIZE) {
+      const chunk = params.messages.slice(i, i + CHUNK_SIZE);
+
+      const messagesPayload = chunk.map((msg) => {
+        const message: any = {
+          to: this.normalizePhoneNumber(msg.to),
+          from: '07041380263',
+          type: 'BMS_FREE',
+          text: msg.content,
+          kakaoOptions: {
+            pfId: params.pfId,
+            bms: {
+              targeting: 'M',
+              chatBubbleType: params.imageId ? 'IMAGE' : 'TEXT',
+            },
+          },
+        };
+        if (bmsButtons) message.kakaoOptions.bms.buttons = bmsButtons;
+        if (params.imageId) message.kakaoOptions.bms.imageId = params.imageId;
+        return message;
+      });
+
+      const requestBody: any = { messages: messagesPayload };
+      if (params.scheduledAt) {
+        requestBody.scheduledDate = params.scheduledAt.toISOString();
+      }
+
+      try {
+        const response = await fetch('https://api.solapi.com/messages/v4/send-many/detail', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: this.generateAuthHeader(),
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        const result = (await response.json()) as any;
+        const groupId = result.groupInfo?.groupId || '';
+        const acceptedCount = result.groupInfo?.count?.total || chunk.length;
+        const failedPhones = new Map<string, string>();
+
+        if (result.failedMessageList && result.failedMessageList.length > 0) {
+          for (const failed of result.failedMessageList) {
+            failedPhones.set(failed.to || '', failed.reason || 'Unknown error');
+          }
+        }
+
+        console.log(`[SOLAPI Bulk BMS] Chunk ${Math.floor(i / CHUNK_SIZE) + 1}: groupId=${groupId}, accepted=${acceptedCount}, failed=${failedPhones.size}`);
+        results.push({ groupId, acceptedCount, failedPhones });
+      } catch (error: any) {
+        console.error(`[SOLAPI Bulk BMS] Chunk ${Math.floor(i / CHUNK_SIZE) + 1} error:`, error.message);
+        const failedPhones = new Map<string, string>();
+        for (const msg of chunk) {
+          failedPhones.set(this.normalizePhoneNumber(msg.to), error.message || 'Chunk send failed');
+        }
+        results.push({ groupId: '', acceptedCount: 0, failedPhones });
+      }
+
+      if (i + CHUNK_SIZE < params.messages.length) {
+        await new Promise((resolve) => setTimeout(resolve, CHUNK_DELAY_MS));
+      }
+    }
+
+    return results;
+  }
+}
+
+// 벌크 발송 결과 → phone별 성공/실패 매핑 헬퍼
+export function buildPhoneResultMap(
+  batchResults: Array<{ groupId: string; acceptedCount: number; failedPhones: Map<string, string> }>
+): { successGroupIds: string[]; failureMap: Map<string, string> } {
+  const successGroupIds: string[] = [];
+  const failureMap = new Map<string, string>();
+
+  for (const batch of batchResults) {
+    if (batch.groupId) successGroupIds.push(batch.groupId);
+    for (const [phone, reason] of batch.failedPhones) {
+      failureMap.set(phone, reason);
+    }
+  }
+
+  return { successGroupIds, failureMap };
 }
 
 // Outbox에 메시지 추가
