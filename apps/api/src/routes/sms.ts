@@ -1023,19 +1023,23 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
       externalSmsWhere.content = { contains: search as string };
     }
 
-    // Fetch SMS, AlimTalk, and External SMS messages
+    // Fetch SMS, AlimTalk, and External SMS messages (DB-level limit for performance)
+    const dbLimit = Math.min(limitNum * 3, 500); // 각 테이블에서 최대 500건만 조회
     const [smsMessages, alimtalkMessages, externalSmsMessages, smsTotal, alimtalkTotal, externalSmsTotal] = await Promise.all([
       prisma.smsMessage.findMany({
         where: smsWhere,
         orderBy: { createdAt: 'desc' },
+        take: dbLimit,
       }),
       prisma.alimTalkOutbox.findMany({
         where: alimtalkWhere,
         orderBy: { createdAt: 'desc' },
+        take: dbLimit,
       }),
       prisma.externalSmsMessage.findMany({
         where: externalSmsWhere,
         orderBy: { createdAt: 'desc' },
+        take: dbLimit,
         include: {
           externalCustomer: { select: { phone: true, regionSido: true, regionSigungu: true } },
           campaign: { select: { id: true, title: true } },
