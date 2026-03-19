@@ -64,6 +64,11 @@ interface Store {
   crmEnabled?: boolean;
   enrollmentMode?: string;
   taghereVersion?: string;
+  // Metacity POS 연동
+  metacityEnabled?: boolean;
+  metacityBrandCode?: string | null;
+  metacityStoreIdx?: string | null;
+  metacityAccessCode?: string | null;
   // Monthly credit
   monthlyCredit?: {
     total: number;
@@ -267,6 +272,10 @@ export default function AdminStoresPage() {
       crmEnabled: store.crmEnabled ?? true,
       enrollmentMode: store.enrollmentMode ?? 'POINTS',
       taghereVersion: store.taghereVersion ?? 'v1',
+      metacityEnabled: store.metacityEnabled ?? false,
+      metacityBrandCode: store.metacityBrandCode ?? '',
+      metacityStoreIdx: store.metacityStoreIdx ?? '',
+      metacityAccessCode: store.metacityAccessCode ?? '',
     });
     setPointRateInput(String(store.pointRatePercent ?? 5));
     setIsEditMode(false);
@@ -1428,6 +1437,79 @@ export default function AdminStoresPage() {
                     </span>
                   )}
                 </div>
+              </div>
+
+              {/* 메타씨티 POS 연동 카드 */}
+              <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[15px] font-semibold text-neutral-900">메타씨티 POS 연동</h4>
+                  {isEditMode ? (
+                    <button
+                      type="button"
+                      onClick={() => setEditForm({ ...editForm, metacityEnabled: !editForm.metacityEnabled })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        editForm.metacityEnabled ? 'bg-green-500' : 'bg-neutral-300'
+                      }`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        editForm.metacityEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`} />
+                    </button>
+                  ) : (
+                    <span className={`inline-block px-2.5 py-1 text-[12px] font-medium rounded-full ${
+                      selectedStore.metacityEnabled ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'
+                    }`}>
+                      {selectedStore.metacityEnabled ? 'ON' : 'OFF'}
+                    </span>
+                  )}
+                </div>
+
+                {((isEditMode && editForm.metacityEnabled) || (!isEditMode && selectedStore.metacityEnabled)) && (
+                  <div className="space-y-3 pt-1">
+                    <div className={`rounded-xl p-3 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
+                      <label className="block text-[12px] text-neutral-500 mb-1">브랜드 코드</label>
+                      {isEditMode ? (
+                        <input
+                          type="text"
+                          value={editForm.metacityBrandCode || ''}
+                          onChange={(e) => setEditForm({ ...editForm, metacityBrandCode: e.target.value })}
+                          className="w-full text-[14px] bg-transparent outline-none"
+                          placeholder="B26012800001"
+                        />
+                      ) : (
+                        <p className="text-[14px] text-neutral-800 font-mono">{selectedStore.metacityBrandCode || '-'}</p>
+                      )}
+                    </div>
+                    <div className={`rounded-xl p-3 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
+                      <label className="block text-[12px] text-neutral-500 mb-1">매장 코드</label>
+                      {isEditMode ? (
+                        <input
+                          type="text"
+                          value={editForm.metacityStoreIdx || ''}
+                          onChange={(e) => setEditForm({ ...editForm, metacityStoreIdx: e.target.value })}
+                          className="w-full text-[14px] bg-transparent outline-none"
+                          placeholder="I26031700004"
+                        />
+                      ) : (
+                        <p className="text-[14px] text-neutral-800 font-mono">{selectedStore.metacityStoreIdx || '-'}</p>
+                      )}
+                    </div>
+                    <div className={`rounded-xl p-3 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
+                      <label className="block text-[12px] text-neutral-500 mb-1">접속사 코드</label>
+                      {isEditMode ? (
+                        <input
+                          type="text"
+                          value={editForm.metacityAccessCode || ''}
+                          onChange={(e) => setEditForm({ ...editForm, metacityAccessCode: e.target.value })}
+                          className="w-full text-[14px] bg-transparent outline-none"
+                          placeholder="METATEST"
+                        />
+                      ) : (
+                        <p className="text-[14px] text-neutral-800 font-mono">{selectedStore.metacityAccessCode || '-'}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 포인트 설정 카드 */}

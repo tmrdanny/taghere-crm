@@ -5,6 +5,7 @@ import { enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejin
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 import { isValidWebhookToken, fetchOrder, TaghereOrderData } from '../services/taghere-api.js';
 import { sidoToShort } from '../utils/address-parser.js';
+import { syncToMetacity } from '../services/metacity.js';
 
 const router = Router();
 
@@ -439,6 +440,33 @@ router.post('/auto-earn', async (req, res) => {
       ]);
 
       console.log(`[TagHere Auto-Earn] Points earned - customerId: ${customer.id}, earnPoints: ${earnPoints}, newBalance: ${newBalance}, orderItemsCount: ${orderItems.length}, tableLabel: ${tableLabel}`);
+
+      // 메타씨티 포인트 동기화 (비동기)
+      {
+        const storeForMetacity = await prisma.store.findUnique({
+          where: { id: store.id },
+          select: { id: true, metacityEnabled: true, metacityAccessCode: true, metacityBrandCode: true, metacityStoreIdx: true },
+        });
+        if (storeForMetacity?.metacityEnabled) {
+          const latestCustomer = await prisma.customer.findUnique({
+            where: { id: customer.id },
+          });
+          if (latestCustomer) {
+            const latestLedger = await prisma.pointLedger.findFirst({
+              where: { customerId: customer.id },
+              orderBy: { createdAt: 'desc' },
+            });
+            syncToMetacity({
+              store: storeForMetacity,
+              customer: latestCustomer,
+              operationType: 'POINT_SAVE',
+              orderNo: latestLedger?.id || ordersheetId,
+              purAmt: resultPrice > 0 ? resultPrice : 0,
+              savePoint: earnPoints,
+            }).catch(err => console.error('[Metacity] POINT_SAVE (auto-earn) sync failed:', err.message));
+          }
+        }
+      }
 
       // 알림톡 발송 (전화번호가 있는 경우만, 비동기)
       const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');

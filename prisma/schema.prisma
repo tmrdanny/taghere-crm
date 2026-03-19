@@ -101,6 +101,12 @@ model Store {
   franchiseStampLedger  FranchiseStampLedger[]
   franchisePointLedger  FranchisePointLedger[]
 
+  // 메타씨티 POS 연동
+  metacityEnabled      Boolean  @default(false) // 메타씨티 연동 활성화
+  metacityBrandCode    String?  // 메타씨티 브랜드 코드 (e.g. B26012800001)
+  metacityStoreIdx     String?  // 메타씨티 매장 코드 (e.g. I26031700004)
+  metacityAccessCode   String?  // 메타씨티 접속사 코드
+
   @@index([franchiseId])
   @@map("stores")
 }
@@ -207,6 +213,10 @@ model Customer {
   totalPoints      Int       @default(0) // 현재 보유 포인트
   totalStamps      Int       @default(0) // 현재 보유 스탬프
   lastVisitAt      DateTime?
+
+  // 메타씨티 POS 연동
+  metacityCustId   String?   // 메타씨티 CUST_ID (동기화된 회원 ID)
+  metacitySyncedAt DateTime? // 마지막 메타씨티 동기화 시점
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
