@@ -123,12 +123,22 @@ async function processMessage(messageId: string): Promise<void> {
           });
           console.log(`[Worker] Message ${messageId} confirmed FAILED: ${statusResult.failReason}`);
         } else {
-          // 아직 PENDING - 다음 폴링에서 다시 확인 (RETRY 유지, 재발송 안 함)
-          await prisma.alimTalkOutbox.update({
-            where: { id: messageId },
-            data: { status: 'RETRY', updatedAt: new Date() },
-          });
-          console.log(`[Worker] Message ${messageId} still PENDING, will check again`);
+          // 아직 PENDING - retryCount 증가시키며 재확인 대기
+          const newRetryCount = (msg.retryCount || 0) + 1;
+          if (newRetryCount >= 30) {
+            // 30회 이상 재시도 (5초 × 30 = 약 2.5분) → FAILED 처리
+            await prisma.alimTalkOutbox.update({
+              where: { id: messageId },
+              data: { status: 'FAILED', failReason: 'Delivery timeout - no response from carrier', updatedAt: new Date() },
+            });
+            console.log(`[Worker] Message ${messageId} timed out after ${newRetryCount} retries`);
+          } else {
+            await prisma.alimTalkOutbox.update({
+              where: { id: messageId },
+              data: { status: 'RETRY', retryCount: newRetryCount, updatedAt: new Date() },
+            });
+            console.log(`[Worker] Message ${messageId} still PENDING, retry ${newRetryCount}/30`);
+          }
         }
       }
     }
@@ -341,6 +351,18 @@ async function processMessage(messageId: string): Promise<void> {
 
 // 배치 처리
 async function processBatch(): Promise<number> {
+  // 1시간 이상 RETRY 상태인 메시지 자동 FAILED 처리 (무한 대기 방지)
+  const staleResult = await prisma.alimTalkOutbox.updateMany({
+    where: {
+      status: 'RETRY',
+      updatedAt: { lt: new Date(Date.now() - 60 * 60 * 1000) },
+    },
+    data: { status: 'FAILED', failReason: 'Delivery timeout after 1 hour' },
+  });
+  if (staleResult.count > 0) {
+    console.log(`[Worker] Cleaned up ${staleResult.count} stale RETRY messages`);
+  }
+
   // PENDING 또는 RETRY 상태의 메시지 조회
   const messages = await prisma.alimTalkOutbox.findMany({
     where: {
