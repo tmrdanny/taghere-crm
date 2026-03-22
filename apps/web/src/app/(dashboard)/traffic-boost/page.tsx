@@ -78,6 +78,9 @@ export default function TrafficBoostPage() {
     return true;
   });
 
+  // Naver Place URL (사장님 직접 입력)
+  const [naverPlaceUrl, setNaverPlaceUrl] = useState('');
+
   // Keyword & rank check
   const [keyword, setKeyword] = useState('');
   const [rankResult, setRankResult] = useState<RankCheckResult | null>(null);
@@ -216,15 +219,19 @@ export default function TrafficBoostPage() {
     }
   }, [searchParams, router]);
 
-  // Rank check
+  // Rank check — naverPlaceUrl + keyword 모두 필요
   const handleRankCheck = async () => {
-    if (!keyword.trim()) return;
+    if (!keyword.trim() || !naverPlaceUrl.trim()) return;
     setIsCheckingRank(true);
     setRankResult(null);
 
     try {
+      const params = new URLSearchParams({
+        keyword: keyword.trim(),
+        naverPlaceUrl: naverPlaceUrl.trim(),
+      });
       const res = await fetch(
-        `${API_BASE}/api/traffic-boost/rank-check?keyword=${encodeURIComponent(keyword.trim())}`,
+        `${API_BASE}/api/traffic-boost/rank-check?${params.toString()}`,
         { headers: { Authorization: `Bearer ${getAuthToken()}` } }
       );
       if (res.ok) {
@@ -234,6 +241,9 @@ export default function TrafficBoostPage() {
           rank: data.rank ?? null,
           estimated: data.estimated ?? null,
         });
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setError(errData.error || '순위 확인에 실패했습니다.');
       }
     } catch (err) {
       console.error('Rank check failed:', err);
@@ -442,47 +452,53 @@ export default function TrafficBoostPage() {
           </div>
         )}
 
-        {/* Keyword Input + Rank Check */}
+        {/* Naver Place URL + Keyword Input + Rank Check */}
         <div>
-          <h2 className="text-sm font-semibold text-neutral-900 mb-3">키워드 검색</h2>
-          {hasNaverPlaceUrl === false ? (
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm text-yellow-800 font-medium">네이버 플레이스 URL을 먼저 등록해주세요</p>
-                <a href="/settings" className="text-sm text-yellow-700 underline hover:text-yellow-900 mt-1 inline-block">
-                  설정 페이지로 이동
-                </a>
-              </div>
+          <h2 className="text-sm font-semibold text-neutral-900 mb-3">네이버 플레이스 순위 확인</h2>
+
+          {/* 네이버 플레이스 URL 입력 */}
+          <div className="mb-3">
+            <label className="text-xs text-neutral-500 mb-1 block">네이버 플레이스 링크</label>
+            <input
+              type="text"
+              value={naverPlaceUrl}
+              onChange={(e) => setNaverPlaceUrl(e.target.value)}
+              placeholder="https://naver.me/... 또는 https://map.naver.com/..."
+              className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+            />
+            <p className="text-xs text-neutral-400 mt-1">네이버 지도에서 내 매장을 검색 후 공유 링크를 붙여넣으세요</p>
+          </div>
+
+          {/* 키워드 입력 + 순위 확인 */}
+          <div>
+            <label className="text-xs text-neutral-500 mb-1 block">대표 키워드</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleRankCheck()}
+                placeholder="예: 강남 맛집, 홍대 카페"
+                className="flex-1 px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+              />
+              <button
+                onClick={handleRankCheck}
+                disabled={!keyword.trim() || !naverPlaceUrl.trim() || isCheckingRank}
+                className={cn(
+                  'px-4 py-3 rounded-xl text-sm font-medium transition-colors whitespace-nowrap',
+                  keyword.trim() && naverPlaceUrl.trim() && !isCheckingRank
+                    ? 'bg-[#2a2d62] text-white hover:bg-[#1d1f45]'
+                    : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
+                )}
+              >
+                {isCheckingRank ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  '순위 확인'
+                )}
+              </button>
             </div>
-          ) : (
-            <>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleRankCheck()}
-                  placeholder="예: 강남 맛집, 홍대 카페"
-                  className="flex-1 px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-                />
-                <button
-                  onClick={handleRankCheck}
-                  disabled={!keyword.trim() || isCheckingRank}
-                  className={cn(
-                    'px-4 py-3 rounded-xl text-sm font-medium transition-colors whitespace-nowrap',
-                    keyword.trim() && !isCheckingRank
-                      ? 'bg-[#2a2d62] text-white hover:bg-[#1d1f45]'
-                      : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
-                  )}
-                >
-                  {isCheckingRank ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    '순위 확인'
-                  )}
-                </button>
-              </div>
+          </div>
 
               {/* Rank result */}
               {rankResult && (
@@ -500,13 +516,11 @@ export default function TrafficBoostPage() {
                     </div>
                   ) : (
                     <p className="text-sm text-blue-800">
-                      50위 밖 (아직 노출되지 않음)
+                      <span className="font-semibold">{rankResult.keyword}</span> → <span className="font-bold text-orange-600">300위 밖</span> (아직 노출되지 않음)
                     </p>
                   )}
                 </div>
               )}
-            </>
-          )}
         </div>
 
         {/* Coupon Settings */}

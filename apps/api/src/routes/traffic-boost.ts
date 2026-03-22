@@ -137,34 +137,29 @@ router.get('/requests', authMiddleware, async (req: AuthRequest, res: Response) 
 });
 
 // GET /api/traffic-boost/rank-check - 키워드 순위 조회
+// 사장님이 직접 네이버 플레이스 URL과 키워드를 입력하여 조회
 router.get('/rank-check', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const storeId = req.user!.storeId;
-    const { keyword } = req.query;
+    const { keyword, naverPlaceUrl } = req.query;
 
     if (!keyword || typeof keyword !== 'string') {
       return res.status(400).json({ error: '키워드를 입력해주세요.' });
     }
 
-    // 매장의 네이버 플레이스 URL 조회
-    const store = await prisma.store.findUnique({
-      where: { id: storeId },
-      select: { naverPlaceUrl: true },
-    });
-
-    if (!store?.naverPlaceUrl) {
-      return res.status(400).json({ error: '네이버 플레이스 URL이 설정되지 않았습니다.' });
+    if (!naverPlaceUrl || typeof naverPlaceUrl !== 'string') {
+      return res.status(400).json({ error: '네이버 플레이스 URL을 입력해주세요.' });
     }
 
-    const result = await getPlaceRankByKeyword(store.naverPlaceUrl, keyword);
+    const result = await getPlaceRankByKeyword(naverPlaceUrl, keyword);
 
     res.json({
       keyword,
+      naverPlaceUrl,
       rank: result.rank,
       totalResults: result.totalResults,
       message: result.rank
         ? `현재 "${keyword}" 검색 ${result.rank}위`
-        : `"${keyword}" 검색 결과에서 50위 밖입니다.`,
+        : `"${keyword}" 검색 결과에서 300위 밖입니다.`,
     });
   } catch (error) {
     console.error('[TrafficBoost] Rank check error:', error);
@@ -385,6 +380,9 @@ router.post('/admin/:id/send', adminAuthMiddleware, async (req: AdminRequest, re
       try {
         const idempotencyKey = `traffic-boost-${id}-${customer.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+        // 지역은 시/도 단위 (서울, 경기 등)
+        const regionLabel = (request.regionSidos as unknown as string[]).join(', ');
+
         await enqueueAlimTalk({
           storeId: request.storeId,
           customerId: customer.source === 'customer' ? customer.id : undefined,
@@ -392,10 +390,10 @@ router.post('/admin/:id/send', adminAuthMiddleware, async (req: AdminRequest, re
           messageType: 'TRAFFIC_BOOST',
           templateId,
           variables: {
-            '#{상호}': request.store.name,
+            '#{지역}': regionLabel,
             '#{쿠폰내용}': request.couponContent,
+            '#{쿠폰}': request.couponContent,
             '#{유효기간}': request.expiryDate,
-            '#{검색URL}': searchUrl,
           },
           idempotencyKey,
         });

@@ -1,6 +1,17 @@
 /**
  * 네이버 플레이스 키워드 순위 조회 서비스
+ * 최대 300위까지 페이징 조회 지원
  */
+
+const HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'application/json, text/plain, */*',
+  'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+  'Referer': 'https://map.naver.com/',
+};
+
+const PAGE_SIZE = 50; // 네이버 지도 API 한 페이지당 결과 수
+const MAX_PAGES = 6;  // 최대 6페이지 = 300위까지 조회
 
 /**
  * URL에서 네이버 플레이스 ID를 추출합니다.
@@ -20,10 +31,11 @@ function extractPlaceId(url: string): string | null {
 
 /**
  * 네이버 플레이스 URL과 키워드로 검색 순위를 조회합니다.
+ * 최대 300위까지 페이징하여 정확한 순위를 반환합니다.
  *
  * @param naverPlaceUrl 네이버 플레이스 URL (naver.me 단축 URL 또는 map.naver.com URL)
  * @param keyword 검색 키워드
- * @returns rank (1-based index, null if not found), totalResults
+ * @returns rank (1-based index, null if not found in 300위), totalResults
  */
 export async function getPlaceRankByKeyword(
   naverPlaceUrl: string,
@@ -50,43 +62,57 @@ export async function getPlaceRankByKeyword(
       return { rank: null, totalResults: 0 };
     }
 
-    // 2. 네이버 지도 검색 API 호출
-    const searchUrl = `https://map.naver.com/p/api/search/allSearch?query=${encodeURIComponent(keyword)}&type=place`;
-    const response = await fetch(searchUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Referer': 'https://map.naver.com/',
-      },
-    });
+    console.log(`[NaverPlaceRank] Checking rank for placeId=${placeId}, keyword="${keyword}"`);
 
-    if (!response.ok) {
-      console.error('[NaverPlaceRank] Search API failed:', response.status);
-      return { rank: null, totalResults: 0 };
-    }
+    // 2. 페이징하며 최대 300위까지 조회
+    let totalResults = 0;
 
-    const data = await response.json() as {
-      result?: {
-        place?: {
-          list?: Array<{ id?: string }>;
-          totalCount?: number;
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const searchUrl = `https://map.naver.com/p/api/search/allSearch?query=${encodeURIComponent(keyword)}&type=place&page=${page}&displayCount=${PAGE_SIZE}`;
+
+      const response = await fetch(searchUrl, { headers: HEADERS });
+
+      if (!response.ok) {
+        console.error(`[NaverPlaceRank] Search API failed (page ${page}):`, response.status);
+        break;
+      }
+
+      const data = await response.json() as {
+        result?: {
+          place?: {
+            list?: Array<{ id?: string; name?: string }>;
+            totalCount?: number;
+          };
         };
       };
-    };
 
-    const placeList = data?.result?.place?.list || [];
-    const totalResults = data?.result?.place?.totalCount || placeList.length;
+      const placeList = data?.result?.place?.list || [];
+      if (page === 1) {
+        totalResults = data?.result?.place?.totalCount || 0;
+      }
 
-    // 3. placeId가 결과 목록에 있는지 찾기
-    const index = placeList.findIndex((item) => item.id === placeId);
+      // 이 페이지에서 placeId 찾기
+      const indexInPage = placeList.findIndex((item) => item.id === placeId);
 
-    if (index === -1) {
-      // 50위 밖 (검색 결과에 없음)
-      return { rank: null, totalResults };
+      if (indexInPage !== -1) {
+        const rank = (page - 1) * PAGE_SIZE + indexInPage + 1;
+        console.log(`[NaverPlaceRank] Found! placeId=${placeId} → ${rank}위 (page ${page})`);
+        return { rank, totalResults };
+      }
+
+      // 더 이상 결과가 없으면 중단
+      if (placeList.length < PAGE_SIZE) {
+        break;
+      }
+
+      // 페이지 간 딜레이 (rate limit 방지)
+      if (page < MAX_PAGES) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
     }
 
-    return { rank: index + 1, totalResults };
+    console.log(`[NaverPlaceRank] Not found in top 300: placeId=${placeId}, keyword="${keyword}"`);
+    return { rank: null, totalResults };
   } catch (error) {
     console.error('[NaverPlaceRank] Error checking rank:', error);
     return { rank: null, totalResults: 0 };
