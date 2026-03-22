@@ -62,7 +62,6 @@ import storeProductsRoutes from './routes/store-products.js';
 import storeOrdersRoutes from './routes/store-orders.js';
 import surveyQuestionsRoutes from './routes/survey-questions.js';
 import myPageRoutes from './routes/my-page.js';
-import trafficBoostRoutes from './routes/traffic-boost.js';
 import { startAlimTalkWorker } from './services/alimtalk-worker.js';
 import { startSmsWorker } from './services/sms-worker.js';
 import { startExternalSmsWorker } from './services/external-sms-worker.js';
@@ -264,9 +263,6 @@ app.use('/api/survey-questions', surveyQuestionsRoutes);
 
 // My Page routes (public)
 app.use('/api/my-page', myPageRoutes);
-
-// Traffic Boost routes
-app.use('/api/traffic-boost', trafficBoostRoutes);
 
 // Franchise routes
 app.use('/api/franchise/auth', franchiseAuthRoutes);

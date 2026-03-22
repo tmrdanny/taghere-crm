@@ -93,9 +93,6 @@ model Store {
   // 스토어 주문
   storeOrders           StoreOrder[]
 
-  // 플레이스 유입 증폭
-  trafficBoostRequests  TrafficBoostRequest[]
-
   // 고객 설문
   surveyQuestions       SurveyQuestion[]
   surveyAnswers         SurveyAnswer[]
@@ -547,7 +544,6 @@ enum AlimTalkType {
   CORPORATE_AD          // 기업광고 쿠폰 알림톡
   LOCAL_COUPON          // 지역 고객 쿠폰 알림톡
   CUSTOMER_COUNT        // 누적 고객 수 알림
-  TRAFFIC_BOOST         // 플레이스 유입 증폭
 }
 
 enum AlimTalkStatus {
@@ -1827,42 +1823,4 @@ model CorporateAd {
   updatedAt           DateTime @updatedAt
 
   @@map("corporate_ads")
-}
-
-// ============================================
-// 플레이스 유입 증폭
-// ============================================
-
-enum TrafficBoostStatus {
-  PENDING
-  APPROVED
-  SENDING
-  COMPLETED
-  FAILED
-  REJECTED
-}
-
-model TrafficBoostRequest {
-  id              String   @id @default(cuid())
-  storeId         String
-  store           Store    @relation(fields: [storeId], references: [id])
-  keyword         String
-  couponContent   String
-  expiryDate      String
-  regionSidos     Json
-  regionSigungus  Json?
-  sendCount       Int
-  totalCost       Int
-  status          TrafficBoostStatus @default(PENDING)
-  sentCount       Int?
-  failedCount     Int?
-  processedAt     DateTime?
-  processedBy     String?
-  failReason      String?  @db.Text
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([storeId])
-  @@index([status])
-  @@index([createdAt])
 }

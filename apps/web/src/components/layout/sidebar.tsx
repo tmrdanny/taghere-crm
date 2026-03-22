@@ -34,7 +34,6 @@ import {
   PieChart,
   Clock,
   DollarSign,
-  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -109,7 +108,6 @@ const navGroups: NavGroup[] = [
       { href: '/automation', label: '자동 마케팅', icon: Zap, badge: '30건 무료' },
       { href: '/messages', label: '메시지 발송', icon: MessageSquareMore },
       { href: '/local-customers', label: '신규 고객 타겟', icon: UserPlus },
-      { href: '/traffic-boost', label: '플레이스 유입 증폭', icon: TrendingUp, isNew: true },
       { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
     ],
   },
