@@ -159,7 +159,7 @@ router.get('/rank-check', authMiddleware, async (req: AuthRequest, res: Response
       totalResults: result.totalResults,
       message: result.rank
         ? `현재 "${keyword}" 검색 ${result.rank}위`
-        : `"${keyword}" 검색 결과에서 300위 밖입니다.`,
+        : `"${keyword}" 검색 결과에서 순위권 밖입니다.`,
     });
   } catch (error) {
     console.error('[TrafficBoost] Rank check error:', error);

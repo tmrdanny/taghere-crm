@@ -516,7 +516,7 @@ export default function TrafficBoostPage() {
                     </div>
                   ) : (
                     <p className="text-sm text-blue-800">
-                      <span className="font-semibold">{rankResult.keyword}</span> → <span className="font-bold text-orange-600">300위 밖</span> (아직 노출되지 않음)
+                      <span className="font-semibold">{rankResult.keyword}</span> → <span className="font-bold text-orange-600">순위권 밖</span> (상위 노출되지 않음)
                     </p>
                   )}
                 </div>
