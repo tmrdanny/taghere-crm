@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
+import { syncToMetacity } from '../services/metacity.js';
 import { sidoToShort } from '../utils/address-parser.js';
 
 const router = Router();
@@ -1044,10 +1045,28 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
         });
 
         // Update customer's total points
-        await prisma.customer.update({
+        const updatedCustomerForCancel = await prisma.customer.update({
           where: { id },
           data: { totalPoints: newBalance },
         });
+
+        // 메타씨티 포인트 취소 동기화 (비동기)
+        {
+          const storeForMetacity = await prisma.store.findUnique({
+            where: { id: storeId },
+            select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
+          });
+          if (storeForMetacity?.metacityEnabled) {
+            syncToMetacity({
+              store: storeForMetacity,
+              customer: updatedCustomerForCancel,
+              operationType: 'POINT_SAVE_CANCEL',
+              orderNo: visitOrOrder.orderId || visitOrOrderId,
+              purAmt: cancelledPrice,
+              savePoint: actualDeduction,
+            }).catch(err => console.error('[Metacity] POINT_SAVE_CANCEL sync failed:', err.message));
+          }
+        }
 
         // Send AlimTalk notification for point deduction (with negative points)
         const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');

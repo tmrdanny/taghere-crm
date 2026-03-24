@@ -833,6 +833,24 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
 
     console.log(`[Webhook] Order cancel completed - ordersheetId: ${ordersheetId}, deducted: ${pointsToDeduct}P, newBalance: ${newBalance}P, time: ${processingTime}ms`);
 
+    // 메타씨티 포인트 취소 동기화 (비동기)
+    {
+      const storeForMetacity = await prisma.store.findUnique({
+        where: { id: store.id },
+        select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
+      });
+      if (storeForMetacity?.metacityEnabled && pointsToDeduct > 0) {
+        syncToMetacity({
+          store: storeForMetacity,
+          customer: result.updatedCustomer,
+          operationType: 'POINT_SAVE_CANCEL',
+          orderNo: ordersheetId,
+          purAmt: 0,
+          savePoint: pointsToDeduct,
+        }).catch(err => console.error('[Metacity] POINT_SAVE_CANCEL (webhook) sync failed:', err.message));
+      }
+    }
+
     // 6. 성공 응답
     res.json({
       success: true,
