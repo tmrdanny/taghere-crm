@@ -69,9 +69,19 @@ interface PointSyncParams {
 
 // ── 유틸리티 함수 ──
 
+/** 전화번호를 국내 11자리 숫자로 정규화 (+82 10-2763-6023 → 01027636023) */
+function normalizePhone(phone: string): string {
+  let digits = phone.replace(/[^0-9]/g, '');
+  // +82 국제번호 처리: 82로 시작하면 0으로 교체
+  if (digits.startsWith('82') && digits.length >= 11) {
+    digits = '0' + digits.slice(2);
+  }
+  return digits;
+}
+
 /** 전화번호를 010-1234-5678 형식으로 변환 */
 function formatPhoneWithDashes(phone: string): string {
-  const digits = phone.replace(/[^0-9]/g, '');
+  const digits = normalizePhone(phone);
   if (digits.length === 11) {
     return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
   }
@@ -83,7 +93,7 @@ function formatPhoneWithDashes(phone: string): string {
 
 /** 전화번호에서 숫자만 추출 (CUST_ID 용) */
 function phoneToDigits(phone: string): string {
-  return phone.replace(/[^0-9]/g, '');
+  return normalizePhone(phone);
 }
 
 /** ageGroup enum → 추정 출생연도 */
