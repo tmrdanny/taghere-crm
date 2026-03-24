@@ -233,12 +233,13 @@ export class MetacityService {
     const body = {
       ...this.baseRequest(workType),
       CUST_ID: params.custId,
-      ORDER_NO: params.orderNo,
+      ORDER_NO: params.orderNo.slice(0, 20),
       PUR_AMT: params.purAmt || 0,
       USED_POINT: params.usedPoint || 0,
       SAVE_POINT: params.savePoint || 0,
     };
 
+    console.log(`[Metacity] ${workType} 요청:`, JSON.stringify(body));
     return this.callApi('PointInfo.asp', body);
   }
 
