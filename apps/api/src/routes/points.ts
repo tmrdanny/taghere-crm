@@ -132,7 +132,7 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
     {
       const storeForMetacity = await prisma.store.findUnique({
         where: { id: storeId },
-        select: { id: true, metacityEnabled: true, metacityAccessCode: true, metacityBrandCode: true, metacityStoreIdx: true },
+        select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
       });
       if (storeForMetacity?.metacityEnabled) {
         syncToMetacity({
@@ -278,7 +278,7 @@ router.post('/use', authMiddleware, async (req: AuthRequest, res) => {
     {
       const storeForMetacity = await prisma.store.findUnique({
         where: { id: storeId },
-        select: { id: true, metacityEnabled: true, metacityAccessCode: true, metacityBrandCode: true, metacityStoreIdx: true },
+        select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
       });
       if (storeForMetacity?.metacityEnabled) {
         syncToMetacity({
@@ -461,7 +461,7 @@ router.post('/tablet-earn', authMiddleware, async (req: AuthRequest, res) => {
     {
       const storeForMetacity = await prisma.store.findUnique({
         where: { id: storeId },
-        select: { id: true, metacityEnabled: true, metacityAccessCode: true, metacityBrandCode: true, metacityStoreIdx: true },
+        select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
       });
       if (storeForMetacity?.metacityEnabled) {
         syncToMetacity({
@@ -806,7 +806,7 @@ router.post('/session/:id/complete', authMiddleware, async (req: AuthRequest, re
     {
       const storeForMetacity = await prisma.store.findUnique({
         where: { id: storeId },
-        select: { id: true, metacityEnabled: true, metacityAccessCode: true, metacityBrandCode: true, metacityStoreIdx: true },
+        select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
       });
       if (storeForMetacity?.metacityEnabled) {
         syncToMetacity({

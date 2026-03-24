@@ -17,12 +17,11 @@ const API_URL = process.env.METACITY_API_URL || 'http://webapi.metapos.co.kr/web
 const TEST_MODE = process.env.METACITY_TEST_MODE === 'true';
 const VERSION = '0001';
 const STORE_GB = 'B';
+const ACCESS_CODE = 'TAGHERE';
 
 // ── 타입 정의 ──
 
 interface MetacityStoreConfig {
-  metacityAccessCode: string;
-  metacityBrandCode: string;
   metacityStoreIdx: string;
 }
 
@@ -124,7 +123,7 @@ export class MetacityService {
   private baseRequest(workType: string): MetacityBaseRequest {
     return {
       VERSION,
-      ACCESS_CODE: this.config.metacityAccessCode,
+      ACCESS_CODE,
       STORE_GB,
       STORE_IDX: this.config.metacityStoreIdx,
       WORK_TYPE: workType,

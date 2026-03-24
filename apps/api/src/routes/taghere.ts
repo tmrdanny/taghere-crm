@@ -445,7 +445,7 @@ router.post('/auto-earn', async (req, res) => {
       {
         const storeForMetacity = await prisma.store.findUnique({
           where: { id: store.id },
-          select: { id: true, metacityEnabled: true, metacityAccessCode: true, metacityBrandCode: true, metacityStoreIdx: true },
+          select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
         });
         if (storeForMetacity?.metacityEnabled) {
           const latestCustomer = await prisma.customer.findUnique({

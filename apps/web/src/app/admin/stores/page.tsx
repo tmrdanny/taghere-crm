@@ -1467,20 +1467,6 @@ export default function AdminStoresPage() {
                 {((isEditMode && editForm.metacityEnabled) || (!isEditMode && selectedStore.metacityEnabled)) && (
                   <div className="space-y-3 pt-1">
                     <div className={`rounded-xl p-3 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                      <label className="block text-[12px] text-neutral-500 mb-1">브랜드 코드</label>
-                      {isEditMode ? (
-                        <input
-                          type="text"
-                          value={editForm.metacityBrandCode || ''}
-                          onChange={(e) => setEditForm({ ...editForm, metacityBrandCode: e.target.value })}
-                          className="w-full text-[14px] bg-transparent outline-none"
-                          placeholder="B26012800001"
-                        />
-                      ) : (
-                        <p className="text-[14px] text-neutral-800 font-mono">{selectedStore.metacityBrandCode || '-'}</p>
-                      )}
-                    </div>
-                    <div className={`rounded-xl p-3 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
                       <label className="block text-[12px] text-neutral-500 mb-1">매장 코드</label>
                       {isEditMode ? (
                         <input
@@ -1492,20 +1478,6 @@ export default function AdminStoresPage() {
                         />
                       ) : (
                         <p className="text-[14px] text-neutral-800 font-mono">{selectedStore.metacityStoreIdx || '-'}</p>
-                      )}
-                    </div>
-                    <div className={`rounded-xl p-3 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                      <label className="block text-[12px] text-neutral-500 mb-1">접속사 코드</label>
-                      {isEditMode ? (
-                        <input
-                          type="text"
-                          value={editForm.metacityAccessCode || ''}
-                          onChange={(e) => setEditForm({ ...editForm, metacityAccessCode: e.target.value })}
-                          className="w-full text-[14px] bg-transparent outline-none"
-                          placeholder="METATEST"
-                        />
-                      ) : (
-                        <p className="text-[14px] text-neutral-800 font-mono">{selectedStore.metacityAccessCode || '-'}</p>
                       )}
                     </div>
                   </div>
