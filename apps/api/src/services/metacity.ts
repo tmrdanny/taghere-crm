@@ -248,8 +248,6 @@ interface SyncToMetacityParams {
   store: {
     id: string;
     metacityEnabled: boolean;
-    metacityAccessCode: string | null;
-    metacityBrandCode: string | null;
     metacityStoreIdx: string | null;
   };
   customer: {
@@ -280,7 +278,7 @@ export async function syncToMetacity(params: SyncToMetacityParams): Promise<void
   const { store, customer, operationType, orderNo, purAmt, usedPoint, savePoint } = params;
 
   // 설정 검증
-  if (!store.metacityEnabled || !store.metacityAccessCode || !store.metacityStoreIdx) {
+  if (!store.metacityEnabled || !store.metacityStoreIdx) {
     return;
   }
 
@@ -291,8 +289,6 @@ export async function syncToMetacity(params: SyncToMetacityParams): Promise<void
   }
 
   const service = new MetacityService({
-    metacityAccessCode: store.metacityAccessCode,
-    metacityBrandCode: store.metacityBrandCode || '',
     metacityStoreIdx: store.metacityStoreIdx,
   });
 
