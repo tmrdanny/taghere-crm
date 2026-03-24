@@ -840,11 +840,17 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
         select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
       });
       if (storeForMetacity?.metacityEnabled && pointsToDeduct > 0) {
+        // 원래 적립 ledger를 찾아서 동일한 ORDER_NO로 취소 요청
+        const originalEarnLedger = await prisma.pointLedger.findFirst({
+          where: { storeId: store.id, customerId: customer.id, orderId: ordersheetId, type: 'EARN' },
+          select: { id: true },
+        });
+        const cancelOrderNo = originalEarnLedger?.id || ordersheetId;
         syncToMetacity({
           store: storeForMetacity,
           customer: result.updatedCustomer,
           operationType: 'POINT_SAVE_CANCEL',
-          orderNo: ordersheetId,
+          orderNo: cancelOrderNo,
           purAmt: 0,
           savePoint: pointsToDeduct,
         }).catch(err => console.error('[Metacity] POINT_SAVE_CANCEL (webhook) sync failed:', err.message));

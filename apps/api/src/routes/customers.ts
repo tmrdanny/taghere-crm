@@ -1057,11 +1057,17 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
             select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
           });
           if (storeForMetacity?.metacityEnabled) {
+            // 원래 적립 ledger를 찾아서 동일한 ORDER_NO로 취소 요청
+            const originalEarnLedger = await prisma.pointLedger.findFirst({
+              where: { storeId, customerId: id, orderId: visitOrOrder.orderId, type: 'EARN' },
+              select: { id: true },
+            });
+            const cancelOrderNo = originalEarnLedger?.id || visitOrOrder.orderId || visitOrOrderId;
             syncToMetacity({
               store: storeForMetacity,
               customer: updatedCustomerForCancel,
               operationType: 'POINT_SAVE_CANCEL',
-              orderNo: visitOrOrder.orderId || visitOrOrderId,
+              orderNo: cancelOrderNo,
               purAmt: cancelledPrice,
               savePoint: actualDeduction,
             }).catch(err => console.error('[Metacity] POINT_SAVE_CANCEL sync failed:', err.message));
