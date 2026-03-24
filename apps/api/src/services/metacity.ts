@@ -166,11 +166,15 @@ export class MetacityService {
       CUST_NM: customer.name || '고객',
       CP_NO: formatPhoneWithDashes(customer.phone),
       BIRTH_YMD: buildBirthYmd(customer),
-      SEX: customer.gender === 'MALE' ? 'M' : customer.gender === 'FEMALE' ? 'F' : '',
+      SEX: customer.gender === 'MALE' ? 'M' : customer.gender === 'FEMALE' ? 'F' : 'M',
       NICK_NAME: customer.name || '고객',
       PUSH_YN: 'N',
+      PUSH_SERVICE: '',
+      SNS_TYPE: '',
+      EMAIL: '',
     };
 
+    console.log('[Metacity] JOIN 요청:', JSON.stringify(body));
     return this.callApi('CustomerInfo.asp', body);
   }
 
