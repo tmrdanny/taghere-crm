@@ -228,6 +228,10 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         crmEnabled: true,
         enrollmentMode: true,
         taghereVersion: true,
+        metacityEnabled: true,
+        metacityBrandCode: true,
+        metacityStoreIdx: true,
+        metacityAccessCode: true,
         staffUsers: {
           select: {
             id: true,
@@ -384,7 +388,9 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       enrollmentMode,
       taghereVersion,
       metacityEnabled,
+      metacityBrandCode,
       metacityStoreIdx,
+      metacityAccessCode,
     } = req.body;
 
     // 매장 확인 (스탬프 설정과 OWNER 이메일도 함께 조회)
@@ -436,7 +442,9 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
         ...(enrollmentMode !== undefined && ['POINTS', 'STAMP', 'MEMBERSHIP'].includes(enrollmentMode) && { enrollmentMode }),
         ...(taghereVersion !== undefined && ['v1', 'v2'].includes(taghereVersion) && { taghereVersion }),
         ...(metacityEnabled !== undefined && { metacityEnabled }),
+        ...(metacityBrandCode !== undefined && { metacityBrandCode: metacityBrandCode || null }),
         ...(metacityStoreIdx !== undefined && { metacityStoreIdx: metacityStoreIdx || null }),
+        ...(metacityAccessCode !== undefined && { metacityAccessCode: metacityAccessCode || null }),
       },
     });
 
