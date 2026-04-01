@@ -1050,7 +1050,7 @@ function TaghereMemberEnrollContent() {
             <div className="flex-1 flex flex-col justify-end pb-4">
               <div className="text-center px-5">
                 <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
-                  세븐일레븐 <span className="text-[#6BA3FF]">10,000원</span>
+                  세븐일레븐 <span className="text-[#6BA3FF]">4,000원</span>
                   <br />
                   쿠폰이 도착했어요
                   <br />

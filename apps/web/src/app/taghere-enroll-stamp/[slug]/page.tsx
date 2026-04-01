@@ -1112,7 +1112,7 @@ function TaghereEnrollStampContent() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-start gap-1">
                     <p className="text-[14px] font-medium leading-[140%] text-[#55595e]">
-                      스탬프 적립을 위해 전국 매장 혜택 수신 동의가 필요해요.
+                      적립을 위해 전국 매장 혜택 수신 동의가 필요해요.
                     </p>
                     <span className="text-[#ff6b6b] text-[14px]">*</span>
                   </div>
