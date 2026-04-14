@@ -236,7 +236,7 @@ function CouponBottomSheet({
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       {/* 시트 */}
-      <div className="relative w-full max-w-[430px] bg-white rounded-t-3xl shadow-2xl animate-slide-up">
+      <div className="relative w-full max-w-[430px] bg-white rounded-t-3xl shadow-2xl coupon-sheet-slide-up">
         <div className="px-5 pt-5 pb-3 flex items-center justify-between">
           <h2 className="text-[18px] font-bold text-[#1d2022]">쿠폰 혜택</h2>
           <button
@@ -325,16 +325,6 @@ function CouponBottomSheet({
             {isBatchSending ? '발송 중...' : allDownloaded ? '확인' : '쿠폰 전체 다운받기'}
           </button>
         </div>
-
-        <style jsx>{`
-          @keyframes slide-up {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
-          }
-          .animate-slide-up {
-            animation: slide-up 0.3s ease-out;
-          }
-        `}</style>
       </div>
     </div>
   );
@@ -1300,24 +1290,6 @@ function TaghereMemberEnrollContent() {
                   alt="멤버십 가입"
                   className="w-full max-w-[300px] object-contain"
                 />
-                <style jsx>{`
-                  .taghere-brands-wrapper {
-                    cursor: pointer;
-                    animation: gentleFloat 3s ease-in-out infinite;
-                  }
-                  .taghere-brands-wrapper.opening {
-                    animation: boxOpen 0.6s ease-out forwards;
-                  }
-                  @keyframes gentleFloat {
-                    0%, 100% { transform: translateY(0); }
-                    50% { transform: translateY(-8px); }
-                  }
-                  @keyframes boxOpen {
-                    0% { transform: scale(1); opacity: 1; }
-                    50% { transform: scale(1.05); opacity: 1; }
-                    100% { transform: scale(0.9); opacity: 0.5; }
-                  }
-                `}</style>
               </div>
             </div>
 
@@ -1423,6 +1395,31 @@ function TaghereMemberEnrollContent() {
 
         .font-pretendard {
           font-family: 'Pretendard JP Variable', 'Pretendard JP', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+
+        .taghere-brands-wrapper {
+          cursor: pointer;
+          animation: gentleFloat 3s ease-in-out infinite;
+        }
+        .taghere-brands-wrapper.opening {
+          animation: boxOpen 0.6s ease-out forwards;
+        }
+        @keyframes gentleFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
+        }
+        @keyframes boxOpen {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.05); opacity: 1; }
+          100% { transform: scale(0.9); opacity: 0.5; }
+        }
+
+        .coupon-sheet-slide-up {
+          animation: couponSheetSlideUp 0.3s ease-out;
+        }
+        @keyframes couponSheetSlideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
         }
       `}</style>
     </>
