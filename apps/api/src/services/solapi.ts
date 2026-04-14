@@ -1128,6 +1128,34 @@ export async function enqueueCorporateAdAlimTalk(params: {
     };
   }
 
+  // 난수 쿠폰 코드 자동 할당 (couponCodeVariable이 설정된 경우)
+  const codeVar = (corporateAd.couponCodeVariable || '').trim();
+  if (codeVar) {
+    const claimedCode = await prisma.$transaction(async (tx) => {
+      const free = await tx.couponCode.findFirst({
+        where: { corporateAdId: corporateAd.id, usedAt: null },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, code: true },
+      });
+      if (!free) return null;
+      // optimistic locking: 다른 트랜잭션이 먼저 잡았으면 count === 0
+      const updateRes = await tx.couponCode.updateMany({
+        where: { id: free.id, usedAt: null },
+        data: { usedAt: new Date(), usedByCustomerId: params.customerId },
+      });
+      if (updateRes.count === 0) return null;
+      return free.code;
+    });
+
+    if (!claimedCode) {
+      console.error(`[CorporateAd] No coupon codes available for ${corporateAd.id} (${corporateAd.brandName})`);
+      return { success: false, error: 'No coupon codes available' };
+    }
+
+    variables[codeVar] = claimedCode;
+    console.log(`[CorporateAd] Claimed code for ${corporateAd.id}: ${claimedCode}`);
+  }
+
   return enqueueAlimTalk({
     storeId: params.storeId,
     customerId: params.customerId,

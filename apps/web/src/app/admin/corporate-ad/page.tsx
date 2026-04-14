@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface TemplateVariableRow {
   variable: string;
@@ -22,7 +22,22 @@ interface CouponData {
   landingLink: string;
   couponLink: string;
   templateVariables: TemplateVariableRow[] | null;
+  couponCodeVariable: string;
   enabled: boolean;
+}
+
+interface CodeStats {
+  total: number;
+  used: number;
+  available: number;
+}
+
+interface CodeRow {
+  id: string;
+  code: string;
+  usedAt: string | null;
+  usedByCustomerId: string | null;
+  createdAt: string;
 }
 
 const emptyCoupon: Omit<CouponData, 'id'> = {
@@ -39,6 +54,7 @@ const emptyCoupon: Omit<CouponData, 'id'> = {
   landingLink: '',
   couponLink: '',
   templateVariables: [],
+  couponCodeVariable: '',
   enabled: true,
 };
 
@@ -61,6 +77,300 @@ const DISPLAY_FIELDS = [
   { key: 'amountValue' as const, label: '쿠폰 금액 (숫자, 합계 계산용)', placeholder: '예: 5000' },
   { key: 'expiryDate' as const, label: '유효기간 (시트 표시용)', placeholder: '예: 2026.04.30' },
 ];
+
+// ============================================
+// 쿠폰 코드 풀 관리 컴포넌트
+// ============================================
+function CouponCodePoolSection({
+  couponId,
+  apiUrl,
+  onToast,
+}: {
+  couponId: string;
+  apiUrl: string;
+  onToast: (msg: string, type: 'success' | 'error') => void;
+}) {
+  const [stats, setStats] = useState<CodeStats | null>(null);
+  const [codes, setCodes] = useState<CodeRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [filter, setFilter] = useState<'all' | 'used' | 'available'>('all');
+  const [totalPages, setTotalPages] = useState(1);
+  const [uploading, setUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const PAGE_SIZE = 100;
+
+  const fetchStats = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes/stats`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setStats(await res.json());
+    } catch {
+      // ignore
+    }
+  };
+
+  const fetchCodes = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    try {
+      const res = await fetch(
+        `${apiUrl}/api/admin/corporate-ads/${couponId}/codes?page=${page}&limit=${PAGE_SIZE}&filter=${filter}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setCodes(data.codes);
+        setTotalPages(Math.max(1, Math.ceil((data.total || 0) / PAGE_SIZE)));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+    fetchCodes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [couponId]);
+
+  useEffect(() => {
+    fetchCodes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filter]);
+
+  const handleUpload = async (file: File) => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    if (!file.name.match(/\.(txt|csv)$/i)) {
+      onToast('.txt 또는 .csv 파일만 업로드 가능합니다.', 'error');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onToast(
+          `${data.inserted.toLocaleString()}개 추가됨 (중복 ${data.skipped.toLocaleString()}개 스킵)`,
+          'success',
+        );
+        await fetchStats();
+        setPage(1);
+        await fetchCodes();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        onToast(err.error || '업로드에 실패했습니다.', 'error');
+      }
+    } catch {
+      onToast('업로드 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteCode = async (codeId: string) => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    if (!confirm('이 코드를 삭제하시겠습니까?')) return;
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes/${codeId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        await fetchStats();
+        await fetchCodes();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        onToast(err.error || '삭제 실패', 'error');
+      }
+    } catch {
+      onToast('삭제 중 오류', 'error');
+    }
+  };
+
+  const handleDeleteAllUnused = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    if (!confirm(`미사용 코드 ${stats?.available?.toLocaleString() || 0}개를 모두 삭제할까요?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onToast(`${data.deleted.toLocaleString()}개 삭제 완료`, 'success');
+        await fetchStats();
+        setPage(1);
+        await fetchCodes();
+      }
+    } catch {
+      onToast('일괄 삭제 중 오류', 'error');
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* 통계 */}
+      {stats && (
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-neutral-50 rounded-lg p-3 text-center">
+            <p className="text-xs text-neutral-500">총</p>
+            <p className="text-lg font-semibold text-neutral-900">{stats.total.toLocaleString()}</p>
+          </div>
+          <div className="bg-neutral-50 rounded-lg p-3 text-center">
+            <p className="text-xs text-neutral-500">사용</p>
+            <p className="text-lg font-semibold text-neutral-900">{stats.used.toLocaleString()}</p>
+          </div>
+          <div className="bg-neutral-50 rounded-lg p-3 text-center">
+            <p className="text-xs text-neutral-500">남은</p>
+            <p
+              className={`text-lg font-semibold ${
+                stats.available < 100 ? 'text-red-600' : 'text-neutral-900'
+              }`}
+            >
+              {stats.available.toLocaleString()}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 업로드 영역 */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) handleUpload(file);
+        }}
+        onClick={() => fileInputRef.current?.click()}
+        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+          isDragging ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-300 hover:border-neutral-400'
+        } ${uploading ? 'opacity-60 pointer-events-none' : ''}`}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".txt,.csv"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleUpload(file);
+          }}
+        />
+        <p className="text-sm text-neutral-700 font-medium">
+          {uploading ? '업로드 중...' : '.txt 또는 .csv 파일을 드래그하거나 클릭'}
+        </p>
+        <p className="text-xs text-neutral-400 mt-1">한 줄당 코드 1개 (최대 30MB / 약 50만 개)</p>
+      </div>
+
+      {/* 필터 */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1 text-xs">
+          {(['all', 'available', 'used'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => {
+                setFilter(f);
+                setPage(1);
+              }}
+              className={`px-3 py-1 rounded-full ${
+                filter === f
+                  ? 'bg-neutral-900 text-white'
+                  : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+              }`}
+            >
+              {f === 'all' ? '전체' : f === 'available' ? '미사용' : '사용됨'}
+            </button>
+          ))}
+        </div>
+        {stats && stats.available > 0 && (
+          <button
+            onClick={handleDeleteAllUnused}
+            className="text-xs text-red-600 hover:underline"
+          >
+            미사용 전체 삭제
+          </button>
+        )}
+      </div>
+
+      {/* 코드 리스트 */}
+      <div className="border border-[#EAEAEA] rounded-lg overflow-hidden">
+        {codes.length === 0 ? (
+          <p className="text-center text-sm text-neutral-400 py-6">코드가 없습니다.</p>
+        ) : (
+          <div className="divide-y divide-[#EAEAEA]">
+            {codes.map((c) => (
+              <div key={c.id} className="px-3 py-2 flex items-center gap-2 text-sm">
+                <span className="font-mono text-neutral-900 flex-1 truncate">{c.code}</span>
+                {c.usedAt ? (
+                  <span className="text-xs text-neutral-400">
+                    사용됨 {new Date(c.usedAt).toLocaleString('ko-KR')}
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-xs text-green-600">미사용</span>
+                    <button
+                      onClick={() => handleDeleteCode(c.id)}
+                      className="text-xs text-red-600 hover:underline"
+                    >
+                      삭제
+                    </button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 페이지네이션 */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 text-sm">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-3 py-1 rounded border border-neutral-300 disabled:opacity-30"
+          >
+            이전
+          </button>
+          <span className="text-neutral-500">
+            {page} / {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="px-3 py-1 rounded border border-neutral-300 disabled:opacity-30"
+          >
+            다음
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CorporateAdPage() {
   const [coupons, setCoupons] = useState<CouponData[]>([]);
@@ -487,6 +797,43 @@ export default function CorporateAdPage() {
                     + 변수 추가
                   </button>
                 </div>
+              </div>
+
+              {/* 난수 쿠폰 코드 풀 */}
+              <div className="pt-4 border-t border-[#EAEAEA]">
+                <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1">
+                  난수 쿠폰 코드 풀
+                </p>
+                <p className="text-xs text-neutral-400 mb-3">
+                  알림톡 발송 시 미사용 코드 1개를 자동으로 아래 변수에 주입합니다.
+                </p>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                    쿠폰 코드 변수명
+                  </label>
+                  <input
+                    type="text"
+                    value={editing.couponCodeVariable ?? ''}
+                    onChange={(e) =>
+                      setEditing({ ...editing, couponCodeVariable: e.target.value })
+                    }
+                    placeholder="예: #{쿠폰코드}  (비워두면 코드 풀 미사용)"
+                    className="w-full px-3.5 py-2.5 border border-[#EAEAEA] rounded-lg text-sm font-mono"
+                  />
+                </div>
+
+                {'id' in editing && editing.id ? (
+                  <CouponCodePoolSection
+                    couponId={editing.id}
+                    apiUrl={apiUrl}
+                    onToast={(message, type) => setToast({ message, type })}
+                  />
+                ) : (
+                  <p className="text-xs text-neutral-400 py-3 text-center bg-neutral-50 rounded-lg">
+                    먼저 쿠폰을 저장하면 코드를 업로드할 수 있습니다.
+                  </p>
+                )}
               </div>
 
               {/* (Legacy) 표준 변수 폴백 필드 */}

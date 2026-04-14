@@ -1828,10 +1828,31 @@ model CorporateAd {
   // 형식: [{ variable: "#{쿠폰명}", value: "..." }, ...]
   // 비어있으면 위 legacy 필드로 폴백
   templateVariables   Json?
+  // ── 난수 쿠폰 코드 자동 발급 ──
+  // 알림톡 발송 시 미사용 코드 1개를 자동으로 이 변수에 주입
+  couponCodeVariable  String   @default("")          // 예: "#{쿠폰코드}"
   enabled             Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
+  couponCodes         CouponCode[]
+
   @@index([displayOrder])
   @@map("corporate_ads")
+}
+
+// 난수 쿠폰 코드 풀 (브랜드별)
+model CouponCode {
+  id               String       @id @default(cuid())
+  corporateAdId    String
+  code             String                              // 쿠폰 코드 문자열
+  usedAt           DateTime?                           // null이면 미사용
+  usedByCustomerId String?                             // 사용한 고객 ID (참조용, FK 없음)
+  createdAt        DateTime     @default(now())
+
+  corporateAd      CorporateAd  @relation(fields: [corporateAdId], references: [id], onDelete: Cascade)
+
+  @@unique([corporateAdId, code])
+  @@index([corporateAdId, usedAt])
+  @@map("coupon_codes")
 }

@@ -3734,6 +3734,7 @@ router.post('/corporate-ads', adminAuthMiddleware, async (req: AdminRequest, res
       landingLink = '',
       couponLink = '',
       templateVariables,
+      couponCodeVariable = '',
       enabled = true,
     } = req.body;
 
@@ -3790,6 +3791,7 @@ router.put('/corporate-ads/:id', adminAuthMiddleware, async (req: AdminRequest, 
       landingLink,
       couponLink,
       templateVariables,
+      couponCodeVariable,
       enabled,
     } = req.body;
 
@@ -3809,6 +3811,7 @@ router.put('/corporate-ads/:id', adminAuthMiddleware, async (req: AdminRequest, 
         ...(landingLink !== undefined && { landingLink }),
         ...(couponLink !== undefined && { couponLink }),
         ...(templateVariables !== undefined && { templateVariables }),
+        ...(couponCodeVariable !== undefined && { couponCodeVariable }),
         ...(enabled !== undefined && { enabled }),
       },
     });
@@ -3831,6 +3834,177 @@ router.delete('/corporate-ads/:id', adminAuthMiddleware, async (req: AdminReques
     res.status(500).json({ error: '쿠폰 삭제 중 오류가 발생했습니다.' });
   }
 });
+
+// ============================================
+// 쿠폰 코드 풀 (난수 코드)
+// ============================================
+
+// multer: 텍스트 파일 업로드 (메모리 스토리지, 30MB 제한 ≈ 50만 개 + 여유)
+const couponCodeUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 30 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext !== '.txt' && ext !== '.csv') {
+      cb(new Error('.txt 또는 .csv 파일만 업로드 가능합니다.'));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+// POST /api/admin/corporate-ads/:id/codes/upload - 코드 대량 업로드
+router.post(
+  '/corporate-ads/:id/codes/upload',
+  adminAuthMiddleware,
+  couponCodeUpload.single('file'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      const corporateAd = await prisma.corporateAd.findUnique({ where: { id } });
+      if (!corporateAd) return res.status(404).json({ error: '쿠폰을 찾을 수 없습니다.' });
+
+      if (!req.file) return res.status(400).json({ error: '파일이 없습니다.' });
+
+      const text = req.file.buffer.toString('utf-8');
+      const codes = text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+      if (codes.length === 0) {
+        return res.status(400).json({ error: '유효한 코드가 없습니다.' });
+      }
+
+      // 중복 제거 (파일 내부 중복)
+      const uniqueCodes = Array.from(new Set(codes));
+
+      const CHUNK = 10000;
+      let totalInserted = 0;
+
+      for (let i = 0; i < uniqueCodes.length; i += CHUNK) {
+        const batch = uniqueCodes.slice(i, i + CHUNK);
+        const result = await prisma.couponCode.createMany({
+          data: batch.map((code) => ({ corporateAdId: id, code })),
+          skipDuplicates: true, // DB 이미 존재하는 코드 스킵
+        });
+        totalInserted += result.count;
+      }
+
+      res.json({
+        success: true,
+        receivedLines: codes.length,
+        uniqueInFile: uniqueCodes.length,
+        inserted: totalInserted,
+        skipped: uniqueCodes.length - totalInserted,
+      });
+    } catch (error: any) {
+      console.error('Corporate ad codes upload error:', error);
+      res.status(500).json({ error: error?.message || '코드 업로드 중 오류가 발생했습니다.' });
+    }
+  },
+);
+
+// GET /api/admin/corporate-ads/:id/codes/stats - 통계
+router.get(
+  '/corporate-ads/:id/codes/stats',
+  adminAuthMiddleware,
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const [total, used] = await Promise.all([
+        prisma.couponCode.count({ where: { corporateAdId: id } }),
+        prisma.couponCode.count({ where: { corporateAdId: id, usedAt: { not: null } } }),
+      ]);
+      res.json({ total, used, available: total - used });
+    } catch (error) {
+      console.error('Corporate ad codes stats error:', error);
+      res.status(500).json({ error: '코드 통계 조회 중 오류가 발생했습니다.' });
+    }
+  },
+);
+
+// GET /api/admin/corporate-ads/:id/codes - 코드 리스트 (페이지네이션 + 필터)
+router.get(
+  '/corporate-ads/:id/codes',
+  adminAuthMiddleware,
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const page = Math.max(1, parseInt((req.query.page as string) || '1') || 1);
+      const limit = Math.min(500, parseInt((req.query.limit as string) || '100') || 100);
+      const filter = (req.query.filter as string) || 'all';
+
+      const where: any = { corporateAdId: id };
+      if (filter === 'used') where.usedAt = { not: null };
+      else if (filter === 'available') where.usedAt = null;
+
+      const [codes, total] = await Promise.all([
+        prisma.couponCode.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+          select: {
+            id: true,
+            code: true,
+            usedAt: true,
+            usedByCustomerId: true,
+            createdAt: true,
+          },
+        }),
+        prisma.couponCode.count({ where }),
+      ]);
+
+      res.json({ codes, total, page, limit });
+    } catch (error) {
+      console.error('Corporate ad codes list error:', error);
+      res.status(500).json({ error: '코드 목록 조회 중 오류가 발생했습니다.' });
+    }
+  },
+);
+
+// DELETE /api/admin/corporate-ads/:id/codes/:codeId - 개별 코드 삭제 (미사용만 가능)
+router.delete(
+  '/corporate-ads/:id/codes/:codeId',
+  adminAuthMiddleware,
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const { id, codeId } = req.params;
+      const code = await prisma.couponCode.findFirst({
+        where: { id: codeId, corporateAdId: id },
+      });
+      if (!code) return res.status(404).json({ error: '코드를 찾을 수 없습니다.' });
+      if (code.usedAt) {
+        return res.status(400).json({ error: '이미 사용된 코드는 삭제할 수 없습니다.' });
+      }
+      await prisma.couponCode.delete({ where: { id: codeId } });
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Corporate ad code delete error:', error);
+      res.status(500).json({ error: '코드 삭제 중 오류가 발생했습니다.' });
+    }
+  },
+);
+
+// DELETE /api/admin/corporate-ads/:id/codes - 미사용 코드 전체 삭제
+router.delete(
+  '/corporate-ads/:id/codes',
+  adminAuthMiddleware,
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const result = await prisma.couponCode.deleteMany({
+        where: { corporateAdId: id, usedAt: null },
+      });
+      res.json({ success: true, deleted: result.count });
+    } catch (error) {
+      console.error('Corporate ad codes delete-all error:', error);
+      res.status(500).json({ error: '코드 일괄 삭제 중 오류가 발생했습니다.' });
+    }
+  },
+);
 
 // PUT /api/admin/corporate-ads/reorder - 표시 순서 일괄 변경
 router.put('/corporate-ads/reorder', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
