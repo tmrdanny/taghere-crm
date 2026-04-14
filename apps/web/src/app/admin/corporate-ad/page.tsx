@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from 'react';
 
+interface TemplateVariableRow {
+  variable: string;
+  value: string;
+}
+
 interface CouponData {
   id: string;
   brandName: string;
@@ -16,6 +21,7 @@ interface CouponData {
   registrationMethod: string;
   landingLink: string;
   couponLink: string;
+  templateVariables: TemplateVariableRow[] | null;
   enabled: boolean;
 }
 
@@ -32,20 +38,28 @@ const emptyCoupon: Omit<CouponData, 'id'> = {
   registrationMethod: '',
   landingLink: '',
   couponLink: '',
+  templateVariables: [],
   enabled: true,
 };
 
-const FIELD_CONFIG = [
-  { key: 'brandName' as const, label: '브랜드명', placeholder: '예: 세븐일레븐', variable: '' },
-  { key: 'imageUrl' as const, label: '브랜드 아이콘 URL', placeholder: 'https://...png', variable: '' },
-  { key: 'couponName' as const, label: '쿠폰명', placeholder: '예: 세븐일레븐 모바일 상품권', variable: '#{쿠폰명}' },
-  { key: 'couponContent' as const, label: '쿠폰 내용', placeholder: '예: 편의점에서 사용 가능한 모바일 상품권', variable: '#{쿠폰 내용}' },
-  { key: 'couponAmount' as const, label: '쿠폰 금액 (표시용)', placeholder: '예: 5,000원', variable: '#{쿠폰 금액}' },
-  { key: 'amountValue' as const, label: '쿠폰 금액 (숫자, 합계용)', placeholder: '예: 5000', variable: '' },
-  { key: 'expiryDate' as const, label: '유효기간', placeholder: '예: 2026.04.30 까지', variable: '#{유효기간}' },
-  { key: 'registrationMethod' as const, label: '등록방법', placeholder: '예: 카카오톡 채널 추가 후 자동 발급', variable: '#{등록방법}' },
-  { key: 'landingLink' as const, label: '랜딩 링크', placeholder: 'https://example.com/landing', variable: '#{랜딩 링크}' },
-  { key: 'couponLink' as const, label: '쿠폰 링크', placeholder: 'https://example.com/coupon', variable: '#{쿠폰 링크}' },
+const DEFAULT_VARIABLE_PRESET: TemplateVariableRow[] = [
+  { variable: '#{쿠폰명}', value: '' },
+  { variable: '#{쿠폰 내용}', value: '' },
+  { variable: '#{쿠폰 금액}', value: '' },
+  { variable: '#{유효기간}', value: '' },
+  { variable: '#{등록방법}', value: '' },
+  { variable: '#{랜딩 링크}', value: '' },
+  { variable: '#{쿠폰 링크}', value: '' },
+];
+
+// 페이지 표시용 필드 (멤버십 페이지 UI에 사용)
+const DISPLAY_FIELDS = [
+  { key: 'brandName' as const, label: '브랜드명', placeholder: '예: 세븐일레븐' },
+  { key: 'imageUrl' as const, label: '브랜드 아이콘 URL', placeholder: 'https://...png' },
+  { key: 'couponName' as const, label: '쿠폰명 (시트 표시용)', placeholder: '예: 세븐일레븐 5,000원 쿠폰' },
+  { key: 'couponAmount' as const, label: '쿠폰 금액 (표시용 텍스트)', placeholder: '예: 5,000원' },
+  { key: 'amountValue' as const, label: '쿠폰 금액 (숫자, 합계 계산용)', placeholder: '예: 5000' },
+  { key: 'expiryDate' as const, label: '유효기간 (시트 표시용)', placeholder: '예: 2026.04.30' },
 ];
 
 export default function CorporateAdPage() {
@@ -347,41 +361,166 @@ export default function CorporateAdPage() {
                 />
               </div>
 
-              {/* Variable Fields */}
-              {FIELD_CONFIG.map((field) => {
-                const isNumber = field.key === 'amountValue';
-                const isImage = field.key === 'imageUrl';
-                return (
-                  <div key={field.key}>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <label className="text-sm font-medium text-neutral-700">{field.label}</label>
-                      {field.variable && (
+              {/* 표시용 필드 (멤버십 페이지에 노출) */}
+              <div className="pt-2">
+                <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-3">
+                  멤버십 페이지 표시 정보
+                </p>
+                <div className="space-y-3">
+                  {DISPLAY_FIELDS.map((field) => {
+                    const isNumber = field.key === 'amountValue';
+                    const isImage = field.key === 'imageUrl';
+                    return (
+                      <div key={field.key}>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                          {field.label}
+                        </label>
+                        <input
+                          type={isNumber ? 'number' : 'text'}
+                          value={(editing as any)[field.key] ?? ''}
+                          onChange={(e) =>
+                            setEditing({
+                              ...editing,
+                              [field.key]: isNumber
+                                ? parseInt(e.target.value || '0') || 0
+                                : e.target.value,
+                            })
+                          }
+                          className="w-full px-3.5 py-2.5 border border-[#EAEAEA] rounded-lg text-sm"
+                          placeholder={field.placeholder}
+                        />
+                        {isImage && editing.imageUrl && (
+                          <div className="mt-2 w-16 h-16 rounded-full bg-neutral-100 overflow-hidden">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={editing.imageUrl} alt="preview" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 알림톡 템플릿 변수 (동적) */}
+              <div className="pt-4 border-t border-[#EAEAEA]">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">
+                      알림톡 템플릿 변수
+                    </p>
+                    <p className="text-xs text-neutral-400 mt-0.5">
+                      SOLAPI 템플릿에 정의된 #{'{변수명}'} 그대로 입력하세요
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const current = editing.templateVariables ?? [];
+                      // 이미 있는 변수는 제외하고 추가
+                      const existing = new Set(current.map((r) => r.variable));
+                      const additions = DEFAULT_VARIABLE_PRESET.filter(
+                        (r) => !existing.has(r.variable),
+                      );
+                      setEditing({
+                        ...editing,
+                        templateVariables: [...current, ...additions],
+                      });
+                    }}
+                    className="text-xs text-neutral-700 underline"
+                  >
+                    기본 변수 7개 추가
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {(editing.templateVariables ?? []).map((row, idx) => (
+                    <div key={idx} className="flex gap-2 items-start">
+                      <input
+                        type="text"
+                        value={row.variable}
+                        onChange={(e) => {
+                          const next = [...(editing.templateVariables ?? [])];
+                          next[idx] = { ...next[idx], variable: e.target.value };
+                          setEditing({ ...editing, templateVariables: next });
+                        }}
+                        placeholder="#{변수명}"
+                        className="flex-1 px-3 py-2 border border-[#EAEAEA] rounded-lg text-sm font-mono"
+                      />
+                      <input
+                        type="text"
+                        value={row.value}
+                        onChange={(e) => {
+                          const next = [...(editing.templateVariables ?? [])];
+                          next[idx] = { ...next[idx], value: e.target.value };
+                          setEditing({ ...editing, templateVariables: next });
+                        }}
+                        placeholder="값"
+                        className="flex-[2] px-3 py-2 border border-[#EAEAEA] rounded-lg text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = [...(editing.templateVariables ?? [])];
+                          next.splice(idx, 1);
+                          setEditing({ ...editing, templateVariables: next });
+                        }}
+                        className="px-2 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm"
+                        aria-label="삭제"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  {(!editing.templateVariables || editing.templateVariables.length === 0) && (
+                    <p className="text-xs text-neutral-400 py-2">
+                      변수가 없으면 아래 (legacy) 필드를 사용하여 자동 매핑됩니다.
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = [...(editing.templateVariables ?? []), { variable: '', value: '' }];
+                      setEditing({ ...editing, templateVariables: next });
+                    }}
+                    className="w-full py-2 border-2 border-dashed border-neutral-300 rounded-lg text-sm text-neutral-500 hover:border-neutral-400 hover:text-neutral-700"
+                  >
+                    + 변수 추가
+                  </button>
+                </div>
+              </div>
+
+              {/* (Legacy) 표준 변수 폴백 필드 */}
+              <details className="pt-4 border-t border-[#EAEAEA]">
+                <summary className="text-xs font-semibold text-neutral-500 uppercase tracking-wide cursor-pointer">
+                  (Legacy) 표준 변수 폴백 필드
+                </summary>
+                <p className="text-xs text-neutral-400 mt-1 mb-3">
+                  위 템플릿 변수가 비어있을 때만 아래 값으로 자동 매핑됩니다.
+                </p>
+                <div className="space-y-3">
+                  {[
+                    { key: 'couponContent' as const, label: '쿠폰 내용', variable: '#{쿠폰 내용}' },
+                    { key: 'registrationMethod' as const, label: '등록방법', variable: '#{등록방법}' },
+                    { key: 'landingLink' as const, label: '랜딩 링크', variable: '#{랜딩 링크}' },
+                    { key: 'couponLink' as const, label: '쿠폰 링크', variable: '#{쿠폰 링크}' },
+                  ].map((field) => (
+                    <div key={field.key}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <label className="text-sm font-medium text-neutral-700">{field.label}</label>
                         <span className="text-xs text-neutral-400 font-mono bg-neutral-50 px-1.5 py-0.5 rounded">
                           {field.variable}
                         </span>
-                      )}
-                    </div>
-                    <input
-                      type={isNumber ? 'number' : 'text'}
-                      value={(editing as any)[field.key] ?? ''}
-                      onChange={(e) =>
-                        setEditing({
-                          ...editing,
-                          [field.key]: isNumber ? parseInt(e.target.value || '0') || 0 : e.target.value,
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 border border-[#EAEAEA] rounded-lg text-sm"
-                      placeholder={field.placeholder}
-                    />
-                    {isImage && editing.imageUrl && (
-                      <div className="mt-2 w-16 h-16 rounded-full bg-neutral-100 overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={editing.imageUrl} alt="preview" className="w-full h-full object-cover" />
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                      <input
+                        type="text"
+                        value={(editing as any)[field.key] ?? ''}
+                        onChange={(e) => setEditing({ ...editing, [field.key]: e.target.value })}
+                        className="w-full px-3.5 py-2.5 border border-[#EAEAEA] rounded-lg text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </details>
             </div>
 
             <div className="sticky bottom-0 bg-white border-t border-[#EAEAEA] px-6 py-4 flex justify-end gap-2 rounded-b-2xl">

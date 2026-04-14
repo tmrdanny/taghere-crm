@@ -1814,14 +1814,20 @@ model CorporateAd {
   imageUrl            String   @default("")           // 브랜드 아이콘 URL
   displayOrder        Int      @default(0)            // 노출 순서
   templateId          String   @default("KA01TP250930075547299ikOWJ6bArTY")
-  couponName          String   @default("")
-  couponContent       String   @default("")
-  couponAmount        String   @default("")           // 표시용 (예: "5,000원")
-  amountValue         Int      @default(0)            // 합계 계산용 정수값 (5000)
-  expiryDate          String   @default("")
+  // ── 표시용 필드 (멤버십 페이지 UI) ──
+  couponName          String   @default("")           // 쿠폰명 (시트에 표시)
+  couponContent       String   @default("")           // (legacy)
+  couponAmount        String   @default("")           // (legacy)
+  amountValue         Int      @default(0)            // 합계 계산용 (시트 상단 "최대 N원")
+  expiryDate          String   @default("")           // 만료일 (시트에 표시)
+  // ── (legacy) 표준 변수 매핑용, 신규에서는 templateVariables 사용 ──
   registrationMethod  String   @default("")
   landingLink         String   @default("")
   couponLink          String   @default("")
+  // ── 알림톡 템플릿 변수 (브랜드별 커스텀) ──
+  // 형식: [{ variable: "#{쿠폰명}", value: "..." }, ...]
+  // 비어있으면 위 legacy 필드로 폴백
+  templateVariables   Json?
   enabled             Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt

@@ -1101,13 +1101,23 @@ export async function enqueueCorporateAdAlimTalk(params: {
     return { success: false, error: 'Already sent' };
   }
 
-  return enqueueAlimTalk({
-    storeId: params.storeId,
-    customerId: params.customerId,
-    phone: params.phone,
-    messageType: 'CORPORATE_AD',
-    templateId: corporateAd.templateId,
-    variables: {
+  // 알림톡 변수 매핑: templateVariables (커스텀) > legacy 표준 매핑
+  let variables: Record<string, string>;
+  const customVars = corporateAd.templateVariables as
+    | { variable: string; value: string }[]
+    | null
+    | undefined;
+
+  if (Array.isArray(customVars) && customVars.length > 0) {
+    variables = {};
+    for (const row of customVars) {
+      if (row?.variable) {
+        variables[row.variable] = row.value ?? '';
+      }
+    }
+  } else {
+    // 호환용 폴백: 기존 고정 변수 매핑
+    variables = {
       '#{쿠폰명}': corporateAd.couponName,
       '#{쿠폰 내용}': corporateAd.couponContent,
       '#{쿠폰 금액}': corporateAd.couponAmount,
@@ -1115,7 +1125,16 @@ export async function enqueueCorporateAdAlimTalk(params: {
       '#{등록방법}': corporateAd.registrationMethod,
       '#{랜딩 링크}': corporateAd.landingLink,
       '#{쿠폰 링크}': corporateAd.couponLink,
-    },
+    };
+  }
+
+  return enqueueAlimTalk({
+    storeId: params.storeId,
+    customerId: params.customerId,
+    phone: params.phone,
+    messageType: 'CORPORATE_AD',
+    templateId: corporateAd.templateId,
+    variables,
     idempotencyKey,
   });
 }

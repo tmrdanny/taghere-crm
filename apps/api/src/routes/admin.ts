@@ -3733,6 +3733,7 @@ router.post('/corporate-ads', adminAuthMiddleware, async (req: AdminRequest, res
       registrationMethod = '',
       landingLink = '',
       couponLink = '',
+      templateVariables,
       enabled = true,
     } = req.body;
 
@@ -3759,6 +3760,7 @@ router.post('/corporate-ads', adminAuthMiddleware, async (req: AdminRequest, res
         registrationMethod,
         landingLink,
         couponLink,
+        templateVariables: templateVariables ?? undefined,
         enabled,
       },
     });
@@ -3787,6 +3789,7 @@ router.put('/corporate-ads/:id', adminAuthMiddleware, async (req: AdminRequest, 
       registrationMethod,
       landingLink,
       couponLink,
+      templateVariables,
       enabled,
     } = req.body;
 
@@ -3805,6 +3808,7 @@ router.put('/corporate-ads/:id', adminAuthMiddleware, async (req: AdminRequest, 
         ...(registrationMethod !== undefined && { registrationMethod }),
         ...(landingLink !== undefined && { landingLink }),
         ...(couponLink !== undefined && { couponLink }),
+        ...(templateVariables !== undefined && { templateVariables }),
         ...(enabled !== undefined && { enabled }),
       },
     });
