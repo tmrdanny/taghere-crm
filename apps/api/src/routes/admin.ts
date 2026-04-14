@@ -3773,6 +3773,31 @@ router.post('/corporate-ads', adminAuthMiddleware, async (req: AdminRequest, res
   }
 });
 
+// PUT /api/admin/corporate-ads/reorder - 표시 순서 일괄 변경
+// 주의: 반드시 PUT /:id 라우트보다 먼저 등록되어야 함
+router.put('/corporate-ads/reorder', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { orders } = req.body as { orders: { id: string; displayOrder: number }[] };
+    if (!Array.isArray(orders)) {
+      return res.status(400).json({ error: 'orders 배열이 필요합니다.' });
+    }
+
+    await prisma.$transaction(
+      orders.map((o) =>
+        prisma.corporateAd.update({
+          where: { id: o.id },
+          data: { displayOrder: o.displayOrder },
+        }),
+      ),
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Corporate ad reorder error:', error);
+    res.status(500).json({ error: '순서 변경 중 오류가 발생했습니다.' });
+  }
+});
+
 // PUT /api/admin/corporate-ads/:id - 쿠폰 수정
 router.put('/corporate-ads/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
@@ -4029,30 +4054,6 @@ router.delete(
     }
   },
 );
-
-// PUT /api/admin/corporate-ads/reorder - 표시 순서 일괄 변경
-router.put('/corporate-ads/reorder', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
-  try {
-    const { orders } = req.body as { orders: { id: string; displayOrder: number }[] };
-    if (!Array.isArray(orders)) {
-      return res.status(400).json({ error: 'orders 배열이 필요합니다.' });
-    }
-
-    await prisma.$transaction(
-      orders.map((o) =>
-        prisma.corporateAd.update({
-          where: { id: o.id },
-          data: { displayOrder: o.displayOrder },
-        }),
-      ),
-    );
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Corporate ad reorder error:', error);
-    res.status(500).json({ error: '순서 변경 중 오류가 발생했습니다.' });
-  }
-});
 
 // 호환용 (deprecated): 기존 단일 쿠폰 엔드포인트 - 첫 번째 enabled 쿠폰 반환
 router.get('/corporate-ad', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
