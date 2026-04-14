@@ -3988,6 +3988,30 @@ router.delete(
   },
 );
 
+// POST /api/admin/corporate-ads/:id/codes/shuffle - 미사용 코드 발급 순서 무작위로 섞기
+router.post(
+  '/corporate-ads/:id/codes/shuffle',
+  adminAuthMiddleware,
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      // PostgreSQL: random() 함수로 미사용 코드들의 createdAt을 무작위 시간으로 재할당
+      // 50만 개도 단일 쿼리로 빠르게 처리됨
+      const result = await prisma.$executeRaw`
+        UPDATE "coupon_codes"
+        SET "createdAt" = NOW() - (random() * interval '365 days')
+        WHERE "corporateAdId" = ${id} AND "usedAt" IS NULL
+      `;
+
+      res.json({ success: true, shuffled: Number(result) });
+    } catch (error) {
+      console.error('Corporate ad codes shuffle error:', error);
+      res.status(500).json({ error: '코드 섞기 중 오류가 발생했습니다.' });
+    }
+  },
+);
+
 // DELETE /api/admin/corporate-ads/:id/codes - 미사용 코드 전체 삭제
 router.delete(
   '/corporate-ads/:id/codes',

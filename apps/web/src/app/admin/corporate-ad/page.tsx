@@ -226,6 +226,30 @@ function CouponCodePoolSection({
     }
   };
 
+  const handleShuffle = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    if (!confirm(`미사용 코드 ${stats?.available?.toLocaleString() || 0}개의 발급 순서를 무작위로 섞을까요?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes/shuffle`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onToast(`${data.shuffled.toLocaleString()}개 코드 순서를 섞었습니다.`, 'success');
+        setPage(1);
+        await fetchCodes();
+      } else {
+        onToast('섞기에 실패했습니다.', 'error');
+      }
+    } catch {
+      onToast('섞기 중 오류', 'error');
+    }
+  };
+
   return (
     <div className="space-y-3">
       {/* 통계 */}
@@ -307,12 +331,20 @@ function CouponCodePoolSection({
           ))}
         </div>
         {stats && stats.available > 0 && (
-          <button
-            onClick={handleDeleteAllUnused}
-            className="text-xs text-red-600 hover:underline"
-          >
-            미사용 전체 삭제
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleShuffle}
+              className="text-xs text-neutral-700 hover:underline"
+            >
+              🔀 무작위로 섞기
+            </button>
+            <button
+              onClick={handleDeleteAllUnused}
+              className="text-xs text-red-600 hover:underline"
+            >
+              미사용 전체 삭제
+            </button>
+          </div>
         )}
       </div>
 
