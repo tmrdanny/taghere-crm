@@ -42,6 +42,7 @@ import smsRoutes from './routes/sms.js';
 import localCustomersRoutes from './routes/local-customers.js';
 import brandMessageRoutes from './routes/brand-message.js';
 import publicRoutes from './routes/public.js';
+import membershipRoutes from './routes/membership.js';
 import franchiseAuthRoutes from './routes/franchise-auth.js';
 import franchiseRoutes from './routes/franchise.js';
 import franchiseSmsRoutes from './routes/franchise-sms.js';
@@ -230,6 +231,7 @@ app.use('/api/sms', smsRoutes);
 app.use('/api/local-customers', localCustomersRoutes);
 app.use('/api/brand-message', brandMessageRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/membership', membershipRoutes);
 
 // Waiting routes
 app.use('/api/waiting', waitingRoutes);

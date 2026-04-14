@@ -1810,10 +1810,14 @@ model RewardClaim {
 
 model CorporateAd {
   id                  String   @id @default(cuid())
+  brandName           String   @default("")           // 브랜드명 (예: "세븐일레븐")
+  imageUrl            String   @default("")           // 브랜드 아이콘 URL
+  displayOrder        Int      @default(0)            // 노출 순서
   templateId          String   @default("KA01TP250930075547299ikOWJ6bArTY")
   couponName          String   @default("")
   couponContent       String   @default("")
-  couponAmount        String   @default("")
+  couponAmount        String   @default("")           // 표시용 (예: "5,000원")
+  amountValue         Int      @default(0)            // 합계 계산용 정수값 (5000)
   expiryDate          String   @default("")
   registrationMethod  String   @default("")
   landingLink         String   @default("")
@@ -1822,5 +1826,6 @@ model CorporateAd {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
+  @@index([displayOrder])
   @@map("corporate_ads")
 }

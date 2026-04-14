@@ -1067,36 +1067,39 @@ export async function enqueueCorporateAdAlimTalk(params: {
   storeId: string;
   customerId: string;
   phone: string;
+  couponId: string;
 }): Promise<{ success: boolean; error?: string }> {
   console.log(`[AlimTalk] enqueueCorporateAdAlimTalk called:`, {
     storeId: params.storeId,
     customerId: params.customerId,
     phone: params.phone,
+    couponId: params.couponId,
   });
 
-  // 기업광고 설정 조회
-  const corporateAd = await prisma.corporateAd.findFirst();
+  // 특정 쿠폰 조회
+  const corporateAd = await prisma.corporateAd.findUnique({
+    where: { id: params.couponId },
+  });
 
   if (!corporateAd || !corporateAd.enabled) {
-    console.log(`[AlimTalk] Corporate ad disabled or not configured, found:`, corporateAd ? { enabled: corporateAd.enabled, templateId: corporateAd.templateId } : 'null');
+    console.log(`[AlimTalk] Corporate ad disabled or not found:`, corporateAd ? { enabled: corporateAd.enabled, templateId: corporateAd.templateId } : 'null');
     return { success: false, error: 'Corporate ad not configured' };
   }
 
-  // 이미 발송된 적 있는지 확인 (고객당 1회만 발송)
+  // 이미 해당 쿠폰이 발송된 적 있는지 확인 (쿠폰별 1회만 발송)
+  const idempotencyKey = `corporate_ad:${params.storeId}:${params.customerId}:${params.couponId}`;
+
   const alreadySent = await prisma.alimTalkOutbox.findFirst({
     where: {
-      customerId: params.customerId,
-      messageType: 'CORPORATE_AD',
+      idempotencyKey,
       status: { not: 'FAILED' },
     },
   });
 
   if (alreadySent) {
-    console.log(`[AlimTalk] Corporate ad already sent to customer ${params.customerId}, skipping`);
+    console.log(`[AlimTalk] Corporate ad coupon ${params.couponId} already sent to customer ${params.customerId}, skipping`);
     return { success: false, error: 'Already sent' };
   }
-
-  const idempotencyKey = `corporate_ad:${params.storeId}:${params.customerId}`;
 
   return enqueueAlimTalk({
     storeId: params.storeId,

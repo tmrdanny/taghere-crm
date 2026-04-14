@@ -3701,43 +3701,88 @@ router.post('/table-link-settings/:storeId/bulk-add', adminAuthMiddleware, async
 });
 
 // ============================================
-// 기업광고 알림톡 설정
+// 기업광고 알림톡 설정 (다중 쿠폰)
 // ============================================
 
-// GET /api/admin/corporate-ad - 기업광고 설정 조회
-router.get('/corporate-ad', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+// GET /api/admin/corporate-ads - 전체 쿠폰 리스트 조회
+router.get('/corporate-ads', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    const corporateAd = await prisma.corporateAd.findFirst();
-
-    if (!corporateAd) {
-      return res.json({
-        templateId: 'KA01TP250930075547299ikOWJ6bArTY',
-        couponName: '',
-        couponContent: '',
-        couponAmount: '',
-        expiryDate: '',
-        registrationMethod: '',
-        landingLink: '',
-        couponLink: '',
-        enabled: true,
-      });
-    }
-
-    res.json(corporateAd);
+    const corporateAds = await prisma.corporateAd.findMany({
+      orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+    });
+    res.json(corporateAds);
   } catch (error) {
-    console.error('Corporate ad get error:', error);
-    res.status(500).json({ error: '기업광고 설정 조회 중 오류가 발생했습니다.' });
+    console.error('Corporate ads list error:', error);
+    res.status(500).json({ error: '쿠폰 목록 조회 중 오류가 발생했습니다.' });
   }
 });
 
-// PUT /api/admin/corporate-ad - 기업광고 설정 저장
-router.put('/corporate-ad', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+// POST /api/admin/corporate-ads - 새 쿠폰 추가
+router.post('/corporate-ads', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
     const {
+      brandName = '',
+      imageUrl = '',
+      displayOrder,
+      templateId = 'KA01TP250930075547299ikOWJ6bArTY',
+      couponName = '',
+      couponContent = '',
+      couponAmount = '',
+      amountValue = 0,
+      expiryDate = '',
+      registrationMethod = '',
+      landingLink = '',
+      couponLink = '',
+      enabled = true,
+    } = req.body;
+
+    // displayOrder 미지정 시 마지막 순서로
+    let order = displayOrder;
+    if (typeof order !== 'number') {
+      const last = await prisma.corporateAd.findFirst({
+        orderBy: { displayOrder: 'desc' },
+      });
+      order = last ? last.displayOrder + 1 : 0;
+    }
+
+    const created = await prisma.corporateAd.create({
+      data: {
+        brandName,
+        imageUrl,
+        displayOrder: order,
+        templateId,
+        couponName,
+        couponContent,
+        couponAmount,
+        amountValue,
+        expiryDate,
+        registrationMethod,
+        landingLink,
+        couponLink,
+        enabled,
+      },
+    });
+
+    res.json(created);
+  } catch (error) {
+    console.error('Corporate ad create error:', error);
+    res.status(500).json({ error: '쿠폰 생성 중 오류가 발생했습니다.' });
+  }
+});
+
+// PUT /api/admin/corporate-ads/:id - 쿠폰 수정
+router.put('/corporate-ads/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const {
+      brandName,
+      imageUrl,
+      displayOrder,
       templateId,
       couponName,
       couponContent,
       couponAmount,
+      amountValue,
       expiryDate,
       registrationMethod,
       landingLink,
@@ -3745,44 +3790,95 @@ router.put('/corporate-ad', adminAuthMiddleware, async (req: AdminRequest, res: 
       enabled,
     } = req.body;
 
-    const existing = await prisma.corporateAd.findFirst();
+    const updated = await prisma.corporateAd.update({
+      where: { id },
+      data: {
+        ...(brandName !== undefined && { brandName }),
+        ...(imageUrl !== undefined && { imageUrl }),
+        ...(displayOrder !== undefined && { displayOrder }),
+        ...(templateId !== undefined && { templateId }),
+        ...(couponName !== undefined && { couponName }),
+        ...(couponContent !== undefined && { couponContent }),
+        ...(couponAmount !== undefined && { couponAmount }),
+        ...(amountValue !== undefined && { amountValue }),
+        ...(expiryDate !== undefined && { expiryDate }),
+        ...(registrationMethod !== undefined && { registrationMethod }),
+        ...(landingLink !== undefined && { landingLink }),
+        ...(couponLink !== undefined && { couponLink }),
+        ...(enabled !== undefined && { enabled }),
+      },
+    });
 
-    let corporateAd;
-    if (existing) {
-      corporateAd = await prisma.corporateAd.update({
-        where: { id: existing.id },
-        data: {
-          templateId,
-          couponName,
-          couponContent,
-          couponAmount,
-          expiryDate,
-          registrationMethod,
-          landingLink,
-          couponLink,
-          enabled,
-        },
-      });
-    } else {
-      corporateAd = await prisma.corporateAd.create({
-        data: {
-          templateId,
-          couponName,
-          couponContent,
-          couponAmount,
-          expiryDate,
-          registrationMethod,
-          landingLink,
-          couponLink,
-          enabled,
-        },
-      });
+    res.json(updated);
+  } catch (error) {
+    console.error('Corporate ad update error:', error);
+    res.status(500).json({ error: '쿠폰 수정 중 오류가 발생했습니다.' });
+  }
+});
+
+// DELETE /api/admin/corporate-ads/:id - 쿠폰 삭제
+router.delete('/corporate-ads/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    await prisma.corporateAd.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Corporate ad delete error:', error);
+    res.status(500).json({ error: '쿠폰 삭제 중 오류가 발생했습니다.' });
+  }
+});
+
+// PUT /api/admin/corporate-ads/reorder - 표시 순서 일괄 변경
+router.put('/corporate-ads/reorder', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { orders } = req.body as { orders: { id: string; displayOrder: number }[] };
+    if (!Array.isArray(orders)) {
+      return res.status(400).json({ error: 'orders 배열이 필요합니다.' });
     }
 
+    await prisma.$transaction(
+      orders.map((o) =>
+        prisma.corporateAd.update({
+          where: { id: o.id },
+          data: { displayOrder: o.displayOrder },
+        }),
+      ),
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Corporate ad reorder error:', error);
+    res.status(500).json({ error: '순서 변경 중 오류가 발생했습니다.' });
+  }
+});
+
+// 호환용 (deprecated): 기존 단일 쿠폰 엔드포인트 - 첫 번째 enabled 쿠폰 반환
+router.get('/corporate-ad', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const corporateAd = await prisma.corporateAd.findFirst({
+      where: { enabled: true },
+      orderBy: { displayOrder: 'asc' },
+    });
+    if (!corporateAd) {
+      return res.json({
+        templateId: 'KA01TP250930075547299ikOWJ6bArTY',
+        brandName: '',
+        imageUrl: '',
+        couponName: '',
+        couponContent: '',
+        couponAmount: '',
+        amountValue: 0,
+        expiryDate: '',
+        registrationMethod: '',
+        landingLink: '',
+        couponLink: '',
+        enabled: true,
+      });
+    }
     res.json(corporateAd);
   } catch (error) {
-    console.error('Corporate ad save error:', error);
-    res.status(500).json({ error: '기업광고 설정 저장 중 오류가 발생했습니다.' });
+    console.error('Corporate ad get error:', error);
+    res.status(500).json({ error: '기업광고 설정 조회 중 오류가 발생했습니다.' });
   }
 });
 
