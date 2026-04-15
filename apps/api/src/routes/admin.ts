@@ -4197,7 +4197,9 @@ router.get('/corporate-ad-stats', adminAuthMiddleware, async (req: AdminRequest,
 });
 
 // GET /api/admin/corporate-ad-analytics - 기업광고 쿠폰 성과 분석
-// CouponCode.usedAt 기준 (실제 코드 발급 시점)
+// AlimTalkOutbox (status=SENT) 기준으로 모든 브랜드 공통 추적
+// - 난수 코드 없는 브랜드(예: 세븐일레븐)도 알림톡 발송 기록으로 집계
+// - idempotencyKey 파싱: "corporate_ad:{storeId}:{customerId}:{couponId}"
 router.get('/corporate-ad-analytics', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
     const { days = '30' } = req.query;
@@ -4208,21 +4210,35 @@ router.get('/corporate-ad-analytics', adminAuthMiddleware, async (req: AdminRequ
     startDate.setDate(startDate.getDate() - daysNum);
     startDate.setHours(0, 0, 0, 0);
 
-    // ─── 1. 기간 내 발급된 쿠폰 코드 조회 (일자별/브랜드별/시간대별) ───
-    const usedCodes = await prisma.couponCode.findMany({
+    // ─── 1. 기간 내 기업광고 알림톡 발송 내역 ───
+    // SENT/FAILED 모두 조회 (실패율 계산용), 발행량은 SENT만 카운트
+    const alimTalkRows = await prisma.alimTalkOutbox.findMany({
       where: {
-        usedAt: { gte: startDate },
+        messageType: 'CORPORATE_AD',
+        createdAt: { gte: startDate },
       },
       select: {
-        corporateAdId: true,
-        usedAt: true,
-        usedByCustomerId: true,
+        idempotencyKey: true,
+        status: true,
+        sentAt: true,
+        createdAt: true,
+        customerId: true,
       },
     });
 
-    // 발급된 코드가 있는 경우 고객 정보 일괄 조회 (인구통계용)
+    // idempotencyKey에서 couponId 추출
+    const extractCouponId = (key: string | null | undefined): string | null => {
+      if (!key) return null;
+      const parts = key.split(':');
+      if (parts.length !== 4 || parts[0] !== 'corporate_ad') return null;
+      return parts[3];
+    };
+
+    const sentRows = alimTalkRows.filter((r) => r.status === 'SENT');
+
+    // ─── 2. 고객 인구통계 정보 일괄 조회 (SENT만) ───
     const customerIds = Array.from(
-      new Set(usedCodes.map((c) => c.usedByCustomerId).filter((id): id is string => !!id)),
+      new Set(sentRows.map((r) => r.customerId).filter((id): id is string => !!id)),
     );
     const customers =
       customerIds.length > 0
@@ -4239,17 +4255,16 @@ router.get('/corporate-ad-analytics', adminAuthMiddleware, async (req: AdminRequ
         : [];
     const customerMap = new Map(customers.map((c) => [c.id, c]));
 
-    // ─── 2. 브랜드 정보 ───
+    // ─── 3. 브랜드 정보 + 잔여 코드 수 ───
     const corporateAds = await prisma.corporateAd.findMany({
       select: {
         id: true,
         brandName: true,
         imageUrl: true,
+        couponCodeVariable: true,
       },
     });
-    const brandMap = new Map(corporateAds.map((b) => [b.id, b]));
 
-    // ─── 3. 브랜드별 잔여 코드 수 ───
     const remainingByBrand = await prisma.couponCode.groupBy({
       by: ['corporateAdId'],
       where: { usedAt: null },
@@ -4257,7 +4272,7 @@ router.get('/corporate-ad-analytics', adminAuthMiddleware, async (req: AdminRequ
     });
     const remainingMap = new Map(remainingByBrand.map((r) => [r.corporateAdId, r._count._all]));
 
-    // ─── 4. 일자별 집계 ───
+    // ─── 4. 집계 ───
     const issuedByDate = new Map<string, number>();
     const issuedByBrand = new Map<string, number>();
     const issuedByHour = new Map<number, number>();
@@ -4265,20 +4280,33 @@ router.get('/corporate-ad-analytics', adminAuthMiddleware, async (req: AdminRequ
     const ageGroupCount = new Map<string, number>();
     const regionCount = new Map<string, number>();
 
-    for (const code of usedCodes) {
-      if (!code.usedAt) continue;
+    // 브랜드별 일자별 집계 (스택형 차트용): Map<brandId, Map<date, count>>
+    const issuedByBrandDate = new Map<string, Map<string, number>>();
 
-      const dateStr = code.usedAt.toISOString().split('T')[0];
+    for (const row of sentRows) {
+      // 시간 기준: sentAt 우선, 없으면 createdAt
+      const timestamp = row.sentAt ?? row.createdAt;
+      const dateStr = timestamp.toISOString().split('T')[0];
+      const hour = timestamp.getHours();
+
       issuedByDate.set(dateStr, (issuedByDate.get(dateStr) || 0) + 1);
-
-      issuedByBrand.set(code.corporateAdId, (issuedByBrand.get(code.corporateAdId) || 0) + 1);
-
-      const hour = code.usedAt.getHours();
       issuedByHour.set(hour, (issuedByHour.get(hour) || 0) + 1);
 
+      const couponId = extractCouponId(row.idempotencyKey);
+      if (couponId) {
+        issuedByBrand.set(couponId, (issuedByBrand.get(couponId) || 0) + 1);
+
+        let brandDates = issuedByBrandDate.get(couponId);
+        if (!brandDates) {
+          brandDates = new Map();
+          issuedByBrandDate.set(couponId, brandDates);
+        }
+        brandDates.set(dateStr, (brandDates.get(dateStr) || 0) + 1);
+      }
+
       // 인구통계
-      if (code.usedByCustomerId) {
-        const cust = customerMap.get(code.usedByCustomerId);
+      if (row.customerId) {
+        const cust = customerMap.get(row.customerId);
         if (cust) {
           const g = cust.gender || 'UNKNOWN';
           genderCount.set(g, (genderCount.get(g) || 0) + 1);
@@ -4301,18 +4329,31 @@ router.get('/corporate-ad-analytics', adminAuthMiddleware, async (req: AdminRequ
       }
     }
 
-    // ─── 5. 일자별 트렌드 (누락 날짜 0 채움) ───
-    const dailyTrend: { date: string; issued: number }[] = [];
+    // ─── 5. 일자별 트렌드 (전체 + 브랜드별) ───
+    const dateList: string[] = [];
     const cursor = new Date(startDate);
     const today = new Date();
     today.setHours(23, 59, 59, 999);
     while (cursor <= today) {
-      const dateStr = cursor.toISOString().split('T')[0];
-      dailyTrend.push({ date: dateStr, issued: issuedByDate.get(dateStr) || 0 });
+      dateList.push(cursor.toISOString().split('T')[0]);
       cursor.setDate(cursor.getDate() + 1);
     }
+    const dailyTrend = dateList.map((date) => ({
+      date,
+      issued: issuedByDate.get(date) || 0,
+    }));
 
-    // ─── 6. 브랜드별 (발행량 + 잔여) ───
+    // 브랜드별 일자별 시리즈 (발행량 > 0인 브랜드만 포함)
+    const dailyTrendByBrand = corporateAds
+      .filter((b) => (issuedByBrand.get(b.id) || 0) > 0)
+      .map((b) => ({
+        brandId: b.id,
+        brandName: b.brandName,
+        imageUrl: b.imageUrl,
+        series: dateList.map((date) => issuedByBrandDate.get(b.id)?.get(date) || 0),
+      }));
+
+    // ─── 6. 브랜드별 (발행량 + 잔여, 난수코드 사용 여부) ───
     const byBrand = corporateAds
       .map((b) => ({
         brandId: b.id,
@@ -4320,10 +4361,11 @@ router.get('/corporate-ad-analytics', adminAuthMiddleware, async (req: AdminRequ
         imageUrl: b.imageUrl,
         issued: issuedByBrand.get(b.id) || 0,
         remainingCodes: remainingMap.get(b.id) || 0,
+        usesCodePool: !!(b.couponCodeVariable && b.couponCodeVariable.trim()),
       }))
       .sort((a, b) => b.issued - a.issued);
 
-    // ─── 7. 시간대별 (0~23 모두 채움) ───
+    // ─── 7. 시간대별 ───
     const byHour = Array.from({ length: 24 }, (_, h) => ({
       hour: h,
       count: issuedByHour.get(h) || 0,
@@ -4341,28 +4383,22 @@ router.get('/corporate-ad-analytics', adminAuthMiddleware, async (req: AdminRequ
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // ─── 9. 요약 카드: 알림톡 발송 통계 ───
-    const alimTalkRows = await prisma.alimTalkOutbox.findMany({
-      where: {
-        messageType: 'CORPORATE_AD',
-        createdAt: { gte: startDate },
-      },
-      select: { status: true },
-    });
-    const totalAlimTalkSent = alimTalkRows.filter((m) => m.status === 'SENT').length;
-    const totalAlimTalkFailed = alimTalkRows.filter((m) => m.status === 'FAILED').length;
-    const totalIssued = usedCodes.length;
-    const conversionRate =
-      totalAlimTalkSent > 0 ? Math.round((totalIssued / totalAlimTalkSent) * 1000) / 10 : 0;
+    // ─── 9. 요약 ───
+    const totalIssued = sentRows.length;
+    const totalFailed = alimTalkRows.filter((r) => r.status === 'FAILED').length;
+    const successRate =
+      totalIssued + totalFailed > 0
+        ? Math.round((totalIssued / (totalIssued + totalFailed)) * 1000) / 10
+        : 0;
 
     res.json({
       summary: {
         totalIssued,
-        totalAlimTalkSent,
-        totalAlimTalkFailed,
-        conversionRate,
+        totalFailed,
+        successRate,
       },
       dailyTrend,
+      dailyTrendByBrand,
       byBrand,
       byHour,
       demographics: {

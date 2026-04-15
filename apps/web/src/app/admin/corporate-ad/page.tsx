@@ -84,17 +84,23 @@ const DISPLAY_FIELDS = [
 interface AnalyticsData {
   summary: {
     totalIssued: number;
-    totalAlimTalkSent: number;
-    totalAlimTalkFailed: number;
-    conversionRate: number;
+    totalFailed: number;
+    successRate: number;
   };
   dailyTrend: { date: string; issued: number }[];
+  dailyTrendByBrand: {
+    brandId: string;
+    brandName: string;
+    imageUrl: string;
+    series: number[];
+  }[];
   byBrand: {
     brandId: string;
     brandName: string;
     imageUrl: string;
     issued: number;
     remainingCodes: number;
+    usesCodePool: boolean;
   }[];
   byHour: { hour: number; count: number }[];
   demographics: {
@@ -136,121 +142,186 @@ const AGE_GROUP_LABEL: Record<string, string> = {
 
 function AnalyticsSummaryCards({ summary }: { summary: AnalyticsData['summary'] }) {
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className="grid grid-cols-3 gap-3">
       <div className="bg-white border border-[#EAEAEA] rounded-xl p-4">
         <p className="text-xs text-neutral-500">총 발행 쿠폰</p>
         <p className="text-2xl font-bold text-neutral-900 mt-1">
           {summary.totalIssued.toLocaleString()}
         </p>
+        <p className="text-[11px] text-neutral-400 mt-0.5">알림톡 발송 성공 건수</p>
       </div>
       <div className="bg-white border border-[#EAEAEA] rounded-xl p-4">
-        <p className="text-xs text-neutral-500">알림톡 발송 성공</p>
-        <p className="text-2xl font-bold text-emerald-600 mt-1">
-          {summary.totalAlimTalkSent.toLocaleString()}
-        </p>
-      </div>
-      <div className="bg-white border border-[#EAEAEA] rounded-xl p-4">
-        <p className="text-xs text-neutral-500">알림톡 발송 실패</p>
+        <p className="text-xs text-neutral-500">발송 실패</p>
         <p className="text-2xl font-bold text-red-600 mt-1">
-          {summary.totalAlimTalkFailed.toLocaleString()}
+          {summary.totalFailed.toLocaleString()}
         </p>
       </div>
       <div className="bg-white border border-[#EAEAEA] rounded-xl p-4">
-        <p className="text-xs text-neutral-500">전환율</p>
-        <p className="text-2xl font-bold text-neutral-900 mt-1">
-          {summary.conversionRate}%
+        <p className="text-xs text-neutral-500">발송 성공률</p>
+        <p className="text-2xl font-bold text-emerald-600 mt-1">
+          {summary.successRate}%
         </p>
-        <p className="text-[11px] text-neutral-400 mt-0.5">쿠폰 발행 / 알림톡 성공</p>
+        <p className="text-[11px] text-neutral-400 mt-0.5">성공 / (성공+실패)</p>
       </div>
     </div>
   );
 }
 
-function DailyIssuedChart({ data }: { data: AnalyticsData['dailyTrend'] }) {
-  const [hovered, setHovered] = useState<{ x: number; y: number; data: { date: string; issued: number } } | null>(null);
+function DailyIssuedChart({
+  dates,
+  brands,
+}: {
+  dates: string[];
+  brands: AnalyticsData['dailyTrendByBrand'];
+}) {
+  const [hoveredX, setHoveredX] = useState<number | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 
-  if (data.length === 0) {
+  if (dates.length === 0) {
     return <p className="text-center text-sm text-neutral-400 py-8">데이터가 없습니다.</p>;
   }
 
-  const max = Math.max(...data.map((d) => d.issued), 1);
-  const points = data.map((d, i) => {
-    const x = (i / (data.length - 1 || 1)) * 100;
-    const y = 100 - (d.issued / max) * 100;
-    return { x, y, data: d };
-  });
-  const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  const areaD = `${path} L 100 100 L 0 100 Z`;
+  // 전체 최대값 (브랜드 중 가장 높은 일자 값)
+  const max = Math.max(
+    1,
+    ...brands.flatMap((b) => b.series),
+  );
 
   const yLabels = [max, Math.round(max / 2), 0];
   const xLabels =
-    data.length > 2
-      ? [data[0].date.slice(5), data[Math.floor(data.length / 2)].date.slice(5), data[data.length - 1].date.slice(5)]
-      : data.map((d) => d.date.slice(5));
+    dates.length > 2
+      ? [dates[0].slice(5), dates[Math.floor(dates.length / 2)].slice(5), dates[dates.length - 1].slice(5)]
+      : dates.map((d) => d.slice(5));
+
+  // 각 브랜드의 path 생성
+  const brandPaths = brands.map((brand, idx) => {
+    const points = brand.series.map((value, i) => {
+      const x = (i / (dates.length - 1 || 1)) * 100;
+      const y = 100 - (value / max) * 100;
+      return { x, y, value };
+    });
+    const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+    return {
+      ...brand,
+      path,
+      points,
+      color: CHART_PALETTE[idx % CHART_PALETTE.length],
+    };
+  });
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!chartRef.current) return;
     const rect = chartRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
-    let closest = points[0];
-    let minDist = Math.abs(x - points[0].x);
-    for (const p of points) {
-      const d = Math.abs(x - p.x);
-      if (d < minDist) {
-        minDist = d;
-        closest = p;
-      }
-    }
-    setHovered(closest);
+    // 가장 가까운 날짜 인덱스
+    const idx = Math.round((x / 100) * (dates.length - 1));
+    setHoveredX(Math.max(0, Math.min(dates.length - 1, idx)));
   };
 
+  const hoveredDate = hoveredX !== null ? dates[hoveredX] : null;
+  const hoveredXPercent = hoveredX !== null ? (hoveredX / (dates.length - 1 || 1)) * 100 : 0;
+
   return (
-    <div className="w-full h-[240px] relative">
-      <div className="absolute left-0 top-0 bottom-6 w-10 flex flex-col justify-between text-[11px] text-neutral-400">
-        {yLabels.map((l, i) => (
-          <span key={i}>{l.toLocaleString()}</span>
-        ))}
-      </div>
-      <div
-        ref={chartRef}
-        className="absolute left-12 right-0 top-0 bottom-6 cursor-crosshair"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={() => setHovered(null)}
-      >
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
-          <line x1="0" y1="0" x2="100" y2="0" stroke="#E5E5E5" strokeWidth="0.5" />
-          <line x1="0" y1="50" x2="100" y2="50" stroke="#E5E5E5" strokeWidth="0.5" />
-          <line x1="0" y1="100" x2="100" y2="100" stroke="#E5E5E5" strokeWidth="0.5" />
-          <defs>
-            <linearGradient id="issuedGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6BA3FF" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#6BA3FF" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path d={areaD} fill="url(#issuedGradient)" />
-          <path d={path} fill="none" stroke="#6BA3FF" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-          {hovered && (
-            <>
-              <line x1={hovered.x} y1="0" x2={hovered.x} y2="100" stroke="#9CA3AF" strokeWidth="1" vectorEffect="non-scaling-stroke" strokeDasharray="4 4" />
-              <circle cx={hovered.x} cy={hovered.y} r="4" fill="#6BA3FF" stroke="white" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-            </>
+    <div className="w-full">
+      {/* 범례 */}
+      {brandPaths.length > 0 && (
+        <div className="flex flex-wrap gap-3 mb-2 text-xs">
+          {brandPaths.map((b) => (
+            <div key={b.brandId} className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: b.color }} />
+              <span className="text-neutral-700">{b.brandName}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="w-full h-[240px] relative">
+        <div className="absolute left-0 top-0 bottom-6 w-10 flex flex-col justify-between text-[11px] text-neutral-400">
+          {yLabels.map((l, i) => (
+            <span key={i}>{l.toLocaleString()}</span>
+          ))}
+        </div>
+        <div
+          ref={chartRef}
+          className="absolute left-12 right-0 top-0 bottom-6 cursor-crosshair"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => setHoveredX(null)}
+        >
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+            {/* 가로 그리드 */}
+            <line x1="0" y1="0" x2="100" y2="0" stroke="#E5E5E5" strokeWidth="0.5" />
+            <line x1="0" y1="50" x2="100" y2="50" stroke="#E5E5E5" strokeWidth="0.5" />
+            <line x1="0" y1="100" x2="100" y2="100" stroke="#E5E5E5" strokeWidth="0.5" />
+
+            {/* 브랜드별 라인 */}
+            {brandPaths.map((b) => (
+              <path
+                key={b.brandId}
+                d={b.path}
+                fill="none"
+                stroke={b.color}
+                strokeWidth="2"
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+
+            {/* 호버 라인 */}
+            {hoveredX !== null && (
+              <>
+                <line
+                  x1={hoveredXPercent}
+                  y1="0"
+                  x2={hoveredXPercent}
+                  y2="100"
+                  stroke="#9CA3AF"
+                  strokeWidth="1"
+                  vectorEffect="non-scaling-stroke"
+                  strokeDasharray="4 4"
+                />
+                {brandPaths.map((b) => {
+                  const p = b.points[hoveredX];
+                  if (!p) return null;
+                  return (
+                    <circle
+                      key={b.brandId}
+                      cx={p.x}
+                      cy={p.y}
+                      r="4"
+                      fill={b.color}
+                      stroke="white"
+                      strokeWidth="2"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  );
+                })}
+              </>
+            )}
+          </svg>
+
+          {/* 툴팁 */}
+          {hoveredX !== null && hoveredDate && brandPaths.length > 0 && (
+            <div
+              className="absolute bg-neutral-900 text-white text-[12px] px-3 py-2 rounded-lg shadow-lg pointer-events-none z-10"
+              style={{
+                left: `${Math.min(Math.max(hoveredXPercent, 15), 85)}%`,
+                top: '-8px',
+                transform: 'translate(-50%, -100%)',
+              }}
+            >
+              <p className="font-medium mb-1">{hoveredDate}</p>
+              {brandPaths.map((b) => (
+                <p key={b.brandId} style={{ color: b.color }}>
+                  {b.brandName}: {b.points[hoveredX]?.value.toLocaleString() || 0}건
+                </p>
+              ))}
+            </div>
           )}
-        </svg>
-        {hovered && (
-          <div
-            className="absolute bg-neutral-900 text-white text-[12px] px-3 py-2 rounded-lg shadow-lg pointer-events-none z-10"
-            style={{ left: `${Math.min(Math.max(hovered.x, 15), 85)}%`, top: '-8px', transform: 'translate(-50%, -100%)' }}
-          >
-            <p className="font-medium">{hovered.data.date}</p>
-            <p className="text-[#93C5FD]">발행: {hovered.data.issued.toLocaleString()}건</p>
-          </div>
-        )}
-      </div>
-      <div className="absolute left-12 right-0 bottom-0 flex justify-between text-[11px] text-neutral-400">
-        {xLabels.map((l, i) => (
-          <span key={i}>{l}</span>
-        ))}
+        </div>
+        <div className="absolute left-12 right-0 bottom-0 flex justify-between text-[11px] text-neutral-400">
+          {xLabels.map((l, i) => (
+            <span key={i}>{l}</span>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -263,9 +334,10 @@ function BrandHorizontalBars({ data }: { data: AnalyticsData['byBrand'] }) {
   const max = Math.max(...data.map((b) => b.issued), 1);
   return (
     <div className="space-y-3">
-      {data.map((b) => {
+      {data.map((b, idx) => {
         const width = (b.issued / max) * 100;
-        const lowStock = b.remainingCodes < 100;
+        const lowStock = b.usesCodePool && b.remainingCodes < 100;
+        const color = CHART_PALETTE[idx % CHART_PALETTE.length];
         return (
           <div key={b.brandId} className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-neutral-100 overflow-hidden flex-shrink-0">
@@ -283,13 +355,29 @@ function BrandHorizontalBars({ data }: { data: AnalyticsData['byBrand'] }) {
                 <p className="text-sm font-medium text-neutral-900 truncate">{b.brandName || '(이름 없음)'}</p>
                 <div className="flex items-center gap-2 text-xs flex-shrink-0">
                   <span className="font-semibold text-neutral-900">{b.issued.toLocaleString()}건</span>
-                  <span className={`px-1.5 py-0.5 rounded ${lowStock ? 'bg-red-50 text-red-600' : 'bg-neutral-100 text-neutral-500'}`}>
-                    남은 {b.remainingCodes.toLocaleString()}
-                  </span>
+                  {b.usesCodePool ? (
+                    <span
+                      className={`px-1.5 py-0.5 rounded ${
+                        lowStock ? 'bg-red-50 text-red-600' : 'bg-neutral-100 text-neutral-500'
+                      }`}
+                    >
+                      남은 {b.remainingCodes.toLocaleString()}
+                    </span>
+                  ) : (
+                    <span
+                      className="px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-400"
+                      title="난수 코드 사용 안 함"
+                    >
+                      코드 미사용
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
-                <div className="h-full bg-[#6BA3FF] rounded-full" style={{ width: `${width}%` }} />
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${width}%`, backgroundColor: color }}
+                />
               </div>
             </div>
           </div>
@@ -563,10 +651,13 @@ function CorporateAdAnalyticsSection({ apiUrl }: { apiUrl: string }) {
           {/* 요약 카드 */}
           <AnalyticsSummaryCards summary={data.summary} />
 
-          {/* 일자별 트렌드 */}
+          {/* 일자별 트렌드 (브랜드별 멀티라인) */}
           <div className="bg-white border border-[#EAEAEA] rounded-xl p-5">
             <h3 className="text-sm font-semibold text-neutral-900 mb-3">일자별 쿠폰 발행량</h3>
-            <DailyIssuedChart data={data.dailyTrend} />
+            <DailyIssuedChart
+              dates={data.dailyTrend.map((d) => d.date)}
+              brands={data.dailyTrendByBrand}
+            />
           </div>
 
           {/* 브랜드별 + 시간대별 */}
