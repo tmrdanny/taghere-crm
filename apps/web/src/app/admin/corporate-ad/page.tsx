@@ -79,6 +79,537 @@ const DISPLAY_FIELDS = [
 ];
 
 // ============================================
+// 성과 분석 섹션 (일자별/브랜드별/시간대별/인구통계)
+// ============================================
+interface AnalyticsData {
+  summary: {
+    totalIssued: number;
+    totalAlimTalkSent: number;
+    totalAlimTalkFailed: number;
+    conversionRate: number;
+  };
+  dailyTrend: { date: string; issued: number }[];
+  byBrand: {
+    brandId: string;
+    brandName: string;
+    imageUrl: string;
+    issued: number;
+    remainingCodes: number;
+  }[];
+  byHour: { hour: number; count: number }[];
+  demographics: {
+    byGender: { gender: string; count: number }[];
+    byAgeGroup: { ageGroup: string; count: number }[];
+    byRegion: { region: string; count: number }[];
+  };
+}
+
+type AnalyticsPeriod = '7' | '30' | '90' | 'all';
+
+const CHART_PALETTE = [
+  '#3B82F6',
+  '#10B981',
+  '#F59E0B',
+  '#EF4444',
+  '#8B5CF6',
+  '#EC4899',
+  '#06B6D4',
+  '#84CC16',
+  '#F97316',
+  '#6366F1',
+];
+
+const GENDER_LABEL: Record<string, string> = {
+  MALE: '남성',
+  FEMALE: '여성',
+  UNKNOWN: '미상',
+};
+
+const AGE_GROUP_LABEL: Record<string, string> = {
+  TWENTIES: '20대',
+  THIRTIES: '30대',
+  FORTIES: '40대',
+  FIFTIES: '50대',
+  SIXTY_PLUS: '60대+',
+  UNKNOWN: '미상',
+};
+
+function AnalyticsSummaryCards({ summary }: { summary: AnalyticsData['summary'] }) {
+  return (
+    <div className="grid grid-cols-4 gap-3">
+      <div className="bg-white border border-[#EAEAEA] rounded-xl p-4">
+        <p className="text-xs text-neutral-500">총 발행 쿠폰</p>
+        <p className="text-2xl font-bold text-neutral-900 mt-1">
+          {summary.totalIssued.toLocaleString()}
+        </p>
+      </div>
+      <div className="bg-white border border-[#EAEAEA] rounded-xl p-4">
+        <p className="text-xs text-neutral-500">알림톡 발송 성공</p>
+        <p className="text-2xl font-bold text-emerald-600 mt-1">
+          {summary.totalAlimTalkSent.toLocaleString()}
+        </p>
+      </div>
+      <div className="bg-white border border-[#EAEAEA] rounded-xl p-4">
+        <p className="text-xs text-neutral-500">알림톡 발송 실패</p>
+        <p className="text-2xl font-bold text-red-600 mt-1">
+          {summary.totalAlimTalkFailed.toLocaleString()}
+        </p>
+      </div>
+      <div className="bg-white border border-[#EAEAEA] rounded-xl p-4">
+        <p className="text-xs text-neutral-500">전환율</p>
+        <p className="text-2xl font-bold text-neutral-900 mt-1">
+          {summary.conversionRate}%
+        </p>
+        <p className="text-[11px] text-neutral-400 mt-0.5">쿠폰 발행 / 알림톡 성공</p>
+      </div>
+    </div>
+  );
+}
+
+function DailyIssuedChart({ data }: { data: AnalyticsData['dailyTrend'] }) {
+  const [hovered, setHovered] = useState<{ x: number; y: number; data: { date: string; issued: number } } | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  if (data.length === 0) {
+    return <p className="text-center text-sm text-neutral-400 py-8">데이터가 없습니다.</p>;
+  }
+
+  const max = Math.max(...data.map((d) => d.issued), 1);
+  const points = data.map((d, i) => {
+    const x = (i / (data.length - 1 || 1)) * 100;
+    const y = 100 - (d.issued / max) * 100;
+    return { x, y, data: d };
+  });
+  const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const areaD = `${path} L 100 100 L 0 100 Z`;
+
+  const yLabels = [max, Math.round(max / 2), 0];
+  const xLabels =
+    data.length > 2
+      ? [data[0].date.slice(5), data[Math.floor(data.length / 2)].date.slice(5), data[data.length - 1].date.slice(5)]
+      : data.map((d) => d.date.slice(5));
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!chartRef.current) return;
+    const rect = chartRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    let closest = points[0];
+    let minDist = Math.abs(x - points[0].x);
+    for (const p of points) {
+      const d = Math.abs(x - p.x);
+      if (d < minDist) {
+        minDist = d;
+        closest = p;
+      }
+    }
+    setHovered(closest);
+  };
+
+  return (
+    <div className="w-full h-[240px] relative">
+      <div className="absolute left-0 top-0 bottom-6 w-10 flex flex-col justify-between text-[11px] text-neutral-400">
+        {yLabels.map((l, i) => (
+          <span key={i}>{l.toLocaleString()}</span>
+        ))}
+      </div>
+      <div
+        ref={chartRef}
+        className="absolute left-12 right-0 top-0 bottom-6 cursor-crosshair"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setHovered(null)}
+      >
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+          <line x1="0" y1="0" x2="100" y2="0" stroke="#E5E5E5" strokeWidth="0.5" />
+          <line x1="0" y1="50" x2="100" y2="50" stroke="#E5E5E5" strokeWidth="0.5" />
+          <line x1="0" y1="100" x2="100" y2="100" stroke="#E5E5E5" strokeWidth="0.5" />
+          <defs>
+            <linearGradient id="issuedGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#6BA3FF" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#6BA3FF" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={areaD} fill="url(#issuedGradient)" />
+          <path d={path} fill="none" stroke="#6BA3FF" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+          {hovered && (
+            <>
+              <line x1={hovered.x} y1="0" x2={hovered.x} y2="100" stroke="#9CA3AF" strokeWidth="1" vectorEffect="non-scaling-stroke" strokeDasharray="4 4" />
+              <circle cx={hovered.x} cy={hovered.y} r="4" fill="#6BA3FF" stroke="white" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            </>
+          )}
+        </svg>
+        {hovered && (
+          <div
+            className="absolute bg-neutral-900 text-white text-[12px] px-3 py-2 rounded-lg shadow-lg pointer-events-none z-10"
+            style={{ left: `${Math.min(Math.max(hovered.x, 15), 85)}%`, top: '-8px', transform: 'translate(-50%, -100%)' }}
+          >
+            <p className="font-medium">{hovered.data.date}</p>
+            <p className="text-[#93C5FD]">발행: {hovered.data.issued.toLocaleString()}건</p>
+          </div>
+        )}
+      </div>
+      <div className="absolute left-12 right-0 bottom-0 flex justify-between text-[11px] text-neutral-400">
+        {xLabels.map((l, i) => (
+          <span key={i}>{l}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BrandHorizontalBars({ data }: { data: AnalyticsData['byBrand'] }) {
+  if (data.length === 0) {
+    return <p className="text-center text-sm text-neutral-400 py-8">브랜드가 없습니다.</p>;
+  }
+  const max = Math.max(...data.map((b) => b.issued), 1);
+  return (
+    <div className="space-y-3">
+      {data.map((b) => {
+        const width = (b.issued / max) * 100;
+        const lowStock = b.remainingCodes < 100;
+        return (
+          <div key={b.brandId} className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-neutral-100 overflow-hidden flex-shrink-0">
+              {b.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={b.imageUrl} alt={b.brandName} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-neutral-400 text-xs">
+                  {b.brandName.charAt(0) || '?'}
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm font-medium text-neutral-900 truncate">{b.brandName || '(이름 없음)'}</p>
+                <div className="flex items-center gap-2 text-xs flex-shrink-0">
+                  <span className="font-semibold text-neutral-900">{b.issued.toLocaleString()}건</span>
+                  <span className={`px-1.5 py-0.5 rounded ${lowStock ? 'bg-red-50 text-red-600' : 'bg-neutral-100 text-neutral-500'}`}>
+                    남은 {b.remainingCodes.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+              <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                <div className="h-full bg-[#6BA3FF] rounded-full" style={{ width: `${width}%` }} />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function HourlyBarChart({ data }: { data: AnalyticsData['byHour'] }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const max = Math.max(...data.map((d) => d.count), 1);
+
+  return (
+    <div className="w-full h-[180px] flex flex-col">
+      <div className="flex-1 flex items-end gap-[2px] pb-6">
+        {data.map((d, i) => {
+          const height = (d.count / max) * 100;
+          const isHovered = hovered === i;
+          return (
+            <div
+              key={i}
+              className="flex-1 relative flex flex-col items-center"
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+            >
+              {isHovered && d.count > 0 && (
+                <div className="absolute bottom-full mb-1 bg-neutral-900 text-white text-[11px] px-2 py-1 rounded whitespace-nowrap z-10">
+                  {d.hour}시: {d.count}건
+                </div>
+              )}
+              <div
+                className="w-full rounded-t transition-all cursor-pointer"
+                style={{
+                  height: `${height}%`,
+                  minHeight: d.count > 0 ? '3px' : '0px',
+                  backgroundColor: '#6BA3FF',
+                  opacity: hovered === null || isHovered ? 1 : 0.5,
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex gap-[2px] text-[9px] text-neutral-400 pt-1 border-t border-neutral-200">
+        {data.map((d) => (
+          <div key={d.hour} className="flex-1 text-center">
+            {d.hour % 3 === 0 ? d.hour : ''}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GenderPieChart({ data }: { data: AnalyticsData['demographics']['byGender'] }) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const total = data.reduce((s, d) => s + d.count, 0);
+  if (total === 0) {
+    return <p className="text-center text-sm text-neutral-400 py-8">데이터가 없습니다.</p>;
+  }
+
+  let currentAngle = -90;
+  const slices = data.map((d, i) => {
+    const angle = (d.count / total) * 360;
+    const start = currentAngle;
+    const end = start + angle;
+    currentAngle = end;
+    const startRad = (start * Math.PI) / 180;
+    const endRad = (end * Math.PI) / 180;
+    const largeArc = angle > 180 ? 1 : 0;
+    const x1 = 50 + 40 * Math.cos(startRad);
+    const y1 = 50 + 40 * Math.sin(startRad);
+    const x2 = 50 + 40 * Math.cos(endRad);
+    const y2 = 50 + 40 * Math.sin(endRad);
+    return {
+      d: `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`,
+      color: CHART_PALETTE[i % CHART_PALETTE.length],
+      label: GENDER_LABEL[d.gender] || d.gender,
+      count: d.count,
+      pct: total > 0 ? (d.count / total) * 100 : 0,
+    };
+  });
+
+  return (
+    <div className="w-full h-full flex">
+      <div className="w-1/2 h-full">
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          {slices.map((s, i) => (
+            <path
+              key={i}
+              d={s.d}
+              fill={s.color}
+              stroke="#fff"
+              strokeWidth="0.5"
+              opacity={hoveredIdx === null || hoveredIdx === i ? 1 : 0.5}
+              onMouseEnter={() => setHoveredIdx(i)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              className="cursor-pointer transition-opacity"
+            />
+          ))}
+        </svg>
+      </div>
+      <div className="w-1/2 pl-3 flex flex-col justify-center gap-2">
+        {slices.map((s, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-2 text-xs"
+            onMouseEnter={() => setHoveredIdx(i)}
+            onMouseLeave={() => setHoveredIdx(null)}
+          >
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: s.color }} />
+            <span className="text-neutral-700 flex-1">{s.label}</span>
+            <span className="text-neutral-500">
+              {s.count}명 ({s.pct.toFixed(0)}%)
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CategoryBarChart({
+  data,
+  labelMap,
+}: {
+  data: { key: string; count: number }[];
+  labelMap?: Record<string, string>;
+}) {
+  const [hovered, setHovered] = useState<number | null>(null);
+  if (data.length === 0) {
+    return <p className="text-center text-sm text-neutral-400 py-8">데이터가 없습니다.</p>;
+  }
+  const max = Math.max(...data.map((d) => d.count), 1);
+
+  return (
+    <div className="w-full h-full flex flex-col">
+      <div className="flex-1 flex items-end gap-2 pb-6">
+        {data.map((d, i) => {
+          const height = (d.count / max) * 100;
+          const isH = hovered === i;
+          const label = labelMap?.[d.key] || d.key;
+          return (
+            <div
+              key={i}
+              className="flex-1 relative flex flex-col items-center"
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+            >
+              {isH && (
+                <div className="absolute bottom-full mb-1 bg-neutral-900 text-white text-[11px] px-2 py-1 rounded whitespace-nowrap z-10">
+                  {label}: {d.count}명
+                </div>
+              )}
+              <div
+                className="w-full rounded-t transition-all cursor-pointer"
+                style={{
+                  height: `${height}%`,
+                  minHeight: d.count > 0 ? '4px' : '0px',
+                  backgroundColor: CHART_PALETTE[i % CHART_PALETTE.length],
+                  opacity: hovered === null || isH ? 1 : 0.5,
+                }}
+              />
+              <span className="absolute bottom-[-18px] text-[10px] text-neutral-500">
+                {d.count}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex gap-2 pt-2 border-t border-neutral-200">
+        {data.map((d, i) => {
+          const label = labelMap?.[d.key] || d.key;
+          return (
+            <div key={i} className="flex-1 text-center text-[10px] text-neutral-600 truncate" title={label}>
+              {label.length > 8 ? label.slice(0, 7) + '…' : label}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RegionBarChart({ data }: { data: AnalyticsData['demographics']['byRegion'] }) {
+  if (data.length === 0) {
+    return <p className="text-center text-sm text-neutral-400 py-8">데이터가 없습니다.</p>;
+  }
+  const max = Math.max(...data.map((d) => d.count), 1);
+  return (
+    <div className="space-y-1.5">
+      {data.map((d, i) => {
+        const width = (d.count / max) * 100;
+        return (
+          <div key={i} className="flex items-center gap-2 text-xs">
+            <span className="w-28 truncate text-neutral-700" title={d.region}>
+              {d.region}
+            </span>
+            <div className="flex-1 h-4 bg-neutral-100 rounded overflow-hidden">
+              <div
+                className="h-full rounded"
+                style={{
+                  width: `${width}%`,
+                  backgroundColor: CHART_PALETTE[i % CHART_PALETTE.length],
+                }}
+              />
+            </div>
+            <span className="w-10 text-right text-neutral-600 font-medium">{d.count}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CorporateAdAnalyticsSection({ apiUrl }: { apiUrl: string }) {
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [period, setPeriod] = useState<AnalyticsPeriod>('30');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const token = localStorage.getItem('adminToken');
+      if (!token) return;
+      setLoading(true);
+      try {
+        const res = await fetch(`${apiUrl}/api/admin/corporate-ad-analytics?days=${period}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          setData(await res.json());
+        }
+      } catch (e) {
+        console.error('Failed to fetch analytics:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [period, apiUrl]);
+
+  return (
+    <div className="mb-8 space-y-4">
+      {/* 기간 필터 */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-neutral-900">성과 분석</h2>
+        <div className="flex gap-1">
+          {(['7', '30', '90', 'all'] as AnalyticsPeriod[]).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                period === p
+                  ? 'bg-neutral-900 text-white'
+                  : 'bg-white border border-[#EAEAEA] text-neutral-700 hover:bg-neutral-50'
+              }`}
+            >
+              {p === 'all' ? '전체' : `${p}일`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading || !data ? (
+        <div className="bg-white border border-[#EAEAEA] rounded-xl p-12 flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-neutral-900 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <>
+          {/* 요약 카드 */}
+          <AnalyticsSummaryCards summary={data.summary} />
+
+          {/* 일자별 트렌드 */}
+          <div className="bg-white border border-[#EAEAEA] rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-neutral-900 mb-3">일자별 쿠폰 발행량</h3>
+            <DailyIssuedChart data={data.dailyTrend} />
+          </div>
+
+          {/* 브랜드별 + 시간대별 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white border border-[#EAEAEA] rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-neutral-900 mb-3">브랜드별 발행량</h3>
+              <BrandHorizontalBars data={data.byBrand} />
+            </div>
+            <div className="bg-white border border-[#EAEAEA] rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-neutral-900 mb-3">시간대별 발행량</h3>
+              <HourlyBarChart data={data.byHour} />
+            </div>
+          </div>
+
+          {/* 인구통계 */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-white border border-[#EAEAEA] rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-neutral-900 mb-3">성별</h3>
+              <div className="h-[180px]">
+                <GenderPieChart data={data.demographics.byGender} />
+              </div>
+            </div>
+            <div className="bg-white border border-[#EAEAEA] rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-neutral-900 mb-3">연령대</h3>
+              <div className="h-[180px]">
+                <CategoryBarChart
+                  data={data.demographics.byAgeGroup.map((a) => ({ key: a.ageGroup, count: a.count }))}
+                  labelMap={AGE_GROUP_LABEL}
+                />
+              </div>
+            </div>
+            <div className="bg-white border border-[#EAEAEA] rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-neutral-900 mb-3">지역 TOP 10</h3>
+              <RegionBarChart data={data.demographics.byRegion} />
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================
 // 쿠폰 코드 풀 관리 컴포넌트
 // ============================================
 function CouponCodePoolSection({
@@ -565,6 +1096,9 @@ export default function CorporateAdPage() {
           + 쿠폰 추가
         </button>
       </div>
+
+      {/* 성과 분석 섹션 */}
+      <CorporateAdAnalyticsSection apiUrl={apiUrl} />
 
       {/* Coupons List */}
       {coupons.length === 0 ? (

@@ -4196,4 +4196,185 @@ router.get('/corporate-ad-stats', adminAuthMiddleware, async (req: AdminRequest,
   }
 });
 
+// GET /api/admin/corporate-ad-analytics - 기업광고 쿠폰 성과 분석
+// CouponCode.usedAt 기준 (실제 코드 발급 시점)
+router.get('/corporate-ad-analytics', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { days = '30' } = req.query;
+    const isAll = days === 'all';
+    const daysNum = isAll ? 365 : parseInt(days as string) || 30;
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - daysNum);
+    startDate.setHours(0, 0, 0, 0);
+
+    // ─── 1. 기간 내 발급된 쿠폰 코드 조회 (일자별/브랜드별/시간대별) ───
+    const usedCodes = await prisma.couponCode.findMany({
+      where: {
+        usedAt: { gte: startDate },
+      },
+      select: {
+        corporateAdId: true,
+        usedAt: true,
+        usedByCustomerId: true,
+      },
+    });
+
+    // 발급된 코드가 있는 경우 고객 정보 일괄 조회 (인구통계용)
+    const customerIds = Array.from(
+      new Set(usedCodes.map((c) => c.usedByCustomerId).filter((id): id is string => !!id)),
+    );
+    const customers =
+      customerIds.length > 0
+        ? await prisma.customer.findMany({
+            where: { id: { in: customerIds } },
+            select: {
+              id: true,
+              gender: true,
+              ageGroup: true,
+              regionSido: true,
+              regionSigungu: true,
+            },
+          })
+        : [];
+    const customerMap = new Map(customers.map((c) => [c.id, c]));
+
+    // ─── 2. 브랜드 정보 ───
+    const corporateAds = await prisma.corporateAd.findMany({
+      select: {
+        id: true,
+        brandName: true,
+        imageUrl: true,
+      },
+    });
+    const brandMap = new Map(corporateAds.map((b) => [b.id, b]));
+
+    // ─── 3. 브랜드별 잔여 코드 수 ───
+    const remainingByBrand = await prisma.couponCode.groupBy({
+      by: ['corporateAdId'],
+      where: { usedAt: null },
+      _count: { _all: true },
+    });
+    const remainingMap = new Map(remainingByBrand.map((r) => [r.corporateAdId, r._count._all]));
+
+    // ─── 4. 일자별 집계 ───
+    const issuedByDate = new Map<string, number>();
+    const issuedByBrand = new Map<string, number>();
+    const issuedByHour = new Map<number, number>();
+    const genderCount = new Map<string, number>();
+    const ageGroupCount = new Map<string, number>();
+    const regionCount = new Map<string, number>();
+
+    for (const code of usedCodes) {
+      if (!code.usedAt) continue;
+
+      const dateStr = code.usedAt.toISOString().split('T')[0];
+      issuedByDate.set(dateStr, (issuedByDate.get(dateStr) || 0) + 1);
+
+      issuedByBrand.set(code.corporateAdId, (issuedByBrand.get(code.corporateAdId) || 0) + 1);
+
+      const hour = code.usedAt.getHours();
+      issuedByHour.set(hour, (issuedByHour.get(hour) || 0) + 1);
+
+      // 인구통계
+      if (code.usedByCustomerId) {
+        const cust = customerMap.get(code.usedByCustomerId);
+        if (cust) {
+          const g = cust.gender || 'UNKNOWN';
+          genderCount.set(g, (genderCount.get(g) || 0) + 1);
+          const a = cust.ageGroup || 'UNKNOWN';
+          ageGroupCount.set(a, (ageGroupCount.get(a) || 0) + 1);
+          const region =
+            cust.regionSido && cust.regionSigungu
+              ? `${cust.regionSido} ${cust.regionSigungu}`
+              : cust.regionSido || cust.regionSigungu || 'UNKNOWN';
+          regionCount.set(region, (regionCount.get(region) || 0) + 1);
+        } else {
+          genderCount.set('UNKNOWN', (genderCount.get('UNKNOWN') || 0) + 1);
+          ageGroupCount.set('UNKNOWN', (ageGroupCount.get('UNKNOWN') || 0) + 1);
+          regionCount.set('UNKNOWN', (regionCount.get('UNKNOWN') || 0) + 1);
+        }
+      } else {
+        genderCount.set('UNKNOWN', (genderCount.get('UNKNOWN') || 0) + 1);
+        ageGroupCount.set('UNKNOWN', (ageGroupCount.get('UNKNOWN') || 0) + 1);
+        regionCount.set('UNKNOWN', (regionCount.get('UNKNOWN') || 0) + 1);
+      }
+    }
+
+    // ─── 5. 일자별 트렌드 (누락 날짜 0 채움) ───
+    const dailyTrend: { date: string; issued: number }[] = [];
+    const cursor = new Date(startDate);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    while (cursor <= today) {
+      const dateStr = cursor.toISOString().split('T')[0];
+      dailyTrend.push({ date: dateStr, issued: issuedByDate.get(dateStr) || 0 });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    // ─── 6. 브랜드별 (발행량 + 잔여) ───
+    const byBrand = corporateAds
+      .map((b) => ({
+        brandId: b.id,
+        brandName: b.brandName,
+        imageUrl: b.imageUrl,
+        issued: issuedByBrand.get(b.id) || 0,
+        remainingCodes: remainingMap.get(b.id) || 0,
+      }))
+      .sort((a, b) => b.issued - a.issued);
+
+    // ─── 7. 시간대별 (0~23 모두 채움) ───
+    const byHour = Array.from({ length: 24 }, (_, h) => ({
+      hour: h,
+      count: issuedByHour.get(h) || 0,
+    }));
+
+    // ─── 8. 인구통계 ───
+    const byGender = Array.from(genderCount.entries())
+      .map(([gender, count]) => ({ gender, count }))
+      .sort((a, b) => b.count - a.count);
+    const byAgeGroup = Array.from(ageGroupCount.entries())
+      .map(([ageGroup, count]) => ({ ageGroup, count }))
+      .sort((a, b) => b.count - a.count);
+    const byRegion = Array.from(regionCount.entries())
+      .map(([region, count]) => ({ region, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // ─── 9. 요약 카드: 알림톡 발송 통계 ───
+    const alimTalkRows = await prisma.alimTalkOutbox.findMany({
+      where: {
+        messageType: 'CORPORATE_AD',
+        createdAt: { gte: startDate },
+      },
+      select: { status: true },
+    });
+    const totalAlimTalkSent = alimTalkRows.filter((m) => m.status === 'SENT').length;
+    const totalAlimTalkFailed = alimTalkRows.filter((m) => m.status === 'FAILED').length;
+    const totalIssued = usedCodes.length;
+    const conversionRate =
+      totalAlimTalkSent > 0 ? Math.round((totalIssued / totalAlimTalkSent) * 1000) / 10 : 0;
+
+    res.json({
+      summary: {
+        totalIssued,
+        totalAlimTalkSent,
+        totalAlimTalkFailed,
+        conversionRate,
+      },
+      dailyTrend,
+      byBrand,
+      byHour,
+      demographics: {
+        byGender,
+        byAgeGroup,
+        byRegion,
+      },
+    });
+  } catch (error) {
+    console.error('Corporate ad analytics error:', error);
+    res.status(500).json({ error: '기업광고 분석 데이터 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;
