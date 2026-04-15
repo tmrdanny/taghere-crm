@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatNumber } from '@/lib/utils';
+import * as XLSX from 'xlsx';
 
 // 업종 분류
 const STORE_CATEGORIES = {
@@ -98,6 +99,7 @@ interface DeleteCustomersModalData {
 export default function AdminStoresPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showBulkAddress, setShowBulkAddress] = useState(false);
   const [resettingStoreId, setResettingStoreId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'customers' | 'balance' | 'name'>('newest');
@@ -723,6 +725,13 @@ export default function AdminStoresPage() {
               <p className="text-[12px] sm:text-[13px] text-neutral-500 mt-0.5">총 {stores.length}개 매장</p>
             </div>
             <div className="flex gap-2">
+              {/* 주소 일괄 관리 버튼 */}
+              <button
+                onClick={() => setShowBulkAddress(true)}
+                className="h-9 sm:h-10 px-3 sm:px-4 bg-neutral-900 hover:bg-neutral-800 text-white text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors whitespace-nowrap"
+              >
+                주소 일괄 관리
+              </button>
               {/* 발송잔액 부족 알림 버튼 */}
               <button
                 onClick={openLowBalanceModal}
@@ -2116,6 +2125,345 @@ export default function AdminStoresPage() {
           </div>
         </div>
       )}
+
+      {/* 주소 일괄 관리 모달 */}
+      {showBulkAddress && (
+        <BulkAddressModal
+          stores={stores}
+          onClose={() => setShowBulkAddress(false)}
+          onDone={() => {
+            setShowBulkAddress(false);
+            // 매장 목록 새로고침
+            (async () => {
+              const token = localStorage.getItem('adminToken');
+              if (!token) return;
+              const res = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores`,
+                { headers: { Authorization: `Bearer ${token}` } },
+              );
+              if (res.ok) {
+                const data = await res.json();
+                setStores(data);
+              }
+            })();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// 주소 일괄 관리 모달
+// ============================================
+interface BulkAddressRow {
+  id: string;
+  storeName: string;
+  currentAddress: string;
+  newAddress: string;
+}
+
+interface BulkAddressResult {
+  updated: number;
+  failed: Array<{ id: string; name: string | null; address: string; reason: string }>;
+  total: number;
+}
+
+function BulkAddressModal({
+  stores,
+  onClose,
+  onDone,
+}: {
+  stores: Store[];
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const [filter, setFilter] = useState<'missing' | 'all'>('missing');
+  const [parsedRows, setParsedRows] = useState<BulkAddressRow[] | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [result, setResult] = useState<BulkAddressResult | null>(null);
+  const [isPopulating, setIsPopulating] = useState(false);
+  const [populateResult, setPopulateResult] = useState<{
+    updated: number;
+    skippedNoStoreAddress: number;
+    totalMissingBefore: number;
+  } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleDownloadTemplate = () => {
+    const target =
+      filter === 'missing' ? stores.filter((s) => !s.address || s.address.trim() === '') : stores;
+    const sheetData = target.map((s) => ({
+      'id(수정금지)': s.id,
+      '매장명(참고용)': s.name,
+      '현재 주소': s.address || '',
+      '새 주소(입력)': '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(sheetData);
+    // 컬럼 너비
+    (ws as any)['!cols'] = [{ wch: 28 }, { wch: 24 }, { wch: 40 }, { wch: 40 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '매장 주소');
+    const filename = `매장주소_${filter === 'missing' ? '누락만' : '전체'}_${new Date()
+      .toISOString()
+      .slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, filename);
+  };
+
+  const handleFileSelect = async (file: File) => {
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(ws);
+
+      const parsed: BulkAddressRow[] = rows
+        .map((r) => {
+          const id = String(r['id(수정금지)'] || r['id'] || '').trim();
+          const storeName = String(r['매장명(참고용)'] || r['매장명'] || '').trim();
+          const currentAddress = String(r['현재 주소'] || '').trim();
+          const newAddress = String(r['새 주소(입력)'] || r['새 주소'] || '').trim();
+          return { id, storeName, currentAddress, newAddress };
+        })
+        .filter((r) => r.id && r.newAddress); // 새 주소 비어있으면 스킵
+
+      setParsedRows(parsed);
+      setResult(null);
+    } catch (e) {
+      console.error('xlsx parse error:', e);
+      alert('엑셀 파일을 읽을 수 없습니다.');
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!parsedRows || parsedRows.length === 0) return;
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    setIsUploading(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/stores/bulk-address`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          items: parsedRows.map((r) => ({ id: r.id, address: r.newAddress })),
+        }),
+      });
+      if (res.ok) {
+        setResult(await res.json());
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || '업데이트 실패');
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handlePopulateCustomers = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    if (!confirm('과거 가입 고객의 지역 정보를 매장 주소 기준으로 채웁니다. 진행할까요?')) return;
+    setIsPopulating(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/customers/populate-regions`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setPopulateResult(await res.json());
+      } else {
+        alert('고객 지역 백필 실패');
+      }
+    } finally {
+      setIsPopulating(false);
+    }
+  };
+
+  const missingCount = stores.filter((s) => !s.address || s.address.trim() === '').length;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        {/* 헤더 */}
+        <div className="sticky top-0 bg-white border-b border-[#EAEAEA] px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <h2 className="text-lg font-bold text-neutral-900">매장 주소 일괄 관리</h2>
+          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-900">
+            ✕
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Step 1: 템플릿 다운로드 */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-neutral-900">1. 엑셀 템플릿 다운로드</h3>
+              <div className="flex gap-1 text-xs">
+                <button
+                  onClick={() => setFilter('missing')}
+                  className={`px-3 py-1 rounded-full ${
+                    filter === 'missing'
+                      ? 'bg-neutral-900 text-white'
+                      : 'bg-neutral-100 text-neutral-700'
+                  }`}
+                >
+                  주소 누락만 ({missingCount})
+                </button>
+                <button
+                  onClick={() => setFilter('all')}
+                  className={`px-3 py-1 rounded-full ${
+                    filter === 'all' ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-700'
+                  }`}
+                >
+                  전체 ({stores.length})
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-neutral-500 mb-3">
+              "새 주소(입력)" 칸에 주소를 채우면 시도/시군구는 자동 파싱됩니다.
+            </p>
+            <button
+              onClick={handleDownloadTemplate}
+              className="px-4 py-2 bg-neutral-900 text-white text-sm rounded-lg hover:bg-neutral-800"
+            >
+              📥 템플릿 다운로드
+            </button>
+          </section>
+
+          {/* Step 2: 업로드 */}
+          <section>
+            <h3 className="text-sm font-semibold text-neutral-900 mb-2">2. 엑셀 업로드</h3>
+            <div
+              className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center cursor-pointer hover:border-neutral-400"
+              onClick={() => fileInputRef.current?.click()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const file = e.dataTransfer.files?.[0];
+                if (file) handleFileSelect(file);
+              }}
+              onDragOver={(e) => e.preventDefault()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileSelect(file);
+                }}
+              />
+              <p className="text-sm text-neutral-700 font-medium">
+                엑셀 파일을 드래그하거나 클릭
+              </p>
+              <p className="text-xs text-neutral-400 mt-1">.xlsx / .xls</p>
+            </div>
+
+            {parsedRows && (
+              <div className="mt-3 p-3 bg-neutral-50 rounded-lg">
+                <p className="text-sm text-neutral-700 mb-2">
+                  <strong>{parsedRows.length}개</strong>의 매장 주소를 업데이트합니다.
+                </p>
+                <button
+                  onClick={handleUpload}
+                  disabled={isUploading}
+                  className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  {isUploading ? '업데이트 중...' : '업데이트 실행'}
+                </button>
+              </div>
+            )}
+          </section>
+
+          {/* Step 3: 결과 */}
+          {result && (
+            <section>
+              <h3 className="text-sm font-semibold text-neutral-900 mb-2">3. 결과</h3>
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                <div className="bg-neutral-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-neutral-500">총 시도</p>
+                  <p className="text-xl font-bold text-neutral-900">{result.total}</p>
+                </div>
+                <div className="bg-emerald-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-emerald-700">성공</p>
+                  <p className="text-xl font-bold text-emerald-600">{result.updated}</p>
+                </div>
+                <div className="bg-red-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-red-700">실패</p>
+                  <p className="text-xl font-bold text-red-600">{result.failed.length}</p>
+                </div>
+              </div>
+
+              {result.failed.length > 0 && (
+                <div className="border border-red-200 rounded-lg overflow-hidden">
+                  <div className="bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                    실패 항목 (엑셀에서 수정 후 재업로드)
+                  </div>
+                  <div className="max-h-48 overflow-y-auto">
+                    {result.failed.map((f, i) => (
+                      <div
+                        key={i}
+                        className="px-3 py-2 text-xs border-t border-red-100 flex justify-between"
+                      >
+                        <span className="text-neutral-700 truncate flex-1">
+                          {f.name || '(이름 없음)'}: {f.address}
+                        </span>
+                        <span className="text-red-600 ml-2 flex-shrink-0">{f.reason}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 고객 지역 백필 */}
+              {result.updated > 0 && (
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm font-semibold text-blue-900 mb-1">
+                    ✨ 과거 가입 고객 지역도 채우기
+                  </p>
+                  <p className="text-xs text-blue-700 mb-3">
+                    매장 주소가 업데이트되었습니다. 그 매장에 가입한 과거 고객들의 지역 정보(시/도, 시/군/구)도
+                    매장 주소 기준으로 자동 채울 수 있습니다.
+                  </p>
+                  {populateResult ? (
+                    <p className="text-sm text-blue-900">
+                      ✅ <strong>{populateResult.updated.toLocaleString()}명</strong>의 고객 지역 정보가
+                      채워졌습니다.
+                      {populateResult.skippedNoStoreAddress > 0 && (
+                        <span className="block text-xs text-blue-700 mt-1">
+                          (매장 주소 없는 고객 {populateResult.skippedNoStoreAddress.toLocaleString()}명
+                          스킵)
+                        </span>
+                      )}
+                    </p>
+                  ) : (
+                    <button
+                      onClick={handlePopulateCustomers}
+                      disabled={isPopulating}
+                      className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-60"
+                    >
+                      {isPopulating ? '백필 중...' : '고객 지역 백필 실행'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+        </div>
+
+        {/* 푸터 */}
+        <div className="sticky bottom-0 bg-white border-t border-[#EAEAEA] px-6 py-3 flex justify-end rounded-b-2xl">
+          <button
+            onClick={() => {
+              if (result && result.updated > 0) onDone();
+              else onClose();
+            }}
+            className="px-4 py-2 bg-neutral-900 text-white text-sm rounded-lg hover:bg-neutral-800"
+          >
+            닫기
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

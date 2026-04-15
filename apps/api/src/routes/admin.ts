@@ -8,6 +8,7 @@ import { prisma } from '../lib/prisma.js';
 import { enqueueAlimTalk } from '../services/solapi.js';
 import { generateSlug, getUniqueSlug } from './auth.js';
 import { notifyCrmOn, notifyCrmOff } from '../services/taghere-api.js';
+import { parseKoreanAddress, sidoToShort } from '../utils/address-parser.js';
 
 const router = Router();
 
@@ -424,6 +425,23 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       }
     }
 
+    // 주소 변경 시 자동 파싱하여 addressSido/Sigungu/Detail도 함께 업데이트
+    const addressUpdateFields: Record<string, any> = {};
+    if (address !== undefined) {
+      const addrStr = (address || '').trim();
+      addressUpdateFields.address = addrStr || null;
+      if (addrStr) {
+        const parsed = parseKoreanAddress(addrStr);
+        addressUpdateFields.addressSido = parsed.sido;
+        addressUpdateFields.addressSigungu = parsed.sigungu;
+        addressUpdateFields.addressDetail = parsed.detail;
+      } else {
+        addressUpdateFields.addressSido = null;
+        addressUpdateFields.addressSigungu = null;
+        addressUpdateFields.addressDetail = null;
+      }
+    }
+
     // 매장 정보 업데이트
     const updatedStore = await prisma.store.update({
       where: { id: storeId },
@@ -434,7 +452,7 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
         ...(ownerName !== undefined && { ownerName: ownerName || null }),
         ...(phone !== undefined && { phone: phone || null }),
         ...(businessRegNumber !== undefined && { businessRegNumber: businessRegNumber || null }),
-        ...(address !== undefined && { address: address || null }),
+        ...addressUpdateFields,
         ...(pointRatePercent !== undefined && { pointRatePercent }),
         ...(pointUsageRule !== undefined && { pointUsageRule: pointUsageRule || null }),
         ...(pointsAlimtalkEnabled !== undefined && { pointsAlimtalkEnabled }),
@@ -445,7 +463,7 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
         ...(metacityBrandCode !== undefined && { metacityBrandCode: metacityBrandCode || null }),
         ...(metacityStoreIdx !== undefined && { metacityStoreIdx: metacityStoreIdx || null }),
         ...(metacityAccessCode !== undefined && { metacityAccessCode: metacityAccessCode || null }),
-      },
+      } as any,
     });
 
     // CRM 활성화 상태 변경, taghereVersion 변경, 또는 enrollmentMode 변경 시 태그히어 서버에 알림
@@ -4088,6 +4106,126 @@ router.get('/corporate-ad', adminAuthMiddleware, async (req: AdminRequest, res: 
 // ============================================
 // 기업광고 알림톡 통계
 // ============================================
+
+// ============================================
+// 매장 주소 일괄 업데이트 + 고객 지역 백필
+// ============================================
+
+// POST /api/admin/stores/bulk-address
+// 엑셀에서 파싱된 { items: [{ id, address }] } 배열을 받아 매장 주소 일괄 업데이트
+router.post('/stores/bulk-address', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { items } = req.body as { items?: Array<{ id: string; address: string }> };
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: '업데이트할 항목이 없습니다.' });
+    }
+    if (items.length > 2000) {
+      return res.status(400).json({ error: '한 번에 최대 2,000개까지 처리 가능합니다.' });
+    }
+
+    const failed: Array<{ id: string; name: string | null; address: string; reason: string }> = [];
+    let updated = 0;
+
+    for (const item of items) {
+      const id = (item?.id || '').trim();
+      const address = (item?.address || '').trim();
+      if (!id || !address) continue;
+
+      const store = await prisma.store.findUnique({
+        where: { id },
+        select: { id: true, name: true },
+      });
+      if (!store) {
+        failed.push({ id, name: null, address, reason: '매장 없음' });
+        continue;
+      }
+
+      const parsed = parseKoreanAddress(address);
+      if (!parsed.sido) {
+        failed.push({ id, name: store.name, address, reason: '시도 파싱 실패' });
+        continue;
+      }
+
+      await prisma.store.update({
+        where: { id },
+        data: {
+          address,
+          addressSido: parsed.sido,
+          addressSigungu: parsed.sigungu,
+          addressDetail: parsed.detail,
+        } as any,
+      });
+      updated++;
+    }
+
+    res.json({ updated, failed, total: items.length });
+  } catch (error) {
+    console.error('Bulk address update error:', error);
+    res.status(500).json({ error: '주소 일괄 업데이트 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/customers/populate-regions
+// 과거 가입 고객의 regionSido/regionSigungu를 매장 주소 기반으로 백필
+router.post(
+  '/customers/populate-regions',
+  adminAuthMiddleware,
+  async (_req: AdminRequest, res: Response) => {
+    try {
+      const totalMissingBefore = await prisma.customer.count({
+        where: { regionSido: null },
+      });
+
+      const BATCH = 1000;
+      const CHUNK = 50;
+      let updated = 0;
+
+      while (true) {
+        const customers = await prisma.customer.findMany({
+          where: {
+            regionSido: null,
+            store: {
+              addressSido: { not: null },
+              addressSigungu: { not: null },
+            },
+          },
+          include: {
+            store: {
+              select: { addressSido: true, addressSigungu: true },
+            },
+          },
+          take: BATCH,
+        });
+
+        if (customers.length === 0) break;
+
+        for (let i = 0; i < customers.length; i += CHUNK) {
+          const chunk = customers.slice(i, i + CHUNK);
+          await prisma.$transaction(
+            chunk.map((c) =>
+              prisma.customer.update({
+                where: { id: c.id },
+                data: {
+                  regionSido: sidoToShort(c.store.addressSido),
+                  regionSigungu: c.store.addressSigungu,
+                },
+              }),
+            ),
+          );
+        }
+        updated += customers.length;
+      }
+
+      const skippedNoStoreAddress = totalMissingBefore - updated;
+
+      res.json({ updated, skippedNoStoreAddress, totalMissingBefore });
+    } catch (error) {
+      console.error('Populate customer regions error:', error);
+      res.status(500).json({ error: '고객 지역 백필 중 오류가 발생했습니다.' });
+    }
+  },
+);
 
 // GET /api/admin/corporate-ad-stats - 기업광고 알림톡 발송 및 멤버십 가입 통계
 router.get('/corporate-ad-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
