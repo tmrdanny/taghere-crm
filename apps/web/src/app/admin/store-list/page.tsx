@@ -219,15 +219,16 @@ export default function StoreListPage() {
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
+      const s = (v: unknown) => (v === null || v === undefined ? '' : String(v).trim());
       const parsed: BulkStoreRow[] = rows.map((row) => {
-        const rawCategory = (row['업종'] || '').trim();
+        const rawCategory = s(row['업종']);
         return {
-          storeName: (row['상호명'] || '').trim(),
-          ownerName: (row['대표자명'] || '').trim(),
-          phone: (row['연락처'] || '').toString().trim(),
-          email: (row['점주이메일'] || '').trim(),
-          businessRegNumber: (row['사업자등록번호'] || '').toString().trim(),
-          address: (row['주소'] || '').trim(),
+          storeName: s(row['상호명']),
+          ownerName: s(row['대표자명']),
+          phone: s(row['연락처']),
+          email: s(row['점주이메일']),
+          businessRegNumber: s(row['사업자등록번호']),
+          address: s(row['주소']),
           category: categoryLabelToEnum[rawCategory] || rawCategory || '',
         };
       }).filter((r) => r.storeName);
