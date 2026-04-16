@@ -509,7 +509,7 @@ export default function StoreListPage() {
               <p className="text-[13px] text-neutral-600">
                 엑셀 파일로 매장을 일괄 등록할 수 있습니다. (최대 500건)
                 <br />
-                초기 비밀번호: <span className="font-mono font-semibold">taghere1234</span>
+                초기 비밀번호: <span className="font-mono font-semibold">123456789a</span>
               </p>
 
               {/* 샘플 다운로드 + 파일 선택 */}

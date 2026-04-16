@@ -2898,7 +2898,7 @@ router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: 
       return res.status(400).json({ error: '한 번에 최대 500개까지 등록 가능합니다.' });
     }
 
-    const password = defaultPassword || 'taghere1234';
+    const password = defaultPassword || '123456789a';
     const passwordHash = await bcrypt.hash(password, 10);
 
     // 이메일 중복 체크를 위해 기존 이메일 조회
