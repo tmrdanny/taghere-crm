@@ -41,13 +41,22 @@ export interface TodayStats {
   avgWaitTime: number;
 }
 
+// 영업일 기준: KST 03:00 ~ 다음날 03:00 (자정~새벽 3시는 전일 영업일에 포함)
+const BUSINESS_DAY_RESET_HOUR_KST = 3;
+
 export function getTodayStartEnd() {
   const now = new Date();
   const kstOffset = 9 * 60 * 60 * 1000;
   const kstNow = new Date(now.getTime() + kstOffset);
-  const kstDateStr = kstNow.toISOString().split('T')[0];
-  const todayStart = new Date(kstDateStr + 'T00:00:00+09:00');
-  const todayEnd = new Date(kstDateStr + 'T23:59:59.999+09:00');
+
+  // KST 03시 이전이면 전일 영업일에 속함
+  const businessDayShiftMs =
+    kstNow.getUTCHours() < BUSINESS_DAY_RESET_HOUR_KST ? -24 * 60 * 60 * 1000 : 0;
+  const businessDay = new Date(kstNow.getTime() + businessDayShiftMs);
+  const businessDayStr = businessDay.toISOString().split('T')[0];
+
+  const todayStart = new Date(`${businessDayStr}T03:00:00+09:00`);
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
   return { todayStart, todayEnd };
 }
 
