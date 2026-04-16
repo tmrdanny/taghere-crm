@@ -845,6 +845,7 @@ function TaghereMemberEnrollContent() {
   const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[]>([]);
   const [coupons, setCoupons] = useState<MembershipCoupon[]>([]);
   const [showCouponSheet, setShowCouponSheet] = useState(false);
+  const [proceedToNext, setProceedToNext] = useState(false);
 
   const slug = params.slug as string;
   const rawOrderId = searchParams.get('ordersheetId') || searchParams.get('orderId');
@@ -1221,9 +1222,8 @@ function TaghereMemberEnrollContent() {
             customerId={customerId}
             onAllDownloaded={() => {
               setShowCouponSheet(false);
-              if (successData) {
-                // SuccessPopup이 자동으로 다음 단계 처리
-              } else {
+              setProceedToNext(true);
+              if (!successData) {
                 // successData가 아직 없으면 새로 세팅
                 setSuccessData({
                   storeName: successStoreName || '태그히어',
@@ -1236,7 +1236,7 @@ function TaghereMemberEnrollContent() {
             onClose={() => setShowCouponSheet(false)}
           />
         </>
-      ) : successData ? (
+      ) : proceedToNext && successData ? (
         <SuccessPopup
           successData={successData}
           onClose={handleCloseSuccessPopup}
@@ -1281,7 +1281,13 @@ function TaghereMemberEnrollContent() {
                     setShowAgreementWarning(true);
                     return;
                   }
-                  if (!isOpening) handleOpenGift();
+                  if (isOpening) return;
+                  if (customerId) {
+                    // 이미 카카오 인증 완료 → 시트만 다시 열기
+                    setShowCouponSheet(true);
+                  } else {
+                    handleOpenGift();
+                  }
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1351,12 +1357,17 @@ function TaghereMemberEnrollContent() {
                     setShowAgreementWarning(true);
                     return;
                   }
-                  handleOpenGift();
+                  if (customerId) {
+                    // 이미 카카오 인증 완료 → 시트만 다시 열기
+                    setShowCouponSheet(true);
+                  } else {
+                    handleOpenGift();
+                  }
                 }}
                 disabled={isOpening}
                 className="w-full py-4 font-semibold text-base rounded-[10px] transition-colors bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022]"
               >
-                {isOpening ? '가입 중...' : '쿠폰 다운받기'}
+                {isOpening ? '가입 중...' : customerId ? '쿠폰 다시 보기' : '쿠폰 다운받기'}
               </button>
             </div>
           </div>
