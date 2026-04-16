@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk } from '../services/solapi.js';
+import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk, enqueueCorporateAdAlimTalk } from '../services/solapi.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 import { fetchOrder, TaghereOrderData } from '../services/taghere-api.js';
 import { sidoToShort } from '../utils/address-parser.js';
@@ -518,7 +518,7 @@ async function handleMyPageCallback(
 async function handleMembershipCallback(
   req: Request,
   res: Response,
-  stateData: { storeId: string; ordersheetId: string; slug: string; origin: string },
+  stateData: { storeId: string; ordersheetId: string; slug: string; origin: string; selectedCouponIds?: string[] },
   redirectOrigin: string
 ) {
   const { code } = req.query;
@@ -723,14 +723,32 @@ async function handleMembershipCallback(
 
     console.log(`[Membership Callback] Membership registered - customerId: ${customer.id}, storeId: ${store.id}`);
 
-    // 알림톡 자동 발송 제거: 사용자가 멤버십 페이지의 쿠폰 시트에서 직접 트리거
+    // 사용자가 시트에서 선택한 쿠폰들을 자동 발송 (이탈률 0% 보장)
+    const selectedCouponIds = Array.isArray(stateData.selectedCouponIds) ? stateData.selectedCouponIds : [];
+    if (customer.phone && selectedCouponIds.length > 0) {
+      console.log(`[Membership] Auto-sending ${selectedCouponIds.length} coupon(s) to ${customer.phone}`);
+      for (const couponId of selectedCouponIds) {
+        enqueueCorporateAdAlimTalk({
+          storeId: store.id,
+          customerId: customer.id,
+          phone: customer.phone,
+          couponId,
+        }).then((result) => {
+          console.log(`[Membership] Coupon ${couponId} send result:`, JSON.stringify(result));
+        }).catch((err) => console.error(`[Membership] Coupon ${couponId} send error:`, err));
+      }
+    } else if (selectedCouponIds.length === 0) {
+      console.log(`[Membership] No selectedCouponIds in state, skipping auto-send`);
+    } else {
+      console.log(`[Membership] Skipping auto-send - no phone for customer ${customer.id}`);
+    }
 
     // 선호도 존재 여부
     const hasPreferences = !!(customer as any).preferredCategories;
     // 방문경로 24시간 내 응답 여부
     const hasVisitSource = isVisitSourceRecent((customer as any).visitSourceUpdatedAt);
 
-    // 성공 리다이렉트 (showCouponSheet=true → 페이지에서 쿠폰 시트 자동 오픈)
+    // 성공 리다이렉트 (선택한 쿠폰은 자동 발송됨, 시트 다시 표시 안 함)
     const successUrl = new URL(`${redirectOrigin}${memberBasePath}`);
     successUrl.searchParams.set('mode', 'membership');
     successUrl.searchParams.set('successStoreName', store.name);
@@ -738,7 +756,6 @@ async function handleMembershipCallback(
     successUrl.searchParams.set('kakaoId', kakaoId);
     successUrl.searchParams.set('hasPreferences', hasPreferences.toString());
     successUrl.searchParams.set('hasVisitSource', hasVisitSource.toString());
-    successUrl.searchParams.set('showCouponSheet', 'true');
     if (stateData.ordersheetId) {
       successUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
     }
