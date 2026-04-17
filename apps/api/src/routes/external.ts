@@ -83,7 +83,6 @@ router.post('/register', webhookAuthMiddleware, async (req, res) => {
           addressSido: parsedAddress?.sido || null,
           addressSigungu: parsedAddress?.sigungu || null,
           addressDetail: parsedAddress?.detail || null,
-          enrollmentMode: 'MEMBERSHIP',
         },
       });
 
