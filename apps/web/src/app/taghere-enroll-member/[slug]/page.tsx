@@ -295,11 +295,20 @@ function CouponBottomSheet({
 
                 {/* 다운로드 아이콘 */}
                 {isPreview ? (
-                  <div className="w-9 h-9 rounded-full bg-neutral-900 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-                    </svg>
-                  </div>
+                  <button
+                    onClick={() => handlePreviewProceed()}
+                    disabled={isAuthLoading}
+                    className="w-9 h-9 rounded-full bg-neutral-900 hover:bg-neutral-800 flex items-center justify-center flex-shrink-0 transition-colors disabled:opacity-60"
+                    aria-label="쿠폰 다운로드"
+                  >
+                    {isAuthLoading ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                      </svg>
+                    )}
+                  </button>
                 ) : (
                   <button
                     onClick={() => handleSingleDownload(coupon.id)}
