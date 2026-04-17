@@ -170,12 +170,6 @@ function CouponBottomSheet({
 }) {
   const isPreview = !customerId;
 
-  // 프리뷰 모드: 모든 쿠폰 default 체크됨
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    new Set(coupons.map((c) => c.id)),
-  );
-
-  // 인증 후 모드: 이미 발송된 것 추적
   const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [isBatchSending, setIsBatchSending] = useState(false);
@@ -194,15 +188,6 @@ function CouponBottomSheet({
       })
       .catch(() => {});
   }, [customerId, apiUrl]);
-
-  const toggleSelected = (couponId: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(couponId)) next.delete(couponId);
-      else next.add(couponId);
-      return next;
-    });
-  };
 
   const sendCoupons = async (couponIds: string[]) => {
     if (couponIds.length === 0) return;
@@ -248,9 +233,9 @@ function CouponBottomSheet({
   };
 
   const handlePreviewProceed = () => {
-    if (selectedIds.size === 0) return;
+    if (coupons.length === 0) return;
     setIsAuthLoading(true);
-    onAuthRequest(Array.from(selectedIds));
+    onAuthRequest(coupons.map((c) => c.id));
   };
 
   const allDownloaded = coupons.length > 0 && coupons.every((c) => downloadedIds.has(c.id));
@@ -278,79 +263,13 @@ function CouponBottomSheet({
         {/* 쿠폰 리스트 */}
         <div className="px-5 space-y-2 max-h-[50vh] overflow-y-auto">
           {coupons.map((coupon) => {
-            // 프리뷰 모드: selectedIds 기준
-            // 인증 후 모드: downloadedIds 기준
-            const isSelected = selectedIds.has(coupon.id);
             const isDownloaded = downloadedIds.has(coupon.id);
             const isLoading = loadingIds.has(coupon.id);
-
-            const handleClick = () => {
-              if (isPreview) {
-                toggleSelected(coupon.id);
-              } else {
-                handleSingleDownload(coupon.id);
-              }
-            };
-
-            // 우측 아이콘/체크박스 표시 결정
-            const renderRightIcon = () => {
-              if (isPreview) {
-                // 체크박스 (선택 여부)
-                return (
-                  <div
-                    className={`w-7 h-7 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                      isSelected
-                        ? 'bg-[#FFD541] border-[#FFD541]'
-                        : 'border-neutral-300 bg-white'
-                    }`}
-                  >
-                    {isSelected && (
-                      <svg className="w-4 h-4 text-[#1d2022]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                );
-              }
-              // 인증 후: 다운로드 아이콘
-              return (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSingleDownload(coupon.id);
-                  }}
-                  disabled={isDownloaded || isLoading}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
-                    isDownloaded
-                      ? 'bg-[#FFD541] text-[#1d2022]'
-                      : 'bg-neutral-900 text-white hover:bg-neutral-800'
-                  } disabled:opacity-60`}
-                  aria-label={isDownloaded ? '다운로드 완료' : '쿠폰 다운로드'}
-                >
-                  {isLoading ? (
-                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  ) : isDownloaded ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-                    </svg>
-                  )}
-                </button>
-              );
-            };
 
             return (
               <div
                 key={coupon.id}
-                onClick={isPreview ? handleClick : undefined}
-                className={`flex items-center gap-3 p-3 border rounded-xl transition-colors ${
-                  isPreview
-                    ? `cursor-pointer ${isSelected ? 'border-[#FFD541] bg-yellow-50/30' : 'border-neutral-200'}`
-                    : 'border-neutral-200'
-                }`}
+                className="flex items-center gap-3 p-3 border border-neutral-200 rounded-xl"
               >
                 {/* 브랜드 아이콘 */}
                 <div className="w-11 h-11 rounded-full overflow-hidden bg-neutral-100 flex-shrink-0">
@@ -374,7 +293,37 @@ function CouponBottomSheet({
                   )}
                 </div>
 
-                {renderRightIcon()}
+                {/* 다운로드 아이콘 */}
+                {isPreview ? (
+                  <div className="w-9 h-9 rounded-full bg-neutral-900 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                    </svg>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleSingleDownload(coupon.id)}
+                    disabled={isDownloaded || isLoading}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                      isDownloaded
+                        ? 'bg-[#FFD541] text-[#1d2022]'
+                        : 'bg-neutral-900 text-white hover:bg-neutral-800'
+                    } disabled:opacity-60`}
+                    aria-label={isDownloaded ? '다운로드 완료' : '쿠폰 다운로드'}
+                  >
+                    {isLoading ? (
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    ) : isDownloaded ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                      </svg>
+                    )}
+                  </button>
+                )}
               </div>
             );
           })}
@@ -390,14 +339,10 @@ function CouponBottomSheet({
           {isPreview ? (
             <button
               onClick={handlePreviewProceed}
-              disabled={selectedIds.size === 0 || isAuthLoading}
+              disabled={isAuthLoading}
               className="w-full py-4 bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022] font-semibold text-base rounded-[10px] transition-colors disabled:opacity-60"
             >
-              {isAuthLoading
-                ? '인증 페이지로 이동 중...'
-                : selectedIds.size === 0
-                ? '쿠폰을 1개 이상 선택하세요'
-                : `쿠폰 전체 다운받기 (${selectedIds.size}개)`}
+              {isAuthLoading ? '인증 페이지로 이동 중...' : '쿠폰 전체 다운받기'}
             </button>
           ) : (
             <button
@@ -1271,9 +1216,7 @@ function TaghereMemberEnrollContent() {
                 <div className="text-center px-5">
                   <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
                     최대{' '}
-                    <span className="text-[#6BA3FF]">
-                      {coupons.reduce((sum, c) => sum + (c.amountValue || 0), 0).toLocaleString()}원
-                    </span>
+                    {coupons.reduce((sum, c) => sum + (c.amountValue || 0), 0).toLocaleString()}원
                     <br />
                     쿠폰이 도착했어요
                   </p>
@@ -1334,9 +1277,7 @@ function TaghereMemberEnrollContent() {
               <div className="text-center px-5">
                 <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
                   최대{' '}
-                  <span className="text-[#6BA3FF]">
-                    {coupons.reduce((sum, c) => sum + (c.amountValue || 0), 0).toLocaleString()}원
-                  </span>
+                  {coupons.reduce((sum, c) => sum + (c.amountValue || 0), 0).toLocaleString()}원
                   <br />
                   쿠폰이 도착했어요
                 </p>
