@@ -113,17 +113,23 @@ router.get('/coupons/sent/:customerId', async (req: Request, res: Response) => {
       return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
     }
 
-    // idempotencyKey는 'corporate_ad:{storeId}:{customerId}:{couponId}' 형식
+    // idempotencyKey는 'corporate_ad:{storeId}:{customerId}:{couponId}:{YYYY-MM-DD KST}' 형식
+    // 오늘 발송된 쿠폰만 조회 (매장당 하루 1회 정책)
+    const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const kstToday = kstNow.toISOString().split('T')[0];
     const prefix = `corporate_ad:${customer.storeId}:${customer.id}:`;
+    const suffix = `:${kstToday}`;
     const records = await prisma.alimTalkOutbox.findMany({
       where: {
-        idempotencyKey: { startsWith: prefix },
+        idempotencyKey: { startsWith: prefix, endsWith: suffix },
         status: { not: 'FAILED' },
       },
       select: { idempotencyKey: true },
     });
 
-    const sentCouponIds = records.map((r) => r.idempotencyKey.replace(prefix, ''));
+    const sentCouponIds = records.map((r) =>
+      r.idempotencyKey.slice(prefix.length, r.idempotencyKey.length - suffix.length)
+    );
     res.json({ sentCouponIds });
   } catch (error) {
     console.error('[Membership] sent coupons error:', error);
