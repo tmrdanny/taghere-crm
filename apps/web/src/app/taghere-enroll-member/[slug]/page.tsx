@@ -1198,7 +1198,9 @@ function TaghereMemberEnrollContent() {
                 <div className="text-center px-5">
                   <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
                     최대{' '}
-                    {coupons.reduce((sum, c) => sum + (c.amountValue || 0), 0).toLocaleString()}원
+                    <span className="text-[#6BA3FF]">
+                      {coupons.reduce((sum, c) => sum + (c.amountValue || 0), 0).toLocaleString()}원
+                    </span>
                     <br />
                     쿠폰이 도착했어요
                   </p>
@@ -1259,7 +1261,9 @@ function TaghereMemberEnrollContent() {
               <div className="text-center px-5">
                 <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
                   최대{' '}
-                  {coupons.reduce((sum, c) => sum + (c.amountValue || 0), 0).toLocaleString()}원
+                  <span className="text-[#6BA3FF]">
+                    {coupons.reduce((sum, c) => sum + (c.amountValue || 0), 0).toLocaleString()}원
+                  </span>
                   <br />
                   쿠폰이 도착했어요
                 </p>
