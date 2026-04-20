@@ -158,25 +158,20 @@ interface MembershipCoupon {
 function CouponBottomSheet({
   coupons,
   customerId,
-  onAuthRequest,
   onAllDownloaded,
   onClose,
 }: {
   coupons: MembershipCoupon[];
-  customerId: string | null;        // null이면 프리뷰 모드 (인증 전)
-  onAuthRequest: (selectedCouponIds: string[]) => void;
+  customerId: string;
   onAllDownloaded: () => void;
   onClose: () => void;
 }) {
-  const isPreview = !customerId;
-
   const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [isBatchSending, setIsBatchSending] = useState(false);
-  const [isAuthLoading, setIsAuthLoading] = useState(false);
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  // 이미 발송된 쿠폰 조회 (인증 후 모드)
+  // 이미 발송된 쿠폰 조회
   useEffect(() => {
     if (!customerId) return;
     fetch(`${apiUrl}/api/membership/coupons/sent/${customerId}`)
@@ -230,12 +225,6 @@ function CouponBottomSheet({
     } finally {
       setIsBatchSending(false);
     }
-  };
-
-  const handlePreviewProceed = () => {
-    if (coupons.length === 0) return;
-    setIsAuthLoading(true);
-    onAuthRequest(coupons.map((c) => c.id));
   };
 
   const allDownloaded = coupons.length > 0 && coupons.every((c) => downloadedIds.has(c.id));
@@ -294,45 +283,28 @@ function CouponBottomSheet({
                 </div>
 
                 {/* 다운로드 아이콘 */}
-                {isPreview ? (
-                  <button
-                    onClick={() => handlePreviewProceed()}
-                    disabled={isAuthLoading}
-                    className="w-9 h-9 rounded-full bg-neutral-900 hover:bg-neutral-800 flex items-center justify-center flex-shrink-0 transition-colors disabled:opacity-60"
-                    aria-label="쿠폰 다운로드"
-                  >
-                    {isAuthLoading ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-                      </svg>
-                    )}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleSingleDownload(coupon.id)}
-                    disabled={isDownloaded || isLoading}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
-                      isDownloaded
-                        ? 'bg-[#FFD541] text-[#1d2022]'
-                        : 'bg-neutral-900 text-white hover:bg-neutral-800'
-                    } disabled:opacity-60`}
-                    aria-label={isDownloaded ? '다운로드 완료' : '쿠폰 다운로드'}
-                  >
-                    {isLoading ? (
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    ) : isDownloaded ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-                      </svg>
-                    )}
-                  </button>
-                )}
+                <button
+                  onClick={() => handleSingleDownload(coupon.id)}
+                  disabled={isDownloaded || isLoading}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                    isDownloaded
+                      ? 'bg-[#FFD541] text-[#1d2022]'
+                      : 'bg-neutral-900 text-white hover:bg-neutral-800'
+                  } disabled:opacity-60`}
+                  aria-label={isDownloaded ? '다운로드 완료' : '쿠폰 다운로드'}
+                >
+                  {isLoading ? (
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : isDownloaded ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                    </svg>
+                  )}
+                </button>
               </div>
             );
           })}
@@ -345,23 +317,13 @@ function CouponBottomSheet({
 
         {/* CTA */}
         <div className="px-5 pt-3 pb-8">
-          {isPreview ? (
-            <button
-              onClick={handlePreviewProceed}
-              disabled={isAuthLoading}
-              className="w-full py-4 bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022] font-semibold text-base rounded-[10px] transition-colors disabled:opacity-60"
-            >
-              {isAuthLoading ? '인증 페이지로 이동 중...' : '쿠폰 전체 다운받기'}
-            </button>
-          ) : (
-            <button
-              onClick={allDownloaded ? onAllDownloaded : handleDownloadAll}
-              disabled={isBatchSending}
-              className="w-full py-4 bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022] font-semibold text-base rounded-[10px] transition-colors disabled:opacity-60"
-            >
-              {isBatchSending ? '발송 중...' : allDownloaded ? '확인' : '쿠폰 전체 다운받기'}
-            </button>
-          )}
+          <button
+            onClick={allDownloaded ? onAllDownloaded : handleDownloadAll}
+            disabled={isBatchSending}
+            className="w-full py-4 bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022] font-semibold text-base rounded-[10px] transition-colors disabled:opacity-60"
+          >
+            {isBatchSending ? '발송 중...' : allDownloaded ? '확인' : '쿠폰 전체 다운받기'}
+          </button>
         </div>
       </div>
     </div>
@@ -883,6 +845,7 @@ function TaghereMemberEnrollContent() {
   const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[]>([]);
   const [coupons, setCoupons] = useState<MembershipCoupon[]>([]);
   const [showCouponSheet, setShowCouponSheet] = useState(false);
+  const [proceedToNext, setProceedToNext] = useState(false);
 
   const slug = params.slug as string;
   const rawOrderId = searchParams.get('ordersheetId') || searchParams.get('orderId');
@@ -897,6 +860,7 @@ function TaghereMemberEnrollContent() {
   const urlKakaoId = searchParams.get('kakaoId');
   const hasPreferences = searchParams.get('hasPreferences') === 'true';
   const hasVisitSourceParam = searchParams.get('hasVisitSource') === 'true';
+  const showCouponSheetParam = searchParams.get('showCouponSheet') === 'true';
 
   // 자동 등록 시도 함수
   const attemptAutoEarn = async (kakaoId: string, orderData: OrderInfo) => {
@@ -924,6 +888,10 @@ function TaghereMemberEnrollContent() {
           hasExistingPreferences: data.hasExistingPreferences || false,
           hasVisitSource: data.hasVisitSource || false,
         });
+        // 멤버십 모드 + showCouponSheet 응답 → 쿠폰 시트 우선 표시
+        if (data.mode === 'membership' && data.showCouponSheet) {
+          setShowCouponSheet(true);
+        }
         setOrderInfo(null);
       } else {
         if (data.error === 'invalid_kakao_id') {
@@ -956,6 +924,13 @@ function TaghereMemberEnrollContent() {
     };
     fetchCoupons();
   }, []);
+
+  // showCouponSheet=true 파라미터 감지 시 시트 자동 오픈
+  useEffect(() => {
+    if (showCouponSheetParam && customerId) {
+      setShowCouponSheet(true);
+    }
+  }, [showCouponSheetParam, customerId]);
 
   // 방문 경로 옵션 + 설문 조회
   useEffect(() => {
@@ -1123,7 +1098,7 @@ function TaghereMemberEnrollContent() {
     fetchOrderInfo();
   }, [slug, ordersheetId, urlError, successMode, customerId, successStoreName, urlKakaoId]);
 
-  const handleAuthRequest = (selectedCouponIds: string[]) => {
+  const handleOpenGift = () => {
     if (!orderInfo) return;
 
     setIsOpening(true);
@@ -1140,7 +1115,6 @@ function TaghereMemberEnrollContent() {
         isStamp: false,
         isMembership: true,
         origin: window.location.origin,
-        selectedCouponIds,
       };
       const state = btoa(JSON.stringify(stateData));
 
@@ -1157,7 +1131,6 @@ function TaghereMemberEnrollContent() {
         if (ordersheetId) params.set(orderParamName, ordersheetId);
         params.set('origin', window.location.origin);
         params.set('isMembership', 'true');
-        params.set('selectedCouponIds', selectedCouponIds.join(','));
         window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
       }
     }, 500);
@@ -1216,7 +1189,7 @@ function TaghereMemberEnrollContent() {
   return (
     <>
       {/* 쿠폰 시트가 열려있으면 시트 우선 표시 */}
-      {showCouponSheet ? (
+      {showCouponSheet && customerId ? (
         <>
           {/* 배경: 멤버십 첫 화면 그대로 보여서 자연스러운 느낌 */}
           <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
@@ -1244,10 +1217,10 @@ function TaghereMemberEnrollContent() {
           <CouponBottomSheet
             coupons={coupons}
             customerId={customerId}
-            onAuthRequest={handleAuthRequest}
             onAllDownloaded={() => {
               setShowCouponSheet(false);
-              if (!successData && customerId) {
+              setProceedToNext(true);
+              if (!successData) {
                 setSuccessData({
                   storeName: successStoreName || '태그히어',
                   customerId,
@@ -1259,7 +1232,7 @@ function TaghereMemberEnrollContent() {
             onClose={() => setShowCouponSheet(false)}
           />
         </>
-      ) : successData ? (
+      ) : proceedToNext && successData ? (
         <SuccessPopup
           successData={successData}
           onClose={handleCloseSuccessPopup}
@@ -1303,7 +1276,11 @@ function TaghereMemberEnrollContent() {
                     return;
                   }
                   if (isOpening) return;
-                  setShowCouponSheet(true);
+                  if (customerId) {
+                    setShowCouponSheet(true);
+                  } else {
+                    handleOpenGift();
+                  }
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1373,12 +1350,16 @@ function TaghereMemberEnrollContent() {
                     setShowAgreementWarning(true);
                     return;
                   }
-                  setShowCouponSheet(true);
+                  if (customerId) {
+                    setShowCouponSheet(true);
+                  } else {
+                    handleOpenGift();
+                  }
                 }}
                 disabled={isOpening}
                 className="w-full py-4 font-semibold text-base rounded-[10px] transition-colors bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022]"
               >
-                {isOpening ? '인증 페이지로 이동 중...' : '쿠폰 다운받기'}
+                {isOpening ? '가입 중...' : customerId ? '쿠폰 다시 보기' : '쿠폰 다운받기'}
               </button>
             </div>
           </div>
