@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Stamp, Gift, Plus, X, Dice5 } from 'lucide-react';
+import { Stamp, Gift, Plus, X, Dice5, Tablet } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
 interface RewardOption {
@@ -367,11 +367,21 @@ export default function StampSettingsPage() {
       {ToastComponent}
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-neutral-900">스탬프 설정</h1>
-        <p className="text-neutral-500 mt-1">
-          스탬프 적립 기능과 보상을 설정합니다.
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-neutral-900">스탬프 설정</h1>
+          <p className="text-neutral-500 mt-1">
+            스탬프 적립 기능과 보상을 설정합니다.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => window.open('/stamp-tablet', '_blank')}
+          className="flex items-center gap-2 shrink-0"
+        >
+          <Tablet className="w-4 h-4" />
+          태블릿 모드
+        </Button>
       </div>
 
       <div className="space-y-6">
