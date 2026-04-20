@@ -1086,8 +1086,10 @@ export async function enqueueCorporateAdAlimTalk(params: {
     return { success: false, error: 'Corporate ad not configured' };
   }
 
-  // 이미 해당 쿠폰이 발송된 적 있는지 확인 (쿠폰별 1회만 발송)
-  const idempotencyKey = `corporate_ad:${params.storeId}:${params.customerId}:${params.couponId}`;
+  // 이미 해당 쿠폰이 오늘 발송된 적 있는지 확인 (매장당 하루 1회)
+  const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const kstToday = kstNow.toISOString().split('T')[0]; // YYYY-MM-DD (KST 기준)
+  const idempotencyKey = `corporate_ad:${params.storeId}:${params.customerId}:${params.couponId}:${kstToday}`;
 
   const alreadySent = await prisma.alimTalkOutbox.findFirst({
     where: {
