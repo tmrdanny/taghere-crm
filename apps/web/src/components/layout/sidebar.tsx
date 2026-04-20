@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -120,6 +120,28 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+// 매장 버전에 따라 "주문/결제" 링크를 결정
+function getOrderPaymentHref(taghereVersion?: string): string {
+  return taghereVersion === 'v2'
+    ? 'https://hub.tag-here.com/'
+    : 'https://admin.tag-here.com';
+}
+
+// navGroups 에서 "매장 운영 > 주문/결제" 항목의 href 를 버전에 맞게 치환
+function buildNavGroups(taghereVersion?: string): NavGroup[] {
+  const orderPaymentHref = getOrderPaymentHref(taghereVersion);
+  return navGroups.map((g) =>
+    g.title !== '매장 운영'
+      ? g
+      : {
+          ...g,
+          items: g.items.map((it) =>
+            it.label === '주문/결제' ? { ...it, href: orderPaymentHref } : it
+          ),
+        }
+  );
+}
+
 // 하단 독립 메뉴
 const bottomNavItems: NavItem[] = [
   { href: '/message-history', label: '발송 내역', icon: History },
@@ -203,9 +225,11 @@ function ComingSoonModal({
 interface SidebarProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  taghereVersion?: string;
 }
 
-export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion }: SidebarProps) {
+  const navGroupsForUser = useMemo(() => buildNavGroups(taghereVersion), [taghereVersion]);
   const pathname = usePathname();
   const { canInstall, handleInstall } = useInstallPrompt();
   const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; featureName?: string }>({ open: false });
@@ -222,7 +246,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
     // Mark current page as visited if it has isNew flag
     const allItems = [
       ...topNavItems,
-      ...navGroups.flatMap(g => g.items.flatMap(i => i.subItems ? [i, ...i.subItems] : [i])),
+      ...navGroupsForUser.flatMap(g => g.items.flatMap(i => i.subItems ? [i, ...i.subItems] : [i])),
       ...bottomNavItems
     ];
     const currentItem = allItems.find(item => pathname === item.href || pathname.startsWith(item.href + '/'));
@@ -262,14 +286,14 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
 
   // 현재 경로에 따라 활성화된 그룹 자동 확장
   useEffect(() => {
-    const activeGroups = navGroups
+    const activeGroups = navGroupsForUser
       .filter(group => isGroupActive(group))
       .map(group => group.title);
     setExpandedGroups(activeGroups);
 
     // 하위 메뉴가 있는 아이템 중 활성화된 것 자동 확장
     const activeItems: string[] = [];
-    navGroups.forEach(group => {
+    navGroupsForUser.forEach(group => {
       group.items.forEach(item => {
         if (item.subItems && isItemActive(item)) {
           activeItems.push(item.label);
@@ -517,7 +541,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
           <div className="mx-4 my-3 border-t border-slate-200" />
 
           {/* 그룹화된 메뉴 (드롭다운) */}
-          {navGroups.map(group => renderNavGroup(group))}
+          {navGroupsForUser.map(group => renderNavGroup(group))}
 
           {/* 구분선 */}
           <div className="mx-4 my-3 border-t border-slate-200" />
@@ -556,8 +580,9 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
 }
 
 // Mobile Header with Hamburger Menu
-export function MobileHeader() {
+export function MobileHeader({ taghereVersion }: { taghereVersion?: string }) {
   const pathname = usePathname();
+  const navGroupsForUser = useMemo(() => buildNavGroups(taghereVersion), [taghereVersion]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { canInstall, handleInstall } = useInstallPrompt();
   const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; featureName?: string }>({ open: false });
@@ -605,7 +630,7 @@ export function MobileHeader() {
     // Mark current page as visited if it has isNew flag
     const allItems = [
       ...topNavItems,
-      ...navGroups.flatMap(g => g.items.flatMap(i => i.subItems ? [i, ...i.subItems] : [i])),
+      ...navGroupsForUser.flatMap(g => g.items.flatMap(i => i.subItems ? [i, ...i.subItems] : [i])),
       ...bottomNavItems
     ];
     const currentItem = allItems.find(item => pathname === item.href || pathname.startsWith(item.href + '/'));
@@ -622,14 +647,14 @@ export function MobileHeader() {
 
   // 현재 경로에 따라 활성화된 그룹 자동 확장
   useEffect(() => {
-    const activeGroups = navGroups
+    const activeGroups = navGroupsForUser
       .filter(group => isGroupActive(group))
       .map(group => group.title);
     setExpandedGroups(activeGroups);
 
     // 하위 메뉴가 있는 아이템 중 활성화된 것 자동 확장
     const activeItems: string[] = [];
-    navGroups.forEach(group => {
+    navGroupsForUser.forEach(group => {
       group.items.forEach(item => {
         if (item.subItems && isItemActive(item)) {
           activeItems.push(item.label);
@@ -876,7 +901,7 @@ export function MobileHeader() {
           <div className="mx-4 my-3 border-t border-neutral-200" />
 
           {/* 그룹화된 메뉴 (드롭다운) */}
-          {navGroups.map(group => renderMobileNavGroup(group))}
+          {navGroupsForUser.map(group => renderMobileNavGroup(group))}
 
           {/* 구분선 */}
           <div className="mx-4 my-3 border-t border-neutral-200" />
