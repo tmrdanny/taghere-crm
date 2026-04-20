@@ -1413,16 +1413,16 @@ export default function CorporateAdPage() {
                         placeholder="#{변수명}"
                         className="flex-1 px-3 py-2 border border-[#EAEAEA] rounded-lg text-sm font-mono"
                       />
-                      <input
-                        type="text"
+                      <textarea
                         value={row.value}
                         onChange={(e) => {
                           const next = [...(editing.templateVariables ?? [])];
                           next[idx] = { ...next[idx], value: e.target.value };
                           setEditing({ ...editing, templateVariables: next });
                         }}
-                        placeholder="값"
-                        className="flex-[2] px-3 py-2 border border-[#EAEAEA] rounded-lg text-sm"
+                        placeholder="값 (여러 줄 입력 가능)"
+                        rows={1}
+                        className="flex-[2] px-3 py-2 border border-[#EAEAEA] rounded-lg text-sm resize-y min-h-[38px]"
                       />
                       <button
                         type="button"
