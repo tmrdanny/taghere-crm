@@ -14,6 +14,7 @@ interface User {
   store: {
     id: string;
     name: string;
+    taghereVersion?: string;
   };
 }
 
@@ -74,5 +75,5 @@ export default function DashboardLayout({
     return null;
   }
 
-  return <MainLayout>{children}</MainLayout>;
+  return <MainLayout taghereVersion={user.store.taghereVersion}>{children}</MainLayout>;
 }
