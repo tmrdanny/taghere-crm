@@ -5,9 +5,10 @@ import { Sidebar, MobileHeader } from './sidebar';
 
 interface MainLayoutProps {
   children: React.ReactNode;
+  taghereVersion?: string;
 }
 
-export function MainLayout({ children }: MainLayoutProps) {
+export function MainLayout({ children, taghereVersion }: MainLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Persist sidebar collapse state
@@ -27,12 +28,12 @@ export function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="min-h-screen bg-neutral-50">
       {/* Mobile Header - Only visible on mobile/tablet */}
-      <MobileHeader />
+      <MobileHeader taghereVersion={taghereVersion} />
 
       {/* Main Layout with Sidebar */}
       <div className="flex">
         {/* Sidebar - Only visible on desktop */}
-        <Sidebar isCollapsed={isCollapsed} onToggleCollapse={handleToggleCollapse} />
+        <Sidebar isCollapsed={isCollapsed} onToggleCollapse={handleToggleCollapse} taghereVersion={taghereVersion} />
 
         {/* Main Content */}
         <main

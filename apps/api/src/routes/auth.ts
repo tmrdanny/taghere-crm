@@ -311,6 +311,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res) => {
       store: {
         id: user.store.id,
         name: user.store.name,
+        taghereVersion: user.store.taghereVersion,
       },
     });
   } catch (error) {

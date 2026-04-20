@@ -122,23 +122,40 @@ async function fetchOrderV2(orderId: string): Promise<TaghereOrderData | null> {
     return null;
   }
 
-  const orderData = await orderRes.json() as any;
-  const menuData = menuRes?.ok ? await menuRes.json() as any : null;
+  const orderJson = await orderRes.json() as any;
+  const menuJson = menuRes?.ok ? await menuRes.json() as any : null;
 
-  // V2 응답을 기존 TaghereOrderData shape로 정규화
-  // ※ V2 응답 구조 확정 후 필드 매핑 조정 필요
+  // V2는 DataResponse<T> 로 래핑: { status, message, result }
+  const order = orderJson?.result ?? orderJson;
+  const menu = menuJson?.result ?? menuJson;
+
+  // V2 OrderProductWithoutOrderDto → CRM 다운스트림이 기대하는 item shape로 정규화
+  // (다운스트림은 item.price / item.name / item.quantity 등을 fallback 체인으로 읽음)
+  const normalizedItems = Array.isArray(order?.orderProducts)
+    ? order.orderProducts.map((p: any) => ({
+        name: p.label ?? p.title ?? null,
+        title: p.title ?? null,
+        label: p.label ?? null,
+        quantity: p.count ?? 1,
+        count: p.count ?? 1,
+        price: p.amount ?? 0,
+        amount: p.amount ?? 0,
+        option: p.orderProductOptions ?? null,
+      }))
+    : [];
+
   return {
-    resultPrice: orderData.resultPrice ?? orderData.totalPrice ?? orderData.content?.resultPrice,
-    totalPrice: orderData.totalPrice ?? orderData.content?.totalPrice,
-    tableLabel: orderData.tableLabel ?? orderData.tableName ?? orderData.content?.tableLabel,
-    tableID: orderData.tableID ?? orderData.content?.tableID,
-    storeName: orderData.storeName,
-    displayOrderNumber: orderData.displayOrderNumber ?? orderData.orderNumber,
-    orderNumber: orderData.orderNumber,
-    items: orderData.items ?? orderData.orderItems ?? orderData.content?.items,
-    orderItems: orderData.orderItems ?? orderData.items,
-    menuLink: menuData?.menuLink ?? menuData?.url ?? null,
-    content: orderData.content ?? orderData,
+    resultPrice: order?.totalAmount,
+    totalPrice: order?.totalAmount,
+    tableLabel: order?.orderReceiverLabel ?? null,
+    tableID: order?.orderReceiverId ?? null,
+    storeName: order?.storeName,
+    displayOrderNumber: order?.orderNumber,
+    orderNumber: order?.orderNumber,
+    items: normalizedItems,
+    orderItems: normalizedItems,
+    menuLink: menu?.menuLink ?? null,
+    content: order,
   };
 }
 
