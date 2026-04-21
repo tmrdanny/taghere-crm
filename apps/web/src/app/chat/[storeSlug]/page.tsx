@@ -333,7 +333,11 @@ export default function CustomerChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') sendMessage();
+              // 한글 IME 조합 중 Enter 무시 (중복 발송 방지)
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) {
+                e.preventDefault();
+                sendMessage();
+              }
             }}
             placeholder={joined ? '메시지 입력' : '입장 중...'}
             disabled={!joined}
