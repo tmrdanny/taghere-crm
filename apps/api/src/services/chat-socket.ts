@@ -1,6 +1,7 @@
 import { Server as HttpServer } from 'http';
 import { Server as IOServer, Socket } from 'socket.io';
 import { prisma as prismaClient } from '../lib/prisma.js';
+import { filterProfanity } from '../utils/profanity-filter.js';
 
 const prisma = prismaClient as any;
 
@@ -21,6 +22,7 @@ interface SocketData {
   sessionId?: string;
   participantId?: string;
   nickname?: string;
+  profanityFilterEnabled?: boolean;
 }
 
 function roomName(storeId: string) {
@@ -51,7 +53,7 @@ export function initChatSocket(server: HttpServer) {
 
         const store = await prisma.store.findUnique({
           where: { slug: payload.storeSlug },
-          select: { id: true, slug: true },
+          select: { id: true, slug: true, chatSetting: true },
         });
         if (!store) {
           socket.emit('error', { message: 'store not found' });
@@ -71,6 +73,7 @@ export function initChatSocket(server: HttpServer) {
         data.sessionId = payload.sessionId;
         data.participantId = participant.id;
         data.nickname = participant.nickname;
+        data.profanityFilterEnabled = store.chatSetting?.profanityFilterEnabled !== false;
 
         socket.join(roomName(store.id));
 
@@ -95,11 +98,13 @@ export function initChatSocket(server: HttpServer) {
           socket.emit('error', { message: 'not joined' });
           return;
         }
-        const content = (payload?.content ?? '').toString().trim();
-        if (!content || content.length > 500) {
+        const rawContent = (payload?.content ?? '').toString().trim();
+        if (!rawContent || rawContent.length > 500) {
           socket.emit('error', { message: 'invalid content' });
           return;
         }
+
+        const content = data.profanityFilterEnabled ? filterProfanity(rawContent) : rawContent;
 
         const msg = await prisma.chatMessage.create({
           data: {

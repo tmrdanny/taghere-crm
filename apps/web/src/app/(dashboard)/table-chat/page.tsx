@@ -34,6 +34,7 @@ interface ChatSetting {
   resetHourKst: number;
   lastResetAt: string | null;
   welcomeMessage: string | null;
+  profanityFilterEnabled: boolean;
 }
 
 interface ChatPost {
@@ -342,6 +343,20 @@ export default function TableChatPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
+              <div>
+                <p className="font-medium text-neutral-900">욕설 자동 필터링</p>
+                <p className="text-sm text-neutral-500">
+                  켜면 욕설이 포함된 메시지의 해당 단어가 자동으로 *로 마스킹됩니다.
+                </p>
+              </div>
+              <Switch
+                checked={setting.profanityFilterEnabled}
+                onCheckedChange={(v) => updateSetting({ profanityFilterEnabled: v })}
+                disabled={isSaving}
+              />
             </div>
           </CardContent>
         </Card>

@@ -1876,17 +1876,18 @@ enum ChatSenderType {
 }
 
 model ChatSetting {
-  id                String        @id @default(cuid())
-  storeId           String        @unique
-  enabled           Boolean       @default(false)
-  authMode          ChatAuthMode  @default(ANONYMOUS)
-  resetIntervalDays Int           @default(1)     // 1~7
-  resetHourKst      Int           @default(5)     // 0~23
-  lastResetAt       DateTime?
-  welcomeMessage    String?       @db.Text
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  store             Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  id                     String        @id @default(cuid())
+  storeId                String        @unique
+  enabled                Boolean       @default(false)
+  authMode               ChatAuthMode  @default(ANONYMOUS)
+  resetIntervalDays      Int           @default(1)     // 1~7
+  resetHourKst           Int           @default(5)     // 0~23
+  lastResetAt            DateTime?
+  welcomeMessage         String?       @db.Text
+  profanityFilterEnabled Boolean       @default(true)  // 욕설 자동 필터링
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  store                  Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@map("chat_setting")
 }
