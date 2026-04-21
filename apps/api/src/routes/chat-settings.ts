@@ -35,10 +35,11 @@ router.get('/settings', async (req: AuthRequest, res) => {
 router.put('/settings', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { enabled, authMode, resetIntervalDays, resetHourKst, welcomeMessage } = req.body;
+    const { enabled, authMode, resetIntervalDays, resetHourKst, welcomeMessage, profanityFilterEnabled } = req.body;
 
     const updateData: any = {};
     if (enabled !== undefined) updateData.enabled = !!enabled;
+    if (profanityFilterEnabled !== undefined) updateData.profanityFilterEnabled = !!profanityFilterEnabled;
     if (authMode !== undefined) {
       if (!['ANONYMOUS', 'KAKAO'].includes(authMode)) {
         return res.status(400).json({ error: '유효한 authMode가 아닙니다.' });
