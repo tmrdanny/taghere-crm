@@ -101,6 +101,9 @@ model Store {
   franchiseStampLedger  FranchiseStampLedger[]
   franchisePointLedger  FranchisePointLedger[]
 
+  // 테이블 채팅
+  chatSetting          ChatSetting?
+
   // 메타씨티 POS 연동
   metacityEnabled      Boolean  @default(false) // 메타씨티 연동 활성화
   metacityBrandCode    String?  // 메타씨티 브랜드 코드 (e.g. B26012800001)
@@ -1855,4 +1858,77 @@ model CouponCode {
   @@unique([corporateAdId, code])
   @@index([corporateAdId, usedAt])
   @@map("coupon_codes")
+}
+
+// ============================================================================
+// 테이블 채팅 (매장별 실시간 채팅)
+// ============================================================================
+
+enum ChatAuthMode {
+  ANONYMOUS
+  KAKAO
+}
+
+enum ChatSenderType {
+  USER
+  STORE
+  SYSTEM
+}
+
+model ChatSetting {
+  id                String        @id @default(cuid())
+  storeId           String        @unique
+  enabled           Boolean       @default(false)
+  authMode          ChatAuthMode  @default(ANONYMOUS)
+  resetIntervalDays Int           @default(1)     // 1~7
+  resetHourKst      Int           @default(5)     // 0~23
+  lastResetAt       DateTime?
+  welcomeMessage    String?       @db.Text
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  store             Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("chat_setting")
+}
+
+model ChatParticipant {
+  id         String   @id @default(cuid())
+  storeId    String
+  customerId String?
+  sessionId  String
+  nickname   String
+  joinedAt   DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@unique([storeId, sessionId])
+  @@index([storeId, lastSeenAt])
+  @@map("chat_participant")
+}
+
+model ChatMessage {
+  id            String         @id @default(cuid())
+  storeId       String
+  senderType    ChatSenderType
+  participantId String?
+  nickname      String
+  content       String         @db.Text
+  createdAt     DateTime       @default(now())
+  deletedAt     DateTime?
+
+  @@index([storeId, createdAt])
+  @@map("chat_message")
+}
+
+model ChatPost {
+  id        String    @id @default(cuid())
+  storeId   String
+  title     String?
+  content   String    @db.Text
+  imageUrl  String?
+  isPinned  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([storeId, createdAt])
+  @@map("chat_post")
 }
