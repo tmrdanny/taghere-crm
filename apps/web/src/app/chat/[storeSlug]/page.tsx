@@ -300,11 +300,11 @@ export default function CustomerChatPage() {
               key={msg.id}
               className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
             >
-              {!isMine && (
-                <p className={`text-xs mb-0.5 ${isStore ? 'text-amber-700 font-semibold' : 'text-neutral-500'}`}>
-                  {msg.nickname}
-                </p>
-              )}
+              <p className={`text-xs mb-0.5 ${
+                isStore ? 'text-amber-700 font-semibold' : isMine ? 'text-brand-800 font-medium' : 'text-neutral-500'
+              }`}>
+                {msg.nickname}
+              </p>
               <div
                 className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words ${
                   isMine
