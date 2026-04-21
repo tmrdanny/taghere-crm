@@ -88,6 +88,7 @@ const navGroups: NavGroup[] = [
       { href: '/waiting', label: '웨이팅', icon: ListOrdered },
       { href: '/points', label: '포인트 적립', icon: HandCoins },
       { href: '/stamp-settings', label: '스탬프 설정', icon: Stamp },
+      { href: '/table-chat', label: '테이블 채팅', icon: MessageSquare, isNew: true },
     ],
   },
   {

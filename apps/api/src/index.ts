@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import http from 'http';
 import rateLimit from 'express-rate-limit';
 
 // Load environment variables (production uses system env, dev uses .env file)
@@ -69,6 +70,10 @@ import { startSmsWorker } from './services/sms-worker.js';
 import { startExternalSmsWorker } from './services/external-sms-worker.js';
 import { startBrandMessageWorker } from './services/brand-message-worker.js';
 import { startAutomationWorker } from './services/automation-worker.js';
+import { startChatResetWorker } from './services/chat-reset-worker.js';
+import { initChatSocket } from './services/chat-socket.js';
+import chatSettingsRoutes from './routes/chat-settings.js';
+import publicChatRoutes from './routes/public-chat.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -244,6 +249,10 @@ app.use('/api/public/waiting', publicWaitingRoutes);
 app.use('/api/stamp-settings', stampSettingsRoutes);
 app.use('/api/stamps', stampsRoutes);
 
+// Chat routes
+app.use('/api/chat', chatSettingsRoutes);
+app.use('/api/public/chat', publicChatRoutes);
+
 // Monthly credit routes
 app.use('/api/monthly-credit', monthlyCreditRoutes);
 
@@ -292,7 +301,10 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-app.listen(PORT, () => {
+const httpServer = http.createServer(app);
+initChatSocket(httpServer);
+
+httpServer.listen(PORT, () => {
   console.log(`🚀 API Server running on http://localhost:${PORT}`);
   console.log(`📚 API documentation at http://localhost:${PORT}/api`);
 
@@ -302,4 +314,5 @@ app.listen(PORT, () => {
   startExternalSmsWorker();
   startBrandMessageWorker();
   startAutomationWorker();
+  startChatResetWorker();
 });
