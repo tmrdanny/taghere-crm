@@ -342,7 +342,7 @@ export default function CustomerChatPage() {
             placeholder={joined ? '메시지 입력' : '입장 중...'}
             disabled={!joined}
             maxLength={500}
-            className="flex-1 px-4 py-2.5 rounded-full border border-neutral-300 text-sm focus:outline-none focus:border-brand-800 disabled:bg-neutral-100"
+            className="flex-1 px-4 py-2.5 rounded-full border border-neutral-300 text-base focus:outline-none focus:border-brand-800 disabled:bg-neutral-100"
           />
           <button
             onClick={sendMessage}
