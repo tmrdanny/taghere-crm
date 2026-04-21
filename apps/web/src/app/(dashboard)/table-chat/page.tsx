@@ -325,26 +325,6 @@ export default function TableChatPage() {
               />
             </div>
 
-            <div>
-              <p className="text-sm font-medium text-neutral-700 mb-2">유저 식별 방식</p>
-              <div className="grid grid-cols-2 gap-2">
-                {(['ANONYMOUS', 'KAKAO'] as AuthMode[]).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => updateSetting({ authMode: mode })}
-                    disabled={isSaving}
-                    className={`py-3 rounded-lg border-2 text-sm font-medium transition-colors ${
-                      setting.authMode === mode
-                        ? 'border-brand-800 bg-brand-50 text-brand-800'
-                        : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'
-                    }`}
-                  >
-                    {mode === 'ANONYMOUS' ? '익명 (자동 닉네임)' : '카카오 로그인'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
               <div>
                 <p className="font-medium text-neutral-900">욕설 자동 필터링</p>
