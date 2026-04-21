@@ -545,7 +545,10 @@ export default function TableChatPage() {
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') sendStoreMessage();
+                  if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) {
+                    e.preventDefault();
+                    sendStoreMessage();
+                  }
                 }}
                 maxLength={500}
               />
