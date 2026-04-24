@@ -164,11 +164,14 @@ export async function registerWaiting(
     const waitingNumber = await getNextWaitingNumber(params.storeId);
     const estimatedMinutes = await calculateEstimatedWaitTime(params.storeId, params.waitingTypeId);
 
+    // 오늘(영업일) 내 동일 유형 WAITING/CALLED 만 카운트 (과거 미정리 레코드 오염 방지)
+    const { todayStart, todayEnd } = getTodayStartEnd();
     const position = await prisma.waitingList.count({
       where: {
         storeId: params.storeId,
         waitingTypeId: params.waitingTypeId,
         status: { in: ['WAITING', 'CALLED'] },
+        createdAt: { gte: todayStart, lte: todayEnd },
       },
     }) + 1;
 
