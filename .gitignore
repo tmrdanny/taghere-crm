@@ -44,3 +44,6 @@ prisma/*.db-journal
 # Misc
 *.tsbuildinfo
 taghere-crm-*.env
+
+# Local-only customer export server (NEVER deploy to production)
+scripts/local-export/
