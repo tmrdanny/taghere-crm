@@ -717,14 +717,14 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
 
     console.log(`[Webhook] Order cancel request - ordersheetId: ${ordersheetId}, type: ${cancelType}, reason: ${reason || 'N/A'}`);
 
-    // 2. 해당 ordersheetId로 적립된 포인트 내역 조회
-    const earnRecord = await prisma.pointLedger.findFirst({
+    // 2. 해당 ordersheetId로 포인트 내역 조회 (EARN + USE 모두)
+    const ledgerRecords = await prisma.pointLedger.findMany({
       where: {
-        type: 'EARN',
         OR: [
           { orderId: ordersheetId },
           { reason: { contains: ordersheetId } }
-        ]
+        ],
+        type: { in: ['EARN', 'USE'] },
       },
       include: {
         customer: {
@@ -744,19 +744,24 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
       }
     });
 
-    // 3. 적립 내역이 없는 경우
-    if (!earnRecord) {
-      console.log(`[Webhook] No earn record found for ordersheetId: ${ordersheetId}`);
+    const earnRecord = ledgerRecords.find(r => r.type === 'EARN');
+    const useRecord = ledgerRecords.find(r => r.type === 'USE');
+
+    // 3. 관련 내역이 없는 경우
+    if (!earnRecord && !useRecord) {
+      console.log(`[Webhook] No point record found for ordersheetId: ${ordersheetId}`);
       return res.status(404).json({
         success: false,
-        error: 'Earn record not found',
-        message: `ordersheetId(${ordersheetId})에 해당하는 포인트 적립 내역을 찾을 수 없습니다.`,
+        error: 'Point record not found',
+        message: `ordersheetId(${ordersheetId})에 해당하는 포인트 내역을 찾을 수 없습니다.`,
         ordersheetId
       });
     }
 
-    const { customer, store } = earnRecord;
-    const pointsToDeduct = earnRecord.delta; // 적립된 포인트 금액
+    const referenceRecord = earnRecord || useRecord!;
+    const { customer, store } = referenceRecord;
+    const earnedPoints = earnRecord?.delta ?? 0; // 양수 (적립된 금액)
+    const usedPoints = useRecord ? Math.abs(useRecord.delta) : 0; // 양수 (사용한 금액)
 
     // 4. 이미 차감되었는지 확인 (중복 처리 방지)
     const existingDeduction = await prisma.pointLedger.findFirst({
@@ -780,34 +785,54 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
       });
     }
 
-    // 5. 트랜잭션으로 포인트 차감 + 고객 포인트 업데이트 + 주문 내역 삭제
-    const deductionReason = reason
-      ? `주문취소: ${ordersheetId} (${cancelType === 'REFUND' ? '환불' : '취소'} - ${reason})`
-      : `주문취소: ${ordersheetId} (${cancelType === 'REFUND' ? '환불' : '취소'})`;
-
-    const newBalance = Math.max(0, customer.totalPoints - pointsToDeduct);
+    // 5. 트랜잭션으로 포인트 차감/환원 + 고객 포인트 업데이트 + 주문 내역 삭제
+    const cancelTypeLabel = cancelType === 'REFUND' ? '환불' : '취소';
+    const newBalance = Math.max(0, customer.totalPoints - earnedPoints + usedPoints);
 
     const result = await prisma.$transaction(async (tx) => {
-      // 5-1. 포인트 차감 내역 생성
-      const deductionRecord = await tx.pointLedger.create({
-        data: {
-          storeId: store.id,
-          customerId: customer.id,
-          delta: -pointsToDeduct, // 음수로 차감
-          balance: newBalance,
-          type: 'ADJUST',
-          reason: deductionReason,
-          orderId: ordersheetId
-        }
-      });
+      let currentBalance = customer.totalPoints;
 
-      // 5-2. 고객 총 포인트 업데이트
+      // 5-1. 적립 취소 (EARN → ADJUST -N)
+      if (earnedPoints > 0) {
+        currentBalance -= earnedPoints;
+        await tx.pointLedger.create({
+          data: {
+            storeId: store.id,
+            customerId: customer.id,
+            delta: -earnedPoints,
+            balance: Math.max(0, currentBalance),
+            type: 'ADJUST',
+            reason: reason
+              ? `주문취소: ${ordersheetId} (${cancelTypeLabel} - ${reason})`
+              : `주문취소: ${ordersheetId} (${cancelTypeLabel})`,
+            orderId: ordersheetId,
+          }
+        });
+      }
+
+      // 5-2. 사용 환원 (USE → ADJUST +N)
+      if (usedPoints > 0) {
+        currentBalance += usedPoints;
+        await tx.pointLedger.create({
+          data: {
+            storeId: store.id,
+            customerId: customer.id,
+            delta: usedPoints,
+            balance: Math.max(0, currentBalance),
+            type: 'ADJUST',
+            reason: `주문취소(사용환원): ${ordersheetId} (${cancelTypeLabel})`,
+            orderId: ordersheetId,
+          }
+        });
+      }
+
+      // 5-3. 고객 총 포인트 업데이트
       const updatedCustomer = await tx.customer.update({
         where: { id: customer.id },
         data: { totalPoints: newBalance }
       });
 
-      // 5-3. 관련 주문 내역 삭제 (있는 경우)
+      // 5-4. 관련 주문 내역 삭제 (있는 경우)
       const deletedVisit = await tx.visitOrOrder.deleteMany({
         where: {
           storeId: store.id,
@@ -816,12 +841,12 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
         }
       });
 
-      return { deductionRecord, updatedCustomer, deletedVisitCount: deletedVisit.count };
+      return { updatedCustomer, deletedVisitCount: deletedVisit.count };
     });
 
     const processingTime = Date.now() - startTime;
 
-    console.log(`[Webhook] Order cancel completed - ordersheetId: ${ordersheetId}, deducted: ${pointsToDeduct}P, newBalance: ${newBalance}P, time: ${processingTime}ms`);
+    console.log(`[Webhook] Order cancel completed - ordersheetId: ${ordersheetId}, earnReversed: ${earnedPoints}P, useReturned: ${usedPoints}P, newBalance: ${newBalance}P, time: ${processingTime}ms`);
 
     // 메타씨티 포인트 취소 동기화 (비동기)
     {
@@ -829,21 +854,20 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
         where: { id: store.id },
         select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
       });
-      if (storeForMetacity?.metacityEnabled && pointsToDeduct > 0) {
-        // 원래 적립 ledger를 찾아서 동일한 ORDER_NO로 취소 요청
-        const originalEarnLedger = await prisma.pointLedger.findFirst({
-          where: { storeId: store.id, customerId: customer.id, orderId: ordersheetId, type: 'EARN' },
-          select: { id: true },
-        });
-        const cancelOrderNo = originalEarnLedger?.id || ordersheetId;
+      if (storeForMetacity?.metacityEnabled && (earnedPoints > 0 || usedPoints > 0)) {
+        const cancelOrderNo = earnRecord?.id || useRecord?.id || ordersheetId;
+        const metacityOperationType = (earnedPoints > 0 && usedPoints > 0)
+          ? 'POINT_COMBINE_CANCEL'
+          : 'POINT_SAVE_CANCEL';
         syncToMetacity({
           store: storeForMetacity,
           customer: result.updatedCustomer,
-          operationType: 'POINT_SAVE_CANCEL',
+          operationType: metacityOperationType,
           orderNo: cancelOrderNo,
           purAmt: 0,
-          savePoint: pointsToDeduct,
-        }).catch(err => console.error('[Metacity] POINT_SAVE_CANCEL (webhook) sync failed:', err.message));
+          savePoint: earnedPoints,
+          usedPoint: usedPoints,
+        }).catch(err => console.error(`[Metacity] ${metacityOperationType} (webhook) sync failed:`, err.message));
       }
     }
 
@@ -864,11 +888,11 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
           phone: customer.phone ? `${customer.phone.slice(0, 3)}****${customer.phone.slice(-4)}` : null
         },
         points: {
-          deducted: pointsToDeduct,
+          earnReversed: earnedPoints,
+          useReturned: usedPoints,
           previousBalance: customer.totalPoints,
           newBalance: result.updatedCustomer.totalPoints
         },
-        deductionId: result.deductionRecord.id,
         deletedOrderCount: result.deletedVisitCount,
         processedAt: new Date().toISOString(),
         processingTimeMs: processingTime
