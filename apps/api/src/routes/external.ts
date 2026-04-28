@@ -5,6 +5,17 @@ import { webhookAuthMiddleware } from '../middleware/webhook-auth.js';
 import { generateSlug, getUniqueSlug } from './auth.js';
 import { parseKoreanAddress } from '../utils/address-parser.js';
 
+const VALID_STORE_CATEGORIES = [
+  'KOREAN', 'CHINESE', 'JAPANESE', 'WESTERN', 'ASIAN', 'BUNSIK', 'FASTFOOD',
+  'MEAT', 'SEAFOOD', 'BUFFET', 'BRUNCH', 'CAFE', 'BAKERY', 'DESSERT',
+  'ICECREAM', 'BEER', 'IZAKAYA', 'WINE_BAR', 'COCKTAIL_BAR', 'POCHA',
+  'KOREAN_PUB', 'COOK_PUB', 'FOODCOURT', 'OTHER',
+];
+
+const isValidStoreCategory = (value: string | null | undefined): boolean => {
+  return !!value && VALID_STORE_CATEGORIES.includes(value);
+};
+
 const router = Router();
 
 // POST /api/external/register - 외부 등록 API
@@ -41,6 +52,7 @@ router.post('/register', webhookAuthMiddleware, async (req, res) => {
         result: 'exists',
         storeId: existingUser.storeId,
         staffUserId: existingUser.id,
+        slug: existingUser.store?.slug || null,
       });
     }
 
@@ -77,7 +89,7 @@ router.post('/register', webhookAuthMiddleware, async (req, res) => {
           slug,
           ownerName,
           phone,
-          category: category || null,
+          category: isValidStoreCategory(category) ? category : null,
           businessRegNumber: businessRegNumber || null,
           address: address || null,
           addressSido: parsedAddress?.sido || null,
@@ -122,7 +134,7 @@ router.post('/register', webhookAuthMiddleware, async (req, res) => {
         },
       });
 
-      return { storeId: store.id, staffUserId: user.id };
+      return { storeId: store.id, staffUserId: user.id, slug: store.slug };
     });
 
     // notifyCrmOn() 호출하지 않음 — 기존 /api/auth/register와의 핵심 차이점
@@ -133,6 +145,7 @@ router.post('/register', webhookAuthMiddleware, async (req, res) => {
       result: 'created',
       storeId: result.storeId,
       staffUserId: result.staffUserId,
+      slug: result.slug,
     });
   } catch (error) {
     console.error('[External] Register error:', error);
