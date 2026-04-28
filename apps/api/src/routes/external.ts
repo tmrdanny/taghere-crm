@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { webhookAuthMiddleware } from '../middleware/webhook-auth.js';
 import { generateSlug, getUniqueSlug } from './auth.js';
 import { parseKoreanAddress } from '../utils/address-parser.js';
+import { notifyCrmOn } from '../services/taghere-api.js';
 
 const VALID_STORE_CATEGORIES = [
   'KOREAN', 'CHINESE', 'JAPANESE', 'WESTERN', 'ASIAN', 'BUNSIK', 'FASTFOOD',
@@ -137,7 +138,21 @@ router.post('/register', webhookAuthMiddleware, async (req, res) => {
       return { storeId: store.id, staffUserId: user.id, slug: store.slug };
     });
 
-    // notifyCrmOn() 호출하지 않음 — 기존 /api/auth/register와의 핵심 차이점
+    // V2 등록 시 자동으로 CRM 활성화 (V2 서버에 isCrmEnabled 알림)
+    if (source === 'v2' && result.slug) {
+      try {
+        await notifyCrmOn({
+          version: 'v2',
+          storeName,
+          slug: result.slug,
+          isStampMode: false,
+          enrollmentMode: 'MEMBERSHIP',
+        });
+        console.log(`[External] notifyCrmOn success - storeName=${storeName}, slug=${result.slug}`);
+      } catch (err: any) {
+        console.error(`[External] notifyCrmOn failed - storeName=${storeName}:`, err.message);
+      }
+    }
 
     console.log(`[External] Register created - source=${source}, email=${email}, storeId=${result.storeId}, staffUserId=${result.staffUserId}`);
 
