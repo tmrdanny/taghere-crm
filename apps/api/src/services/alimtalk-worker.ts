@@ -82,6 +82,29 @@ async function processMessage(messageId: string): Promise<void> {
       const statusResult = await solapiService.getMessageStatus(msg.solapiMessageId);
       console.log(`[Worker] Existing message ${messageId} status:`, statusResult);
 
+      if (!statusResult.success) {
+        // SOLAPI 상태 조회 실패 — PROCESSING에 갇히지 않도록 RETRY로 되돌림
+        const newRetryCount = (msg.retryCount || 0) + 1;
+        if (newRetryCount >= 30) {
+          await prisma.alimTalkOutbox.update({
+            where: { id: messageId },
+            data: {
+              status: 'FAILED',
+              failReason: `Status query failed: ${statusResult.error || 'unknown error'}`,
+              updatedAt: new Date(),
+            },
+          });
+          console.error(`[Worker] Message ${messageId} status query failed ${newRetryCount} times, marking FAILED: ${statusResult.error}`);
+        } else {
+          await prisma.alimTalkOutbox.update({
+            where: { id: messageId },
+            data: { status: 'RETRY', retryCount: newRetryCount, updatedAt: new Date() },
+          });
+          console.error(`[Worker] Message ${messageId} status query failed (${newRetryCount}/30): ${statusResult.error}`);
+        }
+        return;
+      }
+
       if (statusResult.success) {
         if (statusResult.status === 'SENT') {
           // 발송 성공 확인됨
@@ -361,6 +384,19 @@ async function processBatch(): Promise<number> {
   });
   if (staleResult.count > 0) {
     console.log(`[Worker] Cleaned up ${staleResult.count} stale RETRY messages`);
+  }
+
+  // 5분 이상 PROCESSING 상태로 갇힌 고아 메시지를 RETRY로 되돌려 재처리
+  // (워커 크래시, getMessageStatus 실패 시 else 누락 등으로 PROCESSING에 갇히는 경우 방지)
+  const stuckProcessing = await prisma.alimTalkOutbox.updateMany({
+    where: {
+      status: 'PROCESSING',
+      updatedAt: { lt: new Date(Date.now() - 5 * 60 * 1000) },
+    },
+    data: { status: 'RETRY', updatedAt: new Date() },
+  });
+  if (stuckProcessing.count > 0) {
+    console.warn(`[Worker] Recovered ${stuckProcessing.count} stuck PROCESSING messages back to RETRY`);
   }
 
   // PENDING 또는 RETRY 상태의 메시지 조회
