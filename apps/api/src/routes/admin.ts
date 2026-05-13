@@ -305,6 +305,11 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         crmEnabled: (store as any).crmEnabled ?? true,
         enrollmentMode: (store as any).enrollmentMode ?? 'POINTS',
         taghereVersion: (store as any).taghereVersion ?? 'v1',
+        // 메타씨티 POS 연동 설정 (UI 토글 상태 유지에 필수)
+        metacityEnabled: (store as any).metacityEnabled ?? false,
+        metacityBrandCode: (store as any).metacityBrandCode ?? null,
+        metacityStoreIdx: (store as any).metacityStoreIdx ?? null,
+        metacityAccessCode: (store as any).metacityAccessCode ?? null,
         // Wallet balance 포함
         walletBalance: store.wallet?.balance || 0,
         // 월별 무료 크레딧 정보

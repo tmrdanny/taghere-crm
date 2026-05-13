@@ -357,14 +357,17 @@ async function ensureMetacityMember(
   customer: SyncToMetacityParams['customer'],
 ): Promise<string | null> {
   const phone = customer.phone!;
+  const phoneDigits = phoneToDigits(phone);
 
   // 1. 전화번호 중복 확인
+  let phoneRegistered = false;
   try {
     await service.verifyPhone(phone);
-    // 중복 없음 → 신규 가입
+    // E0000 → 중복 없음, 신규 가입 진행
   } catch (err: any) {
     if (err.message?.includes('E1004')) {
-      // 이미 등록된 전화번호 → 기존 회원 조회
+      // 이미 등록된 전화번호
+      phoneRegistered = true;
       console.log('[Metacity] 기존 회원 발견, CUST_SEARCH 수행:', phone);
       try {
         const searchResult = await service.searchCustomerByPhone(phone);
@@ -372,17 +375,21 @@ async function ensureMetacityMember(
         if (Array.isArray(custList) && custList.length > 0) {
           return custList[0].CUST_ID;
         }
-      } catch (searchErr) {
-        console.error('[Metacity] CUST_SEARCH 실패:', searchErr);
+        // 응답은 정상이지만 결과가 비어있음 → 모순 케이스로 진입
+        console.warn('[Metacity] CUST_SEARCH 응답에 회원 없음 (E1004 vs 빈 결과 모순):', phone);
+      } catch (searchErr: any) {
+        // E1005 (고객 정보 없음) — VERIFY_PHONE 결과와 모순.
+        // phoneToDigits를 CUST_ID로 가정하지 말고 아래 JOIN 재시도 단계로 진행한다.
+        console.warn('[Metacity] CUST_SEARCH 실패, JOIN 재시도로 결판:', searchErr.message);
       }
-      // 조회 실패 시 전화번호를 ID로 시도
-      return phoneToDigits(phone);
+      // ↓ fall-through to JOIN 시도 (모순 해소)
+    } else {
+      // 그 외 에러는 신규 가입 시도로 폴백
+      console.warn('[Metacity] VERIFY_PHONE 에러, 가입 시도:', err.message);
     }
-    // 그 외 에러는 신규 가입 시도
-    console.warn('[Metacity] VERIFY_PHONE 에러, 가입 시도:', err.message);
   }
 
-  // 2. 신규 가입
+  // 2. 신규 가입 시도 (또는 모순 케이스 결판)
   try {
     await service.registerCustomer({
       phone,
@@ -394,12 +401,22 @@ async function ensureMetacityMember(
       consentMarketing: customer.consentMarketing,
     });
     console.log('[Metacity] 회원 가입 성공:', phone);
-    return phoneToDigits(phone);
+    return phoneDigits;
   } catch (err: any) {
-    // 이미 존재하는 아이디 에러 등
+    // 이미 존재하는 ID/전화번호 → JOIN이 CUST_ID로 phoneDigits를 받아주지 않음.
+    // 이 경우 phoneDigits가 실제 CUST_ID가 맞다는 보장이 없다.
+    // → 식별 불가로 결론짓고 null 반환 (잘못된 CUST_ID를 DB에 저장하지 않기 위함).
     if (err.message?.includes('E1003') || err.message?.includes('E1009')) {
-      // 사용할 수 없는 아이디 → 이미 존재. 전화번호를 ID로 사용
-      return phoneToDigits(phone);
+      if (phoneRegistered) {
+        // VERIFY_PHONE=E1004 + CUST_SEARCH 실패 + JOIN=E1003/E1009 → 메타씨티에 회원은 있으나 식별 경로 없음
+        console.error(
+          '[Metacity] 회원 식별 불가 (E1004+CUST_SEARCH 실패+JOIN 중복). 메타씨티 측 확인 필요:',
+          phone,
+        );
+        return null;
+      }
+      // VERIFY_PHONE은 통과(E0000)했는데 JOIN에서 중복으로 거절 → ID 충돌 가능성. phoneDigits 사용.
+      return phoneDigits;
     }
     console.error('[Metacity] 회원 가입 실패:', err.message);
     return null;
