@@ -1209,7 +1209,7 @@ function TaghereMemberEnrollContent() {
               <div className="flex-1 min-h-0 flex items-center justify-center px-8 py-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/images/cheoga-box.webp"
+                  src="/images/7-money.webp"
                   alt="쿠폰 받기"
                   className="taghere-brand-image w-auto h-full max-w-[280px] max-h-full object-contain opacity-50"
                 />
@@ -1289,7 +1289,7 @@ function TaghereMemberEnrollContent() {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/images/cheoga-box.webp"
+                  src="/images/7-money.webp"
                   alt="멤버십 가입"
                   className="taghere-brand-image w-auto h-full max-w-[280px] max-h-full object-contain"
                 />
