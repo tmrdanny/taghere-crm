@@ -157,6 +157,9 @@ export class MetacityService {
 
     const data = await response.json() as MetacityResponse;
 
+    // 응답 raw body 로깅 (매직포스 측 분쟁/디버깅 대조용)
+    console.log(`[Metacity] ${body.WORK_TYPE} 응답:`, JSON.stringify(data));
+
     if (data.RESULT_CODE !== 'E0000') {
       throw new Error(`Metacity ${data.RESULT_CODE}: ${data.ERROR_MSG}`);
     }
