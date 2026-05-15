@@ -109,6 +109,33 @@ function estimateBirthYearFromAgeGroup(ageGroup: string | null | undefined): num
   }
 }
 
+/**
+ * 메타씨티 응답에서 실제 CUST_ID 추출.
+ *
+ * 매직포스 내부 CUST_CD(예: 20001267)는 전화번호 11자리와 다를 수 있다.
+ * JOIN/VERIFY_PHONE/CUST_SEARCH 응답에 매직포스가 실제 부여/저장한 ID를
+ * 어떤 필드로 돌려주는지 스펙이 불명확하므로 후보 필드를 모두 검사한다.
+ *
+ * 우선순위:
+ *   1. response.CUST_ID
+ *   2. response.CUST_CD
+ *   3. response.CUST_INFO_LIST[0].CUST_ID
+ *   4. response.CUST_INFO_LIST[0].CUST_CD
+ *
+ * 발견되지 않으면 null. 호출자가 phoneDigits 폴백 여부 결정.
+ */
+function extractCustId(resp: MetacityResponse | null | undefined): string | null {
+  if (!resp) return null;
+  if (typeof resp.CUST_ID === 'string' && resp.CUST_ID.trim()) return resp.CUST_ID.trim();
+  if (typeof resp.CUST_CD === 'string' && resp.CUST_CD.trim()) return resp.CUST_CD.trim();
+  if (Array.isArray(resp.CUST_INFO_LIST) && resp.CUST_INFO_LIST.length > 0) {
+    const first = resp.CUST_INFO_LIST[0];
+    if (first?.CUST_ID && String(first.CUST_ID).trim()) return String(first.CUST_ID).trim();
+    if (first?.CUST_CD && String(first.CUST_CD).trim()) return String(first.CUST_CD).trim();
+  }
+  return null;
+}
+
 /** 고객 데이터 → BIRTH_YMD (YYYYMMDD) */
 function buildBirthYmd(customer: MetacityCustomerData): string {
   const year = customer.birthYear || estimateBirthYearFromAgeGroup(customer.ageGroup);
@@ -216,6 +243,23 @@ export class MetacityService {
     return this.callApi('CustomerInfo.asp', body);
   }
 
+  /** 회원 조회 (CUST_SEARCH) — 전화번호 뒷 4자리로 검색 (CP_NO 매칭 실패 시 폴백) */
+  async searchCustomerByPhoneLast4(phone: string): Promise<MetacityResponse> {
+    const digits = phoneToDigits(phone);
+    const last4 = digits.slice(-4);
+    const body = {
+      ...this.baseRequest('CUST_SEARCH'),
+      CUST_NM: '',
+      CP_NO: '',
+      LAST_4_CP_NO: last4,
+      BIRTH_YMD: '',
+      EMAIL: '',
+      CUST_ID: '',
+    };
+
+    return this.callApi('CustomerInfo.asp', body);
+  }
+
   // ── 포인트 관련 ──
 
   /** 포인트 조회 (POINT_SEARCH) */
@@ -311,6 +355,7 @@ export async function syncToMetacity(params: SyncToMetacityParams): Promise<void
   });
 
   let custId = customer.metacityCustId;
+  const hadCachedCustId = !!custId;
 
   // 메타씨티 회원 ID가 없으면 등록/조회
   if (!custId) {
@@ -331,14 +376,58 @@ export async function syncToMetacity(params: SyncToMetacityParams): Promise<void
     }
   }
 
-  // 포인트 동기화
-  await service.pointOperation(operationType, {
-    custId,
-    orderNo,
-    purAmt,
-    usedPoint,
-    savePoint,
-  });
+  // 포인트 동기화 (E4001 → CUST_ID 무효 → 캐시 비우고 재식별 후 1회 재시도)
+  try {
+    await service.pointOperation(operationType, {
+      custId,
+      orderNo,
+      purAmt,
+      usedPoint,
+      savePoint,
+    });
+  } catch (err: any) {
+    // E4001 = 회원 정보를 찾을 수 없음 → DB에 저장된 metacityCustId가 잘못된 값일 가능성
+    if (err.message?.includes('E4001') && hadCachedCustId) {
+      console.warn(
+        `[Metacity] E4001 발생, metacityCustId(${custId}) 무효 처리 후 재식별 시도:`,
+        customer.id,
+      );
+      // 잘못된 ID 비우기
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { metacityCustId: null },
+      });
+
+      // 재식별
+      const newCustId = await ensureMetacityMember(service, customer);
+      if (!newCustId) {
+        console.error('[Metacity] E4001 후 재식별 실패, 동기화 중단:', customer.id);
+        throw err;
+      }
+      if (newCustId === custId) {
+        // 동일 ID로 재식별됨 — 매직포스 측 데이터 문제. 재시도해도 동일 결과.
+        console.error('[Metacity] E4001 후 재식별 결과 동일 ID. 메타씨티 측 확인 필요:', customer.id, newCustId);
+        throw err;
+      }
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { metacityCustId: newCustId, metacitySyncedAt: new Date() },
+      });
+      custId = newCustId;
+
+      // 새 ID로 1회 재시도
+      await service.pointOperation(operationType, {
+        custId,
+        orderNo,
+        purAmt,
+        usedPoint,
+        savePoint,
+      });
+      console.log(`[Metacity] E4001 self-heal 성공: ${customer.id} → ${custId}`);
+    } else {
+      throw err;
+    }
+  }
 
   // 동기화 시점 업데이트
   await prisma.customer.update({
@@ -371,30 +460,43 @@ async function ensureMetacityMember(
     if (err.message?.includes('E1004')) {
       // 이미 등록된 전화번호
       phoneRegistered = true;
-      console.log('[Metacity] 기존 회원 발견, CUST_SEARCH 수행:', phone);
+      console.log('[Metacity] 기존 회원 발견, CUST_SEARCH(CP_NO) 수행:', phone);
+
+      // 1-a. CP_NO 전체로 조회
       try {
         const searchResult = await service.searchCustomerByPhone(phone);
-        const custList = searchResult.CUST_INFO_LIST;
-        if (Array.isArray(custList) && custList.length > 0) {
-          return custList[0].CUST_ID;
+        const foundId = extractCustId(searchResult);
+        if (foundId) {
+          console.log('[Metacity] CUST_SEARCH(CP_NO) 매칭 성공:', foundId);
+          return foundId;
         }
-        // 응답은 정상이지만 결과가 비어있음 → 모순 케이스로 진입
-        console.warn('[Metacity] CUST_SEARCH 응답에 회원 없음 (E1004 vs 빈 결과 모순):', phone);
+        console.warn('[Metacity] CUST_SEARCH(CP_NO) 응답 비어있음:', JSON.stringify(searchResult));
       } catch (searchErr: any) {
-        // E1005 (고객 정보 없음) — VERIFY_PHONE 결과와 모순.
-        // phoneToDigits를 CUST_ID로 가정하지 말고 아래 JOIN 재시도 단계로 진행한다.
-        console.warn('[Metacity] CUST_SEARCH 실패, JOIN 재시도로 결판:', searchErr.message);
+        console.warn('[Metacity] CUST_SEARCH(CP_NO) 실패:', searchErr.message);
       }
-      // ↓ fall-through to JOIN 시도 (모순 해소)
+
+      // 1-b. LAST_4_CP_NO로 재시도 (매직포스가 CP_NO 포맷에 민감할 가능성 대비)
+      try {
+        const searchResult2 = await service.searchCustomerByPhoneLast4(phone);
+        const foundId2 = extractCustId(searchResult2);
+        if (foundId2) {
+          console.log('[Metacity] CUST_SEARCH(LAST_4) 매칭 성공:', foundId2);
+          return foundId2;
+        }
+        console.warn('[Metacity] CUST_SEARCH(LAST_4) 응답 비어있음:', JSON.stringify(searchResult2));
+      } catch (searchErr2: any) {
+        console.warn('[Metacity] CUST_SEARCH(LAST_4) 실패:', searchErr2.message);
+      }
+
+      // ↓ 두 검색 모두 실패 → JOIN 재시도로 결판
     } else {
-      // 그 외 에러는 신규 가입 시도로 폴백
       console.warn('[Metacity] VERIFY_PHONE 에러, 가입 시도:', err.message);
     }
   }
 
   // 2. 신규 가입 시도 (또는 모순 케이스 결판)
   try {
-    await service.registerCustomer({
+    const joinResp = await service.registerCustomer({
       phone,
       name: customer.name,
       gender: customer.gender,
@@ -403,22 +505,27 @@ async function ensureMetacityMember(
       birthYear: customer.birthYear,
       consentMarketing: customer.consentMarketing,
     });
-    console.log('[Metacity] 회원 가입 성공:', phone);
+    // 매직포스가 응답에서 부여한 실제 CUST_ID(내부 CUST_CD 가능)를 우선 사용
+    const assignedId = extractCustId(joinResp);
+    if (assignedId) {
+      console.log(`[Metacity] 회원 가입 성공: ${phone}, CUST_ID=${assignedId}`);
+      return assignedId;
+    }
+    // 응답에 식별자 없음 → phoneDigits로 폴백 (호환성 유지). E4001 발생 시 self-heal로 재식별됨.
+    console.warn('[Metacity] JOIN 응답에 CUST_ID/CUST_CD 없음, phoneDigits로 폴백:', JSON.stringify(joinResp));
     return phoneDigits;
   } catch (err: any) {
-    // 이미 존재하는 ID/전화번호 → JOIN이 CUST_ID로 phoneDigits를 받아주지 않음.
-    // 이 경우 phoneDigits가 실제 CUST_ID가 맞다는 보장이 없다.
-    // → 식별 불가로 결론짓고 null 반환 (잘못된 CUST_ID를 DB에 저장하지 않기 위함).
-    if (err.message?.includes('E1003') || err.message?.includes('E1009')) {
+    // 이미 존재 — JOIN이 CUST_ID를 받아주지 않음
+    if (err.message?.includes('E1003') || err.message?.includes('E1004') || err.message?.includes('E1009')) {
       if (phoneRegistered) {
-        // VERIFY_PHONE=E1004 + CUST_SEARCH 실패 + JOIN=E1003/E1009 → 메타씨티에 회원은 있으나 식별 경로 없음
+        // VERIFY=있음 + CUST_SEARCH 두 가지 모두 실패 + JOIN=중복 → 식별 불가
         console.error(
-          '[Metacity] 회원 식별 불가 (E1004+CUST_SEARCH 실패+JOIN 중복). 메타씨티 측 확인 필요:',
+          '[Metacity] 회원 식별 불가 (VERIFY+CUST_SEARCH 2회+JOIN 모두 모순). 메타씨티 측 확인 필요:',
           phone,
         );
         return null;
       }
-      // VERIFY_PHONE은 통과(E0000)했는데 JOIN에서 중복으로 거절 → ID 충돌 가능성. phoneDigits 사용.
+      // VERIFY는 통과(E0000)했는데 JOIN에서 중복 거절 → 드물지만 ID 충돌. phoneDigits 폴백.
       return phoneDigits;
     }
     console.error('[Metacity] 회원 가입 실패:', err.message);
