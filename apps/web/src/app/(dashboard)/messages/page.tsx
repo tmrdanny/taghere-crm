@@ -1710,12 +1710,23 @@ export default function MessagesPage() {
                 </div>
               </div>
 
+              {/* 1회 발송 한도 안내 */}
+              <div className="text-xs text-[#64748b] text-center px-2">
+                1회 발송 최대 <span className="font-semibold text-[#1e293b]">3,000명</span>까지 가능합니다.
+                {getCurrentTargetCount() > 3000 && (
+                  <div className="mt-1 text-[#ef4444]">
+                    현재 {formatNumber(getCurrentTargetCount())}명 → 필터를 좁히거나 나눠 발송해 주세요.
+                  </div>
+                )}
+              </div>
+
               {/* CTA 버튼 */}
               <button
                 disabled={
                   !couponContent.trim() ||
                   !couponExpiryDate.trim() ||
                   getCurrentTargetCount() === 0 ||
+                  getCurrentTargetCount() > 3000 ||
                   isCouponSending
                 }
                 onClick={async () => {
@@ -1727,30 +1738,32 @@ export default function MessagesPage() {
                     showToast('발송 대상을 선택해주세요.', 'error');
                     return;
                   }
+                  // 1회 발송 최대 인원 안내 (서버 캡과 동일)
+                  if (getCurrentTargetCount() > 3000) {
+                    showToast('1회 발송 최대 3,000명입니다. 필터를 좁히거나 나눠 발송해 주세요.', 'error');
+                    return;
+                  }
 
                   setIsCouponSending(true);
                   try {
                     const token = localStorage.getItem('token');
 
-                    // 선택된 고객 ID 목록 가져오기
-                    let customerIds: string[] = [];
+                    // 발송 본문 구성: 서버에서 targetType + 필터로 대상 고객을 직접 해소
+                    // (예전엔 프론트가 /api/customers 로 ID를 미리 끌어왔는데 limit 미지정으로 50명에서 잘리는 버그가 있었음)
+                    const body: any = {
+                      couponContent: couponContent.trim(),
+                      expiryDate: couponExpiryDate.trim(),
+                      naverPlaceUrl: couponNaverPlaceUrl.trim() || null,
+                      targetType: selectedTarget,
+                      genderFilter: genderFilter !== 'all' ? genderFilter : undefined,
+                      ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : undefined,
+                    };
                     if (selectedTarget === 'CUSTOM') {
-                      customerIds = selectedCustomers.map(c => c.id);
-                    } else {
-                      // 타겟별 고객 조회
-                      const res = await fetch(
-                        `${API_BASE}/api/customers?target=${selectedTarget}&gender=${genderFilter !== 'all' ? genderFilter : ''}&ageGroups=${selectedAgeGroups.join(',')}`,
-                        { headers: { Authorization: `Bearer ${token}` } }
-                      );
-                      if (res.ok) {
-                        const data = await res.json();
-                        customerIds = (data.customers || []).map((c: any) => c.id);
+                      body.customerIds = selectedCustomers.map(c => c.id);
+                      if (body.customerIds.length === 0) {
+                        showToast('발송할 고객이 없습니다.', 'error');
+                        return;
                       }
-                    }
-
-                    if (customerIds.length === 0) {
-                      showToast('발송할 고객이 없습니다.', 'error');
-                      return;
                     }
 
                     const sendRes = await fetch(`${API_BASE}/api/retarget-coupon/send`, {
@@ -1759,12 +1772,7 @@ export default function MessagesPage() {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`,
                       },
-                      body: JSON.stringify({
-                        customerIds,
-                        couponContent: couponContent.trim(),
-                        expiryDate: couponExpiryDate.trim(),
-                        naverPlaceUrl: couponNaverPlaceUrl.trim() || null,
-                      }),
+                      body: JSON.stringify(body),
                     });
 
                     const result = await sendRes.json();
