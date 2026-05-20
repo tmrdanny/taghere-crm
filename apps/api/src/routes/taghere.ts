@@ -172,6 +172,8 @@ router.post('/auto-earn', async (req, res) => {
         taghereVersion: true,
         addressSido: true,
         addressSigungu: true,
+        pointsAlimtalkEnabled: true,
+        pointsAlimtalkFrequency: true,
       },
     });
 
@@ -459,8 +461,12 @@ router.post('/auto-earn', async (req, res) => {
       }
 
       // 알림톡 발송 (전화번호가 있는 경우만, 비동기)
+      // 발송 빈도 확인: EVERY_ORDER(매 주문) 또는 FIRST_ONLY(오늘 첫 주문만)
+      const frequency = store.pointsAlimtalkFrequency || 'EVERY_ORDER';
+      const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstVisitToday));
+
       const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
-      if (phoneNumber) {
+      if (phoneNumber && shouldSendAlimtalk) {
         const pointLedger = await prisma.pointLedger.findFirst({
           where: { customerId: customer.id },
           orderBy: { createdAt: 'desc' },

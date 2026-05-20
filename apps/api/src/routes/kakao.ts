@@ -128,6 +128,7 @@ router.get('/callback', async (req, res) => {
       id: true,
       name: true,
       pointsAlimtalkEnabled: true,
+      pointsAlimtalkFrequency: true,
       naverPlaceUrl: true,
       addressSido: true,
       addressSigungu: true,
@@ -317,25 +318,31 @@ router.get('/callback', async (req, res) => {
 
     if (phoneNumber) {
       // 1. 포인트 적립 알림톡
-      const pointLedger = await prisma.pointLedger.findFirst({
-        where: { customerId: customer.id },
-        orderBy: { createdAt: 'desc' },
-      });
+      // 발송 빈도 확인: EVERY_ORDER(매 주문) 또는 FIRST_ONLY(오늘 첫 주문만)
+      const frequency = (store as any).pointsAlimtalkFrequency || 'EVERY_ORDER';
+      const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstVisitToday));
 
-      if (pointLedger) {
-        enqueuePointsEarnedAlimTalk({
-          storeId: store.id,
-          customerId: customer.id,
-          pointLedgerId: pointLedger.id,
-          phone: phoneNumber,
-          variables: {
-            storeName: store.name,
-            points: earnPoints,
-            totalPoints: newBalance,
-          },
-        }).catch((err) => {
-          console.error('[Kakao] Points AlimTalk enqueue failed:', err);
+      if (shouldSendAlimtalk) {
+        const pointLedger = await prisma.pointLedger.findFirst({
+          where: { customerId: customer.id },
+          orderBy: { createdAt: 'desc' },
         });
+
+        if (pointLedger) {
+          enqueuePointsEarnedAlimTalk({
+            storeId: store.id,
+            customerId: customer.id,
+            pointLedgerId: pointLedger.id,
+            phone: phoneNumber,
+            variables: {
+              storeName: store.name,
+              points: earnPoints,
+              totalPoints: newBalance,
+            },
+          }).catch((err) => {
+            console.error('[Kakao] Points AlimTalk enqueue failed:', err);
+          });
+        }
       }
 
       // 2. 네이버 리뷰 요청 알림톡 (reviewAutoSendEnabled가 true인 경우)
@@ -1564,6 +1571,7 @@ router.get('/taghere-callback', async (req, res) => {
       name: true,
       pointRatePercent: true,
       pointsAlimtalkEnabled: true,
+      pointsAlimtalkFrequency: true,
       naverPlaceUrl: true,
       taghereVersion: true,
       addressSido: true,
@@ -1772,25 +1780,31 @@ router.get('/taghere-callback', async (req, res) => {
     const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
 
     if (phoneNumber) {
-      const pointLedger = await prisma.pointLedger.findFirst({
-        where: { customerId: customer.id },
-        orderBy: { createdAt: 'desc' },
-      });
+      // 발송 빈도 확인: EVERY_ORDER(매 주문) 또는 FIRST_ONLY(오늘 첫 주문만)
+      const frequency = (store as any).pointsAlimtalkFrequency || 'EVERY_ORDER';
+      const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstVisitTodayTaghere));
 
-      if (pointLedger) {
-        enqueuePointsEarnedAlimTalk({
-          storeId: store.id,
-          customerId: customer.id,
-          pointLedgerId: pointLedger.id,
-          phone: phoneNumber,
-          variables: {
-            storeName: store.name,
-            points: earnPoints,
-            totalPoints: newBalance,
-          },
-        }).catch((err) => {
-          console.error('[TagHere Kakao] Points AlimTalk enqueue failed:', err);
+      if (shouldSendAlimtalk) {
+        const pointLedger = await prisma.pointLedger.findFirst({
+          where: { customerId: customer.id },
+          orderBy: { createdAt: 'desc' },
         });
+
+        if (pointLedger) {
+          enqueuePointsEarnedAlimTalk({
+            storeId: store.id,
+            customerId: customer.id,
+            pointLedgerId: pointLedger.id,
+            phone: phoneNumber,
+            variables: {
+              storeName: store.name,
+              points: earnPoints,
+              totalPoints: newBalance,
+            },
+          }).catch((err) => {
+            console.error('[TagHere Kakao] Points AlimTalk enqueue failed:', err);
+          });
+        }
       }
 
       // 네이버 리뷰 요청 알림톡
