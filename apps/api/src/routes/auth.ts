@@ -172,6 +172,14 @@ router.post('/register', async (req, res) => {
         },
       });
 
+      // 테이블 채팅 기본 활성화
+      await tx.chatSetting.create({
+        data: {
+          storeId: store.id,
+          enabled: true,
+        },
+      });
+
       // StaffUser 생성 (OWNER 권한)
       const user = await tx.staffUser.create({
         data: {
