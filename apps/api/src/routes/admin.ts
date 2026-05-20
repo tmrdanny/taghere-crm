@@ -3005,6 +3005,14 @@ router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: 
             },
           });
 
+          // 테이블 채팅 기본 활성화
+          await tx.chatSetting.create({
+            data: {
+              storeId: store.id,
+              enabled: true,
+            },
+          });
+
           // 방문경로 설정 기본 활성화
           await tx.visitSourceSetting.create({
             data: {

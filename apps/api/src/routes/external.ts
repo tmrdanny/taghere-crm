@@ -125,6 +125,14 @@ router.post('/register', webhookAuthMiddleware, async (req, res) => {
         },
       });
 
+      // 테이블 채팅 기본 활성화
+      await tx.chatSetting.create({
+        data: {
+          storeId: store.id,
+          enabled: true,
+        },
+      });
+
       const user = await tx.staffUser.create({
         data: {
           storeId: store.id,
