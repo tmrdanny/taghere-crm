@@ -79,6 +79,10 @@ import publicChatRoutes from './routes/public-chat.js';
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Render/Cloudflare 등 reverse proxy 뒤에서 동작하므로 첫 번째 프록시의 X-Forwarded-* 신뢰
+// 없으면 express-rate-limit 가 모든 요청을 프록시 IP 하나로 인식해 글로벌 버킷이 됨
+app.set('trust proxy', 1);
+
 // CORS configuration
 const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || '';
 
