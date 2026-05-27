@@ -438,6 +438,82 @@ export async function syncToMetacity(params: SyncToMetacityParams): Promise<void
   console.log(`[Metacity] ${operationType} 동기화 완료: customer=${customer.id}, custId=${custId}`);
 }
 
+/** POINT_SEARCH 응답에서 ABLE_POINT(사용가능포인트)/TOT_POINT(총포인트) 추출 */
+function parseMetacityPoints(resp: MetacityResponse): { ablePoint: number; totalPoint: number } {
+  const list = Array.isArray(resp.POINT_INFO_LIST) ? resp.POINT_INFO_LIST : [];
+  if (list.length === 0) {
+    return { ablePoint: 0, totalPoint: 0 };
+  }
+  const info = list[0];
+  return {
+    ablePoint: Number(info?.ABLE_POINT) || 0,
+    totalPoint: Number(info?.TOT_POINT) || 0,
+  };
+}
+
+/**
+ * 메타씨티에서 회원 포인트 조회 (POINT_SEARCH)
+ *
+ * - custId 확보(없으면 검색/가입)는 syncToMetacity 와 동일한 패턴 사용
+ * - ABLE_POINT(사용가능포인트) / TOT_POINT(총포인트) 반환
+ * - 조회 실패 시 throw (호출자가 에러 응답 처리). 단, 캐시된 custId 가 E4001 이면 1회 재식별 후 재시도
+ */
+export async function getMetacityPoints(params: {
+  store: { id: string; metacityEnabled: boolean; metacityStoreIdx: string };
+  customer: SyncToMetacityParams['customer'];
+}): Promise<{ ablePoint: number; totalPoint: number }> {
+  const { store, customer } = params;
+
+  const service = new MetacityService({
+    metacityStoreIdx: store.metacityStoreIdx,
+  });
+
+  // custId 확보
+  let custId = customer.metacityCustId;
+  const hadCachedCustId = !!custId;
+
+  if (!custId) {
+    custId = await ensureMetacityMember(service, customer);
+    if (custId) {
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { metacityCustId: custId, metacitySyncedAt: new Date() },
+      });
+    } else {
+      throw new Error(`[Metacity] 회원 식별 실패로 포인트 조회 불가: customer=${customer.id}`);
+    }
+  }
+
+  // 포인트 조회 (E4001 + 캐시된 custId → 무효 처리 후 재식별 1회 재시도)
+  try {
+    return parseMetacityPoints(await service.searchPoints(custId));
+  } catch (err: any) {
+    if (err.message?.includes('E4001') && hadCachedCustId) {
+      console.warn(
+        `[Metacity] POINT_SEARCH E4001, metacityCustId(${custId}) 무효 처리 후 재식별 시도:`,
+        customer.id,
+      );
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { metacityCustId: null },
+      });
+
+      const newCustId = await ensureMetacityMember(service, customer);
+      if (!newCustId || newCustId === custId) {
+        console.error('[Metacity] POINT_SEARCH E4001 후 재식별 실패/동일 ID:', customer.id, newCustId);
+        throw err;
+      }
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { metacityCustId: newCustId, metacitySyncedAt: new Date() },
+      });
+
+      return parseMetacityPoints(await service.searchPoints(newCustId));
+    }
+    throw err;
+  }
+}
+
 /**
  * 메타씨티 회원 등록 보장
  * - 먼저 전화번호로 기존 회원 검색
