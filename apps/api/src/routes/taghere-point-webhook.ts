@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { webhookAuthMiddleware, WebhookRequest } from '../middleware/webhook-auth.js';
 import { maskPhone } from '../utils/masking.js';
-import { syncToMetacity } from '../services/metacity.js';
+import { getMetacityPoints, syncToMetacity } from '../services/metacity.js';
 import { sidoToShort } from '../utils/address-parser.js';
 
 const router = Router();
@@ -91,16 +91,44 @@ router.post('/customer-search', webhookAuthMiddleware, async (req: WebhookReques
       console.log(`[Point Webhook] Customer created locally - customerId: ${customer.id}, storeId: ${store.id}`);
     }
 
-    // 6. 총 누적 포인트 계산 (EARN 타입 합산)
-    const totalAccumulated = await prisma.pointLedger.aggregate({
-      where: {
-        customerId: customer.id,
-        storeId: store.id,
-        type: 'EARN',
-      },
-      _sum: { delta: true },
-    });
-    const totalPoint = totalAccumulated._sum.delta || 0;
+    // 6. 포인트 값 결정
+    let ablePoint: number;
+    let totalPoint: number;
+
+    if (store.metacityEnabled && store.metacityStoreIdx) {
+      // 메타씨티 연동 매장: 메타씨티 POINT_SEARCH 값을 source of truth로 사용
+      try {
+        const points = await getMetacityPoints({
+          store: {
+            id: store.id,
+            metacityEnabled: store.metacityEnabled,
+            metacityStoreIdx: store.metacityStoreIdx,
+          },
+          customer,
+        });
+        ablePoint = points.ablePoint;
+        totalPoint = points.totalPoint;
+      } catch (metacityErr: any) {
+        console.error('[Point Webhook] 메타씨티 포인트 조회 실패:', metacityErr.message);
+        return res.status(502).json({
+          success: false,
+          error: 'metacity_error',
+          message: '메타씨티 포인트 조회에 실패했습니다.',
+        });
+      }
+    } else {
+      // 비연동 매장: 기존 로컬 포인트 사용 (보유 포인트 + EARN 합산)
+      ablePoint = customer.totalPoints;
+      const totalAccumulated = await prisma.pointLedger.aggregate({
+        where: {
+          customerId: customer.id,
+          storeId: store.id,
+          type: 'EARN',
+        },
+        _sum: { delta: true },
+      });
+      totalPoint = totalAccumulated._sum.delta || 0;
+    }
 
     // 7. 응답
     res.json({
@@ -109,7 +137,7 @@ router.post('/customer-search', webhookAuthMiddleware, async (req: WebhookReques
         crmCustomerId: customer.id,
         custName: customer.name || '고객',
         phone: maskPhone(customer.phone),
-        ablePoint: customer.totalPoints,
+        ablePoint,
         totalPoint,
         saveRatePercent: store.pointRatePercent,
         grade: null,
