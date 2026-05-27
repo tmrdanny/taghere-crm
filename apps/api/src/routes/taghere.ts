@@ -381,7 +381,8 @@ router.post('/auto-earn', async (req, res) => {
     } else {
       // ===== 포인트 모드: 기존 로직 =====
       const ratePercent = store.pointRatePercent ?? 5;
-      const earnPoints = resultPrice > 0 ? Math.round(resultPrice * ratePercent / 100) : 100;
+      // 0원 주문은 포인트 적립 불가 (악용 방지)
+      const earnPoints = resultPrice > 0 ? Math.round(resultPrice * ratePercent / 100) : 0;
       console.log(`[TagHere Auto-Earn Points] storeId: ${store.id}, resultPrice: ${resultPrice}, ratePercent: ${ratePercent}, earnPoints: ${earnPoints}`);
       const newBalance = customer.totalPoints + earnPoints;
 
@@ -399,23 +400,25 @@ router.post('/auto-earn', async (req, res) => {
         prisma.customer.update({
           where: { id: customer.id },
           data: {
-            totalPoints: newBalance,
+            ...(earnPoints > 0 && { totalPoints: newBalance }),
             ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
             lastVisitAt: new Date(),
           },
         }),
-        prisma.pointLedger.create({
-          data: {
-            storeId: store.id,
-            customerId: customer.id,
-            delta: earnPoints,
-            balance: newBalance,
-            type: 'EARN',
-            reason: `TagHere 자동 적립 (ordersheetId: ${ordersheetId})`,
-            orderId: ordersheetId,
-            tableLabel: tableLabel,
-          },
-        }),
+        ...(earnPoints > 0 ? [
+          prisma.pointLedger.create({
+            data: {
+              storeId: store.id,
+              customerId: customer.id,
+              delta: earnPoints,
+              balance: newBalance,
+              type: 'EARN',
+              reason: `TagHere 자동 적립 (ordersheetId: ${ordersheetId})`,
+              orderId: ordersheetId,
+              tableLabel: tableLabel,
+            },
+          }),
+        ] : []),
         prisma.visitOrOrder.create({
           data: {
             storeId: store.id,
@@ -433,59 +436,62 @@ router.post('/auto-earn', async (req, res) => {
 
       console.log(`[TagHere Auto-Earn] Points earned - customerId: ${customer.id}, earnPoints: ${earnPoints}, newBalance: ${newBalance}, orderItemsCount: ${orderItems.length}, tableLabel: ${tableLabel}`);
 
-      // 메타씨티 포인트 동기화 (비동기)
-      {
-        const storeForMetacity = await prisma.store.findUnique({
-          where: { id: store.id },
-          select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
-        });
-        if (storeForMetacity?.metacityEnabled) {
-          const latestCustomer = await prisma.customer.findUnique({
-            where: { id: customer.id },
+      // 0원 주문은 메타씨티 동기화 / 알림톡 모두 스킵
+      if (earnPoints > 0) {
+        // 메타씨티 포인트 동기화 (비동기)
+        {
+          const storeForMetacity = await prisma.store.findUnique({
+            where: { id: store.id },
+            select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
           });
-          if (latestCustomer) {
-            const latestLedger = await prisma.pointLedger.findFirst({
-              where: { customerId: customer.id },
-              orderBy: { createdAt: 'desc' },
+          if (storeForMetacity?.metacityEnabled) {
+            const latestCustomer = await prisma.customer.findUnique({
+              where: { id: customer.id },
             });
-            syncToMetacity({
-              store: storeForMetacity,
-              customer: latestCustomer,
-              operationType: 'POINT_SAVE',
-              orderNo: latestLedger?.id || ordersheetId,
-              purAmt: resultPrice > 0 ? resultPrice : 0,
-              savePoint: earnPoints,
-            }).catch(err => console.error('[Metacity] POINT_SAVE (auto-earn) sync failed:', err.message));
+            if (latestCustomer) {
+              const latestLedger = await prisma.pointLedger.findFirst({
+                where: { customerId: customer.id },
+                orderBy: { createdAt: 'desc' },
+              });
+              syncToMetacity({
+                store: storeForMetacity,
+                customer: latestCustomer,
+                operationType: 'POINT_SAVE',
+                orderNo: latestLedger?.id || ordersheetId,
+                purAmt: resultPrice > 0 ? resultPrice : 0,
+                savePoint: earnPoints,
+              }).catch(err => console.error('[Metacity] POINT_SAVE (auto-earn) sync failed:', err.message));
+            }
           }
         }
-      }
 
-      // 알림톡 발송 (전화번호가 있는 경우만, 비동기)
-      // 발송 빈도 확인: EVERY_ORDER(매 주문) 또는 FIRST_ONLY(오늘 첫 주문만)
-      const frequency = store.pointsAlimtalkFrequency || 'EVERY_ORDER';
-      const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstVisitToday));
+        // 알림톡 발송 (전화번호가 있는 경우만, 비동기)
+        // 발송 빈도 확인: EVERY_ORDER(매 주문) 또는 FIRST_ONLY(오늘 첫 주문만)
+        const frequency = store.pointsAlimtalkFrequency || 'EVERY_ORDER';
+        const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstVisitToday));
 
-      const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
-      if (phoneNumber && shouldSendAlimtalk) {
-        const pointLedger = await prisma.pointLedger.findFirst({
-          where: { customerId: customer.id },
-          orderBy: { createdAt: 'desc' },
-        });
-
-        if (pointLedger) {
-          enqueuePointsEarnedAlimTalk({
-            storeId: store.id,
-            customerId: customer.id,
-            pointLedgerId: pointLedger.id,
-            phone: phoneNumber,
-            variables: {
-              storeName: store.name,
-              points: earnPoints,
-              totalPoints: newBalance,
-            },
-          }).catch((err) => {
-            console.error('[TagHere Auto-Earn] Points AlimTalk enqueue failed:', err);
+        const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
+        if (phoneNumber && shouldSendAlimtalk) {
+          const pointLedger = await prisma.pointLedger.findFirst({
+            where: { customerId: customer.id },
+            orderBy: { createdAt: 'desc' },
           });
+
+          if (pointLedger) {
+            enqueuePointsEarnedAlimTalk({
+              storeId: store.id,
+              customerId: customer.id,
+              pointLedgerId: pointLedger.id,
+              phone: phoneNumber,
+              variables: {
+                storeName: store.name,
+                points: earnPoints,
+                totalPoints: newBalance,
+              },
+            }).catch((err) => {
+              console.error('[TagHere Auto-Earn] Points AlimTalk enqueue failed:', err);
+            });
+          }
         }
       }
 
