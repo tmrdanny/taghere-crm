@@ -7,7 +7,12 @@ import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
 import { enqueueAlimTalk } from '../services/solapi.js';
 import { generateSlug, getUniqueSlug } from './auth.js';
-import { notifyCrmOn, notifyCrmOff } from '../services/taghere-api.js';
+import {
+  notifyCrmOn,
+  notifyCrmOff,
+  notifyStoreMetacitySettingsToV2,
+  discoverMetacityStoreIdxFromV2,
+} from '../services/taghere-api.js';
 import { parseKoreanAddress, sidoToShort } from '../utils/address-parser.js';
 
 const router = Router();
@@ -397,7 +402,22 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       metacityBrandCode,
       metacityStoreIdx,
       metacityAccessCode,
+      metacityMembershipType,
     } = req.body;
+
+    // 메타씨티 회원 유형 정규화
+    // - 허용값: 'INTEGRATED' | 'STANDALONE'
+    // - 그 외 값은 'INTEGRATED' 로 정규화
+    // - 부정합 조합 차단: metacityEnabled === false 인데 STANDALONE 요청 → INTEGRATED 로 강제
+    let normalizedMembershipType: 'INTEGRATED' | 'STANDALONE' | undefined;
+    if (metacityMembershipType !== undefined) {
+      const raw = String(metacityMembershipType);
+      normalizedMembershipType = raw === 'STANDALONE' ? 'STANDALONE' : 'INTEGRATED';
+      const effectiveMetacityEnabled = metacityEnabled !== undefined ? !!metacityEnabled : undefined;
+      if (effectiveMetacityEnabled === false && normalizedMembershipType === 'STANDALONE') {
+        normalizedMembershipType = 'INTEGRATED';
+      }
+    }
 
     // 매장 확인 (스탬프 설정과 OWNER 이메일도 함께 조회)
     const existingStore = await prisma.store.findUnique({
@@ -468,6 +488,7 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
         ...(metacityBrandCode !== undefined && { metacityBrandCode: metacityBrandCode || null }),
         ...(metacityStoreIdx !== undefined && { metacityStoreIdx: metacityStoreIdx || null }),
         ...(metacityAccessCode !== undefined && { metacityAccessCode: metacityAccessCode || null }),
+        ...(normalizedMembershipType !== undefined && { metacityMembershipType: normalizedMembershipType }),
       } as any,
     });
 
@@ -478,6 +499,22 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
     const versionChanged = taghereVersion !== undefined && taghereVersion !== wasVersion;
     const crmToggled = crmEnabled !== undefined && crmEnabled !== wasCrmEnabled;
     const enrollmentModeChanged = enrollmentMode !== undefined && enrollmentMode !== wasEnrollmentMode;
+
+    // 메타씨티 관련 필드(활성화 / 회원 유형) 변경 시 V2 StoreSetting 동기화
+    const wasMetacityEnabled = (existingStore as any).metacityEnabled ?? false;
+    const wasMembershipType = ((existingStore as any).metacityMembershipType ?? 'INTEGRATED') as 'INTEGRATED' | 'STANDALONE';
+    const metacityEnabledChanged = metacityEnabled !== undefined && !!metacityEnabled !== !!wasMetacityEnabled;
+    const membershipTypeChanged = normalizedMembershipType !== undefined && normalizedMembershipType !== wasMembershipType;
+    const effectiveStoreSlug = slug || existingStore.slug;
+    if ((metacityEnabledChanged || membershipTypeChanged) && effectiveStoreSlug) {
+      const effectiveMetacityEnabled = metacityEnabled !== undefined ? !!metacityEnabled : !!wasMetacityEnabled;
+      const effectiveMembershipType = (normalizedMembershipType ?? wasMembershipType) as 'INTEGRATED' | 'STANDALONE';
+      notifyStoreMetacitySettingsToV2({
+        crmStoreSlug: effectiveStoreSlug,
+        metacityEnabled: effectiveMetacityEnabled,
+        metacityMembershipType: effectiveMembershipType,
+      }).catch(err => console.error('[Admin] V2 metacity settings sync failed:', err));
+    }
 
     if (crmToggled || versionChanged || enrollmentModeChanged) {
       const ownerEmail = existingStore.staffUsers?.[0]?.email;
@@ -522,6 +559,68 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
   } catch (error) {
     console.error('Admin update store error:', error);
     res.status(500).json({ error: '매장 정보 수정 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/stores/:storeId/resync-metacity-to-v2 - V2 StoreSetting 강제 재동기화
+// CRM ↔ V2 webhook 이 실패했을 때 어드민이 수동으로 재시도 가능
+router.post('/stores/:storeId/resync-metacity-to-v2', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { storeId } = req.params;
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: {
+        slug: true,
+        metacityEnabled: true,
+        metacityMembershipType: true,
+      },
+    });
+
+    if (!store || !store.slug) {
+      return res.status(404).json({ error: '매장을 찾을 수 없거나 slug 가 없습니다.' });
+    }
+
+    await notifyStoreMetacitySettingsToV2({
+      crmStoreSlug: store.slug,
+      metacityEnabled: !!store.metacityEnabled,
+      metacityMembershipType: store.metacityMembershipType === 'STANDALONE' ? 'STANDALONE' : 'INTEGRATED',
+    });
+
+    res.json({
+      success: true,
+      message: 'V2 매장 설정 재동기화 요청을 보냈습니다.',
+    });
+  } catch (error) {
+    console.error('Admin resync metacity to V2 error:', error);
+    res.status(500).json({ error: '재동기화 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/admin/stores/:storeId/discover-metacity-store-idx
+// 매직포스 Agent 가 연결된 매장에 한해 V2 → Agent → 매장 POS WORK_CD=1100 호출로 STORE_IDX 자동 발견
+router.post('/stores/:storeId/discover-metacity-store-idx', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { storeId } = req.params;
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { slug: true },
+    });
+
+    if (!store || !store.slug) {
+      return res.status(404).json({ error: '매장을 찾을 수 없거나 slug 가 없습니다.' });
+    }
+
+    const result = await discoverMetacityStoreIdxFromV2(store.slug);
+    return res.json({ success: true, storeIdx: result.storeIdx, storeName: result.storeName });
+  } catch (error: any) {
+    const status = typeof error?.status === 'number' ? error.status : 500;
+    const message = status === 503
+      ? '매직포스 Agent 가 연결되지 않았거나 응답이 없습니다.'
+      : status === 404
+        ? '매장을 찾을 수 없습니다.'
+        : (error?.message || '매장 코드 자동 발견 중 오류가 발생했습니다.');
+    console.error('Admin discover metacity storeIdx error:', error);
+    return res.status(status).json({ error: message });
   }
 });
 

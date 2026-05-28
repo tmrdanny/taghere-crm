@@ -105,10 +105,11 @@ model Store {
   chatSetting          ChatSetting?
 
   // 메타씨티 POS 연동
-  metacityEnabled      Boolean  @default(false) // 메타씨티 연동 활성화
-  metacityBrandCode    String?  // 메타씨티 브랜드 코드 (e.g. B26012800001)
-  metacityStoreIdx     String?  // 메타씨티 매장 코드 (e.g. I26031700004)
-  metacityAccessCode   String?  // 메타씨티 접속사 코드
+  metacityEnabled        Boolean @default(false) // 메타씨티 연동 활성화
+  metacityBrandCode      String? // 메타씨티 브랜드 코드 (e.g. B26012800001)
+  metacityStoreIdx       String? // 메타씨티 매장 코드 (e.g. I26031700004)
+  metacityAccessCode     String? // 메타씨티 접속사 코드
+  metacityMembershipType String  @default("INTEGRATED") // INTEGRATED(통합 회원) | STANDALONE(단독 회원)
 
   @@index([franchiseId])
   @@map("stores")
@@ -218,7 +219,8 @@ model Customer {
   lastVisitAt      DateTime?
 
   // 메타씨티 POS 연동
-  metacityCustId   String?   // 메타씨티 CUST_ID (동기화된 회원 ID)
+  metacityCustId   String?   // 메타씨티 통합 회원 CUST_ID (15자, CustomerInfo.asp)
+  metacityCustCd   String?   // 메타씨티 단독 회원 CUST_CD (8자, 주문연동 API)
   metacitySyncedAt DateTime? // 마지막 메타씨티 동기화 시점
 
   createdAt        DateTime  @default(now())
