@@ -43,6 +43,11 @@ export class SolapiService {
     }
   }
 
+  // 전화번호 형식 정규화 (01012345678 형태로 변환) - public 헬퍼
+  normalizePhone(phone: string): string {
+    return this.normalizePhoneNumber(phone);
+  }
+
   // 전화번호 형식 정규화 (01012345678 형태로 변환)
   private normalizePhoneNumber(phone: string): string {
     // 숫자만 추출
@@ -169,6 +174,56 @@ export class SolapiService {
     };
 
     return errorMessages[statusCode] || `발송 실패 (${statusCode})`;
+  }
+
+  // 메시지 그룹 전체 상태를 phone -> {status, failReason} 맵으로 반환
+  // 같은 groupId를 가진 N건의 메시지를 워커에서 처리할 때, SOLAPI 호출을 N회가 아닌 1회로 줄이기 위해 사용
+  async getGroupMessageStatuses(groupId: string): Promise<{
+    success: boolean;
+    statuses?: Map<string, { status: 'PENDING' | 'SENT' | 'FAILED'; failReason?: string }>;
+    error?: string;
+  }> {
+    if (!this.messageService) {
+      return { success: false, error: 'SOLAPI not configured' };
+    }
+
+    try {
+      const result = await this.messageService.getMessages({ groupId });
+      const statuses = new Map<string, { status: 'PENDING' | 'SENT' | 'FAILED'; failReason?: string }>();
+
+      if (!result.messageList) {
+        return { success: true, statuses };
+      }
+
+      const messages = Object.values(result.messageList) as any[];
+      for (const m of messages) {
+        const phone = this.normalizePhoneNumber(m.to || '');
+        if (!phone) continue;
+
+        const statusCode = m.statusCode as string | undefined;
+        const statusMessage = m.statusMessage as string | undefined;
+
+        if (statusCode?.startsWith('4')) {
+          statuses.set(phone, { status: 'SENT' });
+        } else if (statusCode === '3000') {
+          statuses.set(phone, { status: 'PENDING' });
+        } else if (statusCode?.startsWith('3')) {
+          statuses.set(phone, {
+            status: 'FAILED',
+            failReason: this.getFailReasonKorean(statusCode, statusMessage),
+          });
+        } else if (statusCode?.startsWith('2')) {
+          statuses.set(phone, { status: 'PENDING' });
+        } else {
+          statuses.set(phone, { status: 'PENDING' });
+        }
+      }
+
+      return { success: true, statuses };
+    } catch (error: any) {
+      console.error('[SOLAPI] Get group message statuses error:', error);
+      return { success: false, error: error.message || 'Unknown error' };
+    }
   }
 
   // 메시지 그룹 상태 조회 (특정 전화번호로 필터링 가능)
