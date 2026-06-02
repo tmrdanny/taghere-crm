@@ -29,8 +29,11 @@ function getSolapiService(): SolapiService | null {
   return globalSolapiService;
 }
 
-// 단일 메시지 처리
-async function processMessage(messageId: string): Promise<void> {
+// 단일 메시지 처리 (이미 조회된 SOLAPI 상태를 인자로 받음)
+async function processMessage(
+  messageId: string,
+  precomputedStatus?: { status: 'PENDING' | 'SENT' | 'FAILED'; failReason?: string } | null
+): Promise<void> {
   const msg = await prisma.smsMessage.findUnique({
     where: { id: messageId },
     include: { campaign: true },
@@ -61,8 +64,16 @@ async function processMessage(messageId: string): Promise<void> {
   }
 
   try {
-    // SOLAPI에서 실제 발송 결과 조회
-    const statusResult = await solapiService.getMessageStatus(msg.solapiGroupId, msg.phone);
+    // 그룹 단위 일괄 조회 결과를 우선 사용. 없으면 fallback으로 단건 조회.
+    let statusResult: { success: boolean; status?: 'PENDING' | 'SENT' | 'FAILED'; failReason?: string; error?: string };
+    if (precomputedStatus) {
+      statusResult = { success: true, status: precomputedStatus.status, failReason: precomputedStatus.failReason };
+    } else if (precomputedStatus === null) {
+      // 그룹 조회는 성공했지만 해당 phone이 응답에 없는 경우 - 아직 처리되지 않음
+      statusResult = { success: true, status: 'PENDING' };
+    } else {
+      statusResult = await solapiService.getMessageStatus(msg.solapiGroupId, msg.phone);
+    }
     console.log(`[SMS Worker] Status for ${msg.phone}:`, statusResult);
 
     if (!statusResult.success) {
@@ -186,7 +197,7 @@ async function processBatch(): Promise<number> {
     },
     orderBy: { createdAt: 'asc' },
     take: BATCH_SIZE,
-    select: { id: true },
+    select: { id: true, phone: true, solapiGroupId: true },
   });
 
   if (messages.length === 0) {
@@ -195,9 +206,36 @@ async function processBatch(): Promise<number> {
 
   console.log(`[SMS Worker] Processing ${messages.length} messages`);
 
-  // 순차 처리 (SOLAPI API 호출 제한 고려)
+  // groupId 단위로 묶어 SOLAPI를 1회만 호출 (N건 메시지 = 1회 API call)
+  const solapiService = getSolapiService();
+  const groupIdToStatuses = new Map<string, Map<string, { status: 'PENDING' | 'SENT' | 'FAILED'; failReason?: string }> | null>();
+
+  if (solapiService) {
+    const uniqueGroupIds = Array.from(new Set(messages.map((m) => m.solapiGroupId!).filter(Boolean)));
+    for (const groupId of uniqueGroupIds) {
+      const result = await solapiService.getGroupMessageStatuses(groupId);
+      if (result.success && result.statuses) {
+        groupIdToStatuses.set(groupId, result.statuses);
+      } else {
+        console.log(`[SMS Worker] Group status query failed for ${groupId}:`, result.error);
+        groupIdToStatuses.set(groupId, null); // 조회 실패 - 다음 폴링에서 재시도
+      }
+    }
+  }
+
   for (const msg of messages) {
-    await processMessage(msg.id);
+    const groupStatuses = msg.solapiGroupId ? groupIdToStatuses.get(msg.solapiGroupId) : null;
+    let precomputed: { status: 'PENDING' | 'SENT' | 'FAILED'; failReason?: string } | null | undefined;
+    if (groupStatuses === undefined) {
+      precomputed = undefined; // SOLAPI 비활성 - processMessage 내부에서 fallback
+    } else if (groupStatuses === null) {
+      precomputed = undefined; // 그룹 조회 실패 - 스킵 효과를 위해 fallback (다음 폴링에서 재시도)
+      continue; // 이번 폴링 사이클에서는 건너뜀
+    } else {
+      const normalized = solapiService ? solapiService.normalizePhone(msg.phone) : msg.phone;
+      precomputed = groupStatuses.get(normalized) ?? null;
+    }
+    await processMessage(msg.id, precomputed);
   }
 
   return messages.length;

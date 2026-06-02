@@ -57,8 +57,11 @@ function isSendableTime(): boolean {
   return true;
 }
 
-// 단일 메시지 결과 확인
-async function processMessage(messageId: string): Promise<void> {
+// 단일 메시지 결과 확인 (그룹 조회 결과를 인자로 받음)
+async function processMessage(
+  messageId: string,
+  precomputedStatus?: { status: 'PENDING' | 'SENT' | 'FAILED'; failReason?: string } | null
+): Promise<void> {
   const msg = await prisma.brandMessage.findUnique({
     where: { id: messageId },
     include: { campaign: true },
@@ -88,7 +91,15 @@ async function processMessage(messageId: string): Promise<void> {
   }
 
   try {
-    const statusResult = await solapiService.getMessageStatus(msg.solapiGroupId, msg.phone);
+    // 그룹 단위 일괄 조회 결과 우선. 없으면 단건 fallback.
+    let statusResult: { success: boolean; status?: 'PENDING' | 'SENT' | 'FAILED'; failReason?: string; error?: string };
+    if (precomputedStatus) {
+      statusResult = { success: true, status: precomputedStatus.status, failReason: precomputedStatus.failReason };
+    } else if (precomputedStatus === null) {
+      statusResult = { success: true, status: 'PENDING' };
+    } else {
+      statusResult = await solapiService.getMessageStatus(msg.solapiGroupId, msg.phone);
+    }
     console.log(`[BrandMessage Worker] Status for ${msg.phone}:`, statusResult);
 
     if (!statusResult.success) {
@@ -205,7 +216,7 @@ async function processPendingMessages(): Promise<number> {
     },
     orderBy: { createdAt: 'asc' },
     take: BATCH_SIZE,
-    select: { id: true },
+    select: { id: true, phone: true, solapiGroupId: true },
   });
 
   if (messages.length === 0) {
@@ -214,8 +225,32 @@ async function processPendingMessages(): Promise<number> {
 
   console.log(`[BrandMessage Worker] Processing ${messages.length} pending messages`);
 
+  // groupId 단위로 묶어 SOLAPI를 1회만 호출
+  const solapiService = getSolapiService();
+  const groupIdToStatuses = new Map<string, Map<string, { status: 'PENDING' | 'SENT' | 'FAILED'; failReason?: string }> | null>();
+
+  if (solapiService) {
+    const uniqueGroupIds = Array.from(new Set(messages.map((m) => m.solapiGroupId!).filter(Boolean)));
+    for (const groupId of uniqueGroupIds) {
+      const result = await solapiService.getGroupMessageStatuses(groupId);
+      if (result.success && result.statuses) {
+        groupIdToStatuses.set(groupId, result.statuses);
+      } else {
+        console.log(`[BrandMessage Worker] Group status query failed for ${groupId}:`, result.error);
+        groupIdToStatuses.set(groupId, null);
+      }
+    }
+  }
+
   for (const msg of messages) {
-    await processMessage(msg.id);
+    const groupStatuses = msg.solapiGroupId ? groupIdToStatuses.get(msg.solapiGroupId) : null;
+    if (groupStatuses === null) continue;
+    let precomputed: { status: 'PENDING' | 'SENT' | 'FAILED'; failReason?: string } | null | undefined;
+    if (groupStatuses && solapiService) {
+      const normalized = solapiService.normalizePhone(msg.phone);
+      precomputed = groupStatuses.get(normalized) ?? null;
+    }
+    await processMessage(msg.id, precomputed);
   }
 
   return messages.length;
