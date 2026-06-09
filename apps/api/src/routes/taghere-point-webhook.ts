@@ -6,7 +6,6 @@ import {
   MetacityCustomerInfo,
   MetacityPointBalance,
   MetacityService,
-  joinMetacityCustomerOnly,
   resolveMetacityCustomer,
   syncToMetacity,
 } from '../services/metacity.js';
@@ -734,123 +733,6 @@ router.post('/standalone-visit', webhookAuthMiddleware, async (req: WebhookReque
       success: false,
       error: 'server_error',
       message: '단독 매장 visit 처리 중 오류가 발생했습니다.',
-    });
-  }
-});
-
-/**
- * POST /api/taghere/webhook/point/integrated-join
- *
- * 매직포스 단독 회원 매장에서 V2 가 8100 으로 회원 못 찾았을 때,
- * 통합 회원 시스템에 JOIN 만 호출하여 회원 등록을 시도하는 endpoint.
- * CUST_SEARCH 단계 건너뛰고 바로 JOIN 만.
- */
-router.post('/integrated-join', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
-  try {
-    const { storeSlug, phone } = req.body as {
-      storeSlug?: string;
-      phone?: string;
-    };
-
-    if (!storeSlug || !phone) {
-      return res.status(400).json({
-        success: false,
-        error: 'missing_params',
-        message: 'storeSlug, phone은 필수입니다.',
-      });
-    }
-
-    const store = await prisma.store.findFirst({
-      where: { slug: storeSlug },
-      select: {
-        id: true,
-        addressSido: true,
-        addressSigungu: true,
-        metacityEnabled: true,
-        metacityStoreIdx: true,
-      },
-    });
-
-    if (!store) {
-      return res.status(404).json({
-        success: false,
-        error: 'store_not_found',
-        message: '매장을 찾을 수 없습니다.',
-      });
-    }
-
-    if (!store.metacityEnabled || !store.metacityStoreIdx) {
-      return res.json({
-        success: false,
-        error: 'metacity_not_configured',
-        message: '매직포스 연동이 비활성화되었거나 매장코드가 없습니다.',
-      });
-    }
-
-    const phoneDigits = phone.replace(/[^0-9]/g, '');
-    let normalizedDigits = phoneDigits;
-    if (normalizedDigits.startsWith('82') && normalizedDigits.length >= 11) {
-      normalizedDigits = '0' + normalizedDigits.slice(2);
-    }
-    const phoneLastDigits = normalizedDigits.slice(-8);
-    const formattedPhone = normalizedDigits.length === 11
-      ? `${normalizedDigits.slice(0, 3)}-${normalizedDigits.slice(3, 7)}-${normalizedDigits.slice(7)}`
-      : normalizedDigits;
-
-    // CRM Customer find/create (마케팅 데이터 최소 보존)
-    let customer = await prisma.customer.findFirst({
-      where: { storeId: store.id, phoneLastDigits },
-    });
-    if (!customer) {
-      customer = await prisma.customer.create({
-        data: {
-          storeId: store.id,
-          phone: formattedPhone,
-          phoneLastDigits,
-          totalPoints: 0,
-          visitCount: 0,
-          regionSido: sidoToShort(store.addressSido ?? null),
-          regionSigungu: store.addressSigungu || null,
-          consentMarketing: true,
-          consentAt: new Date(),
-        },
-      });
-    }
-
-    const service = new MetacityService({ metacityStoreIdx: store.metacityStoreIdx });
-    const info = await joinMetacityCustomerOnly(service, customer);
-
-    if (!info) {
-      return res.json({
-        success: false,
-        error: 'metacity_join_failed',
-        message: '메타씨티 통합 JOIN 실패',
-      });
-    }
-
-    // 통합 JOIN 의 CUST_ID 는 통합 회원 캐시에 저장.
-    // (단독 시스템의 CUST_CD 는 V2 가 8100 재조회로 별도 확인해서 metacityCustCd 에 저장)
-    if (!info.isFallback && info.custId !== customer.metacityCustId) {
-      await prisma.customer.update({
-        where: { id: customer.id },
-        data: { metacityCustId: info.custId, metacitySyncedAt: new Date() },
-      });
-    }
-
-    res.json({
-      success: true,
-      data: {
-        custCd: info.custId,
-        custName: customer.name || '고객',
-        isFallback: info.isFallback,
-      },
-    });
-  } catch (error: any) {
-    console.error('[Point Webhook] Integrated join error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'server_error',
-      message: '통합 회원 가입 처리 중 오류가 발생했습니다.',
     });
   }
 });

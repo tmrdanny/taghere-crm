@@ -628,64 +628,6 @@ export async function resolveMetacityCustomer(
 }
 
 /**
- * 메타씨티 통합 회원 시스템에 JOIN 만 호출 (CUST_SEARCH/VERIFY_PHONE 건너뜀)
- *
- * 매직포스 단독 회원 매장에서 8100 으로 회원 못 찾았을 때 호출용.
- * 단독 시스템의 회원 조회는 이미 V2 가 끝냈으므로 통합 회원 API 의 검색 단계는 불필요하고,
- * 통합 회원 시스템에 회원만 등록하면 단독 시스템에도 회원이 잡힐 것이라는 정책 (단독·통합 DB 공유 가정).
- */
-export async function joinMetacityCustomerOnly(
-  service: MetacityService,
-  customer: SyncToMetacityParams['customer'],
-): Promise<MetacityCustomerInfo | null> {
-  if (!customer.phone) {
-    console.warn('[Metacity] 전화번호 없는 고객은 JOIN 불가:', customer.id);
-    return null;
-  }
-
-  try {
-    const joinResp = await service.registerCustomer({
-      phone: customer.phone,
-      name: customer.name,
-      gender: customer.gender,
-      ageGroup: customer.ageGroup,
-      birthday: customer.birthday,
-      birthYear: customer.birthYear,
-      consentMarketing: customer.consentMarketing,
-    });
-    const info = extractCustInfo(joinResp);
-    if (info) return info;
-    const custId = extractCustId(joinResp);
-    if (custId) {
-      return { custId, ablePoint: 0, totPoint: 0, usedPoint: 0, isFallback: false };
-    }
-    console.warn('[Metacity] JOIN 응답에 CUST_ID 없음, phoneDigits 폴백:', JSON.stringify(joinResp));
-    return {
-      custId: phoneToDigits(customer.phone),
-      ablePoint: 0,
-      totPoint: 0,
-      usedPoint: 0,
-      isFallback: true,
-    };
-  } catch (err: any) {
-    // 이미 등록된 회원 (E1003/E1004/E1009) — 단독 매장에선 CUST_SEARCH 안 했으니 충돌 가능.
-    // 이 경우 phoneDigits 폴백으로 isFallback=true 반환 (호출자는 캐시 안 함)
-    if (err.message?.includes('E1003') || err.message?.includes('E1004') || err.message?.includes('E1009')) {
-      console.warn('[Metacity] JOIN: 이미 등록된 회원, phoneDigits 폴백:', customer.phone);
-      return {
-        custId: phoneToDigits(customer.phone),
-        ablePoint: 0,
-        totPoint: 0,
-        usedPoint: 0,
-        isFallback: true,
-      };
-    }
-    console.error('[Metacity] JOIN-only 실패:', err.message);
-    return null;
-  }
-}
-
-/**
  * 메타씨티 회원 등록 보장
  * - 먼저 전화번호로 기존 회원 검색
  * - 없으면 신규 등록
