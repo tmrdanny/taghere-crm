@@ -119,10 +119,10 @@ function TableLinkContent() {
   const subtitle = storeInfo.customerSubtitle || '테이블 번호를 입력해주세요';
 
   return (
-    <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
-      <div className="w-full max-w-[430px] h-full flex flex-col bg-white relative">
+    <div className="min-h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-y-auto">
+      <div className="w-full max-w-[430px] min-h-[100dvh] flex flex-col bg-white relative">
         {/* Top section - Store name & instructions */}
-        <div className="flex-1 flex flex-col items-center justify-center px-5 pt-8">
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-5 pt-8">
           <p className="text-[13px] text-[#55595e] mb-1">{storeInfo.storeName}</p>
           <h1 className="text-[22px] font-bold text-[#1d2022] mb-1 text-center">{title}</h1>
           <p className="text-[14px] text-[#55595e]">{subtitle}</p>
@@ -145,7 +145,7 @@ function TableLinkContent() {
         </div>
 
         {/* Bottom section - Keypad & Confirm */}
-        <div className="px-5 pb-8">
+        <div className="px-5 pt-2 pb-[max(2rem,env(safe-area-inset-bottom))]">
           {/* Numeric keypad */}
           <div className="grid grid-cols-3 gap-2 mb-4 max-w-[320px] mx-auto">
             {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', 'back'].map((key) => (
