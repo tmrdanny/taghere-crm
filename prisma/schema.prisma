@@ -250,6 +250,8 @@ model Customer {
   @@index([naverId])
   @@index([regionSido, regionSigungu, ageGroup, gender])
   @@index([storeId, visitSource])
+  @@index([storeId, createdAt])
+  @@index([createdAt])
   @@map("customers")
 }
 
@@ -319,6 +321,8 @@ model PointLedger {
   @@index([storeId])
   @@index([customerId])
   @@index([createdAt])
+  @@index([storeId, type, createdAt])
+  @@index([type, createdAt])
   @@map("point_ledger")
 }
 
@@ -390,6 +394,7 @@ model ReviewRequestLog {
 
   @@index([storeId])
   @@index([createdAt])
+  @@index([storeId, status, createdAt])
   @@map("review_request_logs")
 }
 

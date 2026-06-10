@@ -555,37 +555,33 @@ router.get('/customer-trend', adminAuthMiddleware, async (req: AdminRequest, res
     startDate.setDate(startDate.getDate() - daysNum);
     startDate.setHours(0, 0, 0, 0);
 
-    // 기간 내 일별 고객 등록 수
-    const customers = await prisma.customer.findMany({
-      where: {
-        createdAt: {
-          gte: startDate,
+    // 기간 내 일별 고객 등록 수 (DB에서 일 단위 집계 - 전체 row 로드 방지)
+    const [dailyCounts, baseCount] = await Promise.all([
+      prisma.$queryRaw<{ date: string; count: number }[]>`
+        SELECT to_char("createdAt", 'YYYY-MM-DD') AS date, COUNT(*)::int AS count
+        FROM customers
+        WHERE "createdAt" >= ${startDate}
+        GROUP BY 1
+        ORDER BY 1
+      `,
+      // 시작일 이전 총 고객 수
+      prisma.customer.count({
+        where: {
+          createdAt: {
+            lt: startDate,
+          },
         },
-      },
-      select: {
-        createdAt: true,
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
-
-    // 시작일 이전 총 고객 수
-    const baseCount = await prisma.customer.count({
-      where: {
-        createdAt: {
-          lt: startDate,
-        },
-      },
-    });
+      }),
+    ]);
 
     // 일별 데이터 집계
     const dailyData: { date: string; count: number; cumulative: number }[] = [];
     const dateMap = new Map<string, number>();
+    let periodNew = 0;
 
-    customers.forEach((customer) => {
-      const dateStr = customer.createdAt.toISOString().split('T')[0];
-      dateMap.set(dateStr, (dateMap.get(dateStr) || 0) + 1);
+    dailyCounts.forEach((row) => {
+      dateMap.set(row.date, row.count);
+      periodNew += row.count;
     });
 
     // 기간 내 모든 날짜 생성
@@ -611,7 +607,7 @@ router.get('/customer-trend', adminAuthMiddleware, async (req: AdminRequest, res
     res.json({
       trend: dailyData,
       totalCustomers: cumulative,
-      periodNew: customers.length,
+      periodNew,
     });
   } catch (error) {
     console.error('Admin customer trend error:', error);
@@ -622,99 +618,61 @@ router.get('/customer-trend', adminAuthMiddleware, async (req: AdminRequest, res
 // GET /api/admin/payment-stats - 토스페이먼츠 실 결제 금액 통계
 router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    // 1. 토스페이먼츠 Store 결제(TOPUP) 조회
-    const tossStoreTopups = await prisma.paymentTransaction.findMany({
-      where: {
-        type: 'TOPUP',
-        status: 'SUCCESS',
-        meta: {
-          path: ['source'],
-          equals: 'tosspayments',
-        },
-      },
-      select: {
-        amount: true,
-        createdAt: true,
-      },
-    });
-
-    // 2. 토스페이먼츠 Store 환불(REFUND) 조회
-    const tossStoreRefunds = await prisma.paymentTransaction.findMany({
-      where: {
-        type: 'REFUND',
-        status: 'SUCCESS',
-        meta: {
-          path: ['source'],
-          equals: 'tosspayments',
-        },
-      },
-      select: {
-        amount: true,
-        createdAt: true,
-      },
-    });
-
-    // 3. 토스페이먼츠 프랜차이즈 충전 조회
-    const tossFranchiseTopups = await prisma.franchiseTransaction.findMany({
-      where: {
-        type: 'TOPUP',
-        meta: {
-          path: ['source'],
-          equals: 'tosspayments',
-        },
-      },
-      select: {
-        amount: true,
-        createdAt: true,
-      },
-    });
-
-    // 4. Store 매출 합산 (TOPUP - REFUND)
-    const storeTopupTotal = tossStoreTopups.reduce((sum, tx) => sum + tx.amount, 0);
-    const storeRefundTotal = tossStoreRefunds.reduce((sum, tx) => sum + tx.amount, 0);
-    const storeTotal = storeTopupTotal - storeRefundTotal;
-
-    // 5. 프랜차이즈 충전 합산
-    const franchiseTotal = tossFranchiseTopups.reduce((sum, tx) => sum + tx.amount, 0);
-
-    // 6. 전체 누적 매출 (토스페이먼츠 실 결제만)
-    const totalRealPayments = storeTotal + franchiseTotal;
-
-    // 7. 이번 달 매출 계산
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const monthlyStoreTopups = tossStoreTopups
-      .filter((tx) => tx.createdAt >= startOfMonth)
-      .reduce((sum, tx) => sum + tx.amount, 0);
+    const tossStoreTopupWhere = {
+      type: 'TOPUP' as const,
+      status: 'SUCCESS' as const,
+      meta: { path: ['source'], equals: 'tosspayments' },
+    };
+    const tossStoreRefundWhere = {
+      type: 'REFUND' as const,
+      status: 'SUCCESS' as const,
+      meta: { path: ['source'], equals: 'tosspayments' },
+    };
+    const tossFranchiseTopupWhere = {
+      type: 'TOPUP' as const,
+      meta: { path: ['source'], equals: 'tosspayments' },
+    };
 
-    const monthlyStoreRefunds = tossStoreRefunds
-      .filter((tx) => tx.createdAt >= startOfMonth)
-      .reduce((sum, tx) => sum + tx.amount, 0);
+    // 전체 row를 가져오지 않고 DB에서 합산
+    const [
+      storeTopupAgg,
+      storeTopupMonthAgg,
+      storeRefundAgg,
+      storeRefundMonthAgg,
+      franchiseAgg,
+      franchiseMonthAgg,
+      externalAgg,
+      externalMonthAgg,
+    ] = await Promise.all([
+      prisma.paymentTransaction.aggregate({ where: tossStoreTopupWhere, _sum: { amount: true }, _count: true }),
+      prisma.paymentTransaction.aggregate({ where: { ...tossStoreTopupWhere, createdAt: { gte: startOfMonth } }, _sum: { amount: true } }),
+      prisma.paymentTransaction.aggregate({ where: tossStoreRefundWhere, _sum: { amount: true } }),
+      prisma.paymentTransaction.aggregate({ where: { ...tossStoreRefundWhere, createdAt: { gte: startOfMonth } }, _sum: { amount: true } }),
+      prisma.franchiseTransaction.aggregate({ where: tossFranchiseTopupWhere, _sum: { amount: true }, _count: true }),
+      prisma.franchiseTransaction.aggregate({ where: { ...tossFranchiseTopupWhere, createdAt: { gte: startOfMonth } }, _sum: { amount: true } }),
+      prisma.externalRevenue.aggregate({ _sum: { amount: true } }),
+      prisma.externalRevenue.aggregate({ where: { revenueDate: { gte: startOfMonth } }, _sum: { amount: true } }),
+    ]);
 
-    const monthlyStorePayments = monthlyStoreTopups - monthlyStoreRefunds;
+    // Store 매출 합산 (TOPUP - REFUND)
+    const storeTotal = (storeTopupAgg._sum.amount || 0) - (storeRefundAgg._sum.amount || 0);
+    const franchiseTotal = franchiseAgg._sum.amount || 0;
+    const totalRealPayments = storeTotal + franchiseTotal;
 
-    const monthlyFranchisePayments = tossFranchiseTopups
-      .filter((tx) => tx.createdAt >= startOfMonth)
-      .reduce((sum, tx) => sum + tx.amount, 0);
-
+    // 이번 달 매출
+    const monthlyStorePayments = (storeTopupMonthAgg._sum.amount || 0) - (storeRefundMonthAgg._sum.amount || 0);
+    const monthlyFranchisePayments = franchiseMonthAgg._sum.amount || 0;
     const monthlyRealPayments = monthlyStorePayments + monthlyFranchisePayments;
 
-    // 8. 총 결제 건수 (토스페이먼츠만)
-    const totalTransactions = tossStoreTopups.length + tossFranchiseTopups.length;
+    // 총 결제 건수 (토스페이먼츠만)
+    const totalTransactions = storeTopupAgg._count + franchiseAgg._count;
 
-    // 9. 외부 매출 (계좌이체 등) 합산
-    const externalRevenues = await prisma.externalRevenue.findMany({
-      select: {
-        amount: true,
-        revenueDate: true,
-      },
-    });
-
-    const totalExternalRevenue = externalRevenues.reduce((sum, r) => sum + r.amount, 0);
-    const monthlyExternalRevenue = externalRevenues
-      .filter((r) => r.revenueDate >= startOfMonth)
-      .reduce((sum, r) => sum + r.amount, 0);
+    // 외부 매출 (계좌이체 등)
+    const totalExternalRevenue = externalAgg._sum.amount || 0;
+    const monthlyExternalRevenue = externalMonthAgg._sum.amount || 0;
 
     res.json({
       totalRealPayments: totalRealPayments + totalExternalRevenue,
@@ -832,29 +790,29 @@ router.get('/point-stats', adminAuthMiddleware, async (req: AdminRequest, res: R
 // GET /api/admin/visit-source-stats - 전체 고객 방문경로 통계
 router.get('/visit-source-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    // 모든 고객의 visitSource 조회
-    const customers = await prisma.customer.findMany({
-      select: {
-        visitSource: true,
-        storeId: true,
-      },
-    });
+    // visitSource별 카운트를 DB에서 집계 (전체 고객 row 로드 방지)
+    const [visitSourceGroups, visitSourceSettings] = await Promise.all([
+      prisma.customer.groupBy({
+        by: ['visitSource'],
+        _count: { _all: true },
+      }),
+      // 모든 매장의 VisitSourceSetting에서 라벨 조회
+      prisma.visitSourceSetting.findMany({
+        select: { options: true },
+      }),
+    ]);
 
-    // visitSource별 카운트 집계
     const visitSourceMap = new Map<string, number>();
     let noSourceCount = 0;
+    let totalCustomerCount = 0;
 
-    customers.forEach((c) => {
-      if (c.visitSource) {
-        visitSourceMap.set(c.visitSource, (visitSourceMap.get(c.visitSource) || 0) + 1);
+    visitSourceGroups.forEach((g) => {
+      totalCustomerCount += g._count._all;
+      if (g.visitSource) {
+        visitSourceMap.set(g.visitSource, g._count._all);
       } else {
-        noSourceCount++;
+        noSourceCount += g._count._all;
       }
-    });
-
-    // 모든 매장의 VisitSourceSetting에서 라벨 조회
-    const visitSourceSettings = await prisma.visitSourceSetting.findMany({
-      select: { options: true },
     });
 
     // 모든 옵션을 합쳐서 라벨 맵 생성
@@ -869,7 +827,7 @@ router.get('/visit-source-stats', adminAuthMiddleware, async (req: AdminRequest,
     });
 
     // 결과 배열 생성
-    const totalWithSource = customers.length - noSourceCount;
+    const totalWithSource = totalCustomerCount - noSourceCount;
     const distribution = Array.from(visitSourceMap.entries())
       .map(([source, count]) => ({
         source,
@@ -880,7 +838,7 @@ router.get('/visit-source-stats', adminAuthMiddleware, async (req: AdminRequest,
       .sort((a, b) => b.count - a.count);
 
     res.json({
-      totalCustomers: customers.length,
+      totalCustomers: totalCustomerCount,
       totalWithSource,
       noSourceCount,
       distribution,
@@ -894,22 +852,21 @@ router.get('/visit-source-stats', adminAuthMiddleware, async (req: AdminRequest,
 // GET /api/admin/demographic-stats - 전체 고객 성별/연령대 통계
 router.get('/demographic-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    const customers = await prisma.customer.findMany({
-      select: {
-        gender: true,
-        ageGroup: true,
-      },
-    });
+    // 성별/연령대 카운트를 DB에서 집계 (전체 고객 row 로드 방지)
+    const [genderGroups, ageGroupGroups] = await Promise.all([
+      prisma.customer.groupBy({ by: ['gender'], _count: { _all: true } }),
+      prisma.customer.groupBy({ by: ['ageGroup'], _count: { _all: true } }),
+    ]);
 
-    const total = customers.length;
+    const total = genderGroups.reduce((sum, g) => sum + g._count._all, 0);
 
     // 성별 집계
     const genderMap: Record<string, number> = { MALE: 0, FEMALE: 0, UNKNOWN: 0 };
-    customers.forEach((c) => {
-      if (c.gender === 'MALE' || c.gender === 'FEMALE') {
-        genderMap[c.gender]++;
+    genderGroups.forEach((g) => {
+      if (g.gender === 'MALE' || g.gender === 'FEMALE') {
+        genderMap[g.gender] += g._count._all;
       } else {
-        genderMap['UNKNOWN']++;
+        genderMap['UNKNOWN'] += g._count._all;
       }
     });
 
@@ -923,11 +880,11 @@ router.get('/demographic-stats', adminAuthMiddleware, async (req: AdminRequest, 
     const ageGroupMap: Record<string, number> = {
       TWENTIES: 0, THIRTIES: 0, FORTIES: 0, FIFTIES: 0, SIXTY_PLUS: 0, UNKNOWN: 0,
     };
-    customers.forEach((c) => {
-      if (c.ageGroup && ageGroupMap[c.ageGroup] !== undefined) {
-        ageGroupMap[c.ageGroup]++;
+    ageGroupGroups.forEach((g) => {
+      if (g.ageGroup && ageGroupMap[g.ageGroup] !== undefined) {
+        ageGroupMap[g.ageGroup] += g._count._all;
       } else {
-        ageGroupMap['UNKNOWN']++;
+        ageGroupMap['UNKNOWN'] += g._count._all;
       }
     });
 

@@ -309,28 +309,6 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
   try {
     const storeId = req.user!.storeId;
 
-    // 전체 피드백 통계 조회
-    const feedbackStats = await prisma.customerFeedback.aggregate({
-      where: {
-        customer: { storeId },
-      },
-      _avg: { rating: true },
-      _count: { id: true },
-    });
-
-    const averageRating = feedbackStats._avg.rating
-      ? Math.round(feedbackStats._avg.rating * 10) / 10
-      : 0;
-    const totalFeedbackCount = feedbackStats._count.id;
-
-    // 3점 미만 피드백 수
-    const lowRatingCount = await prisma.customerFeedback.count({
-      where: {
-        customer: { storeId },
-        rating: { lt: 3 },
-      },
-    });
-
     // 이름 마스킹 함수: "홍길동" → "홍*동", "김원" → "김*원", "정" → "정"
     const maskName = (name: string | null): string => {
       if (!name) return '익명';
@@ -340,31 +318,47 @@ router.get('/feedback-summary', authMiddleware, async (req: AuthRequest, res) =>
       return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
     };
 
-    // 텍스트가 있는 모든 피드백을 가져와서 길이순으로 정렬
-    const feedbacksWithText = await prisma.customerFeedback.findMany({
-      where: {
-        customer: { storeId },
-        text: { not: null },
-      },
-      include: {
-        customer: {
-          select: { name: true },
+    // 통계 + 3점 미만 수 + 텍스트 긴 피드백 2건을 병렬 조회 (전체 row 로드 방지)
+    const [feedbackStats, lowRatingCount, topTextFeedbacks] = await Promise.all([
+      prisma.customerFeedback.aggregate({
+        where: {
+          customer: { storeId },
         },
-      },
-    });
+        _avg: { rating: true },
+        _count: { id: true },
+      }),
+      prisma.customerFeedback.count({
+        where: {
+          customer: { storeId },
+          rating: { lt: 3 },
+        },
+      }),
+      // 텍스트 길이순 상위 2건만 DB에서 정렬해서 조회
+      prisma.$queryRaw<
+        { id: string; rating: number; text: string | null; createdAt: Date; name: string | null }[]
+      >`
+        SELECT f.id, f.rating, f.text, f."createdAt", c.name
+        FROM customer_feedbacks f
+        JOIN customers c ON c.id = f."customerId"
+        WHERE c."storeId" = ${storeId}
+          AND f.text IS NOT NULL
+          AND length(f.text) > 0
+        ORDER BY length(f.text) DESC
+        LIMIT 2
+      `,
+    ]);
 
-    // 텍스트 길이순으로 정렬 (긴 것 먼저)
-    const sortedByTextLength = feedbacksWithText
-      .filter((f) => f.text && f.text.length > 0)
-      .sort((a, b) => (b.text?.length || 0) - (a.text?.length || 0))
-      .slice(0, 2);
+    const averageRating = feedbackStats._avg.rating
+      ? Math.round(feedbackStats._avg.rating * 10) / 10
+      : 0;
+    const totalFeedbackCount = feedbackStats._count.id;
 
-    let feedbacks = sortedByTextLength.map((f) => ({
+    let feedbacks = topTextFeedbacks.map((f) => ({
       id: f.id,
       rating: f.rating,
       text: f.text,
       createdAt: f.createdAt.toISOString(),
-      customerName: maskName(f.customer.name),
+      customerName: maskName(f.name),
     }));
 
     // 텍스트가 있는 피드백이 2개 미만이면 최근 피드백으로 보충

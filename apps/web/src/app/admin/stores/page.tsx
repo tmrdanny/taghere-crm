@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { formatNumber } from '@/lib/utils';
+import { fetchJsonCached } from '@/lib/swr-cache';
 import * as XLSX from 'xlsx';
 
 // 업종 분류
@@ -169,15 +170,15 @@ export default function AdminStoresPage() {
     if (!token) return;
 
     try {
-      const storesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (storesRes.ok) {
-        const storesData = await storesRes.json();
-        // walletBalance가 이미 API 응답에 포함됨 (N+1 문제 해결)
-        setStores(storesData);
-      }
+      // 캐시된 목록을 즉시 표시하고 백그라운드에서 최신 데이터로 갱신
+      await fetchJsonCached(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores`,
+        token,
+        (storesData: any) => {
+          setStores(storesData);
+          setIsLoading(false);
+        }
+      );
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
