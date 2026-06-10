@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { formatNumber } from '@/lib/utils';
+import { fetchJsonCached } from '@/lib/swr-cache';
 import { Plus, X, Loader2 } from 'lucide-react';
 
 interface Stats {
@@ -182,37 +183,21 @@ export default function AdminHomePage() {
     fetchCorporateAdStats(corporateAdPeriod);
   }, [corporateAdPeriod]);
 
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
   const fetchData = async () => {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
 
     try {
-      const [statsRes, paymentStatsRes, pointStatsRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stats`, {
-          headers: { Authorization: `Bearer ${token}` },
+      await Promise.all([
+        fetchJsonCached<Stats>(`${apiBase}/api/admin/stats`, token, (data) => {
+          setStats(data);
+          setIsLoading(false);
         }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/payment-stats`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/point-stats`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        fetchJsonCached<PaymentStats>(`${apiBase}/api/admin/payment-stats`, token, setPaymentStats),
+        fetchJsonCached<PointStats>(`${apiBase}/api/admin/point-stats`, token, setPointStats),
       ]);
-
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData);
-      }
-
-      if (paymentStatsRes.ok) {
-        const paymentData = await paymentStatsRes.json();
-        setPaymentStats(paymentData);
-      }
-
-      if (pointStatsRes.ok) {
-        const pointData = await pointStatsRes.json();
-        setPointStats(pointData);
-      }
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -226,14 +211,14 @@ export default function AdminHomePage() {
 
     setIsTrendLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/customer-trend?days=${period}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      await fetchJsonCached<CustomerTrend>(
+        `${apiBase}/api/admin/customer-trend?days=${period}`,
+        token,
+        (data) => {
+          setCustomerTrend(data);
+          setIsTrendLoading(false);
+        }
       );
-      if (res.ok) {
-        const data = await res.json();
-        setCustomerTrend(data);
-      }
     } catch (error) {
       console.error('Failed to fetch customer trend:', error);
     } finally {
@@ -247,14 +232,14 @@ export default function AdminHomePage() {
 
     setIsExternalLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/external-customer-stats?period=${period}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      await fetchJsonCached<ExternalCustomerStats>(
+        `${apiBase}/api/admin/external-customer-stats?period=${period}`,
+        token,
+        (data) => {
+          setExternalStats(data);
+          setIsExternalLoading(false);
+        }
       );
-      if (res.ok) {
-        const data = await res.json();
-        setExternalStats(data);
-      }
     } catch (error) {
       console.error('Failed to fetch external customer stats:', error);
     } finally {
@@ -268,14 +253,14 @@ export default function AdminHomePage() {
 
     setIsVisitSourceLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/visit-source-stats`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      await fetchJsonCached<VisitSourceStats>(
+        `${apiBase}/api/admin/visit-source-stats`,
+        token,
+        (data) => {
+          setVisitSourceStats(data);
+          setIsVisitSourceLoading(false);
+        }
       );
-      if (res.ok) {
-        const data = await res.json();
-        setVisitSourceStats(data);
-      }
     } catch (error) {
       console.error('Failed to fetch visit source stats:', error);
     } finally {
@@ -289,14 +274,14 @@ export default function AdminHomePage() {
 
     setIsDemographicLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/demographic-stats`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      await fetchJsonCached<DemographicStats>(
+        `${apiBase}/api/admin/demographic-stats`,
+        token,
+        (data) => {
+          setDemographicStats(data);
+          setIsDemographicLoading(false);
+        }
       );
-      if (res.ok) {
-        const data = await res.json();
-        setDemographicStats(data);
-      }
     } catch (error) {
       console.error('Failed to fetch demographic stats:', error);
     } finally {
@@ -310,14 +295,14 @@ export default function AdminHomePage() {
 
     setIsCorporateAdLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/corporate-ad-stats?days=${period}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      await fetchJsonCached<CorporateAdStats>(
+        `${apiBase}/api/admin/corporate-ad-stats?days=${period}`,
+        token,
+        (data) => {
+          setCorporateAdStats(data);
+          setIsCorporateAdLoading(false);
+        }
       );
-      if (res.ok) {
-        const data = await res.json();
-        setCorporateAdStats(data);
-      }
     } catch (error) {
       console.error('Failed to fetch corporate ad stats:', error);
     } finally {
@@ -331,14 +316,14 @@ export default function AdminHomePage() {
 
     setIsOrdersLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/store-orders?limit=20`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      await fetchJsonCached<{ orders: StoreOrder[] }>(
+        `${apiBase}/api/admin/store-orders?limit=20`,
+        token,
+        (data) => {
+          setStoreOrders(data.orders || []);
+          setIsOrdersLoading(false);
+        }
       );
-      if (res.ok) {
-        const data = await res.json();
-        setStoreOrders(data.orders || []);
-      }
     } catch (error) {
       console.error('Failed to fetch store orders:', error);
     } finally {

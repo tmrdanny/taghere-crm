@@ -31,6 +31,13 @@ export default function AdminLayout({
         return;
       }
 
+      // 같은 토큰으로 이미 인증된 적 있으면 즉시 렌더링하고, 검증은 백그라운드에서 수행
+      const verifiedToken = sessionStorage.getItem('admin-auth-verified');
+      if (verifiedToken === token) {
+        setIsAuthenticated(true);
+        setIsLoading(false);
+      }
+
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/me`, {
           headers: {
@@ -42,9 +49,12 @@ export default function AdminLayout({
           throw new Error('Unauthorized');
         }
 
+        sessionStorage.setItem('admin-auth-verified', token);
         setIsAuthenticated(true);
       } catch (error) {
+        sessionStorage.removeItem('admin-auth-verified');
         localStorage.removeItem('adminToken');
+        setIsAuthenticated(false);
         router.replace('/admin/login');
       } finally {
         setIsLoading(false);

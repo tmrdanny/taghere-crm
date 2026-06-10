@@ -93,33 +93,34 @@ router.get('/rules', authMiddleware, async (req: AuthRequest, res: Response) => 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const stats = await Promise.all(
-      rules.map(async (rule) => {
-        const [totalSent, couponUsed] = await Promise.all([
-          prisma.automationLog.count({
-            where: {
-              automationRuleId: rule.id,
-              sentAt: { gte: startOfMonth },
-            },
-          }),
-          prisma.automationLog.count({
-            where: {
-              automationRuleId: rule.id,
-              sentAt: { gte: startOfMonth },
-              couponUsed: true,
-            },
-          }),
-        ]);
+    // 규칙별 count 쿼리 2N개 대신 groupBy 2회로 일괄 집계
+    const [sentGroups, usedGroups] = await Promise.all([
+      prisma.automationLog.groupBy({
+        by: ['automationRuleId'],
+        where: { storeId, sentAt: { gte: startOfMonth } },
+        _count: { _all: true },
+      }),
+      prisma.automationLog.groupBy({
+        by: ['automationRuleId'],
+        where: { storeId, sentAt: { gte: startOfMonth }, couponUsed: true },
+        _count: { _all: true },
+      }),
+    ]);
 
-        return {
-          ruleId: rule.id,
-          type: rule.type,
-          monthlySent: totalSent,
-          monthlyCouponUsed: couponUsed,
-          usageRate: totalSent > 0 ? Math.round((couponUsed / totalSent) * 100) : 0,
-        };
-      })
-    );
+    const sentMap = new Map(sentGroups.map((g) => [g.automationRuleId, g._count._all]));
+    const usedMap = new Map(usedGroups.map((g) => [g.automationRuleId, g._count._all]));
+
+    const stats = rules.map((rule) => {
+      const totalSent = sentMap.get(rule.id) ?? 0;
+      const couponUsed = usedMap.get(rule.id) ?? 0;
+      return {
+        ruleId: rule.id,
+        type: rule.type,
+        monthlySent: totalSent,
+        monthlyCouponUsed: couponUsed,
+        usageRate: totalSent > 0 ? Math.round((couponUsed / totalSent) * 100) : 0,
+      };
+    });
 
     res.json({ rules, stats });
   } catch (error) {

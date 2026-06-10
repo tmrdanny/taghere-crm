@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Modal, ModalContent } from '@/components/ui/modal';
 import { formatNumber, formatCurrency } from '@/lib/utils';
+import { fetchJsonCached, readCache, writeCache } from '@/lib/swr-cache';
 import { Users, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin, Mail, Zap, Bell, Cake, UserPlus, ArrowRight } from 'lucide-react';
 import {
   XAxis,
@@ -113,129 +114,69 @@ export default function HomePage() {
 
   // Fetch announcements
   useEffect(() => {
-    const fetchAnnouncements = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/dashboard/announcements`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setAnnouncements(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch announcements:', error);
-      }
-    };
-
-    fetchAnnouncements();
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetchJsonCached<Announcement[]>(`${apiUrl}/api/dashboard/announcements`, token, setAnnouncements)
+      .catch((error) => console.error('Failed to fetch announcements:', error));
   }, [apiUrl]);
 
   // Fetch dashboard stats
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/dashboard/summary`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setStats(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch dashboard stats:', error);
-      }
-    };
-
-    fetchStats();
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetchJsonCached<DashboardStats>(`${apiUrl}/api/dashboard/summary`, token, setStats)
+      .catch((error) => console.error('Failed to fetch dashboard stats:', error));
   }, [apiUrl]);
 
   // Fetch feedback summary
   useEffect(() => {
-    const fetchFeedbackSummary = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/dashboard/feedback-summary`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setFeedbackSummary(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch feedback summary:', error);
-      }
-    };
-
-    fetchFeedbackSummary();
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetchJsonCached<FeedbackSummary>(`${apiUrl}/api/dashboard/feedback-summary`, token, setFeedbackSummary)
+      .catch((error) => console.error('Failed to fetch feedback summary:', error));
   }, [apiUrl]);
 
   // Fetch visit source stats
   useEffect(() => {
-    const fetchVisitSourceStats = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/visit-source-settings/stats`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setVisitSourceData(data.distribution || []);
-        }
-      } catch (error) {
-        console.error('Failed to fetch visit source stats:', error);
-      }
-    };
-
-    fetchVisitSourceStats();
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetchJsonCached<{ distribution?: VisitSourceItem[] }>(
+      `${apiUrl}/api/visit-source-settings/stats`,
+      token,
+      (data) => setVisitSourceData(data.distribution || [])
+    ).catch((error) => console.error('Failed to fetch visit source stats:', error));
   }, [apiUrl]);
 
   // Fetch retarget credits
   useEffect(() => {
-    const fetchRetargetCredits = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/monthly-credit/status`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.data) {
-            setRetargetCredits({
-              remainingCredits: data.data.remainingCredits,
-              totalCredits: data.data.totalCredits,
-            });
-          }
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetchJsonCached<{ success: boolean; data?: { remainingCredits: number; totalCredits: number } }>(
+      `${apiUrl}/api/monthly-credit/status`,
+      token,
+      (data) => {
+        if (data.success && data.data) {
+          setRetargetCredits({
+            remainingCredits: data.data.remainingCredits,
+            totalCredits: data.data.totalCredits,
+          });
         }
-      } catch (error) {
-        console.error('Failed to fetch retarget credits:', error);
       }
-    };
-
-    fetchRetargetCredits();
+    ).catch((error) => console.error('Failed to fetch retarget credits:', error));
   }, [apiUrl]);
 
   // Fetch automation marketing status
   useEffect(() => {
     const fetchAutomationStatus = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const cacheKey = `${token.slice(-12)}:automation-status`;
+
+      // 캐시된 결과를 즉시 표시
+      const cached = readCache<typeof automationStatus>(cacheKey);
+      if (cached) setAutomationStatus(cached);
+
       try {
-        const token = localStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
 
         const [rulesRes, previewRes, dashRes] = await Promise.all([
@@ -260,7 +201,9 @@ export default function HomePage() {
           dashboard = await dashRes.json();
         }
 
-        setAutomationStatus({ hasActiveRules, previews, dashboard });
+        const result = { hasActiveRules, previews, dashboard };
+        setAutomationStatus(result);
+        writeCache(cacheKey, result);
       } catch (error) {
         console.error('Failed to fetch automation status:', error);
       }
@@ -293,39 +236,28 @@ export default function HomePage() {
 
   // Fetch visitor chart data based on period
   useEffect(() => {
-    const fetchVisitorChartData = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const days = chartPeriod === '7일' ? 7 : chartPeriod === '30일' ? 30 : chartPeriod === '90일' ? 90 : 365;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const days = chartPeriod === '7일' ? 7 : chartPeriod === '30일' ? 30 : chartPeriod === '90일' ? 90 : 365;
 
-        // Fetch visitor chart data
-        const res = await fetch(`${apiUrl}/api/dashboard/visitor-chart?days=${days}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+    fetchJsonCached<VisitorStats>(
+      `${apiUrl}/api/dashboard/visitor-chart?days=${days}`,
+      token,
+      (data) => {
+        setVisitorStats(data);
+        // Format the chart data
+        const formattedData = data.chartData.map((item: VisitorChartData) => {
+          const date = new Date(item.date);
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return {
+            day: `${month}/${day}`,
+            visitors: item.visitors,
+          };
         });
-
-        if (res.ok) {
-          const data = await res.json();
-          setVisitorStats(data);
-          // Format the chart data
-          const formattedData = data.chartData.map((item: VisitorChartData) => {
-            const date = new Date(item.date);
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return {
-              day: `${month}/${day}`,
-              visitors: item.visitors,
-            };
-          });
-          setVisitorChartData(formattedData);
-        }
-      } catch (error) {
-        console.error('Failed to fetch visitor chart data:', error);
+        setVisitorChartData(formattedData);
       }
-    };
-
-    fetchVisitorChartData();
+    ).catch((error) => console.error('Failed to fetch visitor chart data:', error));
   }, [apiUrl, chartPeriod]);
 
   // Refresh visitor chart data

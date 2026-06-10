@@ -36,6 +36,20 @@ export default function DashboardLayout({
         return;
       }
 
+      // 같은 토큰으로 캐시된 사용자 정보가 있으면 즉시 렌더링하고, 검증은 백그라운드에서 수행
+      try {
+        const cached = sessionStorage.getItem('auth-me-cache');
+        if (cached) {
+          const { token: cachedToken, user: cachedUser } = JSON.parse(cached);
+          if (cachedToken === token && cachedUser) {
+            setUser(cachedUser);
+            setIsLoading(false);
+          }
+        }
+      } catch {
+        // 캐시 파싱 실패 시 무시
+      }
+
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auth/me`, {
           headers: {
@@ -49,8 +63,15 @@ export default function DashboardLayout({
 
         const userData = await res.json();
         setUser(userData);
+        try {
+          sessionStorage.setItem('auth-me-cache', JSON.stringify({ token, user: userData }));
+        } catch {
+          // 저장 실패는 무시
+        }
       } catch (error) {
+        sessionStorage.removeItem('auth-me-cache');
         localStorage.removeItem('token');
+        setUser(null);
         router.replace('/login');
       } finally {
         setIsLoading(false);
