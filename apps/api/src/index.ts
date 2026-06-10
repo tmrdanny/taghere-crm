@@ -65,6 +65,7 @@ import storeOrdersRoutes from './routes/store-orders.js';
 import surveyQuestionsRoutes from './routes/survey-questions.js';
 import myPageRoutes from './routes/my-page.js';
 import externalRoutes from './routes/external.js';
+import v1YahwaRoutes from './routes/v1-yahwa.js';
 import tagherePointWebhookRoutes from './routes/taghere-point-webhook.js';
 import { startAlimTalkWorker } from './services/alimtalk-worker.js';
 import { startSmsWorker } from './services/sms-worker.js';
@@ -78,6 +79,10 @@ import publicChatRoutes from './routes/public-chat.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+// Render/Cloudflare 등 reverse proxy 뒤에서 동작하므로 첫 번째 프록시의 X-Forwarded-* 신뢰
+// 없으면 express-rate-limit 가 모든 요청을 프록시 IP 하나로 인식해 글로벌 버킷이 됨
+app.set('trust proxy', 1);
 
 // CORS configuration
 const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || '';
@@ -135,10 +140,21 @@ app.use(cors({
 app.use(express.json());
 
 // Rate Limiting - 일반 API (15분에 5000요청)
+// /api/v1 (야화 외부 API)는 별도 버킷(아래 v1Limiter)으로 처리하므로 제외
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15분
   max: 5000,
   message: { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.originalUrl.startsWith('/api/v1/'),
+});
+
+// Rate Limiting - 야화 외부 API (/api/v1): 최소 20 RPS 보장 → 분당 1500요청(=25 RPS)
+const v1Limiter = rateLimit({
+  windowMs: 60 * 1000, // 1분
+  max: 1500,
+  message: { error: 'rate_limited' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -161,6 +177,7 @@ const earnLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+app.use('/api/v1', v1Limiter);
 app.use('/api/', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/admin/login', authLimiter);
@@ -280,6 +297,9 @@ app.use('/api/my-page', myPageRoutes);
 
 // External routes
 app.use('/api/external', externalRoutes);
+
+// 야화(외부 파트너) 웨이팅 연동 API
+app.use('/api/v1', v1YahwaRoutes);
 
 // Franchise routes
 app.use('/api/franchise/auth', franchiseAuthRoutes);

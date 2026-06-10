@@ -41,6 +41,16 @@ export interface TodayStats {
   avgWaitTime: number;
 }
 
+/**
+ * 야화 연동 웨이팅이면 상태 변경을 야화로 푸시 (fire-and-forget).
+ * 동적 import 로 순환 참조를 피하고, 호출 흐름을 막지 않는다.
+ */
+function notifyYahwaIfExternal(waitingId: string): void {
+  void import('./yahwa-webhook.js')
+    .then((m) => m.notifyYahwaStatusChange(waitingId))
+    .catch((err) => console.error('[Waiting] yahwa notify failed:', err));
+}
+
 // 영업일 기준: KST 03:00 ~ 다음날 03:00 (자정~새벽 3시는 전일 영업일에 포함)
 const BUSINESS_DAY_RESET_HOUR_KST = 3;
 
@@ -264,6 +274,8 @@ export async function callWaiting(
       },
     });
 
+    notifyYahwaIfExternal(waitingId);
+
     if (waiting.phone) {
       const store = await prisma.store.findUnique({
         where: { id: storeId },
@@ -419,6 +431,8 @@ export async function seatWaiting(
       },
     });
 
+    notifyYahwaIfExternal(waitingId);
+
     return { success: true, customerId: customerId ?? undefined };
   } catch (error: any) {
     console.error('[Waiting] Seat error:', error);
@@ -455,6 +469,8 @@ export async function cancelWaiting(
         cancelReason: reason,
       },
     });
+
+    notifyYahwaIfExternal(waitingId);
 
     if (sendAlimTalk && waiting.phone) {
       const store = await prisma.store.findUnique({
@@ -566,6 +582,8 @@ export async function restoreWaiting(
         callExpireAt: null,
       },
     });
+
+    notifyYahwaIfExternal(waitingId);
 
     return { success: true };
   } catch (error: any) {

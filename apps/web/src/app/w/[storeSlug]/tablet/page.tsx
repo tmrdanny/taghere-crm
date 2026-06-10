@@ -123,11 +123,11 @@ export default function TabletWaitingPage() {
     }
   }, [storeSlug, fetchStoreInfo]);
 
-  // Poll for updates (every 3 seconds for real-time feel)
+  // Poll for updates — 10초 간격 (이전 3초는 부하 폭주 원인)
   useEffect(() => {
     if (!storeSlug) return;
 
-    const interval = setInterval(fetchStoreInfo, 3000);
+    const interval = setInterval(fetchStoreInfo, 10000);
     return () => clearInterval(interval);
   }, [storeSlug, fetchStoreInfo]);
 

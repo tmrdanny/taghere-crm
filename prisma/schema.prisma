@@ -52,6 +52,9 @@ model Store {
   // 고객 등록 모드: "POINTS" = 포인트 적립, "STAMP" = 스탬프, "MEMBERSHIP" = 태그히어 멤버십
   enrollmentMode        String     @default("POINTS")
 
+  // 야화(외부 파트너) 연동 노출 여부 — true인 매장만 /api/v1 외부 API에서 조회/등록 가능
+  yahwaEnabled          Boolean    @default(false)
+
   // Relations
   staffUsers            StaffUser[]
   customers             Customer[]
@@ -306,6 +309,7 @@ model PointLedger {
   reason      String?      // 사용 사유
   orderId     String?      // 관련 주문 ID
   tableLabel  String?      // 테이블 번호/이름 (예: "A1", "테이블 3")
+  externalTxId String?     // 외부(메타씨티 POS) 거래 고유 ID — POS 거래 수신 웹훅 멱등키
   createdAt   DateTime     @default(now())
 
   // Relations
@@ -313,6 +317,7 @@ model PointLedger {
   customer  Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
   staffUser StaffUser? @relation(fields: [staffUserId], references: [id], onDelete: SetNull)
 
+  @@unique([storeId, externalTxId])
   @@index([storeId])
   @@index([customerId])
   @@index([createdAt])
@@ -1172,6 +1177,11 @@ model WaitingList {
   // 순서 미루기 여부
   isDeferred          Boolean         @default(false)
 
+  // 외부 파트너(야화 등) 연동 필드
+  externalSource          String?     // 외부 채널 식별자 (예: "YAHWA")
+  externalCustomerId      String?     // 외부 사용자 식별자 (예: 야화 user uuid)
+  externalIdempotencyKey  String?     @unique  // 멱등 키 (동일 키 재요청 시 같은 웨이팅 반환)
+
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -1183,6 +1193,7 @@ model WaitingList {
   @@index([storeId, createdAt])
   @@index([storeId, waitingTypeId, status])
   @@index([phone])
+  @@index([storeId, externalSource, externalCustomerId, status])
   @@map("waiting_list")
 }
 
