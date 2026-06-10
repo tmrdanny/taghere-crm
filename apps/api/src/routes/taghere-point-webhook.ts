@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { webhookAuthMiddleware, WebhookRequest } from '../middleware/webhook-auth.js';
 import { maskPhone } from '../utils/masking.js';
 import { getMetacityPoints, syncToMetacity } from '../services/metacity.js';
+import { fetchOrder } from '../services/taghere-api.js';
 import { sidoToShort } from '../utils/address-parser.js';
 
 const router = Router();
@@ -183,6 +184,7 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
         pointRatePercent: true,
         metacityEnabled: true,
         metacityStoreIdx: true,
+        taghereVersion: true,
       },
     });
 
@@ -266,6 +268,34 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
     });
     const isFirstVisitToday = !todayVisit;
 
+    // 7-1. 주문 메뉴 정보 보강 (기존 TagHere/V2 주문 API 재사용; 실패해도 적립엔 영향 없음)
+    //      taghere.ts 자동적립과 동일 구조로 VisitOrOrder.items 를 채운다.
+    let orderItemsData: { items: any[]; tableNumber: string | null } | undefined;
+    try {
+      const orderData = await fetchOrder(orderId, store.taghereVersion);
+      if (orderData) {
+        const rawItems = orderData.content?.items || (orderData as any).orderItems || (orderData as any).items || [];
+        const orderItems = rawItems.map((item: any) => ({
+          name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
+          quantity: item.count || item.quantity || item.qty || item.amount || 1,
+          price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+          option: item.option || null,
+        }));
+        let tableLabel = orderData.content?.tableLabel || (orderData as any).tableLabel || (orderData as any).content?.tableNumber || (orderData as any).tableNumber || null;
+        if (!tableLabel) {
+          const tableID = (orderData as any).tableID || (orderData as any).content?.tableID;
+          if (tableID && typeof tableID === 'string' && tableID.length < 10) {
+            tableLabel = tableID;
+          }
+        }
+        if (orderItems.length > 0 || tableLabel) {
+          orderItemsData = { items: orderItems, tableNumber: tableLabel };
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[Point Webhook] 주문 메뉴 조회 실패(적립은 계속): orderId=${orderId}, ${err?.message}`);
+    }
+
     // 8. 트랜잭션 처리
     let currentBalance = customer.totalPoints;
     const transactionOps: any[] = [];
@@ -334,6 +364,7 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
           orderId,
           visitedAt: new Date(),
           totalAmount: purAmt > 0 ? purAmt : null,
+          ...(orderItemsData && { items: orderItemsData }),
         },
       }),
     );
@@ -382,6 +413,295 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
       success: false,
       error: 'server_error',
       message: '포인트 트랜잭션 처리 중 오류가 발생했습니다.',
+    });
+  }
+});
+
+/** 문자열 정규화: null/빈문자 → undefined, 그 외 String() + trim */
+function asStr(v: any): string | undefined {
+  if (v === undefined || v === null) return undefined;
+  const s = String(v).trim();
+  return s === '' ? undefined : s;
+}
+
+/**
+ * 유연 추출용 소스 수집: { data: { content: [...] } } 봉투/flat/중첩을 모두 평탄화해
+ * 객체들의 배열로 반환한다(흔한 봉투 키만 제한적으로 재귀, depth 가드).
+ */
+function collectSources(body: any): any[] {
+  const out: any[] = [];
+  const visit = (v: any, depth: number) => {
+    if (!v || typeof v !== 'object' || depth > 5) return;
+    if (Array.isArray(v)) { v.forEach((e) => visit(e, depth + 1)); return; }
+    out.push(v);
+    for (const k of ['data', 'content', 'payload', 'body', 'result', 'item', 'items']) {
+      if (v[k] !== undefined) visit(v[k], depth + 1);
+    }
+  };
+  visit(body, 0);
+  return out;
+}
+
+/** 별칭(대소문자 무시) 중 먼저 발견되는 비어있지 않은 값을 반환 */
+function pickField(sources: any[], aliases: string[]): any {
+  const lowers = aliases.map((a) => a.toLowerCase());
+  for (const src of sources) {
+    for (const key of Object.keys(src)) {
+      if (lowers.includes(key.toLowerCase())) {
+        const val = src[key];
+        if (val !== undefined && val !== null && val !== '') return val;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * POST /api/taghere/webhook/point/metacity-point-event
+ *
+ * MagicPos(메타씨티) POS 단말에서 발생한 포인트 적립/사용을 CRM 에 반영하는 인바운드 웹훅.
+ *
+ * [매핑 확정 전 — 캡처 우선 모드]
+ * - 어떤 JSON 형식이 와도 수신하고, 원문(raw)을 통째로 로깅한다(매직포스 실제 페이로드 관찰용).
+ * - 별칭 기반 best-effort 로 매장/고객/잔액/거래키를 추출 → 추출되면 CRM 에 반영,
+ *   필수값을 못 찾으면 원문만 남기고 success:true(mapped:false) 로 응답(연동 깨지지 않게).
+ * - 실제 페이로드 확인 후 collectSources/pickField 별칭을 확정/조정하면 됨.
+ *
+ * 반영 규칙: Customer.totalPoints = balance(authoritative set) + PointLedger 이력,
+ *           멱등키 externalTxId(=txId)로 중복/echo 방지. balance/savePoint/usedPoint 는 재계산하지 않음.
+ * 주의: 태그히어 모바일오더 포인트는 이미 /transaction 이 기록하므로 이 웹훅으로 중복 전송 금지.
+ */
+router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
+  try {
+    // 0. 원문 로깅 — 매핑 확정 전, 매직포스가 실제 보내는 페이로드를 그대로 관찰
+    console.log('[Point Webhook] metacity-point-event RAW:', JSON.stringify(req.body));
+
+    // 1. 유연 추출 (별칭 기반 best-effort). 실제 페이로드 확인 후 별칭을 조정/확정하면 됨.
+    const sources = collectSources(req.body);
+    const metacityStoreIdx = asStr(pickField(sources, ['metacityStoreIdx', 'storeIdx', 'STORE_IDX', 'store_idx']));
+    const storeSlug = asStr(pickField(sources, ['storeSlug', 'slug']));
+    const txId = asStr(pickField(sources, ['txId', 'txid', 'transactionId', 'ORDER_NO', 'order_no', 'orderNo', 'orderId']));
+    const phone = asStr(pickField(sources, ['phone', 'CP_NO', 'cp_no', 'cpNo', 'tel', 'mobile', 'phoneNumber']));
+    const custId = asStr(pickField(sources, ['custId', 'CUST_ID', 'cust_id']));
+    const balanceRaw = pickField(sources, ['balance', 'ablePoint', 'ABLE_POINT', 'able_point', 'remainPoint', 'remainingPoint']);
+    const saveRaw = pickField(sources, ['savePoint', 'SAVE_POINT', 'save_point', 'earnPoint', 'accruePoint', 'addPoint']);
+    const useRaw = pickField(sources, ['usedPoint', 'USED_POINT', 'used_point', 'usePoint', 'deductPoint']);
+    const purAmtRaw = pickField(sources, ['purAmt', 'PUR_AMT', 'pur_amt', 'amount', 'payAmount', 'totalAmount']);
+
+    // 2. 매핑 필수값 점검 — 부족하면 원문만 남기고 성공 응답(캡처 단계, 연동 안 깨지게)
+    const missing: string[] = [];
+    if (!metacityStoreIdx && !storeSlug) missing.push('store');
+    if (!txId) missing.push('txId');
+    if (!phone && !custId) missing.push('phone|custId');
+    if (balanceRaw === undefined || balanceRaw === null || balanceRaw === '') missing.push('balance');
+    if (missing.length > 0) {
+      console.warn(`[Point Webhook] metacity-point-event 매핑 보류(누락: ${missing.join(', ')}) — 위 RAW 로그 참조`);
+      return res.json({ success: true, mapped: false, missing });
+    }
+
+    const balanceNum = Math.round(Number(balanceRaw));
+    const saveNum = Math.max(0, Math.round(Number(saveRaw || 0)));
+    const useNum = Math.max(0, Math.round(Number(useRaw || 0)));
+    const purAmtNum = Math.max(0, Math.round(Number(purAmtRaw || 0)));
+    if (!Number.isFinite(balanceNum) || balanceNum < 0) {
+      console.warn(`[Point Webhook] metacity-point-event balance 해석 불가(${JSON.stringify(balanceRaw)}) — 매핑 보류`);
+      return res.json({ success: true, mapped: false, reason: 'invalid_balance' });
+    }
+
+    // 3. 매장 조회 (metacityStoreIdx 우선, storeSlug 폴백). 매직포스 연동 매장만.
+    const store = await prisma.store.findFirst({
+      where: metacityStoreIdx ? { metacityStoreIdx } : { slug: storeSlug! },
+      select: {
+        id: true,
+        name: true,
+        metacityEnabled: true,
+        metacityStoreIdx: true,
+        addressSido: true,
+        addressSigungu: true,
+      },
+    });
+
+    if (!store || !store.metacityEnabled) {
+      console.warn(`[Point Webhook] metacity-point-event 매장 매핑 보류 (storeIdx=${metacityStoreIdx}, slug=${storeSlug}, found=${!!store}, metacityEnabled=${store?.metacityEnabled}) — RAW 로그 참조`);
+      return res.json({ success: true, mapped: false, reason: store ? 'not_metacity_store' : 'store_not_found' });
+    }
+
+    // 4. 고객 식별 — 전화번호 우선(없으면 custId 캐시만으론 신규 생성 불가하므로 보류)
+    if (!phone) {
+      console.warn(`[Point Webhook] metacity-point-event 전화번호 없음(custId=${custId}) — find-or-create 불가, 매핑 보류`);
+      return res.json({ success: true, mapped: false, reason: 'no_phone' });
+    }
+
+    // 5. 전화번호 정규화
+    const phoneDigits = phone.replace(/[^0-9]/g, '');
+    let normalizedDigits = phoneDigits;
+    if (normalizedDigits.startsWith('82') && normalizedDigits.length >= 11) {
+      normalizedDigits = '0' + normalizedDigits.slice(2);
+    }
+    const phoneLastDigits = normalizedDigits.slice(-8);
+
+    // 4. 고객 find-or-create
+    let customer = await prisma.customer.findFirst({
+      where: { storeId: store.id, phoneLastDigits },
+    });
+
+    const trimmedCustId = typeof custId === 'string' ? custId.trim() : '';
+
+    if (!customer) {
+      const formattedPhone = normalizedDigits.length === 11
+        ? `${normalizedDigits.slice(0, 3)}-${normalizedDigits.slice(3, 7)}-${normalizedDigits.slice(7)}`
+        : normalizedDigits;
+
+      try {
+        customer = await prisma.customer.create({
+          data: {
+            storeId: store.id,
+            phone: formattedPhone,
+            phoneLastDigits,
+            totalPoints: 0,
+            visitCount: 0,
+            regionSido: sidoToShort(store.addressSido ?? null),
+            regionSigungu: store.addressSigungu || null,
+            consentMarketing: true,
+            consentAt: new Date(),
+            metacityCustId: trimmedCustId || null,
+            metacitySyncedAt: trimmedCustId ? new Date() : null,
+          },
+        });
+        console.log(`[Point Webhook] Customer created locally (metacity-point-event) - customerId: ${customer.id}, storeId: ${store.id}`);
+      } catch (e: any) {
+        // 동시 첫 거래 경쟁: customers @@unique([storeId, phoneLastDigits]) 충돌 → 승자 재조회
+        if (e?.code === 'P2002') {
+          customer = await prisma.customer.findFirst({ where: { storeId: store.id, phoneLastDigits } });
+        }
+        if (!customer) throw e;
+      }
+    } else if (trimmedCustId && customer.metacityCustId !== trimmedCustId) {
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { metacityCustId: trimmedCustId, metacitySyncedAt: new Date() },
+      });
+    }
+
+    const customerId = customer.id;
+
+    // 5. 멱등성: 동일 txId(externalTxId) 또는 echo(ledger.id == txId) 처리 건이면 현재 잔액 반환
+    const duplicate = await prisma.pointLedger.findFirst({
+      where: {
+        storeId: store.id,
+        OR: [{ externalTxId: txId }, { id: txId }],
+      },
+    });
+
+    if (duplicate) {
+      console.log(`[Point Webhook] 이미 처리된 POS 거래, skip: txId=${txId}`);
+      const current = await prisma.customer.findUnique({
+        where: { id: customerId },
+        select: { totalPoints: true },
+      });
+      return res.json({
+        success: true,
+        data: { balance: current?.totalPoints ?? balanceNum },
+      });
+    }
+
+    // 6. 오늘 첫 방문 여부 (PointLedger 기반, /transaction 과 동일 기준)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    const todayLedger = await prisma.pointLedger.findFirst({
+      where: {
+        customerId,
+        storeId: store.id,
+        createdAt: { gte: todayStart, lte: todayEnd },
+      },
+    });
+    const isFirstVisitToday = !todayLedger;
+
+    // 7. 이력 행 구성
+    //    - balance(거래 후 최종 잔액)는 진실원천. 사용→적립 순서로 잔액 스냅샷 역산.
+    //    - @@unique([storeId, externalTxId]) 때문에 대표 행 1개에만 externalTxId 부여(나머지 null).
+    const ledgerCreates: Array<{ delta: number; balance: number; type: 'EARN' | 'USE' | 'ADJUST'; reason: string }> = [];
+    if (useNum > 0) {
+      ledgerCreates.push({
+        delta: -useNum,
+        balance: balanceNum - saveNum,
+        type: 'USE',
+        reason: `매직포스 POS 포인트 사용 (txId: ${txId})`,
+      });
+    }
+    if (saveNum > 0) {
+      ledgerCreates.push({
+        delta: saveNum,
+        balance: balanceNum,
+        type: 'EARN',
+        reason: `매직포스 POS 포인트 적립 (txId: ${txId})`,
+      });
+    }
+    if (ledgerCreates.length === 0) {
+      // 적립/사용 0 인 잔액 보정성 이벤트 — 멱등키 보존을 위해 ADJUST 1건 기록
+      ledgerCreates.push({
+        delta: 0,
+        balance: balanceNum,
+        type: 'ADJUST',
+        reason: `매직포스 POS 잔액 동기화 (txId: ${txId})`,
+      });
+    }
+
+    const ops: any[] = ledgerCreates.map((row, idx) =>
+      prisma.pointLedger.create({
+        data: {
+          storeId: store.id,
+          customerId,
+          delta: row.delta,
+          balance: row.balance,
+          type: row.type,
+          reason: row.reason,
+          // 대표 행(마지막) 에만 externalTxId 부여 → unique 충돌 방지 + 멱등키 보존
+          externalTxId: idx === ledgerCreates.length - 1 ? txId : null,
+        },
+      }),
+    );
+
+    // 8. totalPoints = balance (authoritative set) + 방문 통계
+    ops.push(
+      prisma.customer.update({
+        where: { id: customerId },
+        data: {
+          totalPoints: balanceNum,
+          ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
+          lastVisitAt: new Date(),
+        },
+      }),
+    );
+
+    await prisma.$transaction(ops);
+
+    console.log(
+      `[Point Webhook] Metacity POS event applied - customerId: ${customerId}, storeId: ${store.id}, used: ${useNum}, saved: ${saveNum}, balance: ${balanceNum}, purAmt: ${purAmtNum}`,
+    );
+
+    return res.json({
+      success: true,
+      data: { balance: balanceNum },
+    });
+  } catch (error: any) {
+    // externalTxId unique 위반(동시 중복 요청)일 때만 멱등 처리로 간주하고 성공 반환.
+    // (고객/기타 제약조건 위반을 성공으로 오인하면 포인트가 유실되므로 target 을 확인)
+    const target = error?.meta?.target;
+    const isLedgerDup = error?.code === 'P2002' && (
+      Array.isArray(target) ? target.includes('externalTxId') : typeof target === 'string' && target.includes('externalTxId')
+    );
+    if (isLedgerDup) {
+      console.warn('[Point Webhook] metacity-point-event 동시 중복 요청(externalTxId P2002), 멱등 처리');
+      return res.json({ success: true, idempotent: true });
+    }
+    console.error('[Point Webhook] Metacity point event error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'server_error',
+      message: 'POS 포인트 이벤트 처리 중 오류가 발생했습니다.',
     });
   }
 });
