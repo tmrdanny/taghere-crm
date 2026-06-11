@@ -279,6 +279,7 @@ export default function AdminStoresPage() {
       metacityBrandCode: store.metacityBrandCode ?? '',
       metacityStoreIdx: store.metacityStoreIdx ?? '',
       metacityAccessCode: store.metacityAccessCode ?? '',
+      metacityMembershipType: store.metacityMembershipType ?? 'INTEGRATED',
     });
     setPointRateInput(String(store.pointRatePercent ?? 5));
     setIsEditMode(false);
