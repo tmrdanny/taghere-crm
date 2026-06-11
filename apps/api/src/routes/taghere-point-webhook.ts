@@ -835,7 +835,13 @@ function pickField(sources: any[], aliases: string[]): any {
  *
  * 반영 규칙: Customer.totalPoints = balance(authoritative set) + PointLedger 이력,
  *           멱등키 externalTxId(=txId)로 중복/echo 방지. balance/savePoint/usedPoint 는 재계산하지 않음.
- * 주의: 태그히어 모바일오더 포인트는 이미 /transaction 이 기록하므로 이 웹훅으로 중복 전송 금지.
+ *
+ * 포인트 기록 주체(이중 적립 방지):
+ * - 매직포스(metacityEnabled) 매장: 포인트의 진실원천이 메타시티이므로 /transaction 은
+ *   PointLedger/totalPoints 를 쓰지 않는다(VisitOrOrder/방문통계만). 매직포스 회원 포인트는
+ *   **이 웹훅이 유일한 CRM 기록 경로**다 — 통합·단독 회원 모두 메타시티가 여기로 푸시한다.
+ * - 비(非)매직포스 매장: 태그히어 모바일오더 포인트는 /transaction 이 기록하므로,
+ *   해당 매장 건을 이 웹훅으로 중복 전송하면 안 된다.
  */
 router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
   try {
