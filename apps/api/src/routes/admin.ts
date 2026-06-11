@@ -500,13 +500,13 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
     const crmToggled = crmEnabled !== undefined && crmEnabled !== wasCrmEnabled;
     const enrollmentModeChanged = enrollmentMode !== undefined && enrollmentMode !== wasEnrollmentMode;
 
-    // 메타씨티 관련 필드(활성화 / 회원 유형) 변경 시 V2 StoreSetting 동기화
+    // 메타씨티 설정(활성화 / 회원 유형)이 요청에 포함되면 V2 StoreSetting 으로 항상 현재값 동기화.
+    // (값 변경 여부와 무관하게 전송 — 마이그레이션 기본값 리셋 등으로 V2 가 조용히 stale 되는 것을 방지)
     const wasMetacityEnabled = (existingStore as any).metacityEnabled ?? false;
     const wasMembershipType = ((existingStore as any).metacityMembershipType ?? 'INTEGRATED') as 'INTEGRATED' | 'STANDALONE';
-    const metacityEnabledChanged = metacityEnabled !== undefined && !!metacityEnabled !== !!wasMetacityEnabled;
-    const membershipTypeChanged = normalizedMembershipType !== undefined && normalizedMembershipType !== wasMembershipType;
+    const metacitySettingsPresent = metacityEnabled !== undefined || metacityMembershipType !== undefined;
     const effectiveStoreSlug = slug || existingStore.slug;
-    if ((metacityEnabledChanged || membershipTypeChanged) && effectiveStoreSlug) {
+    if (metacitySettingsPresent && effectiveStoreSlug) {
       const effectiveMetacityEnabled = metacityEnabled !== undefined ? !!metacityEnabled : !!wasMetacityEnabled;
       const effectiveMembershipType = (normalizedMembershipType ?? wasMembershipType) as 'INTEGRATED' | 'STANDALONE';
       notifyStoreMetacitySettingsToV2({
