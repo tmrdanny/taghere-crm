@@ -654,12 +654,15 @@ router.post('/standalone-member-snapshot', webhookAuthMiddleware, async (req: We
  */
 router.post('/standalone-visit', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
   try {
-    const { storeSlug, phone, custCd, orderId, totalAmount } = req.body as {
+    const { storeSlug, phone, custCd, orderId, totalAmount, balance, usedAmount } = req.body as {
       storeSlug?: string;
       phone?: string;
       custCd?: string | null;
       orderId?: string;
       totalAmount?: number;
+      // 단독 회원 포인트: balance = 주문 후 메타시티 잔액(authoritative, null 이면 방문만), usedAmount = 사용액
+      balance?: number | null;
+      usedAmount?: number | null;
     };
 
     if (!storeSlug || !phone || !orderId) {
@@ -750,7 +753,13 @@ router.post('/standalone-visit', webhookAuthMiddleware, async (req: WebhookReque
     // 주문 메뉴 정보 보강 — 통합 /transaction 과 동일하게 VisitOrOrder.items 에 메뉴/테이블을 기록한다.
     const orderItemsData = await buildVisitOrderItems(orderId, store.taghereVersion);
 
-    await prisma.$transaction([
+    // 단독 회원 포인트: 메타시티 잔액(balance)이 오면 totalPoints 를 authoritative set 하고 net 동기화 원장 1건 기록.
+    // (정확한 EARN/USE 분리는 메타시티 /metacity-point-event 가동 시로 위임 — V2 는 잔액만 신뢰.)
+    const hasBalance = balance !== null && balance !== undefined && Number.isFinite(Number(balance));
+    const balanceNum = hasBalance ? Math.max(0, Math.round(Number(balance))) : null;
+    const usedNum = Math.max(0, Math.round(Number(usedAmount || 0)));
+
+    const ops: any[] = [
       prisma.visitOrOrder.upsert({
         where: { storeId_orderId: { storeId: store.id, orderId } },
         update: {},
@@ -768,9 +777,49 @@ router.post('/standalone-visit', webhookAuthMiddleware, async (req: WebhookReque
         data: {
           ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
           lastVisitAt: new Date(),
+          ...(balanceNum !== null && { totalPoints: balanceNum }),
         },
       }),
-    ]);
+    ];
+
+    if (balanceNum !== null) {
+      // 메타시티 잔액이 진실원천. 사용액(usedNum)은 정확히 알고, 적립액은 잔액차로 역산.
+      // 사장님 노출용이라 reason 은 출처(태그히어 주문)만 — orderId 등 내부값은 남기지 않는다.
+      const oldBalance = customer.totalPoints;
+      const earned = Math.max(balanceNum - oldBalance + usedNum, 0);
+      if (usedNum > 0) {
+        ops.push(
+          prisma.pointLedger.create({
+            data: {
+              storeId: store.id,
+              customerId: customer.id,
+              delta: -usedNum,
+              balance: balanceNum - earned,
+              type: 'USE',
+              reason: '태그히어 주문 사용',
+              orderId,
+            },
+          }),
+        );
+      }
+      if (earned > 0) {
+        ops.push(
+          prisma.pointLedger.create({
+            data: {
+              storeId: store.id,
+              customerId: customer.id,
+              delta: earned,
+              balance: balanceNum,
+              type: 'EARN',
+              reason: '태그히어 주문 적립',
+              orderId,
+            },
+          }),
+        );
+      }
+    }
+
+    await prisma.$transaction(ops);
 
     res.json({ success: true });
   } catch (error: any) {
@@ -834,7 +883,8 @@ function pickField(sources: any[], aliases: string[]): any {
  * - 실제 페이로드 확인 후 collectSources/pickField 별칭을 확정/조정하면 됨.
  *
  * 반영 규칙: Customer.totalPoints = balance(authoritative set) + PointLedger 이력,
- *           멱등키 externalTxId(=txId)로 중복/echo 방지. balance/savePoint/usedPoint 는 재계산하지 않음.
+ *           멱등키 externalTxId(txId 가 있으면 그 값, 없으면 내용 기반 합성키)로 재전송 중복 방지.
+ *           balance/savePoint/usedPoint 는 재계산하지 않음.
  *
  * 포인트 기록 주체(이중 적립 방지):
  * - 매직포스(metacityEnabled) 매장: 포인트의 진실원천이 메타시티이므로 /transaction 은
@@ -864,9 +914,9 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
     const purAmtRaw = pickField(sources, ['purAmt', 'PUR_AMT', 'pur_amt', 'amount', 'payAmount', 'totalAmount']);
 
     // 2. 매핑 필수값 점검 — 부족하면 원문만 남기고 성공 응답(캡처 단계, 연동 안 깨지게)
+    // txId 는 메타시티가 빈 값으로 보내므로 필수에서 제외하고, 없으면 내용 기반 멱등키를 합성한다(아래).
     const missing: string[] = [];
     if (!metacityStoreIdx && !storeSlug) missing.push('store');
-    if (!txId) missing.push('txId');
     if (!phone && !custId) missing.push('phone|custId');
     if (balanceRaw === undefined || balanceRaw === null || balanceRaw === '') missing.push('balance');
     if (missing.length > 0) {
@@ -971,16 +1021,21 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
 
     const customerId = customer.id;
 
-    // 5. 멱등성: 동일 txId(externalTxId) 또는 echo(ledger.id == txId) 처리 건이면 현재 잔액 반환
+    // 멱등키: 메타시티가 txId 를 빈 값으로 보내므로, 없으면 내용 기반으로 합성한다.
+    // (동일 이벤트 재전송은 모든 값이 같아 같은 키로 합쳐지고, 잔액 변동이 있는 별개 거래는 키가 달라 따로 기록됨.)
+    const idempotencyKey = txId
+      || `mc:${store.metacityStoreIdx ?? storeSlug ?? store.id}:${phoneLastDigits}:${balanceNum}:${saveNum}:${useNum}:${purAmtNum}`;
+
+    // 5. 멱등성: 동일 멱등키(externalTxId) 처리 건이면 현재 잔액 반환
     const duplicate = await prisma.pointLedger.findFirst({
       where: {
         storeId: store.id,
-        OR: [{ externalTxId: txId }, { id: txId }],
+        externalTxId: idempotencyKey,
       },
     });
 
     if (duplicate) {
-      console.log(`[Point Webhook] 이미 처리된 POS 거래, skip: txId=${txId}`);
+      console.log(`[Point Webhook] 이미 처리된 POS 거래, skip: key=${idempotencyKey}`);
       const current = await prisma.customer.findUnique({
         where: { id: customerId },
         select: { totalPoints: true },
@@ -1014,7 +1069,7 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
         delta: -useNum,
         balance: balanceNum - saveNum,
         type: 'USE',
-        reason: `매직포스 POS 포인트 사용 (txId: ${txId})`,
+        reason: '포스 사용',
       });
     }
     if (saveNum > 0) {
@@ -1022,7 +1077,7 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
         delta: saveNum,
         balance: balanceNum,
         type: 'EARN',
-        reason: `매직포스 POS 포인트 적립 (txId: ${txId})`,
+        reason: '포스 적립',
       });
     }
     if (ledgerCreates.length === 0) {
@@ -1031,7 +1086,7 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
         delta: 0,
         balance: balanceNum,
         type: 'ADJUST',
-        reason: `매직포스 POS 잔액 동기화 (txId: ${txId})`,
+        reason: '포스 잔액 동기화',
       });
     }
 
@@ -1044,8 +1099,8 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
           balance: row.balance,
           type: row.type,
           reason: row.reason,
-          // 대표 행(마지막) 에만 externalTxId 부여 → unique 충돌 방지 + 멱등키 보존
-          externalTxId: idx === ledgerCreates.length - 1 ? txId : null,
+          // 대표 행(마지막) 에만 멱등키 부여 → unique 충돌 방지 + 재전송 중복 방지
+          externalTxId: idx === ledgerCreates.length - 1 ? idempotencyKey : null,
         },
       }),
     );
