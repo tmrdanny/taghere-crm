@@ -7,6 +7,21 @@ import { syncToMetacity } from '../services/metacity.js';
 
 const router = Router();
 
+/**
+ * 매직포스 단독 회원(STANDALONE) 매장은 메타씨티 POS 가 포인트의 진실원천이므로
+ * CRM 어드민/사장님 화면에서의 수동 포인트 조정은 허용하지 않는다.
+ */
+async function isStandaloneMagicposStore(storeId: string): Promise<boolean> {
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { metacityEnabled: true, metacityMembershipType: true },
+  });
+  return !!(store?.metacityEnabled && store.metacityMembershipType === 'STANDALONE');
+}
+
+const STANDALONE_BLOCK_MESSAGE =
+  '매직포스 단독 회원 매장은 메타씨티 POS 가 포인트의 진실원천이라 어드민에서 수동 조정할 수 없습니다.';
+
 // POST /api/points/earn - 포인트 적립
 router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -16,6 +31,10 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
 
     if (!points || points <= 0) {
       return res.status(400).json({ error: '적립할 포인트를 입력해주세요.' });
+    }
+
+    if (await isStandaloneMagicposStore(storeId)) {
+      return res.status(400).json({ error: STANDALONE_BLOCK_MESSAGE });
     }
 
     let customer;
@@ -240,6 +259,10 @@ router.post('/use', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: '사용할 포인트를 입력해주세요.' });
     }
 
+    if (await isStandaloneMagicposStore(storeId)) {
+      return res.status(400).json({ error: STANDALONE_BLOCK_MESSAGE });
+    }
+
     const customer = await prisma.customer.findFirst({
       where: { id: customerId, storeId },
     });
@@ -344,6 +367,10 @@ router.post('/tablet-earn', authMiddleware, async (req: AuthRequest, res) => {
 
     if (!phone) {
       return res.status(400).json({ error: '전화번호를 입력해주세요.' });
+    }
+
+    if (await isStandaloneMagicposStore(storeId)) {
+      return res.status(400).json({ error: STANDALONE_BLOCK_MESSAGE });
     }
 
     // 전화번호 정규화 (숫자만 추출)

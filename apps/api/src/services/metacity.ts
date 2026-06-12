@@ -67,6 +67,21 @@ interface PointSyncParams {
   savePoint?: number;
 }
 
+export interface MetacityPointBalance {
+  ablePoint: number;
+  totPoint: number;
+  usedPoint: number;
+}
+
+export interface MetacityCustomerInfo extends MetacityPointBalance {
+  custId: string;
+  /**
+   * 메타씨티 응답에서 실제 CUST_ID 를 받아내지 못해 phoneDigits 등으로 임시 채운 경우 true.
+   * 호출자는 이 값이 true 이면 metacityCustId 캐시에 저장하지 않는다 (다음 호출에서 정상 식별 재시도).
+   */
+  isFallback: boolean;
+}
+
 // ── 유틸리티 함수 ──
 
 /** 전화번호를 국내 11자리 숫자로 정규화 (+82 10-2763-6023 → 01027636023) */
@@ -134,6 +149,66 @@ function extractCustId(resp: MetacityResponse | null | undefined): string | null
     if (first?.CUST_CD && String(first.CUST_CD).trim()) return String(first.CUST_CD).trim();
   }
   return null;
+}
+
+/**
+ * 메타씨티 포인트 값 파싱.
+ * - CUST_INFO_LIST 의 포인트 필드는 STRING (스펙 1.4.16)
+ * - POINT_INFO_LIST 의 포인트 필드는 INTEGER (스펙 1.7.2 / 1.7.4)
+ * 어느 쪽이 와도 number 로 변환. 파싱 실패/결손/음수는 0 으로 정규화.
+ */
+function parseMetacityNumber(value: unknown): number {
+  let n: number;
+  if (typeof value === 'number') {
+    n = value;
+  } else if (typeof value === 'string') {
+    n = parseInt(value, 10);
+  } else {
+    return 0;
+  }
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return n;
+}
+
+/**
+ * CUST_SEARCH 응답(`CUST_INFO_LIST[0]`) 에서 CUST_ID + 포인트 잔액 추출.
+ * 매직포스 회원이 없거나 응답이 비면 null.
+ */
+function extractCustInfo(resp: MetacityResponse | null | undefined): MetacityCustomerInfo | null {
+  if (!resp) return null;
+  const list = Array.isArray(resp.CUST_INFO_LIST) ? resp.CUST_INFO_LIST : null;
+  if (!list || list.length === 0) return null;
+  const first = list[0];
+  const rawCustId =
+    (typeof first?.CUST_ID === 'string' && first.CUST_ID.trim()) ||
+    (typeof first?.CUST_CD === 'string' && first.CUST_CD.trim()) ||
+    (first?.CUST_ID != null && String(first.CUST_ID).trim()) ||
+    (first?.CUST_CD != null && String(first.CUST_CD).trim()) ||
+    '';
+  if (!rawCustId) return null;
+  return {
+    custId: rawCustId,
+    ablePoint: parseMetacityNumber(first?.ABLE_POINT),
+    totPoint: parseMetacityNumber(first?.TOT_POINT),
+    usedPoint: parseMetacityNumber(first?.USED_POINT),
+    isFallback: false,
+  };
+}
+
+/**
+ * POINT_SEARCH / POINT_SAVE / POINT_USE / POINT_COMBINE 응답(`POINT_INFO_LIST[0]`) 에서 포인트 잔액 추출.
+ * 응답이 비면 null.
+ */
+function extractPointInfo(resp: MetacityResponse | null | undefined): MetacityPointBalance | null {
+  if (!resp) return null;
+  const list = Array.isArray(resp.POINT_INFO_LIST) ? resp.POINT_INFO_LIST : null;
+  if (!list || list.length === 0) return null;
+  const first = list[0];
+  return {
+    ablePoint: parseMetacityNumber(first?.ABLE_POINT),
+    totPoint: parseMetacityNumber(first?.TOT_POINT),
+    usedPoint: parseMetacityNumber(first?.USED_POINT),
+  };
 }
 
 /** 고객 데이터 → BIRTH_YMD (YYYYMMDD) */
@@ -243,6 +318,21 @@ export class MetacityService {
     return this.callApi('CustomerInfo.asp', body);
   }
 
+  /** 회원 조회 (CUST_SEARCH) — 캐시된 CUST_ID 로 직접 검색 */
+  async searchCustomerByCustId(custId: string): Promise<MetacityResponse> {
+    const body = {
+      ...this.baseRequest('CUST_SEARCH'),
+      CUST_NM: '',
+      CP_NO: '',
+      LAST_4_CP_NO: '',
+      BIRTH_YMD: '',
+      EMAIL: '',
+      CUST_ID: custId,
+    };
+
+    return this.callApi('CustomerInfo.asp', body);
+  }
+
   /** 회원 조회 (CUST_SEARCH) — 전화번호 뒷 4자리로 검색 (CP_NO 매칭 실패 시 폴백) */
   async searchCustomerByPhoneLast4(phone: string): Promise<MetacityResponse> {
     const digits = phoneToDigits(phone);
@@ -331,23 +421,29 @@ interface SyncToMetacityParams {
 }
 
 /**
- * 메타씨티에 포인트 동기화 (fire-and-forget 용도)
+ * 메타씨티에 포인트 동기화
  *
  * 1. 고객의 metacityCustId가 없으면 → 회원 등록/조회 후 ID 저장
  * 2. 포인트 적립/사용/취소 동기화
+ * 3. 메타씨티 응답의 ABLE_POINT/TOT_POINT/USED_POINT 를 파싱해서 반환
+ *
+ * 기존 fire-and-forget 호출부(`.catch(...)`) 와도 호환 (리턴값을 무시하면 됨).
+ * 매직포스 매장의 새 동기 호출부는 리턴값을 직접 사용한다.
+ *
+ * 실패/스킵 시 null. (E4001 self-heal 후 결국 실패한 경우 throw)
  */
-export async function syncToMetacity(params: SyncToMetacityParams): Promise<void> {
+export async function syncToMetacity(params: SyncToMetacityParams): Promise<MetacityPointBalance | null> {
   const { store, customer, operationType, orderNo, purAmt, usedPoint, savePoint } = params;
 
   // 설정 검증
   if (!store.metacityEnabled || !store.metacityStoreIdx) {
-    return;
+    return null;
   }
 
   // 전화번호 없으면 동기화 불가
   if (!customer.phone) {
     console.warn('[Metacity] 전화번호 없는 고객은 동기화 불가:', customer.id);
-    return;
+    return null;
   }
 
   const service = new MetacityService({
@@ -372,13 +468,14 @@ export async function syncToMetacity(params: SyncToMetacityParams): Promise<void
       });
     } else {
       console.error('[Metacity] 회원 등록/조회 실패, 동기화 중단:', customer.id);
-      return;
+      return null;
     }
   }
 
   // 포인트 동기화 (E4001 → CUST_ID 무효 → 캐시 비우고 재식별 후 1회 재시도)
+  let pointResp: MetacityResponse;
   try {
-    await service.pointOperation(operationType, {
+    pointResp = await service.pointOperation(operationType, {
       custId,
       orderNo,
       purAmt,
@@ -416,7 +513,7 @@ export async function syncToMetacity(params: SyncToMetacityParams): Promise<void
       custId = newCustId;
 
       // 새 ID로 1회 재시도
-      await service.pointOperation(operationType, {
+      pointResp = await service.pointOperation(operationType, {
         custId,
         orderNo,
         purAmt,
@@ -435,7 +532,99 @@ export async function syncToMetacity(params: SyncToMetacityParams): Promise<void
     data: { metacitySyncedAt: new Date() },
   });
 
-  console.log(`[Metacity] ${operationType} 동기화 완료: customer=${customer.id}, custId=${custId}`);
+  const balance = extractPointInfo(pointResp);
+  console.log(
+    `[Metacity] ${operationType} 동기화 완료: customer=${customer.id}, custId=${custId}, balance=${JSON.stringify(balance)}`,
+  );
+  return balance;
+}
+
+/**
+ * 메타씨티 회원 식별 + 잔액 조회 (조회 경로 전용)
+ *
+ * 사용 흐름:
+ *   1) 캐시된 metacityCustId 있으면 → CUST_SEARCH(CUST_ID) 1회로 잔액 획득
+ *   2) 캐시 없거나 캐시가 stale 이면 → CUST_SEARCH(CP_NO) → LAST_4 → JOIN 순으로 폴백
+ *   3) JOIN 직후엔 잔액 0 으로 응답 (추가 호출 없음)
+ *
+ * `Customer.metacityCustId` 캐시 업데이트는 호출자가 담당.
+ * 메타시티 호출 실패 / 식별 불가 시 null.
+ */
+export async function resolveMetacityCustomer(
+  service: MetacityService,
+  customer: SyncToMetacityParams['customer'],
+): Promise<MetacityCustomerInfo | null> {
+  // 1. 캐시된 CUST_ID 가 있으면 그걸로 직접 조회 (1회 호출로 잔액까지)
+  if (customer.metacityCustId) {
+    try {
+      const resp = await service.searchCustomerByCustId(customer.metacityCustId);
+      const info = extractCustInfo(resp);
+      if (info) return info;
+      console.warn('[Metacity] 캐시된 CUST_ID 조회 결과 비어있음, CP_NO 로 재시도:', customer.id);
+    } catch (err: any) {
+      // E4001 등 → 캐시가 stale, CP_NO 로 재식별
+      console.warn('[Metacity] CUST_ID 조회 실패, CP_NO 로 재시도:', err.message);
+    }
+  }
+
+  // 2. CP_NO 로 CUST_SEARCH
+  if (!customer.phone) {
+    console.warn('[Metacity] 전화번호 없는 고객은 식별 불가:', customer.id);
+    return null;
+  }
+  try {
+    const resp = await service.searchCustomerByPhone(customer.phone);
+    const info = extractCustInfo(resp);
+    if (info) return info;
+  } catch (err: any) {
+    console.warn('[Metacity] CUST_SEARCH(CP_NO) 실패:', err.message);
+  }
+
+  // 3. LAST_4 폴백 (매직포스가 CP_NO 포맷에 민감한 경우 대비)
+  try {
+    const resp = await service.searchCustomerByPhoneLast4(customer.phone);
+    const info = extractCustInfo(resp);
+    if (info) return info;
+  } catch (err: any) {
+    console.warn('[Metacity] CUST_SEARCH(LAST_4) 실패:', err.message);
+  }
+
+  // 4. 신규 회원 → JOIN. 응답에 잔액이 있으면 그대로, 없으면 0 으로
+  try {
+    const joinResp = await service.registerCustomer({
+      phone: customer.phone,
+      name: customer.name,
+      gender: customer.gender,
+      ageGroup: customer.ageGroup,
+      birthday: customer.birthday,
+      birthYear: customer.birthYear,
+      consentMarketing: customer.consentMarketing,
+    });
+    const info = extractCustInfo(joinResp);
+    if (info) return info;
+    const custId = extractCustId(joinResp);
+    if (custId) {
+      return { custId, ablePoint: 0, totPoint: 0, usedPoint: 0, isFallback: false };
+    }
+    // 응답에 식별자 없음 → phoneDigits 폴백 (이후 트랜잭션 호출에서 E4001 self-heal 가능)
+    // isFallback: true → 호출자는 metacityCustId 캐시에 저장하지 않음
+    console.warn('[Metacity] JOIN 응답에 CUST_ID 없음, phoneDigits 폴백:', JSON.stringify(joinResp));
+    return {
+      custId: phoneToDigits(customer.phone),
+      ablePoint: 0,
+      totPoint: 0,
+      usedPoint: 0,
+      isFallback: true,
+    };
+  } catch (err: any) {
+    // 이미 등록된 회원이라 JOIN 거부됐는데 검색에서도 안 잡힌 모순 케이스 → 식별 불가
+    if (err.message?.includes('E1003') || err.message?.includes('E1004') || err.message?.includes('E1009')) {
+      console.error('[Metacity] 회원 식별 모순 (CUST_SEARCH 0건 + JOIN 중복):', customer.phone);
+      return null;
+    }
+    console.error('[Metacity] JOIN 실패:', err.message);
+    return null;
+  }
 }
 
 /** POINT_SEARCH 응답에서 ABLE_POINT(사용가능포인트)/TOT_POINT(총포인트) 추출 */
