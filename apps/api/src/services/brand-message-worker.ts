@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma.js';
 import { SolapiService, BrandMessageButton } from './solapi.js';
 import { refundFailedMessage, chargeSinglePending } from './message-billing.js';
+import { normalizePhoneNumber } from '../utils/phone.js';
 
 const BATCH_SIZE = 20;
 const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
@@ -34,17 +35,6 @@ function getSolapiService(): SolapiService | null {
 }
 
 // 전화번호 정규화
-function normalizePhoneNumber(phone: string): string {
-  let digits = phone.replace(/[^0-9]/g, '');
-  if (digits.startsWith('82')) {
-    digits = '0' + digits.slice(2);
-  }
-  if (!digits.startsWith('0')) {
-    digits = '0' + digits;
-  }
-  return digits;
-}
-
 // 발송 가능 시간 체크 (08:00 ~ 20:50 KST)
 function isSendableTime(): boolean {
   const now = new Date();
