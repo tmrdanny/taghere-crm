@@ -14,112 +14,21 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatPhone, formatNumber, formatDate, getRelativeTime, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
-import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Upload, Settings2, Download, FileSpreadsheet, Zap, ArrowRight, Bell, Cake, HandMetal } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Upload, Settings2, Download, FileSpreadsheet, Zap, ArrowRight, Bell, Cake, HandMetal } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
-
-interface Customer {
-  id: string;
-  name: string;
-  phone: string;
-  totalPoints: number;
-  totalStamps: number;
-  gender: string;
-  birthday: string | null;   // MM-DD 형식
-  birthYear: number | null;  // YYYY 형식
-  memo: string | null;
-  feedbackRating: number | null;
-  feedbackText: string | null;
-  feedbackAt: string | null;
-  visitCount: number;
-  lastVisitAt: string;
-  isVip: boolean;
-  isNew: boolean;
-  visitSource: string | null;  // 방문 경로
-  lastTableLabel: string | null;  // 마지막 방문 좌석
-  surveyAnswers: Array<{
-    questionId: string;
-    label: string;
-    type: string;
-    valueDate: string | null;
-    valueText: string | null;
-  }>;
-}
-
-interface PointLedgerEntry {
-  id: string;
-  delta: number;
-  balance: number;
-  type: 'EARN' | 'USE' | 'EXPIRE' | 'ADJUST';
-  reason: string | null;
-  tableLabel: string | null;
-  createdAt: string;
-}
-
-interface CustomerFeedbackEntry {
-  id: string;
-  rating: number;
-  text: string | null;
-  createdAt: string;
-}
-
-interface OrderItem {
-  label?: string;  // TagHere API uses 'label' for menu name
-  name?: string;
-  menuName?: string;
-  productName?: string;
-  title?: string;
-  quantity?: number;
-  count?: number;
-  qty?: number;
-  price?: number;
-  amount?: number;
-  totalPrice?: number;
-  option?: string;  // 옵션 정보 (예: "온도: HOT")
-  cancelled?: boolean;
-  cancelledAt?: string;
-  cancelledQuantity?: number;  // 부분 취소된 수량
-}
-
-interface VisitOrOrderEntry {
-  id: string;
-  orderId: string | null;
-  visitedAt: string;
-  items: OrderItem[] | null;
-  totalAmount: number | null;
-  tableNumber: string | null;
-}
-
-// 주문 아이템 배열을 안전하게 가져오는 헬퍼 함수
-function getOrderItems(items: unknown): OrderItem[] {
-  if (!items) return [];
-  if (Array.isArray(items)) return items;
-  // items가 객체이고 내부에 items 배열이 있는 경우 (예: { items: [], tableNumber: '' })
-  if (typeof items === 'object' && 'items' in items && Array.isArray((items as any).items)) {
-    return (items as any).items;
-  }
-  return [];
-}
-
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  priority: number;
-  createdAt: string;
-}
-
-interface MessageHistoryEntry {
-  id: string;
-  content: string;
-  status: 'PENDING' | 'SENT' | 'FAILED';
-  cost: number;
-  failReason: string | null;
-  sentAt: string | null;
-  createdAt: string;
-  campaignTitle: string | null;
-}
+import {
+  Customer,
+  PointLedgerEntry,
+  CustomerFeedbackEntry,
+  OrderItem,
+  VisitOrOrderEntry,
+  Announcement,
+  MessageHistoryEntry,
+  getOrderItems,
+} from './types';
+import { StarRating } from './StarRating';
 
 // 컬럼 정의 상수
 const COLUMN_DEFINITIONS = [
@@ -137,27 +46,6 @@ const COLUMN_DEFINITIONS = [
 
 const DEFAULT_VISIBLE_COLUMNS = COLUMN_DEFINITIONS.filter(c => c.defaultVisible).map(c => c.id);
 const COLUMN_STORAGE_KEY = 'taghere-customer-list-columns';
-
-// 별점 컴포넌트
-function StarRating({ rating, onRatingChange, readonly = false }: { rating: number; onRatingChange?: (rating: number) => void; readonly?: boolean }) {
-  return (
-    <div className="flex gap-1">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          key={star}
-          type="button"
-          disabled={readonly}
-          onClick={() => onRatingChange?.(star)}
-          className={`${readonly ? 'cursor-default' : 'cursor-pointer hover:scale-110'} transition-transform`}
-        >
-          <Star
-            className={`w-6 h-6 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'fill-none text-neutral-300'}`}
-          />
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export default function CustomersPage() {
   const router = useRouter();
