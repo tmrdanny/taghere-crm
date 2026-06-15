@@ -8,6 +8,9 @@ import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
 import { SolapiService, buildPhoneResultMap } from '../services/solapi.js';
 import { maskName, maskPhone } from '../utils/masking.js';
+import { normalizePhoneNumber } from '../utils/phone.js';
+import { getByteLength } from '../utils/byte-length.js';
+import { getAgeGroupBirthYearRange } from '../lib/customer-filters.js';
 
 const router = Router();
 
@@ -57,52 +60,9 @@ const upload = multer({
   },
 });
 
-// 전화번호 정규화
-function normalizePhoneNumber(phone: string): string {
-  let digits = phone.replace(/[^0-9]/g, '');
-  if (digits.startsWith('82')) {
-    digits = '0' + digits.slice(2);
-  }
-  if (!digits.startsWith('0')) {
-    digits = '0' + digits;
-  }
-  return digits;
-}
-
-// 바이트 길이 계산
-function getByteLength(str: string): number {
-  let byteLength = 0;
-  for (let i = 0; i < str.length; i++) {
-    const charCode = str.charCodeAt(i);
-    if (charCode > 127) {
-      byteLength += 2;
-    } else {
-      byteLength += 1;
-    }
-  }
-  return byteLength;
-}
-
-// 연령대 -> 출생연도 범위 매핑
-function getAgeGroupBirthYearRange(ageGroup: string): { gte: number; lte: number } | null {
-  const currentYear = new Date().getFullYear();
-  switch (ageGroup) {
-    case 'TWENTIES':
-      return { gte: currentYear - 29, lte: currentYear - 20 };
-    case 'THIRTIES':
-      return { gte: currentYear - 39, lte: currentYear - 30 };
-    case 'FORTIES':
-      return { gte: currentYear - 49, lte: currentYear - 40 };
-    case 'FIFTIES':
-      return { gte: currentYear - 59, lte: currentYear - 50 };
-    case 'SIXTY_PLUS':
-      return { gte: 1900, lte: currentYear - 60 };
-    default:
-      return null;
-  }
-}
-
 // 필터 조건 생성
+// 주의: 프랜차이즈 프론트는 'ALL'(대문자) 센티넬을 사용하므로 매장용 buildFilterConditions와
+// 별도로 유지한다. 또한 지역 필터는 사용하지 않는다.
 function buildFilterConditions(genderFilter?: string, ageGroups?: string[]): any {
   const conditions: any = {};
 

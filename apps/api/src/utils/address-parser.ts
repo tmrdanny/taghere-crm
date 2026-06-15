@@ -106,31 +106,6 @@ export function parseKoreanAddress(address: string): ParsedAddress {
 }
 
 /**
- * 주소 유효성 검증
- * @param address 파싱된 주소 객체
- * @returns 유효 여부
- */
-export function isValidParsedAddress(address: ParsedAddress): boolean {
-  // 최소한 시/도는 있어야 유효한 주소로 간주
-  return address.sido !== null;
-}
-
-/**
- * 주소 포맷팅 (파싱된 주소를 다시 문자열로)
- * @param address 파싱된 주소 객체
- * @returns 포맷팅된 주소 문자열
- */
-export function formatAddress(address: ParsedAddress): string {
-  const parts: string[] = [];
-
-  if (address.sido) parts.push(address.sido);
-  if (address.sigungu) parts.push(address.sigungu);
-  if (address.detail) parts.push(address.detail);
-
-  return parts.join(' ');
-}
-
-/**
  * 시/도 정식명칭 → 줄임말 변환
  * 예: 서울특별시 → 서울, 경기도 → 경기
  */
