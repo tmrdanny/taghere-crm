@@ -29,6 +29,7 @@ import {
   getOrderItems,
 } from './types';
 import { StarRating } from './StarRating';
+import { UsePointsModal } from './UsePointsModal';
 import { UsePointsConfirmModal } from './UsePointsConfirmModal';
 import { CancelOrderItemModal } from './CancelOrderItemModal';
 import { EarnPointsModal } from './EarnPointsModal';
@@ -1013,10 +1014,6 @@ export default function CustomersPage() {
     }
   };
 
-  const remainingPoints = selectedCustomer
-    ? selectedCustomer.totalPoints - (parseInt(useAmount) || 0)
-    : 0;
-
   const getVisitDescription = (customer: Customer) => {
     const daysAgo = Math.floor(
       (new Date().getTime() - new Date(customer.lastVisitAt).getTime()) /
@@ -1804,103 +1801,20 @@ export default function CustomersPage() {
       </Card>
 
       {/* Use Points Modal */}
-      <Modal open={usePointsModal} onOpenChange={setUsePointsModal}>
-        <ModalContent className="sm:max-w-lg">
-          <ModalHeader>
-            <ModalTitle>포인트 사용</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4">
-            {/* Target */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">
-                사용 대상
-              </label>
-              <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
-                <span className="text-neutral-400">사용 대상</span>
-                <span className="font-medium text-neutral-900">
-                  {maskNickname(selectedCustomer?.name)}
-                </span>
-              </div>
-            </div>
-
-            {/* Available Points */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">
-                보유 포인트
-              </label>
-              <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
-                <span className="text-neutral-400">보유 포인트</span>
-                <span className="font-semibold text-neutral-900">
-                  {formatNumber(selectedCustomer?.totalPoints || 0)} p
-                </span>
-              </div>
-            </div>
-
-            {/* Use Amount */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">
-                사용할 포인트
-              </label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={useAmount}
-                  onChange={(e) => setUseAmount(e.target.value)}
-                  className="pr-8"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">
-                  p
-                </span>
-              </div>
-              <div className="text-right text-sm text-neutral-500">
-                사용 후 잔액{' '}
-                <span className="font-medium text-neutral-900">
-                  {formatNumber(Math.max(0, remainingPoints))} p
-                </span>
-              </div>
-            </div>
-
-            {/* Reason */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">
-                사용 사유 (선택)
-              </label>
-              <Input
-                placeholder="예: 단골 서비스"
-                value={useReason}
-                onChange={(e) => setUseReason(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <ModalFooter>
-            <Button
-              variant="secondary"
-              onClick={() => setUsePointsModal(false)}
-              className="flex-1"
-            >
-              취소
-            </Button>
-            <Button
-              onClick={() => {
-                setUsePointsModal(false);
-                setUseConfirmModal(true);
-              }}
-              disabled={
-                !useAmount ||
-                parseInt(useAmount) <= 0 ||
-                parseInt(useAmount) > (selectedCustomer?.totalPoints || 0) ||
-                submittingUse
-              }
-              className="flex-1"
-            >
-              사용하기
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <UsePointsModal
+        open={usePointsModal}
+        onOpenChange={setUsePointsModal}
+        customer={selectedCustomer}
+        useAmount={useAmount}
+        onAmountChange={setUseAmount}
+        useReason={useReason}
+        onReasonChange={setUseReason}
+        submitting={submittingUse}
+        onProceed={() => {
+          setUsePointsModal(false);
+          setUseConfirmModal(true);
+        }}
+      />
 
       {/* Use Points Confirm Modal */}
       <UsePointsConfirmModal
