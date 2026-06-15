@@ -29,6 +29,8 @@ import {
   getOrderItems,
 } from './types';
 import { StarRating } from './StarRating';
+import { UsePointsConfirmModal } from './UsePointsConfirmModal';
+import { CancelOrderItemModal } from './CancelOrderItemModal';
 
 // 컬럼 정의 상수
 const COLUMN_DEFINITIONS = [
@@ -1903,51 +1905,20 @@ export default function CustomersPage() {
       </Modal>
 
       {/* Use Points Confirm Modal */}
-      <Modal open={useConfirmModal} onOpenChange={(open) => {
-        setUseConfirmModal(open);
-        if (!open) {
+      <UsePointsConfirmModal
+        open={useConfirmModal}
+        customer={selectedCustomer}
+        useAmount={useAmount}
+        submitting={submittingUse}
+        onBack={() => {
+          setUseConfirmModal(false);
           setUsePointsModal(true);
-        }
-      }}>
-        <ModalContent className="sm:max-w-sm">
-          <ModalHeader>
-            <ModalTitle>포인트 사용 확인</ModalTitle>
-          </ModalHeader>
-          <div className="py-4 text-center space-y-2">
-            <p className="text-neutral-600">
-              <span className="font-semibold text-neutral-900">{maskNickname(selectedCustomer?.name)}</span> 님의 포인트를
-            </p>
-            <p className="text-2xl font-bold text-red-500">
-              {formatNumber(parseInt(useAmount) || 0)} p 사용
-            </p>
-            <p className="text-sm text-neutral-500">
-              사용 후 잔액: {formatNumber(Math.max(0, (selectedCustomer?.totalPoints || 0) - (parseInt(useAmount) || 0)))} p
-            </p>
-          </div>
-          <ModalFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setUseConfirmModal(false);
-                setUsePointsModal(true);
-              }}
-              className="flex-1"
-            >
-              돌아가기
-            </Button>
-            <Button
-              onClick={() => {
-                setUseConfirmModal(false);
-                handleUsePoints();
-              }}
-              disabled={submittingUse}
-              className="flex-1 bg-red-500 hover:bg-red-600"
-            >
-              {submittingUse ? '처리 중...' : '확인'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+        }}
+        onConfirm={() => {
+          setUseConfirmModal(false);
+          handleUsePoints();
+        }}
+      />
 
       {/* Earn Points Modal */}
       <Modal open={earnPointsModal} onOpenChange={setEarnPointsModal}>
@@ -3049,95 +3020,19 @@ export default function CustomersPage() {
       </Modal>
 
       {/* Cancel Order Item Confirm Modal */}
-      <Modal open={cancelConfirmModal} onOpenChange={(open) => {
-        setCancelConfirmModal(open);
-        if (!open) {
+      <CancelOrderItemModal
+        open={cancelConfirmModal}
+        itemInfo={cancellingItemInfo}
+        cancelQuantity={cancelQuantity}
+        onQuantityChange={setCancelQuantity}
+        onClose={() => {
+          setCancelConfirmModal(false);
           setCancellingItem(null);
           setCancellingItemInfo(null);
           setCancelQuantity(1);
-        }
-      }}>
-        <ModalContent className="sm:max-w-md">
-          <ModalHeader>
-            <ModalTitle>주문 취소 확인</ModalTitle>
-          </ModalHeader>
-
-          <div className="py-4">
-            <p className="text-sm text-neutral-700 mb-4">
-              다음 메뉴의 주문을 취소하시겠습니까?
-            </p>
-            {cancellingItemInfo && (
-              <div className="p-3 bg-neutral-50 rounded-lg space-y-3">
-                <div>
-                  <p className="font-medium text-neutral-900">{cancellingItemInfo.name}</p>
-                  <p className="text-sm text-neutral-500 mt-1">
-                    단가: {formatNumber(cancellingItemInfo.unitPrice)}원
-                  </p>
-                </div>
-
-                {/* 수량이 2개 이상일 때만 수량 선택 UI 표시 */}
-                {cancellingItemInfo.remainingQty > 1 ? (
-                  <div className="pt-3 border-t border-neutral-200">
-                    <p className="text-sm font-medium text-neutral-700 mb-2">
-                      취소할 수량 (남은 수량: {cancellingItemInfo.remainingQty}개)
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {Array.from({ length: cancellingItemInfo.remainingQty }, (_, i) => i + 1).map((num) => (
-                        <button
-                          key={num}
-                          type="button"
-                          onClick={() => setCancelQuantity(num)}
-                          className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
-                            cancelQuantity === num
-                              ? 'bg-red-500 text-white'
-                              : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                          }`}
-                        >
-                          {num}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-sm text-neutral-600 mt-3">
-                      취소 금액: <span className="font-medium">{formatNumber(cancellingItemInfo.unitPrice * cancelQuantity)}원</span>
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-neutral-500">
-                    취소 금액: {formatNumber(cancellingItemInfo.price)}원
-                  </p>
-                )}
-              </div>
-            )}
-            <p className="text-xs text-red-500 mt-3">
-              ※ 해당 메뉴에 대한 적립 포인트가 자동으로 차감됩니다.
-            </p>
-          </div>
-
-          <ModalFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setCancelConfirmModal(false);
-                setCancellingItem(null);
-                setCancellingItemInfo(null);
-                setCancelQuantity(1);
-              }}
-              className="flex-1"
-            >
-              취소
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleCancelOrderItem}
-              className="flex-1"
-            >
-              {cancellingItemInfo && cancellingItemInfo.remainingQty > 1
-                ? `${cancelQuantity}개 취소`
-                : '주문 취소'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+        }}
+        onConfirm={handleCancelOrderItem}
+      />
     </div>
   );
 }
