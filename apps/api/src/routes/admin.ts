@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
@@ -14,8 +14,16 @@ import {
   discoverMetacityStoreIdxFromV2,
 } from '../services/taghere-api.js';
 import { parseKoreanAddress, sidoToShort } from '../utils/address-parser.js';
+import { AdminRequest, adminAuthMiddleware } from './admin-shared.js';
+import announcementsRouter from './admin-announcements.js';
+import tableLinkRouter from './admin-table-link.js';
 
 const router = Router();
+
+// 도메인별 어드민 서브라우터 (admin.ts에서 점진적으로 분리 중)
+// 경로는 /api/admin 기준 동일하게 유지된다.
+router.use(announcementsRouter);
+router.use(tableLinkRouter);
 
 // 배너 이미지 업로드 디렉토리 설정
 const bannerUploadDir = path.join(process.cwd(), 'uploads', 'banners');
@@ -126,34 +134,6 @@ const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'taghere';
 // 비밀번호는 bcrypt 해시로 저장 (ADMIN_PASSWORD_HASH 환경변수 사용)
 // 해시 생성: npx bcrypt-cli hash "비밀번호"
 const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
-
-interface AdminRequest extends Request {
-  isAdmin?: boolean;
-}
-
-// 어드민 JWT 검증 미들웨어
-const adminAuthMiddleware = (req: AdminRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: '인증이 필요합니다.' });
-  }
-
-  const token = authHeader.split(' ')[1];
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { isSystemAdmin: boolean };
-
-    if (!decoded.isSystemAdmin) {
-      return res.status(403).json({ error: '어드민 권한이 필요합니다.' });
-    }
-
-    req.isAdmin = true;
-    next();
-  } catch (error) {
-    return res.status(401).json({ error: '유효하지 않은 토큰입니다.' });
-  }
-};
 
 // POST /api/admin/login - 어드민 로그인
 router.post('/login', async (req: Request, res: Response) => {
@@ -1155,107 +1135,6 @@ router.post('/stores/:storeId/wallet/deduct', adminAuthMiddleware, async (req: A
 // ========================================
 // 공지사항 관리 API
 // ========================================
-
-// GET /api/admin/announcements - 공지사항 목록 조회
-router.get('/announcements', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
-  try {
-    const announcements = await prisma.announcement.findMany({
-      orderBy: [
-        { priority: 'desc' },
-        { createdAt: 'desc' },
-      ],
-    });
-
-    res.json(announcements);
-  } catch (error) {
-    console.error('Admin announcements error:', error);
-    res.status(500).json({ error: '공지사항 조회 중 오류가 발생했습니다.' });
-  }
-});
-
-// POST /api/admin/announcements - 공지사항 생성
-router.post('/announcements', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
-  try {
-    const { title, content, isActive, priority, startAt, endAt } = req.body;
-
-    if (!title || !content) {
-      return res.status(400).json({ error: '제목과 내용을 입력해주세요.' });
-    }
-
-    const announcement = await prisma.announcement.create({
-      data: {
-        title,
-        content,
-        isActive: isActive ?? true,
-        priority: priority ?? 0,
-        startAt: startAt ? new Date(startAt) : null,
-        endAt: endAt ? new Date(endAt) : null,
-      },
-    });
-
-    res.status(201).json(announcement);
-  } catch (error) {
-    console.error('Admin create announcement error:', error);
-    res.status(500).json({ error: '공지사항 생성 중 오류가 발생했습니다.' });
-  }
-});
-
-// PUT /api/admin/announcements/:id - 공지사항 수정
-router.put('/announcements/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { title, content, isActive, priority, startAt, endAt } = req.body;
-
-    const existing = await prisma.announcement.findUnique({
-      where: { id },
-    });
-
-    if (!existing) {
-      return res.status(404).json({ error: '공지사항을 찾을 수 없습니다.' });
-    }
-
-    const announcement = await prisma.announcement.update({
-      where: { id },
-      data: {
-        title: title ?? existing.title,
-        content: content ?? existing.content,
-        isActive: isActive ?? existing.isActive,
-        priority: priority ?? existing.priority,
-        startAt: startAt !== undefined ? (startAt ? new Date(startAt) : null) : existing.startAt,
-        endAt: endAt !== undefined ? (endAt ? new Date(endAt) : null) : existing.endAt,
-      },
-    });
-
-    res.json(announcement);
-  } catch (error) {
-    console.error('Admin update announcement error:', error);
-    res.status(500).json({ error: '공지사항 수정 중 오류가 발생했습니다.' });
-  }
-});
-
-// DELETE /api/admin/announcements/:id - 공지사항 삭제
-router.delete('/announcements/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const existing = await prisma.announcement.findUnique({
-      where: { id },
-    });
-
-    if (!existing) {
-      return res.status(404).json({ error: '공지사항을 찾을 수 없습니다.' });
-    }
-
-    await prisma.announcement.delete({
-      where: { id },
-    });
-
-    res.json({ success: true, message: '공지사항이 삭제되었습니다.' });
-  } catch (error) {
-    console.error('Admin delete announcement error:', error);
-    res.status(500).json({ error: '공지사항 삭제 중 오류가 발생했습니다.' });
-  }
-});
 
 // DELETE /api/admin/stores/:storeId/customers - 매장의 모든 고객 삭제
 router.delete('/stores/:storeId/customers', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
@@ -3588,202 +3467,6 @@ router.post('/stores/batch-membership-enable', adminAuthMiddleware, async (req, 
   } catch (error) {
     console.error('Admin batch membership enable error:', error);
     res.status(500).json({ error: '일괄 멤버십 활성화 중 오류가 발생했습니다.' });
-  }
-});
-
-// ==================== 테이블 링크 설정 (어드민) ====================
-
-interface TableEntry {
-  tableNumber: string;
-  url: string;
-  label?: string;
-}
-
-const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || 'https://taghere-crm-web-g96p.onrender.com';
-
-// GET /api/admin/table-link-settings/:storeId
-router.get('/table-link-settings/:storeId', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
-  try {
-    const { storeId } = req.params;
-
-    const store = await prisma.store.findUnique({
-      where: { id: storeId },
-      select: { id: true, slug: true, name: true },
-    });
-
-    if (!store) {
-      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
-    }
-
-    // slug가 없는 매장은 자동 생성
-    let storeSlug = store.slug;
-    if (!storeSlug) {
-      const baseSlug = generateSlug(store.name);
-      storeSlug = await getUniqueSlug(baseSlug);
-      await prisma.store.update({
-        where: { id: storeId },
-        data: { slug: storeSlug },
-      });
-    }
-
-    let setting = await prisma.tableLinkSetting.findUnique({
-      where: { storeId },
-    });
-
-    if (!setting) {
-      setting = await prisma.tableLinkSetting.create({
-        data: {
-          storeId,
-          enabled: false,
-          tables: [],
-        },
-      });
-    }
-
-    res.json({
-      enabled: setting.enabled,
-      customerTitle: setting.customerTitle,
-      customerSubtitle: setting.customerSubtitle,
-      tables: (setting.tables as unknown as TableEntry[]) || [],
-      customerPageUrl: `${PUBLIC_APP_URL}/taghere-table-link/${storeSlug}`,
-      storeName: store.name,
-      storeSlug,
-    });
-  } catch (error) {
-    console.error('Admin get table link settings error:', error);
-    res.status(500).json({ error: '테이블 링크 설정 조회 중 오류가 발생했습니다.' });
-  }
-});
-
-// PUT /api/admin/table-link-settings/:storeId
-router.put('/table-link-settings/:storeId', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
-  try {
-    const { storeId } = req.params;
-    const { enabled, tables, customerTitle, customerSubtitle } = req.body;
-
-    const store = await prisma.store.findUnique({ where: { id: storeId } });
-    if (!store) {
-      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
-    }
-
-    if (tables && Array.isArray(tables)) {
-      if (tables.length > 100) {
-        return res.status(400).json({ error: '테이블은 최대 100개까지 등록할 수 있습니다.' });
-      }
-
-      const numbers = tables.map((t: TableEntry) => t.tableNumber);
-      const unique = new Set(numbers);
-      if (unique.size !== numbers.length) {
-        return res.status(400).json({ error: '중복된 테이블 번호가 있습니다.' });
-      }
-
-      for (const t of tables as TableEntry[]) {
-        if (!t.tableNumber || !t.url) {
-          return res.status(400).json({ error: '테이블 번호와 URL은 필수입니다.' });
-        }
-        try {
-          new URL(t.url);
-        } catch {
-          return res.status(400).json({ error: `잘못된 URL 형식입니다: ${t.url}` });
-        }
-      }
-    }
-
-    const setting = await prisma.tableLinkSetting.upsert({
-      where: { storeId },
-      create: {
-        storeId,
-        enabled: enabled ?? false,
-        tables: (tables ?? []) as any,
-        customerTitle: customerTitle ?? null,
-        customerSubtitle: customerSubtitle ?? null,
-      },
-      update: {
-        ...(enabled !== undefined && { enabled }),
-        ...(tables !== undefined && { tables: tables as any }),
-        ...(customerTitle !== undefined && { customerTitle }),
-        ...(customerSubtitle !== undefined && { customerSubtitle }),
-      },
-    });
-
-    res.json({
-      enabled: setting.enabled,
-      customerTitle: setting.customerTitle,
-      customerSubtitle: setting.customerSubtitle,
-      tables: (setting.tables as unknown as TableEntry[]) || [],
-    });
-  } catch (error) {
-    console.error('Admin update table link settings error:', error);
-    res.status(500).json({ error: '테이블 링크 설정 수정 중 오류가 발생했습니다.' });
-  }
-});
-
-// POST /api/admin/table-link-settings/:storeId/bulk-add
-router.post('/table-link-settings/:storeId/bulk-add', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
-  try {
-    const { storeId } = req.params;
-    const { startNumber, endNumber, urlTemplate } = req.body;
-
-    const store = await prisma.store.findUnique({ where: { id: storeId } });
-    if (!store) {
-      return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
-    }
-
-    if (!startNumber || !endNumber || !urlTemplate) {
-      return res.status(400).json({ error: '시작 번호, 끝 번호, URL 템플릿이 필요합니다.' });
-    }
-
-    const start = parseInt(startNumber);
-    const end = parseInt(endNumber);
-
-    if (isNaN(start) || isNaN(end) || start < 1 || end > 100 || start > end) {
-      return res.status(400).json({ error: '유효한 범위를 입력해주세요. (1~100)' });
-    }
-
-    let setting = await prisma.tableLinkSetting.findUnique({
-      where: { storeId },
-    });
-
-    const existingTables = (setting?.tables as unknown as TableEntry[]) || [];
-    const existingNumbers = new Set(existingTables.map(t => t.tableNumber));
-
-    const newTables: TableEntry[] = [];
-    for (let i = start; i <= end; i++) {
-      const num = String(i);
-      if (!existingNumbers.has(num)) {
-        newTables.push({
-          tableNumber: num,
-          url: urlTemplate.replace(/\{number\}/g, num),
-        });
-      }
-    }
-
-    const mergedTables = [...existingTables, ...newTables];
-
-    if (mergedTables.length > 100) {
-      return res.status(400).json({ error: '테이블은 최대 100개까지 등록할 수 있습니다.' });
-    }
-
-    const updated = await prisma.tableLinkSetting.upsert({
-      where: { storeId },
-      create: {
-        storeId,
-        enabled: false,
-        tables: mergedTables as any,
-      },
-      update: {
-        tables: mergedTables as any,
-      },
-    });
-
-    res.json({
-      tables: (updated.tables as unknown as TableEntry[]) || [],
-      addedCount: newTables.length,
-      skippedCount: (end - start + 1) - newTables.length,
-    });
-  } catch (error) {
-    console.error('Admin bulk add tables error:', error);
-    res.status(500).json({ error: '일괄 추가 중 오류가 발생했습니다.' });
   }
 });
 
