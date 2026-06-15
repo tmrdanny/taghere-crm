@@ -8,6 +8,11 @@ export interface AdminRequest extends Request {
   isAdmin?: boolean;
 }
 
+// 어드민 계정 (환경변수 필수)
+export const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'taghere';
+// 비밀번호는 bcrypt 해시로 저장 (ADMIN_PASSWORD_HASH 환경변수 사용)
+export const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
+
 // 어드민 JWT 검증 미들웨어
 export const adminAuthMiddleware = (req: AdminRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
