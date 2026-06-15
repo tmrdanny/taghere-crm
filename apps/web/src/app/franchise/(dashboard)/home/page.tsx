@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useRef } from 'react';
 import {
   Building2,
@@ -58,7 +59,6 @@ const DEMO_VISIT_SOURCE: VisitSourceData[] = [
   { source: 'kakao', label: '카카오톡', count: 2, percentage: 1 },
 ];
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // Demo data for fallback
 const DEMO_DATA: OverviewData = {

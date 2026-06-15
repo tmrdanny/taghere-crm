@@ -1,10 +1,10 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useEffect, useMemo } from 'react';
 import { ArrowRight, Check, MapPin, Search, X, Loader2 } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // 대한민국 전체 시/도 및 시/군/구 데이터
 const KOREA_REGIONS: Record<string, string[]> = {

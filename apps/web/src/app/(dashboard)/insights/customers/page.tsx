@@ -1,10 +1,10 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Users, RefreshCw, TrendingUp, MapPin, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 interface GenderDistribution {
   male: number;

@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState, useCallback } from 'react';
 import { Search, Filter, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -64,7 +65,7 @@ export default function PaymentsPage() {
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const API_URL = API_BASE;
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);

@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import React, { useEffect, useState, useRef } from 'react';
 import { formatNumber } from '@/lib/utils';
 import { fetchJsonCached } from '@/lib/swr-cache';
@@ -183,7 +184,7 @@ export default function AdminHomePage() {
     fetchCorporateAdStats(corporateAdPeriod);
   }, [corporateAdPeriod]);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiBase = API_BASE;
 
   const fetchData = async () => {
     const token = localStorage.getItem('adminToken');
@@ -345,7 +346,7 @@ export default function AdminHomePage() {
     setIsAddingRevenue(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/external-revenue`,
+        `${API_BASE}/api/admin/external-revenue`,
         {
           method: 'POST',
           headers: {

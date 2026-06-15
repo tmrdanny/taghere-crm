@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -297,7 +298,7 @@ export default function CustomersPage() {
   // 설문 질문 목록 (컬럼 헤더용)
   const [surveyQuestionLabels, setSurveyQuestionLabels] = useState<Array<{ id: string; label: string }>>([]);
 
-  const apiUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000', []);
+  const apiUrl = useMemo(() => API_BASE, []);
   const userRole = 'OWNER';
 
   // Get auth token from localStorage (fallback to dev-token for MVP)

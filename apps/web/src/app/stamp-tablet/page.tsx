@@ -1,12 +1,12 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Delete, Loader2, CheckCircle2, Stamp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 const GENDER_OPTIONS = [
   { value: 'MALE', label: '남성' },

@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState, useRef } from 'react';
 
 interface Store {
@@ -26,7 +27,7 @@ interface TableLinkSettings {
 }
 
 export default function AdminTableLinkPage() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = API_BASE;
 
   // Store list & search
   const [stores, setStores] = useState<Store[]>([]);

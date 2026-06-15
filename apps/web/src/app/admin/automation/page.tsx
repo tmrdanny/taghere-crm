@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState } from 'react';
 import { formatNumber } from '@/lib/utils';
 
@@ -54,7 +55,7 @@ export default function AdminAutomationPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = API_BASE;
 
   useEffect(() => {
     const fetchData = async () => {

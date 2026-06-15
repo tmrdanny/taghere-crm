@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -24,7 +25,6 @@ import {
 import { cn } from '@/lib/utils';
 import { ChargeModal } from '@/components/ChargeModal';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // 대한민국 17개 시/도 목록 + 미지정
 const KOREA_SIDOS = [

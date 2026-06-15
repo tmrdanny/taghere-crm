@@ -1,10 +1,10 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Delete, Loader2, CheckCircle2, Clock } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // Types
 interface PointSession {

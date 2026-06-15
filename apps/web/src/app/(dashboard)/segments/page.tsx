@@ -1,11 +1,12 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect } from 'react';
 import { Users, Star, Heart, TrendingUp, UserPlus, AlertTriangle, Moon, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const apiUrl = API_BASE;
 
 interface SegmentData {
   type: string;

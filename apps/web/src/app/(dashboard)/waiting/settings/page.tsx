@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,7 @@ import Link from 'next/link';
 export default function WaitingSettingsPage() {
   const router = useRouter();
   const { showToast, ToastComponent } = useToast();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = API_BASE;
 
   // Data states
   const [settings, setSettings] = useState<Partial<WaitingSetting>>({});

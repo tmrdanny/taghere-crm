@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { STORE_CATEGORIES } from '@/lib/constants';
 import { useEffect, useRef, useState } from 'react';
 import { formatNumber } from '@/lib/utils';
@@ -143,7 +144,7 @@ export default function AdminStoresPage() {
     try {
       // 캐시된 목록을 즉시 표시하고 백그라운드에서 최신 데이터로 갱신
       await fetchJsonCached(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores`,
+        `${API_BASE}/api/admin/stores`,
         token,
         (storesData: any) => {
           setStores(storesData);
@@ -169,7 +170,7 @@ export default function AdminStoresPage() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${storeId}/reset-password`,
+        `${API_BASE}/api/admin/stores/${storeId}/reset-password`,
         {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
@@ -272,7 +273,7 @@ export default function AdminStoresPage() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${selectedStore.id}`,
+        `${API_BASE}/api/admin/stores/${selectedStore.id}`,
         {
           method: 'PATCH',
           headers: {
@@ -322,7 +323,7 @@ export default function AdminStoresPage() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${deleteCustomersModal.storeId}/customers`,
+        `${API_BASE}/api/admin/stores/${deleteCustomersModal.storeId}/customers`,
         {
           method: 'DELETE',
           headers: {
@@ -377,7 +378,7 @@ export default function AdminStoresPage() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${topupModal.storeId}/wallet/topup`,
+        `${API_BASE}/api/admin/stores/${topupModal.storeId}/wallet/topup`,
         {
           method: 'POST',
           headers: {
@@ -437,7 +438,7 @@ export default function AdminStoresPage() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${deductModal.storeId}/wallet/deduct`,
+        `${API_BASE}/api/admin/stores/${deductModal.storeId}/wallet/deduct`,
         {
           method: 'POST',
           headers: {
@@ -524,7 +525,7 @@ export default function AdminStoresPage() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/alimtalk/low-balance-bulk`,
+        `${API_BASE}/api/admin/alimtalk/low-balance-bulk`,
         {
           method: 'POST',
           headers: {
@@ -601,7 +602,7 @@ export default function AdminStoresPage() {
     setIsSendingCc(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/alimtalk/customer-count-bulk`,
+        `${API_BASE}/api/admin/alimtalk/customer-count-bulk`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -643,7 +644,7 @@ export default function AdminStoresPage() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/${storeId}/impersonate`,
+        `${API_BASE}/api/admin/stores/${storeId}/impersonate`,
         {
           method: 'POST',
           headers: { Authorization: `Bearer ${adminToken}` },
@@ -1457,7 +1458,7 @@ export default function AdminStoresPage() {
                             onClick={async () => {
                               try {
                                 const token = localStorage.getItem('adminToken');
-                                const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+                                const baseUrl = API_BASE;
                                 const res = await fetch(`${baseUrl}/api/admin/stores/${selectedStore.id}/discover-metacity-store-idx`, {
                                   method: 'POST',
                                   headers: { Authorization: `Bearer ${token}` },
@@ -1502,7 +1503,7 @@ export default function AdminStoresPage() {
                           onClick={async () => {
                             try {
                               const token = localStorage.getItem('adminToken');
-                              const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+                              const baseUrl = API_BASE;
                               const res = await fetch(`${baseUrl}/api/admin/stores/${selectedStore.id}/resync-metacity-to-v2`, {
                                 method: 'POST',
                                 headers: { Authorization: `Bearer ${token}` },
@@ -2210,7 +2211,7 @@ export default function AdminStoresPage() {
               const token = localStorage.getItem('adminToken');
               if (!token) return;
               const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores`,
+                `${API_BASE}/api/admin/stores`,
                 { headers: { Authorization: `Bearer ${token}` } },
               );
               if (res.ok) {
@@ -2250,7 +2251,7 @@ function BulkAddressModal({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = API_BASE;
   const [filter, setFilter] = useState<'missing' | 'all'>('missing');
   const [parsedRows, setParsedRows] = useState<BulkAddressRow[] | null>(null);
   const [isUploading, setIsUploading] = useState(false);
