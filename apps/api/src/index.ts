@@ -162,7 +162,9 @@ const v1Limiter = rateLimit({
 // Rate Limiting - 인증 관련 (15분에 20요청)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  // 운영에서는 20회로 제한, 비운영(로컬/테스트)에서는 완화하여
+  // E2E의 테스트별 로그인이 rate limit에 막히지 않도록 한다.
+  max: process.env.NODE_ENV === 'production' ? 20 : 1000,
   message: { error: '로그인 시도가 너무 많습니다. 15분 후 다시 시도해주세요.' },
   standardHeaders: true,
   legacyHeaders: false,
