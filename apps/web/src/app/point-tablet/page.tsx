@@ -1,5 +1,6 @@
 'use client';
 
+import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Delete, Loader2, CheckCircle2, Clock } from 'lucide-react';
 
@@ -14,14 +15,6 @@ interface PointSession {
 }
 
 // 연령대 옵션
-const AGE_GROUP_OPTIONS = [
-  { value: 'TWENTIES', label: '20대' },
-  { value: 'THIRTIES', label: '30대' },
-  { value: 'FORTIES', label: '40대' },
-  { value: 'FIFTIES', label: '50대' },
-  { value: 'SIXTY_PLUS', label: '60대 이상' },
-];
-
 // 성별 옵션
 const GENDER_OPTIONS = [
   { value: 'MALE', label: '남성' },

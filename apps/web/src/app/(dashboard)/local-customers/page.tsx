@@ -1,5 +1,6 @@
 'use client';
 
+import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
@@ -29,15 +30,6 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const KOREA_SIDOS = [
   '서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종',
   '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주', '미지정'
-];
-
-// 연령대 옵션
-const AGE_GROUP_OPTIONS = [
-  { value: 'TWENTIES', label: '20대' },
-  { value: 'THIRTIES', label: '30대' },
-  { value: 'FORTIES', label: '40대' },
-  { value: 'FIFTIES', label: '50대' },
-  { value: 'SIXTY_PLUS', label: '60대 이상' },
 ];
 
 // 성별 옵션
