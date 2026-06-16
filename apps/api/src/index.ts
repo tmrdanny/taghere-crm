@@ -1,14 +1,10 @@
+// 환경변수 로딩을 최우선으로 (라우트 등 다른 모듈 import보다 먼저 실행되어야 함)
+import './load-env.js';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import path from 'path';
 import http from 'http';
 import rateLimit from 'express-rate-limit';
-
-// Load environment variables (production uses system env, dev uses .env file)
-if (process.env.NODE_ENV !== 'production') {
-  dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
-}
 
 // 필수 환경변수 검증
 const requiredEnvVars = [
