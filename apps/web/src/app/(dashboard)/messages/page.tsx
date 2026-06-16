@@ -43,107 +43,21 @@ import { cn } from '@/lib/utils';
 import { ChargeModal } from '@/components/ChargeModal';
 
 
-interface TargetCounts {
-  all: number;
-  revisit: number;
-  new: number;
-}
-
-interface EstimatedRevenue {
-  avgOrderValue: number;
-  conversionRate: number;
-  expectedVisits: number;
-  expectedRevenue: number;
-}
-
-interface FreeCredits {
-  remaining: number;
-  freeCount: number;
-  paidCount: number;
-  isRetargetPage: boolean;
-}
-
-interface Estimate {
-  targetCount: number;
-  byteLength: number;
-  messageType: 'SMS' | 'LMS' | 'MMS';
-  costPerMessage: number;
-  totalCost: number;
-  walletBalance: number;
-  canSend: boolean;
-  estimatedRevenue?: EstimatedRevenue;
-  freeCredits?: FreeCredits;
-}
-
-interface UploadedImage {
-  imageUrl: string;
-  filename: string;
-  imageId: string; // SOLAPI에서 받은 이미지 ID
-  width: number;
-  height: number;
-  size: number;
-}
-
-// 이미지 제약 조건 상수
-const IMAGE_MAX_SIZE = 200 * 1024; // 200KB
-const IMAGE_MAX_WIDTH = 1500;
-const IMAGE_MAX_HEIGHT = 1440;
-
-interface Campaign {
-  id: string;
-  title: string;
-  content: string;
-  targetType: string;
-  targetCount: number;
-  sentCount: number;
-  failedCount: number;
-  totalCost: number;
-  status: string;
-  createdAt: string;
-  completedAt: string | null;
-}
-
-interface SelectedCustomer {
-  id: string;
-  name: string | null;
-  phone: string | null;
-}
-
-// 카카오톡 브랜드 메시지 관련 인터페이스
-interface KakaoButton {
-  type: 'WL';
-  name: string;
-  linkMo: string;
-  linkPc?: string;
-}
-
-interface KakaoEstimate {
-  targetCount: number;
-  messageType: 'TEXT' | 'IMAGE';
-  costPerMessage: number;
-  totalCost: number;
-  walletBalance: number;
-  canSend: boolean;
-  estimatedRevenue?: EstimatedRevenue;
-  freeCredits?: FreeCredits;
-}
-
-interface KakaoUploadedImage {
-  imageUrl: string;
-  imageId: string;
-  filename: string;
-}
-
-interface CustomerListItem {
-  id: string;
-  name: string | null;
-  phone: string | null;
-  visitCount: number;
-  totalPoints: number;
-  gender: string | null;
-  createdAt: string;
-  messageCount?: number;
-}
+import {
+  TargetCounts,
+  EstimatedRevenue,
+  FreeCredits,
+  Estimate,
+  UploadedImage,
+  SelectedCustomer,
+  KakaoButton,
+  KakaoEstimate,
+  KakaoUploadedImage,
+  CustomerListItem,
+  IMAGE_MAX_SIZE,
+  IMAGE_MAX_WIDTH,
+  IMAGE_MAX_HEIGHT,
+} from './types';
 
 export default function MessagesPage() {
   const router = useRouter();
