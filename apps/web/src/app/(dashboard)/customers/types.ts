@@ -101,3 +101,22 @@ export interface MessageHistoryEntry {
   createdAt: string;
   campaignTitle: string | null;
 }
+
+// 대량 등록(엑셀) 파싱 행
+export interface BulkRow {
+  phone: string;
+  name?: string;
+  gender?: string;
+  birthYear?: string | number;
+  birthday?: string;
+  memo?: string;
+  initialPoints?: number;
+  initialStamps?: number;
+}
+
+// 대량 등록 결과
+export interface BulkUploadResult {
+  created: number;
+  skipped: number;
+  errors: Array<{ row: number; phone: string; reason: string }>;
+}

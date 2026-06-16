@@ -14,7 +14,7 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatPhone, formatNumber, formatDate, getRelativeTime, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
-import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Upload, Settings2, Download, FileSpreadsheet, Zap, ArrowRight, Bell, Cake, HandMetal } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Settings2, FileSpreadsheet, Zap, ArrowRight, Bell, Cake, HandMetal } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
@@ -26,9 +26,12 @@ import {
   VisitOrOrderEntry,
   Announcement,
   MessageHistoryEntry,
+  BulkRow,
   getOrderItems,
 } from './types';
 import { StarRating } from './StarRating';
+import { AddCustomerModal } from './AddCustomerModal';
+import { BulkUploadModal } from './BulkUploadModal';
 import { UsePointsModal } from './UsePointsModal';
 import { UsePointsConfirmModal } from './UsePointsConfirmModal';
 import { CancelOrderItemModal } from './CancelOrderItemModal';
@@ -125,16 +128,6 @@ export default function CustomersPage() {
   const [submittingAdd, setSubmittingAdd] = useState(false);
 
   // Bulk upload modal states
-  interface BulkRow {
-    phone: string;
-    name?: string;
-    gender?: string;
-    birthYear?: string | number;
-    birthday?: string;
-    memo?: string;
-    initialPoints?: number;
-    initialStamps?: number;
-  }
   const [bulkModal, setBulkModal] = useState(false);
   const [bulkParsedData, setBulkParsedData] = useState<BulkRow[]>([]);
   const [bulkUploading, setBulkUploading] = useState(false);
@@ -2524,289 +2517,39 @@ export default function CustomersPage() {
       </Modal>
 
       {/* Add Customer Modal */}
-      <Modal open={addModal} onOpenChange={setAddModal}>
-        <ModalContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
-          <ModalHeader className="flex-shrink-0">
-            <ModalTitle>고객 등록</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4 overflow-y-auto flex-1 px-1">
-            {/* Phone - Required */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">
-                전화번호 <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="tel"
-                placeholder="010-0000-0000"
-                value={addPhone}
-                onChange={(e) => setAddPhone(e.target.value)}
-              />
-              <p className="text-xs text-neutral-500">
-                하이픈(-) 없이 숫자만 입력해도 됩니다.
-              </p>
-            </div>
-
-            {/* Nickname */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">닉네임</label>
-              <Input
-                type="text"
-                placeholder="닉네임을 입력하세요"
-                value={addName}
-                onChange={(e) => setAddName(e.target.value)}
-              />
-              {addName && (
-                <p className="text-xs text-neutral-500">표시: {maskNickname(addName)}</p>
-              )}
-            </div>
-
-            {/* Gender */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">성별</label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className={`flex-1 py-2 px-4 rounded-lg border-2 transition-colors ${
-                    addGender === 'MALE'
-                      ? 'border-brand-800 bg-brand-50 text-brand-800'
-                      : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
-                  }`}
-                  onClick={() => setAddGender('MALE')}
-                >
-                  남성
-                </button>
-                <button
-                  type="button"
-                  className={`flex-1 py-2 px-4 rounded-lg border-2 transition-colors ${
-                    addGender === 'FEMALE'
-                      ? 'border-brand-800 bg-brand-50 text-brand-800'
-                      : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
-                  }`}
-                  onClick={() => setAddGender('FEMALE')}
-                >
-                  여성
-                </button>
-              </div>
-            </div>
-
-            {/* Birthday and Birth Year */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-600">생일 (MM-DD)</label>
-                <Input
-                  type="text"
-                  placeholder="01-15"
-                  value={addBirthday}
-                  onChange={(e) => setAddBirthday(e.target.value)}
-                  maxLength={5}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-600">출생연도</label>
-                <Input
-                  type="number"
-                  placeholder="1990"
-                  value={addBirthYear}
-                  onChange={(e) => setAddBirthYear(e.target.value)}
-                  min={1900}
-                  max={new Date().getFullYear()}
-                />
-              </div>
-            </div>
-
-            {/* Initial Points */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">초기 포인트</label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={addInitialPoints}
-                  onChange={(e) => setAddInitialPoints(e.target.value)}
-                  className="pr-8"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">p</span>
-              </div>
-              <p className="text-xs text-neutral-500">
-                등록 시 지급할 포인트를 입력하세요. (선택)
-              </p>
-            </div>
-
-            {/* Memo */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">메모</label>
-              <textarea
-                className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-800 focus:border-transparent"
-                rows={3}
-                placeholder="고객에 대한 메모를 입력하세요"
-                value={addMemo}
-                onChange={(e) => setAddMemo(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <ModalFooter className="flex-shrink-0">
-            <Button
-              variant="secondary"
-              onClick={() => setAddModal(false)}
-              className="flex-1"
-            >
-              취소
-            </Button>
-            <Button
-              onClick={handleAddCustomer}
-              disabled={!addPhone || submittingAdd}
-              className="flex-1"
-            >
-              {submittingAdd ? '등록 중...' : '등록하기'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <AddCustomerModal
+        open={addModal}
+        onOpenChange={setAddModal}
+        phone={addPhone}
+        onPhoneChange={setAddPhone}
+        name={addName}
+        onNameChange={setAddName}
+        gender={addGender}
+        onGenderChange={setAddGender}
+        birthday={addBirthday}
+        onBirthdayChange={setAddBirthday}
+        birthYear={addBirthYear}
+        onBirthYearChange={setAddBirthYear}
+        initialPoints={addInitialPoints}
+        onInitialPointsChange={setAddInitialPoints}
+        memo={addMemo}
+        onMemoChange={setAddMemo}
+        submitting={submittingAdd}
+        onSubmit={handleAddCustomer}
+      />
 
       {/* Bulk Upload Modal */}
-      <Modal open={bulkModal} onOpenChange={setBulkModal}>
-        <ModalContent className="sm:max-w-2xl">
-          <ModalHeader>
-            <ModalTitle>대량 고객 등록</ModalTitle>
-          </ModalHeader>
-
-          <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
-            {/* 안내 + 샘플 다운로드 */}
-            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-700">
-                엑셀 파일로 고객을 일괄 등록할 수 있습니다. (최대 500건)
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDownloadSampleExcel}
-              >
-                <Download className="w-4 h-4 mr-1" />
-                샘플 다운로드
-              </Button>
-            </div>
-
-            {/* 파일 업로드 */}
-            <div>
-              <input
-                ref={bulkFileInputRef}
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleBulkFileChange}
-                className="hidden"
-              />
-              <Button
-                variant="outline"
-                className="w-full py-8 border-dashed border-2"
-                onClick={() => bulkFileInputRef.current?.click()}
-              >
-                <Upload className="w-5 h-5 mr-2" />
-                {bulkParsedData.length > 0
-                  ? `${bulkParsedData.length}건 로드됨 (다시 선택하려면 클릭)`
-                  : '엑셀 파일 선택 (.xlsx, .xls, .csv)'}
-              </Button>
-            </div>
-
-            {/* 미리보기 테이블 */}
-            {bulkParsedData.length > 0 && !bulkResult && (
-              <div>
-                <p className="text-sm font-medium text-neutral-700 mb-2">
-                  미리보기 (처음 10건)
-                </p>
-                <div className="overflow-x-auto border rounded-lg">
-                  <table className="w-full text-sm">
-                    <thead className="bg-neutral-50">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-600">#</th>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-600">전화번호*</th>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-600">이름</th>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-600">성별</th>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-600">생년</th>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-600">생일</th>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-600">메모</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bulkParsedData.slice(0, 10).map((row, idx) => (
-                        <tr key={idx} className={`border-t ${!row.phone ? 'bg-red-50' : ''}`}>
-                          <td className="px-3 py-2 text-neutral-500">{idx + 1}</td>
-                          <td className="px-3 py-2">
-                            {row.phone || <span className="text-red-500 text-xs">전화번호 없음</span>}
-                          </td>
-                          <td className="px-3 py-2">{row.name || '-'}</td>
-                          <td className="px-3 py-2">{row.gender || '-'}</td>
-                          <td className="px-3 py-2">{row.birthYear || '-'}</td>
-                          <td className="px-3 py-2">{row.birthday || '-'}</td>
-                          <td className="px-3 py-2">{row.memo || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {bulkParsedData.length > 10 && (
-                  <p className="text-xs text-neutral-500 mt-1">
-                    외 {bulkParsedData.length - 10}건 더 있음
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* 결과 표시 */}
-            {bulkResult && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="p-3 bg-green-50 rounded-lg text-center">
-                    <p className="text-2xl font-bold text-green-700">{bulkResult.created}</p>
-                    <p className="text-xs text-green-600">등록 성공</p>
-                  </div>
-                  <div className="p-3 bg-yellow-50 rounded-lg text-center">
-                    <p className="text-2xl font-bold text-yellow-700">{bulkResult.skipped}</p>
-                    <p className="text-xs text-yellow-600">중복 스킵</p>
-                  </div>
-                  <div className="p-3 bg-red-50 rounded-lg text-center">
-                    <p className="text-2xl font-bold text-red-700">{bulkResult.errors.length}</p>
-                    <p className="text-xs text-red-600">오류</p>
-                  </div>
-                </div>
-                {bulkResult.errors.length > 0 && (
-                  <div className="p-3 bg-red-50 rounded-lg">
-                    <p className="text-sm font-medium text-red-700 mb-1">오류 목록:</p>
-                    <ul className="text-xs text-red-600 space-y-1">
-                      {bulkResult.errors.slice(0, 10).map((err, i) => (
-                        <li key={i}>행 {err.row}: {err.phone ? `${err.phone} - ` : ''}{err.reason}</li>
-                      ))}
-                      {bulkResult.errors.length > 10 && (
-                        <li>외 {bulkResult.errors.length - 10}건...</li>
-                      )}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <ModalFooter className="flex-shrink-0">
-            <Button
-              variant="secondary"
-              onClick={() => setBulkModal(false)}
-              className="flex-1"
-            >
-              {bulkResult ? '닫기' : '취소'}
-            </Button>
-            {!bulkResult && (
-              <Button
-                onClick={handleBulkUpload}
-                disabled={bulkParsedData.length === 0 || bulkUploading}
-                className="flex-1"
-              >
-                {bulkUploading ? '등록 중...' : `${bulkParsedData.length}건 등록하기`}
-              </Button>
-            )}
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <BulkUploadModal
+        open={bulkModal}
+        onOpenChange={setBulkModal}
+        fileInputRef={bulkFileInputRef}
+        parsedData={bulkParsedData}
+        result={bulkResult}
+        uploading={bulkUploading}
+        onDownloadSample={handleDownloadSampleExcel}
+        onFileChange={handleBulkFileChange}
+        onUpload={handleBulkUpload}
+      />
 
       {/* Cancel Order Item Confirm Modal */}
       <CancelOrderItemModal
