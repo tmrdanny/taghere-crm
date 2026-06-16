@@ -58,6 +58,7 @@ import {
   IMAGE_MAX_WIDTH,
   IMAGE_MAX_HEIGHT,
 } from './types';
+import { SendConfirmModal } from './SendConfirmModal';
 
 export default function MessagesPage() {
   const router = useRouter();
@@ -1903,57 +1904,15 @@ export default function MessagesPage() {
       </div>
 
       {/* Confirm Modal */}
-      <Modal open={showConfirmModal} onOpenChange={setShowConfirmModal}>
-        <ModalContent className="sm:max-w-md">
-          <ModalHeader>
-            <ModalTitle>메시지 발송 확인</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="p-4 bg-neutral-50 rounded-xl space-y-3">
-              <div className="flex justify-between">
-                <span className="text-neutral-600">발송 대상</span>
-                <span className="font-semibold">{formatNumber(estimate?.targetCount || getCurrentTargetCount())}명</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-600">메시지 유형</span>
-                <span className="font-semibold">
-                  {uploadedImage ? '멀티미디어 (MMS)' : isLongMessage ? '장문 (LMS)' : '단문 (SMS)'}
-                </span>
-              </div>
-              <div className="flex justify-between text-lg">
-                <span className="text-neutral-900 font-medium">총 비용</span>
-                <span className="font-bold text-brand-700">{formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원</span>
-              </div>
-            </div>
-
-            <div className="p-4 bg-brand-50 rounded-xl">
-              <p className="text-sm text-brand-800">
-                발송 후에는 취소할 수 없으며, 비용이 충전금에서 차감됩니다.
-              </p>
-            </div>
-          </div>
-
-          <ModalFooter>
-            <Button variant="outline" onClick={() => setShowConfirmModal(false)}>
-              취소
-            </Button>
-            <Button onClick={handleSend} disabled={isSending}>
-              {isSending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  발송 중...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  발송하기
-                </>
-              )}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <SendConfirmModal
+        open={showConfirmModal}
+        onOpenChange={setShowConfirmModal}
+        targetCount={estimate?.targetCount || getCurrentTargetCount()}
+        messageTypeLabel={uploadedImage ? '멀티미디어 (MMS)' : isLongMessage ? '장문 (LMS)' : '단문 (SMS)'}
+        totalCost={estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50))}
+        isSending={isSending}
+        onSend={handleSend}
+      />
 
       {/* Customer Selection Modal */}
       <Modal open={showCustomerModal} onOpenChange={setShowCustomerModal}>
