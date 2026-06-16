@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { CheckCircle2, XCircle, Loader2, Ticket, Store, Calendar, AlertCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Ticket, Store, Calendar, Phone, AlertCircle } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -16,6 +16,18 @@ interface CouponInfo {
   usedAt: string | null;
   usedBy: string | null;
   createdAt: string;
+}
+
+// 페이지 전체에 적용되는 Pretendard 글로벌 폰트 (enroll/table-link과 동일)
+function PretendardStyle() {
+  return (
+    <style jsx global>{`
+      @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-jp.min.css');
+      .font-pretendard {
+        font-family: 'Pretendard JP Variable', 'Pretendard JP', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+      }
+    `}</style>
+  );
 }
 
 export default function CouponVerifyPage() {
@@ -96,11 +108,12 @@ export default function CouponVerifyPage() {
   // 로딩 상태
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-neutral-400 mx-auto" />
-          <p className="mt-3 text-neutral-500 text-sm">쿠폰 정보를 불러오는 중...</p>
+      <div className="min-h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
+        <div className="w-full max-w-[430px] h-[100dvh] flex flex-col items-center justify-center bg-white gap-4">
+          <div className="w-8 h-8 border-2 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-neutral-400">쿠폰 정보를 불러오는 중...</p>
         </div>
+        <PretendardStyle />
       </div>
     );
   }
@@ -108,14 +121,15 @@ export default function CouponVerifyPage() {
   // 에러 상태
   if (error) {
     return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-sm p-8 max-w-sm w-full text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-            <XCircle className="w-8 h-8 text-red-500" />
+      <div className="min-h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
+        <div className="w-full max-w-[430px] h-[100dvh] flex flex-col items-center justify-center bg-white px-6 text-center">
+          <div className="w-16 h-16 bg-[#fff0f3] rounded-full flex items-center justify-center mb-4">
+            <XCircle className="w-8 h-8 text-[#ff6b6b]" />
           </div>
-          <h1 className="mt-4 text-xl font-bold text-neutral-900">쿠폰 오류</h1>
-          <p className="mt-2 text-neutral-600">{error}</p>
+          <h1 className="text-lg font-bold text-[#1d2022] mb-1">쿠폰 오류</h1>
+          <p className="text-sm text-[#b1b5b8]">{error}</p>
         </div>
+        <PretendardStyle />
       </div>
     );
   }
@@ -123,152 +137,127 @@ export default function CouponVerifyPage() {
   // 쿠폰이 없는 경우
   if (!coupon) {
     return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-sm p-8 max-w-sm w-full text-center">
-          <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto">
-            <AlertCircle className="w-8 h-8 text-neutral-400" />
+      <div className="min-h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
+        <div className="w-full max-w-[430px] h-[100dvh] flex flex-col items-center justify-center bg-white px-6 text-center">
+          <div className="w-16 h-16 bg-[#f8f9fa] rounded-full flex items-center justify-center mb-4">
+            <AlertCircle className="w-8 h-8 text-[#b1b5b8]" />
           </div>
-          <h1 className="mt-4 text-xl font-bold text-neutral-900">쿠폰을 찾을 수 없습니다</h1>
+          <h1 className="text-lg font-bold text-[#1d2022]">쿠폰을 찾을 수 없습니다</h1>
         </div>
+        <PretendardStyle />
       </div>
     );
   }
 
   const isUsed = coupon.isUsed;
 
-  return (
-    <div className="min-h-screen bg-neutral-50">
-      {/* Header */}
-      <div className="bg-white border-b border-neutral-200">
-        <div className="max-w-md mx-auto px-4 py-4">
-          <h1 className="text-lg font-bold text-neutral-900 text-center">쿠폰 확인</h1>
-        </div>
-      </div>
+  // 정보 행 구성
+  const infoRows = [
+    { icon: Store, label: '매장', value: coupon.storeName },
+    { icon: Ticket, label: '쿠폰 내용', value: coupon.couponContent },
+    { icon: Calendar, label: '유효기간', value: coupon.expiryDate },
+    { icon: Phone, label: '고객 연락처', value: coupon.phone },
+  ];
 
-      {/* Content */}
-      <div className="max-w-md mx-auto p-4">
-        {/* 상태 표시 */}
-        <div className={`rounded-2xl p-6 mb-4 ${isUsed ? 'bg-neutral-100' : 'bg-emerald-50'}`}>
-          <div className="flex items-center justify-center mb-3">
-            {isUsed ? (
-              <div className="w-14 h-14 bg-neutral-200 rounded-full flex items-center justify-center">
-                <CheckCircle2 className="w-7 h-7 text-neutral-500" />
+  return (
+    <div className="min-h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-y-auto">
+      <div className="w-full max-w-[430px] min-h-[100dvh] flex flex-col bg-white">
+        {/* Header */}
+        <header className="flex-shrink-0 h-14 flex items-center justify-center border-b border-neutral-100">
+          <h1 className="text-base font-bold text-[#1d2022]">쿠폰 확인</h1>
+        </header>
+
+        {/* Content */}
+        <main className="flex-1 px-5 py-6">
+          {/* 상태 배너 */}
+          <div className={`rounded-2xl px-6 py-7 text-center ${isUsed ? 'bg-[#f8f9fa]' : 'bg-[#FFFBEB]'}`}>
+            <div className="flex justify-center">
+              <div
+                className={`w-14 h-14 rounded-full flex items-center justify-center ${
+                  isUsed ? 'bg-neutral-200' : 'bg-[#FFD541]'
+                }`}
+              >
+                {isUsed ? (
+                  <CheckCircle2 className="w-7 h-7 text-neutral-500" />
+                ) : (
+                  <Ticket className="w-7 h-7 text-[#1d2022]" />
+                )}
               </div>
-            ) : (
-              <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center">
-                <Ticket className="w-7 h-7 text-emerald-600" />
-              </div>
+            </div>
+            <h2 className={`mt-3 text-xl font-bold ${isUsed ? 'text-[#b1b5b8]' : 'text-[#1d2022]'}`}>
+              {isUsed ? '사용 완료된 쿠폰' : '사용 가능한 쿠폰'}
+            </h2>
+            {isUsed && coupon.usedAt && (
+              <p className="mt-1 text-sm text-[#b1b5b8]">
+                {new Date(coupon.usedAt).toLocaleDateString('ko-KR', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+                {coupon.usedBy && ` · ${coupon.usedBy}`}
+              </p>
             )}
           </div>
-          <h2 className={`text-center text-xl font-bold ${isUsed ? 'text-neutral-500' : 'text-emerald-700'}`}>
-            {isUsed ? '사용 완료된 쿠폰' : '사용 가능한 쿠폰'}
-          </h2>
-          {isUsed && coupon.usedAt && (
-            <p className="text-center text-sm text-neutral-500 mt-1">
-              {new Date(coupon.usedAt).toLocaleDateString('ko-KR', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-              {coupon.usedBy && ` (${coupon.usedBy})`}
-            </p>
+
+          {/* 쿠폰 정보 */}
+          <div className="mt-4 rounded-2xl bg-[#f8f9fa] overflow-hidden">
+            {infoRows.map(({ icon: Icon, label, value }, idx) => (
+              <div
+                key={label}
+                className={`flex items-center gap-3 px-4 py-3.5 ${
+                  idx !== infoRows.length - 1 ? 'border-b border-neutral-200/60' : ''
+                }`}
+              >
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Icon className="w-5 h-5 text-[#55595e]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-[#b1b5b8]">{label}</p>
+                  <p className="font-semibold text-[#1d2022] break-words">{value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 사용 처리 영역 */}
+          {!isUsed && (
+            <div className="mt-6">
+              <label htmlFor="staffName" className="block text-sm font-semibold text-[#1d2022] mb-2">
+                직원명 입력
+              </label>
+              <input
+                id="staffName"
+                type="text"
+                value={staffName}
+                onChange={(e) => setStaffName(e.target.value)}
+                placeholder="직원 이름을 입력하세요"
+                className="w-full h-12 px-4 bg-neutral-50 border border-neutral-200 rounded-xl text-[15px] text-[#1d2022] placeholder:text-[#b1b5b8] focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+              />
+              <button
+                onClick={handleUseCoupon}
+                disabled={isUsing || !staffName.trim()}
+                className="mt-3 w-full py-4 font-semibold text-base rounded-xl transition-colors bg-[#FFD541] hover:bg-[#FFCA00] active:bg-[#F5C400] disabled:bg-[#FFE88A] disabled:text-[#b1b5b8] text-[#1d2022] flex items-center justify-center gap-2"
+              >
+                {isUsing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    처리 중...
+                  </>
+                ) : (
+                  '쿠폰 사용 완료'
+                )}
+              </button>
+            </div>
           )}
-        </div>
 
-        {/* 쿠폰 정보 */}
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          {/* 매장명 */}
-          <div className="p-4 border-b border-neutral-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-neutral-100 rounded-lg flex items-center justify-center">
-                <Store className="w-5 h-5 text-neutral-600" />
-              </div>
-              <div>
-                <p className="text-xs text-neutral-500">매장</p>
-                <p className="font-semibold text-neutral-900">{coupon.storeName}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* 쿠폰 내용 */}
-          <div className="p-4 border-b border-neutral-100">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Ticket className="w-5 h-5 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-xs text-neutral-500">쿠폰 내용</p>
-                <p className="font-semibold text-neutral-900">{coupon.couponContent}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* 유효기간 */}
-          <div className="p-4 border-b border-neutral-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs text-neutral-500">유효기간</p>
-                <p className="font-semibold text-neutral-900">{coupon.expiryDate}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* 고객 전화번호 */}
-          <div className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-neutral-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-xs text-neutral-500">고객 연락처</p>
-                <p className="font-semibold text-neutral-900">{coupon.phone}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 사용 처리 영역 */}
-        {!isUsed && (
-          <div className="mt-4 bg-white rounded-2xl shadow-sm p-4">
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              직원명 입력
-            </label>
-            <input
-              type="text"
-              value={staffName}
-              onChange={(e) => setStaffName(e.target.value)}
-              placeholder="직원 이름을 입력하세요"
-              className="w-full px-4 py-3 border border-neutral-200 rounded-xl text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-            />
-            <button
-              onClick={handleUseCoupon}
-              disabled={isUsing || !staffName.trim()}
-              className="mt-3 w-full py-3.5 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-            >
-              {isUsing ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  처리 중...
-                </>
-              ) : (
-                '쿠폰 사용 완료'
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* 쿠폰 코드 */}
-        <div className="mt-4 text-center">
-          <p className="text-xs text-neutral-400">쿠폰 코드: {coupon.code}</p>
-        </div>
+          {/* 쿠폰 코드 */}
+          <p className="mt-6 text-center text-xs text-[#b1b5b8]">쿠폰 코드: {coupon.code}</p>
+        </main>
       </div>
+
+      <PretendardStyle />
     </div>
   );
 }
