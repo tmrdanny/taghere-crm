@@ -13,8 +13,8 @@ import {
   ModalTitle,
   ModalFooter,
 } from '@/components/ui/modal';
-import { formatPhone, formatNumber, formatDate, getRelativeTime, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
-import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Settings2, FileSpreadsheet, Zap, ArrowRight, Bell, Cake, HandMetal } from 'lucide-react';
+import { formatPhone, formatNumber, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
+import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Send, Megaphone, X, Calendar, Settings2, FileSpreadsheet, Zap, ArrowRight, Bell, Cake, HandMetal } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
@@ -22,16 +22,14 @@ import {
   Customer,
   PointLedgerEntry,
   CustomerFeedbackEntry,
-  OrderItem,
   VisitOrOrderEntry,
   Announcement,
   MessageHistoryEntry,
   BulkRow,
-  getOrderItems,
 } from './types';
-import { StarRating } from './StarRating';
 import { AddCustomerModal } from './AddCustomerModal';
 import { BulkUploadModal } from './BulkUploadModal';
+import { EditCustomerModal } from './EditCustomerModal';
 import { UsePointsModal } from './UsePointsModal';
 import { UsePointsConfirmModal } from './UsePointsConfirmModal';
 import { CancelOrderItemModal } from './CancelOrderItemModal';
@@ -1852,669 +1850,93 @@ export default function CustomersPage() {
       />
 
       {/* Edit Customer Modal */}
-      <Modal open={editModal} onOpenChange={setEditModal}>
-        <ModalContent className="sm:max-w-4xl max-h-[85vh] flex flex-col overflow-x-hidden">
-          <ModalHeader className="flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <ModalTitle>고객 정보</ModalTitle>
-              {editingCustomer?.isVip && <Badge variant="vip">VIP</Badge>}
-              {editingCustomer?.isNew && <Badge variant="new">신규</Badge>}
-            </div>
-          </ModalHeader>
-
-          <div className="py-4 overflow-y-auto overflow-x-hidden flex-1 px-1">
-            {/* 2-Column Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden h-full min-h-[400px]">
-              {/* Left Column - Customer Info Form */}
-              <div className="space-y-4 min-w-0">
-                {/* Read-only info: Visit count, last visit, points, total order */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-neutral-50 rounded-lg">
-                    <p className="text-xs text-neutral-500 mb-1">방문 횟수</p>
-                    <p className="font-semibold text-neutral-900">
-                      {editingCustomer?.visitCount || 0}회
-                    </p>
-                  </div>
-                  <div className="p-3 bg-neutral-50 rounded-lg">
-                    <p className="text-xs text-neutral-500 mb-1">마지막 방문일</p>
-                    <p className="font-semibold text-neutral-900">
-                      {editingCustomer?.lastVisitAt ? formatDate(editingCustomer.lastVisitAt) : '-'}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-neutral-50 rounded-lg">
-                    <p className="text-xs text-neutral-500 mb-1">적립 포인트</p>
-                    <p className="font-semibold text-neutral-900">
-                      {formatNumber(editingCustomer?.totalPoints || 0)} P
-                    </p>
-                  </div>
-                  <div className="p-3 bg-neutral-50 rounded-lg">
-                    <p className="text-xs text-neutral-500 mb-1">스탬프</p>
-                    <p className="font-semibold text-neutral-900">
-                      {(editingCustomer as any)?.totalStamps || 0}개
-                    </p>
-                  </div>
-                </div>
-
-                {/* Stamp Use Section */}
-                {((editingCustomer as any)?.totalStamps || 0) > 0 && (
-                  <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-lg space-y-2">
-                    <p className="text-sm font-medium text-neutral-700">스탬프 보상 사용</p>
-                    <div className="flex flex-wrap gap-2">
-                      {stampRewardTiers.map((amount) => (
-                        <Button
-                          key={amount}
-                          variant="outline"
-                          size="sm"
-                          disabled={((editingCustomer as any)?.totalStamps || 0) < amount || submittingEdit}
-                          onClick={async () => {
-                            if (!editingCustomer) return;
-                            setSubmittingEdit(true);
-                            try {
-                              const token = getAuthToken();
-                              const res = await fetch(`${apiUrl}/api/stamps/use`, {
-                                method: 'POST',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                  Authorization: `Bearer ${token}`,
-                                },
-                                body: JSON.stringify({
-                                  customerId: editingCustomer.id,
-                                  amount,
-                                }),
-                              });
-                              if (res.ok) {
-                                const data = await res.json();
-                                setEditingCustomer(prev => prev ? { ...prev, totalStamps: data.remainingStamps } as any : null);
-                                showToast(`스탬프 ${amount}개가 사용되었습니다.`, 'success');
-                                setRefreshKey(prev => prev + 1);
-                              } else {
-                                const error = await res.json();
-                                showToast(error.error || '스탬프 사용에 실패했습니다.', 'error');
-                              }
-                            } catch (error) {
-                              showToast('스탬프 사용 중 오류가 발생했습니다.', 'error');
-                            } finally {
-                              setSubmittingEdit(false);
-                            }
-                          }}
-                          className="flex-1 min-w-[70px]"
-                        >
-                          {amount}개 사용
-                        </Button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-neutral-500">
-                      고객이 보상을 요청하면 해당 버튼을 눌러주세요.
-                    </p>
-                  </div>
-                )}
-
-                {/* Nickname */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-600">닉네임</label>
-                  <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-700">
-                    {maskNickname(editName)}
-                  </div>
-                </div>
-
-                {/* Gender */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-600">성별</label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className={`flex-1 py-2 px-4 rounded-lg border-2 transition-colors ${
-                        editGender === 'MALE'
-                          ? 'border-brand-800 bg-brand-50 text-brand-800'
-                          : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
-                      }`}
-                      onClick={() => setEditGender('MALE')}
-                    >
-                      남성
-                    </button>
-                    <button
-                      type="button"
-                      className={`flex-1 py-2 px-4 rounded-lg border-2 transition-colors ${
-                        editGender === 'FEMALE'
-                          ? 'border-brand-800 bg-brand-50 text-brand-800'
-                          : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
-                      }`}
-                      onClick={() => setEditGender('FEMALE')}
-                    >
-                      여성
-                    </button>
-                  </div>
-                </div>
-
-                {/* Birthday and Age Group */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-600">생일</label>
-                    <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-700">
-                      {editBirthday ? formatBirthdayMonth(editBirthday).replace(' 생일', '') : '-'}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-600">연령대</label>
-                    <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-700">
-                      {editBirthYear ? getAgeGroup(parseInt(editBirthYear, 10)) : '-'}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Memo (moved here for left column) */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-600">메모</label>
-                  <textarea
-                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-800 focus:border-transparent"
-                    rows={3}
-                    placeholder="고객에 대한 메모를 입력하세요"
-                    value={editMemo}
-                    onChange={(e) => setEditMemo(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Right Column - Tabs for Orders, Feedback, History */}
-              <div className="flex flex-col min-w-0 overflow-hidden h-full">
-                {/* Tab Headers - 2 rows, 3 columns grid */}
-                <div className="flex-shrink-0 border-b border-neutral-200">
-                  <div className="grid grid-cols-3 gap-1">
-                    {/* Row 1 */}
-                    <button
-                      type="button"
-                      onClick={() => setEditModalTab('orders')}
-                      className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                        editModalTab === 'orders'
-                          ? 'border-brand-800 text-brand-800 bg-brand-50'
-                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
-                      }`}
-                    >
-                      <ShoppingBag className="w-4 h-4 flex-shrink-0" />
-                      <span>주문</span>
-                      {(orderHistory?.length || 0) > 0 && (
-                        <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
-                          {orderHistory.length}
-                        </span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditModalTab('feedback')}
-                      className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                        editModalTab === 'feedback'
-                          ? 'border-brand-800 text-brand-800 bg-brand-50'
-                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
-                      }`}
-                    >
-                      <MessageSquare className="w-4 h-4 flex-shrink-0" />
-                      <span>피드백</span>
-                      {(feedbackHistory?.length || 0) > 0 && (
-                        <span className="text-yellow-500">★{feedbackHistory.length}</span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditModalTab('history')}
-                      className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                        editModalTab === 'history'
-                          ? 'border-brand-800 text-brand-800 bg-brand-50'
-                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
-                      }`}
-                    >
-                      <History className="w-4 h-4 flex-shrink-0" />
-                      <span>포인트</span>
-                      {(pointHistory?.length || 0) > 0 && (
-                        <span className="text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full">
-                          {pointHistory.length}
-                        </span>
-                      )}
-                    </button>
-                    {/* Row 2 */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditModalTab('messages');
-                        if (editingCustomer && messageHistory.length === 0) {
-                          fetchCustomerMessages(editingCustomer.id);
-                        }
-                      }}
-                      className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                        editModalTab === 'messages'
-                          ? 'border-brand-800 text-brand-800 bg-brand-50'
-                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
-                      }`}
-                    >
-                      <Send className="w-4 h-4 flex-shrink-0" />
-                      <span>발송내역</span>
-                      {messageSummary.total > 0 && (
-                        <span className="text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">
-                          {messageSummary.total}
-                        </span>
-                      )}
-                    </button>
-                    {/* Empty cells for grid alignment */}
-                    <div></div>
-                    <div></div>
-                  </div>
-                </div>
-
-                {/* Orders Tab */}
-                {editModalTab === 'orders' && (
-                  <div className="flex-1 overflow-hidden flex flex-col mt-3">
-                    {/* Action Buttons - Tablet Friendly */}
-                    <div className="flex items-center justify-end gap-2 mb-3 flex-shrink-0">
-                      <Button
-                        variant={showDateFilter ? 'default' : 'secondary'}
-                        size="sm"
-                        onClick={() => setShowDateFilter(!showDateFilter)}
-                        className="text-xs px-3 py-1.5 h-auto flex items-center gap-1.5"
-                      >
-                        <Calendar className="w-3.5 h-3.5" />
-                        날짜 조회
-                      </Button>
-                      <Button
-                        variant={cancelMode ? 'destructive' : 'secondary'}
-                        size="sm"
-                        onClick={() => setCancelMode(!cancelMode)}
-                        className="text-xs px-3 py-1.5 h-auto flex items-center gap-1.5"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        적립 취소
-                      </Button>
-                    </div>
-
-                    {/* Date Filter - Conditional */}
-                    {showDateFilter && (
-                      <div className="mb-3 flex-shrink-0 p-3 bg-neutral-50 rounded-lg border border-neutral-200 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="date"
-                            value={orderStartDate}
-                            onChange={(e) => setOrderStartDate(e.target.value)}
-                            className="px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 flex-1 min-w-0"
-                          />
-                          <span className="text-neutral-400 text-sm">~</span>
-                          <input
-                            type="date"
-                            value={orderEndDate}
-                            onChange={(e) => setOrderEndDate(e.target.value)}
-                            className="px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 flex-1 min-w-0"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => {
-                              if (editingCustomer) {
-                                fetchFilteredOrders(editingCustomer.id, orderStartDate, orderEndDate);
-                              }
-                            }}
-                            disabled={loadingHistory}
-                            className="text-sm px-4 py-1.5 h-auto flex-1"
-                          >
-                            조회
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setOrderStartDate('');
-                              setOrderEndDate('');
-                              if (editingCustomer) {
-                                fetchFilteredOrders(editingCustomer.id, '', '');
-                              }
-                            }}
-                            className="text-sm px-4 py-1.5 h-auto flex-1 text-neutral-500"
-                          >
-                            초기화
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {loadingHistory && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        불러오는 중...
-                      </div>
-                    )}
-                    {!loadingHistory && (orderHistory?.length || 0) === 0 && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        주문 내역이 없습니다.
-                      </div>
-                    )}
-                    {!loadingHistory && (orderHistory?.length || 0) > 0 && (
-                      <div className="flex-1 overflow-hidden relative">
-                        <div className="h-full overflow-y-auto space-y-3 pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}>
-                          {(orderHistory || []).map((order) => (
-                            <div
-                              key={order.id}
-                              className="p-3 bg-neutral-50 rounded-lg border border-neutral-100"
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-neutral-900">
-                                    {order.totalAmount ? `${formatNumber(order.totalAmount)}원` : '금액 미입력'}
-                                  </span>
-                                  {order.tableNumber && (
-                                    <span className="text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
-                                      {order.tableNumber}
-                                    </span>
-                                  )}
-                                </div>
-                                <span className="text-xs text-neutral-400">
-                                  {formatDate(order.visitedAt)} {new Date(order.visitedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                                </span>
-                              </div>
-                              {getOrderItems(order.items).length > 0 ? (
-                                <div className="space-y-1.5 pt-1 border-t border-neutral-200 mt-2">
-                                  {getOrderItems(order.items).map((item: OrderItem, idx: number) => {
-                                    const menuName = item.label || item.name || item.menuName || item.productName || item.title || '(메뉴명 없음)';
-                                    const qty = item.count || item.quantity || item.qty || 1;
-                                    const itemPrice = typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.amount || item.totalPrice || 0);
-                                    const cancelledQty = item.cancelledQuantity || 0;
-                                    const isFullyCancelled = item.cancelled === true || cancelledQty >= qty;
-                                    const isPartlyCancelled = cancelledQty > 0 && cancelledQty < qty;
-                                    const remainingQty = qty - cancelledQty;
-
-                                    return (
-                                      <div key={idx} className={`flex items-center justify-between text-sm py-0.5 group ${isFullyCancelled ? 'opacity-50' : ''}`}>
-                                        <div className={`flex-1 pr-2 ${isFullyCancelled ? 'text-neutral-400 line-through' : 'text-neutral-700'}`}>
-                                          <span className="truncate">
-                                            {menuName}
-                                            {qty > 1 && (
-                                              <span className="text-neutral-400 ml-1">x{qty}</span>
-                                            )}
-                                            {isFullyCancelled && (
-                                              <span className="ml-2 text-xs text-red-500">(취소됨)</span>
-                                            )}
-                                            {isPartlyCancelled && (
-                                              <span className="ml-2 text-xs text-orange-500">({cancelledQty}개 취소)</span>
-                                            )}
-                                          </span>
-                                          {item.option && (
-                                            <div className="text-xs text-neutral-400 mt-0.5">{item.option}</div>
-                                          )}
-                                        </div>
-                                        <div className="flex items-center gap-2 flex-shrink-0">
-                                          {itemPrice > 0 && (
-                                            <span className={`${isFullyCancelled ? 'text-neutral-400 line-through' : 'text-neutral-500'}`}>
-                                              {formatNumber(itemPrice)}원
-                                            </span>
-                                          )}
-                                          {!isFullyCancelled && cancelMode && remainingQty > 0 && (
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                openCancelConfirm(order.id, idx, menuName, itemPrice, qty, cancelledQty);
-                                              }}
-                                              className="p-1.5 rounded-full bg-red-100 text-red-500 hover:bg-red-200 transition-colors"
-                                              title="적립 취소"
-                                            >
-                                              <X className="w-4 h-4" />
-                                            </button>
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                <p className="text-xs text-neutral-400">메뉴 정보 없음</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {/* Scroll indicator gradient */}
-                        <div className="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Feedback Tab */}
-                {editModalTab === 'feedback' && (
-                  <div className="flex-1 overflow-hidden flex flex-col mt-3">
-                    {loadingHistory && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        불러오는 중...
-                      </div>
-                    )}
-                    {!loadingHistory && (feedbackHistory?.length || 0) === 0 && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        고객이 남긴 피드백이 없습니다.
-                      </div>
-                    )}
-                    {!loadingHistory && (feedbackHistory?.length || 0) > 0 && (
-                      <div className="flex-1 overflow-hidden relative">
-                        <div className="h-full overflow-y-auto space-y-3 pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}>
-                          {(feedbackHistory || []).map((feedback) => (
-                            <div
-                              key={feedback.id}
-                              className="p-3 bg-neutral-50 rounded-lg border border-neutral-100"
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <StarRating rating={feedback.rating} readonly />
-                                <span className="text-xs text-neutral-400">
-                                  {formatDate(feedback.createdAt)}
-                                </span>
-                              </div>
-                              {feedback.text && (
-                                <p className="text-sm text-neutral-700">{feedback.text}</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {/* Scroll indicator gradient */}
-                        <div className="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Point History Tab */}
-                {editModalTab === 'history' && (
-                  <div className="flex-1 overflow-hidden flex flex-col mt-3">
-                    {loadingHistory && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        불러오는 중...
-                      </div>
-                    )}
-                    {!loadingHistory && (pointHistory?.length || 0) === 0 && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        포인트 내역이 없습니다.
-                      </div>
-                    )}
-                    {!loadingHistory && (pointHistory?.length || 0) > 0 && (
-                      <div className="flex-1 overflow-hidden relative">
-                        <div className="h-full overflow-y-auto space-y-2 pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}>
-                          {(pointHistory || []).map((entry) => {
-                            // ordersheetId가 포함된 reason을 필터링하여 표시
-                            let displayReason = entry.reason;
-                            if (displayReason && displayReason.includes('ordersheetId')) {
-                              // "TagHere 주문 적립 (ordersheetId: xxx)" -> "TagHere 주문 적립"
-                              displayReason = displayReason.replace(/\s*\(ordersheetId:.*?\)/gi, '').trim();
-                            }
-                            if (!displayReason) {
-                              displayReason = entry.type === 'EARN' ? '포인트 적립' : entry.type === 'USE' ? '포인트 사용' : entry.type;
-                            }
-
-                            return (
-                              <div
-                                key={entry.id}
-                                className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg"
-                              >
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span
-                                      className={`text-sm font-semibold ${
-                                        entry.delta > 0 ? 'text-green-600' : 'text-red-600'
-                                      }`}
-                                    >
-                                      {entry.delta > 0 ? '+' : ''}{formatNumber(entry.delta)} P
-                                    </span>
-                                    <span className="text-xs text-neutral-400">
-                                      잔액 {formatNumber(entry.balance)} P
-                                    </span>
-                                    {entry.tableLabel && (
-                                      <span className="text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
-                                        {entry.tableLabel}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-neutral-500 mt-0.5">
-                                    {displayReason}
-                                  </p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-xs text-neutral-400">
-                                    {formatDate(entry.createdAt)}
-                                  </p>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {/* Scroll indicator gradient */}
-                        <div className="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Messages Tab */}
-                {editModalTab === 'messages' && (
-                  <div className="flex-1 overflow-hidden flex flex-col mt-3">
-                    {/* Summary */}
-                    {messageSummary.total > 0 && (
-                      <div className="mb-3 flex-shrink-0 p-2 bg-neutral-50 rounded-lg border border-neutral-100">
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="text-neutral-600">
-                            총 <span className="font-semibold text-neutral-900">{messageSummary.total}</span>건
-                          </span>
-                          <span className="text-green-600">
-                            성공 <span className="font-semibold">{messageSummary.sent}</span>건
-                          </span>
-                          {messageSummary.failed > 0 && (
-                            <span className="text-red-500">
-                              실패 <span className="font-semibold">{messageSummary.failed}</span>건
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {loadingMessages && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        불러오는 중...
-                      </div>
-                    )}
-                    {!loadingMessages && messageHistory.length === 0 && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        발송 내역이 없습니다.
-                      </div>
-                    )}
-                    {!loadingMessages && messageHistory.length > 0 && (
-                      <div className="flex-1 overflow-hidden relative">
-                        <div className="h-full overflow-y-auto pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}>
-                          <table className="w-full text-sm">
-                            <thead className="sticky top-0 bg-white">
-                              <tr className="border-b border-neutral-200">
-                                <th className="py-2 px-2 text-left text-xs font-medium text-neutral-500">발송일</th>
-                                <th className="py-2 px-2 text-left text-xs font-medium text-neutral-500">상태</th>
-                                <th className="py-2 px-2 text-left text-xs font-medium text-neutral-500">내용</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {messageHistory.map((msg) => (
-                                <tr key={msg.id} className="border-b border-neutral-100 hover:bg-neutral-50">
-                                  <td className="py-2 px-2 text-neutral-600 whitespace-nowrap">
-                                    <div className="text-xs">
-                                      {formatDate(msg.createdAt)}
-                                    </div>
-                                    <div className="text-xs text-neutral-400">
-                                      {new Date(msg.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-                                    </div>
-                                  </td>
-                                  <td className="py-2 px-2">
-                                    {msg.status === 'SENT' ? (
-                                      <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
-                                        <Check className="w-3 h-3" />
-                                        성공
-                                      </span>
-                                    ) : msg.status === 'FAILED' ? (
-                                      <span className="inline-flex items-center gap-1 text-xs text-red-500 bg-red-50 px-1.5 py-0.5 rounded">
-                                        <X className="w-3 h-3" />
-                                        실패
-                                      </span>
-                                    ) : (
-                                      <span className="text-xs text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded">
-                                        대기
-                                      </span>
-                                    )}
-                                    {msg.failReason && (
-                                      <div className="text-xs text-red-400 mt-0.5 max-w-[100px] truncate" title={msg.failReason}>
-                                        {msg.failReason}
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="py-2 px-2 text-neutral-700">
-                                    <div className="max-w-[200px] truncate" title={msg.content}>
-                                      {msg.content}
-                                    </div>
-                                    {msg.campaignTitle && (
-                                      <div className="text-xs text-neutral-400 mt-0.5 truncate">
-                                        {msg.campaignTitle}
-                                      </div>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                        {/* Scroll indicator gradient */}
-                        <div className="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <ModalFooter className="flex-shrink-0">
-            <Button
-              variant="ghost"
-              onClick={handleDeleteCustomer}
-              disabled={submittingEdit}
-              className="text-red-500 hover:text-red-600 hover:bg-red-50 mr-auto"
-            >
-              고객 삭제
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setEditModal(false);
-                setShowDateFilter(false);
-                setCancelMode(false);
-              }}
-              className="flex-1"
-            >
-              취소
-            </Button>
-            <Button
-              onClick={handleEditCustomer}
-              disabled={submittingEdit}
-              className="flex-1"
-            >
-              {submittingEdit ? '저장 중...' : '저장하기'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <EditCustomerModal
+        open={editModal}
+        onOpenChange={setEditModal}
+        customer={editingCustomer}
+        name={editName}
+        gender={editGender}
+        onGenderChange={setEditGender}
+        birthday={editBirthday}
+        birthYear={editBirthYear}
+        memo={editMemo}
+        onMemoChange={setEditMemo}
+        tab={editModalTab}
+        onTabChange={(t) => {
+          setEditModalTab(t);
+          if (t === 'messages' && editingCustomer && messageHistory.length === 0) {
+            fetchCustomerMessages(editingCustomer.id);
+          }
+        }}
+        submitting={submittingEdit}
+        stampRewardTiers={stampRewardTiers}
+        onUseStampReward={async (amount) => {
+          if (!editingCustomer) return;
+          setSubmittingEdit(true);
+          try {
+            const token = getAuthToken();
+            const res = await fetch(`${apiUrl}/api/stamps/use`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                customerId: editingCustomer.id,
+                amount,
+              }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              setEditingCustomer(prev => prev ? { ...prev, totalStamps: data.remainingStamps } as any : null);
+              showToast(`스탬프 ${amount}개가 사용되었습니다.`, 'success');
+              setRefreshKey(prev => prev + 1);
+            } else {
+              const error = await res.json();
+              showToast(error.error || '스탬프 사용에 실패했습니다.', 'error');
+            }
+          } catch (error) {
+            showToast('스탬프 사용 중 오류가 발생했습니다.', 'error');
+          } finally {
+            setSubmittingEdit(false);
+          }
+        }}
+        orderHistory={orderHistory}
+        feedbackHistory={feedbackHistory}
+        pointHistory={pointHistory}
+        messageHistory={messageHistory}
+        messageSummary={messageSummary}
+        loadingHistory={loadingHistory}
+        loadingMessages={loadingMessages}
+        showDateFilter={showDateFilter}
+        onToggleDateFilter={() => setShowDateFilter(!showDateFilter)}
+        cancelMode={cancelMode}
+        onToggleCancelMode={() => setCancelMode(!cancelMode)}
+        orderStartDate={orderStartDate}
+        onStartDateChange={setOrderStartDate}
+        orderEndDate={orderEndDate}
+        onEndDateChange={setOrderEndDate}
+        onApplyFilter={() => {
+          if (editingCustomer) {
+            fetchFilteredOrders(editingCustomer.id, orderStartDate, orderEndDate);
+          }
+        }}
+        onResetFilter={() => {
+          setOrderStartDate('');
+          setOrderEndDate('');
+          if (editingCustomer) {
+            fetchFilteredOrders(editingCustomer.id, '', '');
+          }
+        }}
+        onCancelItem={openCancelConfirm}
+        onDelete={handleDeleteCustomer}
+        onSave={handleEditCustomer}
+        onClose={() => {
+          setEditModal(false);
+          setShowDateFilter(false);
+          setCancelMode(false);
+        }}
+      />
 
       {/* Add Customer Modal */}
       <AddCustomerModal
