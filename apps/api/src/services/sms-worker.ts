@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { SolapiService } from './solapi.js';
-import { useCredits, getRemainingCredits } from './credit-service.js';
+import { refundFailedMessage } from './message-billing.js';
 
 const BATCH_SIZE = 20;
 const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
@@ -82,32 +82,8 @@ async function processMessage(
     }
 
     if (statusResult.status === 'SENT') {
-      // 발송 성공 - 무료 크레딧 우선 사용 후 유료 비용 차감
-      // /messages 페이지(SmsCampaign)에서 발송한 모든 메시지는 무료 크레딧 적용 대상
-      let freeCreditUsed = 0;
-      let paidCost = msg.cost;
-
-      // 무료 크레딧 사용 시도 (비용이 있는 경우에만)
-      if (msg.cost > 0) {
-        const remainingCredits = await getRemainingCredits(msg.storeId);
-        if (remainingCredits > 0) {
-          // 1건에 대해 무료 크레딧 사용
-          // 메시지 타입 추론: 110원 = MMS, 70원 = LMS, 50원 = SMS
-          const messageType = msg.cost >= 110 ? 'MMS' : (msg.cost >= 70 ? 'LMS' : 'SMS');
-          freeCreditUsed = await useCredits(
-            msg.storeId,
-            1,
-            msg.campaignId,
-            messageType
-          );
-          if (freeCreditUsed > 0) {
-            paidCost = 0; // 무료 크레딧 사용 시 유료 비용 0
-          }
-        }
-      }
-
+      // 발송 성공 - 선불 차감 구조이므로 여기서는 상태만 확정 (이미 발송 시 차감됨)
       await prisma.$transaction(async (tx) => {
-        // 1. 메시지 상태 업데이트
         await tx.smsMessage.update({
           where: { id: messageId },
           data: {
@@ -115,66 +91,48 @@ async function processMessage(
             sentAt: new Date(),
           },
         });
-
-        // 2. 유료 비용이 있는 경우에만 지갑 잔액 차감
-        if (paidCost > 0) {
-          await tx.wallet.update({
-            where: { storeId: msg.storeId },
-            data: { balance: { decrement: paidCost } },
-          });
-
-          // 결제 트랜잭션 로그 생성
-          await tx.paymentTransaction.create({
-            data: {
-              storeId: msg.storeId,
-              amount: -paidCost,
-              type: 'ALIMTALK_SEND', // SMS_SEND enum 추가 필요시 변경
-              status: 'SUCCESS',
-              meta: {
-                messageId: messageId,
-                campaignId: msg.campaignId,
-                phone: msg.phone,
-                type: 'SMS',
-              },
-            },
-          });
-        }
-
-        // 3. 캠페인 sentCount 증가 (totalCost는 실제 유료 비용만)
         await tx.smsCampaign.update({
           where: { id: msg.campaignId },
-          data: {
-            sentCount: { increment: 1 },
-            totalCost: { increment: paidCost },
-          },
+          data: { sentCount: { increment: 1 } },
         });
       });
 
-      if (freeCreditUsed > 0) {
-        console.log(`[SMS Worker] Message ${messageId} sent successfully (무료 크레딧 사용)`);
-      } else {
-        console.log(`[SMS Worker] Message ${messageId} sent successfully, cost: ${paidCost}원 차감`);
-      }
+      console.log(`[SMS Worker] Message ${messageId} sent successfully (선불 차감 완료분 확정)`);
     } else if (statusResult.status === 'FAILED') {
-      // 발송 실패 - 상태만 업데이트, 비용 차감 없음
+      // 발송 실패 - 상태 업데이트 후 발송 시 차감했던 금액/크레딧 환불
+      const refundCost = msg.cost; // 발송 시 이 메시지에 차감된 금액 (무료였으면 0)
+
       await prisma.$transaction(async (tx) => {
         await tx.smsMessage.update({
           where: { id: messageId },
           data: {
             status: 'FAILED',
             failReason: statusResult.failReason || '발송 실패',
-            cost: 0, // 실패 시 비용 0
+            cost: 0, // 실패 시 비용 0 (환불 처리됨)
           },
         });
 
-        // 캠페인 failedCount 증가
+        // 캠페인 집계: 실패 카운트 증가 + 차감액에서 환불분 차감
         await tx.smsCampaign.update({
           where: { id: msg.campaignId },
-          data: { failedCount: { increment: 1 } },
+          data: {
+            failedCount: { increment: 1 },
+            totalCost: { decrement: refundCost },
+          },
         });
       });
 
-      console.log(`[SMS Worker] Message ${messageId} FAILED: ${statusResult.failReason}`);
+      // 지갑 환불(유료분) 또는 무료 크레딧 복구
+      await refundFailedMessage({
+        storeId: msg.storeId,
+        campaignId: msg.campaignId,
+        messageId,
+        cost: refundCost,
+        messageType: 'SMS',
+        metaType: 'SMS',
+      });
+
+      console.log(`[SMS Worker] Message ${messageId} FAILED, refunded ${refundCost}원: ${statusResult.failReason}`);
     } else {
       // PENDING - 아직 결과 없음, 다음 폴링에서 재시도
       console.log(`[SMS Worker] Message ${messageId} still PENDING, will retry`);

@@ -592,10 +592,9 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       text: formattedContent,
     }));
 
-    // 그룹 메시지 벌크 발송
+    // 그룹 메시지 벌크 발송 — index별로 올바른 groupId 매핑 (다중 청크 대응)
     const batchResults = await solapiService.sendBulkSms(bulkMessages);
-    const { successGroupIds, failureMap } = buildPhoneResultMap(batchResults);
-    const groupId = successGroupIds[0] || null;
+    const { successGroupIds, failureMap, groupIdByIndex } = buildPhoneResultMap(batchResults);
 
     console.log(`[SMS] Bulk send complete: ${successGroupIds.length} groups, ${failureMap.size} failed phones`);
 
@@ -603,10 +602,12 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     let pendingCount = 0;
     let failedCount = 0;
 
-    for (const selected of selectedCustomers) {
+    for (let index = 0; index < selectedCustomers.length; index++) {
+      const selected = selectedCustomers[index];
       const normalizedPhone = selected.phone.replace(/[^0-9]/g, '');
       const phoneLookup = normalizedPhone.startsWith('82') ? '0' + normalizedPhone.slice(2) : (normalizedPhone.startsWith('0') ? normalizedPhone : '0' + normalizedPhone);
-      const isFailed = failureMap.has(phoneLookup);
+      const groupId = groupIdByIndex[index] ?? null;
+      const isFailed = failureMap.has(phoneLookup) || !groupId;
 
       await prisma.externalSmsMessage.create({
         data: {
@@ -617,7 +618,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
           status: isFailed ? 'FAILED' : 'PENDING',
           solapiGroupId: isFailed ? undefined : groupId,
           cost: isFailed ? 0 : EXTERNAL_SMS_COST,
-          failReason: isFailed ? failureMap.get(phoneLookup) : undefined,
+          failReason: isFailed ? (failureMap.get(phoneLookup) || '발송 실패') : undefined,
         },
       });
 
@@ -919,8 +920,7 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
       buttons: buttons as BrandMessageButton[],
       scheduledAt,
     });
-    const { successGroupIds, failureMap } = buildPhoneResultMap(batchResults);
-    const groupId = successGroupIds[0] || null;
+    const { successGroupIds, failureMap, groupIdByIndex } = buildPhoneResultMap(batchResults);
 
     console.log(`[ExternalKakao] Bulk send complete: ${successGroupIds.length} groups, ${failureMap.size} failed phones`);
 
@@ -928,10 +928,12 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
     let pendingCount = 0;
     let failedCount = 0;
 
-    for (const customer of customers) {
+    for (let index = 0; index < customers.length; index++) {
+      const customer = customers[index];
       const normalizedPhone = customer.phone.replace(/[^0-9]/g, '');
       const phoneLookup = normalizedPhone.startsWith('82') ? '0' + normalizedPhone.slice(2) : (normalizedPhone.startsWith('0') ? normalizedPhone : '0' + normalizedPhone);
-      const isFailed = failureMap.has(phoneLookup);
+      const groupId = groupIdByIndex[index] ?? null;
+      const isFailed = failureMap.has(phoneLookup) || !groupId;
 
       await prisma.externalSmsMessage.create({
         data: {
@@ -942,7 +944,7 @@ router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
           status: isFailed ? 'FAILED' : 'PENDING',
           solapiGroupId: isFailed ? undefined : groupId,
           cost: isFailed ? 0 : costPerMessage,
-          failReason: isFailed ? failureMap.get(phoneLookup) : undefined,
+          failReason: isFailed ? (failureMap.get(phoneLookup) || '발송 실패') : undefined,
         },
       });
 

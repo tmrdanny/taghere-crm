@@ -29,6 +29,14 @@ export interface StampEarnedVariables {
   reviewGuide: string;
 }
 
+// 벌크 발송 청크 단위 결과
+export interface BulkSendResult {
+  groupId: string;
+  acceptedCount: number;
+  messageCount: number; // 이 청크(그룹)에 포함된 메시지 수 — index→groupId 매핑에 사용
+  failedPhones: Map<string, string>;
+}
+
 // SOLAPI 서비스 클래스
 export class SolapiService {
   private messageService: SolapiMessageService | null = null;
@@ -188,36 +196,52 @@ export class SolapiService {
     }
 
     try {
-      const result = await this.messageService.getMessages({ groupId });
       const statuses = new Map<string, { status: 'PENDING' | 'SENT' | 'FAILED'; failReason?: string }>();
 
-      if (!result.messageList) {
-        return { success: true, statuses };
-      }
+      // SOLAPI getMessages 는 limit 미지정 시 한 페이지(기본 ~20건)만 반환한다.
+      // 한 그룹에 수백~수천 건이 있을 수 있으므로 nextKey 로 끝까지 페이지네이션한다.
+      // (이 처리가 없으면 응답에 없는 번호가 영구 PENDING 으로 남아 차감/완료가 누락됨)
+      const PAGE_LIMIT = 500;
+      let startKey: string | undefined = undefined;
+      let safetyPages = 0;
 
-      const messages = Object.values(result.messageList) as any[];
-      for (const m of messages) {
-        const phone = this.normalizePhoneNumber(m.to || '');
-        if (!phone) continue;
+      do {
+        const result: any = await this.messageService.getMessages({
+          groupId,
+          limit: PAGE_LIMIT,
+          ...(startKey ? { startKey } : {}),
+        } as any);
 
-        const statusCode = m.statusCode as string | undefined;
-        const statusMessage = m.statusMessage as string | undefined;
+        const messageList = result?.messageList;
+        if (messageList) {
+          const messages = Object.values(messageList) as any[];
+          for (const m of messages) {
+            const phone = this.normalizePhoneNumber(m.to || '');
+            if (!phone) continue;
 
-        if (statusCode?.startsWith('4')) {
-          statuses.set(phone, { status: 'SENT' });
-        } else if (statusCode === '3000') {
-          statuses.set(phone, { status: 'PENDING' });
-        } else if (statusCode?.startsWith('3')) {
-          statuses.set(phone, {
-            status: 'FAILED',
-            failReason: this.getFailReasonKorean(statusCode, statusMessage),
-          });
-        } else if (statusCode?.startsWith('2')) {
-          statuses.set(phone, { status: 'PENDING' });
-        } else {
-          statuses.set(phone, { status: 'PENDING' });
+            const statusCode = m.statusCode as string | undefined;
+            const statusMessage = m.statusMessage as string | undefined;
+
+            if (statusCode?.startsWith('4')) {
+              statuses.set(phone, { status: 'SENT' });
+            } else if (statusCode === '3000') {
+              statuses.set(phone, { status: 'PENDING' });
+            } else if (statusCode?.startsWith('3')) {
+              statuses.set(phone, {
+                status: 'FAILED',
+                failReason: this.getFailReasonKorean(statusCode, statusMessage),
+              });
+            } else if (statusCode?.startsWith('2')) {
+              statuses.set(phone, { status: 'PENDING' });
+            } else {
+              statuses.set(phone, { status: 'PENDING' });
+            }
+          }
         }
-      }
+
+        startKey = result?.nextKey || undefined;
+        safetyPages += 1;
+      } while (startKey && safetyPages < 1000);
 
       return { success: true, statuses };
     } catch (error: any) {
@@ -238,51 +262,30 @@ export class SolapiService {
     }
 
     try {
-      // SOLAPI getMessages로 그룹 내 메시지 조회
-      const result = await this.messageService.getMessages({ groupId });
+      // 페이지네이션을 포함한 그룹 전체 상태 조회를 재사용 (limit 누락으로 인한 누락 방지)
+      const groupResult = await this.getGroupMessageStatuses(groupId);
+      if (!groupResult.success || !groupResult.statuses) {
+        return { success: false, error: groupResult.error || 'No messages found in group' };
+      }
 
-      if (result.messageList && Object.keys(result.messageList).length > 0) {
-        const messages = Object.values(result.messageList) as any[];
+      const statuses = groupResult.statuses;
+      if (statuses.size === 0) {
+        return { success: false, error: 'No messages found in group' };
+      }
 
-        // 특정 전화번호가 지정된 경우 해당 번호의 메시지만 찾기
-        let targetMessage = messages[0];
-        if (targetPhone) {
-          const normalizedTarget = this.normalizePhoneNumber(targetPhone);
-
-          const foundMessage = messages.find((msg) => {
-            const msgPhone = this.normalizePhoneNumber(msg.to || '');
-            return msgPhone === normalizedTarget;
-          });
-
-          if (foundMessage) {
-            targetMessage = foundMessage;
-          }
+      // 특정 전화번호가 지정된 경우 해당 번호 상태, 없으면 첫 번째 항목
+      if (targetPhone) {
+        const normalizedTarget = this.normalizePhoneNumber(targetPhone);
+        const found = statuses.get(normalizedTarget);
+        if (found) {
+          return { success: true, status: found.status, failReason: found.failReason };
         }
-
-        const statusCode = targetMessage?.statusCode;
-        const statusMessage = targetMessage?.statusMessage;
-
-        // SOLAPI 상태 코드 매핑
-        // 2xxx: 발송 대기/처리중
-        // 3000: 이통사 접수 중 (아직 결과 없음) - PENDING으로 처리
-        // 3001~3999: 발송 실패
-        // 4xxx: 발송 성공
-        if (statusCode?.startsWith('4')) {
-          return { success: true, status: 'SENT' };
-        } else if (statusCode === '3000') {
-          // 3000은 이통사에 접수되어 리포트를 기다리는 중 - 아직 결과 없음
-          return { success: true, status: 'PENDING' };
-        } else if (statusCode?.startsWith('3')) {
-          return { success: true, status: 'FAILED', failReason: this.getFailReasonKorean(statusCode, statusMessage) };
-        } else if (statusCode?.startsWith('2')) {
-          return { success: true, status: 'PENDING' };
-        }
-
-        // 알 수 없는 상태코드
+        // 그룹 조회는 됐지만 해당 번호가 아직 응답에 없음 - 아직 처리 중
         return { success: true, status: 'PENDING' };
       }
 
-      return { success: false, error: 'No messages found in group' };
+      const first = statuses.values().next().value as { status: 'PENDING' | 'SENT' | 'FAILED'; failReason?: string };
+      return { success: true, status: first.status, failReason: first.failReason };
     } catch (error: any) {
       console.error('[SOLAPI] Get message status error:', error);
       return { success: false, error: error.message || 'Unknown error' };
@@ -441,18 +444,14 @@ export class SolapiService {
     text: string;
     type?: 'SMS' | 'LMS' | 'MMS';
     imageId?: string;
-  }>): Promise<Array<{
-    groupId: string;
-    acceptedCount: number;
-    failedPhones: Map<string, string>;
-  }>> {
+  }>): Promise<BulkSendResult[]> {
     if (!this.messageService) {
       throw new Error('SOLAPI not configured');
     }
 
     const CHUNK_SIZE = 1000;
     const CHUNK_DELAY_MS = 100;
-    const results: Array<{ groupId: string; acceptedCount: number; failedPhones: Map<string, string> }> = [];
+    const results: BulkSendResult[] = [];
 
     for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
       const chunk = messages.slice(i, i + CHUNK_SIZE).map((msg) => ({
@@ -476,7 +475,7 @@ export class SolapiService {
         }
 
         console.log(`[SOLAPI Bulk SMS] Chunk ${Math.floor(i / CHUNK_SIZE) + 1}: groupId=${groupId}, accepted=${acceptedCount}, failed=${failedPhones.size}`);
-        results.push({ groupId, acceptedCount, failedPhones });
+        results.push({ groupId, acceptedCount, messageCount: chunk.length, failedPhones });
       } catch (error: any) {
         console.error(`[SOLAPI Bulk SMS] Chunk ${Math.floor(i / CHUNK_SIZE) + 1} error:`, error.message);
         // 청크 전체 실패 시 모든 번호를 실패로 처리
@@ -484,7 +483,7 @@ export class SolapiService {
         for (const msg of chunk) {
           failedPhones.set(msg.to, error.message || 'Chunk send failed');
         }
-        results.push({ groupId: '', acceptedCount: 0, failedPhones });
+        results.push({ groupId: '', acceptedCount: 0, messageCount: chunk.length, failedPhones });
       }
 
       // 청크 간 딜레이 (마지막 제외)
@@ -504,18 +503,14 @@ export class SolapiService {
     imageId?: string;
     buttons?: BrandMessageButton[];
     scheduledAt?: Date;
-  }): Promise<Array<{
-    groupId: string;
-    acceptedCount: number;
-    failedPhones: Map<string, string>;
-  }>> {
+  }): Promise<BulkSendResult[]> {
     if (!this.apiKey || !this.apiSecret) {
       throw new Error('SOLAPI not configured');
     }
 
     const CHUNK_SIZE = 1000;
     const CHUNK_DELAY_MS = 100;
-    const results: Array<{ groupId: string; acceptedCount: number; failedPhones: Map<string, string> }> = [];
+    const results: BulkSendResult[] = [];
 
     const bmsButtons = params.buttons?.length
       ? params.buttons.map((btn) => ({
@@ -575,14 +570,14 @@ export class SolapiService {
         }
 
         console.log(`[SOLAPI Bulk BMS] Chunk ${Math.floor(i / CHUNK_SIZE) + 1}: groupId=${groupId}, accepted=${acceptedCount}, failed=${failedPhones.size}`);
-        results.push({ groupId, acceptedCount, failedPhones });
+        results.push({ groupId, acceptedCount, messageCount: chunk.length, failedPhones });
       } catch (error: any) {
         console.error(`[SOLAPI Bulk BMS] Chunk ${Math.floor(i / CHUNK_SIZE) + 1} error:`, error.message);
         const failedPhones = new Map<string, string>();
         for (const msg of chunk) {
           failedPhones.set(this.normalizePhoneNumber(msg.to), error.message || 'Chunk send failed');
         }
-        results.push({ groupId: '', acceptedCount: 0, failedPhones });
+        results.push({ groupId: '', acceptedCount: 0, messageCount: chunk.length, failedPhones });
       }
 
       if (i + CHUNK_SIZE < params.messages.length) {
@@ -594,21 +589,37 @@ export class SolapiService {
   }
 }
 
-// 벌크 발송 결과 → phone별 성공/실패 매핑 헬퍼
+// 벌크 발송 결과 매핑 헬퍼
+//
+// 중요: 1000건 초과 발송은 여러 청크(그룹)로 나뉘어 groupId가 청크마다 다르다.
+// 따라서 "발송 순서 index" 기준으로 해당 메시지가 속한 그룹의 groupId를 돌려주는
+// groupIdByIndex 배열을 만든다. (예전엔 successGroupIds[0] 하나만 모든 메시지에 붙여
+// 2번째 청크부터는 잘못된 groupId가 저장되어 워커가 영원히 매칭 실패 → 영구 PENDING 되었음)
+//
+// batchResults 는 청크 발송 순서대로 들어오고, 각 청크는 발송 대상 배열의 연속 구간이다.
 export function buildPhoneResultMap(
-  batchResults: Array<{ groupId: string; acceptedCount: number; failedPhones: Map<string, string> }>
-): { successGroupIds: string[]; failureMap: Map<string, string> } {
+  batchResults: BulkSendResult[]
+): {
+  successGroupIds: string[];
+  failureMap: Map<string, string>;
+  groupIdByIndex: (string | null)[];
+} {
   const successGroupIds: string[] = [];
   const failureMap = new Map<string, string>();
+  const groupIdByIndex: (string | null)[] = [];
 
   for (const batch of batchResults) {
     if (batch.groupId) successGroupIds.push(batch.groupId);
     for (const [phone, reason] of batch.failedPhones) {
       failureMap.set(phone, reason);
     }
+    const gid = batch.groupId || null;
+    for (let k = 0; k < batch.messageCount; k++) {
+      groupIdByIndex.push(gid);
+    }
   }
 
-  return { successGroupIds, failureMap };
+  return { successGroupIds, failureMap, groupIdByIndex };
 }
 
 // Outbox에 메시지 추가
