@@ -2,9 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Modal,
@@ -14,7 +12,7 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatNumber } from '@/lib/utils';
-import { Search, ChevronDown, Check, UserPlus, Send, Megaphone, X, Calendar, Settings2, FileSpreadsheet, Zap, ArrowRight, Bell, Cake, HandMetal } from 'lucide-react';
+import { UserPlus, Send, Megaphone, X, FileSpreadsheet, Zap, ArrowRight, Bell, Cake, HandMetal } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
@@ -30,6 +28,7 @@ import {
 import { AddCustomerModal } from './AddCustomerModal';
 import { BulkUploadModal } from './BulkUploadModal';
 import { CustomerTable } from './CustomerTable';
+import { CustomerFilters } from './CustomerFilters';
 import { EditCustomerModal } from './EditCustomerModal';
 import { UsePointsModal } from './UsePointsModal';
 import { UsePointsConfirmModal } from './UsePointsConfirmModal';
@@ -1206,301 +1205,75 @@ export default function CustomersPage() {
       )}
 
       {/* Search and Filters */}
-      <Card className="p-4 mb-6">
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-            <Input
-              placeholder="이름, 전화번호, 메모 검색"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" onClick={resetFilters}>
-              전체 보기
-            </Button>
-
-            {/* Gender Filter Dropdown */}
-            <div className="relative">
-              <Button
-                variant={genderFilter === 'all' ? 'outline' : 'secondary'}
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setGenderDropdownOpen(!genderDropdownOpen);
-                  setVisitDropdownOpen(false);
-                  setLastVisitDropdownOpen(false);
-                }}
-                className="flex items-center gap-1"
-              >
-                성별 {genderOptions.find(o => o.value === genderFilter)?.label}
-                <ChevronDown className="w-3.5 h-3.5" />
-              </Button>
-              {genderDropdownOpen && (
-                <div
-                  className="absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 min-w-[120px] z-50"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {genderOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-50 flex items-center justify-between"
-                      onClick={() => handleGenderSelect(option.value as 'all' | 'MALE' | 'FEMALE')}
-                    >
-                      {option.label}
-                      {genderFilter === option.value && (
-                        <Check className="w-4 h-4 text-brand-800" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Visit Count Filter Dropdown */}
-            <div className="relative">
-              <Button
-                variant={visitFilter === 'all' ? 'outline' : 'secondary'}
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setVisitDropdownOpen(!visitDropdownOpen);
-                  setGenderDropdownOpen(false);
-                  setLastVisitDropdownOpen(false);
-                }}
-                className="flex items-center gap-1"
-              >
-                방문 횟수 {visitOptions.find(o => o.value === visitFilter)?.label}
-                <ChevronDown className="w-3.5 h-3.5" />
-              </Button>
-              {visitDropdownOpen && (
-                <div
-                  className="absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 min-w-[140px] z-50"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {visitOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-50 flex items-center justify-between"
-                      onClick={() => handleVisitSelect(option.value as 'all' | '1' | '2' | '5' | '10' | '20')}
-                    >
-                      {option.label}
-                      {visitFilter === option.value && (
-                        <Check className="w-4 h-4 text-brand-800" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Last Visit Filter Dropdown */}
-            <div className="relative">
-              <Button
-                variant={lastVisitFilter === 'all' ? 'outline' : 'secondary'}
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLastVisitDropdownOpen(!lastVisitDropdownOpen);
-                  setGenderDropdownOpen(false);
-                  setVisitDropdownOpen(false);
-                }}
-                className="flex items-center gap-1"
-              >
-                마지막 방문 {lastVisitOptions.find(o => o.value === lastVisitFilter)?.label}
-                <ChevronDown className="w-3.5 h-3.5" />
-              </Button>
-              {lastVisitDropdownOpen && (
-                <div
-                  className="absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 min-w-[140px] z-50"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {lastVisitOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-50 flex items-center justify-between"
-                      onClick={() => handleLastVisitSelect(option.value as 'all' | '7' | '30' | '90')}
-                    >
-                      {option.label}
-                      {lastVisitFilter === option.value && (
-                        <Check className="w-4 h-4 text-brand-800" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Date Range Filter Dropdown */}
-            <div className="relative" ref={dateRangeDropdownRef}>
-              <Button
-                variant={(startDate || endDate) ? 'secondary' : 'outline'}
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDateRangeDropdownOpen(!dateRangeDropdownOpen);
-                  setGenderDropdownOpen(false);
-                  setVisitDropdownOpen(false);
-                  setLastVisitDropdownOpen(false);
-                }}
-                className="flex items-center gap-1"
-              >
-                <Calendar className="w-3.5 h-3.5" />
-                {(startDate || endDate) ? (
-                  <span className="text-xs">
-                    {startDate && endDate ? `${startDate.slice(5)} ~ ${endDate.slice(5)}` : startDate ? `${startDate.slice(5)} ~` : `~ ${endDate.slice(5)}`}
-                  </span>
-                ) : (
-                  '기간'
-                )}
-                <ChevronDown className="w-3.5 h-3.5" />
-              </Button>
-              {dateRangeDropdownOpen && (
-                <div
-                  className="absolute top-full right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg p-3 min-w-[240px] z-50"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Date type selector */}
-                  <div className="mb-3 space-y-1.5">
-                    <label className="flex items-center gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="radio"
-                        name="dateType"
-                        checked={dateFilterType === 'lastVisit'}
-                        onChange={() => setDateFilterType('lastVisit')}
-                        className="text-brand-800 focus:ring-brand-800"
-                      />
-                      <span className="text-sm text-neutral-700">마지막 방문일</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="radio"
-                        name="dateType"
-                        checked={dateFilterType === 'created'}
-                        onChange={() => setDateFilterType('created')}
-                        className="text-brand-800 focus:ring-brand-800"
-                      />
-                      <span className="text-sm text-neutral-700">가입일</span>
-                    </label>
-                  </div>
-
-                  {/* Date inputs */}
-                  <div className="space-y-2 mb-3" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-neutral-500 w-12">시작일</span>
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        onFocus={(e) => e.stopPropagation()}
-                        className="flex-1 px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-neutral-500 w-12">종료일</span>
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        onFocus={(e) => e.stopPropagation()}
-                        className="flex-1 px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setStartDate('');
-                        setEndDate('');
-                        setDateFilterType('lastVisit');
-                        setPage(1);
-                      }}
-                      className="flex-1 text-sm"
-                    >
-                      초기화
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDateRangeDropdownOpen(false);
-                        setPage(1);
-                      }}
-                      className="flex-1 text-sm"
-                    >
-                      적용
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Column Settings Dropdown */}
-            <div className="relative" ref={columnSettingsRef}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setColumnSettingsOpen(!columnSettingsOpen);
-                  setGenderDropdownOpen(false);
-                  setVisitDropdownOpen(false);
-                  setLastVisitDropdownOpen(false);
-                  setDateRangeDropdownOpen(false);
-                }}
-                className="flex items-center gap-1"
-              >
-                <Settings2 className="w-3.5 h-3.5" />
-                컬럼
-                <ChevronDown className="w-3.5 h-3.5" />
-              </Button>
-              {columnSettingsOpen && (
-                <div
-                  className="absolute top-full right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-2 min-w-[180px] z-50"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="px-3 pb-2 border-b border-neutral-100 mb-2">
-                    <span className="text-xs font-medium text-neutral-500">표시할 컬럼</span>
-                  </div>
-                  {COLUMN_DEFINITIONS.map((column) => (
-                    <label
-                      key={column.id}
-                      className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-neutral-50 ${column.required ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={visibleColumns.includes(column.id)}
-                        disabled={column.required}
-                        onChange={() => toggleColumn(column.id)}
-                        className="rounded border-neutral-300"
-                      />
-                      <span className="text-sm text-neutral-700">{column.label}</span>
-                      {column.required && <span className="text-xs text-neutral-400">(필수)</span>}
-                    </label>
-                  ))}
-                  <div className="px-3 pt-2 mt-2 border-t border-neutral-100">
-                    <button
-                      onClick={resetColumnsToDefault}
-                      className="text-xs text-neutral-500 hover:text-neutral-700"
-                    >
-                      기본값으로 초기화
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </Card>
+      <CustomerFilters
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
+        onResetFilters={resetFilters}
+        genderFilter={genderFilter}
+        genderOptions={genderOptions}
+        genderDropdownOpen={genderDropdownOpen}
+        onGenderToggle={() => {
+          setGenderDropdownOpen(!genderDropdownOpen);
+          setVisitDropdownOpen(false);
+          setLastVisitDropdownOpen(false);
+        }}
+        onGenderSelect={(value) => handleGenderSelect(value as 'all' | 'MALE' | 'FEMALE')}
+        visitFilter={visitFilter}
+        visitOptions={visitOptions}
+        visitDropdownOpen={visitDropdownOpen}
+        onVisitToggle={() => {
+          setVisitDropdownOpen(!visitDropdownOpen);
+          setGenderDropdownOpen(false);
+          setLastVisitDropdownOpen(false);
+        }}
+        onVisitSelect={(value) => handleVisitSelect(value as 'all' | '1' | '2' | '5' | '10' | '20')}
+        lastVisitFilter={lastVisitFilter}
+        lastVisitOptions={lastVisitOptions}
+        lastVisitDropdownOpen={lastVisitDropdownOpen}
+        onLastVisitToggle={() => {
+          setLastVisitDropdownOpen(!lastVisitDropdownOpen);
+          setGenderDropdownOpen(false);
+          setVisitDropdownOpen(false);
+        }}
+        onLastVisitSelect={(value) => handleLastVisitSelect(value as 'all' | '7' | '30' | '90')}
+        startDate={startDate}
+        onStartDateChange={setStartDate}
+        endDate={endDate}
+        onEndDateChange={setEndDate}
+        dateFilterType={dateFilterType}
+        onDateFilterTypeChange={setDateFilterType}
+        dateRangeDropdownOpen={dateRangeDropdownOpen}
+        onDateRangeToggle={() => {
+          setDateRangeDropdownOpen(!dateRangeDropdownOpen);
+          setGenderDropdownOpen(false);
+          setVisitDropdownOpen(false);
+          setLastVisitDropdownOpen(false);
+        }}
+        dateRangeDropdownRef={dateRangeDropdownRef}
+        onDateRangeReset={() => {
+          setStartDate('');
+          setEndDate('');
+          setDateFilterType('lastVisit');
+          setPage(1);
+        }}
+        onDateRangeApply={() => {
+          setDateRangeDropdownOpen(false);
+          setPage(1);
+        }}
+        columnSettingsOpen={columnSettingsOpen}
+        onColumnSettingsToggle={() => {
+          setColumnSettingsOpen(!columnSettingsOpen);
+          setGenderDropdownOpen(false);
+          setVisitDropdownOpen(false);
+          setLastVisitDropdownOpen(false);
+          setDateRangeDropdownOpen(false);
+        }}
+        columnSettingsRef={columnSettingsRef}
+        columnDefinitions={COLUMN_DEFINITIONS}
+        visibleColumns={visibleColumns}
+        onToggleColumn={toggleColumn}
+        onResetColumns={resetColumnsToDefault}
+      />
 
       {/* Customer Table */}
       <CustomerTable
