@@ -3,7 +3,6 @@
 import { API_BASE } from '@/lib/api-config';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Modal,
   ModalContent,
@@ -12,7 +11,6 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatNumber } from '@/lib/utils';
-import { UserPlus, Send, Megaphone, X, FileSpreadsheet, Zap, ArrowRight, Bell, Cake, HandMetal } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
@@ -29,6 +27,9 @@ import { AddCustomerModal } from './AddCustomerModal';
 import { BulkUploadModal } from './BulkUploadModal';
 import { CustomerTable } from './CustomerTable';
 import { CustomerFilters } from './CustomerFilters';
+import { CustomerAnnouncements } from './CustomerAnnouncements';
+import { CustomerListHeader } from './CustomerListHeader';
+import { AutomationBanner } from './AutomationBanner';
 import { EditCustomerModal } from './EditCustomerModal';
 import { UsePointsModal } from './UsePointsModal';
 import { UsePointsConfirmModal } from './UsePointsConfirmModal';
@@ -1096,113 +1097,32 @@ export default function CustomersPage() {
       {ToastComponent}
 
       {/* Announcements */}
-      {announcements.length > 0 && (
-        <div className="mb-6 space-y-3">
-          {announcements.map((announcement) => (
-            <div
-              key={announcement.id}
-              className="flex items-start gap-3 p-4 bg-brand-50 border border-brand-200 rounded-lg"
-            >
-              <div className="flex-shrink-0 mt-0.5">
-                <Megaphone className="w-5 h-5 text-brand-700" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="info" className="text-xs">공지</Badge>
-                  <span className="font-medium text-neutral-900">{announcement.title}</span>
-                </div>
-                <p className="text-sm text-neutral-700 whitespace-pre-wrap">{announcement.content}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <CustomerAnnouncements announcements={announcements} />
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">고객 리스트</h1>
-          <p className="text-sm text-neutral-500 mt-1">
-            전체 고객 {formatNumber(pagination.total)}명
-          </p>
-        </div>
-        <div className="flex gap-3">
-          {selectedCustomers.length > 0 && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                const selectedData = customers
-                  .filter(c => selectedCustomers.includes(c.id))
-                  .map(c => ({ id: c.id, name: c.name, phone: c.phone }));
-                const params = encodeURIComponent(JSON.stringify(selectedData));
-                router.push(`/messages?customers=${params}`);
-              }}
-            >
-              <Send className="w-4 h-4 mr-2" />
-              선택 고객에게 메시지 발송 ({selectedCustomers.length}명)
-            </Button>
-          )}
-          <Button onClick={() => setAddModal(true)}>
-            <UserPlus className="w-4 h-4 mr-2" />
-            고객 등록
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setBulkModal(true);
-              setBulkParsedData([]);
-              setBulkResult(null);
-            }}
-          >
-            <FileSpreadsheet className="w-4 h-4 mr-2" />
-            대량 등록
-          </Button>
-        </div>
-      </div>
+      <CustomerListHeader
+        total={pagination.total}
+        selectedCount={selectedCustomers.length}
+        onSendToSelected={() => {
+          const selectedData = customers
+            .filter(c => selectedCustomers.includes(c.id))
+            .map(c => ({ id: c.id, name: c.name, phone: c.phone }));
+          const params = encodeURIComponent(JSON.stringify(selectedData));
+          router.push(`/messages?customers=${params}`);
+        }}
+        onAddCustomer={() => setAddModal(true)}
+        onBulkUpload={() => {
+          setBulkModal(true);
+          setBulkParsedData([]);
+          setBulkResult(null);
+        }}
+      />
 
       {/* 자동 마케팅 배너 */}
-      {automationStatus && !automationStatus.hasActiveRules && (
-        <div
-          className="mb-6 rounded-xl bg-gradient-to-r from-brand-50 via-white to-orange-50 border border-brand-200 cursor-pointer hover:shadow-lg transition-all"
-          onClick={() => router.push('/automation')}
-        >
-          {/* 상단: 타이틀 + CTA */}
-          <div className="flex items-center justify-between px-5 pt-4 pb-2">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-brand-100 rounded-lg">
-                <Zap className="w-4 h-4 text-brand-700" />
-              </div>
-              <span className="text-base font-bold text-neutral-900">놓치고 있는 고객이 있어요</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="hidden sm:inline text-xs font-medium text-brand-600 bg-brand-100 px-2.5 py-1 rounded-full">월 30건 무료</span>
-              <div className="flex items-center gap-1 text-sm font-semibold text-white bg-brand-700 px-3 py-1.5 rounded-lg hover:bg-brand-800 transition-colors">
-                시작하기
-                <ArrowRight className="w-3.5 h-3.5" />
-              </div>
-            </div>
-          </div>
-
-          {/* 하단: 3개 지표 카드 */}
-          <div className="grid grid-cols-3 gap-3 px-5 pb-4 pt-1">
-            <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
-              <HandMetal className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
-              <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.FIRST_VISIT_FOLLOWUP?.thisMonthEstimate ?? 0}명</p>
-              <p className="text-sm text-neutral-500 mt-1">첫 방문 · 재방문 쿠폰 미발송</p>
-            </div>
-            <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
-              <Cake className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
-              <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.BIRTHDAY?.thisMonthEstimate ?? 0}명</p>
-              <p className="text-sm text-neutral-500 mt-1">이번 달 생일 · 축하 미발송</p>
-            </div>
-            <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
-              <Bell className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
-              <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.CHURN_PREVENTION?.thisMonthEstimate ?? 0}명</p>
-              <p className="text-sm text-neutral-500 mt-1">이탈 위험 · 쿠폰 없이 이탈 중</p>
-            </div>
-          </div>
-        </div>
-      )}
+      <AutomationBanner
+        automationStatus={automationStatus}
+        onNavigate={() => router.push('/automation')}
+      />
 
       {/* Search and Filters */}
       <CustomerFilters
