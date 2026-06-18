@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import type { Metadata, Viewport } from 'next';
@@ -30,7 +31,7 @@ interface StoreInfo {
 function TableLinkContent() {
   const params = useParams();
   const slug = params.slug as string;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = API_BASE;
 
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);

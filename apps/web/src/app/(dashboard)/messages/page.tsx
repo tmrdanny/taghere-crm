@@ -1,157 +1,55 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
+import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalTitle,
-  ModalFooter,
-} from '@/components/ui/modal';
-import { formatNumber, formatPhone, maskNickname } from '@/lib/utils';
+import { formatNumber, maskNickname } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
 import {
   Send,
-  Users,
   Loader2,
-  ChevronLeft,
   ChevronDown,
   ChevronUp,
-  Camera,
-  ArrowUp,
   Wifi,
   Battery,
   ImagePlus,
   X,
   AlertCircle,
-  Search,
-  Check,
   UserPlus,
   Trash2,
   Link,
   Clock,
   TrendingUp,
   Wallet,
-  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChargeModal } from '@/components/ChargeModal';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-// 연령대 옵션 (local-customers와 동일)
-const AGE_GROUP_OPTIONS = [
-  { value: 'TWENTIES', label: '20대' },
-  { value: 'THIRTIES', label: '30대' },
-  { value: 'FORTIES', label: '40대' },
-  { value: 'FIFTIES', label: '50대' },
-  { value: 'SIXTY_PLUS', label: '60대 이상' },
-];
-
-interface TargetCounts {
-  all: number;
-  revisit: number;
-  new: number;
-}
-
-interface EstimatedRevenue {
-  avgOrderValue: number;
-  conversionRate: number;
-  expectedVisits: number;
-  expectedRevenue: number;
-}
-
-interface FreeCredits {
-  remaining: number;
-  freeCount: number;
-  paidCount: number;
-  isRetargetPage: boolean;
-}
-
-interface Estimate {
-  targetCount: number;
-  byteLength: number;
-  messageType: 'SMS' | 'LMS' | 'MMS';
-  costPerMessage: number;
-  totalCost: number;
-  walletBalance: number;
-  canSend: boolean;
-  estimatedRevenue?: EstimatedRevenue;
-  freeCredits?: FreeCredits;
-}
-
-interface UploadedImage {
-  imageUrl: string;
-  filename: string;
-  imageId: string; // SOLAPI에서 받은 이미지 ID
-  width: number;
-  height: number;
-  size: number;
-}
-
-// 이미지 제약 조건 상수
-const IMAGE_MAX_SIZE = 200 * 1024; // 200KB
-const IMAGE_MAX_WIDTH = 1500;
-const IMAGE_MAX_HEIGHT = 1440;
-
-interface Campaign {
-  id: string;
-  title: string;
-  content: string;
-  targetType: string;
-  targetCount: number;
-  sentCount: number;
-  failedCount: number;
-  totalCost: number;
-  status: string;
-  createdAt: string;
-  completedAt: string | null;
-}
-
-interface SelectedCustomer {
-  id: string;
-  name: string | null;
-  phone: string | null;
-}
-
-// 카카오톡 브랜드 메시지 관련 인터페이스
-interface KakaoButton {
-  type: 'WL';
-  name: string;
-  linkMo: string;
-  linkPc?: string;
-}
-
-interface KakaoEstimate {
-  targetCount: number;
-  messageType: 'TEXT' | 'IMAGE';
-  costPerMessage: number;
-  totalCost: number;
-  walletBalance: number;
-  canSend: boolean;
-  estimatedRevenue?: EstimatedRevenue;
-  freeCredits?: FreeCredits;
-}
-
-interface KakaoUploadedImage {
-  imageUrl: string;
-  imageId: string;
-  filename: string;
-}
-
-interface CustomerListItem {
-  id: string;
-  name: string | null;
-  phone: string | null;
-  visitCount: number;
-  totalPoints: number;
-  gender: string | null;
-  createdAt: string;
-  messageCount?: number;
-}
+import {
+  TargetCounts,
+  EstimatedRevenue,
+  FreeCredits,
+  Estimate,
+  UploadedImage,
+  SelectedCustomer,
+  KakaoButton,
+  KakaoEstimate,
+  KakaoUploadedImage,
+  CustomerListItem,
+  IMAGE_MAX_SIZE,
+  IMAGE_MAX_WIDTH,
+  IMAGE_MAX_HEIGHT,
+} from './types';
+import { SendConfirmModal } from './SendConfirmModal';
+import { MessagePreview } from './MessagePreview';
+import { MessageHeader } from './MessageHeader';
+import { TestSendModal } from './TestSendModal';
+import { KakaoConfirmModal } from './KakaoConfirmModal';
+import { KakaoTestModal } from './KakaoTestModal';
+import { CustomerSelectModal } from './CustomerSelectModal';
 
 export default function MessagesPage() {
   const router = useRouter();
@@ -1133,60 +1031,12 @@ export default function MessagesPage() {
       {/* Left Panel - Settings */}
       <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e5e7eb]">
-          <h1 className="text-lg sm:text-xl font-bold text-[#1e293b]">캠페인 메시지 만들기</h1>
-          <div className="flex bg-[#f1f5f9] rounded-lg p-1 self-start sm:self-auto">
-            <button
-              onClick={() => setActiveTab('kakao')}
-              className={cn(
-                'px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all',
-                activeTab === 'kakao'
-                  ? 'bg-white shadow-sm text-[#1e293b]'
-                  : 'text-[#64748b] hover:text-[#1e293b]'
-              )}
-            >
-              카카오톡
-            </button>
-            <button
-              onClick={() => setActiveTab('sms')}
-              className={cn(
-                'px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all',
-                activeTab === 'sms'
-                  ? 'bg-white shadow-sm text-[#1e293b]'
-                  : 'text-[#64748b] hover:text-[#1e293b]'
-              )}
-            >
-              문자 (SMS/LMS)
-            </button>
-          </div>
-        </div>
-
-        {/* Value Proposition Banner */}
-        <div className="flex items-center gap-3 px-4 py-4 bg-gradient-to-r from-emerald-50 to-blue-50 border border-emerald-100 rounded-xl">
-          <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-5 h-5 text-emerald-600" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-emerald-800">
-              {formatNumber(getCurrentTargetCount())}명의 고객에게 메시지를 보내보세요
-            </p>
-            <p className="text-xs text-emerald-600 mt-0.5">
-              1명만 재방문해도 평균 25,000원 매출 발생
-            </p>
-          </div>
-        </div>
-
-        {/* Free Credits Banner */}
-        {estimate?.freeCredits && estimate.freeCredits.remaining > 0 && (
-          <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
-            <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-xs">🎁</span>
-            </div>
-            <p className="text-sm text-amber-800">
-              <span className="font-semibold">무료 크레딧 {estimate.freeCredits.remaining}건</span> 남았어요!
-            </p>
-          </div>
-        )}
+        <MessageHeader
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          targetCount={getCurrentTargetCount()}
+          freeCreditsRemaining={estimate?.freeCredits?.remaining}
+        />
 
         {/* Step 1: Target Selection */}
         <div className="flex flex-col gap-3">
@@ -1810,593 +1660,84 @@ export default function MessagesPage() {
       </div>
 
       {/* Right Panel - Preview (hidden on mobile) */}
-      <div className="hidden lg:block flex-none w-[360px] self-start">
-        <div className="bg-[#e2e8f0] rounded-3xl p-5">
-          <p className="text-center text-[#64748b] mb-4">발송 메시지 미리보기</p>
-          <div className="flex justify-center">
-            {/* Phone Frame */}
-            <div className="relative w-72 h-[580px] bg-neutral-800 rounded-[2.5rem] p-2 shadow-2xl">
-              {/* Inner bezel */}
-              <div className="w-full h-full bg-neutral-900 rounded-[2rem] p-1 overflow-hidden">
-                {/* Screen */}
-                <div className={cn(
-                  "w-full h-full rounded-[1.75rem] overflow-hidden flex flex-col relative",
-                  activeTab === 'sms' ? 'bg-white' : 'bg-[#B2C7D9]'
-                )}>
-                  {/* Dynamic Island / Notch */}
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-neutral-900 rounded-full z-10" />
-
-                  {/* SMS Preview */}
-                  {activeTab === 'sms' && (
-                    <>
-                      {/* iOS Header */}
-                      <div className="flex items-center justify-between px-4 pt-10 pb-2 border-b border-[#e5e5ea]">
-                        <ChevronLeft className="w-5 h-5 text-[#007aff]" />
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="w-8 h-8 bg-[#9ca3af] rounded-full flex items-center justify-center text-white">
-                            <Users className="w-4 h-4" />
-                          </div>
-                          <span className="text-[11px] font-medium text-[#1e293b]">태그히어 CRM</span>
-                        </div>
-                        <div className="w-5" />
-                      </div>
-
-                      {/* Date badge */}
-                      <div className="flex justify-center my-3">
-                        <span className="text-[10px] bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full">
-                          오늘 오후 12:30
-                        </span>
-                      </div>
-
-                      {/* Message Body */}
-                      <div className="flex-1 px-3 overflow-y-auto">
-                        <div className="flex justify-start">
-                          <div className="bg-[#e5e5ea] text-[#1e293b] py-2.5 px-3 rounded-2xl rounded-bl-sm max-w-[85%] text-[12px] leading-[1.5]">
-                            {/* 이미지 미리보기 */}
-                            {uploadedImage && (
-                              <div className="mb-2 -mx-1 -mt-1">
-                                <img
-                                  src={`${API_BASE}${uploadedImage.imageUrl}`}
-                                  alt="첨부 이미지"
-                                  className="w-full max-w-[180px] rounded-lg"
-                                />
-                              </div>
-                            )}
-                            {messageContent ? (
-                              <span className="whitespace-pre-wrap break-words">
-                                {isAdMessage
-                                  ? `(광고)\n${messageContent.replace(/{고객명}/g, '{고객명}')}\n무료수신거부 080-500-4233`
-                                  : messageContent.replace(/{고객명}/g, '{고객명}')}
-                              </span>
-                            ) : (
-                              <span className="text-[#94a3b8]">메시지 미리보기</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Input Bar */}
-                      <div className="py-2 px-3 bg-white border-t border-[#e5e5ea] flex items-center gap-2">
-                        <Camera className="w-5 h-5 text-[#c7c7cc]" />
-                        <div className="flex-1 h-8 border border-[#c7c7cc] rounded-full px-3 flex items-center text-[12px] text-[#c7c7cc]">
-                          iMessage
-                        </div>
-                        <div className="w-6 h-6 bg-[#007aff] rounded-full flex items-center justify-center text-white">
-                          <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Kakao Preview - 쿠폰 알림톡 */}
-                  {activeTab === 'kakao' && (
-                    <>
-                      {/* KakaoTalk header */}
-                      <div className="flex items-center justify-between px-4 pt-10 pb-2">
-                        <ChevronLeft className="w-4 h-4 text-neutral-700" />
-                        <span className="font-medium text-xs text-neutral-800">태그히어</span>
-                        <div className="w-4" />
-                      </div>
-
-                      {/* Date badge */}
-                      <div className="flex justify-center mb-3">
-                        <span className="text-[10px] bg-neutral-500/30 text-neutral-700 px-2 py-0.5 rounded-full">
-                          {new Date().toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </span>
-                      </div>
-
-                      {/* Message area */}
-                      <div className="flex-1 pl-2 pr-4 overflow-auto">
-                        <div className="flex gap-1.5">
-                          {/* Profile icon */}
-                          <div className="flex-shrink-0">
-                            <div className="w-7 h-7 rounded-full bg-neutral-300" />
-                          </div>
-
-                          {/* Message content */}
-                          <div className="flex-1 min-w-0 mr-4">
-                            <p className="text-[10px] text-neutral-600 mb-0.5">태그히어</p>
-
-                            {/* Coupon Alimtalk bubble */}
-                            <div className="relative">
-                              {/* Kakao badge */}
-                              <div className="absolute -top-1 -right-1 z-10">
-                                <span className="bg-neutral-700 text-white text-[8px] px-1 py-0.5 rounded-full font-medium">
-                                  kakao
-                                </span>
-                              </div>
-
-                              {/* 알림톡 도착 배너 */}
-                              <div className="bg-[#FEE500] rounded-t-md px-2 py-1.5">
-                                <span className="text-xs font-medium text-neutral-800">알림톡 도착</span>
-                              </div>
-
-                              <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
-                                {/* 쿠폰 이미지 */}
-                                <img
-                                  src="/images/coupon_kakao.png"
-                                  alt="쿠폰 이미지"
-                                  className="w-full h-auto"
-                                />
-
-                                {/* Message body */}
-                                <div className="px-4 py-4">
-                                  <p className="text-xs font-semibold text-neutral-800 mb-4">
-                                    태그히어 고객 대상 쿠폰
-                                  </p>
-                                  <div className="space-y-1 text-xs text-neutral-700">
-                                    <p>
-                                      <span className="text-[#6BA3FF]">{couponStoreName || '매장명'}</span>에서 쿠폰을 보냈어요!
-                                    </p>
-                                    <p className="text-neutral-500 mb-4">
-                                      태그히어 이용 고객에게만 제공되는 쿠폰이에요.
-                                    </p>
-                                    <div className="space-y-1 mb-4">
-                                      <p>📌 {couponContent || '쿠폰 내용을 입력해주세요'}</p>
-                                      <p>📌 {couponExpiryDate || '유효기간을 입력해주세요'}</p>
-                                    </div>
-                                    <p className="text-neutral-500">
-                                      결제 시 직원 확인을 통해 사용할 수 있어요.
-                                    </p>
-                                  </div>
-                                </div>
-
-                                {/* 버튼 */}
-                                <div className="px-4 pb-4 space-y-2">
-                                  <button className="w-full py-2.5 bg-white text-neutral-800 text-xs font-medium rounded border border-neutral-300">
-                                    네이버 길찾기
-                                  </button>
-                                  <button className="w-full py-2.5 bg-white text-neutral-800 text-xs font-medium rounded border border-neutral-300">
-                                    직원 확인
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Time */}
-                            <p className="text-[8px] text-neutral-500 mt-0.5 text-right">
-                              오후 12:30
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Bottom safe area */}
-                      <div className="h-6" />
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <MessagePreview
+        activeTab={activeTab}
+        uploadedImage={uploadedImage}
+        messageContent={messageContent}
+        isAdMessage={isAdMessage}
+        couponStoreName={couponStoreName}
+        couponContent={couponContent}
+        couponExpiryDate={couponExpiryDate}
+      />
 
       {/* Confirm Modal */}
-      <Modal open={showConfirmModal} onOpenChange={setShowConfirmModal}>
-        <ModalContent className="sm:max-w-md">
-          <ModalHeader>
-            <ModalTitle>메시지 발송 확인</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="p-4 bg-neutral-50 rounded-xl space-y-3">
-              <div className="flex justify-between">
-                <span className="text-neutral-600">발송 대상</span>
-                <span className="font-semibold">{formatNumber(estimate?.targetCount || getCurrentTargetCount())}명</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-600">메시지 유형</span>
-                <span className="font-semibold">
-                  {uploadedImage ? '멀티미디어 (MMS)' : isLongMessage ? '장문 (LMS)' : '단문 (SMS)'}
-                </span>
-              </div>
-              <div className="flex justify-between text-lg">
-                <span className="text-neutral-900 font-medium">총 비용</span>
-                <span className="font-bold text-brand-700">{formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원</span>
-              </div>
-            </div>
-
-            <div className="p-4 bg-brand-50 rounded-xl">
-              <p className="text-sm text-brand-800">
-                발송 후에는 취소할 수 없으며, 비용이 충전금에서 차감됩니다.
-              </p>
-            </div>
-          </div>
-
-          <ModalFooter>
-            <Button variant="outline" onClick={() => setShowConfirmModal(false)}>
-              취소
-            </Button>
-            <Button onClick={handleSend} disabled={isSending}>
-              {isSending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  발송 중...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  발송하기
-                </>
-              )}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <SendConfirmModal
+        open={showConfirmModal}
+        onOpenChange={setShowConfirmModal}
+        targetCount={estimate?.targetCount || getCurrentTargetCount()}
+        messageTypeLabel={uploadedImage ? '멀티미디어 (MMS)' : isLongMessage ? '장문 (LMS)' : '단문 (SMS)'}
+        totalCost={estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50))}
+        isSending={isSending}
+        onSend={handleSend}
+      />
 
       {/* Customer Selection Modal */}
-      <Modal open={showCustomerModal} onOpenChange={setShowCustomerModal}>
-        <ModalContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
-          <ModalHeader>
-            <ModalTitle>고객 선택</ModalTitle>
-          </ModalHeader>
-
-          <div className="flex flex-col gap-4 flex-1 min-h-0">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
-              <input
-                type="text"
-                value={customerSearch}
-                onChange={(e) => { setCustomerSearch(e.target.value); setCustomerPage(1); }}
-                placeholder="이름 또는 전화번호로 검색..."
-                className="w-full pl-10 pr-4 py-2.5 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-              />
-            </div>
-
-            {/* Selection controls */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={selectAllCustomers}
-                  disabled={customerList.length === 0 || isSelectingAll}
-                >
-                  {isSelectingAll ? '전체 선택 중...' : '전체 선택'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={deselectAllCustomers}
-                  disabled={tempSelectedCustomers.length === 0}
-                >
-                  전체 해제
-                </Button>
-              </div>
-              <span className="text-sm text-[#64748b]">
-                {tempSelectedCustomers.length}명 선택됨
-              </span>
-            </div>
-
-            {/* Customer list */}
-            <div className="flex-1 overflow-y-auto border border-[#e5e7eb] rounded-xl min-h-[300px]">
-              {isLoadingCustomers ? (
-                <div className="flex items-center justify-center h-full">
-                  <Loader2 className="w-6 h-6 animate-spin text-[#3b82f6]" />
-                </div>
-              ) : customerList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-[#94a3b8]">
-                  <Users className="w-12 h-12 mb-2" />
-                  <p>검색 결과가 없습니다.</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-[#e5e7eb]">
-                  {customerList.map((customer) => {
-                    const isSelected = tempSelectedCustomers.some(c => c.id === customer.id);
-                    return (
-                      <button
-                        key={customer.id}
-                        onClick={() => toggleCustomerSelection(customer)}
-                        className={cn(
-                          'w-full px-4 py-3 flex items-center gap-3 text-left transition-colors',
-                          isSelected ? 'bg-[#eff6ff]' : 'hover:bg-[#f8fafc]'
-                        )}
-                      >
-                        <div className={cn(
-                          'w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
-                          isSelected
-                            ? 'bg-[#3b82f6] border-[#3b82f6]'
-                            : 'border-[#d1d5db]'
-                        )}>
-                          {isSelected && <Check className="w-3 h-3 text-white" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-[#1e293b]">
-                              {maskNickname(customer.name)}
-                            </span>
-                            {customer.gender && (
-                              <Badge variant="secondary" className="text-xs">
-                                {customer.gender === 'MALE' ? '남' : '여'}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-sm text-[#64748b]">
-                            {customer.phone ? formatPhone(customer.phone) : ''}
-                          </div>
-                        </div>
-                        <div className="text-right text-sm flex-shrink-0">
-                          <div className="text-[#64748b]">
-                            방문 {customer.visitCount}회
-                            {(customer.messageCount || 0) > 0 && (
-                              <span className="ml-1 text-green-600">· 수신 {customer.messageCount}회</span>
-                            )}
-                          </div>
-                          <div className="text-[#3b82f6] font-medium">{formatNumber(customer.totalPoints)}P</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Pagination */}
-            {customerTotalPages > 1 && (
-              <div className="flex items-center justify-center gap-3 py-2">
-                <button
-                  onClick={() => setCustomerPage(Math.max(1, customerPage - 1))}
-                  disabled={customerPage <= 1 || isLoadingCustomers}
-                  className="px-3 py-1.5 text-sm rounded-lg border border-[#e5e7eb] disabled:opacity-40 hover:bg-[#f8fafc] transition-colors"
-                >
-                  이전
-                </button>
-                <span className="text-sm text-[#64748b]">
-                  {customerPage} / {customerTotalPages}
-                </span>
-                <button
-                  onClick={() => setCustomerPage(Math.min(customerTotalPages, customerPage + 1))}
-                  disabled={customerPage >= customerTotalPages || isLoadingCustomers}
-                  className="px-3 py-1.5 text-sm rounded-lg border border-[#e5e7eb] disabled:opacity-40 hover:bg-[#f8fafc] transition-colors"
-                >
-                  다음
-                </button>
-              </div>
-            )}
-          </div>
-
-          <ModalFooter>
-            <Button variant="outline" onClick={() => setShowCustomerModal(false)}>
-              취소
-            </Button>
-            <Button
-              onClick={confirmCustomerSelection}
-              disabled={tempSelectedCustomers.length === 0}
-            >
-              <Users className="w-4 h-4 mr-2" />
-              {tempSelectedCustomers.length}명 선택 완료
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <CustomerSelectModal
+        open={showCustomerModal}
+        onOpenChange={setShowCustomerModal}
+        customerSearch={customerSearch}
+        onSearchChange={(value) => { setCustomerSearch(value); setCustomerPage(1); }}
+        customerList={customerList}
+        tempSelectedCustomers={tempSelectedCustomers}
+        isLoadingCustomers={isLoadingCustomers}
+        isSelectingAll={isSelectingAll}
+        onSelectAll={selectAllCustomers}
+        onDeselectAll={deselectAllCustomers}
+        onToggle={toggleCustomerSelection}
+        customerPage={customerPage}
+        customerTotalPages={customerTotalPages}
+        onPageChange={setCustomerPage}
+        onConfirm={confirmCustomerSelection}
+      />
 
       {/* Test Send Modal */}
-      <Modal open={showTestModal} onOpenChange={setShowTestModal}>
-        <ModalContent className="sm:max-w-md">
-          <ModalHeader>
-            <ModalTitle>테스트 발송</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-[#64748b]">
-              테스트용 전화번호를 입력해주세요.
-            </p>
-            <p className="text-sm text-[#3b82f6]">
-              테스트 발송은 금액이 차감되지 않아요.
-            </p>
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm text-amber-700">
-                오늘 테스트 발송: {testCount.count}/{testCount.limit}회 (남은 횟수: {testCount.remaining}회)
-              </p>
-            </div>
-
-            <input
-              type="tel"
-              value={testPhone}
-              onChange={(e) => setTestPhone(e.target.value)}
-              placeholder="01012345678"
-              className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-            />
-
-            <div className="p-4 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
-              <p className="text-sm text-[#64748b]">
-                메시지 유형: <span className="font-medium text-[#1e293b]">{uploadedImage ? 'MMS (이미지 포함)' : getByteLength(messageContent) > 90 ? 'LMS (장문)' : 'SMS (단문)'}</span>
-              </p>
-              <p className="text-sm text-[#64748b] mt-1">
-                바이트: <span className="font-medium text-[#1e293b]">{getByteLength(messageContent)} bytes</span>
-              </p>
-            </div>
-          </div>
-
-          <ModalFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowTestModal(false)}
-              disabled={isTestSending}
-            >
-              취소
-            </Button>
-            <Button
-              onClick={handleTestSend}
-              disabled={isTestSending || !testPhone.trim() || !messageContent.trim() || testCount.remaining <= 0}
-            >
-              {isTestSending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  발송 중...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  테스트 발송
-                </>
-              )}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <TestSendModal
+        open={showTestModal}
+        onOpenChange={setShowTestModal}
+        testCount={testCount}
+        testPhone={testPhone}
+        onPhoneChange={setTestPhone}
+        messageTypeLabel={uploadedImage ? 'MMS (이미지 포함)' : getByteLength(messageContent) > 90 ? 'LMS (장문)' : 'SMS (단문)'}
+        byteLength={getByteLength(messageContent)}
+        isTestSending={isTestSending}
+        sendDisabled={isTestSending || !testPhone.trim() || !messageContent.trim() || testCount.remaining <= 0}
+        onSend={handleTestSend}
+      />
 
       {/* Kakao Confirm Modal */}
-      <Modal open={showKakaoConfirmModal} onOpenChange={setShowKakaoConfirmModal}>
-        <ModalContent className="sm:max-w-md">
-          <ModalHeader>
-            <ModalTitle>카카오톡 발송 확인</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="p-4 bg-neutral-50 rounded-xl space-y-3">
-              <div className="flex justify-between">
-                <span className="text-neutral-600">발송 대상</span>
-                <span className="font-semibold">{formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-600">메시지 유형</span>
-                <span className="font-semibold">
-                  {kakaoMessageType === 'IMAGE' ? '이미지형 (230원)' : '텍스트형 (200원)'}
-                </span>
-              </div>
-              {!isSendableTime && (
-                <div className="flex justify-between">
-                  <span className="text-neutral-600">발송 예정</span>
-                  <span className="font-semibold text-amber-600">다음 날 08:00 예약</span>
-                </div>
-              )}
-              <div className="flex justify-between text-lg pt-2 border-t border-neutral-200">
-                <span className="text-neutral-900 font-medium">총 비용</span>
-                <span className="font-bold text-brand-700">{formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 230 : 200)))}원</span>
-              </div>
-            </div>
-
-            <div className="p-4 bg-brand-50 rounded-xl">
-              <p className="text-sm text-brand-800">
-                {isSendableTime
-                  ? '발송 후에는 취소할 수 없으며, 발송 성공 시에만 비용이 차감됩니다.'
-                  : '08:00에 자동 발송되며, 발송 성공 시에만 비용이 차감됩니다.'}
-              </p>
-            </div>
-
-            <div className="p-3 bg-neutral-50 rounded-lg text-xs text-neutral-600">
-              <p>카카오톡 미설치 또는 미가입 고객에게는 발송되지 않으며, SMS 대체 발송이 불가능합니다.</p>
-            </div>
-          </div>
-
-          <ModalFooter>
-            <Button variant="outline" onClick={() => setShowKakaoConfirmModal(false)}>
-              취소
-            </Button>
-            <Button
-              onClick={handleKakaoSend}
-              disabled={isKakaoSending}
-            >
-              {isKakaoSending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  발송 중...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  {isSendableTime ? '발송하기' : '예약 발송'}
-                </>
-              )}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <KakaoConfirmModal
+        open={showKakaoConfirmModal}
+        onOpenChange={setShowKakaoConfirmModal}
+        targetCount={kakaoEstimate?.targetCount || getCurrentTargetCount()}
+        messageTypeLabel={kakaoMessageType === 'IMAGE' ? '이미지형 (230원)' : '텍스트형 (200원)'}
+        isSendableTime={isSendableTime}
+        totalCost={kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 230 : 200))}
+        isKakaoSending={isKakaoSending}
+        onSend={handleKakaoSend}
+      />
 
       {/* Kakao Test Send Modal */}
-      <Modal open={showKakaoTestModal} onOpenChange={setShowKakaoTestModal}>
-        <ModalContent className="sm:max-w-md">
-          <ModalHeader>
-            <ModalTitle>카카오톡 테스트 발송</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-[#64748b]">
-              테스트용 전화번호를 입력해주세요.
-            </p>
-            <p className="text-sm text-[#3b82f6]">
-              테스트 발송은 금액이 차감되지 않아요.
-            </p>
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm text-amber-700">
-                카카오톡이 설치되어 있고 해당 번호로 가입된 계정이어야 수신 가능합니다.
-              </p>
-            </div>
-
-            <input
-              type="tel"
-              value={kakaoTestPhone}
-              onChange={(e) => setKakaoTestPhone(e.target.value)}
-              placeholder="01012345678"
-              className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-            />
-
-            <div className="p-4 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
-              <p className="text-sm text-[#64748b]">
-                메시지 유형: <span className="font-medium text-[#1e293b]">{kakaoMessageType === 'IMAGE' ? '이미지형' : '텍스트형'}</span>
-              </p>
-              {kakaoButtons.filter(b => b.name.trim()).length > 0 && (
-                <p className="text-sm text-[#64748b] mt-1">
-                  버튼: <span className="font-medium text-[#1e293b]">{kakaoButtons.filter(b => b.name.trim()).length}개</span>
-                </p>
-              )}
-            </div>
-          </div>
-
-          <ModalFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowKakaoTestModal(false)}
-              disabled={isKakaoTestSending}
-            >
-              취소
-            </Button>
-            <Button
-              onClick={handleKakaoTestSend}
-              disabled={isKakaoTestSending || !kakaoTestPhone.trim() || !kakaoContent.trim()}
-            >
-              {isKakaoTestSending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  발송 중...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  테스트 발송
-                </>
-              )}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <KakaoTestModal
+        open={showKakaoTestModal}
+        onOpenChange={setShowKakaoTestModal}
+        testPhone={kakaoTestPhone}
+        onPhoneChange={setKakaoTestPhone}
+        messageTypeLabel={kakaoMessageType === 'IMAGE' ? '이미지형' : '텍스트형'}
+        buttonCount={kakaoButtons.filter(b => b.name.trim()).length}
+        isKakaoTestSending={isKakaoTestSending}
+        sendDisabled={isKakaoTestSending || !kakaoTestPhone.trim() || !kakaoContent.trim()}
+        onSend={handleKakaoTestSend}
+      />
 
       {/* 충전 모달 */}
       <ChargeModal

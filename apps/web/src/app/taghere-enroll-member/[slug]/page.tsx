@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 
@@ -169,7 +170,7 @@ function CouponBottomSheet({
   const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [isBatchSending, setIsBatchSending] = useState(false);
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = API_BASE;
 
   // 이미 발송된 쿠폰 조회
   useEffect(() => {
@@ -396,7 +397,7 @@ function SuccessPopup({
 
     if (answersToSubmit.length > 0 && successData?.customerId) {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         await fetch(`${apiUrl}/api/taghere/survey-answers`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -454,7 +455,7 @@ function SuccessPopup({
     if (!successData.customerId) return;
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const apiUrl = API_BASE;
       await fetch(`${apiUrl}/api/customers/visit-source`, {
         method: 'POST',
         headers: {
@@ -490,7 +491,7 @@ function SuccessPopup({
 
     setIsSubmitting(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const apiUrl = API_BASE;
 
       const expandedCategories = selectedCategories
         .filter(c => c !== ALL_CATEGORIES_VALUE)
@@ -867,7 +868,7 @@ function TaghereMemberEnrollContent() {
     setIsAutoEarning(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const apiUrl = API_BASE;
       const res = await fetch(`${apiUrl}/api/taghere/auto-earn`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -912,7 +913,7 @@ function TaghereMemberEnrollContent() {
   useEffect(() => {
     const fetchCoupons = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         const res = await fetch(`${apiUrl}/api/membership/coupons`);
         if (res.ok) {
           const data = await res.json();
@@ -936,7 +937,7 @@ function TaghereMemberEnrollContent() {
   useEffect(() => {
     const fetchVisitSourceOptions = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         const res = await fetch(`${apiUrl}/api/taghere/visit-source-options/${slug}`);
         if (res.ok) {
           const data = await res.json();
@@ -950,7 +951,7 @@ function TaghereMemberEnrollContent() {
 
     const fetchSurveyQuestions = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         const res = await fetch(`${apiUrl}/api/taghere/survey-questions/${slug}`);
         if (res.ok) {
           const data = await res.json();
@@ -1005,7 +1006,7 @@ function TaghereMemberEnrollContent() {
 
     const fetchOrderInfo = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
 
         if (ordersheetId) {
           // ordersheetId가 있으면 주문 정보와 함께 조회
@@ -1104,7 +1105,7 @@ function TaghereMemberEnrollContent() {
     setIsOpening(true);
 
     setTimeout(() => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const apiUrl = API_BASE;
       const redirectUri = `${apiUrl}/auth/kakao/taghere-callback`;
 
       const stateData = {

@@ -1,10 +1,10 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState, Suspense, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Loader2, ArrowLeft, Phone } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 interface WaitingData {
   id: string;

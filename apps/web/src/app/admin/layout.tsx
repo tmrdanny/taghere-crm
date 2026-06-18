@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -39,7 +40,7 @@ export default function AdminLayout({
       }
 
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/me`, {
+        const res = await fetch(`${API_BASE}/api/admin/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

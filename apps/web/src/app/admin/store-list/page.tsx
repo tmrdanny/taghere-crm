@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { formatNumber } from '@/lib/utils';
 import * as XLSX from 'xlsx';
@@ -129,7 +130,7 @@ export default function StoreListPage() {
     if (!token) return;
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores`, {
+      const res = await fetch(`${API_BASE}/api/admin/stores`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -248,7 +249,7 @@ export default function StoreListPage() {
 
     setBulkUploading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/stores/bulk`, {
+      const res = await fetch(`${API_BASE}/api/admin/stores/bulk`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

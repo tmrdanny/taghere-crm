@@ -17,13 +17,16 @@ export class LoginPage {
     this.emailInput = page.locator('input[type="email"], input[name="email"]');
     this.passwordInput = page.locator('input[type="password"]');
     this.submitButton = page.locator('button[type="submit"]');
-    this.errorMessage = page.locator('[class*="error"], [class*="alert"]');
+    // 로그인 에러는 빨강 스타일 박스(bg-red-50/text-red-600)로 렌더된다.
+    // 빈 토스트 컨테이너([role=alert])까지 잡으면 strict mode 위반이 나므로
+    // 화면에 보이는 빨강 박스만 첫 요소로 한정한다.
+    this.errorMessage = page.locator('[class*="bg-red"]:visible, [class*="text-red"]:visible').first();
     this.registerLink = page.locator('a[href="/register"]');
   }
 
   async goto() {
     await this.page.goto('/login');
-    await this.page.waitForLoadState('networkidle');
+    await this.page.waitForLoadState('domcontentloaded');
   }
 
   async login(email: string, password: string) {

@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
@@ -328,7 +329,7 @@ function FranchiseSection({
     setClaimingTier(tier);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const apiUrl = API_BASE;
       const res = await fetch(`${apiUrl}/api/my-page/reward-claim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -589,7 +590,7 @@ function MyPageContent() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         const res = await fetch(`${apiUrl}/api/my-page?kakaoId=${kakaoId}`);
         if (!res.ok) throw new Error('API error');
         const result: MyPageData = await res.json();
@@ -607,7 +608,7 @@ function MyPageContent() {
 
   // 카카오 로그인 시작
   const handleKakaoLogin = () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const apiUrl = API_BASE;
     const params = new URLSearchParams();
     params.set('isMyPage', 'true');
     params.set('origin', window.location.origin);

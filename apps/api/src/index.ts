@@ -1,14 +1,10 @@
+// 환경변수 로딩을 최우선으로 (라우트 등 다른 모듈 import보다 먼저 실행되어야 함)
+import './load-env.js';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import path from 'path';
 import http from 'http';
 import rateLimit from 'express-rate-limit';
-
-// Load environment variables (production uses system env, dev uses .env file)
-if (process.env.NODE_ENV !== 'production') {
-  dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
-}
 
 // 필수 환경변수 검증
 const requiredEnvVars = [
@@ -162,7 +158,9 @@ const v1Limiter = rateLimit({
 // Rate Limiting - 인증 관련 (15분에 20요청)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  // 운영에서는 20회로 제한, 비운영(로컬/테스트)에서는 완화하여
+  // E2E의 테스트별 로그인이 rate limit에 막히지 않도록 한다.
+  max: process.env.NODE_ENV === 'production' ? 20 : 1000,
   message: { error: '로그인 시도가 너무 많습니다. 15분 후 다시 시도해주세요.' },
   standardHeaders: true,
   legacyHeaders: false,

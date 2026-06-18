@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
@@ -16,7 +17,7 @@ interface Banner {
 function getFullImageUrl(imageUrl: string): string {
   if (!imageUrl) return '';
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = API_BASE;
   return `${apiUrl}${imageUrl}`;
 }
 
@@ -272,7 +273,7 @@ function StampSuccessContent() {
   useEffect(() => {
     const fetchBanners = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         const res = await fetch(`${apiUrl}/api/admin/banners/active?slug=${slug}`);
         if (res.ok) {
           const data = await res.json();
@@ -291,7 +292,7 @@ function StampSuccessContent() {
     if (!ordersheetId || !slug) return;
     const fetchMenuLink = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         const res = await fetch(`${apiUrl}/api/taghere/ordersheet?ordersheetId=${ordersheetId}&slug=${slug}`);
         if (res.ok) {
           const data = await res.json();

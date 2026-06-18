@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect } from 'react';
 import { Building2, Mail, User, Phone, Store, Link2, Eye, EyeOff, Plus, Gift } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
@@ -13,7 +14,6 @@ interface OrganizationInfo {
   createdAt: string;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // Skeleton component for loading state
 function InfoSkeleton() {

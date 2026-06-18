@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 
@@ -43,7 +44,7 @@ function getFullImageUrl(imageUrl: string): string {
     return imageUrl;
   }
   // 상대 경로면 API URL 붙이기
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = API_BASE;
   return `${apiUrl}${imageUrl}`;
 }
 
@@ -408,7 +409,7 @@ function OrderSuccessContent() {
 
     const fetchOrderDetails = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         // ordersheetId로 주문 정보 조회
         const res = await fetch(`${apiUrl}/api/taghere/ordersheet?ordersheetId=${ordersheetId}&slug=${slug}`);
 
@@ -456,7 +457,7 @@ function OrderSuccessContent() {
   useEffect(() => {
     const fetchBanners = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         const res = await fetch(`${apiUrl}/api/admin/banners/active?slug=${slug}`);
         if (res.ok) {
           const data = await res.json();

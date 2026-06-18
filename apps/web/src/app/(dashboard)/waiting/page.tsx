@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -29,7 +30,7 @@ type StatusFilter = 'WAITING' | 'SEATED' | 'CANCELLED';
 export default function WaitingPage() {
   const router = useRouter();
   const { showToast, ToastComponent } = useToast();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = API_BASE;
 
   // Data states
   const [settings, setSettings] = useState<WaitingSetting | null>(null);

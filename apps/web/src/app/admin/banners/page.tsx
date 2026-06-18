@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState, useRef } from 'react';
 
 interface Banner {
@@ -58,7 +59,7 @@ export default function AdminBannersPage() {
     if (!token) return;
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/banners`, {
+      const res = await fetch(`${API_BASE}/api/admin/banners`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -129,8 +130,8 @@ export default function AdminBannersPage() {
 
     try {
       const url = modal?.mode === 'edit'
-        ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/banners/${modal.banner?.id}`
-        : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/banners`;
+        ? `${API_BASE}/api/admin/banners/${modal.banner?.id}`
+        : `${API_BASE}/api/admin/banners`;
 
       const res = await fetch(url, {
         method: modal?.mode === 'edit' ? 'PUT' : 'POST',
@@ -164,7 +165,7 @@ export default function AdminBannersPage() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/banners/${banner.id}`,
+        `${API_BASE}/api/admin/banners/${banner.id}`,
         {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` },
@@ -246,13 +247,13 @@ export default function AdminBannersPage() {
         xhr.addEventListener('error', () => reject(new Error('네트워크 오류')));
         xhr.addEventListener('abort', () => reject(new Error('업로드 취소됨')));
 
-        xhr.open('POST', `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/banners/upload-media`);
+        xhr.open('POST', `${API_BASE}/api/admin/banners/upload-media`);
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         xhr.send(formData);
       });
 
       const data = await uploadPromise;
-      const fullMediaUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${data.mediaUrl}`;
+      const fullMediaUrl = `${API_BASE}${data.mediaUrl}`;
       setFormImageUrl(fullMediaUrl);
       setFormMediaType(data.mediaType);
       setToast({ message: isVideo ? '영상이 업로드되었습니다.' : '이미지가 업로드되었습니다.', type: 'success' });
@@ -273,7 +274,7 @@ export default function AdminBannersPage() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/banners/${banner.id}`,
+        `${API_BASE}/api/admin/banners/${banner.id}`,
         {
           method: 'PUT',
           headers: {

@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,7 +43,7 @@ export default function FeedbackPage() {
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [hasTextFilter, setHasTextFilter] = useState(false);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = API_BASE;
 
   // showToast를 ref로 저장하여 의존성 문제 해결
   const showToastRef = useRef(showToast);

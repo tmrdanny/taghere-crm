@@ -1,5 +1,7 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
+import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useEffect, useCallback } from 'react';
 import {
   MapPin,
@@ -28,7 +30,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // 대한민국 17개 시/도 목록
 const KOREA_SIDOS = [
@@ -58,14 +59,6 @@ const KOREA_SIGUNGU: Record<string, string[]> = {
 };
 
 // 연령대 옵션
-const AGE_GROUP_OPTIONS = [
-  { value: 'TWENTIES', label: '20대' },
-  { value: 'THIRTIES', label: '30대' },
-  { value: 'FORTIES', label: '40대' },
-  { value: 'FIFTIES', label: '50대' },
-  { value: 'SIXTY_PLUS', label: '60대 이상' },
-];
-
 // 성별 옵션
 const GENDER_OPTIONS = [
   { value: 'all', label: '전체 성별' },

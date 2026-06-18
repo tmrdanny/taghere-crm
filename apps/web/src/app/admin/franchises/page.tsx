@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -84,7 +85,7 @@ export default function FranchisesPage() {
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const API_URL = API_BASE;
 
   useEffect(() => {
     fetchFranchises();

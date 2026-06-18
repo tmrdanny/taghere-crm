@@ -1,12 +1,12 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, Building2, User, Phone } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function FranchiseRegisterPage() {
   const router = useRouter();
