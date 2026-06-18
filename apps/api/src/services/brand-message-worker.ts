@@ -6,6 +6,7 @@ import { normalizePhoneNumber } from '../utils/phone.js';
 const BATCH_SIZE = 20;
 const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
 const MIN_AGE_MS = 3000; // 최소 3초 경과한 메시지만 처리
+const STUCK_PENDING_EXPIRE_MS = 60 * 60 * 1000; // 1시간 초과 PENDING은 강제 만료(FAILED+환불) 처리
 
 // 브랜드 메시지 비용
 const BRAND_MESSAGE_TEXT_COST = 200;
@@ -452,6 +453,69 @@ async function processScheduledCampaigns(): Promise<void> {
 }
 
 // 캠페인 완료 상태 업데이트
+// SOLAPI가 끝내 종결 리포트를 주지 않아 1시간 넘게 PENDING으로 남은 메시지를 FAILED로 정리한다.
+// 선불 차감 구조이므로 발송 시 차감된 금액/크레딧을 환불한다(처리 안 하면 캠페인이
+// COMPLETED로 넘어가지 못하고, 차감액도 환불되지 않은 채 영구히 남는다).
+async function expireStuckPendingMessages(): Promise<void> {
+  const cutoff = new Date(Date.now() - STUCK_PENDING_EXPIRE_MS);
+
+  const stuck = await prisma.brandMessage.findMany({
+    where: {
+      status: 'PENDING',
+      createdAt: { lt: cutoff },
+    },
+    take: BATCH_SIZE,
+    select: {
+      id: true,
+      campaignId: true,
+      storeId: true,
+      cost: true,
+      campaign: { select: { messageType: true } },
+    },
+  });
+
+  for (const msg of stuck) {
+    const refundCost = msg.cost;
+    const creditType = msg.campaign?.messageType === 'IMAGE' ? 'KAKAO_IMAGE' : 'KAKAO_TEXT';
+    let didExpire = false;
+
+    await prisma.$transaction(async (tx) => {
+      // 동시 폴링과의 경합 방지: 여전히 PENDING일 때만 전환
+      const updated = await tx.brandMessage.updateMany({
+        where: { id: msg.id, status: 'PENDING' },
+        data: {
+          status: 'FAILED',
+          failReason: '발송 결과 확인 시간 초과 (1시간)',
+          cost: 0,
+        },
+      });
+      if (updated.count === 0) return;
+
+      await tx.brandMessageCampaign.update({
+        where: { id: msg.campaignId },
+        data: {
+          failedCount: { increment: 1 },
+          totalCost: { decrement: refundCost },
+        },
+      });
+      didExpire = true;
+    });
+
+    if (didExpire) {
+      // 발송 시 선불 차감된 금액/크레딧 환불 (dev FAILED 경로와 동일)
+      await refundFailedMessage({
+        storeId: msg.storeId,
+        campaignId: msg.campaignId,
+        messageId: msg.id,
+        cost: refundCost,
+        messageType: creditType,
+        metaType: 'BRAND_MESSAGE',
+      });
+      console.log(`[BrandMessage Worker] Message ${msg.id} expired after 1h PENDING, marked FAILED and refunded ${refundCost}원`);
+    }
+  }
+}
+
 async function updateCampaignStatus(): Promise<void> {
   const sendingCampaigns = await prisma.brandMessageCampaign.findMany({
     where: { status: 'SENDING' },
@@ -499,7 +563,10 @@ export function startBrandMessageWorker(): void {
         console.log(`[BrandMessage Worker] Processed ${processed} messages`);
       }
 
-      // 3. 캠페인 상태 업데이트
+      // 3. 오래 갇힌 PENDING 메시지 정리 (안전망)
+      await expireStuckPendingMessages();
+
+      // 4. 캠페인 상태 업데이트
       await updateCampaignStatus();
     } catch (error) {
       console.error('[BrandMessage Worker] Error in poll cycle:', error);
