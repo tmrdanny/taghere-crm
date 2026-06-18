@@ -29,7 +29,7 @@ async function loginAndNavigate(page: Page) {
       localStorage.setItem('token', token);
     }, authToken);
     await page.goto('/local-customers');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     return;
   }
 
@@ -47,7 +47,7 @@ async function loginAndNavigate(page: Page) {
   }
 
   await page.goto('/local-customers');
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
 }
 
 // ============================================
@@ -61,19 +61,19 @@ test.describe('7.1 페이지 로드', () => {
   test('페이지 로드 및 NEW 배지 표시', async ({ page }) => {
     await expect(page).toHaveURL('/local-customers');
 
-    // 제목 확인
-    const title = page.locator('h1:has-text("우리동네 손님 찾기")');
+    // 제목 확인 (페이지 헤딩)
+    const title = page.locator('h1:has-text("신규 고객 유치")');
     await expect(title).toBeVisible();
 
-    // NEW 배지 표시
-    const newBadge = page.locator('span:has-text("NEW")');
+    // NEW 배지 표시 (사이드바 등 여러 곳에 있으므로 화면에 보이는 첫 배지만 확인)
+    const newBadge = page.locator('span:has-text("NEW"):visible').first();
     await expect(newBadge).toBeVisible();
   });
 
   test('카카오톡/SMS 탭 전환 기능', async ({ page }) => {
-    // 카카오톡 탭이 기본 선택
-    const kakaoTab = page.locator('button:has-text("카카오톡")');
-    const smsTab = page.locator('button:has-text("문자")');
+    // 쿠폰 알림톡 탭이 기본 선택 (기존 "카카오톡"에서 "쿠폰 알림톡"으로 변경됨)
+    const kakaoTab = page.locator('button:has-text("쿠폰 알림톡")');
+    const smsTab = page.locator('button:has-text("문자")').first();
 
     await expect(kakaoTab).toBeVisible();
     await expect(smsTab).toBeVisible();
@@ -82,7 +82,7 @@ test.describe('7.1 페이지 로드', () => {
     await smsTab.click();
     await page.waitForTimeout(500);
 
-    // 카카오톡 탭으로 돌아가기
+    // 쿠폰 알림톡 탭으로 돌아가기
     await kakaoTab.click();
     await page.waitForTimeout(500);
   });
@@ -116,12 +116,12 @@ test.describe('7.2 지역 선택', () => {
     await searchInput.click();
     await page.waitForTimeout(500);
 
-    // 드롭다운이 표시되는지 확인
-    const dropdown = page.locator('button:has-text("서울특별시"), button:has-text("경기도")');
+    // 드롭다운이 표시되는지 확인 (시/도 이름은 "서울", "경기" 등 단축 형태)
+    const dropdown = page.locator('button:has-text("서울"), button:has-text("경기")');
     await expect(dropdown.first()).toBeVisible();
 
     // 지역 선택
-    await page.locator('button:has-text("서울특별시")').click();
+    await page.locator('button:has-text("서울")').first().click();
     await page.waitForTimeout(1000);
   });
 
@@ -130,12 +130,17 @@ test.describe('7.2 지역 선택', () => {
     await searchInput.click();
     await page.waitForTimeout(500);
 
-    // 서울 선택
-    await page.locator('button:has-text("서울특별시")').click();
+    // 드롭다운이 표시될 때까지 대기
+    const seoulButton = page.locator('button:has-text("서울")').first();
+    await seoulButton.waitFor({ state: 'visible', timeout: 5000 });
+
+    // 서울 선택 (시/도 이름은 단축 형태 "서울")
+    await seoulButton.click();
     await page.waitForTimeout(1000);
 
-    // 태그로 표시되는지 확인
-    const regionTag = page.locator('span:has-text("서울특별시 전체")');
+    // 태그로 표시되는지 확인 (selected sido 태그에 "서울" 표시)
+    // 태그는 bg-brand-100 클래스를 가진 span 내부에 sido 이름이 표시됨
+    const regionTag = page.locator('[class*="bg-brand-100"]').filter({ hasText: '서울' }).first();
     await expect(regionTag).toBeVisible();
   });
 
@@ -144,18 +149,18 @@ test.describe('7.2 지역 선택', () => {
     await searchInput.click();
     await page.waitForTimeout(500);
 
-    // 서울 선택
-    await page.locator('button:has-text("서울특별시")').click();
+    // 서울 선택 (시/도 이름은 단축 형태 "서울")
+    await page.locator('button:has-text("서울")').first().click();
     await page.waitForTimeout(1000);
 
     // X 버튼 클릭하여 제거
-    const removeButton = page.locator('span:has-text("서울특별시 전체") button');
+    const regionTag = page.locator('span.bg-brand-100').filter({ hasText: '서울' }).first();
+    const removeButton = regionTag.locator('button');
     await removeButton.click();
     await page.waitForTimeout(500);
 
     // 태그가 사라졌는지 확인
-    const regionTag = page.locator('span:has-text("서울특별시 전체")');
-    await expect(regionTag).not.toBeVisible();
+    await expect(page.locator('span.bg-brand-100').filter({ hasText: '서울' }).first()).not.toBeVisible();
   });
 
   test('지역 선택 시 고객 수 업데이트', async ({ page }) => {
@@ -167,8 +172,8 @@ test.describe('7.2 지역 선택', () => {
     const selectedRegionCard = page.locator(':has-text("선택 지역")').first();
     await expect(selectedRegionCard).toBeVisible();
 
-    // 서울 선택
-    await page.locator('button:has-text("서울특별시")').click();
+    // 서울 선택 (시/도 이름은 단축 형태 "서울")
+    await page.locator('button:has-text("서울")').first().click();
     await page.waitForTimeout(2000);
 
     // 고객 수가 업데이트되었는지 확인 (0명이 아닌 값)
@@ -185,7 +190,8 @@ test.describe('7.3 업종 선택', () => {
     await loginAndNavigate(page);
   });
 
-  test('업종 카테고리 그룹 표시', async ({ page }) => {
+  // fixme: 업종 선택 UI가 리팩토링으로 제거됨 - 현재 페이지에 업종 카테고리 그룹(음식점/카페/주점)이 없음
+  test.fixme('업종 카테고리 그룹 표시', async ({ page }) => {
     // 업종 그룹 라벨 확인
     const restaurantGroup = page.locator('text=음식점').first();
     const cafeGroup = page.locator('text=카페/디저트').first();
@@ -196,7 +202,8 @@ test.describe('7.3 업종 선택', () => {
     await expect(barGroup).toBeVisible();
   });
 
-  test('업종 선택/해제 토글', async ({ page }) => {
+  // fixme: 업종 선택 UI가 리팩토링으로 제거됨 - 현재 페이지에 업종 토글 버튼이 없음
+  test.fixme('업종 선택/해제 토글', async ({ page }) => {
     // 한식 버튼 클릭
     const koreanButton = page.locator('button:has-text("한식")');
     await koreanButton.click();
@@ -213,7 +220,8 @@ test.describe('7.3 업종 선택', () => {
     await expect(koreanButton).not.toHaveClass(/bg-brand-600/);
   });
 
-  test('선택된 업종 수 표시', async ({ page }) => {
+  // fixme: 업종 선택 UI가 리팩토링으로 제거됨 - 현재 페이지에 업종 수 표시 기능이 없음
+  test.fixme('선택된 업종 수 표시', async ({ page }) => {
     // 여러 업종 선택
     await page.locator('button:has-text("한식")').click();
     await page.locator('button:has-text("중식")').click();
@@ -306,7 +314,7 @@ test.describe('7.5 발송 인원 수 설정', () => {
     const searchInput = page.locator('input[placeholder*="지역 검색"]');
     await searchInput.click();
     await page.waitForTimeout(500);
-    await page.locator('button:has-text("서울특별시")').click();
+    await page.locator('button:has-text("서울")').first().click();
     await page.waitForTimeout(2000);
 
     // 매우 큰 숫자 입력
@@ -324,7 +332,7 @@ test.describe('7.5 발송 인원 수 설정', () => {
     const searchInput = page.locator('input[placeholder*="지역 검색"]');
     await searchInput.click();
     await page.waitForTimeout(500);
-    await page.locator('button:has-text("서울특별시")').click();
+    await page.locator('button:has-text("서울")').first().click();
     await page.waitForTimeout(2000);
 
     // 최대 발송 가능 안내 텍스트
@@ -352,7 +360,7 @@ test.describe('7.6 메시지 입력', () => {
 
   test('SMS: 바이트 카운터 및 SMS/LMS 자동 전환', async ({ page }) => {
     // SMS 탭으로 전환
-    await page.locator('button:has-text("문자")').click();
+    await page.locator('button:has-text("문자")').first().click();
     await page.waitForTimeout(500);
 
     const messageTextarea = page.locator('textarea');
@@ -384,7 +392,8 @@ test.describe('7.6 메시지 입력', () => {
     await expect(charCount.first()).toBeVisible();
   });
 
-  test('버튼 추가 (카카오톡 전용, 최대 5개)', async ({ page }) => {
+  // fixme: 카카오톡 버튼 추가 UI가 리팩토링으로 제거됨 - 현재 쿠폰 알림톡 탭은 쿠폰 내용/유효기간 입력 폼으로 변경됨
+  test.fixme('버튼 추가 (카카오톡 전용, 최대 5개)', async ({ page }) => {
     // 버튼 추가 버튼 확인
     const addButtonBtn = page.locator('button:has-text("버튼 추가")');
     await expect(addButtonBtn).toBeVisible();
@@ -411,17 +420,17 @@ test.describe('7.7 비용 계산', () => {
     await loginAndNavigate(page);
   });
 
-  test('SMS: 200원/건 표시', async ({ page }) => {
+  test('SMS: 150원/건 표시', async ({ page }) => {
     // SMS 탭 전환
-    await page.locator('button:has-text("문자")').click();
+    await page.locator('button:has-text("문자")').first().click();
     await page.waitForTimeout(500);
 
-    const costInfo = page.locator('text=200원');
+    const costInfo = page.locator('text=150원');
     await expect(costInfo.first()).toBeVisible();
   });
 
-  test('카카오톡: 텍스트 200원 표시', async ({ page }) => {
-    const costInfo = page.locator('text=200원');
+  test('카카오톡: 텍스트 150원 표시', async ({ page }) => {
+    const costInfo = page.locator('text=150원');
     await expect(costInfo.first()).toBeVisible();
   });
 
@@ -429,7 +438,7 @@ test.describe('7.7 비용 계산', () => {
     // 지역 선택
     const searchInput = page.locator('input[placeholder*="지역 검색"]');
     await searchInput.click();
-    await page.locator('button:has-text("서울특별시")').click();
+    await page.locator('button:has-text("서울")').first().click();
     await page.waitForTimeout(2000);
 
     // 인원 설정
@@ -437,8 +446,8 @@ test.describe('7.7 비용 계산', () => {
     await sendCountInput.fill('100');
     await page.waitForTimeout(1000);
 
-    // 예상 비용 표시 확인 (100 × 200 = 20,000원)
-    const costDisplay = page.locator('text=/20,000원/');
+    // 예상 비용 표시 확인 (100 × 150 = 15,000원)
+    const costDisplay = page.locator('text=/15,000원/');
     await expect(costDisplay.first()).toBeVisible();
   });
 
@@ -456,47 +465,63 @@ test.describe('7.8 예상 마케팅 효과', () => {
     await loginAndNavigate(page);
   });
 
-  test('카카오톡: 예상 방문율 7.6% 표시', async ({ page }) => {
-    // 지역 선택 및 인원 설정
-    const searchInput = page.locator('input[placeholder*="지역 검색"]');
-    await searchInput.click();
-    await page.locator('button:has-text("서울특별시")').click();
-    await page.waitForTimeout(2000);
-
-    const sendCountInput = page.locator('input[type="number"]').first();
-    await sendCountInput.fill('100');
-    await page.waitForTimeout(1000);
-
-    // 예상 방문율 표시 확인
-    const conversionRate = page.locator('text=7.6%');
-    await expect(conversionRate).toBeVisible();
-  });
-
-  test('SMS: 예상 방문율 4.5% 표시', async ({ page }) => {
-    // SMS 탭 전환
-    await page.locator('button:has-text("문자")').click();
+  test('카카오톡: 예상 방문율 3.4% 표시', async ({ page }) => {
+    // 쿠폰 알림톡 탭으로 전환
+    await page.locator('button:has-text("쿠폰 알림톡")').click();
     await page.waitForTimeout(500);
 
     // 지역 선택 및 인원 설정
     const searchInput = page.locator('input[placeholder*="지역 검색"]');
     await searchInput.click();
-    await page.locator('button:has-text("서울특별시")').click();
+    // 드롭다운이 열릴 때까지 대기
+    const seoulButton = page.locator('button:has-text("서울")').first();
+    await seoulButton.waitFor({ state: 'visible', timeout: 5000 });
+    await seoulButton.click();
     await page.waitForTimeout(2000);
 
+    // 발송 인원 수 직접 입력 (API가 sendCount를 availableCount로 설정하므로 이미 >0일 수 있음)
     const sendCountInput = page.locator('input[type="number"]').first();
+    await sendCountInput.clear();
     await sendCountInput.fill('100');
     await page.waitForTimeout(1000);
 
-    // 예상 방문율 표시 확인
-    const conversionRate = page.locator('text=4.5%');
-    await expect(conversionRate).toBeVisible();
+    // 예상 방문율 표시 확인 (쿠폰 알림톡 conversionRate = 0.034 → 3.4%)
+    // 값 출처: apps/web/src/app/(dashboard)/local-customers/page.tsx, const conversionRate = activeTab === 'kakao' ? 0.034 : 0.027
+    const conversionRate = page.getByText('3.4%');
+    await expect(conversionRate.first()).toBeVisible();
+  });
+
+  test('SMS: 예상 방문율 2.7% 표시', async ({ page }) => {
+    // SMS 탭 전환
+    await page.locator('button:has-text("문자")').first().click();
+    await page.waitForTimeout(500);
+
+    // 지역 선택 및 인원 설정
+    const searchInput = page.locator('input[placeholder*="지역 검색"]');
+    await searchInput.click();
+    // 드롭다운이 열릴 때까지 대기
+    const seoulButton = page.locator('button:has-text("서울")').first();
+    await seoulButton.waitFor({ state: 'visible', timeout: 5000 });
+    await seoulButton.click();
+    await page.waitForTimeout(2000);
+
+    // 발송 인원 수 직접 입력
+    const sendCountInput = page.locator('input[type="number"]').first();
+    await sendCountInput.clear();
+    await sendCountInput.fill('100');
+    await page.waitForTimeout(1000);
+
+    // 예상 방문율 표시 확인 (SMS conversionRate = 0.027 → 2.7%)
+    // 값 출처: apps/web/src/app/(dashboard)/local-customers/page.tsx, const conversionRate = activeTab === 'kakao' ? 0.034 : 0.027
+    const conversionRate = page.getByText('2.7%');
+    await expect(conversionRate.first()).toBeVisible();
   });
 
   test('예상 방문 인원 계산', async ({ page }) => {
     // 지역 선택 및 인원 설정
     const searchInput = page.locator('input[placeholder*="지역 검색"]');
     await searchInput.click();
-    await page.locator('button:has-text("서울특별시")').click();
+    await page.locator('button:has-text("서울")').first().click();
     await page.waitForTimeout(2000);
 
     const sendCountInput = page.locator('input[type="number"]').first();
@@ -504,7 +529,7 @@ test.describe('7.8 예상 마케팅 효과', () => {
     await page.waitForTimeout(1000);
 
     // 예상 방문 표시 확인
-    const expectedVisits = page.locator('text=예상 방문');
+    const expectedVisits = page.locator('text=예상 방문').first();
     await expect(expectedVisits).toBeVisible();
   });
 
@@ -512,7 +537,7 @@ test.describe('7.8 예상 마케팅 효과', () => {
     // 지역 선택 및 인원 설정
     const searchInput = page.locator('input[placeholder*="지역 검색"]');
     await searchInput.click();
-    await page.locator('button:has-text("서울특별시")').click();
+    await page.locator('button:has-text("서울")').first().click();
     await page.waitForTimeout(2000);
 
     const sendCountInput = page.locator('input[type="number"]').first();
@@ -520,7 +545,7 @@ test.describe('7.8 예상 마케팅 효과', () => {
     await page.waitForTimeout(1000);
 
     // 예상 매출 표시 확인
-    const expectedRevenue = page.locator('text=예상 매출');
+    const expectedRevenue = page.locator('text=예상 매출').first();
     await expect(expectedRevenue).toBeVisible();
   });
 });
@@ -532,7 +557,7 @@ test.describe('7.9 테스트 발송 (SMS 전용)', () => {
   test.beforeEach(async ({ page }) => {
     await loginAndNavigate(page);
     // SMS 탭으로 전환
-    await page.locator('button:has-text("문자")').click();
+    await page.locator('button:has-text("문자")').first().click();
     await page.waitForTimeout(500);
   });
 
@@ -556,24 +581,29 @@ test.describe('7.9 테스트 발송 (SMS 전용)', () => {
     // 메시지 입력
     const messageTextarea = page.locator('textarea');
     await messageTextarea.fill(TEST_MESSAGE.content);
+    await page.waitForTimeout(300);
 
     // 테스트 전화번호 입력
     const testPhoneInput = page.locator('input[placeholder*="010"]');
     await testPhoneInput.fill(TEST_USER.phone);
+    await page.waitForTimeout(300);
 
-    // 테스트 발송 버튼 클릭
+    // 테스트 발송 버튼 클릭 (버튼이 활성화된 상태에서 클릭)
     const testSendButton = page.locator('button:has-text("테스트 발송")');
+    await expect(testSendButton).toBeVisible();
     await testSendButton.click();
 
     // 응답 대기
     await page.waitForTimeout(3000);
 
     // 성공 또는 에러 메시지 확인
+    // 성공: "테스트 메시지가 발송되었습니다." 녹색 div
+    // 에러: p3 bg-red-50 border-red-200 text-red-700 에러 div
     const successMessage = page.locator('text=테스트 메시지가 발송되었습니다');
-    const errorMessage = page.locator('[class*="error"], [class*="red"]');
+    const errorDiv = page.locator('.bg-red-50');
 
-    const hasSuccess = await successMessage.isVisible();
-    const hasError = await errorMessage.isVisible();
+    const hasSuccess = await successMessage.isVisible().catch(() => false);
+    const hasError = await errorDiv.isVisible().catch(() => false);
 
     expect(hasSuccess || hasError).toBeTruthy();
 
@@ -591,15 +621,19 @@ test.describe('7.10 미리보기 (데스크톱)', () => {
     await loginAndNavigate(page);
   });
 
-  test('카카오톡: 브랜드 메시지 미리보기', async ({ page }) => {
-    // 카카오톡 미리보기 영역 확인
-    const kakaoPreview = page.locator('text=브랜드 메시지');
+  test('카카오톡: 쿠폰 알림톡 미리보기', async ({ page }) => {
+    // 쿠폰 알림톡 탭으로 전환
+    await page.locator('button:has-text("쿠폰 알림톡")').click();
+    await page.waitForTimeout(500);
+
+    // 쿠폰 알림톡 미리보기 영역 확인 (기존 "브랜드 메시지" → "알림톡 도착" 배너로 변경)
+    const kakaoPreview = page.locator('text=알림톡 도착');
     await expect(kakaoPreview).toBeVisible();
   });
 
   test('SMS: iPhone 문자 미리보기', async ({ page }) => {
     // SMS 탭 전환
-    await page.locator('button:has-text("문자")').click();
+    await page.locator('button:has-text("문자")').first().click();
     await page.waitForTimeout(500);
 
     // iPhone 미리보기 영역 확인
@@ -608,15 +642,16 @@ test.describe('7.10 미리보기 (데스크톱)', () => {
   });
 
   test('미리보기가 sticky로 스크롤 따라감', async ({ page }) => {
-    // sticky 요소 확인
-    const stickyPreview = page.locator('.sticky');
+    // sticky 요소 확인 (데스크톱에서 사이드바가 sticky top-0으로 고정됨)
+    // MobileHeader(lg:hidden)는 DOM에 있지만 데스크톱에서 hidden이므로 aside를 사용
+    const stickyPreview = page.locator('aside.sticky');
     await expect(stickyPreview.first()).toBeVisible();
 
     // 스크롤
     await page.evaluate(() => window.scrollTo(0, 500));
     await page.waitForTimeout(500);
 
-    // 여전히 보이는지 확인
+    // 여전히 보이는지 확인 (sticky 요소는 스크롤 후에도 뷰포트에 고정됨)
     await expect(stickyPreview.first()).toBeVisible();
   });
 
@@ -642,18 +677,22 @@ test.describe('7.11 메시지 발송', () => {
   });
 
   test('필수 조건 미충족 시 발송 버튼 비활성화', async ({ page }) => {
-    // 아무것도 입력하지 않은 상태
-    const sendButton = page.locator('button:has-text("메시지 발송하기")');
+    // 아무것도 입력하지 않은 상태 (버튼 텍스트는 "발송하기")
+    const sendButton = page.locator('button:has-text("발송하기")');
 
     // 비활성화 상태 확인
     await expect(sendButton).toBeDisabled();
   });
 
   test('지역 및 메시지 입력 후 발송 버튼 상태 변경', async ({ page }) => {
+    // SMS 탭으로 전환 (textarea 사용)
+    await page.locator('button:has-text("문자")').first().click();
+    await page.waitForTimeout(500);
+
     // 지역 선택
     const searchInput = page.locator('input[placeholder*="지역 검색"]');
     await searchInput.click();
-    await page.locator('button:has-text("서울특별시")').click();
+    await page.locator('button:has-text("서울")').first().click();
     await page.waitForTimeout(2000);
 
     // 메시지 입력
@@ -666,7 +705,7 @@ test.describe('7.11 메시지 발송', () => {
     await page.waitForTimeout(1000);
 
     // 발송 버튼 상태 확인 (잔액에 따라 활성화/비활성화)
-    const sendButton = page.locator('button:has-text("메시지 발송하기")');
+    const sendButton = page.locator('button:has-text("발송하기")');
     await expect(sendButton).toBeVisible();
   });
 
@@ -688,15 +727,17 @@ test.describe('통합 시나리오', () => {
   test('전체 발송 플로우 (지역 선택 → 필터 → 메시지 입력 → 비용 확인)', async ({ page }) => {
     await loginAndNavigate(page);
 
-    // 1. 지역 선택
+    // SMS 탭으로 전환 (textarea 및 메시지 입력 사용)
+    await page.locator('button:has-text("문자")').first().click();
+    await page.waitForTimeout(500);
+
+    // 1. 지역 선택 (시/도 이름은 단축 형태 "서울")
     const searchInput = page.locator('input[placeholder*="지역 검색"]');
     await searchInput.click();
-    await page.locator('button:has-text("서울특별시")').click();
+    await page.locator('button:has-text("서울")').first().click();
     await page.waitForTimeout(2000);
 
-    // 2. 업종 선택
-    await page.locator('button:has-text("카페")').click();
-    await page.waitForTimeout(500);
+    // 2. 업종 선택 UI가 리팩토링으로 제거됨 - 이 단계는 건너뜁니다
 
     // 3. 성별 필터
     await page.locator('button:has-text("여성")').click();

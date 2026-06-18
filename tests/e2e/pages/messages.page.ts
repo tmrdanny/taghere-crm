@@ -57,7 +57,7 @@ export class MessagesPage {
 
   async goto() {
     await this.page.goto('/messages');
-    await this.page.waitForLoadState('networkidle');
+    await this.page.waitForLoadState('domcontentloaded');
   }
 
   async selectTarget(target: 'all' | 'revisit' | 'new' | 'custom') {

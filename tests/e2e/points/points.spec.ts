@@ -167,7 +167,7 @@ test.describe('최근 거래 내역', () => {
   });
 
   test('최근 거래 내역 표시', async ({ page }) => {
-    const recentTransactions = page.locator(':has-text("최근 거래"), :has-text("최근 적립"), [class*="recent"]');
+    const recentTransactions = page.locator(':has-text("최근 거래"), :has-text("최근 적립"), [class*="recent"]').first();
 
     if (await recentTransactions.isVisible()) {
       // 거래 내역 목록이 있어야 함

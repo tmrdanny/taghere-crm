@@ -18,8 +18,8 @@ test.describe('고객 관리 기능', () => {
   test('고객 리스트 페이지 로드', async ({ page }) => {
     await expect(page).toHaveURL('/customers');
 
-    // 고객 리스트 테이블 또는 카드가 표시되어야 함
-    const customerList = page.locator('table, [class*="customer-list"], [class*="grid"]');
+    // 고객 리스트 테이블이 표시되어야 함 (Tailwind grid 등 광범위 매칭을 피해 table로 한정)
+    const customerList = page.locator('table').first();
     await expect(customerList).toBeVisible({ timeout: 10000 });
   });
 
