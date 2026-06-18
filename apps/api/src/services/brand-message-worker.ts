@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { SolapiService, BrandMessageButton } from './solapi.js';
-import { useCredits, getRemainingCredits } from './credit-service.js';
+import { refundFailedMessage, chargeSinglePending } from './message-billing.js';
 
 const BATCH_SIZE = 20;
 const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
@@ -108,29 +108,7 @@ async function processMessage(
     }
 
     if (statusResult.status === 'SENT') {
-      // 발송 성공 - 무료 크레딧 우선 사용 후 유료 비용 차감
-      // /messages 페이지(BrandMessageCampaign)에서 발송한 모든 메시지는 무료 크레딧 적용 대상
-      let freeCreditUsed = 0;
-      let paidCost = msg.cost;
-
-      // 무료 크레딧 사용 시도 (비용이 있는 경우에만)
-      if (msg.cost > 0) {
-        const remainingCredits = await getRemainingCredits(msg.storeId);
-        if (remainingCredits > 0) {
-          // 1건에 대해 무료 크레딧 사용
-          const messageType = msg.campaign?.messageType === 'IMAGE' ? 'KAKAO_IMAGE' : 'KAKAO_TEXT';
-          freeCreditUsed = await useCredits(
-            msg.storeId,
-            1,
-            msg.campaignId,
-            messageType
-          );
-          if (freeCreditUsed > 0) {
-            paidCost = 0; // 무료 크레딧 사용 시 유료 비용 0
-          }
-        }
-      }
-
+      // 발송 성공 - 선불 차감 구조이므로 여기서는 상태만 확정 (이미 발송 시 차감됨)
       await prisma.$transaction(async (tx) => {
         await tx.brandMessage.update({
           where: { id: messageId },
@@ -139,46 +117,18 @@ async function processMessage(
             sentAt: new Date(),
           },
         });
-
-        // 유료 비용이 있는 경우에만 지갑 잔액 차감
-        if (paidCost > 0) {
-          await tx.wallet.update({
-            where: { storeId: msg.storeId },
-            data: { balance: { decrement: paidCost } },
-          });
-
-          await tx.paymentTransaction.create({
-            data: {
-              storeId: msg.storeId,
-              amount: -paidCost,
-              type: 'ALIMTALK_SEND',
-              status: 'SUCCESS',
-              meta: {
-                messageId: messageId,
-                campaignId: msg.campaignId,
-                phone: msg.phone,
-                type: 'BRAND_MESSAGE',
-              },
-            },
-          });
-        }
-
         await tx.brandMessageCampaign.update({
           where: { id: msg.campaignId },
-          data: {
-            sentCount: { increment: 1 },
-            totalCost: { increment: paidCost },
-          },
+          data: { sentCount: { increment: 1 } },
         });
       });
 
-      if (freeCreditUsed > 0) {
-        console.log(`[BrandMessage Worker] Message ${messageId} sent successfully (무료 크레딧 사용)`);
-      } else {
-        console.log(`[BrandMessage Worker] Message ${messageId} sent successfully, cost: ${paidCost}원 차감`);
-      }
+      console.log(`[BrandMessage Worker] Message ${messageId} sent successfully (선불 차감 완료분 확정)`);
     } else if (statusResult.status === 'FAILED') {
-      // 발송 실패
+      // 발송 실패 - 상태 업데이트 후 발송 시 차감했던 금액/크레딧 환불
+      const refundCost = msg.cost;
+      const creditType = msg.campaign?.messageType === 'IMAGE' ? 'KAKAO_IMAGE' : 'KAKAO_TEXT';
+
       await prisma.$transaction(async (tx) => {
         await tx.brandMessage.update({
           where: { id: messageId },
@@ -191,11 +141,23 @@ async function processMessage(
 
         await tx.brandMessageCampaign.update({
           where: { id: msg.campaignId },
-          data: { failedCount: { increment: 1 } },
+          data: {
+            failedCount: { increment: 1 },
+            totalCost: { decrement: refundCost },
+          },
         });
       });
 
-      console.log(`[BrandMessage Worker] Message ${messageId} FAILED: ${statusResult.failReason}`);
+      await refundFailedMessage({
+        storeId: msg.storeId,
+        campaignId: msg.campaignId,
+        messageId,
+        cost: refundCost,
+        messageType: creditType,
+        metaType: 'BRAND_MESSAGE',
+      });
+
+      console.log(`[BrandMessage Worker] Message ${messageId} FAILED, refunded ${refundCost}원: ${statusResult.failReason}`);
     } else {
       console.log(`[BrandMessage Worker] Message ${messageId} still PENDING, will retry`);
     }
@@ -358,10 +320,46 @@ async function processScheduledCampaigns(): Promise<void> {
         data: { status: 'SENDING' },
       });
 
-      // 개별 메시지 발송
+      // 개별 메시지 발송 (선불 차감: 발송 직전 건별 차감, 실패/잔액부족 시 보류·환불)
+      const kakaoCreditType = campaign.messageType === 'IMAGE' ? 'KAKAO_IMAGE' : 'KAKAO_TEXT';
+      let scheduledCharged = 0;
+
       for (const customer of customers) {
         const personalizedContent = campaign.content.replace(/{고객명}/g, customer.name || '고객');
         const normalizedPhone = normalizePhoneNumber(customer.phone!);
+
+        // 1. 발송 전 선불 차감 (무료 크레딧 우선)
+        const charge = await chargeSinglePending({
+          storeId: campaign.storeId,
+          campaignId: campaign.id,
+          costPerMessage: campaign.costPerMessage,
+          messageType: kakaoCreditType,
+          metaType: 'BRAND_MESSAGE',
+          allowFreeCredits: true,
+        });
+
+        // 잔액 부족 → 발송 보류(FAILED)
+        if (charge.insufficient) {
+          await prisma.brandMessage.create({
+            data: {
+              campaignId: campaign.id,
+              storeId: campaign.storeId,
+              customerId: customer.id,
+              phone: normalizedPhone,
+              content: personalizedContent,
+              status: 'FAILED',
+              failReason: '충전금 부족',
+              cost: 0,
+            },
+          });
+          await prisma.brandMessageCampaign.update({
+            where: { id: campaign.id },
+            data: { failedCount: { increment: 1 } },
+          });
+          continue;
+        }
+
+        scheduledCharged += charge.charged;
 
         try {
           const result = await solapiService.sendBrandMessage({
@@ -383,10 +381,21 @@ async function processScheduledCampaigns(): Promise<void> {
                 content: personalizedContent,
                 status: 'PENDING',
                 solapiGroupId: result.groupId,
-                cost: campaign.costPerMessage,
+                cost: charge.charged, // 차감액(무료면 0)
               },
             });
           } else {
+            // API 실패 → 차감분 환불 후 FAILED 기록
+            await refundFailedMessage({
+              storeId: campaign.storeId,
+              campaignId: campaign.id,
+              messageId: `${campaign.id}:${normalizedPhone}`,
+              cost: charge.charged,
+              messageType: kakaoCreditType,
+              metaType: 'BRAND_MESSAGE',
+            });
+            scheduledCharged -= charge.charged;
+
             await prisma.brandMessage.create({
               data: {
                 campaignId: campaign.id,
@@ -408,6 +417,17 @@ async function processScheduledCampaigns(): Promise<void> {
         } catch (error: any) {
           console.error(`[BrandMessage Worker] Send error for ${normalizedPhone}:`, error.message);
 
+          // 예외 발생 → 차감분 환불 후 FAILED 기록
+          await refundFailedMessage({
+            storeId: campaign.storeId,
+            campaignId: campaign.id,
+            messageId: `${campaign.id}:${normalizedPhone}`,
+            cost: charge.charged,
+            messageType: kakaoCreditType,
+            metaType: 'BRAND_MESSAGE',
+          });
+          scheduledCharged -= charge.charged;
+
           await prisma.brandMessage.create({
             data: {
               campaignId: campaign.id,
@@ -428,7 +448,13 @@ async function processScheduledCampaigns(): Promise<void> {
         }
       }
 
-      console.log(`[BrandMessage Worker] Scheduled campaign ${campaign.id} messages sent`);
+      // 실제 차감액 반영
+      await prisma.brandMessageCampaign.update({
+        where: { id: campaign.id },
+        data: { totalCost: scheduledCharged },
+      });
+
+      console.log(`[BrandMessage Worker] Scheduled campaign ${campaign.id} messages sent, charged ${scheduledCharged}원`);
     } catch (error: any) {
       console.error(`[BrandMessage Worker] Error processing scheduled campaign ${campaign.id}:`, error.message);
     }

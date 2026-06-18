@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { SolapiService, BrandMessageButton, buildPhoneResultMap } from '../services/solapi.js';
 import { calculateCostWithCredits } from '../services/credit-service.js';
+import { chargeCampaignUpfront } from '../services/message-billing.js';
 
 const router = Router();
 
@@ -481,16 +482,21 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
 
     // 비용 계산
     const costPerMessage = messageType === 'IMAGE' ? BRAND_MESSAGE_IMAGE_COST : BRAND_MESSAGE_TEXT_COST;
-    const totalCost = customers.length * costPerMessage;
+    const kakaoCreditType = messageType === 'IMAGE' ? 'KAKAO_IMAGE' : 'KAKAO_TEXT';
 
-    // 지갑 잔액 확인
+    // 무료 크레딧 적용 후 유료분 계산 (messages 페이지 = 무료 크레딧 대상)
+    const creditResult = await calculateCostWithCredits(storeId, customers.length, costPerMessage, true);
+
+    // 지갑 잔액 확인 (유료분만)
     const wallet = await prisma.wallet.findUnique({ where: { storeId } });
-
-    if (!wallet || wallet.balance < totalCost) {
+    const walletBalance = wallet?.balance || 0;
+    if (creditResult.paidCount > 0 && walletBalance < creditResult.totalCost) {
       return res.status(400).json({
         error: '충전금이 부족합니다.',
-        required: totalCost,
-        balance: wallet?.balance || 0,
+        required: creditResult.totalCost,
+        balance: walletBalance,
+        freeCount: creditResult.freeCount,
+        paidCount: creditResult.paidCount,
       });
     }
 
@@ -503,7 +509,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     // 광고 메시지 형식 적용
     const formattedContent = formatBrandMessage(content, store?.name || '매장');
 
-    // 캠페인 생성
+    // 캠페인 생성 (실제 차감액은 발송 접수 후 확정)
     const campaign = await prisma.brandMessageCampaign.create({
       data: {
         storeId,
@@ -517,7 +523,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
         ageGroups: ageGroups || null,
         targetCount: customers.length,
         costPerMessage,
-        totalCost,
+        totalCost: 0,
         status: 'SENDING',
       },
     });
@@ -535,53 +541,84 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       imageId,
       buttons: buttons as BrandMessageButton[],
     });
-    const { successGroupIds, failureMap } = buildPhoneResultMap(batchResults);
-    const groupId = successGroupIds[0] || null;
+    const { successGroupIds, failureMap, groupIdByIndex } = buildPhoneResultMap(batchResults);
 
     console.log(`[BrandMessage] Bulk send complete: ${successGroupIds.length} groups, ${failureMap.size} failed phones`);
 
-    // 결과를 기반으로 DB 레코드 생성
-    let pendingCount = 0;
-    let failedCount = 0;
-
-    for (const customer of customers) {
+    // 정상 접수(PENDING) / 실패(FAILED) 분류
+    const rows = customers.map((customer, index) => {
       const normalizedPhone = normalizePhoneNumber(customer.phone!);
-      const personalizedContent = formattedContent.replace(/{고객명}/g, customer.name || '고객');
-      const isFailed = failureMap.has(normalizedPhone);
+      const groupId = groupIdByIndex[index] ?? null;
+      return {
+        customerId: customer.id,
+        phone: normalizedPhone,
+        content: formattedContent.replace(/{고객명}/g, customer.name || '고객'),
+        groupId,
+        isFailed: failureMap.has(normalizedPhone) || !groupId,
+        failReason: failureMap.get(normalizedPhone),
+      };
+    });
+    const pendingRows = rows.filter((r) => !r.isFailed);
+    const failedRows = rows.filter((r) => r.isFailed);
 
-      await prisma.brandMessage.create({
-        data: {
-          campaignId: campaign.id,
-          storeId,
-          customerId: customer.id,
-          phone: normalizedPhone,
-          content: personalizedContent,
-          status: isFailed ? 'FAILED' : 'PENDING',
-          solapiGroupId: isFailed ? undefined : groupId,
-          cost: isFailed ? 0 : costPerMessage,
-          failReason: isFailed ? failureMap.get(normalizedPhone) : undefined,
-        },
-      });
+    // 선불 차감: PENDING 건수만큼 무료 크레딧 우선 사용 후 유료분 지갑 차감
+    const { freeCount, charged } = await chargeCampaignUpfront({
+      storeId,
+      campaignId: campaign.id,
+      pendingCount: pendingRows.length,
+      costPerMessage,
+      messageType: kakaoCreditType,
+      metaType: 'BRAND_MESSAGE',
+      allowFreeCredits: true,
+    });
 
-      if (isFailed) failedCount++;
-      else pendingCount++;
-    }
+    // 메시지 레코드 일괄 생성 (앞에서부터 freeCount 건은 무료=cost 0)
+    const messageData = [
+      ...pendingRows.map((r, i) => ({
+        campaignId: campaign.id,
+        storeId,
+        customerId: r.customerId,
+        phone: r.phone,
+        content: r.content,
+        status: 'PENDING' as const,
+        solapiGroupId: r.groupId,
+        cost: i < freeCount ? 0 : costPerMessage,
+      })),
+      ...failedRows.map((r) => ({
+        campaignId: campaign.id,
+        storeId,
+        customerId: r.customerId,
+        phone: r.phone,
+        content: r.content,
+        status: 'FAILED' as const,
+        cost: 0,
+        failReason: r.failReason || '발송 실패',
+      })),
+    ];
+    await prisma.brandMessage.createMany({ data: messageData });
 
-    // 캠페인 상태 업데이트
+    // 캠페인 확정
     await prisma.brandMessageCampaign.update({
       where: { id: campaign.id },
       data: {
         sentCount: 0,
-        failedCount,
-        status: pendingCount > 0 ? 'SENDING' : 'COMPLETED',
+        failedCount: failedRows.length,
+        totalCost: charged,
+        status: pendingRows.length > 0 ? 'SENDING' : 'COMPLETED',
+        ...(pendingRows.length === 0 ? { completedAt: new Date() } : {}),
       },
     });
+
+    console.log(`[BrandMessage] Charged upfront: ${charged}원 (free ${freeCount}, paid ${pendingRows.length - freeCount}), failed ${failedRows.length}`);
 
     res.json({
       success: true,
       campaignId: campaign.id,
-      pendingCount,
-      failedCount,
+      pendingCount: pendingRows.length,
+      failedCount: failedRows.length,
+      freeCreditsUsed: freeCount,
+      paidCount: pendingRows.length - freeCount,
+      totalCost: charged,
       message: '발송 요청이 완료되었습니다. 결과는 발송내역에서 확인하세요.',
     });
   } catch (error) {

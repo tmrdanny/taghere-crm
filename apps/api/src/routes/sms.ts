@@ -7,7 +7,8 @@ import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { SolapiService, buildPhoneResultMap } from '../services/solapi.js';
-import { calculateCostWithCredits, useCredits } from '../services/credit-service.js';
+import { calculateCostWithCredits } from '../services/credit-service.js';
+import { chargeCampaignUpfront } from '../services/message-billing.js';
 
 const router = Router();
 
@@ -464,17 +465,6 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       });
     }
 
-    // 무료 크레딧 사용 처리
-    let usedFreeCredits = 0;
-    if (creditResult.freeCount > 0) {
-      usedFreeCredits = await useCredits(
-        storeId,
-        creditResult.freeCount,
-        null, // campaignId는 아래에서 생성 후 설정
-        messageType
-      );
-    }
-
     // 매장 정보 조회 (발신번호용)
     const store = await prisma.store.findUnique({
       where: { id: storeId },
@@ -486,7 +476,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       ? `(광고)\n${content}\n무료수신거부 080-500-4233`
       : content;
 
-    // 캠페인 생성 (유료분 비용만 저장)
+    // 캠페인 생성 (실제 차감액은 발송 접수 후 확정)
     const campaign = await prisma.smsCampaign.create({
       data: {
         storeId,
@@ -494,22 +484,13 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
         content: formattedContent,
         targetType: targetType || 'ALL',
         targetCount: customers.length,
-        totalCost: creditResult.totalCost, // 무료 크레딧 적용 후 유료분만
+        totalCost: 0,
         status: 'SENDING',
       },
     });
 
-    console.log(`[SMS] Campaign created with free credits: ${usedFreeCredits} free, ${creditResult.paidCount} paid, totalCost: ${creditResult.totalCost}`);
-
     // SOLAPI 그룹 메시지 벌크 발송
     const solapiService = new SolapiService(apiKey, apiSecret);
-
-    // 발송 결과 추적
-    let sentCount = 0;
-    let failedCount = 0;
-
-    // 무료 크레딧 한도 (순서대로 무료 적용)
-    const freeCreditsLimit = usedFreeCredits;
 
     // 메시지 배열 구성 (개인화 적용)
     const bulkMessages = customers.map((customer) => ({
@@ -519,66 +500,89 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       ...(hasImage && imageId ? { imageId } : {}),
     }));
 
-    // 그룹 메시지 벌크 발송 (1000건씩 청크)
+    // 그룹 메시지 벌크 발송 (1000건씩 청크) — index별로 올바른 groupId 매핑
     const batchResults = await solapiService.sendBulkSms(bulkMessages);
-    const { successGroupIds, failureMap } = buildPhoneResultMap(batchResults);
-    const groupId = successGroupIds[0] || null;
+    const { successGroupIds, failureMap, groupIdByIndex } = buildPhoneResultMap(batchResults);
 
     console.log(`[SMS] Bulk send complete: ${successGroupIds.length} groups, ${failureMap.size} failed phones`);
 
-    // 결과를 기반으로 DB 레코드 생성
-    for (let index = 0; index < customers.length; index++) {
-      const customer = customers[index];
+    // 정상 접수(PENDING) / API 실패(FAILED) 분류
+    const rows = customers.map((customer, index) => {
       const normalizedPhone = normalizePhoneNumber(customer.phone!);
-      const personalizedContent = formattedContent.replace(/{고객명}/g, customer.name || '고객');
-      const isFreeMessage = index < freeCreditsLimit;
-      const messageCost = isFreeMessage ? 0 : costPerMessage;
-      const isFailed = failureMap.has(normalizedPhone);
+      const groupId = groupIdByIndex[index] ?? null;
+      return {
+        customerId: customer.id,
+        phone: normalizedPhone,
+        content: formattedContent.replace(/{고객명}/g, customer.name || '고객'),
+        groupId,
+        isFailed: failureMap.has(normalizedPhone) || !groupId,
+        failReason: failureMap.get(normalizedPhone),
+      };
+    });
+    const pendingRows = rows.filter((r) => !r.isFailed);
+    const failedRows = rows.filter((r) => r.isFailed);
 
-      await prisma.smsMessage.create({
-        data: {
-          campaignId: campaign.id,
-          storeId,
-          customerId: customer.id,
-          phone: normalizedPhone,
-          content: personalizedContent,
-          status: isFailed ? 'FAILED' : 'PENDING',
-          solapiGroupId: isFailed ? undefined : groupId,
-          solapiMessageId: isFailed ? undefined : groupId,
-          cost: isFailed ? 0 : messageCost,
-          failReason: isFailed ? failureMap.get(normalizedPhone) : undefined,
-        },
-      });
+    // 선불 차감: PENDING 건수만큼 무료 크레딧 우선 사용 후 유료분 지갑 차감
+    const { freeCount, charged } = await chargeCampaignUpfront({
+      storeId,
+      campaignId: campaign.id,
+      pendingCount: pendingRows.length,
+      costPerMessage,
+      messageType,
+      metaType: 'SMS',
+      allowFreeCredits: true,
+    });
 
-      if (isFailed) failedCount++;
-      else sentCount++;
-    }
+    // 메시지 레코드 일괄 생성 (앞에서부터 freeCount 건은 무료=cost 0)
+    const messageData = [
+      ...pendingRows.map((r, i) => ({
+        campaignId: campaign.id,
+        storeId,
+        customerId: r.customerId,
+        phone: r.phone,
+        content: r.content,
+        status: 'PENDING' as const,
+        solapiGroupId: r.groupId,
+        solapiMessageId: r.groupId,
+        cost: i < freeCount ? 0 : costPerMessage,
+      })),
+      ...failedRows.map((r) => ({
+        campaignId: campaign.id,
+        storeId,
+        customerId: r.customerId,
+        phone: r.phone,
+        content: r.content,
+        status: 'FAILED' as const,
+        cost: 0,
+        failReason: r.failReason || '발송 실패',
+      })),
+    ];
+    await prisma.smsMessage.createMany({ data: messageData });
 
-    // 캠페인 상태 업데이트 (SENDING 상태 유지, 워커에서 완료 처리)
-    // sentCount는 SOLAPI에 전송 요청된 건수 (아직 결과 미확인)
+    // 캠페인 확정: 차감액 저장, PENDING 없으면 즉시 완료
     await prisma.smsCampaign.update({
       where: { id: campaign.id },
       data: {
-        sentCount: 0, // 아직 확인된 성공 건수 없음
-        failedCount,  // API 호출 자체가 실패한 건수
-        // totalCost는 워커에서 최종 계산
-        status: sentCount > 0 ? 'SENDING' : 'COMPLETED', // 발송 중인 건이 있으면 SENDING
+        sentCount: 0,
+        failedCount: failedRows.length,
+        totalCost: charged,
+        status: pendingRows.length > 0 ? 'SENDING' : 'COMPLETED',
+        ...(pendingRows.length === 0 ? { completedAt: new Date() } : {}),
       },
     });
 
-    // 비용은 워커에서 성공 확인 후 차감하므로 여기서는 차감하지 않음
-    // (단, API 호출 실패한 건은 이미 cost: 0으로 저장됨)
+    console.log(`[SMS] Charged upfront: ${charged}원 (free ${freeCount}, paid ${pendingRows.length - freeCount}), failed ${failedRows.length}`);
 
     res.json({
       success: true,
       campaignId: campaign.id,
-      pendingCount: sentCount, // PENDING 상태로 저장된 건수
-      failedCount,             // API 호출 실패 건수
-      freeCreditsUsed: usedFreeCredits, // 사용된 무료 크레딧
-      paidCount: creditResult.paidCount, // 유료 발송 건수
-      totalCost: creditResult.totalCost, // 실제 차감될 비용
-      message: usedFreeCredits > 0
-        ? `발송 요청이 완료되었습니다. 무료 크레딧 ${usedFreeCredits}건 사용. 결과는 발송내역에서 확인하세요.`
+      pendingCount: pendingRows.length,
+      failedCount: failedRows.length,
+      freeCreditsUsed: freeCount,
+      paidCount: pendingRows.length - freeCount,
+      totalCost: charged,
+      message: freeCount > 0
+        ? `발송 요청이 완료되었습니다. 무료 크레딧 ${freeCount}건 사용. 결과는 발송내역에서 확인하세요.`
         : '발송 요청이 완료되었습니다. 결과는 발송내역에서 확인하세요.',
     });
   } catch (error) {

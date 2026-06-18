@@ -2,11 +2,65 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { webhookAuthMiddleware, WebhookRequest } from '../middleware/webhook-auth.js';
 import { maskPhone } from '../utils/masking.js';
-import { getMetacityPoints, syncToMetacity } from '../services/metacity.js';
-import { fetchOrder } from '../services/taghere-api.js';
+import {
+  MetacityCustomerInfo,
+  MetacityPointBalance,
+  MetacityService,
+  resolveMetacityCustomer,
+  syncToMetacity,
+} from '../services/metacity.js';
 import { sidoToShort } from '../utils/address-parser.js';
+import { fetchOrder } from '../services/taghere-api.js';
 
 const router = Router();
+
+/**
+ * 주문 메뉴/테이블 정보를 V2(TagHere) 주문 API 에서 조회해 VisitOrOrder.items 형태로 변환한다.
+ * 통합 /transaction 과 단독 /standalone-visit 가 동일한 구조로 메뉴 데이터를 CRM 에 반영하기 위한 공용 헬퍼.
+ * 실패해도(주문 조회 실패 등) undefined 를 반환할 뿐 호출 측 흐름에는 영향을 주지 않는다.
+ */
+async function buildVisitOrderItems(
+  orderId: string,
+  taghereVersion: string,
+): Promise<{ items: any[]; tableNumber: string | null } | undefined> {
+  try {
+    const orderData = await fetchOrder(orderId, taghereVersion);
+    if (!orderData) return undefined;
+    const rawItems = orderData.content?.items || (orderData as any).orderItems || (orderData as any).items || [];
+    const items = rawItems.map((item: any) => ({
+      name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
+      quantity: item.count || item.quantity || item.qty || item.amount || 1,
+      price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
+      option: item.option || null,
+    }));
+    let tableLabel = orderData.content?.tableLabel || (orderData as any).tableLabel || (orderData as any).content?.tableNumber || (orderData as any).tableNumber || null;
+    if (!tableLabel) {
+      const tableID = (orderData as any).tableID || (orderData as any).content?.tableID;
+      if (tableID && typeof tableID === 'string' && tableID.length < 10) {
+        tableLabel = tableID;
+      }
+    }
+    if (items.length > 0 || tableLabel) {
+      return { items, tableNumber: tableLabel };
+    }
+    return undefined;
+  } catch (err: any) {
+    console.warn(`[Point Webhook] 주문 메뉴 조회 실패(흐름은 계속): orderId=${orderId}, ${err?.message}`);
+    return undefined;
+  }
+}
+
+/**
+ * 매직포스 매장에서 메타씨티 회원 식별 + 잔액 조회.
+ * 핸들러 안에서 service 인스턴스 생성 + resolveMetacityCustomer 호출 패턴을 한 줄로 묶는다.
+ */
+async function lookupMetacityCustomer(
+  metacityStoreIdx: string,
+  customer: Parameters<typeof resolveMetacityCustomer>[1],
+): Promise<MetacityCustomerInfo | null> {
+  const service = new MetacityService({ metacityStoreIdx });
+  return resolveMetacityCustomer(service, customer);
+}
 
 /**
  * POST /api/taghere/webhook/point/customer-search
@@ -92,34 +146,38 @@ router.post('/customer-search', webhookAuthMiddleware, async (req: WebhookReques
       console.log(`[Point Webhook] Customer created locally - customerId: ${customer.id}, storeId: ${store.id}`);
     }
 
-    // 6. 포인트 값 결정
-    let ablePoint: number;
-    let totalPoint: number;
+    // 6. 포인트 잔액 계산 (매장 타입에 따라 분기)
+    //    - 매직포스 연동 매장(metacityEnabled=true): 메타씨티가 진실원천. CUST_SEARCH 응답의 ABLE_POINT 사용.
+    //    - 일반 매장: 기존대로 CRM 로컬 값 사용.
+    let ablePoint: number = customer.totalPoints;
+    let totalPoint = 0;
 
     if (store.metacityEnabled && store.metacityStoreIdx) {
-      // 메타씨티 연동 매장: 메타씨티 POINT_SEARCH 값을 source of truth로 사용
-      try {
-        const points = await getMetacityPoints({
-          store: {
-            id: store.id,
-            metacityEnabled: store.metacityEnabled,
-            metacityStoreIdx: store.metacityStoreIdx,
-          },
-          customer,
-        });
-        ablePoint = points.ablePoint;
-        totalPoint = points.totalPoint;
-      } catch (metacityErr: any) {
-        console.error('[Point Webhook] 메타씨티 포인트 조회 실패:', metacityErr.message);
-        return res.status(502).json({
-          success: false,
-          error: 'metacity_error',
-          message: '메타씨티 포인트 조회에 실패했습니다.',
-        });
+      const info = await lookupMetacityCustomer(store.metacityStoreIdx, customer);
+      if (info) {
+        ablePoint = info.ablePoint;
+        totalPoint = info.totPoint;
+        // 정식 식별된 CUST_ID 만 캐시 갱신 (phoneDigits 폴백은 캐시하지 않음 — 다음 호출에서 정상 식별 재시도)
+        if (!info.isFallback && info.custId !== customer.metacityCustId) {
+          await prisma.customer.update({
+            where: { id: customer.id },
+            data: { metacityCustId: info.custId, metacitySyncedAt: new Date() },
+          });
+        }
+      } else {
+        // 메타씨티 호출 실패 → 0 으로 fallback (현행 정책)
+        console.warn('[Point Webhook] 메타씨티 잔액 조회 실패, 0 으로 응답:', customer.id);
+        ablePoint = 0;
+        totalPoint = 0;
       }
+    } else if (store.metacityEnabled && !store.metacityStoreIdx) {
+      // 매장 설정 오류: 활성화는 켜져있지만 매장코드 없음 → 0 fallback + WARN
+      // (조회 경로는 화면 표시용이라 5xx 대신 0 응답 — /transaction 과 응답 형식이 다른 의도된 차이)
+      console.warn('[Point Webhook] metacityEnabled=true 인데 metacityStoreIdx 비어있음:', store.id);
+      ablePoint = 0;
+      totalPoint = 0;
     } else {
-      // 비연동 매장: 기존 로컬 포인트 사용 (보유 포인트 + EARN 합산)
-      ablePoint = customer.totalPoints;
+      // 일반 매장: 기존 로직 (CRM PointLedger EARN 합계)
       const totalAccumulated = await prisma.pointLedger.aggregate({
         where: {
           customerId: customer.id,
@@ -212,6 +270,133 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
       });
     }
 
+    // [매직포스 매장 분기]
+    // 매직포스 연동 매장(metacityEnabled=true)은 포인트의 진실원천이 메타씨티이므로
+    // CRM 의 PointLedger / Customer.totalPoints 에는 write 하지 않는다.
+    // VisitOrOrder + Customer.visitCount/lastVisitAt (방문 통계)만 유지한다.
+    if (store.metacityEnabled) {
+      // 매장 설정 오류: 활성화는 켜져있지만 매장코드(STORE_IDX)가 비어있음 → 동기화 불가
+      // (트랜잭션은 실제 데이터 변경이라 5xx 의미의 success:false 로 명확히 알림 — /customer-search 와 다른 의도된 응답 형식)
+      if (!store.metacityStoreIdx) {
+        console.warn('[Point Webhook] metacityEnabled=true 인데 metacityStoreIdx 비어있음:', store.id);
+        return res.json({
+          success: false,
+          error: 'metacity_store_idx_missing',
+          message: '매직포스 매장 설정 오류 (storeIdx 누락)',
+        });
+      }
+
+      // 멱등성: VisitOrOrder 존재 시 메타씨티 재요청 없이 CUST_SEARCH 로 현재 잔액만 응답
+      const existingVisit = await prisma.visitOrOrder.findUnique({
+        where: { storeId_orderId: { storeId: store.id, orderId } },
+      });
+
+      if (existingVisit) {
+        console.log(`[Point Webhook] 이미 처리된 주문 (매직포스), 잔액 재조회: orderId=${orderId}`);
+        const info = await lookupMetacityCustomer(store.metacityStoreIdx, customer);
+        return res.json({
+          success: true,
+          data: {
+            savedPoint: 0,
+            usedPoint: 0,
+            balance: info?.ablePoint ?? 0,
+          },
+        });
+      }
+
+      // 적립 포인트 계산 + 오늘 첫 방문 체크 (VisitOrOrder 기반)
+      const savePoint = Math.round((purAmt * store.pointRatePercent) / 100);
+      const effectiveUsedPoint = usedPoint || 0;
+
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      const todayVisit = await prisma.visitOrOrder.findFirst({
+        where: {
+          customerId: customer.id,
+          storeId: store.id,
+          visitedAt: { gte: todayStart, lte: todayEnd },
+        },
+      });
+      const isFirstVisitToday = !todayVisit;
+
+      // 메타씨티 POINT_COMBINE 동기 호출 — 응답의 ABLE_POINT 가 진실원천
+      // 잔액 부족 등은 메타씨티가 에러로 반환 → catch 후 CUST_SEARCH 폴백
+      let metacityBalance: MetacityPointBalance | null = null;
+      try {
+        metacityBalance = await syncToMetacity({
+          store: {
+            id: store.id,
+            metacityEnabled: true,
+            metacityStoreIdx: store.metacityStoreIdx,
+          },
+          customer,
+          operationType: 'POINT_COMBINE',
+          orderNo: orderId.slice(0, 20), // 스펙 1.7.3: ORDER_NO 최대 20자
+          purAmt: purAmt > 0 ? purAmt : 0,
+          usedPoint: effectiveUsedPoint,
+          savePoint,
+        });
+      } catch (err: any) {
+        // 메타씨티 측 에러(중복 ORDER_NO / 잔액 부족 등) → CUST_SEARCH 로 현재 잔액 폴백
+        console.warn('[Point Webhook] POINT_COMBINE 실패, CUST_SEARCH 폴백:', err?.message);
+        const info = await lookupMetacityCustomer(store.metacityStoreIdx, customer);
+        if (info) {
+          metacityBalance = info;
+        }
+      }
+
+      if (!metacityBalance) {
+        // 메타씨티 호출 + 폴백까지 모두 실패
+        console.error('[Point Webhook] 메타씨티 동기화 완전 실패:', orderId);
+        return res.json({
+          success: false,
+          error: 'metacity_sync_failed',
+          message: '메타씨티 포인트 처리 실패',
+        });
+      }
+
+      // 메타씨티에는 이미 반영됨 → CRM 로컬 방문 통계만 갱신
+      // (PointLedger / Customer.totalPoints 에는 write 하지 않음)
+      const magicposOrderItems = await buildVisitOrderItems(orderId, store.taghereVersion);
+      await prisma.$transaction([
+        prisma.visitOrOrder.upsert({
+          where: { storeId_orderId: { storeId: store.id, orderId } },
+          update: {},
+          create: {
+            storeId: store.id,
+            customerId: customer.id,
+            orderId,
+            visitedAt: new Date(),
+            totalAmount: purAmt > 0 ? purAmt : null,
+            ...(magicposOrderItems && { items: magicposOrderItems }),
+          },
+        }),
+        prisma.customer.update({
+          where: { id: customer.id },
+          data: {
+            ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
+            lastVisitAt: new Date(),
+          },
+        }),
+      ]);
+
+      console.log(
+        `[Point Webhook] Metacity transaction completed - customerId: ${customer.id}, storeId: ${store.id}, used: ${effectiveUsedPoint}, saved: ${savePoint}, balance(metacity): ${metacityBalance.ablePoint}`,
+      );
+
+      return res.json({
+        success: true,
+        data: {
+          savedPoint: savePoint,
+          usedPoint: effectiveUsedPoint,
+          balance: metacityBalance.ablePoint,
+        },
+      });
+    }
+
     // 4. 멱등성 체크: 동일 orderId로 이미 처리된 건이 있으면 이전 결과 반환
     const existingLedger = await prisma.pointLedger.findFirst({
       where: {
@@ -268,34 +453,6 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
     });
     const isFirstVisitToday = !todayVisit;
 
-    // 7-1. 주문 메뉴 정보 보강 (기존 TagHere/V2 주문 API 재사용; 실패해도 적립엔 영향 없음)
-    //      taghere.ts 자동적립과 동일 구조로 VisitOrOrder.items 를 채운다.
-    let orderItemsData: { items: any[]; tableNumber: string | null } | undefined;
-    try {
-      const orderData = await fetchOrder(orderId, store.taghereVersion);
-      if (orderData) {
-        const rawItems = orderData.content?.items || (orderData as any).orderItems || (orderData as any).items || [];
-        const orderItems = rawItems.map((item: any) => ({
-          name: item.label || item.name || item.menuName || item.productName || item.title || item.itemName || item.menuTitle || null,
-          quantity: item.count || item.quantity || item.qty || item.amount || 1,
-          price: typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.unitPrice || item.itemPrice || item.totalPrice || 0),
-          option: item.option || null,
-        }));
-        let tableLabel = orderData.content?.tableLabel || (orderData as any).tableLabel || (orderData as any).content?.tableNumber || (orderData as any).tableNumber || null;
-        if (!tableLabel) {
-          const tableID = (orderData as any).tableID || (orderData as any).content?.tableID;
-          if (tableID && typeof tableID === 'string' && tableID.length < 10) {
-            tableLabel = tableID;
-          }
-        }
-        if (orderItems.length > 0 || tableLabel) {
-          orderItemsData = { items: orderItems, tableNumber: tableLabel };
-        }
-      }
-    } catch (err: any) {
-      console.warn(`[Point Webhook] 주문 메뉴 조회 실패(적립은 계속): orderId=${orderId}, ${err?.message}`);
-    }
-
     // 8. 트랜잭션 처리
     let currentBalance = customer.totalPoints;
     const transactionOps: any[] = [];
@@ -348,7 +505,8 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
       }),
     );
 
-    // 8-4. 주문 내역 기록 (upsert: 동일 orderId 재요청 시 중복 방지)
+    // 8-4. 주문 내역 기록 (upsert: 동일 orderId 재요청 시 중복 방지). 메뉴/테이블도 함께 보강.
+    const orderItemsData = await buildVisitOrderItems(orderId, store.taghereVersion);
     transactionOps.push(
       prisma.visitOrOrder.upsert({
         where: {
@@ -373,30 +531,8 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
 
     console.log(`[Point Webhook] Transaction completed - customerId: ${customer.id}, storeId: ${store.id}, usedPoint: ${effectiveUsedPoint}, savePoint: ${savePoint}, balance: ${currentBalance}`);
 
-    // 8. MetaCity 동기화 (비동기)
-    if (store.metacityEnabled && store.metacityStoreIdx) {
-      const latestCustomer = await prisma.customer.findUnique({
-        where: { id: customer.id },
-      });
-
-      if (latestCustomer) {
-        const latestLedger = await prisma.pointLedger.findFirst({
-          where: { customerId: customer.id },
-          orderBy: { createdAt: 'desc' },
-        });
-
-        // POINT_COMBINE: 사용 + 적립 동시 처리
-        syncToMetacity({
-          store: { id: store.id, metacityEnabled: store.metacityEnabled, metacityStoreIdx: store.metacityStoreIdx },
-          customer: latestCustomer,
-          operationType: 'POINT_COMBINE',
-          orderNo: latestLedger?.id || orderId,
-          purAmt: purAmt > 0 ? purAmt : 0,
-          usedPoint: effectiveUsedPoint,
-          savePoint,
-        }).catch(err => console.error('[Metacity] POINT_COMBINE (point-webhook) sync failed:', err.message));
-      }
-    }
+    // 매직포스 매장은 위 분기에서 이미 return 됨 → 여기는 일반 매장 경로.
+    // 메타씨티 동기화는 매직포스 매장에서만 의미가 있으므로 호출하지 않는다.
 
     // 9. 응답
     res.json({
@@ -413,6 +549,285 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
       success: false,
       error: 'server_error',
       message: '포인트 트랜잭션 처리 중 오류가 발생했습니다.',
+    });
+  }
+});
+
+/**
+ * POST /api/taghere/webhook/point/standalone-member-snapshot
+ *
+ * 매직포스 단독 회원(STANDALONE) 매장에서 V2 가 8100 으로 회원 조회 후,
+ * 마케팅 목적으로 CRM 에 손님 정보 스냅샷을 전송하는 엔드포인트.
+ * (단독 매장의 포인트는 메타씨티 POS 가 진실원천이므로 totalPoints/PointLedger 는 갱신하지 않음)
+ */
+router.post('/standalone-member-snapshot', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
+  try {
+    const { storeSlug, phone, custCd, custName } = req.body as {
+      storeSlug?: string;
+      phone?: string;
+      custCd?: string | null;
+      custName?: string | null;
+    };
+
+    if (!storeSlug || !phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'missing_params',
+        message: 'storeSlug, phone은 필수입니다.',
+      });
+    }
+
+    const store = await prisma.store.findFirst({
+      where: { slug: storeSlug },
+      select: { id: true, addressSido: true, addressSigungu: true },
+    });
+
+    if (!store) {
+      return res.status(404).json({
+        success: false,
+        error: 'store_not_found',
+        message: '매장을 찾을 수 없습니다.',
+      });
+    }
+
+    const phoneDigits = phone.replace(/[^0-9]/g, '');
+    let normalizedDigits = phoneDigits;
+    if (normalizedDigits.startsWith('82') && normalizedDigits.length >= 11) {
+      normalizedDigits = '0' + normalizedDigits.slice(2);
+    }
+    const phoneLastDigits = normalizedDigits.slice(-8);
+    const formattedPhone = normalizedDigits.length === 11
+      ? `${normalizedDigits.slice(0, 3)}-${normalizedDigits.slice(3, 7)}-${normalizedDigits.slice(7)}`
+      : normalizedDigits;
+
+    const existing = await prisma.customer.findFirst({
+      where: { storeId: store.id, phoneLastDigits },
+    });
+
+    const trimmedCustCd = typeof custCd === 'string' ? custCd.trim() : '';
+    const trimmedCustName = typeof custName === 'string' ? custName.trim() : '';
+
+    if (existing) {
+      await prisma.customer.update({
+        where: { id: existing.id },
+        data: {
+          ...(trimmedCustCd && { metacityCustCd: trimmedCustCd, metacitySyncedAt: new Date() }),
+          ...(trimmedCustName && !existing.name && { name: trimmedCustName }),
+        },
+      });
+    } else {
+      await prisma.customer.create({
+        data: {
+          storeId: store.id,
+          phone: formattedPhone,
+          phoneLastDigits,
+          name: trimmedCustName || null,
+          totalPoints: 0,
+          visitCount: 0,
+          regionSido: sidoToShort(store.addressSido ?? null),
+          regionSigungu: store.addressSigungu || null,
+          consentMarketing: true,
+          consentAt: new Date(),
+          metacityCustCd: trimmedCustCd || null,
+          metacitySyncedAt: trimmedCustCd ? new Date() : null,
+        },
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[Point Webhook] Standalone member snapshot error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'server_error',
+      message: '단독 매장 회원 스냅샷 처리 중 오류가 발생했습니다.',
+    });
+  }
+});
+
+/**
+ * POST /api/taghere/webhook/point/standalone-visit
+ *
+ * 매직포스 단독 회원(STANDALONE) 매장에서 V2 가 결제 완료 시 마케팅 visit 통계용으로 전송.
+ * CRM `/transaction` 호출이 스킵되는 STANDALONE 매장에서 visit/lastVisitAt 통계를 유지하기 위함.
+ * 멱등성: 동일 orderId 의 VisitOrOrder 가 이미 존재하면 skip.
+ */
+router.post('/standalone-visit', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
+  try {
+    const { storeSlug, phone, custCd, orderId, totalAmount, balance, usedAmount } = req.body as {
+      storeSlug?: string;
+      phone?: string;
+      custCd?: string | null;
+      orderId?: string;
+      totalAmount?: number;
+      // 단독 회원 포인트: balance = 주문 후 메타시티 잔액(authoritative, null 이면 방문만), usedAmount = 사용액
+      balance?: number | null;
+      usedAmount?: number | null;
+    };
+
+    if (!storeSlug || !phone || !orderId) {
+      return res.status(400).json({
+        success: false,
+        error: 'missing_params',
+        message: 'storeSlug, phone, orderId는 필수입니다.',
+      });
+    }
+
+    const store = await prisma.store.findFirst({
+      where: { slug: storeSlug },
+      select: { id: true, addressSido: true, addressSigungu: true, taghereVersion: true },
+    });
+
+    if (!store) {
+      return res.status(404).json({
+        success: false,
+        error: 'store_not_found',
+        message: '매장을 찾을 수 없습니다.',
+      });
+    }
+
+    const phoneDigits = phone.replace(/[^0-9]/g, '');
+    let normalizedDigits = phoneDigits;
+    if (normalizedDigits.startsWith('82') && normalizedDigits.length >= 11) {
+      normalizedDigits = '0' + normalizedDigits.slice(2);
+    }
+    const phoneLastDigits = normalizedDigits.slice(-8);
+    const formattedPhone = normalizedDigits.length === 11
+      ? `${normalizedDigits.slice(0, 3)}-${normalizedDigits.slice(3, 7)}-${normalizedDigits.slice(7)}`
+      : normalizedDigits;
+    const trimmedCustCd = typeof custCd === 'string' ? custCd.trim() : '';
+
+    // 멱등성: 동일 orderId 가 이미 처리됐으면 skip
+    const existingVisit = await prisma.visitOrOrder.findUnique({
+      where: { storeId_orderId: { storeId: store.id, orderId } },
+    });
+
+    if (existingVisit) {
+      return res.json({ success: true, skipped: true });
+    }
+
+    // 고객 find/create
+    let customer = await prisma.customer.findFirst({
+      where: { storeId: store.id, phoneLastDigits },
+    });
+
+    if (!customer) {
+      customer = await prisma.customer.create({
+        data: {
+          storeId: store.id,
+          phone: formattedPhone,
+          phoneLastDigits,
+          totalPoints: 0,
+          visitCount: 0,
+          regionSido: sidoToShort(store.addressSido ?? null),
+          regionSigungu: store.addressSigungu || null,
+          consentMarketing: true,
+          consentAt: new Date(),
+          metacityCustCd: trimmedCustCd || null,
+          metacitySyncedAt: trimmedCustCd ? new Date() : null,
+        },
+      });
+    } else if (trimmedCustCd && customer.metacityCustCd !== trimmedCustCd) {
+      // 캐시된 CUST_CD 갱신
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { metacityCustCd: trimmedCustCd, metacitySyncedAt: new Date() },
+      });
+    }
+
+    // 오늘 첫 방문인지 확인 (VisitOrOrder 기반)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const todayVisit = await prisma.visitOrOrder.findFirst({
+      where: {
+        customerId: customer.id,
+        storeId: store.id,
+        visitedAt: { gte: todayStart, lte: todayEnd },
+      },
+    });
+    const isFirstVisitToday = !todayVisit;
+
+    // 주문 메뉴 정보 보강 — 통합 /transaction 과 동일하게 VisitOrOrder.items 에 메뉴/테이블을 기록한다.
+    const orderItemsData = await buildVisitOrderItems(orderId, store.taghereVersion);
+
+    // 단독 회원 포인트: 메타시티 잔액(balance)이 오면 totalPoints 를 authoritative set 하고 net 동기화 원장 1건 기록.
+    // (정확한 EARN/USE 분리는 메타시티 /metacity-point-event 가동 시로 위임 — V2 는 잔액만 신뢰.)
+    const hasBalance = balance !== null && balance !== undefined && Number.isFinite(Number(balance));
+    const balanceNum = hasBalance ? Math.max(0, Math.round(Number(balance))) : null;
+    const usedNum = Math.max(0, Math.round(Number(usedAmount || 0)));
+
+    const ops: any[] = [
+      prisma.visitOrOrder.upsert({
+        where: { storeId_orderId: { storeId: store.id, orderId } },
+        update: {},
+        create: {
+          storeId: store.id,
+          customerId: customer.id,
+          orderId,
+          visitedAt: new Date(),
+          totalAmount: totalAmount && totalAmount > 0 ? totalAmount : null,
+          ...(orderItemsData && { items: orderItemsData }),
+        },
+      }),
+      prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
+          lastVisitAt: new Date(),
+          ...(balanceNum !== null && { totalPoints: balanceNum }),
+        },
+      }),
+    ];
+
+    if (balanceNum !== null) {
+      // 메타시티 잔액이 진실원천. 사용액(usedNum)은 정확히 알고, 적립액은 잔액차로 역산.
+      // 사장님 노출용이라 reason 은 출처(태그히어 주문)만 — orderId 등 내부값은 남기지 않는다.
+      const oldBalance = customer.totalPoints;
+      const earned = Math.max(balanceNum - oldBalance + usedNum, 0);
+      if (usedNum > 0) {
+        ops.push(
+          prisma.pointLedger.create({
+            data: {
+              storeId: store.id,
+              customerId: customer.id,
+              delta: -usedNum,
+              balance: balanceNum - earned,
+              type: 'USE',
+              reason: '태그히어 주문 사용',
+              orderId,
+            },
+          }),
+        );
+      }
+      if (earned > 0) {
+        ops.push(
+          prisma.pointLedger.create({
+            data: {
+              storeId: store.id,
+              customerId: customer.id,
+              delta: earned,
+              balance: balanceNum,
+              type: 'EARN',
+              reason: '태그히어 주문 적립',
+              orderId,
+            },
+          }),
+        );
+      }
+    }
+
+    await prisma.$transaction(ops);
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[Point Webhook] Standalone visit error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'server_error',
+      message: '단독 매장 visit 처리 중 오류가 발생했습니다.',
     });
   }
 });
@@ -468,8 +883,15 @@ function pickField(sources: any[], aliases: string[]): any {
  * - 실제 페이로드 확인 후 collectSources/pickField 별칭을 확정/조정하면 됨.
  *
  * 반영 규칙: Customer.totalPoints = balance(authoritative set) + PointLedger 이력,
- *           멱등키 externalTxId(=txId)로 중복/echo 방지. balance/savePoint/usedPoint 는 재계산하지 않음.
- * 주의: 태그히어 모바일오더 포인트는 이미 /transaction 이 기록하므로 이 웹훅으로 중복 전송 금지.
+ *           멱등키 externalTxId(txId 가 있으면 그 값, 없으면 내용 기반 합성키)로 재전송 중복 방지.
+ *           balance/savePoint/usedPoint 는 재계산하지 않음.
+ *
+ * 포인트 기록 주체(이중 적립 방지):
+ * - 매직포스(metacityEnabled) 매장: 포인트의 진실원천이 메타시티이므로 /transaction 은
+ *   PointLedger/totalPoints 를 쓰지 않는다(VisitOrOrder/방문통계만). 매직포스 회원 포인트는
+ *   **이 웹훅이 유일한 CRM 기록 경로**다 — 통합·단독 회원 모두 메타시티가 여기로 푸시한다.
+ * - 비(非)매직포스 매장: 태그히어 모바일오더 포인트는 /transaction 이 기록하므로,
+ *   해당 매장 건을 이 웹훅으로 중복 전송하면 안 된다.
  */
 router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
   try {
@@ -483,15 +905,18 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
     const txId = asStr(pickField(sources, ['txId', 'txid', 'transactionId', 'ORDER_NO', 'order_no', 'orderNo', 'orderId']));
     const phone = asStr(pickField(sources, ['phone', 'CP_NO', 'cp_no', 'cpNo', 'tel', 'mobile', 'phoneNumber']));
     const custId = asStr(pickField(sources, ['custId', 'CUST_ID', 'cust_id']));
+    // 단독 회원(STANDALONE) 식별자 CUST_CD — 통합 회원 CUST_ID 와 별개 컬럼(Customer.metacityCustCd)으로 캐싱.
+    // (메타시티 실제 페이로드 미확인 — 별칭은 raw 로그 관찰 후 확정 가능)
+    const custCd = asStr(pickField(sources, ['custCd', 'CUST_CD', 'cust_cd']));
     const balanceRaw = pickField(sources, ['balance', 'ablePoint', 'ABLE_POINT', 'able_point', 'remainPoint', 'remainingPoint']);
     const saveRaw = pickField(sources, ['savePoint', 'SAVE_POINT', 'save_point', 'earnPoint', 'accruePoint', 'addPoint']);
     const useRaw = pickField(sources, ['usedPoint', 'USED_POINT', 'used_point', 'usePoint', 'deductPoint']);
     const purAmtRaw = pickField(sources, ['purAmt', 'PUR_AMT', 'pur_amt', 'amount', 'payAmount', 'totalAmount']);
 
     // 2. 매핑 필수값 점검 — 부족하면 원문만 남기고 성공 응답(캡처 단계, 연동 안 깨지게)
+    // txId 는 메타시티가 빈 값으로 보내므로 필수에서 제외하고, 없으면 내용 기반 멱등키를 합성한다(아래).
     const missing: string[] = [];
     if (!metacityStoreIdx && !storeSlug) missing.push('store');
-    if (!txId) missing.push('txId');
     if (!phone && !custId) missing.push('phone|custId');
     if (balanceRaw === undefined || balanceRaw === null || balanceRaw === '') missing.push('balance');
     if (missing.length > 0) {
@@ -546,6 +971,7 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
     });
 
     const trimmedCustId = typeof custId === 'string' ? custId.trim() : '';
+    const trimmedCustCd = typeof custCd === 'string' ? custCd.trim() : '';
 
     if (!customer) {
       const formattedPhone = normalizedDigits.length === 11
@@ -565,7 +991,8 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
             consentMarketing: true,
             consentAt: new Date(),
             metacityCustId: trimmedCustId || null,
-            metacitySyncedAt: trimmedCustId ? new Date() : null,
+            metacityCustCd: trimmedCustCd || null,
+            metacitySyncedAt: (trimmedCustId || trimmedCustCd) ? new Date() : null,
           },
         });
         console.log(`[Point Webhook] Customer created locally (metacity-point-event) - customerId: ${customer.id}, storeId: ${store.id}`);
@@ -576,25 +1003,39 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
         }
         if (!customer) throw e;
       }
-    } else if (trimmedCustId && customer.metacityCustId !== trimmedCustId) {
-      await prisma.customer.update({
-        where: { id: customer.id },
-        data: { metacityCustId: trimmedCustId, metacitySyncedAt: new Date() },
-      });
+    } else {
+      // 식별자(CUST_ID/CUST_CD) 캐시 갱신 — 통합은 metacityCustId, 단독은 metacityCustCd.
+      const idChanged = trimmedCustId && customer.metacityCustId !== trimmedCustId;
+      const cdChanged = trimmedCustCd && customer.metacityCustCd !== trimmedCustCd;
+      if (idChanged || cdChanged) {
+        await prisma.customer.update({
+          where: { id: customer.id },
+          data: {
+            ...(idChanged && { metacityCustId: trimmedCustId }),
+            ...(cdChanged && { metacityCustCd: trimmedCustCd }),
+            metacitySyncedAt: new Date(),
+          },
+        });
+      }
     }
 
     const customerId = customer.id;
 
-    // 5. 멱등성: 동일 txId(externalTxId) 또는 echo(ledger.id == txId) 처리 건이면 현재 잔액 반환
+    // 멱등키: 메타시티가 txId 를 빈 값으로 보내므로, 없으면 내용 기반으로 합성한다.
+    // (동일 이벤트 재전송은 모든 값이 같아 같은 키로 합쳐지고, 잔액 변동이 있는 별개 거래는 키가 달라 따로 기록됨.)
+    const idempotencyKey = txId
+      || `mc:${store.metacityStoreIdx ?? storeSlug ?? store.id}:${phoneLastDigits}:${balanceNum}:${saveNum}:${useNum}:${purAmtNum}`;
+
+    // 5. 멱등성: 동일 멱등키(externalTxId) 처리 건이면 현재 잔액 반환
     const duplicate = await prisma.pointLedger.findFirst({
       where: {
         storeId: store.id,
-        OR: [{ externalTxId: txId }, { id: txId }],
+        externalTxId: idempotencyKey,
       },
     });
 
     if (duplicate) {
-      console.log(`[Point Webhook] 이미 처리된 POS 거래, skip: txId=${txId}`);
+      console.log(`[Point Webhook] 이미 처리된 POS 거래, skip: key=${idempotencyKey}`);
       const current = await prisma.customer.findUnique({
         where: { id: customerId },
         select: { totalPoints: true },
@@ -628,7 +1069,7 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
         delta: -useNum,
         balance: balanceNum - saveNum,
         type: 'USE',
-        reason: `매직포스 POS 포인트 사용 (txId: ${txId})`,
+        reason: '포스 사용',
       });
     }
     if (saveNum > 0) {
@@ -636,7 +1077,7 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
         delta: saveNum,
         balance: balanceNum,
         type: 'EARN',
-        reason: `매직포스 POS 포인트 적립 (txId: ${txId})`,
+        reason: '포스 적립',
       });
     }
     if (ledgerCreates.length === 0) {
@@ -645,7 +1086,7 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
         delta: 0,
         balance: balanceNum,
         type: 'ADJUST',
-        reason: `매직포스 POS 잔액 동기화 (txId: ${txId})`,
+        reason: '포스 잔액 동기화',
       });
     }
 
@@ -658,8 +1099,8 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
           balance: row.balance,
           type: row.type,
           reason: row.reason,
-          // 대표 행(마지막) 에만 externalTxId 부여 → unique 충돌 방지 + 멱등키 보존
-          externalTxId: idx === ledgerCreates.length - 1 ? txId : null,
+          // 대표 행(마지막) 에만 멱등키 부여 → unique 충돌 방지 + 재전송 중복 방지
+          externalTxId: idx === ledgerCreates.length - 1 ? idempotencyKey : null,
         },
       }),
     );

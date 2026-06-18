@@ -71,6 +71,7 @@ interface Store {
   metacityBrandCode?: string | null;
   metacityStoreIdx?: string | null;
   metacityAccessCode?: string | null;
+  metacityMembershipType?: 'INTEGRATED' | 'STANDALONE';
   // Monthly credit
   monthlyCredit?: {
     total: number;
@@ -279,6 +280,7 @@ export default function AdminStoresPage() {
       metacityBrandCode: store.metacityBrandCode ?? '',
       metacityStoreIdx: store.metacityStoreIdx ?? '',
       metacityAccessCode: store.metacityAccessCode ?? '',
+      metacityMembershipType: store.metacityMembershipType ?? 'INTEGRATED',
     });
     setPointRateInput(String(store.pointRatePercent ?? 5));
     setIsEditMode(false);
@@ -1477,7 +1479,34 @@ export default function AdminStoresPage() {
                 {((isEditMode && editForm.metacityEnabled) || (!isEditMode && selectedStore.metacityEnabled)) && (
                   <div className="space-y-3 pt-1">
                     <div className={`rounded-xl p-3 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                      <label className="block text-[12px] text-neutral-500 mb-1">매장 코드</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[12px] text-neutral-500">매장 코드</label>
+                        {isEditMode && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const token = localStorage.getItem('adminToken');
+                                const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+                                const res = await fetch(`${baseUrl}/api/admin/stores/${selectedStore.id}/discover-metacity-store-idx`, {
+                                  method: 'POST',
+                                  headers: { Authorization: `Bearer ${token}` },
+                                });
+                                const body = await res.json().catch(() => ({}));
+                                if (!res.ok) {
+                                  throw new Error(body.error || '매장 코드 자동 발견 실패');
+                                }
+                                setEditForm((prev) => ({ ...prev, metacityStoreIdx: body.storeIdx }));
+                              } catch (err: any) {
+                                alert(err.message || '매장 코드 자동 발견 중 오류가 발생했습니다.');
+                              }
+                            }}
+                            className="px-2 py-1 text-[11px] font-medium rounded-md border border-neutral-300 text-neutral-700 bg-white hover:bg-neutral-50 transition-colors"
+                          >
+                            자동 가져오기
+                          </button>
+                        )}
+                      </div>
                       {isEditMode ? (
                         <input
                           type="text"
@@ -1488,6 +1517,78 @@ export default function AdminStoresPage() {
                         />
                       ) : (
                         <p className="text-[14px] text-neutral-800 font-mono">{selectedStore.metacityStoreIdx || '-'}</p>
+                      )}
+                    </div>
+
+                    {/* V2 재동기화 버튼 (조회 모드에서만, CRM ↔ V2 webhook 실패 시 수동 재시도) */}
+                    {!isEditMode && (
+                      <div className="rounded-xl p-3 bg-neutral-50 flex items-center justify-between">
+                        <div>
+                          <p className="text-[12px] text-neutral-500">V2 매장 설정 동기화</p>
+                          <p className="text-[11px] text-neutral-400 mt-0.5">webhook 실패 시 수동으로 재전송</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const token = localStorage.getItem('adminToken');
+                              const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+                              const res = await fetch(`${baseUrl}/api/admin/stores/${selectedStore.id}/resync-metacity-to-v2`, {
+                                method: 'POST',
+                                headers: { Authorization: `Bearer ${token}` },
+                              });
+                              const body = await res.json().catch(() => ({}));
+                              if (!res.ok) {
+                                throw new Error(body.error || '재동기화 실패');
+                              }
+                              alert(body.message || 'V2 재동기화 요청을 보냈습니다.');
+                            } catch (err: any) {
+                              alert(err.message || '재동기화 중 오류가 발생했습니다.');
+                            }
+                          }}
+                          className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-neutral-900 text-white hover:bg-neutral-700 transition-colors"
+                        >
+                          V2 재동기화
+                        </button>
+                      </div>
+                    )}
+
+                    {/* 회원 유형: 통합 / 단독 */}
+                    <div className={`rounded-xl p-3 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
+                      <label className="block text-[12px] text-neutral-500 mb-2">회원 유형</label>
+                      {isEditMode ? (
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditForm({ ...editForm, metacityMembershipType: 'INTEGRATED' })}
+                            className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-lg border transition-all ${
+                              (editForm.metacityMembershipType ?? 'INTEGRATED') === 'INTEGRATED'
+                                ? 'bg-blue-500 text-white border-blue-500'
+                                : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                            }`}
+                          >
+                            통합 회원
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditForm({ ...editForm, metacityMembershipType: 'STANDALONE' })}
+                            className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-lg border transition-all ${
+                              editForm.metacityMembershipType === 'STANDALONE'
+                                ? 'bg-purple-500 text-white border-purple-500'
+                                : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                            }`}
+                          >
+                            단독 회원
+                          </button>
+                        </div>
+                      ) : (
+                        <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-lg ${
+                          selectedStore.metacityMembershipType === 'STANDALONE'
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {selectedStore.metacityMembershipType === 'STANDALONE' ? '단독 회원' : '통합 회원'}
+                        </span>
                       )}
                     </div>
                   </div>

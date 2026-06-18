@@ -298,3 +298,89 @@ export async function notifyCrmOff(params: {
     }
   }
 }
+
+/**
+ * V2 매장 매직포스 설정 동기화 — 어드민에서 변경된 메타씨티 설정을 V2 StoreSetting 에 반영
+ * V2 는 매직포스 단독 회원 매장 분기에 metacityEnabled/metacityMembershipType 을 사용한다.
+ * fire-and-forget. 실패는 ERROR 로그만 남기고 어드민 응답 흐름은 막지 않는다.
+ */
+export async function notifyStoreMetacitySettingsToV2(params: {
+  crmStoreSlug: string;
+  metacityEnabled: boolean;
+  metacityMembershipType: 'INTEGRATED' | 'STANDALONE';
+}): Promise<void> {
+  if (!V2_API_URL || !V2_API_TOKEN) {
+    console.log('[TagHere V2] V2 config not set, skipping metacity settings sync');
+    return;
+  }
+  try {
+    const response = await fetch(`${V2_API_URL}/api/v2/internal/crm/store-settings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${V2_API_TOKEN}`,
+      },
+      body: JSON.stringify({
+        crmStoreSlug: params.crmStoreSlug,
+        metacityEnabled: params.metacityEnabled,
+        metacityMembershipType: params.metacityMembershipType,
+      }),
+    });
+    if (!response.ok) {
+      console.error(
+        '[TagHere V2] metacity settings sync failed:',
+        response.status,
+        await response.text(),
+      );
+    } else {
+      console.log(
+        `[TagHere V2] metacity settings synced - slug=${params.crmStoreSlug}, enabled=${params.metacityEnabled}, type=${params.metacityMembershipType}`,
+      );
+    }
+  } catch (error) {
+    console.error('[TagHere V2] metacity settings sync error:', error);
+  }
+}
+
+/**
+ * V2 에 매직포스 매장 코드 자동 발견 요청 — 매직포스 Agent 를 통해 매장 POS 에 WORK_CD=1100 호출
+ * 성공: { storeIdx, storeName } 반환
+ * 실패: throw (호출자가 status 별로 에러 응답 분기)
+ */
+export async function discoverMetacityStoreIdxFromV2(crmStoreSlug: string): Promise<{ storeIdx: string; storeName: string | null }> {
+  if (!V2_API_URL || !V2_API_TOKEN) {
+    const err: any = new Error('V2 API 설정이 없습니다.');
+    err.status = 500;
+    throw err;
+  }
+
+  const response = await fetch(`${V2_API_URL}/api/v2/internal/crm/discover-metacity-store-idx`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${V2_API_TOKEN}`,
+    },
+    body: JSON.stringify({ crmStoreSlug }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    console.error('[TagHere V2] discover metacity storeIdx failed:', response.status, text);
+    const err: any = new Error(text || `V2 응답 실패 (${response.status})`);
+    err.status = response.status;
+    throw err;
+  }
+
+  const json: any = await response.json().catch(() => ({}));
+  // V2 DataResponse 형식: { status, message, result: { storeIdx, storeName } }
+  const data = json?.result ?? json;
+  if (!data?.storeIdx) {
+    const err: any = new Error('V2 응답에 storeIdx 가 없습니다.');
+    err.status = 503;
+    throw err;
+  }
+  return {
+    storeIdx: String(data.storeIdx),
+    storeName: data.storeName ? String(data.storeName) : null,
+  };
+}
