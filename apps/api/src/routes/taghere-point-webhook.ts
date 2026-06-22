@@ -934,8 +934,11 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
     }
 
     // 3. 매장 조회 (metacityStoreIdx 우선, storeSlug 폴백). 매직포스 연동 매장만.
+    // metacityStoreIdx 는 unique 가 아니라 같은 코드에 매장이 중복 등록될 수 있다(예: 재등록 시 구 매장 비활성화).
+    // 활성 매장(metacityEnabled)만 조회 + 최신 매장 우선으로 비결정적 라우팅(비활성 매장 선택)을 막는다.
     const store = await prisma.store.findFirst({
-      where: metacityStoreIdx ? { metacityStoreIdx } : { slug: storeSlug! },
+      where: metacityStoreIdx ? { metacityStoreIdx, metacityEnabled: true } : { slug: storeSlug! },
+      orderBy: { createdAt: 'desc' },
       select: {
         id: true,
         name: true,
