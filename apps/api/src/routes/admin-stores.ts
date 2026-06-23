@@ -43,6 +43,7 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         metacityBrandCode: true,
         metacityStoreIdx: true,
         metacityAccessCode: true,
+        metacityMembershipType: true,
         staffUsers: {
           select: {
             id: true,
@@ -120,6 +121,7 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         metacityBrandCode: (store as any).metacityBrandCode ?? null,
         metacityStoreIdx: (store as any).metacityStoreIdx ?? null,
         metacityAccessCode: (store as any).metacityAccessCode ?? null,
+        metacityMembershipType: (store as any).metacityMembershipType ?? 'INTEGRATED',
         // Wallet balance 포함
         walletBalance: store.wallet?.balance || 0,
         // 월별 무료 크레딧 정보
