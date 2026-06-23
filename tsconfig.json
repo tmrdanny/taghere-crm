@@ -13,11 +13,7 @@
     "declarationMap": false,
     "sourceMap": false,
     "outDir": "./dist",
-    "baseUrl": ".",
-    "paths": {
-      "@taghere/ui": ["packages/ui/src"],
-      "@taghere/config": ["packages/config/src"]
-    }
+    "baseUrl": "."
   },
   "exclude": ["node_modules", "dist", "apps", "packages"]
 }

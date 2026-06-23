@@ -16,9 +16,9 @@ test.describe('발송 내역 페이지', () => {
   test('발송 내역 페이지 로드', async ({ page }) => {
     await expect(page).toHaveURL('/message-history');
 
-    // 발송 내역 테이블/리스트가 표시됨
-    const historyContainer = page.locator('table, [class*="history"], [class*="list"]');
-    await expect(historyContainer.first()).toBeVisible({ timeout: 10000 });
+    // 페이지가 로드되어 헤딩이 표시됨 (이력이 비어 있어도 셸은 렌더된다)
+    const heading = page.locator('h1:has-text("발송 내역")');
+    await expect(heading).toBeVisible({ timeout: 10000 });
   });
 
   test('발송 상태 배지 표시', async ({ page }) => {

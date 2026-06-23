@@ -1,5 +1,7 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
+import { STORE_CATEGORIES } from '@/lib/constants';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -16,37 +18,6 @@ declare global {
 }
 
 // 업종 분류
-const STORE_CATEGORIES = {
-  // 음식점
-  KOREAN: '한식',
-  CHINESE: '중식',
-  JAPANESE: '일식',
-  WESTERN: '양식',
-  ASIAN: '아시안 (베트남, 태국 등)',
-  BUNSIK: '분식',
-  FASTFOOD: '패스트푸드',
-  MEAT: '고기/구이',
-  SEAFOOD: '해산물',
-  BUFFET: '뷔페',
-  BRUNCH: '브런치',
-  // 카페/디저트
-  CAFE: '카페',
-  BAKERY: '베이커리',
-  DESSERT: '디저트',
-  ICECREAM: '아이스크림',
-  // 주점
-  BEER: '호프/맥주',
-  IZAKAYA: '이자카야',
-  WINE_BAR: '와인바',
-  COCKTAIL_BAR: '칵테일바',
-  POCHA: '포차/실내포장마차',
-  KOREAN_PUB: '한식 주점',
-  COOK_PUB: '요리주점',
-  // 기타
-  FOODCOURT: '푸드코트',
-  OTHER: '기타',
-} as const;
-
 const CATEGORY_GROUPS = [
   { label: '음식점', options: ['KOREAN', 'CHINESE', 'JAPANESE', 'WESTERN', 'ASIAN', 'BUNSIK', 'FASTFOOD', 'MEAT', 'SEAFOOD', 'BUFFET', 'BRUNCH'] },
   { label: '카페/디저트', options: ['CAFE', 'BAKERY', 'DESSERT', 'ICECREAM'] },
@@ -121,7 +92,7 @@ export default function RegisterPage() {
     }
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auth/register`, {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

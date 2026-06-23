@@ -8,6 +8,8 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { SolapiService, BrandMessageButton, buildPhoneResultMap } from '../services/solapi.js';
 import { calculateCostWithCredits } from '../services/credit-service.js';
 import { chargeCampaignUpfront } from '../services/message-billing.js';
+import { normalizePhoneNumber } from '../utils/phone.js';
+import { getAgeGroupBirthYearRange, buildRegionConditions, buildFilterConditions } from '../lib/customer-filters.js';
 
 const router = Router();
 
@@ -54,90 +56,6 @@ function getSolapiService(): SolapiService | null {
   if (!apiKey || !apiSecret) return null;
   solapiServiceInstance = new SolapiService(apiKey, apiSecret);
   return solapiServiceInstance;
-}
-
-// 전화번호 정규화
-function normalizePhoneNumber(phone: string): string {
-  let digits = phone.replace(/[^0-9]/g, '');
-  if (digits.startsWith('82')) {
-    digits = '0' + digits.slice(2);
-  }
-  if (!digits.startsWith('0')) {
-    digits = '0' + digits;
-  }
-  return digits;
-}
-
-// 연령대 -> 출생연도 범위 매핑
-function getAgeGroupBirthYearRange(ageGroup: string): { gte: number; lte: number } | null {
-  const currentYear = new Date().getFullYear();
-  switch (ageGroup) {
-    case 'TWENTIES':
-      return { gte: currentYear - 29, lte: currentYear - 20 };
-    case 'THIRTIES':
-      return { gte: currentYear - 39, lte: currentYear - 30 };
-    case 'FORTIES':
-      return { gte: currentYear - 49, lte: currentYear - 40 };
-    case 'FIFTIES':
-      return { gte: currentYear - 59, lte: currentYear - 50 };
-    case 'SIXTY_PLUS':
-      return { gte: 1900, lte: currentYear - 60 };
-    default:
-      return null;
-  }
-}
-
-// 지역 필터를 파싱하여 Prisma where 조건 생성
-function buildRegionConditions(regionSidos?: string[], regionSigungus?: string[]): any[] {
-  if (!regionSidos || regionSidos.length === 0) return [];
-
-  const sigunguMap: Record<string, string[]> = {};
-  if (regionSigungus && regionSigungus.length > 0) {
-    for (const item of regionSigungus) {
-      const [sido, sigungu] = item.split('/');
-      if (sido && sigungu) {
-        if (!sigunguMap[sido]) sigunguMap[sido] = [];
-        sigunguMap[sido].push(sigungu);
-      }
-    }
-  }
-
-  return regionSidos.map((sido) => {
-    const sigungus = sigunguMap[sido];
-    if (sigungus && sigungus.length > 0) {
-      return { regionSido: sido, regionSigungu: { in: sigungus } };
-    }
-    return { regionSido: sido };
-  });
-}
-
-// 필터 조건 생성 헬퍼 함수
-function buildFilterConditions(genderFilter?: string, ageGroups?: string[], regionSidos?: string[], regionSigungus?: string[]): any {
-  const conditions: any = {};
-
-  if (genderFilter && genderFilter !== 'all') {
-    conditions.gender = genderFilter;
-  }
-
-  if (ageGroups && ageGroups.length > 0) {
-    const birthYearConditions: any[] = [];
-    for (const ageGroup of ageGroups) {
-      const range = getAgeGroupBirthYearRange(ageGroup);
-      if (range) {
-        birthYearConditions.push({ birthYear: range });
-      }
-    }
-    if (birthYearConditions.length > 0) {
-      conditions.OR = birthYearConditions;
-    }
-  }
-
-  const regionConditions = buildRegionConditions(regionSidos, regionSigungus);
-  if (regionConditions.length > 0) {
-    conditions.AND = [...(conditions.AND || []), { OR: regionConditions }];
-  }
-
-  return conditions;
 }
 
 // 발송 가능 시간 체크 (08:00 ~ 20:50 KST)

@@ -1,9 +1,9 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useState } from 'react';
 import * as XLSX from 'xlsx';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 const GENDER_LABELS: Record<string, string> = {
   MALE: '남성',

@@ -1,12 +1,12 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { WaitingComplete } from '@/components/waiting';
 import { useToast } from '@/components/ui/toast';
 import { Loader2, AlertCircle } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 interface WaitingStatus {
   waitingId: string;

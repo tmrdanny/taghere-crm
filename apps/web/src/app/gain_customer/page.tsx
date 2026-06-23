@@ -1,9 +1,10 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
+import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useEffect, useMemo } from 'react';
 import { ArrowRight, Check, MapPin, Search, X, Loader2 } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // 대한민국 전체 시/도 및 시/군/구 데이터
 const KOREA_REGIONS: Record<string, string[]> = {
@@ -502,14 +503,6 @@ const REGION_LIST: RegionItem[] = Object.entries(KOREA_REGIONS).flatMap(([sido, 
 );
 
 // 연령대 옵션
-const AGE_GROUP_OPTIONS = [
-  { value: 'TWENTIES', label: '20대' },
-  { value: 'THIRTIES', label: '30대' },
-  { value: 'FORTIES', label: '40대' },
-  { value: 'FIFTIES', label: '50대' },
-  { value: 'SIXTY_PLUS', label: '60대 이상' },
-];
-
 // 업종 카테고리
 const CATEGORY_OPTIONS = [
   { value: 'KOREAN', label: '한식' },

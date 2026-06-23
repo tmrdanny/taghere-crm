@@ -1,9 +1,9 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback } from 'react';
 import { Gift, Check, X, ChevronLeft, ChevronRight, Phone } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 interface RewardClaim {
   id: string;

@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,7 +39,6 @@ interface Summary {
   pending: number;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // SOLAPI 에러 코드 → 한글 변환 (기존 데이터 호환)
 const getFailReasonKorean = (failReason: string | null): string | null => {

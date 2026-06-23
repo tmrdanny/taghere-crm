@@ -14,7 +14,6 @@ import { formatCurrency } from '@/lib/utils';
 import { CreditCard, Loader2, Wallet, AlertCircle } from 'lucide-react';
 import { loadTossPayments, TossPaymentsWidgets } from '@tosspayments/tosspayments-sdk';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || '';
 
 // 충전 금액 프리셋 및 보너스율

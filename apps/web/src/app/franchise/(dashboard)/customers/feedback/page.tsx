@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState } from 'react';
 import { Star, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -36,7 +37,7 @@ export default function FranchiseFeedbackPage() {
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const API_URL = API_BASE;
 
   useEffect(() => {
     fetchSummary();

@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { BarcodeDetector } from 'barcode-detector/ponyfill';
@@ -176,7 +177,7 @@ function SuccessPopup({
 
     if (answersToSubmit.length > 0 && successData?.customerId) {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         await fetch(`${apiUrl}/api/taghere/survey-answers`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -227,7 +228,7 @@ function SuccessPopup({
 
     setIsSubmitting(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const apiUrl = API_BASE;
 
       const expandedCategories = selectedCategories
         .filter((c) => c !== ALL_CATEGORIES_VALUE)
@@ -760,7 +761,7 @@ function HitejinroEnrollStampContent() {
     const currentStampInfo = stampInfoRef.current;
     if (!currentStampInfo) return;
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const apiUrl = API_BASE;
     const redirectUri = `${apiUrl}/auth/kakao/taghere-callback`;
 
     const stateData = {
@@ -800,7 +801,7 @@ function HitejinroEnrollStampContent() {
   const proceedToKakaoLogin = (barcode: string) => {
     if (!stampInfo) return;
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const apiUrl = API_BASE;
     const redirectUri = `${apiUrl}/auth/kakao/taghere-callback`;
 
     const stateData = {
@@ -841,7 +842,7 @@ function HitejinroEnrollStampContent() {
     setIsAutoEarning(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const apiUrl = API_BASE;
       const res = await fetch(`${apiUrl}/api/taghere/stamp-earn`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -914,7 +915,7 @@ function HitejinroEnrollStampContent() {
   useEffect(() => {
     const fetchVisitSourceOptions = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         const res = await fetch(`${apiUrl}/api/taghere/visit-source-options/${slug}`);
         if (res.ok) {
           const data = await res.json();
@@ -928,7 +929,7 @@ function HitejinroEnrollStampContent() {
 
     const fetchSurveyQuestions = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         const res = await fetch(`${apiUrl}/api/taghere/survey-questions/${slug}`);
         if (res.ok) {
           const data = await res.json();
@@ -1000,7 +1001,7 @@ function HitejinroEnrollStampContent() {
 
     const fetchStampInfo = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
 
         const res = await fetch(`${apiUrl}/api/taghere/stamp-info/${slug}`);
         if (res.ok) {

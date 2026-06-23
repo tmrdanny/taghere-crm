@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 
@@ -268,7 +269,7 @@ function SuccessPopup({
 
     if (answersToSubmit.length > 0 && successData?.customerId) {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         await fetch(`${apiUrl}/api/taghere/survey-answers`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -329,7 +330,7 @@ function SuccessPopup({
 
     setIsSubmitting(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const apiUrl = API_BASE;
 
       // 선택된 카테고리를 세부 카테고리로 확장
       const expandedCategories = selectedCategories
@@ -711,7 +712,7 @@ function TaghereEnrollStampContent() {
   useEffect(() => {
     const fetchVisitSourceOptions = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         const res = await fetch(`${apiUrl}/api/taghere/visit-source-options/${slug}`);
         if (res.ok) {
           const data = await res.json();
@@ -725,7 +726,7 @@ function TaghereEnrollStampContent() {
 
     const fetchSurveyQuestions = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
         const res = await fetch(`${apiUrl}/api/taghere/survey-questions/${slug}`);
         if (res.ok) {
           const data = await res.json();
@@ -747,7 +748,7 @@ function TaghereEnrollStampContent() {
     setIsAutoEarning(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const apiUrl = API_BASE;
       const res = await fetch(`${apiUrl}/api/taghere/stamp-earn`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -874,7 +875,7 @@ function TaghereEnrollStampContent() {
 
     const fetchStampInfo = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiUrl = API_BASE;
 
         // 매장 스탬프 정보 조회
         const res = await fetch(`${apiUrl}/api/taghere/stamp-info/${slug}`);
@@ -932,7 +933,7 @@ function TaghereEnrollStampContent() {
     setIsOpening(true);
 
     setTimeout(() => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const apiUrl = API_BASE;
       const redirectUri = `${apiUrl}/auth/kakao/taghere-callback`;
 
       // state 파라미터에 필요한 정보를 담아 전달

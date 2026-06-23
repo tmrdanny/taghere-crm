@@ -1,10 +1,8 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
   Modal,
   ModalContent,
@@ -12,113 +10,32 @@ import {
   ModalTitle,
   ModalFooter,
 } from '@/components/ui/modal';
-import { formatPhone, formatNumber, formatDate, getRelativeTime, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
-import { Search, ChevronLeft, ChevronRight, Edit2, ChevronDown, Check, UserPlus, Star, MessageSquare, History, Send, ShoppingBag, Megaphone, X, Calendar, Upload, Settings2, Download, FileSpreadsheet, Zap, ArrowRight, Bell, Cake, HandMetal } from 'lucide-react';
+import { formatNumber } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
-
-interface Customer {
-  id: string;
-  name: string;
-  phone: string;
-  totalPoints: number;
-  totalStamps: number;
-  gender: string;
-  birthday: string | null;   // MM-DD 형식
-  birthYear: number | null;  // YYYY 형식
-  memo: string | null;
-  feedbackRating: number | null;
-  feedbackText: string | null;
-  feedbackAt: string | null;
-  visitCount: number;
-  lastVisitAt: string;
-  isVip: boolean;
-  isNew: boolean;
-  visitSource: string | null;  // 방문 경로
-  lastTableLabel: string | null;  // 마지막 방문 좌석
-  surveyAnswers: Array<{
-    questionId: string;
-    label: string;
-    type: string;
-    valueDate: string | null;
-    valueText: string | null;
-  }>;
-}
-
-interface PointLedgerEntry {
-  id: string;
-  delta: number;
-  balance: number;
-  type: 'EARN' | 'USE' | 'EXPIRE' | 'ADJUST';
-  reason: string | null;
-  tableLabel: string | null;
-  createdAt: string;
-}
-
-interface CustomerFeedbackEntry {
-  id: string;
-  rating: number;
-  text: string | null;
-  createdAt: string;
-}
-
-interface OrderItem {
-  label?: string;  // TagHere API uses 'label' for menu name
-  name?: string;
-  menuName?: string;
-  productName?: string;
-  title?: string;
-  quantity?: number;
-  count?: number;
-  qty?: number;
-  price?: number;
-  amount?: number;
-  totalPrice?: number;
-  option?: string;  // 옵션 정보 (예: "온도: HOT")
-  cancelled?: boolean;
-  cancelledAt?: string;
-  cancelledQuantity?: number;  // 부분 취소된 수량
-}
-
-interface VisitOrOrderEntry {
-  id: string;
-  orderId: string | null;
-  visitedAt: string;
-  items: OrderItem[] | null;
-  totalAmount: number | null;
-  tableNumber: string | null;
-}
-
-// 주문 아이템 배열을 안전하게 가져오는 헬퍼 함수
-function getOrderItems(items: unknown): OrderItem[] {
-  if (!items) return [];
-  if (Array.isArray(items)) return items;
-  // items가 객체이고 내부에 items 배열이 있는 경우 (예: { items: [], tableNumber: '' })
-  if (typeof items === 'object' && 'items' in items && Array.isArray((items as any).items)) {
-    return (items as any).items;
-  }
-  return [];
-}
-
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  priority: number;
-  createdAt: string;
-}
-
-interface MessageHistoryEntry {
-  id: string;
-  content: string;
-  status: 'PENDING' | 'SENT' | 'FAILED';
-  cost: number;
-  failReason: string | null;
-  sentAt: string | null;
-  createdAt: string;
-  campaignTitle: string | null;
-}
+import {
+  Customer,
+  PointLedgerEntry,
+  CustomerFeedbackEntry,
+  VisitOrOrderEntry,
+  Announcement,
+  MessageHistoryEntry,
+  BulkRow,
+} from './types';
+import { AddCustomerModal } from './AddCustomerModal';
+import { BulkUploadModal } from './BulkUploadModal';
+import { CustomerTable } from './CustomerTable';
+import { CustomerFilters } from './CustomerFilters';
+import { CustomerAnnouncements } from './CustomerAnnouncements';
+import { CustomerListHeader } from './CustomerListHeader';
+import { AutomationBanner } from './AutomationBanner';
+import { EditCustomerModal } from './EditCustomerModal';
+import { UsePointsModal } from './UsePointsModal';
+import { UsePointsConfirmModal } from './UsePointsConfirmModal';
+import { CancelOrderItemModal } from './CancelOrderItemModal';
+import { EarnPointsModal } from './EarnPointsModal';
+import { EarnStampsModal } from './EarnStampsModal';
 
 // 컬럼 정의 상수
 const COLUMN_DEFINITIONS = [
@@ -136,27 +53,6 @@ const COLUMN_DEFINITIONS = [
 
 const DEFAULT_VISIBLE_COLUMNS = COLUMN_DEFINITIONS.filter(c => c.defaultVisible).map(c => c.id);
 const COLUMN_STORAGE_KEY = 'taghere-customer-list-columns';
-
-// 별점 컴포넌트
-function StarRating({ rating, onRatingChange, readonly = false }: { rating: number; onRatingChange?: (rating: number) => void; readonly?: boolean }) {
-  return (
-    <div className="flex gap-1">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          key={star}
-          type="button"
-          disabled={readonly}
-          onClick={() => onRatingChange?.(star)}
-          className={`${readonly ? 'cursor-default' : 'cursor-pointer hover:scale-110'} transition-transform`}
-        >
-          <Star
-            className={`w-6 h-6 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'fill-none text-neutral-300'}`}
-          />
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export default function CustomersPage() {
   const router = useRouter();
@@ -231,16 +127,6 @@ export default function CustomersPage() {
   const [submittingAdd, setSubmittingAdd] = useState(false);
 
   // Bulk upload modal states
-  interface BulkRow {
-    phone: string;
-    name?: string;
-    gender?: string;
-    birthYear?: string | number;
-    birthday?: string;
-    memo?: string;
-    initialPoints?: number;
-    initialStamps?: number;
-  }
   const [bulkModal, setBulkModal] = useState(false);
   const [bulkParsedData, setBulkParsedData] = useState<BulkRow[]>([]);
   const [bulkUploading, setBulkUploading] = useState(false);
@@ -297,7 +183,7 @@ export default function CustomersPage() {
   // 설문 질문 목록 (컬럼 헤더용)
   const [surveyQuestionLabels, setSurveyQuestionLabels] = useState<Array<{ id: string; label: string }>>([]);
 
-  const apiUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000', []);
+  const apiUrl = useMemo(() => API_BASE, []);
   const userRole = 'OWNER';
 
   // Get auth token from localStorage (fallback to dev-token for MVP)
@@ -1120,14 +1006,6 @@ export default function CustomersPage() {
     }
   };
 
-  const remainingPoints = selectedCustomer
-    ? selectedCustomer.totalPoints - (parseInt(useAmount) || 0)
-    : 0;
-
-  const earnedPoints = selectedCustomer
-    ? selectedCustomer.totalPoints + (parseInt(earnAmount) || 0)
-    : 0;
-
   const getVisitDescription = (customer: Customer) => {
     const daysAgo = Math.floor(
       (new Date().getTime() - new Date(customer.lastVisitAt).getTime()) /
@@ -1219,2036 +1097,334 @@ export default function CustomersPage() {
       {ToastComponent}
 
       {/* Announcements */}
-      {announcements.length > 0 && (
-        <div className="mb-6 space-y-3">
-          {announcements.map((announcement) => (
-            <div
-              key={announcement.id}
-              className="flex items-start gap-3 p-4 bg-brand-50 border border-brand-200 rounded-lg"
-            >
-              <div className="flex-shrink-0 mt-0.5">
-                <Megaphone className="w-5 h-5 text-brand-700" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="info" className="text-xs">공지</Badge>
-                  <span className="font-medium text-neutral-900">{announcement.title}</span>
-                </div>
-                <p className="text-sm text-neutral-700 whitespace-pre-wrap">{announcement.content}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <CustomerAnnouncements announcements={announcements} />
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">고객 리스트</h1>
-          <p className="text-sm text-neutral-500 mt-1">
-            전체 고객 {formatNumber(pagination.total)}명
-          </p>
-        </div>
-        <div className="flex gap-3">
-          {selectedCustomers.length > 0 && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                const selectedData = customers
-                  .filter(c => selectedCustomers.includes(c.id))
-                  .map(c => ({ id: c.id, name: c.name, phone: c.phone }));
-                const params = encodeURIComponent(JSON.stringify(selectedData));
-                router.push(`/messages?customers=${params}`);
-              }}
-            >
-              <Send className="w-4 h-4 mr-2" />
-              선택 고객에게 메시지 발송 ({selectedCustomers.length}명)
-            </Button>
-          )}
-          <Button onClick={() => setAddModal(true)}>
-            <UserPlus className="w-4 h-4 mr-2" />
-            고객 등록
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setBulkModal(true);
-              setBulkParsedData([]);
-              setBulkResult(null);
-            }}
-          >
-            <FileSpreadsheet className="w-4 h-4 mr-2" />
-            대량 등록
-          </Button>
-        </div>
-      </div>
+      <CustomerListHeader
+        total={pagination.total}
+        selectedCount={selectedCustomers.length}
+        onSendToSelected={() => {
+          const selectedData = customers
+            .filter(c => selectedCustomers.includes(c.id))
+            .map(c => ({ id: c.id, name: c.name, phone: c.phone }));
+          const params = encodeURIComponent(JSON.stringify(selectedData));
+          router.push(`/messages?customers=${params}`);
+        }}
+        onAddCustomer={() => setAddModal(true)}
+        onBulkUpload={() => {
+          setBulkModal(true);
+          setBulkParsedData([]);
+          setBulkResult(null);
+        }}
+      />
 
       {/* 자동 마케팅 배너 */}
-      {automationStatus && !automationStatus.hasActiveRules && (
-        <div
-          className="mb-6 rounded-xl bg-gradient-to-r from-brand-50 via-white to-orange-50 border border-brand-200 cursor-pointer hover:shadow-lg transition-all"
-          onClick={() => router.push('/automation')}
-        >
-          {/* 상단: 타이틀 + CTA */}
-          <div className="flex items-center justify-between px-5 pt-4 pb-2">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-brand-100 rounded-lg">
-                <Zap className="w-4 h-4 text-brand-700" />
-              </div>
-              <span className="text-base font-bold text-neutral-900">놓치고 있는 고객이 있어요</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="hidden sm:inline text-xs font-medium text-brand-600 bg-brand-100 px-2.5 py-1 rounded-full">월 30건 무료</span>
-              <div className="flex items-center gap-1 text-sm font-semibold text-white bg-brand-700 px-3 py-1.5 rounded-lg hover:bg-brand-800 transition-colors">
-                시작하기
-                <ArrowRight className="w-3.5 h-3.5" />
-              </div>
-            </div>
-          </div>
-
-          {/* 하단: 3개 지표 카드 */}
-          <div className="grid grid-cols-3 gap-3 px-5 pb-4 pt-1">
-            <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
-              <HandMetal className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
-              <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.FIRST_VISIT_FOLLOWUP?.thisMonthEstimate ?? 0}명</p>
-              <p className="text-sm text-neutral-500 mt-1">첫 방문 · 재방문 쿠폰 미발송</p>
-            </div>
-            <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
-              <Cake className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
-              <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.BIRTHDAY?.thisMonthEstimate ?? 0}명</p>
-              <p className="text-sm text-neutral-500 mt-1">이번 달 생일 · 축하 미발송</p>
-            </div>
-            <div className="bg-white/80 border border-neutral-100 rounded-lg p-3 text-center">
-              <Bell className="w-4 h-4 text-neutral-400 mx-auto mb-1" />
-              <p className="text-xl font-bold text-neutral-900">{automationStatus.previews?.CHURN_PREVENTION?.thisMonthEstimate ?? 0}명</p>
-              <p className="text-sm text-neutral-500 mt-1">이탈 위험 · 쿠폰 없이 이탈 중</p>
-            </div>
-          </div>
-        </div>
-      )}
+      <AutomationBanner
+        automationStatus={automationStatus}
+        onNavigate={() => router.push('/automation')}
+      />
 
       {/* Search and Filters */}
-      <Card className="p-4 mb-6">
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-            <Input
-              placeholder="이름, 전화번호, 메모 검색"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" onClick={resetFilters}>
-              전체 보기
-            </Button>
-
-            {/* Gender Filter Dropdown */}
-            <div className="relative">
-              <Button
-                variant={genderFilter === 'all' ? 'outline' : 'secondary'}
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setGenderDropdownOpen(!genderDropdownOpen);
-                  setVisitDropdownOpen(false);
-                  setLastVisitDropdownOpen(false);
-                }}
-                className="flex items-center gap-1"
-              >
-                성별 {genderOptions.find(o => o.value === genderFilter)?.label}
-                <ChevronDown className="w-3.5 h-3.5" />
-              </Button>
-              {genderDropdownOpen && (
-                <div
-                  className="absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 min-w-[120px] z-50"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {genderOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-50 flex items-center justify-between"
-                      onClick={() => handleGenderSelect(option.value as 'all' | 'MALE' | 'FEMALE')}
-                    >
-                      {option.label}
-                      {genderFilter === option.value && (
-                        <Check className="w-4 h-4 text-brand-800" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Visit Count Filter Dropdown */}
-            <div className="relative">
-              <Button
-                variant={visitFilter === 'all' ? 'outline' : 'secondary'}
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setVisitDropdownOpen(!visitDropdownOpen);
-                  setGenderDropdownOpen(false);
-                  setLastVisitDropdownOpen(false);
-                }}
-                className="flex items-center gap-1"
-              >
-                방문 횟수 {visitOptions.find(o => o.value === visitFilter)?.label}
-                <ChevronDown className="w-3.5 h-3.5" />
-              </Button>
-              {visitDropdownOpen && (
-                <div
-                  className="absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 min-w-[140px] z-50"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {visitOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-50 flex items-center justify-between"
-                      onClick={() => handleVisitSelect(option.value as 'all' | '1' | '2' | '5' | '10' | '20')}
-                    >
-                      {option.label}
-                      {visitFilter === option.value && (
-                        <Check className="w-4 h-4 text-brand-800" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Last Visit Filter Dropdown */}
-            <div className="relative">
-              <Button
-                variant={lastVisitFilter === 'all' ? 'outline' : 'secondary'}
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLastVisitDropdownOpen(!lastVisitDropdownOpen);
-                  setGenderDropdownOpen(false);
-                  setVisitDropdownOpen(false);
-                }}
-                className="flex items-center gap-1"
-              >
-                마지막 방문 {lastVisitOptions.find(o => o.value === lastVisitFilter)?.label}
-                <ChevronDown className="w-3.5 h-3.5" />
-              </Button>
-              {lastVisitDropdownOpen && (
-                <div
-                  className="absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 min-w-[140px] z-50"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {lastVisitOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-50 flex items-center justify-between"
-                      onClick={() => handleLastVisitSelect(option.value as 'all' | '7' | '30' | '90')}
-                    >
-                      {option.label}
-                      {lastVisitFilter === option.value && (
-                        <Check className="w-4 h-4 text-brand-800" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Date Range Filter Dropdown */}
-            <div className="relative" ref={dateRangeDropdownRef}>
-              <Button
-                variant={(startDate || endDate) ? 'secondary' : 'outline'}
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDateRangeDropdownOpen(!dateRangeDropdownOpen);
-                  setGenderDropdownOpen(false);
-                  setVisitDropdownOpen(false);
-                  setLastVisitDropdownOpen(false);
-                }}
-                className="flex items-center gap-1"
-              >
-                <Calendar className="w-3.5 h-3.5" />
-                {(startDate || endDate) ? (
-                  <span className="text-xs">
-                    {startDate && endDate ? `${startDate.slice(5)} ~ ${endDate.slice(5)}` : startDate ? `${startDate.slice(5)} ~` : `~ ${endDate.slice(5)}`}
-                  </span>
-                ) : (
-                  '기간'
-                )}
-                <ChevronDown className="w-3.5 h-3.5" />
-              </Button>
-              {dateRangeDropdownOpen && (
-                <div
-                  className="absolute top-full right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg p-3 min-w-[240px] z-50"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Date type selector */}
-                  <div className="mb-3 space-y-1.5">
-                    <label className="flex items-center gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="radio"
-                        name="dateType"
-                        checked={dateFilterType === 'lastVisit'}
-                        onChange={() => setDateFilterType('lastVisit')}
-                        className="text-brand-800 focus:ring-brand-800"
-                      />
-                      <span className="text-sm text-neutral-700">마지막 방문일</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="radio"
-                        name="dateType"
-                        checked={dateFilterType === 'created'}
-                        onChange={() => setDateFilterType('created')}
-                        className="text-brand-800 focus:ring-brand-800"
-                      />
-                      <span className="text-sm text-neutral-700">가입일</span>
-                    </label>
-                  </div>
-
-                  {/* Date inputs */}
-                  <div className="space-y-2 mb-3" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-neutral-500 w-12">시작일</span>
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        onFocus={(e) => e.stopPropagation()}
-                        className="flex-1 px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-neutral-500 w-12">종료일</span>
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        onFocus={(e) => e.stopPropagation()}
-                        className="flex-1 px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setStartDate('');
-                        setEndDate('');
-                        setDateFilterType('lastVisit');
-                        setPage(1);
-                      }}
-                      className="flex-1 text-sm"
-                    >
-                      초기화
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDateRangeDropdownOpen(false);
-                        setPage(1);
-                      }}
-                      className="flex-1 text-sm"
-                    >
-                      적용
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Column Settings Dropdown */}
-            <div className="relative" ref={columnSettingsRef}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setColumnSettingsOpen(!columnSettingsOpen);
-                  setGenderDropdownOpen(false);
-                  setVisitDropdownOpen(false);
-                  setLastVisitDropdownOpen(false);
-                  setDateRangeDropdownOpen(false);
-                }}
-                className="flex items-center gap-1"
-              >
-                <Settings2 className="w-3.5 h-3.5" />
-                컬럼
-                <ChevronDown className="w-3.5 h-3.5" />
-              </Button>
-              {columnSettingsOpen && (
-                <div
-                  className="absolute top-full right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-2 min-w-[180px] z-50"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="px-3 pb-2 border-b border-neutral-100 mb-2">
-                    <span className="text-xs font-medium text-neutral-500">표시할 컬럼</span>
-                  </div>
-                  {COLUMN_DEFINITIONS.map((column) => (
-                    <label
-                      key={column.id}
-                      className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-neutral-50 ${column.required ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={visibleColumns.includes(column.id)}
-                        disabled={column.required}
-                        onChange={() => toggleColumn(column.id)}
-                        className="rounded border-neutral-300"
-                      />
-                      <span className="text-sm text-neutral-700">{column.label}</span>
-                      {column.required && <span className="text-xs text-neutral-400">(필수)</span>}
-                    </label>
-                  ))}
-                  <div className="px-3 pt-2 mt-2 border-t border-neutral-100">
-                    <button
-                      onClick={resetColumnsToDefault}
-                      className="text-xs text-neutral-500 hover:text-neutral-700"
-                    >
-                      기본값으로 초기화
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </Card>
+      <CustomerFilters
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
+        onResetFilters={resetFilters}
+        genderFilter={genderFilter}
+        genderOptions={genderOptions}
+        genderDropdownOpen={genderDropdownOpen}
+        onGenderToggle={() => {
+          setGenderDropdownOpen(!genderDropdownOpen);
+          setVisitDropdownOpen(false);
+          setLastVisitDropdownOpen(false);
+        }}
+        onGenderSelect={(value) => handleGenderSelect(value as 'all' | 'MALE' | 'FEMALE')}
+        visitFilter={visitFilter}
+        visitOptions={visitOptions}
+        visitDropdownOpen={visitDropdownOpen}
+        onVisitToggle={() => {
+          setVisitDropdownOpen(!visitDropdownOpen);
+          setGenderDropdownOpen(false);
+          setLastVisitDropdownOpen(false);
+        }}
+        onVisitSelect={(value) => handleVisitSelect(value as 'all' | '1' | '2' | '5' | '10' | '20')}
+        lastVisitFilter={lastVisitFilter}
+        lastVisitOptions={lastVisitOptions}
+        lastVisitDropdownOpen={lastVisitDropdownOpen}
+        onLastVisitToggle={() => {
+          setLastVisitDropdownOpen(!lastVisitDropdownOpen);
+          setGenderDropdownOpen(false);
+          setVisitDropdownOpen(false);
+        }}
+        onLastVisitSelect={(value) => handleLastVisitSelect(value as 'all' | '7' | '30' | '90')}
+        startDate={startDate}
+        onStartDateChange={setStartDate}
+        endDate={endDate}
+        onEndDateChange={setEndDate}
+        dateFilterType={dateFilterType}
+        onDateFilterTypeChange={setDateFilterType}
+        dateRangeDropdownOpen={dateRangeDropdownOpen}
+        onDateRangeToggle={() => {
+          setDateRangeDropdownOpen(!dateRangeDropdownOpen);
+          setGenderDropdownOpen(false);
+          setVisitDropdownOpen(false);
+          setLastVisitDropdownOpen(false);
+        }}
+        dateRangeDropdownRef={dateRangeDropdownRef}
+        onDateRangeReset={() => {
+          setStartDate('');
+          setEndDate('');
+          setDateFilterType('lastVisit');
+          setPage(1);
+        }}
+        onDateRangeApply={() => {
+          setDateRangeDropdownOpen(false);
+          setPage(1);
+        }}
+        columnSettingsOpen={columnSettingsOpen}
+        onColumnSettingsToggle={() => {
+          setColumnSettingsOpen(!columnSettingsOpen);
+          setGenderDropdownOpen(false);
+          setVisitDropdownOpen(false);
+          setLastVisitDropdownOpen(false);
+          setDateRangeDropdownOpen(false);
+        }}
+        columnSettingsRef={columnSettingsRef}
+        columnDefinitions={COLUMN_DEFINITIONS}
+        visibleColumns={visibleColumns}
+        onToggleColumn={toggleColumn}
+        onResetColumns={resetColumnsToDefault}
+      />
 
       {/* Customer Table */}
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-neutral-200 bg-neutral-50">
-                <th className="p-4 w-12">
-                  <input
-                    type="checkbox"
-                    className="rounded border-neutral-300"
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedCustomers(customers.map((c) => c.id));
-                      } else {
-                        setSelectedCustomers([]);
-                      }
-                    }}
-                  />
-                </th>
-                {isColumnVisible('nickname') && (
-                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                    닉네임
-                  </th>
-                )}
-                {isColumnVisible('phone') && (
-                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                    전화번호
-                  </th>
-                )}
-                {isColumnVisible('points') && (
-                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                    적립 포인트
-                  </th>
-                )}
-                {isColumnVisible('stamps') && (
-                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                    스탬프
-                  </th>
-                )}
-                {isColumnVisible('birthday') && (
-                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                    생일 / 연령대
-                  </th>
-                )}
-                {isColumnVisible('memo') && (
-                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                    메모
-                  </th>
-                )}
-                {isColumnVisible('visitSource') && (
-                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                    방문 경로
-                  </th>
-                )}
-                {isColumnVisible('tableLabel') && (
-                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                    좌석
-                  </th>
-                )}
-                {isColumnVisible('visitCount') && (
-                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                    방문 횟수
-                  </th>
-                )}
-                {surveyQuestionLabels.map((sq) => (
-                  <th key={sq.id} className="p-4 text-left text-sm font-medium text-neutral-600">
-                    {sq.label}
-                  </th>
-                ))}
-                {isColumnVisible('actions') && (
-                  <th className="p-4 text-left text-sm font-medium text-neutral-600">
-                    액션
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading && (
-                <tr>
-                  <td colSpan={visibleColumnCount} className="p-8 text-center text-neutral-500">
-                    불러오는 중...
-                  </td>
-                </tr>
-              )}
-              {!isLoading && error && (
-                <tr>
-                  <td colSpan={visibleColumnCount} className="p-8 text-center text-error">
-                    {error}
-                  </td>
-                </tr>
-              )}
-              {!isLoading && !error && customers.length === 0 && (
-                <tr>
-                  <td colSpan={visibleColumnCount} className="p-8 text-center text-neutral-500">
-                    결과가 없습니다.
-                  </td>
-                </tr>
-              )}
-              {!isLoading &&
-                !error &&
-                customers.map((customer) => {
-                  return (
-                    <tr
-                      key={customer.id}
-                      className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors cursor-pointer"
-                      onClick={() => openEditModal(customer)}
-                    >
-                      <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          className="rounded border-neutral-300"
-                          checked={selectedCustomers.includes(customer.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedCustomers([...selectedCustomers, customer.id]);
-                            } else {
-                              setSelectedCustomers(
-                                selectedCustomers.filter((id) => id !== customer.id)
-                              );
-                            }
-                          }}
-                        />
-                      </td>
-                      {isColumnVisible('nickname') && (
-                        <td className="p-4">
-                          <span className="font-medium text-neutral-900">
-                            {maskNickname(customer.name)}
-                          </span>
-                        </td>
-                      )}
-                      {isColumnVisible('phone') && (
-                        <td className="p-4 text-neutral-600">
-                          <div className="flex items-center gap-2">
-                            <span>{formatPhone(customer.phone)}</span>
-                          </div>
-                        </td>
-                      )}
-                      {isColumnVisible('points') && (
-                        <td className="p-4 font-medium text-neutral-900">
-                          {formatNumber(customer.totalPoints)} p
-                        </td>
-                      )}
-                      {isColumnVisible('stamps') && (
-                        <td className="p-4 text-neutral-600">
-                          {customer.totalStamps || 0}
-                        </td>
-                      )}
-                      {isColumnVisible('birthday') && (
-                        <td className="p-4 text-neutral-600">
-                          <div className="flex flex-col gap-0.5">
-                            <span>{formatBirthdayMonth(customer.birthday)}</span>
-                            <span className="text-xs text-neutral-500">{getAgeGroup(customer.birthYear)}</span>
-                          </div>
-                        </td>
-                      )}
-                      {isColumnVisible('memo') && (
-                        <td className="p-4 max-w-[200px]">
-                          <div className="flex items-center gap-2">
-                            <span className="text-neutral-600 truncate text-sm">
-                              {customer.memo || '-'}
-                            </span>
-                            <button className="flex-shrink-0 p-1 hover:bg-neutral-100 rounded">
-                              <Edit2 className="w-3.5 h-3.5 text-neutral-400" />
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                      {isColumnVisible('visitSource') && (
-                        <td className="p-4">
-                          <span className="text-neutral-600 text-sm">
-                            {customer.visitSource
-                              ? visitSourceLabelMap[customer.visitSource] || customer.visitSource
-                              : '-'}
-                          </span>
-                        </td>
-                      )}
-                      {isColumnVisible('tableLabel') && (
-                        <td className="p-4">
-                          <span className="text-neutral-600 text-sm">
-                            {customer.lastTableLabel || '-'}
-                          </span>
-                        </td>
-                      )}
-                      {isColumnVisible('visitCount') && (
-                        <td className="p-4">
-                          <div>
-                            <span className="font-medium text-neutral-900">
-                              {customer.visitCount}회
-                            </span>
-                            <p className="text-xs text-neutral-500">
-                              {getVisitDescription(customer)}
-                            </p>
-                          </div>
-                        </td>
-                      )}
-                      {surveyQuestionLabels.map((sq) => {
-                        const answer = customer.surveyAnswers?.find((a) => a.questionId === sq.id);
-                        return (
-                          <td key={sq.id} className="p-4">
-                            <span className="text-neutral-600 text-sm">
-                              {answer?.valueDate
-                                ? new Date(answer.valueDate).toLocaleDateString('ko-KR')
-                                : answer?.valueText || '-'}
-                            </span>
-                          </td>
-                        );
-                      })}
-                      {isColumnVisible('actions') && (
-                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex flex-col gap-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => openUsePointsModal(customer)}
-                            >
-                              포인트 사용
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedCustomer(customer);
-                                setEarnPointsModal(true);
-                              }}
-                            >
-                              포인트 적립
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedCustomer(customer);
-                                setEarnStampAmount('1');
-                                setEarnStampReason('');
-                                setEarnStampsModal(true);
-                              }}
-                            >
-                              스탬프 적립
-                            </Button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="flex items-center justify-between p-4 border-t border-neutral-200">
-          <span className="text-sm text-neutral-500">
-            {formatNumber((page - 1) * pageSize + (customers.length ? 1 : 0))}-
-            {formatNumber((page - 1) * pageSize + customers.length)} of{' '}
-            {formatNumber(pagination.total)} customers
-          </span>
-          <div className="flex items-center gap-3">
-            <select
-              className="border border-neutral-200 rounded-md text-sm text-neutral-700 px-2 py-1 bg-white"
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(parseInt(e.target.value, 10));
-                setPage(1);
-              }}
-            >
-              <option value={20}>20 / 페이지</option>
-              <option value={50}>50 / 페이지</option>
-            </select>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                disabled={page >= pagination.totalPages}
-                onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Card>
+      <CustomerTable
+        customers={customers}
+        isLoading={isLoading}
+        error={error}
+        selectedCustomers={selectedCustomers}
+        onSelectedChange={setSelectedCustomers}
+        isColumnVisible={isColumnVisible}
+        visibleColumnCount={visibleColumnCount}
+        surveyQuestionLabels={surveyQuestionLabels}
+        visitSourceLabelMap={visitSourceLabelMap}
+        getVisitDescription={getVisitDescription}
+        onRowClick={openEditModal}
+        onUsePoints={openUsePointsModal}
+        onEarnPoints={(customer) => {
+          setSelectedCustomer(customer);
+          setEarnPointsModal(true);
+        }}
+        onEarnStamps={(customer) => {
+          setSelectedCustomer(customer);
+          setEarnStampAmount('1');
+          setEarnStampReason('');
+          setEarnStampsModal(true);
+        }}
+        page={page}
+        pageSize={pageSize}
+        pagination={pagination}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+        onPageChange={setPage}
+      />
 
       {/* Use Points Modal */}
-      <Modal open={usePointsModal} onOpenChange={setUsePointsModal}>
-        <ModalContent className="sm:max-w-lg">
-          <ModalHeader>
-            <ModalTitle>포인트 사용</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4">
-            {/* Target */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">
-                사용 대상
-              </label>
-              <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
-                <span className="text-neutral-400">사용 대상</span>
-                <span className="font-medium text-neutral-900">
-                  {maskNickname(selectedCustomer?.name)}
-                </span>
-              </div>
-            </div>
-
-            {/* Available Points */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">
-                보유 포인트
-              </label>
-              <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
-                <span className="text-neutral-400">보유 포인트</span>
-                <span className="font-semibold text-neutral-900">
-                  {formatNumber(selectedCustomer?.totalPoints || 0)} p
-                </span>
-              </div>
-            </div>
-
-            {/* Use Amount */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">
-                사용할 포인트
-              </label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={useAmount}
-                  onChange={(e) => setUseAmount(e.target.value)}
-                  className="pr-8"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">
-                  p
-                </span>
-              </div>
-              <div className="text-right text-sm text-neutral-500">
-                사용 후 잔액{' '}
-                <span className="font-medium text-neutral-900">
-                  {formatNumber(Math.max(0, remainingPoints))} p
-                </span>
-              </div>
-            </div>
-
-            {/* Reason */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">
-                사용 사유 (선택)
-              </label>
-              <Input
-                placeholder="예: 단골 서비스"
-                value={useReason}
-                onChange={(e) => setUseReason(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <ModalFooter>
-            <Button
-              variant="secondary"
-              onClick={() => setUsePointsModal(false)}
-              className="flex-1"
-            >
-              취소
-            </Button>
-            <Button
-              onClick={() => {
-                setUsePointsModal(false);
-                setUseConfirmModal(true);
-              }}
-              disabled={
-                !useAmount ||
-                parseInt(useAmount) <= 0 ||
-                parseInt(useAmount) > (selectedCustomer?.totalPoints || 0) ||
-                submittingUse
-              }
-              className="flex-1"
-            >
-              사용하기
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <UsePointsModal
+        open={usePointsModal}
+        onOpenChange={setUsePointsModal}
+        customer={selectedCustomer}
+        useAmount={useAmount}
+        onAmountChange={setUseAmount}
+        useReason={useReason}
+        onReasonChange={setUseReason}
+        submitting={submittingUse}
+        onProceed={() => {
+          setUsePointsModal(false);
+          setUseConfirmModal(true);
+        }}
+      />
 
       {/* Use Points Confirm Modal */}
-      <Modal open={useConfirmModal} onOpenChange={(open) => {
-        setUseConfirmModal(open);
-        if (!open) {
+      <UsePointsConfirmModal
+        open={useConfirmModal}
+        customer={selectedCustomer}
+        useAmount={useAmount}
+        submitting={submittingUse}
+        onBack={() => {
+          setUseConfirmModal(false);
           setUsePointsModal(true);
-        }
-      }}>
-        <ModalContent className="sm:max-w-sm">
-          <ModalHeader>
-            <ModalTitle>포인트 사용 확인</ModalTitle>
-          </ModalHeader>
-          <div className="py-4 text-center space-y-2">
-            <p className="text-neutral-600">
-              <span className="font-semibold text-neutral-900">{maskNickname(selectedCustomer?.name)}</span> 님의 포인트를
-            </p>
-            <p className="text-2xl font-bold text-red-500">
-              {formatNumber(parseInt(useAmount) || 0)} p 사용
-            </p>
-            <p className="text-sm text-neutral-500">
-              사용 후 잔액: {formatNumber(Math.max(0, (selectedCustomer?.totalPoints || 0) - (parseInt(useAmount) || 0)))} p
-            </p>
-          </div>
-          <ModalFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setUseConfirmModal(false);
-                setUsePointsModal(true);
-              }}
-              className="flex-1"
-            >
-              돌아가기
-            </Button>
-            <Button
-              onClick={() => {
-                setUseConfirmModal(false);
-                handleUsePoints();
-              }}
-              disabled={submittingUse}
-              className="flex-1 bg-red-500 hover:bg-red-600"
-            >
-              {submittingUse ? '처리 중...' : '확인'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+        }}
+        onConfirm={() => {
+          setUseConfirmModal(false);
+          handleUsePoints();
+        }}
+      />
 
       {/* Earn Points Modal */}
-      <Modal open={earnPointsModal} onOpenChange={setEarnPointsModal}>
-        <ModalContent className="sm:max-w-lg">
-          <ModalHeader>
-            <ModalTitle>포인트 적립</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">적립 대상</label>
-              <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
-                <span className="text-neutral-400">적립 대상</span>
-                <span className="font-medium text-neutral-900">{maskNickname(selectedCustomer?.name)}</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">현재 보유 포인트</label>
-              <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
-                <span className="text-neutral-400">보유 포인트</span>
-                <span className="font-semibold text-neutral-900">
-                  {formatNumber(selectedCustomer?.totalPoints || 0)} p
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">적립할 포인트</label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={earnAmount}
-                  onChange={(e) => setEarnAmount(e.target.value)}
-                  className="pr-8"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">p</span>
-              </div>
-              <div className="text-right text-sm text-neutral-500">
-                적립 후 잔액{' '}
-                <span className="font-medium text-neutral-900">{formatNumber(earnedPoints)} p</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">적립 사유 (선택)</label>
-              <Input
-                placeholder="예: 방문 적립"
-                value={earnReason}
-                onChange={(e) => setEarnReason(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <ModalFooter>
-            <Button
-              variant="secondary"
-              onClick={() => setEarnPointsModal(false)}
-              className="flex-1"
-            >
-              취소
-            </Button>
-            <Button
-              onClick={handleEarnPoints}
-              disabled={!earnAmount || parseInt(earnAmount) <= 0 || submittingEarn}
-              className="flex-1"
-            >
-              {submittingEarn ? '처리 중...' : '적립하기'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <EarnPointsModal
+        open={earnPointsModal}
+        onOpenChange={setEarnPointsModal}
+        customer={selectedCustomer}
+        earnAmount={earnAmount}
+        onAmountChange={setEarnAmount}
+        earnReason={earnReason}
+        onReasonChange={setEarnReason}
+        submitting={submittingEarn}
+        onSubmit={handleEarnPoints}
+      />
 
       {/* Earn Stamps Modal */}
-      <Modal open={earnStampsModal} onOpenChange={setEarnStampsModal}>
-        <ModalContent className="sm:max-w-lg">
-          <ModalHeader>
-            <ModalTitle>스탬프 적립</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">적립 대상</label>
-              <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
-                <span className="text-neutral-400">적립 대상</span>
-                <span className="font-medium text-neutral-900">{maskNickname(selectedCustomer?.name)}</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">현재 보유 스탬프</label>
-              <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
-                <span className="text-neutral-400">보유 스탬프</span>
-                <span className="font-semibold text-neutral-900">
-                  {formatNumber(selectedCustomer?.totalStamps || 0)}개
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">적립할 스탬프 수</label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  min="1"
-                  placeholder="1"
-                  value={earnStampAmount}
-                  onChange={(e) => setEarnStampAmount(e.target.value)}
-                  className="pr-8"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">개</span>
-              </div>
-              <div className="text-right text-sm text-neutral-500">
-                적립 후 잔액{' '}
-                <span className="font-medium text-neutral-900">
-                  {formatNumber((selectedCustomer?.totalStamps || 0) + (parseInt(earnStampAmount) || 0))}개
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">적립 사유 (선택)</label>
-              <Input
-                placeholder="예: 수동 적립"
-                value={earnStampReason}
-                onChange={(e) => setEarnStampReason(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <ModalFooter>
-            <Button
-              variant="secondary"
-              onClick={() => setEarnStampsModal(false)}
-              className="flex-1"
-            >
-              취소
-            </Button>
-            <Button
-              onClick={handleEarnStamps}
-              disabled={!earnStampAmount || parseInt(earnStampAmount) <= 0 || submittingEarnStamp}
-              className="flex-1"
-            >
-              {submittingEarnStamp ? '처리 중...' : '적립하기'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <EarnStampsModal
+        open={earnStampsModal}
+        onOpenChange={setEarnStampsModal}
+        customer={selectedCustomer}
+        stampAmount={earnStampAmount}
+        onAmountChange={setEarnStampAmount}
+        stampReason={earnStampReason}
+        onReasonChange={setEarnStampReason}
+        submitting={submittingEarnStamp}
+        onSubmit={handleEarnStamps}
+      />
 
       {/* Edit Customer Modal */}
-      <Modal open={editModal} onOpenChange={setEditModal}>
-        <ModalContent className="sm:max-w-4xl max-h-[85vh] flex flex-col overflow-x-hidden">
-          <ModalHeader className="flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <ModalTitle>고객 정보</ModalTitle>
-              {editingCustomer?.isVip && <Badge variant="vip">VIP</Badge>}
-              {editingCustomer?.isNew && <Badge variant="new">신규</Badge>}
-            </div>
-          </ModalHeader>
-
-          <div className="py-4 overflow-y-auto overflow-x-hidden flex-1 px-1">
-            {/* 2-Column Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden h-full min-h-[400px]">
-              {/* Left Column - Customer Info Form */}
-              <div className="space-y-4 min-w-0">
-                {/* Read-only info: Visit count, last visit, points, total order */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-neutral-50 rounded-lg">
-                    <p className="text-xs text-neutral-500 mb-1">방문 횟수</p>
-                    <p className="font-semibold text-neutral-900">
-                      {editingCustomer?.visitCount || 0}회
-                    </p>
-                  </div>
-                  <div className="p-3 bg-neutral-50 rounded-lg">
-                    <p className="text-xs text-neutral-500 mb-1">마지막 방문일</p>
-                    <p className="font-semibold text-neutral-900">
-                      {editingCustomer?.lastVisitAt ? formatDate(editingCustomer.lastVisitAt) : '-'}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-neutral-50 rounded-lg">
-                    <p className="text-xs text-neutral-500 mb-1">적립 포인트</p>
-                    <p className="font-semibold text-neutral-900">
-                      {formatNumber(editingCustomer?.totalPoints || 0)} P
-                    </p>
-                  </div>
-                  <div className="p-3 bg-neutral-50 rounded-lg">
-                    <p className="text-xs text-neutral-500 mb-1">스탬프</p>
-                    <p className="font-semibold text-neutral-900">
-                      {(editingCustomer as any)?.totalStamps || 0}개
-                    </p>
-                  </div>
-                </div>
-
-                {/* Stamp Use Section */}
-                {((editingCustomer as any)?.totalStamps || 0) > 0 && (
-                  <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-lg space-y-2">
-                    <p className="text-sm font-medium text-neutral-700">스탬프 보상 사용</p>
-                    <div className="flex flex-wrap gap-2">
-                      {stampRewardTiers.map((amount) => (
-                        <Button
-                          key={amount}
-                          variant="outline"
-                          size="sm"
-                          disabled={((editingCustomer as any)?.totalStamps || 0) < amount || submittingEdit}
-                          onClick={async () => {
-                            if (!editingCustomer) return;
-                            setSubmittingEdit(true);
-                            try {
-                              const token = getAuthToken();
-                              const res = await fetch(`${apiUrl}/api/stamps/use`, {
-                                method: 'POST',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                  Authorization: `Bearer ${token}`,
-                                },
-                                body: JSON.stringify({
-                                  customerId: editingCustomer.id,
-                                  amount,
-                                }),
-                              });
-                              if (res.ok) {
-                                const data = await res.json();
-                                setEditingCustomer(prev => prev ? { ...prev, totalStamps: data.remainingStamps } as any : null);
-                                showToast(`스탬프 ${amount}개가 사용되었습니다.`, 'success');
-                                setRefreshKey(prev => prev + 1);
-                              } else {
-                                const error = await res.json();
-                                showToast(error.error || '스탬프 사용에 실패했습니다.', 'error');
-                              }
-                            } catch (error) {
-                              showToast('스탬프 사용 중 오류가 발생했습니다.', 'error');
-                            } finally {
-                              setSubmittingEdit(false);
-                            }
-                          }}
-                          className="flex-1 min-w-[70px]"
-                        >
-                          {amount}개 사용
-                        </Button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-neutral-500">
-                      고객이 보상을 요청하면 해당 버튼을 눌러주세요.
-                    </p>
-                  </div>
-                )}
-
-                {/* Nickname */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-600">닉네임</label>
-                  <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-700">
-                    {maskNickname(editName)}
-                  </div>
-                </div>
-
-                {/* Gender */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-600">성별</label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className={`flex-1 py-2 px-4 rounded-lg border-2 transition-colors ${
-                        editGender === 'MALE'
-                          ? 'border-brand-800 bg-brand-50 text-brand-800'
-                          : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
-                      }`}
-                      onClick={() => setEditGender('MALE')}
-                    >
-                      남성
-                    </button>
-                    <button
-                      type="button"
-                      className={`flex-1 py-2 px-4 rounded-lg border-2 transition-colors ${
-                        editGender === 'FEMALE'
-                          ? 'border-brand-800 bg-brand-50 text-brand-800'
-                          : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
-                      }`}
-                      onClick={() => setEditGender('FEMALE')}
-                    >
-                      여성
-                    </button>
-                  </div>
-                </div>
-
-                {/* Birthday and Age Group */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-600">생일</label>
-                    <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-700">
-                      {editBirthday ? formatBirthdayMonth(editBirthday).replace(' 생일', '') : '-'}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-600">연령대</label>
-                    <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-700">
-                      {editBirthYear ? getAgeGroup(parseInt(editBirthYear, 10)) : '-'}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Memo (moved here for left column) */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-600">메모</label>
-                  <textarea
-                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-800 focus:border-transparent"
-                    rows={3}
-                    placeholder="고객에 대한 메모를 입력하세요"
-                    value={editMemo}
-                    onChange={(e) => setEditMemo(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Right Column - Tabs for Orders, Feedback, History */}
-              <div className="flex flex-col min-w-0 overflow-hidden h-full">
-                {/* Tab Headers - 2 rows, 3 columns grid */}
-                <div className="flex-shrink-0 border-b border-neutral-200">
-                  <div className="grid grid-cols-3 gap-1">
-                    {/* Row 1 */}
-                    <button
-                      type="button"
-                      onClick={() => setEditModalTab('orders')}
-                      className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                        editModalTab === 'orders'
-                          ? 'border-brand-800 text-brand-800 bg-brand-50'
-                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
-                      }`}
-                    >
-                      <ShoppingBag className="w-4 h-4 flex-shrink-0" />
-                      <span>주문</span>
-                      {(orderHistory?.length || 0) > 0 && (
-                        <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
-                          {orderHistory.length}
-                        </span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditModalTab('feedback')}
-                      className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                        editModalTab === 'feedback'
-                          ? 'border-brand-800 text-brand-800 bg-brand-50'
-                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
-                      }`}
-                    >
-                      <MessageSquare className="w-4 h-4 flex-shrink-0" />
-                      <span>피드백</span>
-                      {(feedbackHistory?.length || 0) > 0 && (
-                        <span className="text-yellow-500">★{feedbackHistory.length}</span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditModalTab('history')}
-                      className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                        editModalTab === 'history'
-                          ? 'border-brand-800 text-brand-800 bg-brand-50'
-                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
-                      }`}
-                    >
-                      <History className="w-4 h-4 flex-shrink-0" />
-                      <span>포인트</span>
-                      {(pointHistory?.length || 0) > 0 && (
-                        <span className="text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full">
-                          {pointHistory.length}
-                        </span>
-                      )}
-                    </button>
-                    {/* Row 2 */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditModalTab('messages');
-                        if (editingCustomer && messageHistory.length === 0) {
-                          fetchCustomerMessages(editingCustomer.id);
-                        }
-                      }}
-                      className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                        editModalTab === 'messages'
-                          ? 'border-brand-800 text-brand-800 bg-brand-50'
-                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
-                      }`}
-                    >
-                      <Send className="w-4 h-4 flex-shrink-0" />
-                      <span>발송내역</span>
-                      {messageSummary.total > 0 && (
-                        <span className="text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">
-                          {messageSummary.total}
-                        </span>
-                      )}
-                    </button>
-                    {/* Empty cells for grid alignment */}
-                    <div></div>
-                    <div></div>
-                  </div>
-                </div>
-
-                {/* Orders Tab */}
-                {editModalTab === 'orders' && (
-                  <div className="flex-1 overflow-hidden flex flex-col mt-3">
-                    {/* Action Buttons - Tablet Friendly */}
-                    <div className="flex items-center justify-end gap-2 mb-3 flex-shrink-0">
-                      <Button
-                        variant={showDateFilter ? 'default' : 'secondary'}
-                        size="sm"
-                        onClick={() => setShowDateFilter(!showDateFilter)}
-                        className="text-xs px-3 py-1.5 h-auto flex items-center gap-1.5"
-                      >
-                        <Calendar className="w-3.5 h-3.5" />
-                        날짜 조회
-                      </Button>
-                      <Button
-                        variant={cancelMode ? 'destructive' : 'secondary'}
-                        size="sm"
-                        onClick={() => setCancelMode(!cancelMode)}
-                        className="text-xs px-3 py-1.5 h-auto flex items-center gap-1.5"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        적립 취소
-                      </Button>
-                    </div>
-
-                    {/* Date Filter - Conditional */}
-                    {showDateFilter && (
-                      <div className="mb-3 flex-shrink-0 p-3 bg-neutral-50 rounded-lg border border-neutral-200 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="date"
-                            value={orderStartDate}
-                            onChange={(e) => setOrderStartDate(e.target.value)}
-                            className="px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 flex-1 min-w-0"
-                          />
-                          <span className="text-neutral-400 text-sm">~</span>
-                          <input
-                            type="date"
-                            value={orderEndDate}
-                            onChange={(e) => setOrderEndDate(e.target.value)}
-                            className="px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 flex-1 min-w-0"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => {
-                              if (editingCustomer) {
-                                fetchFilteredOrders(editingCustomer.id, orderStartDate, orderEndDate);
-                              }
-                            }}
-                            disabled={loadingHistory}
-                            className="text-sm px-4 py-1.5 h-auto flex-1"
-                          >
-                            조회
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setOrderStartDate('');
-                              setOrderEndDate('');
-                              if (editingCustomer) {
-                                fetchFilteredOrders(editingCustomer.id, '', '');
-                              }
-                            }}
-                            className="text-sm px-4 py-1.5 h-auto flex-1 text-neutral-500"
-                          >
-                            초기화
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {loadingHistory && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        불러오는 중...
-                      </div>
-                    )}
-                    {!loadingHistory && (orderHistory?.length || 0) === 0 && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        주문 내역이 없습니다.
-                      </div>
-                    )}
-                    {!loadingHistory && (orderHistory?.length || 0) > 0 && (
-                      <div className="flex-1 overflow-hidden relative">
-                        <div className="h-full overflow-y-auto space-y-3 pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}>
-                          {(orderHistory || []).map((order) => (
-                            <div
-                              key={order.id}
-                              className="p-3 bg-neutral-50 rounded-lg border border-neutral-100"
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-neutral-900">
-                                    {order.totalAmount ? `${formatNumber(order.totalAmount)}원` : '금액 미입력'}
-                                  </span>
-                                  {order.tableNumber && (
-                                    <span className="text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
-                                      {order.tableNumber}
-                                    </span>
-                                  )}
-                                </div>
-                                <span className="text-xs text-neutral-400">
-                                  {formatDate(order.visitedAt)} {new Date(order.visitedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                                </span>
-                              </div>
-                              {getOrderItems(order.items).length > 0 ? (
-                                <div className="space-y-1.5 pt-1 border-t border-neutral-200 mt-2">
-                                  {getOrderItems(order.items).map((item: OrderItem, idx: number) => {
-                                    const menuName = item.label || item.name || item.menuName || item.productName || item.title || '(메뉴명 없음)';
-                                    const qty = item.count || item.quantity || item.qty || 1;
-                                    const itemPrice = typeof item.price === 'string' ? parseInt(item.price, 10) : (item.price || item.amount || item.totalPrice || 0);
-                                    const cancelledQty = item.cancelledQuantity || 0;
-                                    const isFullyCancelled = item.cancelled === true || cancelledQty >= qty;
-                                    const isPartlyCancelled = cancelledQty > 0 && cancelledQty < qty;
-                                    const remainingQty = qty - cancelledQty;
-
-                                    return (
-                                      <div key={idx} className={`flex items-center justify-between text-sm py-0.5 group ${isFullyCancelled ? 'opacity-50' : ''}`}>
-                                        <div className={`flex-1 pr-2 ${isFullyCancelled ? 'text-neutral-400 line-through' : 'text-neutral-700'}`}>
-                                          <span className="truncate">
-                                            {menuName}
-                                            {qty > 1 && (
-                                              <span className="text-neutral-400 ml-1">x{qty}</span>
-                                            )}
-                                            {isFullyCancelled && (
-                                              <span className="ml-2 text-xs text-red-500">(취소됨)</span>
-                                            )}
-                                            {isPartlyCancelled && (
-                                              <span className="ml-2 text-xs text-orange-500">({cancelledQty}개 취소)</span>
-                                            )}
-                                          </span>
-                                          {item.option && (
-                                            <div className="text-xs text-neutral-400 mt-0.5">{item.option}</div>
-                                          )}
-                                        </div>
-                                        <div className="flex items-center gap-2 flex-shrink-0">
-                                          {itemPrice > 0 && (
-                                            <span className={`${isFullyCancelled ? 'text-neutral-400 line-through' : 'text-neutral-500'}`}>
-                                              {formatNumber(itemPrice)}원
-                                            </span>
-                                          )}
-                                          {!isFullyCancelled && cancelMode && remainingQty > 0 && (
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                openCancelConfirm(order.id, idx, menuName, itemPrice, qty, cancelledQty);
-                                              }}
-                                              className="p-1.5 rounded-full bg-red-100 text-red-500 hover:bg-red-200 transition-colors"
-                                              title="적립 취소"
-                                            >
-                                              <X className="w-4 h-4" />
-                                            </button>
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                <p className="text-xs text-neutral-400">메뉴 정보 없음</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {/* Scroll indicator gradient */}
-                        <div className="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Feedback Tab */}
-                {editModalTab === 'feedback' && (
-                  <div className="flex-1 overflow-hidden flex flex-col mt-3">
-                    {loadingHistory && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        불러오는 중...
-                      </div>
-                    )}
-                    {!loadingHistory && (feedbackHistory?.length || 0) === 0 && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        고객이 남긴 피드백이 없습니다.
-                      </div>
-                    )}
-                    {!loadingHistory && (feedbackHistory?.length || 0) > 0 && (
-                      <div className="flex-1 overflow-hidden relative">
-                        <div className="h-full overflow-y-auto space-y-3 pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}>
-                          {(feedbackHistory || []).map((feedback) => (
-                            <div
-                              key={feedback.id}
-                              className="p-3 bg-neutral-50 rounded-lg border border-neutral-100"
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <StarRating rating={feedback.rating} readonly />
-                                <span className="text-xs text-neutral-400">
-                                  {formatDate(feedback.createdAt)}
-                                </span>
-                              </div>
-                              {feedback.text && (
-                                <p className="text-sm text-neutral-700">{feedback.text}</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {/* Scroll indicator gradient */}
-                        <div className="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Point History Tab */}
-                {editModalTab === 'history' && (
-                  <div className="flex-1 overflow-hidden flex flex-col mt-3">
-                    {loadingHistory && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        불러오는 중...
-                      </div>
-                    )}
-                    {!loadingHistory && (pointHistory?.length || 0) === 0 && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        포인트 내역이 없습니다.
-                      </div>
-                    )}
-                    {!loadingHistory && (pointHistory?.length || 0) > 0 && (
-                      <div className="flex-1 overflow-hidden relative">
-                        <div className="h-full overflow-y-auto space-y-2 pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}>
-                          {(pointHistory || []).map((entry) => {
-                            // ordersheetId가 포함된 reason을 필터링하여 표시
-                            let displayReason = entry.reason;
-                            if (displayReason && displayReason.includes('ordersheetId')) {
-                              // "TagHere 주문 적립 (ordersheetId: xxx)" -> "TagHere 주문 적립"
-                              displayReason = displayReason.replace(/\s*\(ordersheetId:.*?\)/gi, '').trim();
-                            }
-                            if (!displayReason) {
-                              displayReason = entry.type === 'EARN' ? '포인트 적립' : entry.type === 'USE' ? '포인트 사용' : entry.type;
-                            }
-
-                            return (
-                              <div
-                                key={entry.id}
-                                className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg"
-                              >
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span
-                                      className={`text-sm font-semibold ${
-                                        entry.delta > 0 ? 'text-green-600' : 'text-red-600'
-                                      }`}
-                                    >
-                                      {entry.delta > 0 ? '+' : ''}{formatNumber(entry.delta)} P
-                                    </span>
-                                    <span className="text-xs text-neutral-400">
-                                      잔액 {formatNumber(entry.balance)} P
-                                    </span>
-                                    {entry.tableLabel && (
-                                      <span className="text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
-                                        {entry.tableLabel}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-neutral-500 mt-0.5">
-                                    {displayReason}
-                                  </p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-xs text-neutral-400">
-                                    {formatDate(entry.createdAt)}
-                                  </p>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {/* Scroll indicator gradient */}
-                        <div className="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Messages Tab */}
-                {editModalTab === 'messages' && (
-                  <div className="flex-1 overflow-hidden flex flex-col mt-3">
-                    {/* Summary */}
-                    {messageSummary.total > 0 && (
-                      <div className="mb-3 flex-shrink-0 p-2 bg-neutral-50 rounded-lg border border-neutral-100">
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="text-neutral-600">
-                            총 <span className="font-semibold text-neutral-900">{messageSummary.total}</span>건
-                          </span>
-                          <span className="text-green-600">
-                            성공 <span className="font-semibold">{messageSummary.sent}</span>건
-                          </span>
-                          {messageSummary.failed > 0 && (
-                            <span className="text-red-500">
-                              실패 <span className="font-semibold">{messageSummary.failed}</span>건
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {loadingMessages && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        불러오는 중...
-                      </div>
-                    )}
-                    {!loadingMessages && messageHistory.length === 0 && (
-                      <div className="text-center py-4 text-neutral-500 text-sm">
-                        발송 내역이 없습니다.
-                      </div>
-                    )}
-                    {!loadingMessages && messageHistory.length > 0 && (
-                      <div className="flex-1 overflow-hidden relative">
-                        <div className="h-full overflow-y-auto pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}>
-                          <table className="w-full text-sm">
-                            <thead className="sticky top-0 bg-white">
-                              <tr className="border-b border-neutral-200">
-                                <th className="py-2 px-2 text-left text-xs font-medium text-neutral-500">발송일</th>
-                                <th className="py-2 px-2 text-left text-xs font-medium text-neutral-500">상태</th>
-                                <th className="py-2 px-2 text-left text-xs font-medium text-neutral-500">내용</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {messageHistory.map((msg) => (
-                                <tr key={msg.id} className="border-b border-neutral-100 hover:bg-neutral-50">
-                                  <td className="py-2 px-2 text-neutral-600 whitespace-nowrap">
-                                    <div className="text-xs">
-                                      {formatDate(msg.createdAt)}
-                                    </div>
-                                    <div className="text-xs text-neutral-400">
-                                      {new Date(msg.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-                                    </div>
-                                  </td>
-                                  <td className="py-2 px-2">
-                                    {msg.status === 'SENT' ? (
-                                      <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
-                                        <Check className="w-3 h-3" />
-                                        성공
-                                      </span>
-                                    ) : msg.status === 'FAILED' ? (
-                                      <span className="inline-flex items-center gap-1 text-xs text-red-500 bg-red-50 px-1.5 py-0.5 rounded">
-                                        <X className="w-3 h-3" />
-                                        실패
-                                      </span>
-                                    ) : (
-                                      <span className="text-xs text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded">
-                                        대기
-                                      </span>
-                                    )}
-                                    {msg.failReason && (
-                                      <div className="text-xs text-red-400 mt-0.5 max-w-[100px] truncate" title={msg.failReason}>
-                                        {msg.failReason}
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="py-2 px-2 text-neutral-700">
-                                    <div className="max-w-[200px] truncate" title={msg.content}>
-                                      {msg.content}
-                                    </div>
-                                    {msg.campaignTitle && (
-                                      <div className="text-xs text-neutral-400 mt-0.5 truncate">
-                                        {msg.campaignTitle}
-                                      </div>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                        {/* Scroll indicator gradient */}
-                        <div className="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <ModalFooter className="flex-shrink-0">
-            <Button
-              variant="ghost"
-              onClick={handleDeleteCustomer}
-              disabled={submittingEdit}
-              className="text-red-500 hover:text-red-600 hover:bg-red-50 mr-auto"
-            >
-              고객 삭제
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setEditModal(false);
-                setShowDateFilter(false);
-                setCancelMode(false);
-              }}
-              className="flex-1"
-            >
-              취소
-            </Button>
-            <Button
-              onClick={handleEditCustomer}
-              disabled={submittingEdit}
-              className="flex-1"
-            >
-              {submittingEdit ? '저장 중...' : '저장하기'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <EditCustomerModal
+        open={editModal}
+        onOpenChange={setEditModal}
+        customer={editingCustomer}
+        name={editName}
+        gender={editGender}
+        onGenderChange={setEditGender}
+        birthday={editBirthday}
+        birthYear={editBirthYear}
+        memo={editMemo}
+        onMemoChange={setEditMemo}
+        tab={editModalTab}
+        onTabChange={(t) => {
+          setEditModalTab(t);
+          if (t === 'messages' && editingCustomer && messageHistory.length === 0) {
+            fetchCustomerMessages(editingCustomer.id);
+          }
+        }}
+        submitting={submittingEdit}
+        stampRewardTiers={stampRewardTiers}
+        onUseStampReward={async (amount) => {
+          if (!editingCustomer) return;
+          setSubmittingEdit(true);
+          try {
+            const token = getAuthToken();
+            const res = await fetch(`${apiUrl}/api/stamps/use`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                customerId: editingCustomer.id,
+                amount,
+              }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              setEditingCustomer(prev => prev ? { ...prev, totalStamps: data.remainingStamps } as any : null);
+              showToast(`스탬프 ${amount}개가 사용되었습니다.`, 'success');
+              setRefreshKey(prev => prev + 1);
+            } else {
+              const error = await res.json();
+              showToast(error.error || '스탬프 사용에 실패했습니다.', 'error');
+            }
+          } catch (error) {
+            showToast('스탬프 사용 중 오류가 발생했습니다.', 'error');
+          } finally {
+            setSubmittingEdit(false);
+          }
+        }}
+        orderHistory={orderHistory}
+        feedbackHistory={feedbackHistory}
+        pointHistory={pointHistory}
+        messageHistory={messageHistory}
+        messageSummary={messageSummary}
+        loadingHistory={loadingHistory}
+        loadingMessages={loadingMessages}
+        showDateFilter={showDateFilter}
+        onToggleDateFilter={() => setShowDateFilter(!showDateFilter)}
+        cancelMode={cancelMode}
+        onToggleCancelMode={() => setCancelMode(!cancelMode)}
+        orderStartDate={orderStartDate}
+        onStartDateChange={setOrderStartDate}
+        orderEndDate={orderEndDate}
+        onEndDateChange={setOrderEndDate}
+        onApplyFilter={() => {
+          if (editingCustomer) {
+            fetchFilteredOrders(editingCustomer.id, orderStartDate, orderEndDate);
+          }
+        }}
+        onResetFilter={() => {
+          setOrderStartDate('');
+          setOrderEndDate('');
+          if (editingCustomer) {
+            fetchFilteredOrders(editingCustomer.id, '', '');
+          }
+        }}
+        onCancelItem={openCancelConfirm}
+        onDelete={handleDeleteCustomer}
+        onSave={handleEditCustomer}
+        onClose={() => {
+          setEditModal(false);
+          setShowDateFilter(false);
+          setCancelMode(false);
+        }}
+      />
 
       {/* Add Customer Modal */}
-      <Modal open={addModal} onOpenChange={setAddModal}>
-        <ModalContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
-          <ModalHeader className="flex-shrink-0">
-            <ModalTitle>고객 등록</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4 overflow-y-auto flex-1 px-1">
-            {/* Phone - Required */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">
-                전화번호 <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="tel"
-                placeholder="010-0000-0000"
-                value={addPhone}
-                onChange={(e) => setAddPhone(e.target.value)}
-              />
-              <p className="text-xs text-neutral-500">
-                하이픈(-) 없이 숫자만 입력해도 됩니다.
-              </p>
-            </div>
-
-            {/* Nickname */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">닉네임</label>
-              <Input
-                type="text"
-                placeholder="닉네임을 입력하세요"
-                value={addName}
-                onChange={(e) => setAddName(e.target.value)}
-              />
-              {addName && (
-                <p className="text-xs text-neutral-500">표시: {maskNickname(addName)}</p>
-              )}
-            </div>
-
-            {/* Gender */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">성별</label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className={`flex-1 py-2 px-4 rounded-lg border-2 transition-colors ${
-                    addGender === 'MALE'
-                      ? 'border-brand-800 bg-brand-50 text-brand-800'
-                      : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
-                  }`}
-                  onClick={() => setAddGender('MALE')}
-                >
-                  남성
-                </button>
-                <button
-                  type="button"
-                  className={`flex-1 py-2 px-4 rounded-lg border-2 transition-colors ${
-                    addGender === 'FEMALE'
-                      ? 'border-brand-800 bg-brand-50 text-brand-800'
-                      : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
-                  }`}
-                  onClick={() => setAddGender('FEMALE')}
-                >
-                  여성
-                </button>
-              </div>
-            </div>
-
-            {/* Birthday and Birth Year */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-600">생일 (MM-DD)</label>
-                <Input
-                  type="text"
-                  placeholder="01-15"
-                  value={addBirthday}
-                  onChange={(e) => setAddBirthday(e.target.value)}
-                  maxLength={5}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-600">출생연도</label>
-                <Input
-                  type="number"
-                  placeholder="1990"
-                  value={addBirthYear}
-                  onChange={(e) => setAddBirthYear(e.target.value)}
-                  min={1900}
-                  max={new Date().getFullYear()}
-                />
-              </div>
-            </div>
-
-            {/* Initial Points */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">초기 포인트</label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={addInitialPoints}
-                  onChange={(e) => setAddInitialPoints(e.target.value)}
-                  className="pr-8"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">p</span>
-              </div>
-              <p className="text-xs text-neutral-500">
-                등록 시 지급할 포인트를 입력하세요. (선택)
-              </p>
-            </div>
-
-            {/* Memo */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">메모</label>
-              <textarea
-                className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-800 focus:border-transparent"
-                rows={3}
-                placeholder="고객에 대한 메모를 입력하세요"
-                value={addMemo}
-                onChange={(e) => setAddMemo(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <ModalFooter className="flex-shrink-0">
-            <Button
-              variant="secondary"
-              onClick={() => setAddModal(false)}
-              className="flex-1"
-            >
-              취소
-            </Button>
-            <Button
-              onClick={handleAddCustomer}
-              disabled={!addPhone || submittingAdd}
-              className="flex-1"
-            >
-              {submittingAdd ? '등록 중...' : '등록하기'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <AddCustomerModal
+        open={addModal}
+        onOpenChange={setAddModal}
+        phone={addPhone}
+        onPhoneChange={setAddPhone}
+        name={addName}
+        onNameChange={setAddName}
+        gender={addGender}
+        onGenderChange={setAddGender}
+        birthday={addBirthday}
+        onBirthdayChange={setAddBirthday}
+        birthYear={addBirthYear}
+        onBirthYearChange={setAddBirthYear}
+        initialPoints={addInitialPoints}
+        onInitialPointsChange={setAddInitialPoints}
+        memo={addMemo}
+        onMemoChange={setAddMemo}
+        submitting={submittingAdd}
+        onSubmit={handleAddCustomer}
+      />
 
       {/* Bulk Upload Modal */}
-      <Modal open={bulkModal} onOpenChange={setBulkModal}>
-        <ModalContent className="sm:max-w-2xl">
-          <ModalHeader>
-            <ModalTitle>대량 고객 등록</ModalTitle>
-          </ModalHeader>
-
-          <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
-            {/* 안내 + 샘플 다운로드 */}
-            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-700">
-                엑셀 파일로 고객을 일괄 등록할 수 있습니다. (최대 500건)
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDownloadSampleExcel}
-              >
-                <Download className="w-4 h-4 mr-1" />
-                샘플 다운로드
-              </Button>
-            </div>
-
-            {/* 파일 업로드 */}
-            <div>
-              <input
-                ref={bulkFileInputRef}
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleBulkFileChange}
-                className="hidden"
-              />
-              <Button
-                variant="outline"
-                className="w-full py-8 border-dashed border-2"
-                onClick={() => bulkFileInputRef.current?.click()}
-              >
-                <Upload className="w-5 h-5 mr-2" />
-                {bulkParsedData.length > 0
-                  ? `${bulkParsedData.length}건 로드됨 (다시 선택하려면 클릭)`
-                  : '엑셀 파일 선택 (.xlsx, .xls, .csv)'}
-              </Button>
-            </div>
-
-            {/* 미리보기 테이블 */}
-            {bulkParsedData.length > 0 && !bulkResult && (
-              <div>
-                <p className="text-sm font-medium text-neutral-700 mb-2">
-                  미리보기 (처음 10건)
-                </p>
-                <div className="overflow-x-auto border rounded-lg">
-                  <table className="w-full text-sm">
-                    <thead className="bg-neutral-50">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-600">#</th>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-600">전화번호*</th>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-600">이름</th>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-600">성별</th>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-600">생년</th>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-600">생일</th>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-600">메모</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bulkParsedData.slice(0, 10).map((row, idx) => (
-                        <tr key={idx} className={`border-t ${!row.phone ? 'bg-red-50' : ''}`}>
-                          <td className="px-3 py-2 text-neutral-500">{idx + 1}</td>
-                          <td className="px-3 py-2">
-                            {row.phone || <span className="text-red-500 text-xs">전화번호 없음</span>}
-                          </td>
-                          <td className="px-3 py-2">{row.name || '-'}</td>
-                          <td className="px-3 py-2">{row.gender || '-'}</td>
-                          <td className="px-3 py-2">{row.birthYear || '-'}</td>
-                          <td className="px-3 py-2">{row.birthday || '-'}</td>
-                          <td className="px-3 py-2">{row.memo || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {bulkParsedData.length > 10 && (
-                  <p className="text-xs text-neutral-500 mt-1">
-                    외 {bulkParsedData.length - 10}건 더 있음
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* 결과 표시 */}
-            {bulkResult && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="p-3 bg-green-50 rounded-lg text-center">
-                    <p className="text-2xl font-bold text-green-700">{bulkResult.created}</p>
-                    <p className="text-xs text-green-600">등록 성공</p>
-                  </div>
-                  <div className="p-3 bg-yellow-50 rounded-lg text-center">
-                    <p className="text-2xl font-bold text-yellow-700">{bulkResult.skipped}</p>
-                    <p className="text-xs text-yellow-600">중복 스킵</p>
-                  </div>
-                  <div className="p-3 bg-red-50 rounded-lg text-center">
-                    <p className="text-2xl font-bold text-red-700">{bulkResult.errors.length}</p>
-                    <p className="text-xs text-red-600">오류</p>
-                  </div>
-                </div>
-                {bulkResult.errors.length > 0 && (
-                  <div className="p-3 bg-red-50 rounded-lg">
-                    <p className="text-sm font-medium text-red-700 mb-1">오류 목록:</p>
-                    <ul className="text-xs text-red-600 space-y-1">
-                      {bulkResult.errors.slice(0, 10).map((err, i) => (
-                        <li key={i}>행 {err.row}: {err.phone ? `${err.phone} - ` : ''}{err.reason}</li>
-                      ))}
-                      {bulkResult.errors.length > 10 && (
-                        <li>외 {bulkResult.errors.length - 10}건...</li>
-                      )}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <ModalFooter className="flex-shrink-0">
-            <Button
-              variant="secondary"
-              onClick={() => setBulkModal(false)}
-              className="flex-1"
-            >
-              {bulkResult ? '닫기' : '취소'}
-            </Button>
-            {!bulkResult && (
-              <Button
-                onClick={handleBulkUpload}
-                disabled={bulkParsedData.length === 0 || bulkUploading}
-                className="flex-1"
-              >
-                {bulkUploading ? '등록 중...' : `${bulkParsedData.length}건 등록하기`}
-              </Button>
-            )}
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <BulkUploadModal
+        open={bulkModal}
+        onOpenChange={setBulkModal}
+        fileInputRef={bulkFileInputRef}
+        parsedData={bulkParsedData}
+        result={bulkResult}
+        uploading={bulkUploading}
+        onDownloadSample={handleDownloadSampleExcel}
+        onFileChange={handleBulkFileChange}
+        onUpload={handleBulkUpload}
+      />
 
       {/* Cancel Order Item Confirm Modal */}
-      <Modal open={cancelConfirmModal} onOpenChange={(open) => {
-        setCancelConfirmModal(open);
-        if (!open) {
+      <CancelOrderItemModal
+        open={cancelConfirmModal}
+        itemInfo={cancellingItemInfo}
+        cancelQuantity={cancelQuantity}
+        onQuantityChange={setCancelQuantity}
+        onClose={() => {
+          setCancelConfirmModal(false);
           setCancellingItem(null);
           setCancellingItemInfo(null);
           setCancelQuantity(1);
-        }
-      }}>
-        <ModalContent className="sm:max-w-md">
-          <ModalHeader>
-            <ModalTitle>주문 취소 확인</ModalTitle>
-          </ModalHeader>
-
-          <div className="py-4">
-            <p className="text-sm text-neutral-700 mb-4">
-              다음 메뉴의 주문을 취소하시겠습니까?
-            </p>
-            {cancellingItemInfo && (
-              <div className="p-3 bg-neutral-50 rounded-lg space-y-3">
-                <div>
-                  <p className="font-medium text-neutral-900">{cancellingItemInfo.name}</p>
-                  <p className="text-sm text-neutral-500 mt-1">
-                    단가: {formatNumber(cancellingItemInfo.unitPrice)}원
-                  </p>
-                </div>
-
-                {/* 수량이 2개 이상일 때만 수량 선택 UI 표시 */}
-                {cancellingItemInfo.remainingQty > 1 ? (
-                  <div className="pt-3 border-t border-neutral-200">
-                    <p className="text-sm font-medium text-neutral-700 mb-2">
-                      취소할 수량 (남은 수량: {cancellingItemInfo.remainingQty}개)
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {Array.from({ length: cancellingItemInfo.remainingQty }, (_, i) => i + 1).map((num) => (
-                        <button
-                          key={num}
-                          type="button"
-                          onClick={() => setCancelQuantity(num)}
-                          className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
-                            cancelQuantity === num
-                              ? 'bg-red-500 text-white'
-                              : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                          }`}
-                        >
-                          {num}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-sm text-neutral-600 mt-3">
-                      취소 금액: <span className="font-medium">{formatNumber(cancellingItemInfo.unitPrice * cancelQuantity)}원</span>
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-neutral-500">
-                    취소 금액: {formatNumber(cancellingItemInfo.price)}원
-                  </p>
-                )}
-              </div>
-            )}
-            <p className="text-xs text-red-500 mt-3">
-              ※ 해당 메뉴에 대한 적립 포인트가 자동으로 차감됩니다.
-            </p>
-          </div>
-
-          <ModalFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setCancelConfirmModal(false);
-                setCancellingItem(null);
-                setCancellingItemInfo(null);
-                setCancelQuantity(1);
-              }}
-              className="flex-1"
-            >
-              취소
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleCancelOrderItem}
-              className="flex-1"
-            >
-              {cancellingItemInfo && cancellingItemInfo.remainingQty > 1
-                ? `${cancelQuantity}개 취소`
-                : '주문 취소'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+        }}
+        onConfirm={handleCancelOrderItem}
+      />
     </div>
   );
 }

@@ -1,11 +1,11 @@
 'use client';
 
+import { API_BASE } from '@/lib/api-config';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
 import { Send, Pin, MessageSquare, Loader2 } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 type AuthMode = 'ANONYMOUS' | 'KAKAO';
 
