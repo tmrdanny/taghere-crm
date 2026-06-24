@@ -45,15 +45,24 @@ function formatBoosterValidUntil(date: Date | null): string {
   return `${kst.getUTCFullYear()}.${String(kst.getUTCMonth() + 1).padStart(2, '0')}.${String(kst.getUTCDate()).padStart(2, '0')}`;
 }
 
+/**
+ * 유효기간 표기 뒤에 고정으로 따라붙는 네이버 쿠폰 수령 안내문.
+ * 알리고 승인 템플릿(UG_5628) 본문은 그대로 두고 #{유효기간} 변수 값에 포함시켜 발송한다.
+ * (고정 텍스트를 본문에 추가하면 템플릿 매칭에서 어긋나 발송이 거절되므로 변수 값에 넣는다)
+ */
+const BOOSTER_COUPON_GUIDE =
+  '쿠폰 다운받기 > 네이버 길찾기 앱 진입 후 하단 스크롤 > 네이버 쿠폰 다운로드 > 매장 방문시 직원에게 보여주세요.';
+
 /** 캠페인 → 알리고 알림톡 페이로드(등록 템플릿 본문과 정확히 일치) */
 export function buildBoosterAlimtalk(
   campaign: Pick<PlaceBoosterCampaign, 'trackingCode' | 'couponContent' | 'couponCode' | 'couponAmount' | 'couponValidUntil'>,
   weekNo: number
 ): BoosterAlimtalk {
   // 알리고 템플릿 UG_5628의 4개 변수 = 쿠폰 내용 / 쿠폰 코드 / 쿠폰 금액 / 유효기간 (각각 1:1 매핑)
+  // 유효기간 표기 뒤에 고정 안내문을 줄바꿈과 함께 덧붙인다(변수 값에 포함 → 템플릿 매칭 유지).
   const validText = campaign.couponValidUntil
-    ? `${formatBoosterValidUntil(campaign.couponValidUntil)}까지`
-    : '';
+    ? `${formatBoosterValidUntil(campaign.couponValidUntil)}까지\n\n${BOOSTER_COUPON_GUIDE}`
+    : BOOSTER_COUPON_GUIDE;
   const message = [
     `${campaign.couponContent} 쿠폰이 도착했어요.`,
     '',
