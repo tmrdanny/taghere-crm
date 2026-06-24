@@ -524,7 +524,7 @@ function CreateModal({ af, onClose, onCreated }: { af: (p: string, i?: RequestIn
             <a href={buildBoosterSearchUrl(keyword.trim(), placeInfo.placeId)} target="_blank" rel="noopener noreferrer" className="inline-block mt-1 text-xs font-medium px-2 py-1 rounded border border-gray-300 text-gray-700 bg-white hover:bg-gray-50">링크 열어서 확인 ↗</a>
           </div>
         )}
-        <input className="w-full border rounded px-3 py-2 text-sm" placeholder="쿠폰 내용 (예: 성수 곱도리탕 맛집 다주막의 10% 할인)" value={couponContent} onChange={(e) => setCoupon(e.target.value)} />
+        <textarea className="w-full border rounded px-3 py-2 text-sm" rows={3} placeholder="쿠폰 내용 (예: 성수 곱도리탕 맛집 다주막의 10% 할인)" value={couponContent} onChange={(e) => setCoupon(e.target.value)} />
         <input className="w-full border rounded px-3 py-2 text-sm" placeholder="쿠폰 코드 (예: 다주막 네이버 쿠폰)" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} />
         <div className="flex gap-2">
           <input className="flex-1 border rounded px-3 py-2 text-sm" placeholder="쿠폰 금액 (예: 10% 할인)" value={couponAmount} onChange={(e) => setCouponAmount(e.target.value)} />
