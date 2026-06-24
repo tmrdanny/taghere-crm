@@ -78,6 +78,7 @@ export interface CreateCampaignInput {
   couponCode: string;
   couponAmount: string;
   couponValidUntil: string | Date;
+  ownerPhone: string; // 점주 핸드폰 — 회차마다 점주에게도 동일 알림톡 발송
   weekday: number; // 0=일 ~ 6=토 (KST)
   sendTime: string; // "HH:mm" (KST)
   perBatchCount: number;
@@ -175,6 +176,7 @@ export async function createCampaign(
   if (!input.couponCode?.trim()) throw new BoosterError('쿠폰 코드를 입력해주세요.');
   if (!input.couponAmount?.trim()) throw new BoosterError('쿠폰 금액을 입력해주세요.');
   if (!input.couponValidUntil) throw new BoosterError('유효기간을 입력해주세요.');
+  if (!input.ownerPhone?.trim()) throw new BoosterError('사장님 번호를 입력해주세요.');
 
   if (input.weekday < 0 || input.weekday > 6) {
     throw new BoosterError('발송 요일이 올바르지 않습니다.');
@@ -227,6 +229,7 @@ export async function createCampaign(
       couponCode: input.couponCode.trim(),
       couponAmount: input.couponAmount.trim(),
       couponValidUntil: parseCouponValidUntil(input.couponValidUntil),
+      ownerPhone: input.ownerPhone.trim(),
       targetRegions: targetRegions as unknown as Prisma.InputJsonValue,
       weekday: input.weekday,
       sendTime: input.sendTime,

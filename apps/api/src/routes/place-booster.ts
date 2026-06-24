@@ -37,6 +37,19 @@ router.post('/verify-place', authMiddleware, async (req: AuthRequest, res: Respo
   }
 });
 
+// GET /api/place-booster/store-info - 점주 번호 프리필용 매장 정보
+router.get('/store-info', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const store = await prisma.store.findUnique({
+      where: { id: req.user!.storeId },
+      select: { phone: true, ownerName: true },
+    });
+    res.json({ phone: store?.phone || '', ownerName: store?.ownerName || '' });
+  } catch (error) {
+    handleError(res, error, '매장 정보 조회 중 오류가 발생했습니다.');
+  }
+});
+
 // POST /api/place-booster/campaigns - 캠페인 생성
 router.post('/campaigns', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {

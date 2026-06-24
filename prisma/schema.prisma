@@ -2026,6 +2026,7 @@ model PlaceBoosterCampaign {
   id              String                     @id @default(cuid())
   storeId         String?                    // CRM 가입 매장 (외부 캠페인이면 null)
   campaignName    String?                    // 외부(무매장) 캠페인 표시명
+  ownerPhone      String?                    // 점주 핸드폰 — 회차 발송 시 점주에게도 동일 알림톡 1통 발송(통계 미포함)
   keyword         String                     // 네이버 유입 키워드 1개
   naverPlaceUrl   String                     // 매장이 입력한 플레이스 URL (원본)
   placeId         String                     // URL에서 파싱한 플레이스 ID

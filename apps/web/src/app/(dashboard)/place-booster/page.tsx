@@ -354,10 +354,19 @@ function CreateView({
   const [couponCode, setCouponCode] = useState('');
   const [couponAmount, setCouponAmount] = useState('');
   const [couponValidUntil, setCouponValidUntil] = useState('');
+  const [ownerPhone, setOwnerPhone] = useState('');
   const [preset, setPreset] = useState(PRESETS[0]);
   const [weekday, setWeekday] = useState(2);
   const [sendTime, setSendTime] = useState('18:00');
   const [submitting, setSubmitting] = useState(false);
+
+  // 점주 번호 자동 채우기(매장 등록 연락처) — 수정 가능
+  useEffect(() => {
+    authFetch('/api/place-booster/store-info')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.phone) setOwnerPhone((prev) => prev || d.phone); })
+      .catch(() => {});
+  }, [authFetch]);
 
   const dates = previewDates(weekday, sendTime, preset.totalWeeks);
   // 키워드 + 확인된 플레이스가 모두 있으면 '쿠폰받기' 도착 링크 미리보기
@@ -395,8 +404,8 @@ function CreateView({
       setError('매장 정보 확인을 먼저 해주세요.');
       return;
     }
-    if (!keyword.trim() || !couponContent.trim() || !couponCode.trim() || !couponAmount.trim() || !couponValidUntil) {
-      setError('키워드, 쿠폰 내용, 쿠폰 코드, 쿠폰 금액, 유효기간을 모두 입력해주세요.');
+    if (!keyword.trim() || !couponContent.trim() || !couponCode.trim() || !couponAmount.trim() || !couponValidUntil || !ownerPhone.trim()) {
+      setError('키워드, 쿠폰 내용/코드/금액, 유효기간, 사장님 번호를 모두 입력해주세요.');
       return;
     }
     setSubmitting(true);
@@ -411,6 +420,7 @@ function CreateView({
           couponCode,
           couponAmount,
           couponValidUntil,
+          ownerPhone,
           weekday,
           sendTime,
           perBatchCount: preset.perBatchCount,
@@ -488,19 +498,22 @@ function CreateView({
         {/* ② 쿠폰 */}
         <Section icon={Ticket} title="쿠폰" desc="네이버 플레이스에 등록한 쿠폰을 안내해요">
           <Field label="쿠폰 내용">
-            <input className="input" value={couponContent} onChange={(e) => setCouponContent(e.target.value)} placeholder="예: 10,000원 할인" />
+            <input className="input" value={couponContent} onChange={(e) => setCouponContent(e.target.value)} placeholder="예: 성수 곱도리탕 맛집 다주막의 10% 할인" />
           </Field>
           <Field label="쿠폰 코드">
-            <input className="input" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="예: 10,000원 할인" />
+            <input className="input" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="예: 다주막 네이버 쿠폰" />
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="쿠폰 금액">
-              <input className="input" value={couponAmount} onChange={(e) => setCouponAmount(e.target.value)} placeholder="예: 10,000원" />
+              <input className="input" value={couponAmount} onChange={(e) => setCouponAmount(e.target.value)} placeholder="예: 10% 할인" />
             </Field>
             <Field label="유효기간">
               <input type="date" className="input cursor-pointer" value={couponValidUntil} onChange={(e) => setCouponValidUntil(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} />
             </Field>
           </div>
+          <Field label="사장님 번호" hint="발송 때마다 이 번호로도 동일 알림톡이 전송됩니다 (사장님 확인용)">
+            <input className="input" value={ownerPhone} onChange={(e) => setOwnerPhone(e.target.value)} placeholder="예: 010-1234-5678" inputMode="tel" />
+          </Field>
         </Section>
 
         {/* ③ 발송 설정 */}
@@ -632,7 +645,7 @@ function AlimtalkPreview({
   couponAmount: string;
   couponValidUntil: string;
 }) {
-  // 입력 필드 ↔ 미리보기 변수 1:1 매핑 (값이 비면 {필드명}으로 표시)
+  // 입력 필드 ↔ 미리보기 1:1 매핑 (값이 비면 {필드명}으로 표시)
   const contentText = couponContent.trim() || '{쿠폰 내용}';
   const codeText = couponCode.trim() || '{쿠폰 코드}';
   const amountText = couponAmount.trim() || '{쿠폰 금액}';

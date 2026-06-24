@@ -36,6 +36,18 @@ async function processBatch(batchId: string) {
   // 알림톡 페이로드 (등록 템플릿 UG_5628 본문/버튼) — 공용 빌더
   const al = buildBoosterAlimtalk(campaign, batch.weekNo);
 
+  // 점주 사본: 회차마다 점주 번호로 동일 알림톡 1통(통계/대상/피로도 미포함). 멱등키로 재처리 중복 방지.
+  if (campaign.ownerPhone?.trim()) {
+    await enqueueAlimTalk({
+      storeId: campaign.storeId ?? `ext:${campaign.id}`,
+      phone: campaign.ownerPhone.trim(),
+      messageType: 'PLACE_BOOSTER',
+      templateId: al.tplCode,
+      variables: { subject: al.subject, message: al.message, buttonName: al.buttonName, buttonUrl: al.buttonUrl },
+      idempotencyKey: `place_booster_owner:${batch.id}`,
+    }).catch((e) => console.error(`[PlaceBoosterWorker] 점주 사본 발송 실패 batch=${batch.id}:`, e));
+  }
+
   const recipients = await selectRecipients(campaign);
   if (recipients.length === 0) {
     // 대상자 없음 → 회차 종료 처리

@@ -113,7 +113,7 @@ router.get('/place-booster/stores', adminAuthMiddleware, async (req: AdminReques
             ],
           }
         : undefined,
-      select: { id: true, name: true, ownerName: true, address: true },
+      select: { id: true, name: true, ownerName: true, address: true, phone: true },
       orderBy: { name: 'asc' },
       take: 50,
     });
