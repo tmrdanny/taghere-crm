@@ -74,6 +74,7 @@ interface FranchiseStampSettingData {
   enabled: boolean;
   rewards: StampRewardSetting[];
   alimtalkEnabled: boolean;
+  storeEditLocked?: boolean;
 }
 
 // Category label mapping
@@ -139,6 +140,7 @@ export default function FranchiseStoresPage() {
   const [isStampSettingOpen, setIsStampSettingOpen] = useState(false);
   const [stampSettingForm, setStampSettingForm] = useState<StampRewardSetting[]>([]);
   const [stampAlimtalk, setStampAlimtalk] = useState(true);
+  const [stampStoreEditLocked, setStampStoreEditLocked] = useState(false);
   const [isSavingStampSetting, setIsSavingStampSetting] = useState(false);
   const [togglingStoreId, setTogglingStoreId] = useState<string | null>(null);
   const [isTogglingAll, setIsTogglingAll] = useState(false);
@@ -207,9 +209,10 @@ export default function FranchiseStoresPage() {
         const s = data.setting;
         if (s) {
           const rewards: StampRewardSetting[] = s.rewards || [];
-          setStampSetting({ id: s.id, enabled: s.enabled, rewards, alimtalkEnabled: s.alimtalkEnabled });
+          setStampSetting({ id: s.id, enabled: s.enabled, rewards, alimtalkEnabled: s.alimtalkEnabled, storeEditLocked: s.storeEditLocked });
           setStampSettingForm(rewards.length > 0 ? rewards : [{ tier: 5, description: '' }, { tier: 10, description: '' }]);
           setStampAlimtalk(s.alimtalkEnabled ?? true);
+          setStampStoreEditLocked(s.storeEditLocked ?? false);
         }
       }
     } catch (err) {
@@ -280,14 +283,15 @@ export default function FranchiseStoresPage() {
       const res = await fetch(`${API_BASE}/api/franchise/stamp-setting`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ rewards: validRewards, alimtalkEnabled: stampAlimtalk }),
+        body: JSON.stringify({ rewards: validRewards, alimtalkEnabled: stampAlimtalk, storeEditLocked: stampStoreEditLocked }),
       });
       if (res.ok) {
         const data = await res.json();
         const s = data.setting;
         if (s) {
           const rewards: StampRewardSetting[] = s.rewards || [];
-          setStampSetting({ id: s.id, enabled: s.enabled, rewards, alimtalkEnabled: s.alimtalkEnabled });
+          setStampSetting({ id: s.id, enabled: s.enabled, rewards, alimtalkEnabled: s.alimtalkEnabled, storeEditLocked: s.storeEditLocked });
+          setStampStoreEditLocked(s.storeEditLocked ?? false);
         }
         setIsStampSettingOpen(false);
       }
@@ -611,6 +615,23 @@ export default function FranchiseStoresPage() {
                     )}
                   >
                     <div className={cn('absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform', stampAlimtalk && 'translate-x-5')} />
+                  </button>
+                </div>
+
+                {/* 가맹점 수정 잠금 Toggle */}
+                <div className="flex items-center justify-between py-3 border-t border-slate-100">
+                  <div>
+                    <span className="text-sm font-medium text-slate-700">가맹점 스탬프 설정 잠금</span>
+                    <p className="text-xs text-slate-500 mt-0.5">전 매장의 점주가 스탬프 보상·설정을 수정하지 못하도록 잠급니다</p>
+                  </div>
+                  <button
+                    onClick={() => setStampStoreEditLocked(!stampStoreEditLocked)}
+                    className={cn(
+                      'relative w-11 h-6 rounded-full transition-colors',
+                      stampStoreEditLocked ? 'bg-franchise-600' : 'bg-slate-200'
+                    )}
+                  >
+                    <div className={cn('absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform', stampStoreEditLocked && 'translate-x-5')} />
                   </button>
                 </div>
 
