@@ -356,7 +356,7 @@ function AdminBatchRow({ row, onSave }: { row: ReportRow; onSave: (b: string, u:
   );
 }
 
-interface StoreOpt { id: string; name: string; ownerName: string | null; address: string | null; }
+interface StoreOpt { id: string; name: string; ownerName: string | null; address: string | null; phone: string | null; }
 function CreateModal({ af, onClose, onCreated }: { af: (p: string, i?: RequestInit) => Promise<Response>; onClose: () => void; onCreated: () => void; }) {
   const [mode, setMode] = useState<'store' | 'external'>('store');
   const [campaignName, setCampaignName] = useState('');
@@ -372,6 +372,7 @@ function CreateModal({ af, onClose, onCreated }: { af: (p: string, i?: RequestIn
   const [couponCode, setCouponCode] = useState('');
   const [couponAmount, setCouponAmount] = useState('');
   const [couponValidUntil, setCouponValidUntil] = useState('');
+  const [ownerPhone, setOwnerPhone] = useState('');
   const [preset, setPreset] = useState(PRESETS[0]);
   const [weekday, setWeekday] = useState(2);
   const [sendTime, setSendTime] = useState('18:00');
@@ -410,8 +411,8 @@ function CreateModal({ af, onClose, onCreated }: { af: (p: string, i?: RequestIn
     if (mode === 'store' && !storeId) return setErr('매장을 선택해주세요.');
     if (mode === 'external' && !campaignName.trim()) return setErr('캠페인명을 입력해주세요.');
     if (!placeInfo) return setErr('매장 정보 확인을 먼저 해주세요.');
-    if (!keyword || !couponContent || !couponCode.trim() || !couponAmount.trim() || !couponValidUntil)
-      return setErr('키워드, 쿠폰 내용, 쿠폰 코드, 쿠폰 금액, 유효기간을 모두 입력해주세요.');
+    if (!keyword || !couponContent || !couponCode.trim() || !couponAmount.trim() || !couponValidUntil || !ownerPhone.trim())
+      return setErr('키워드, 쿠폰 내용/코드/금액, 유효기간, 사장님 번호를 모두 입력해주세요.');
     setBusy(true);
     const res = await af('/api/admin/place-booster/campaigns', {
       method: 'POST',
@@ -424,6 +425,7 @@ function CreateModal({ af, onClose, onCreated }: { af: (p: string, i?: RequestIn
         couponCode,
         couponAmount,
         couponValidUntil,
+        ownerPhone,
         weekday,
         sendTime,
         perBatchCount: preset.perBatchCount,
@@ -488,7 +490,7 @@ function CreateModal({ af, onClose, onCreated }: { af: (p: string, i?: RequestIn
                       type="button"
                       key={s.id}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                      onClick={() => { setStoreId(s.id); setSelectedStoreName(s.name); setStoreSearch(''); }}
+                      onClick={() => { setStoreId(s.id); setSelectedStoreName(s.name); setStoreSearch(''); setOwnerPhone((prev) => prev || s.phone || ''); }}
                     >
                       <span className="font-medium">{s.name}</span>
                       {s.ownerName ? <span className="text-gray-500"> ({s.ownerName})</span> : null}
@@ -522,12 +524,13 @@ function CreateModal({ af, onClose, onCreated }: { af: (p: string, i?: RequestIn
             <a href={buildBoosterSearchUrl(keyword.trim(), placeInfo.placeId)} target="_blank" rel="noopener noreferrer" className="inline-block mt-1 text-xs font-medium px-2 py-1 rounded border border-gray-300 text-gray-700 bg-white hover:bg-gray-50">링크 열어서 확인 ↗</a>
           </div>
         )}
-        <input className="w-full border rounded px-3 py-2 text-sm" placeholder="쿠폰 내용 (예: 10,000원 할인)" value={couponContent} onChange={(e) => setCoupon(e.target.value)} />
-        <input className="w-full border rounded px-3 py-2 text-sm" placeholder="쿠폰 코드 (예: 10,000원 할인)" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} />
+        <input className="w-full border rounded px-3 py-2 text-sm" placeholder="쿠폰 내용 (예: 성수 곱도리탕 맛집 다주막의 10% 할인)" value={couponContent} onChange={(e) => setCoupon(e.target.value)} />
+        <input className="w-full border rounded px-3 py-2 text-sm" placeholder="쿠폰 코드 (예: 다주막 네이버 쿠폰)" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} />
         <div className="flex gap-2">
-          <input className="flex-1 border rounded px-3 py-2 text-sm" placeholder="쿠폰 금액 (예: 10,000원)" value={couponAmount} onChange={(e) => setCouponAmount(e.target.value)} />
+          <input className="flex-1 border rounded px-3 py-2 text-sm" placeholder="쿠폰 금액 (예: 10% 할인)" value={couponAmount} onChange={(e) => setCouponAmount(e.target.value)} />
           <input type="date" className="border rounded px-3 py-2 text-sm cursor-pointer" value={couponValidUntil} onChange={(e) => setCouponValidUntil(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} />
         </div>
+        <input className="w-full border rounded px-3 py-2 text-sm" placeholder="사장님 번호 (발송 때마다 사장님에게도 발송, 예: 010-1234-5678)" value={ownerPhone} onChange={(e) => setOwnerPhone(e.target.value)} inputMode="tel" />
         <div className="flex gap-2">
           {PRESETS.map((p) => (
             <button key={p.key} onClick={() => setPreset(p)} className={`flex-1 border rounded px-2 py-2 text-sm ${preset.key === p.key ? 'border-gray-900 bg-gray-100' : ''}`}>{p.label}</button>
