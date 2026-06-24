@@ -486,6 +486,7 @@ enum PaymentTransactionType {
   SUBSCRIPTION // 구독료
   REFUND       // 환불
   ALIMTALK_SEND // 알림톡 발송
+  PLACE_BOOSTER // 네이버 플레이스 부스터 캠페인 구매 (카드 직접 결제)
 }
 
 enum PaymentTransactionStatus {
@@ -559,6 +560,7 @@ enum AlimTalkType {
   CORPORATE_AD          // 기업광고 쿠폰 알림톡
   LOCAL_COUPON          // 지역 고객 쿠폰 알림톡
   CUSTOMER_COUNT        // 누적 고객 수 알림
+  PLACE_BOOSTER         // 네이버 플레이스 부스터 쿠폰 알림톡
 }
 
 enum AlimTalkStatus {
@@ -725,12 +727,48 @@ model ExternalCustomer {
   consentAt           DateTime
   createdAt           DateTime  @default(now())
 
+  // 발송 피로도 관리 (플레이스 부스터: 덜/오래전 받은 고객 우선 선정)
+  lastSentAt          DateTime?
+  sentCount           Int       @default(0)
+
   // Relations
   weeklySlots      ExternalCustomerWeeklySlot[]
   sentMessages     ExternalSmsMessage[]
 
   @@index([ageGroup, gender, regionSido, regionSigungu])
+  @@index([regionSido, regionSigungu, sentCount, lastSentAt])
+  @@index([regionSido, consentMarketing, sentCount, lastSentAt]) // 부스터 대상자 산정(시/도 전체 폴백 경로)
   @@map("external_customers")
+}
+
+// 전화번호 단위 유니크 고객 — customer(매장별 중복) + external_customer 를 phone으로 dedup한 통합 발송 풀.
+// 플레이스 부스터의 발송 대상/사람 단위 피로도를 여기서 관리한다. 야간 배치(unique-customer-sync)로 적재.
+model UniqueCustomer {
+  id               String               @id @default(cuid())
+  phone            String               @unique // 정규화된 휴대폰(숫자만) — 사람 식별자
+  regionSido       String               // 정규화 줄임명 (서울/경기 …)
+  regionSigungu    String               // 정규화 시군구 (수원시/강남구 — 일반구는 시로 묶음)
+  ageGroup         AgeGroup?
+  gender           Gender?
+  consentMarketing Boolean              @default(true)
+  source           UniqueCustomerSource // 출처 (양쪽이면 BOTH, 지역/연령은 external 우선)
+  sentCount        Int                  @default(0) // 부스터 발송 피로도 (사람 단위)
+  lastSentAt       DateTime?
+  syncedAt         DateTime             @default(now())
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  boosterRecipients PlaceBoosterRecipient[]
+
+  @@index([regionSido, regionSigungu, sentCount, lastSentAt])
+  @@index([regionSido, consentMarketing, sentCount, lastSentAt])
+  @@map("unique_customers")
+}
+
+enum UniqueCustomerSource {
+  EXTERNAL
+  CUSTOMER
+  BOTH
 }
 
 // 외부 고객 주간 슬롯 (1주에 최대 2회 발송 제한)
@@ -1950,4 +1988,136 @@ model ChatPost {
 
   @@index([storeId, createdAt])
   @@map("chat_post")
+}
+
+// ============================================================
+// 네이버 플레이스 부스터 (자동 마케팅 "신규 고객 타겟" 개편)
+// ============================================================
+
+enum PlaceBoosterStatus {
+  DRAFT      // 생성됨, 미결제
+  SCHEDULED  // 결제 완료, 발송 예약됨
+  RUNNING    // 일부 회차 발송 진행 중
+  COMPLETED  // 모든 회차 발송 완료
+  CANCELLED  // 취소(중지)됨
+}
+
+enum PlaceBoosterBatchStatus {
+  SCHEDULED  // 발송 예약
+  SENDING    // 발송 처리 중 (워커 클레임)
+  SENT       // 발송 완료
+  CANCELLED  // 취소됨
+}
+
+enum PlaceBoosterPaymentStatus {
+  UNPAID            // 미결제
+  PENDING_APPROVAL  // 계좌이체 승인 대기
+  PAID              // 결제/승인 완료
+}
+
+enum PlaceBoosterPaymentMethod {
+  CARD           // 카드 직접 결제 (TossPayments)
+  CREDIT         // 지갑(크레딧) 차감
+  BANK_TRANSFER  // 계좌이체 (운영자 수동 승인)
+}
+
+// 부스터 캠페인 (매장 1건)
+model PlaceBoosterCampaign {
+  id              String                     @id @default(cuid())
+  storeId         String?                    // CRM 가입 매장 (외부 캠페인이면 null)
+  campaignName    String?                    // 외부(무매장) 캠페인 표시명
+  keyword         String                     // 네이버 유입 키워드 1개
+  naverPlaceUrl   String                     // 매장이 입력한 플레이스 URL (원본)
+  placeId         String                     // URL에서 파싱한 플레이스 ID
+  trackingCode    String                     @unique // 추적 링크 코드
+  couponContent   String                     // 쿠폰 내용 (알림톡 첫 줄 "{쿠폰 내용} 쿠폰이 도착했어요")
+  couponCode      String?                    // 쿠폰 코드 (알림톡 "쿠폰 코드: {쿠폰 코드}")
+  couponAmount    String?                    // 쿠폰 금액 (알림톡 "쿠폰: {쿠폰 금액}" — 자유 텍스트)
+  couponValidUntil DateTime?                 // 쿠폰 유효기간 (알림톡 "유효기간: {유효기간}")
+  targetRegions   Json                       // { sido, sigungu, adjacent: string[] } — 발송 시 시군구→인접→시/도 순으로 채움(selectRecipients)
+  weekday         Int                        // 발송 요일 0=일~6=토 (JS getDay, KST)
+  sendTime        String                     // 발송 시각 "HH:mm" (KST)
+  perBatchCount   Int                        // 회차당 발송 인원
+  totalWeeks      Int                        // 총 회차(주차) 수
+  totalTargetCount Int                       // 총 발송 대상 수 (=perBatchCount*totalWeeks, 보통 5000)
+  paidAmount      Int                        @default(544500) // 결제액 (VAT 포함)
+  adCost          Int                        @default(495000) // ROI 분모 광고비 (VAT 제외)
+  paymentMethod   PlaceBoosterPaymentMethod?
+  paymentStatus   PlaceBoosterPaymentStatus  @default(UNPAID)
+  paymentOrderId  String?                    // 카드 결제 orderId (Toss 매핑)
+  paymentKey      String?                    // 카드 결제 paymentKey (회계)
+  status          PlaceBoosterStatus         @default(DRAFT)
+  createdByAdmin  Boolean                    @default(false) // 운영자 대행 생성 여부
+  deletedAt       DateTime?                  // 소프트 삭제 (운영자)
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  // Relations
+  batches PlaceBoosterBatch[]
+  clicks  PlaceBoosterClick[]
+
+  @@index([storeId])
+  @@index([status, paymentStatus])
+  @@index([deletedAt])
+  @@map("place_booster_campaigns")
+}
+
+// 부스터 회차 (주차) — 리포트 1줄 단위
+model PlaceBoosterBatch {
+  id             String                  @id @default(cuid())
+  campaignId     String
+  weekNo         Int                     // 1부터
+  scheduledAt    DateTime                // 발송 예정 시각 (UTC 저장)
+  status         PlaceBoosterBatchStatus @default(SCHEDULED)
+  sentCount      Int                     @default(0)
+  couponUsedCount Int?                   // 수동 입력 (쿠폰 사용 횟수)
+  avgTicket      Int?                    // 수동 입력 (평균 객단)
+  sentAt         DateTime?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  // Relations
+  campaign   PlaceBoosterCampaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  recipients PlaceBoosterRecipient[]
+
+  @@unique([campaignId, weekNo])
+  @@index([status, scheduledAt])
+  @@map("place_booster_batches")
+}
+
+// 부스터 발송 수신자 (회차별)
+model PlaceBoosterRecipient {
+  id               String   @id @default(cuid())
+  batchId          String
+  campaignId       String
+  uniqueCustomerId String
+  phone            String
+  outboxId         String?  // AlimTalkOutbox id
+  sentAt           DateTime @default(now())
+
+  // Relations
+  batch          PlaceBoosterBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  uniqueCustomer UniqueCustomer    @relation(fields: [uniqueCustomerId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, uniqueCustomerId]) // 캠페인 내 중복 발송 방지(사람=전화번호 단위)
+  @@index([batchId])
+  @@map("place_booster_recipients")
+}
+
+// 부스터 추적 링크 클릭
+model PlaceBoosterClick {
+  id         String   @id @default(cuid())
+  campaignId String
+  batchId    String?
+  weekNo     Int?
+  clickedAt  DateTime @default(now())
+  ip         String?
+  userAgent  String?  @db.Text
+
+  // Relations
+  campaign PlaceBoosterCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, weekNo])
+  @@index([campaignId, weekNo, ip, clickedAt]) // 리다이렉트 중복 클릭 판정용
+  @@map("place_booster_clicks")
 }

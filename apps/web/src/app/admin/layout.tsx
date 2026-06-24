@@ -100,6 +100,7 @@ export default function AdminLayout({
     if (pathname === '/admin/automation') return '자동 마케팅';
     if (pathname === '/admin/table-link') return '테이블 링크';
     if (pathname === '/admin/corporate-ad') return '기업광고';
+    if (pathname === '/admin/place-booster') return '네이버 플레이스 부스터';
     return 'Admin';
   };
 
@@ -113,6 +114,7 @@ export default function AdminLayout({
     { href: '/admin/banners', label: '배너 관리', icon: BannerIcon },
     { href: '/admin/store-products', label: '스토어 상품', icon: PackageIcon },
     { href: '/admin/automation', label: '자동 마케팅', icon: ZapIcon },
+    { href: '/admin/place-booster', label: '네이버 플레이스 부스터', icon: RocketIcon },
     { href: '/admin/table-link', label: '테이블 링크', icon: LinkIcon },
     { href: '/admin/customers', label: '고객 추출', icon: DownloadIcon },
     { href: '/admin/corporate-ad', label: '기업광고', icon: MegaphoneIcon },
@@ -334,6 +336,14 @@ function MegaphoneIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535m0 0A23.74 23.74 0 0018.795 3m.38 1.125a23.91 23.91 0 011.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 001.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 010 3.46" />
+    </svg>
+  );
+}
+
+function RocketIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
     </svg>
   );
 }
