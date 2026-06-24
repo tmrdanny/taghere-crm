@@ -1676,6 +1676,7 @@ router.get('/stamp-setting', async (req: FranchiseAuthRequest, res) => {
         rewards,
         alimtalkEnabled: setting.alimtalkEnabled,
         selfClaimEnabled: setting.selfClaimEnabled,
+        storeEditLocked: setting.storeEditLocked,
       },
     });
   } catch (error) {
@@ -1688,7 +1689,7 @@ router.get('/stamp-setting', async (req: FranchiseAuthRequest, res) => {
 router.put('/stamp-setting', async (req: FranchiseAuthRequest, res) => {
   try {
     const franchiseId = req.franchiseUser!.franchiseId;
-    const { rewards, alimtalkEnabled, selfClaimEnabled } = req.body;
+    const { rewards, alimtalkEnabled, selfClaimEnabled, storeEditLocked } = req.body;
 
     // rewards 유효성 검증
     if (rewards) {
@@ -1707,6 +1708,7 @@ router.put('/stamp-setting', async (req: FranchiseAuthRequest, res) => {
         rewards: rewards ? (rewards as any) : undefined,
         alimtalkEnabled: alimtalkEnabled !== undefined ? alimtalkEnabled : undefined,
         selfClaimEnabled: selfClaimEnabled !== undefined ? selfClaimEnabled : undefined,
+        storeEditLocked: storeEditLocked !== undefined ? storeEditLocked : undefined,
         ...legacyData,
       },
       create: {
@@ -1714,6 +1716,7 @@ router.put('/stamp-setting', async (req: FranchiseAuthRequest, res) => {
         rewards: rewards ? (rewards as any) : undefined,
         alimtalkEnabled: alimtalkEnabled !== undefined ? alimtalkEnabled : true,
         selfClaimEnabled: selfClaimEnabled !== undefined ? selfClaimEnabled : false,
+        storeEditLocked: storeEditLocked !== undefined ? storeEditLocked : false,
         ...legacyData,
       },
     });
@@ -1730,6 +1733,7 @@ router.put('/stamp-setting', async (req: FranchiseAuthRequest, res) => {
         rewards: resultRewards,
         alimtalkEnabled: setting.alimtalkEnabled,
         selfClaimEnabled: setting.selfClaimEnabled,
+        storeEditLocked: setting.storeEditLocked,
       },
     });
   } catch (error) {

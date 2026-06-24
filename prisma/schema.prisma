@@ -1695,6 +1695,9 @@ model FranchiseStampSetting {
   // 고객 셀프 보상 신청
   selfClaimEnabled      Boolean  @default(false)
 
+  // 본사가 가맹점(점주)의 스탬프 설정 수정을 잠금 (true면 점주 측 수정 불가, 전 매장 일괄 적용)
+  storeEditLocked       Boolean  @default(false)
+
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

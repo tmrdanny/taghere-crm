@@ -9,6 +9,22 @@ const router = Router();
 // 인증 미들웨어 적용
 router.use(authMiddleware);
 
+// 매장이 소속 프랜차이즈 본사에 의해 스탬프 설정이 잠겨 있는지 확인
+// (FranchiseStampSetting.storeEditLocked = 본사가 전 매장 일괄 잠금)
+async function isStoreStampLocked(storeId: string): Promise<boolean> {
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { franchiseId: true },
+  });
+  if (!store?.franchiseId) return false;
+
+  const franchiseSetting = await prisma.franchiseStampSetting.findUnique({
+    where: { franchiseId: store.franchiseId },
+    select: { storeEditLocked: true },
+  });
+  return franchiseSetting?.storeEditLocked ?? false;
+}
+
 // GET /api/stamp-settings - 스탬프 설정 조회
 router.get('/', async (req: AuthRequest, res) => {
   try {
@@ -34,11 +50,15 @@ router.get('/', async (req: AuthRequest, res) => {
       ? (setting.rewards as unknown as RewardEntry[])
       : buildRewardsFromLegacy(setting as any);
 
+    // 본사 잠금 여부 (점주 화면에서 읽기전용 표시용)
+    const locked = await isStoreStampLocked(storeId);
+
     res.json({
       enabled: setting.enabled,
       rewards,
       firstStampBonus: setting.firstStampBonus,
       alimtalkEnabled: setting.alimtalkEnabled,
+      locked,
       // 레거시 호환 필드 (기존 클라이언트용)
       reward5Description: setting.reward5Description,
       reward10Description: setting.reward10Description,
@@ -63,6 +83,15 @@ router.get('/', async (req: AuthRequest, res) => {
 router.put('/', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
+
+    // 본사가 스탬프 설정을 잠근 경우 점주는 수정 불가
+    if (await isStoreStampLocked(storeId)) {
+      return res.status(403).json({
+        error: '본사에서 스탬프 설정을 관리하고 있어 매장에서 수정할 수 없습니다.',
+        locked: true,
+      });
+    }
+
     const {
       enabled,
       rewards,

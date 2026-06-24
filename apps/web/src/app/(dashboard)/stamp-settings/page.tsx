@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Stamp, Gift, Plus, X, Dice5, Tablet } from 'lucide-react';
+import { Stamp, Gift, Plus, X, Dice5, Tablet, Lock } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { cn } from '@/lib/utils';
 
 interface RewardOption {
   description: string;
@@ -165,6 +166,8 @@ export default function StampSettingsPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  // 본사(프랜차이즈)에서 스탬프 설정을 잠근 경우 점주는 수정 불가
+  const [locked, setLocked] = useState(false);
 
   // Settings state
   const [enabled, setEnabled] = useState(true);
@@ -216,6 +219,7 @@ export default function StampSettingsPage() {
 
         if (res.ok) {
           const data = await res.json();
+          setLocked(data.locked ?? false);
           setEnabled(data.enabled);
           setFirstStampBonus(data.firstStampBonus && data.firstStampBonus >= 1 ? data.firstStampBonus : 1);
 
@@ -277,6 +281,11 @@ export default function StampSettingsPage() {
   };
 
   const handleSave = async () => {
+    if (locked) {
+      showToast('본사에서 스탬프 설정을 관리하고 있어 수정할 수 없습니다.', 'error');
+      return;
+    }
+
     const validationError = validateBeforeSave();
     if (validationError) {
       showToast(validationError, 'error');
@@ -327,6 +336,10 @@ export default function StampSettingsPage() {
   };
 
   const handleToggleEnabled = async (newEnabled: boolean) => {
+    if (locked) {
+      showToast('본사에서 스탬프 설정을 관리하고 있어 수정할 수 없습니다.', 'error');
+      return;
+    }
     setEnabled(newEnabled);
     try {
       const token = localStorage.getItem('token');
@@ -385,7 +398,20 @@ export default function StampSettingsPage() {
         </Button>
       </div>
 
-      <div className="space-y-6">
+      {/* 본사 잠금 안내 배너 */}
+      {locked && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <Lock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-amber-900">본사에서 관리하는 설정입니다</p>
+            <p className="text-sm text-amber-700 mt-0.5">
+              스탬프 보상 및 설정이 프랜차이즈 본사에 의해 잠겨 있어 매장에서 수정할 수 없습니다. 변경이 필요하면 본사에 문의해주세요.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className={cn('space-y-6', locked && 'opacity-60 pointer-events-none select-none')}>
         {/* 사용 안내 카드 */}
         <Card>
           <CardHeader className="pb-4">
