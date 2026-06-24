@@ -70,10 +70,12 @@ export async function syncUniqueCustomers(): Promise<{ customer: number; externa
   const customer = await prisma.$executeRawUnsafe(customerSql);
 
   // 2) external → upsert (EXTERNAL). 지역/연령을 덮어써 external 우선 반영.
+  // DISTINCT ON: 서로 다른 원본 번호가 정규화(+82→0) 후 동일해질 수 있어, 한 INSERT 내 중복 conflict 대상
+  // ("cannot affect row a second time") 방지. phone당 최신 1건만.
   const externalSql = `
     INSERT INTO unique_customers
       (id, phone, "regionSido", "regionSigungu", "ageGroup", gender, "consentMarketing", source, "syncedAt", "updatedAt")
-    SELECT
+    SELECT DISTINCT ON (${phoneNorm('e.phone')})
       gen_random_uuid()::text,
       ${phoneNorm('e.phone')},
       ${sidoCaseSql('e."regionSido"')},
@@ -88,6 +90,7 @@ export async function syncUniqueCustomers(): Promise<{ customer: number; externa
       AND e."regionSido" IS NOT NULL AND e."regionSido" <> ''
       AND e."regionSigungu" IS NOT NULL AND e."regionSigungu" <> ''
       AND ${phoneValid('e.phone')}
+    ORDER BY ${phoneNorm('e.phone')}, e."createdAt" DESC
     ON CONFLICT (phone) DO UPDATE SET
       "regionSido" = EXCLUDED."regionSido",
       "regionSigungu" = EXCLUDED."regionSigungu",
