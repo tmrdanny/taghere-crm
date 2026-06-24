@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma.js';
 import { SolapiService, sendLowBalanceAlimTalk } from './solapi.js';
 import { getRemainingCredits, useCredits } from './credit-service.js';
+import { sendAligoAlimtalk } from './aligo.js';
 
 const BATCH_SIZE = 10;
 const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
@@ -72,6 +73,12 @@ async function processMessage(messageId: string): Promise<void> {
   });
 
   if (!msg) return;
+
+  // 네이버 플레이스 부스터: 알리고(Aligo)로 발송, 지갑/크레딧 미경유 (캠페인 선결제)
+  if (msg.messageType === 'PLACE_BOOSTER') {
+    await processPlaceBoosterViaAligo(msg);
+    return;
+  }
 
   // 이미 SOLAPI에 발송된 메시지인 경우 (solapiMessageId가 있음)
   // 다시 발송하지 않고 상태만 조회
@@ -372,8 +379,55 @@ async function processMessage(messageId: string): Promise<void> {
   }
 }
 
+// 네이버 플레이스 부스터 — 알리고 발송 (지갑/크레딧/비용 미적용: 캠페인 선결제)
+async function processPlaceBoosterViaAligo(msg: {
+  id: string;
+  phone: string;
+  templateId: string;
+  variables: unknown;
+  retryCount: number;
+}): Promise<void> {
+  const vars = (msg.variables || {}) as Record<string, string>;
+  const result = await sendAligoAlimtalk({
+    phone: msg.phone,
+    tplCode: msg.templateId,
+    subject: vars.subject || '',
+    message: vars.message || '',
+    buttonName: vars.buttonName,
+    buttonUrl: vars.buttonUrl,
+  });
+
+  if (result.success) {
+    await prisma.alimTalkOutbox.update({
+      where: { id: msg.id },
+      data: {
+        status: 'SENT',
+        sentAt: new Date(),
+        solapiMessageId: result.mid ?? null, // 알리고 mid 저장(컬럼 재사용)
+        failReason: null,
+        updatedAt: new Date(),
+      },
+    });
+    console.log(`[Worker] PLACE_BOOSTER ${msg.id} sent via Aligo (mid=${result.mid ?? '-'})`);
+    return;
+  }
+
+  const currentRetry = msg.retryCount + 1;
+  const shouldRetry = currentRetry < MAX_RETRIES;
+  await prisma.alimTalkOutbox.update({
+    where: { id: msg.id },
+    data: {
+      status: shouldRetry ? 'RETRY' : 'FAILED',
+      retryCount: currentRetry,
+      failReason: result.error || result.message || 'Aligo send failed',
+      updatedAt: new Date(),
+    },
+  });
+  console.error(`[Worker] PLACE_BOOSTER ${msg.id} Aligo send failed (${currentRetry}/${MAX_RETRIES}): ${result.error || result.message}`);
+}
+
 // 배치 처리
-async function processBatch(): Promise<number> {
+export async function processBatch(): Promise<number> {
   // 1시간 이상 RETRY 상태인 메시지 자동 FAILED 처리 (무한 대기 방지)
   const staleResult = await prisma.alimTalkOutbox.updateMany({
     where: {
@@ -388,9 +442,12 @@ async function processBatch(): Promise<number> {
 
   // 5분 이상 PROCESSING 상태로 갇힌 고아 메시지를 RETRY로 되돌려 재처리
   // (워커 크래시, getMessageStatus 실패 시 else 누락 등으로 PROCESSING에 갇히는 경우 방지)
+  // PLACE_BOOSTER(알리고)는 멱등 키가 없어 재전송 시 중복 발송 위험 → 자동 RETRY 대상에서 제외
+  // (전송 후 응답 전 크래시한 행은 PROCESSING으로 남겨 at-most-once 보장; under-send < double-send)
   const stuckProcessing = await prisma.alimTalkOutbox.updateMany({
     where: {
       status: 'PROCESSING',
+      messageType: { not: 'PLACE_BOOSTER' },
       updatedAt: { lt: new Date(Date.now() - 5 * 60 * 1000) },
     },
     data: { status: 'RETRY', updatedAt: new Date() },

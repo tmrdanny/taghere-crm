@@ -37,6 +37,9 @@ import storesRoutes from './routes/stores.js';
 import adminRoutes from './routes/admin.js';
 import smsRoutes from './routes/sms.js';
 import localCustomersRoutes from './routes/local-customers.js';
+import placeBoosterRoutes from './routes/place-booster.js';
+import { prisma } from './lib/prisma.js';
+import { buildNaverMapUrl } from './utils/naver-place.js';
 import brandMessageRoutes from './routes/brand-message.js';
 import publicRoutes from './routes/public.js';
 import membershipRoutes from './routes/membership.js';
@@ -69,6 +72,8 @@ import { startExternalSmsWorker } from './services/external-sms-worker.js';
 import { startBrandMessageWorker } from './services/brand-message-worker.js';
 import { startAutomationWorker } from './services/automation-worker.js';
 import { startChatResetWorker } from './services/chat-reset-worker.js';
+import { startPlaceBoosterWorker } from './services/place-booster-worker.js';
+import { startUniqueCustomerSyncWorker } from './services/unique-customer-sync.js';
 import { initChatSocket } from './services/chat-socket.js';
 import chatSettingsRoutes from './routes/chat-settings.js';
 import publicChatRoutes from './routes/public-chat.js';
@@ -252,6 +257,7 @@ app.use('/api/stores', storesRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/sms', smsRoutes);
 app.use('/api/local-customers', localCustomersRoutes);
+app.use('/api/place-booster', placeBoosterRoutes);
 app.use('/api/brand-message', brandMessageRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/membership', membershipRoutes);
@@ -310,6 +316,67 @@ app.use('/api/franchise', franchiseRoutes);
 app.use('/auth/kakao', kakaoRoutes);
 app.use('/auth/naver', naverRoutes);
 
+// 네이버 플레이스 부스터 추적 리다이렉트 (공개·무인증, 루트 레벨 단축 링크)
+app.get('/r/:code/:weekNo', async (req, res) => {
+  try {
+    const { code } = req.params;
+    const campaign = await prisma.placeBoosterCampaign.findUnique({
+      where: { trackingCode: code },
+      select: { id: true, keyword: true, placeId: true, totalWeeks: true },
+    });
+    if (!campaign) return res.status(404).send('Not Found');
+
+    // weekNo 검증/클램프 (1..totalWeeks 범위 밖이면 null)
+    const rawWeek = parseInt(req.params.weekNo, 10);
+    const weekNo =
+      Number.isInteger(rawWeek) && rawWeek >= 1 && rawWeek <= campaign.totalWeeks ? rawWeek : null;
+
+    const userAgent = req.headers['user-agent'] || '';
+    const ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      null;
+
+    // 봇/링크 프리뷰 크롤러 제외 (실제 KakaoTalk 인앱 브라우저는 통과: 'kakaotalk-scrap'만 차단)
+    const isBot =
+      /bot|crawl|spider|slurp|facebookexternalhit|kakaotalk-scrap|slackbot|twitterbot|whatsapp|preview|scanner|monitor|fetch|curl|wget/i.test(
+        userAgent
+      );
+
+    // 범위 밖 weekNo(위조/잘못된 링크)는 집계하지 않음 — analytics.totalClicks 부풀림 방지
+    if (!isBot && weekNo !== null) {
+      // 동일 (캠페인, 주차, IP) 10분 내 중복 클릭 제외 (지표 부풀림 방지)
+      const since = new Date(Date.now() - 10 * 60 * 1000);
+      const recent = await prisma.placeBoosterClick.findFirst({
+        where: { campaignId: campaign.id, weekNo, ip, clickedAt: { gte: since } },
+        select: { id: true },
+      });
+      if (!recent) {
+        const batch = weekNo
+          ? await prisma.placeBoosterBatch.findFirst({
+              where: { campaignId: campaign.id, weekNo },
+              select: { id: true },
+            })
+          : null;
+        await prisma.placeBoosterClick.create({
+          data: {
+            campaignId: campaign.id,
+            batchId: batch?.id ?? null,
+            weekNo,
+            ip,
+            userAgent: userAgent || null,
+          },
+        });
+      }
+    }
+
+    return res.redirect(302, buildNaverMapUrl(campaign.keyword, campaign.placeId));
+  } catch (error) {
+    console.error('[place-booster redirect]', error);
+    return res.status(500).send('Error');
+  }
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Not Found' });
@@ -335,4 +402,6 @@ httpServer.listen(PORT, () => {
   startBrandMessageWorker();
   startAutomationWorker();
   startChatResetWorker();
+  startPlaceBoosterWorker();
+  startUniqueCustomerSyncWorker();
 });
