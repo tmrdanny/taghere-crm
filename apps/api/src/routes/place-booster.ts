@@ -8,6 +8,7 @@ import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import * as svc from '../services/place-booster-service.js';
 import { lookupNaverPlace } from '../services/naver-place-lookup.js';
+import { toMobileOrEmpty } from '../utils/phone.js';
 
 const router = Router();
 
@@ -44,7 +45,7 @@ router.get('/store-info', authMiddleware, async (req: AuthRequest, res: Response
       where: { id: req.user!.storeId },
       select: { phone: true, ownerName: true },
     });
-    res.json({ phone: store?.phone || '', ownerName: store?.ownerName || '' });
+    res.json({ phone: toMobileOrEmpty(store?.phone), ownerName: store?.ownerName || '' });
   } catch (error) {
     handleError(res, error, '매장 정보 조회 중 오류가 발생했습니다.');
   }

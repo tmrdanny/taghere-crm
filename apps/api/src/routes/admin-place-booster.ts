@@ -10,6 +10,7 @@ import { AdminRequest, adminAuthMiddleware, ADMIN_USERNAME } from './admin-share
 import * as svc from '../services/place-booster-service.js';
 import { lookupNaverPlace } from '../services/naver-place-lookup.js';
 import { sendAligoAlimtalk } from '../services/aligo.js';
+import { toMobileOrEmpty } from '../utils/phone.js';
 
 const router = Router();
 
@@ -117,7 +118,8 @@ router.get('/place-booster/stores', adminAuthMiddleware, async (req: AdminReques
       orderBy: { name: 'asc' },
       take: 50,
     });
-    res.json(stores);
+    // 프리필용 사장님 번호 정규화(선행 0 복원, 유효 모바일만)
+    res.json(stores.map((s) => ({ ...s, phone: toMobileOrEmpty(s.phone) })));
   } catch (error) {
     handleError(res, error, '매장 목록 조회 중 오류가 발생했습니다.');
   }

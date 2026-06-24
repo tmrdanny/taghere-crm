@@ -14,3 +14,10 @@ export function normalizePhoneNumber(phone: string): string {
   }
   return digits;
 }
+
+/** 정규화 후 유효한 모바일(010/011… 10~11자리)이면 반환, 아니면 빈 문자열. 프리필/표시용. */
+export function toMobileOrEmpty(phone?: string | null): string {
+  if (!phone) return '';
+  const n = normalizePhoneNumber(phone);
+  return (n.length === 10 || n.length === 11) && n.startsWith('01') ? n : '';
+}
