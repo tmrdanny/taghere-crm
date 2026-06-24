@@ -498,7 +498,7 @@ function CreateView({
         {/* ② 쿠폰 */}
         <Section icon={Ticket} title="쿠폰" desc="네이버 플레이스에 등록한 쿠폰을 안내해요">
           <Field label="쿠폰 내용">
-            <input className="input" value={couponContent} onChange={(e) => setCouponContent(e.target.value)} placeholder="예: 성수 곱도리탕 맛집 다주막의 10% 할인" />
+            <textarea className="input" rows={3} value={couponContent} onChange={(e) => setCouponContent(e.target.value)} placeholder="예: 성수 곱도리탕 맛집 다주막의 10% 할인" />
           </Field>
           <Field label="쿠폰 코드">
             <input className="input" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="예: 다주막 네이버 쿠폰" />
