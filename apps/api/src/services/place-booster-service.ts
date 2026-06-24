@@ -11,6 +11,7 @@ import {
   generateTrackingCode,
 } from '../utils/naver-place.js';
 import { parseStoreRegion, expandRegions, TargetRegion } from '../utils/region.js';
+import { normalizePhoneNumber } from '../utils/phone.js';
 import type { Prisma, PlaceBoosterCampaign } from '@prisma/client';
 
 /** 결제 금액 (VAT 포함) / ROI 분모 광고비 (VAT 제외) */
@@ -229,7 +230,7 @@ export async function createCampaign(
       couponCode: input.couponCode.trim(),
       couponAmount: input.couponAmount.trim(),
       couponValidUntil: parseCouponValidUntil(input.couponValidUntil),
-      ownerPhone: input.ownerPhone.trim(),
+      ownerPhone: normalizePhoneNumber(input.ownerPhone.trim()),
       targetRegions: targetRegions as unknown as Prisma.InputJsonValue,
       weekday: input.weekday,
       sendTime: input.sendTime,
@@ -515,7 +516,17 @@ export async function cancelCampaign(campaignId: string) {
   if (!campaign || campaign.deletedAt) {
     throw new BoosterError('캠페인을 찾을 수 없습니다.', 404);
   }
-  await prisma.$transaction([
+  // 이 캠페인 배치들의 미발송(PENDING/RETRY) 알림톡 outbox도 취소 → 취소 후 잔여 발송 방지
+  const batches = await prisma.placeBoosterBatch.findMany({
+    where: { campaignId },
+    select: { id: true },
+  });
+  const outboxConds = batches.flatMap((b) => [
+    { idempotencyKey: { startsWith: `place_booster:${b.id}:` } },
+    { idempotencyKey: `place_booster_owner:${b.id}` },
+  ]);
+
+  const ops: Prisma.PrismaPromise<unknown>[] = [
     prisma.placeBoosterBatch.updateMany({
       where: { campaignId, status: { in: ['SCHEDULED', 'SENDING'] } },
       data: { status: 'CANCELLED' },
@@ -524,7 +535,16 @@ export async function cancelCampaign(campaignId: string) {
       where: { id: campaignId },
       data: { status: 'CANCELLED' },
     }),
-  ]);
+  ];
+  if (outboxConds.length > 0) {
+    ops.push(
+      prisma.alimTalkOutbox.updateMany({
+        where: { messageType: 'PLACE_BOOSTER', status: { in: ['PENDING', 'RETRY'] }, OR: outboxConds },
+        data: { status: 'FAILED', failReason: '캠페인 취소로 발송 취소' },
+      })
+    );
+  }
+  await prisma.$transaction(ops);
 }
 
 /** 소프트 삭제 (운영자). 진행 중이면 먼저 중지. */
