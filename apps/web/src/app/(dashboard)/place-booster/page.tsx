@@ -746,7 +746,7 @@ function DetailView({
             {c.paymentStatus === 'PENDING_APPROVAL'
               ? '계좌이체 입금 확인 후 담당자가 승인하면 발송이 시작됩니다.'
               : '결제가 완료되어야 발송이 시작됩니다.'}
-            {c.status === 'DRAFT' && (
+            {c.status === 'DRAFT' && c.paymentStatus !== 'PENDING_APPROVAL' && (
               <Button size="sm" className="ml-auto" onClick={() => setShowPay(true)}>
                 결제하기
               </Button>

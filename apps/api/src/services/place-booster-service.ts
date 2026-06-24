@@ -236,8 +236,11 @@ export async function createCampaign(
       paidAmount: BOOSTER_PRICE,
       adCost: BOOSTER_AD_COST,
       createdByAdmin: ctx.createdByAdmin,
-      // 외부 캠페인: 온라인 결제 없이 운영자 승인으로만 활성화 → 승인 대기로 시작
-      ...(isExternal ? { paymentMethod: 'BANK_TRANSFER' as const, paymentStatus: 'PENDING_APPROVAL' as const } : {}),
+      // 운영자 대행 생성(매장/외부 공통)은 계좌이체 승인 대기로 시작 → 목록에서 '승인' 한 번으로 발송.
+      // (사장님 직접 생성은 기존대로 미결제 → 사장님이 결제)
+      ...(ctx.createdByAdmin
+        ? { paymentMethod: 'BANK_TRANSFER' as const, paymentStatus: 'PENDING_APPROVAL' as const }
+        : {}),
       batches: {
         create: schedules.map((scheduledAt, idx) => ({
           weekNo: idx + 1,
