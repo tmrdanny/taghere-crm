@@ -17,6 +17,7 @@ import { sendAligoAlimtalkBulk, formatSenddateKST, ALIGO_MAX_RECEIVERS } from '.
 
 const POLL_INTERVAL_MS = 60 * 1000; // 1분
 const STUCK_MS = 10 * 60 * 1000; // SENDING 10분 경과 시 재개
+const REGISTERING_STALE_MS = 10 * 60 * 1000; // 캠페인 등록 잠금 stale 회수(크래시 대비)
 
 /**
  * (A)/(B) 한 회차를 알리고에 예약 등록. 청크(≤500)마다 선별→전송→기록을 커밋하므로
@@ -122,33 +123,66 @@ async function registerBatch(batchId: string) {
   });
 }
 
-/** (A)(B): 활성 캠페인의 미등록(SCHEDULED) + 정체(SENDING) 회차를 등록/재개 */
+/**
+ * (A)(B): 활성 캠페인의 미등록(SCHEDULED) + 정체(SENDING) 회차를 등록/재개.
+ *
+ * 캠페인 단위 배타 잠금(registeringAt)으로 직렬화한다 — 인스턴스가 여러 개(배포 겹침/스케일아웃)여도
+ * 한 캠페인은 한 워커만 등록한다. 회차 단위 클레임만으로는 같은 캠페인의 다른 회차가 병렬 등록되어
+ * selectRecipients 가 같은 대상을 겹쳐 뽑고(커밋 전이라 제외 불가) 중복 예약/인원 미달이 발생한다.
+ */
 async function registerPendingBatches() {
   const stuckBefore = new Date(Date.now() - STUCK_MS);
-  const candidates = await prisma.placeBoosterBatch.findMany({
+
+  // 등록 대기(미등록 SCHEDULED + 정체 SENDING) 회차를 가진 캠페인 목록
+  const pending = await prisma.placeBoosterBatch.findMany({
     where: {
       OR: [{ status: 'SCHEDULED' }, { status: 'SENDING', updatedAt: { lt: stuckBefore } }],
       campaign: { deletedAt: null, paymentStatus: 'PAID', status: { in: ['SCHEDULED', 'RUNNING'] } },
     },
-    select: { id: true, status: true },
-    orderBy: [{ campaignId: 'asc' }, { weekNo: 'asc' }], // 주차 오름차순 → 주차 간 수신자 중복제외 유지
-    take: 50,
+    select: { campaignId: true },
+    distinct: ['campaignId'],
+    take: 20,
   });
 
-  for (const b of candidates) {
-    // 미등록은 SCHEDULED→SENDING 원자적 클레임(이중 처리 방지)
-    if (b.status === 'SCHEDULED') {
-      const claim = await prisma.placeBoosterBatch.updateMany({
-        where: { id: b.id, status: 'SCHEDULED' },
-        data: { status: 'SENDING' },
-      });
-      if (claim.count === 0) continue; // 다른 틱이 선점
-    }
+  const staleClaim = new Date(Date.now() - REGISTERING_STALE_MS);
+  for (const { campaignId } of pending) {
+    // 캠페인 배타 클레임 (다른 워커가 등록 중이면 건너뜀). stale 이면 회수.
+    const claim = await prisma.placeBoosterCampaign.updateMany({
+      where: { id: campaignId, OR: [{ registeringAt: null }, { registeringAt: { lt: staleClaim } }] },
+      data: { registeringAt: new Date() },
+    });
+    if (claim.count === 0) continue; // 다른 워커가 등록 중
+
     try {
-      await registerBatch(b.id);
-    } catch (error) {
-      console.error(`[PlaceBoosterWorker] batch ${b.id} 등록 실패:`, error);
-      // SENDING 잔류 → STUCK 재개 (청크 커밋 + Recipient unique 로 중복 0)
+      // 이 캠페인의 미등록/정체 회차를 weekNo 순서로 순차 등록 (주차 간 수신자 중복제외 유지)
+      const batches = await prisma.placeBoosterBatch.findMany({
+        where: {
+          campaignId,
+          OR: [{ status: 'SCHEDULED' }, { status: 'SENDING', updatedAt: { lt: stuckBefore } }],
+        },
+        orderBy: { weekNo: 'asc' },
+        select: { id: true, status: true },
+      });
+      for (const b of batches) {
+        if (b.status === 'SCHEDULED') {
+          await prisma.placeBoosterBatch.updateMany({
+            where: { id: b.id, status: 'SCHEDULED' },
+            data: { status: 'SENDING' },
+          });
+        }
+        try {
+          await registerBatch(b.id);
+        } catch (error) {
+          console.error(`[PlaceBoosterWorker] batch ${b.id} 등록 실패:`, error);
+          // SENDING 잔류 → 다음 클레임/STUCK 재개 (청크 커밋 + Recipient unique 로 중복 0)
+        }
+      }
+    } finally {
+      // 잠금 해제 (실패해도 반드시) — 미처리 잔여는 다음 틱에서 재클레임
+      await prisma.placeBoosterCampaign.updateMany({
+        where: { id: campaignId },
+        data: { registeringAt: null },
+      });
     }
   }
 }

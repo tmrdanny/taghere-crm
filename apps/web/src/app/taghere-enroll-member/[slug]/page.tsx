@@ -3,6 +3,7 @@
 import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import { trackEvent, setUserId } from '@/lib/analytics';
 
 // ============================================
 // 로컬스토리지 헬퍼 함수 (kakaoId 저장용)
@@ -863,6 +864,14 @@ function TaghereMemberEnrollContent() {
   const hasVisitSourceParam = searchParams.get('hasVisitSource') === 'true';
   const showCouponSheetParam = searchParams.get('showCouponSheet') === 'true';
 
+  // 같은 이벤트가 mount당 한 번만 발사되도록 보장 (StrictMode/effect 재실행 대비)
+  const trackedEventsRef = useRef<Set<string>>(new Set());
+  const trackOnce = (name: string, params: Record<string, unknown>) => {
+    if (trackedEventsRef.current.has(name)) return;
+    trackedEventsRef.current.add(name);
+    trackEvent(name, params);
+  };
+
   // 자동 등록 시도 함수
   const attemptAutoEarn = async (kakaoId: string, orderData: OrderInfo) => {
     setIsAutoEarning(true);
@@ -894,12 +903,15 @@ function TaghereMemberEnrollContent() {
           setShowCouponSheet(true);
         }
         setOrderInfo(null);
+        setUserId(data.customerId);
+        trackOnce('earn_success', { flow_type: 'membership', store_slug: slug, is_auto_earned: true });
       } else {
         if (data.error === 'invalid_kakao_id') {
           removeStoredKakaoId();
         } else if (data.error === 'already_earned') {
           setShowAlreadyRegistered(true);
           setOrderInfo(null);
+          trackOnce('earn_fail', { flow_type: 'membership', store_slug: slug, reason: 'already_earned' });
         }
       }
     } catch (e) {
@@ -990,12 +1002,15 @@ function TaghereMemberEnrollContent() {
         hasExistingPreferences: hasPreferences,
         hasVisitSource: hasVisitSourceParam,
       });
+      setUserId(customerId);
+      trackOnce('earn_success', { flow_type: 'membership', store_slug: slug, is_auto_earned: false });
       setIsLoading(false);
       return;
     }
 
     if (urlError === 'already_participated') {
       setShowAlreadyRegistered(true);
+      trackOnce('earn_fail', { flow_type: 'membership', store_slug: slug, reason: 'already_earned' });
       setIsLoading(false);
       return;
     } else if (urlError) {
@@ -1017,6 +1032,7 @@ function TaghereMemberEnrollContent() {
             if (data.alreadyEarned) {
               setShowAlreadyRegistered(true);
               setIsLoading(false);
+              trackOnce('earn_fail', { flow_type: 'membership', store_slug: slug, reason: 'already_earned' });
             } else {
               // 자동 등록 시도
               let shouldAutoEarn = false;
@@ -1098,6 +1114,14 @@ function TaghereMemberEnrollContent() {
 
     fetchOrderInfo();
   }, [slug, ordersheetId, urlError, successMode, customerId, successStoreName, urlKakaoId]);
+
+  // 멤버십 플로우 최초 진입(start). 카카오 로그인 복귀(successMode/urlError)는 진입으로 치지 않는다.
+  useEffect(() => {
+    if (slug && ordersheetId && !successMode && !urlError) {
+      trackOnce('earn_flow_start', { flow_type: 'membership', store_slug: slug });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
 
   const handleOpenGift = () => {
     if (!orderInfo) return;

@@ -3,6 +3,7 @@
 import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import { trackEvent, setUserId } from '@/lib/analytics';
 
 // ============================================
 // 로컬스토리지 헬퍼 함수 (kakaoId 저장용)
@@ -743,6 +744,14 @@ function TaghereEnrollStampContent() {
     }
   }, [slug]);
 
+  // 같은 이벤트가 mount당 한 번만 발사되도록 보장 (StrictMode/effect 재실행 대비)
+  const trackedEventsRef = useRef<Set<string>>(new Set());
+  const trackOnce = (name: string, params: Record<string, unknown>) => {
+    if (trackedEventsRef.current.has(name)) return;
+    trackedEventsRef.current.add(name);
+    trackEvent(name, params);
+  };
+
   // 자동 적립 시도 함수
   const attemptAutoEarn = async (kakaoId: string, storeData: StampInfo) => {
     setIsAutoEarning(true);
@@ -783,6 +792,8 @@ function TaghereEnrollStampContent() {
           franchiseName: data.franchiseName || null,
         });
         setStampInfo(null); // 기본 UI 숨김
+        setUserId(data.customerId);
+        trackOnce('earn_success', { flow_type: 'stamp', store_slug: slug, stamps: data.currentStamps, has_reward: !!data.drawnReward, is_auto_earned: true });
       } else {
         // 에러 처리
         if (data.error === 'invalid_kakao_id') {
@@ -806,6 +817,7 @@ function TaghereEnrollStampContent() {
           }
           setShowAlreadyParticipated(true);
           setStampInfo(null);
+          trackOnce('earn_fail', { flow_type: 'stamp', store_slug: slug, reason: 'already_earned' });
         }
         // 그 외 에러는 기존 흐름 유지 (수동 적립 가능)
       }
@@ -845,6 +857,8 @@ function TaghereEnrollStampContent() {
         drawnRewardTier: urlDrawnRewardTier ? parseInt(urlDrawnRewardTier) : null,
         franchiseName: urlFranchiseName,
       });
+      setUserId(customerId);
+      trackOnce('earn_success', { flow_type: 'stamp', store_slug: slug, stamps: parseInt(successStamps), has_reward: !!urlDrawnReward, is_auto_earned: false });
       setIsLoading(false);
       return;
     }
@@ -865,6 +879,7 @@ function TaghereEnrollStampContent() {
         });
       }
       setShowAlreadyParticipated(true);
+      trackOnce('earn_fail', { flow_type: 'stamp', store_slug: slug, reason: 'already_earned' });
       setIsLoading(false);
       return;
     } else if (urlError) {
@@ -926,6 +941,14 @@ function TaghereEnrollStampContent() {
 
     fetchStampInfo();
   }, [slug, ordersheetId, urlError, successStamps, customerId, successStoreName, urlKakaoId]);
+
+  // 스탬프 플로우 최초 진입(start). 카카오 로그인 복귀(successStamps/urlError)는 진입으로 치지 않는다.
+  useEffect(() => {
+    if (slug && ordersheetId && !successStamps && !urlError) {
+      trackOnce('earn_flow_start', { flow_type: 'stamp', store_slug: slug });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
 
   const handleOpenGift = () => {
     if (!stampInfo) return;
