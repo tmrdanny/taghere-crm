@@ -115,6 +115,7 @@ model Store {
   metacityMembershipType String  @default("INTEGRATED") // INTEGRATED(통합 회원) | STANDALONE(단독 회원)
 
   @@index([franchiseId])
+  @@index([createdAt]) // 어드민 매장 목록 기본 정렬(최신순) + 페이지네이션 skip/take
   @@map("stores")
 }
 
@@ -738,6 +739,7 @@ model ExternalCustomer {
   @@index([ageGroup, gender, regionSido, regionSigungu])
   @@index([regionSido, regionSigungu, sentCount, lastSentAt])
   @@index([regionSido, consentMarketing, sentCount, lastSentAt]) // 부스터 대상자 산정(시/도 전체 폴백 경로)
+  @@index([consentMarketing, createdAt]) // 어드민 홈 외부고객 통계(기간 집계)
   @@map("external_customers")
 }
 
