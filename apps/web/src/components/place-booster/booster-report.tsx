@@ -9,7 +9,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
-import { Info } from 'lucide-react';
+import { Info, ChevronDown } from 'lucide-react';
 import { fmtDate } from './booster-create-form';
 
 const won = (n: number) => (n ?? 0).toLocaleString('ko-KR');
@@ -113,8 +113,9 @@ function fmtValidUntil(v?: string | Date | null): string {
   return d.slice(0, 10).replace(/-/g, '.');
 }
 
-/** 캠페인 입력값 그대로 표시 (취소 후 재등록 시 참고용) */
+/** 캠페인 입력값 그대로 표시 (취소 후 재등록 시 참고용) — 기본 접힘, 펼치기 가능 */
 export function CampaignInputCard({ fields }: { fields: CampaignInputFields }) {
+  const [open, setOpen] = useState(false);
   const rows: { label: string; value: ReactNode }[] = [
     { label: '유입 키워드', value: fields.keyword || '-' },
     {
@@ -135,15 +136,25 @@ export function CampaignInputCard({ fields }: { fields: CampaignInputFields }) {
   ];
   return (
     <Card className="p-5 mb-4">
-      <div className="text-[15px] font-semibold text-neutral-800 mb-3">캠페인 입력 정보</div>
-      <dl className="space-y-2.5">
-        {rows.map((r) => (
-          <div key={r.label} className="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-3">
-            <dt className="text-sm text-neutral-500 sm:w-28 shrink-0">{r.label}</dt>
-            <dd className="text-[15px] text-neutral-800 break-words min-w-0 whitespace-pre-line">{r.value}</dd>
-          </div>
-        ))}
-      </dl>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between text-left"
+        aria-expanded={open}
+      >
+        <span className="text-[15px] font-semibold text-neutral-800">캠페인 입력 정보</span>
+        <ChevronDown className={`w-5 h-5 text-neutral-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <dl className="space-y-2.5 mt-3">
+          {rows.map((r) => (
+            <div key={r.label} className="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-3">
+              <dt className="text-sm text-neutral-500 sm:w-28 shrink-0">{r.label}</dt>
+              <dd className="text-[15px] text-neutral-800 break-words min-w-0 whitespace-pre-line">{r.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </Card>
   );
 }
