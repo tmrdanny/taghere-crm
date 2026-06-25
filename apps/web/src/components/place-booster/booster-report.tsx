@@ -7,7 +7,7 @@
  * 회차 결과(쿠폰사용/평균객단/매출)는 인라인 편집·저장. 저장 엔드포인트는 apiPrefix로 분기.
  */
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { Info } from 'lucide-react';
 import { fmtDate } from './booster-create-form';
@@ -94,6 +94,57 @@ export function BoosterReport({ totals, rows, fetcher, apiPrefix, reload, showAd
         ))}
       </div>
     </>
+  );
+}
+
+export interface CampaignInputFields {
+  keyword: string;
+  naverPlaceUrl?: string | null;
+  couponContent: string;
+  couponCode?: string | null;
+  couponAmount?: string | null;
+  couponValidUntil?: string | Date | null;
+  ownerPhone?: string | null;
+}
+
+function fmtValidUntil(v?: string | Date | null): string {
+  if (!v) return '-';
+  const d = typeof v === 'string' ? v : v.toISOString();
+  return d.slice(0, 10).replace(/-/g, '.');
+}
+
+/** 캠페인 입력값 그대로 표시 (취소 후 재등록 시 참고용) */
+export function CampaignInputCard({ fields }: { fields: CampaignInputFields }) {
+  const rows: { label: string; value: ReactNode }[] = [
+    { label: '유입 키워드', value: fields.keyword || '-' },
+    {
+      label: '플레이스 URL',
+      value: fields.naverPlaceUrl ? (
+        <a href={fields.naverPlaceUrl} target="_blank" rel="noopener noreferrer" className="text-brand-800 underline break-all">
+          {fields.naverPlaceUrl}
+        </a>
+      ) : (
+        '-'
+      ),
+    },
+    { label: '쿠폰 내용', value: fields.couponContent || '-' },
+    { label: '쿠폰 코드', value: fields.couponCode || '-' },
+    { label: '쿠폰 금액', value: fields.couponAmount || '-' },
+    { label: '유효기간', value: fmtValidUntil(fields.couponValidUntil) },
+    ...(fields.ownerPhone ? [{ label: '사장님 번호', value: fields.ownerPhone }] : []),
+  ];
+  return (
+    <Card className="p-5 mb-4">
+      <div className="text-[15px] font-semibold text-neutral-800 mb-3">캠페인 입력 정보</div>
+      <dl className="space-y-2.5">
+        {rows.map((r) => (
+          <div key={r.label} className="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-3">
+            <dt className="text-sm text-neutral-500 sm:w-28 shrink-0">{r.label}</dt>
+            <dd className="text-[15px] text-neutral-800 break-words min-w-0 whitespace-pre-line">{r.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </Card>
   );
 }
 

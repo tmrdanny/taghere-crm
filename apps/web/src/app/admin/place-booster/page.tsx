@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { BoosterCreateForm, BoosterTargetResult } from '@/components/place-booster/booster-create-form';
-import { BoosterReport, ReportRow, ReportTotals } from '@/components/place-booster/booster-report';
+import { BoosterReport, CampaignInputCard, ReportRow, ReportTotals } from '@/components/place-booster/booster-report';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
@@ -219,7 +219,12 @@ function Stat({ label, value, highlight }: { label: string; value: string; highl
 }
 
 interface AdminReportData {
-  campaign: { keyword: string; couponContent: string; campaignName: string | null; status: string; perBatchCount: number; totalWeeks: number; totalTargetCount: number };
+  campaign: {
+    keyword: string; couponContent: string; campaignName: string | null; status: string;
+    perBatchCount: number; totalWeeks: number; totalTargetCount: number;
+    naverPlaceUrl: string; couponCode: string | null; couponAmount: string | null;
+    couponValidUntil: string | null; ownerPhone: string | null;
+  };
   store: { name: string; ownerName: string | null } | null;
   isExternal: boolean;
   totals: ReportTotals;
@@ -342,6 +347,19 @@ function AdminReportView({ id, af, onBack, onChanged }: { id: string; af: (p: st
                 </span>
               </div>
             </Card>
+
+            {/* 캠페인 입력 정보 (취소 후 재등록 참고용) */}
+            <CampaignInputCard
+              fields={{
+                keyword: data.campaign.keyword,
+                naverPlaceUrl: data.campaign.naverPlaceUrl,
+                couponContent: data.campaign.couponContent,
+                couponCode: data.campaign.couponCode,
+                couponAmount: data.campaign.couponAmount,
+                couponValidUntil: data.campaign.couponValidUntil,
+                ownerPhone: data.campaign.ownerPhone,
+              }}
+            />
 
             <BoosterReport
               totals={data.totals}
