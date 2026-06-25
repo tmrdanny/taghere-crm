@@ -235,12 +235,14 @@ function SuccessPopup({
   visitSourceOptions,
   visitSourceEnabled,
   surveyQuestions,
+  storeSlug,
 }: {
   successData: SuccessData;
   onClose: () => void;
   visitSourceOptions: VisitSourceOption[];
   visitSourceEnabled: boolean;
   surveyQuestions: SurveyQuestion[];
+  storeSlug: string;
 }) {
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackText, setFeedbackText] = useState('');
@@ -341,6 +343,7 @@ function SuccessPopup({
           return option ? option.mappedCategories : [];
         });
 
+      trackEvent('feedback_submit', { flow_type: 'stamp', store_slug: storeSlug, rating: feedbackRating, has_text: feedbackText.trim().length > 0 });
       // 피드백 저장
       await fetch(`${apiUrl}/api/customers/feedback`, {
         method: 'POST',
@@ -971,6 +974,7 @@ function TaghereEnrollStampContent() {
       const state = btoa(JSON.stringify(stateData));
 
       // 카카오 SDK가 초기화되어 있으면 SDK 사용 (모바일에서 카카오톡 앱으로 로그인)
+      trackEvent('kakao_auth_start', { flow_type: 'stamp', store_slug: slug });
       if (typeof window !== 'undefined' && window.Kakao && window.Kakao.isInitialized()) {
         window.Kakao.Auth.authorize({
           redirectUri,
@@ -1077,6 +1081,7 @@ function TaghereEnrollStampContent() {
           visitSourceOptions={visitSourceOptions}
           visitSourceEnabled={visitSourceEnabled}
           surveyQuestions={surveyQuestions}
+          storeSlug={slug}
         />
       ) : (
         // 스탬프 적립 전 → 기본 화면만 표시
@@ -1118,6 +1123,7 @@ function TaghereEnrollStampContent() {
             {/* Stamp Image - 중앙 영역 (flex: 2) */}
             <div className="flex-[2] flex items-center justify-center">
               <StampImage onClick={() => {
+                trackEvent('earn_cta_click', { flow_type: 'stamp', store_slug: slug, agreed: isAgreed });
                 if (!isAgreed) {
                   setShowAgreementWarning(true);
                   return;

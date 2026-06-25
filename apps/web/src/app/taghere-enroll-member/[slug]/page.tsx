@@ -186,7 +186,7 @@ function CouponBottomSheet({
       .catch(() => {});
   }, [customerId, apiUrl]);
 
-  const sendCoupons = async (couponIds: string[]) => {
+  const sendCoupons = async (couponIds: string[], method: 'single' | 'all') => {
     if (couponIds.length === 0) return;
     const res = await fetch(`${apiUrl}/api/membership/coupons/send`, {
       method: 'POST',
@@ -198,6 +198,7 @@ function CouponBottomSheet({
       const newDownloaded = new Set(downloadedIds);
       [...(data.sent || []), ...(data.skipped || [])].forEach((id: string) => newDownloaded.add(id));
       setDownloadedIds(newDownloaded);
+      trackEvent('coupon_download', { method, count: couponIds.length });
     }
   };
 
@@ -205,7 +206,7 @@ function CouponBottomSheet({
     if (downloadedIds.has(couponId) || loadingIds.has(couponId)) return;
     setLoadingIds((s) => new Set(s).add(couponId));
     try {
-      await sendCoupons([couponId]);
+      await sendCoupons([couponId], 'single');
     } finally {
       setLoadingIds((s) => {
         const next = new Set(s);
@@ -223,7 +224,7 @@ function CouponBottomSheet({
     }
     setIsBatchSending(true);
     try {
-      await sendCoupons(remaining);
+      await sendCoupons(remaining, 'all');
     } finally {
       setIsBatchSending(false);
     }
@@ -363,12 +364,14 @@ function SuccessPopup({
   visitSourceOptions,
   visitSourceEnabled,
   surveyQuestions,
+  storeSlug,
 }: {
   successData: SuccessData;
   onClose: () => void;
   visitSourceOptions: VisitSourceOption[];
   visitSourceEnabled: boolean;
   surveyQuestions: SurveyQuestion[];
+  storeSlug: string;
 }) {
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackText, setFeedbackText] = useState('');
@@ -501,6 +504,7 @@ function SuccessPopup({
           return option ? option.mappedCategories : [];
         });
 
+      trackEvent('feedback_submit', { flow_type: 'membership', store_slug: storeSlug, rating: feedbackRating, has_text: feedbackText.trim().length > 0 });
       await fetch(`${apiUrl}/api/customers/feedback`, {
         method: 'POST',
         headers: {
@@ -1143,6 +1147,7 @@ function TaghereMemberEnrollContent() {
       };
       const state = btoa(JSON.stringify(stateData));
 
+      trackEvent('kakao_auth_start', { flow_type: 'membership', store_slug: slug });
       if (typeof window !== 'undefined' && window.Kakao && window.Kakao.isInitialized()) {
         window.Kakao.Auth.authorize({
           redirectUri,
@@ -1266,6 +1271,7 @@ function TaghereMemberEnrollContent() {
           visitSourceOptions={visitSourceOptions}
           visitSourceEnabled={visitSourceEnabled}
           surveyQuestions={surveyQuestions}
+          storeSlug={slug}
         />
       ) : (
         <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
@@ -1300,6 +1306,7 @@ function TaghereMemberEnrollContent() {
               <div
                 className={`taghere-brands-wrapper h-full flex items-center justify-center ${isOpening ? 'opening' : ''}`}
                 onClick={() => {
+                  trackEvent('earn_cta_click', { flow_type: 'membership', store_slug: slug, agreed: isAgreed });
                   if (!isAgreed) {
                     setShowAgreementWarning(true);
                     return;

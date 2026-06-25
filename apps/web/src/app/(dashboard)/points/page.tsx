@@ -2,6 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -350,6 +351,7 @@ export default function PointsPage() {
 
       const data = await res.json();
 
+      trackEvent('owner_points_earn', { amount: points, source: 'points' });
       // Success - close confirm modal and show success modal
       setShowConfirmModal(false);
       setSuccessData({

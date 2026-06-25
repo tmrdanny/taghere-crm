@@ -3,6 +3,7 @@
 import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { trackEvent } from '@/lib/analytics';
 import type { Metadata, Viewport } from 'next';
 
 export const viewport: Viewport = {
@@ -86,6 +87,7 @@ function TableLinkContent() {
       const res = await fetch(`${apiUrl}/api/taghere/table-link/${slug}/redirect/${tableNumber}`);
       if (res.ok) {
         const data = await res.json();
+        trackEvent('table_link_confirm', { store_slug: slug, table_number: tableNumber });
         window.location.href = data.url;
       } else {
         const errorData = await res.json().catch(() => ({}));
