@@ -15,7 +15,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { BoosterCreateForm } from '@/components/place-booster/booster-create-form';
-import { BoosterReport } from '@/components/place-booster/booster-report';
+import { BoosterReport, CampaignInputCard } from '@/components/place-booster/booster-report';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -58,6 +58,11 @@ interface ReportRow {
 interface Report {
   campaign: Campaign & {
     couponContent: string;
+    couponCode: string | null;
+    couponAmount: string | null;
+    couponValidUntil: string | null;
+    naverPlaceUrl: string;
+    ownerPhone: string | null;
     sendTime: string;
     weekday: number;
   };
@@ -373,6 +378,19 @@ function DetailView({
         )}
 
       </Card>
+
+      {/* 캠페인 입력 정보 (취소 후 재등록 참고용) */}
+      <CampaignInputCard
+        fields={{
+          keyword: c.keyword,
+          naverPlaceUrl: c.naverPlaceUrl,
+          couponContent: c.couponContent,
+          couponCode: c.couponCode,
+          couponAmount: c.couponAmount,
+          couponValidUntil: c.couponValidUntil,
+          ownerPhone: c.ownerPhone,
+        }}
+      />
 
       {/* 테스트 발송 */}
       <Card className="p-5 mb-4">

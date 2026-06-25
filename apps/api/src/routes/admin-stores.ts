@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma.js';
+import { Prisma } from '@prisma/client';
 import { parseKoreanAddress } from '../utils/address-parser.js';
 import { generateSlug, getUniqueSlug } from './auth.js';
 import {
@@ -17,85 +18,87 @@ const router = Router();
 // GET /api/admin/stores - 모든 매장 목록 조회
 router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    // 현재 연월 계산
+    // 서버 페이지네이션 + 전 매장 검색/필터 (page/pageSize/search/category/sort)
+    const page = Math.max(1, parseInt((req.query.page as string) || '1', 10) || 1);
+    // pageSize 상한을 크게 둠 — 엑셀 내보내기는 큰 pageSize로 전체 매칭을 받는다
+    const pageSize = Math.min(Math.max(1, parseInt((req.query.pageSize as string) || '30', 10) || 30), 100000);
+    const search = ((req.query.search as string) || '').trim();
+    const category = ((req.query.category as string) || '').trim();
+    const sort = (req.query.sort as string) || 'createdAt';
+
+    const where: Prisma.StoreWhereInput = {};
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { ownerName: { contains: search, mode: 'insensitive' } },
+        { businessRegNumber: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    if (category) where.category = category as Prisma.StoreWhereInput['category'];
+
+    const orderBy: Prisma.StoreOrderByWithRelationInput =
+      sort === 'name' ? { name: 'asc' } : { createdAt: 'desc' };
+
     const now = new Date();
     const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    const stores = await prisma.store.findMany({
-      select: {
-        id: true,
-        name: true,
-        category: true,
-        slug: true,
-        ownerName: true,
-        phone: true,
-        businessRegNumber: true,
-        address: true,
-        createdAt: true,
-        // Point settings
-        pointRatePercent: true,
-        pointUsageRule: true,
-        pointsAlimtalkEnabled: true,
-        crmEnabled: true,
-        enrollmentMode: true,
-        taghereVersion: true,
-        metacityEnabled: true,
-        metacityBrandCode: true,
-        metacityStoreIdx: true,
-        metacityAccessCode: true,
-        metacityMembershipType: true,
-        staffUsers: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-          },
-          where: {
-            role: 'OWNER',
-          },
-          take: 1,
+    // 총 개수 + 현재 페이지(스칼라+wallet만, 매장당 서브쿼리 없음)
+    const [total, stores] = await Promise.all([
+      prisma.store.count({ where }),
+      prisma.store.findMany({
+        where,
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          slug: true,
+          ownerName: true,
+          phone: true,
+          businessRegNumber: true,
+          address: true,
+          createdAt: true,
+          pointRatePercent: true,
+          pointUsageRule: true,
+          pointsAlimtalkEnabled: true,
+          crmEnabled: true,
+          enrollmentMode: true,
+          taghereVersion: true,
+          metacityEnabled: true,
+          metacityBrandCode: true,
+          metacityStoreIdx: true,
+          metacityAccessCode: true,
+          metacityMembershipType: true,
+          wallet: { select: { balance: true } },
         },
-        _count: {
-          select: {
-            customers: true,
-          },
-        },
-        // Wallet 정보 함께 조회 (N+1 문제 해결)
-        wallet: {
-          select: {
-            balance: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+      }),
+    ]);
 
-    // 모든 매장의 이번 달 크레딧 한 번에 조회 (N+1 방지)
-    const monthlyCredits = await prisma.monthlyCredit.findMany({
-      where: {
-        storeId: { in: stores.map((s) => s.id) },
-        yearMonth: currentYearMonth,
-      },
-      select: {
-        storeId: true,
-        totalCredits: true,
-        usedCredits: true,
-      },
-    });
-
-    // storeId -> credit 맵 생성
+    // 페이지의 storeId들만 배치 보강 (상관 서브쿼리 1,022회 → 묶음 쿼리)
+    const ids = stores.map((s) => s.id);
+    const [owners, counts, monthlyCredits] = await Promise.all([
+      prisma.staffUser.findMany({
+        where: { storeId: { in: ids }, role: 'OWNER' },
+        select: { id: true, email: true, storeId: true },
+      }),
+      prisma.customer.groupBy({ by: ['storeId'], where: { storeId: { in: ids } }, _count: { _all: true } }),
+      prisma.monthlyCredit.findMany({
+        where: { storeId: { in: ids }, yearMonth: currentYearMonth },
+        select: { storeId: true, totalCredits: true, usedCredits: true },
+      }),
+    ]);
+    const ownerMap = new Map(owners.map((o) => [o.storeId, o]));
+    const countMap = new Map(counts.map((c) => [c.storeId, c._count._all]));
     const creditMap = new Map(monthlyCredits.map((c) => [c.storeId, c]));
 
-    // 데이터 포맷팅
     const formattedStores = stores.map((store) => {
       const credit = creditMap.get(store.id);
       const totalCredits = credit?.totalCredits ?? 30;
       const usedCredits = credit?.usedCredits ?? 0;
-      const remainingCredits = Math.max(0, totalCredits - usedCredits);
-
+      const owner = ownerMap.get(store.id);
       return {
         id: store.id,
         name: store.name,
@@ -106,9 +109,9 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         businessRegNumber: store.businessRegNumber,
         address: store.address,
         createdAt: store.createdAt,
-        ownerEmail: store.staffUsers[0]?.email || null,
-        ownerId: store.staffUsers[0]?.id || null,
-        customerCount: store._count.customers,
+        ownerEmail: owner?.email || null,
+        ownerId: owner?.id || null,
+        customerCount: countMap.get(store.id) ?? 0,
         // Point settings
         pointRatePercent: store.pointRatePercent,
         pointUsageRule: store.pointUsageRule,
@@ -122,20 +125,32 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         metacityStoreIdx: (store as any).metacityStoreIdx ?? null,
         metacityAccessCode: (store as any).metacityAccessCode ?? null,
         metacityMembershipType: (store as any).metacityMembershipType ?? 'INTEGRATED',
-        // Wallet balance 포함
         walletBalance: store.wallet?.balance || 0,
-        // 월별 무료 크레딧 정보
         monthlyCredit: {
           total: totalCredits,
           used: usedCredits,
-          remaining: remainingCredits,
+          remaining: Math.max(0, totalCredits - usedCredits),
         },
       };
     });
 
-    res.json(formattedStores);
+    res.json({ stores: formattedStores, total, page, pageSize });
   } catch (error) {
     console.error('Admin stores error:', error);
+    res.status(500).json({ error: '매장 목록 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/admin/stores/options - 경량 매장 피커(전체, 보강 없음 — 빠름)
+router.get('/stores/options', adminAuthMiddleware, async (_req: AdminRequest, res: Response) => {
+  try {
+    const stores = await prisma.store.findMany({
+      select: { id: true, name: true, slug: true, ownerName: true },
+      orderBy: { name: 'asc' },
+    });
+    res.json(stores);
+  } catch (error) {
+    console.error('Admin store options error:', error);
     res.status(500).json({ error: '매장 목록 조회 중 오류가 발생했습니다.' });
   }
 });

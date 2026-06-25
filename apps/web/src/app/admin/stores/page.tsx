@@ -76,6 +76,7 @@ export default function AdminStoresPage() {
   const [resettingStoreId, setResettingStoreId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'customers' | 'balance' | 'name'>('newest');
+  const [currentPage, setCurrentPage] = useState(1);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [topupModal, setTopupModal] = useState<TopupModalData | null>(null);
   const [topupAmount, setTopupAmount] = useState('');
@@ -116,6 +117,11 @@ export default function AdminStoresPage() {
     fetchData();
   }, []);
 
+  // 검색/정렬 변경 시 첫 페이지로 (렌더 페이지네이션)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortBy]);
+
   useEffect(() => {
     if (toast) {
       const timer = setTimeout(() => setToast(null), 3000);
@@ -143,11 +149,12 @@ export default function AdminStoresPage() {
 
     try {
       // 캐시된 목록을 즉시 표시하고 백그라운드에서 최신 데이터로 갱신
+      // (대량 알림톡 미리보기/검색이 전 매장에 의존하므로 전체를 받고, 렌더만 페이지네이션)
       await fetchJsonCached(
-        `${API_BASE}/api/admin/stores`,
+        `${API_BASE}/api/admin/stores?pageSize=100000`,
         token,
         (storesData: any) => {
-          setStores(storesData);
+          setStores(storesData?.stores || storesData || []);
           setIsLoading(false);
         }
       );
@@ -496,6 +503,11 @@ export default function AdminStoresPage() {
       }
     });
 
+  // 렌더 페이지네이션 — 전체를 받아 검색/정렬은 전 매장 대상, DOM은 한 페이지만 마운트(1,022 카드 방지)
+  const STORES_PER_PAGE = 24;
+  const totalPages = Math.max(1, Math.ceil(filteredStores.length / STORES_PER_PAGE));
+  const pageStores = filteredStores.slice((currentPage - 1) * STORES_PER_PAGE, currentPage * STORES_PER_PAGE);
+
   // 발송잔액 부족 대상 매장 (300원 미만, 전화번호 있음)
   const lowBalanceStores = stores.filter(
     (s) => (s.walletBalance ?? 0) < 300 && s.phone
@@ -767,7 +779,7 @@ export default function AdminStoresPage() {
 
       {/* Store Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3 sm:gap-4">
-        {filteredStores.map((store) => (
+        {pageStores.map((store) => (
           <div
             key={store.id}
             onClick={() => openStoreDetail(store)}
@@ -838,6 +850,29 @@ export default function AdminStoresPage() {
           </div>
         )}
       </div>
+
+      {/* 페이지네이션 (렌더) */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-4 text-sm">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1.5 border border-[#EAEAEA] rounded-lg text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            이전
+          </button>
+          <span className="text-neutral-700 min-w-[110px] text-center">
+            {currentPage} / {totalPages} · 총 {filteredStores.length.toLocaleString()}개
+          </span>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1.5 border border-[#EAEAEA] rounded-lg text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            다음
+          </button>
+        </div>
+      )}
 
       {/* Store Detail Modal */}
       {selectedStore && (

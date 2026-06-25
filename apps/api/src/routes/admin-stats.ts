@@ -418,52 +418,24 @@ router.get('/external-customer-stats', adminAuthMiddleware, async (req: AdminReq
       where: { consentMarketing: true },
     });
 
-    // 기간 내 ExternalCustomer 조회
-    const customers = await prisma.externalCustomer.findMany({
-      where: {
-        createdAt: { gte: startDate },
-        consentMarketing: true,
-      },
-      select: {
-        createdAt: true,
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
-
-    // 날짜별/주별/월별 그룹핑
-    const groupedData: Record<string, number> = {};
-
-    customers.forEach((customer) => {
-      const date = new Date(customer.createdAt);
-      let key: string;
-
-      if (period === 'weekly') {
-        // 주 시작일 (월요일) 기준
-        const weekStart = new Date(date);
-        const day = weekStart.getDay();
-        const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
-        weekStart.setDate(diff);
-        key = weekStart.toISOString().split('T')[0];
-      } else if (period === 'monthly') {
-        // 월별 (YYYY-MM)
-        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      } else {
-        // 일별 (YYYY-MM-DD)
-        key = date.toISOString().split('T')[0];
-      }
-
-      groupedData[key] = (groupedData[key] || 0) + 1;
-    });
-
-    // 데이터 배열로 변환 및 정렬
-    const data = Object.entries(groupedData)
-      .map(([date, count]) => ({ date, count }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+    // 기간 내 집계 — DB 레벨 그룹핑(전체 행 메모리 로드 제거). period는 화이트리스트라 인젝션 없음.
+    const bucketExpr =
+      period === 'weekly'
+        ? `to_char(date_trunc('week', "createdAt"), 'YYYY-MM-DD')`
+        : period === 'monthly'
+          ? `to_char("createdAt", 'YYYY-MM')`
+          : `to_char("createdAt", 'YYYY-MM-DD')`;
+    const grouped = await prisma.$queryRawUnsafe<{ date: string; count: number }[]>(
+      `SELECT ${bucketExpr} AS date, COUNT(*)::int AS count
+       FROM external_customers
+       WHERE "createdAt" >= $1 AND "consentMarketing" = true
+       GROUP BY 1 ORDER BY 1`,
+      startDate
+    );
+    const data = grouped.map((r) => ({ date: r.date, count: Number(r.count) }));
 
     // 기간 내 총 수집 수
-    const periodTotal = customers.length;
+    const periodTotal = data.reduce((s, r) => s + r.count, 0);
 
     // 일평균 계산
     const daysDiff = Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -559,31 +531,24 @@ router.get('/automation-stores', adminAuthMiddleware, async (req: AdminRequest, 
 
     const storeIds = stores.map(s => s.id);
 
-    // 이번 달 로그를 매장별로 집계
-    const logStats = await prisma.automationLog.groupBy({
-      by: ['storeId'],
-      where: {
-        storeId: { in: storeIds },
-        sentAt: { gte: startOfMonth },
-      },
-      _count: { _all: true },
-    });
-
-    const couponStats = await prisma.automationLog.groupBy({
-      by: ['storeId'],
-      where: {
-        storeId: { in: storeIds },
-        sentAt: { gte: startOfMonth },
-        couponUsed: true,
-      },
-      _count: { _all: true },
-    });
-
-    const lastSentMap = await prisma.automationLog.groupBy({
-      by: ['storeId'],
-      where: { storeId: { in: storeIds } },
-      _max: { sentAt: true },
-    });
+    // 이번 달 로그를 매장별로 집계 (3종 groupBy 병렬)
+    const [logStats, couponStats, lastSentMap] = await Promise.all([
+      prisma.automationLog.groupBy({
+        by: ['storeId'],
+        where: { storeId: { in: storeIds }, sentAt: { gte: startOfMonth } },
+        _count: { _all: true },
+      }),
+      prisma.automationLog.groupBy({
+        by: ['storeId'],
+        where: { storeId: { in: storeIds }, sentAt: { gte: startOfMonth }, couponUsed: true },
+        _count: { _all: true },
+      }),
+      prisma.automationLog.groupBy({
+        by: ['storeId'],
+        where: { storeId: { in: storeIds } },
+        _max: { sentAt: true },
+      }),
+    ]);
 
     const logMap: Record<string, number> = {};
     logStats.forEach(l => { logMap[l.storeId] = l._count._all; });

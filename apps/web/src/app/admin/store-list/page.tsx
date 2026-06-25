@@ -1,7 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { formatNumber } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 
@@ -108,8 +108,11 @@ const ITEMS_PER_PAGE = 20;
 
 export default function StoreListPage() {
   const [stores, setStores] = useState<Store[]>([]);
+  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [firstLoad, setFirstLoad] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -121,58 +124,52 @@ export default function StoreListPage() {
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
   const [bulkEnrollmentMode, setBulkEnrollmentMode] = useState<'POINTS' | 'STAMP' | 'MEMBERSHIP'>('POINTS');
 
+  // 검색 디바운스(300ms) → 첫 페이지로
   useEffect(() => {
-    fetchStores();
-  }, []);
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
-  const fetchStores = async () => {
+  // 서버 페이지네이션 fetch (page/search/category → 서버에서 전 매장 검색·정렬·슬라이스)
+  const buildStoresQuery = useCallback(
+    (pageSize: number) => {
+      const params = new URLSearchParams({ page: String(currentPage), pageSize: String(pageSize) });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (categoryFilter) params.set('category', categoryFilter);
+      return params;
+    },
+    [currentPage, debouncedSearch, categoryFilter]
+  );
+
+  const fetchStores = useCallback(async () => {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
-
+    setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/stores`, {
+      const res = await fetch(`${API_BASE}/api/admin/stores?${buildStoresQuery(ITEMS_PER_PAGE)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       if (res.ok) {
         const data = await res.json();
-        setStores(data);
+        setStores(data.stores || []);
+        setTotal(data.total || 0);
       }
     } catch (error) {
       console.error('Failed to fetch stores:', error);
     } finally {
       setIsLoading(false);
+      setFirstLoad(false);
     }
-  };
+  }, [buildStoresQuery]);
 
-  // 필터링된 매장 목록
-  const filteredStores = useMemo(() => {
-    return stores.filter((store) => {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch =
-        !searchQuery ||
-        store.name.toLowerCase().includes(query) ||
-        store.ownerName?.toLowerCase().includes(query) ||
-        store.businessRegNumber?.includes(query) ||
-        store.phone?.includes(query);
-
-      const matchesCategory = !categoryFilter || store.category === categoryFilter;
-
-      return matchesSearch && matchesCategory;
-    });
-  }, [stores, searchQuery, categoryFilter]);
-
-  // 페이지네이션
-  const totalPages = Math.ceil(filteredStores.length / ITEMS_PER_PAGE);
-  const paginatedStores = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredStores.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredStores, currentPage]);
-
-  // 검색/필터 변경 시 첫 페이지로
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, categoryFilter]);
+    fetchStores();
+  }, [fetchStores]);
+
+  const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
 
   // 대량등록 샘플 엑셀 다운로드
   const handleDownloadBulkSample = () => {
@@ -271,9 +268,20 @@ export default function StoreListPage() {
     }
   };
 
-  // Excel 다운로드
-  const handleDownloadExcel = () => {
-    const excelData = filteredStores.map((store) => ({
+  // Excel 다운로드 — 현재 검색/필터에 해당하는 전체를 서버에서 받아 생성
+  const handleDownloadExcel = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    const params = new URLSearchParams({ page: '1', pageSize: '100000' });
+    if (debouncedSearch) params.set('search', debouncedSearch);
+    if (categoryFilter) params.set('category', categoryFilter);
+    const res = await fetch(`${API_BASE}/api/admin/stores?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const allStores: Store[] = data.stores || [];
+    const excelData = allStores.map((store) => ({
       '상호명': store.name,
       '대표자명': store.ownerName || '-',
       '연락처': store.phone || '-',
@@ -296,7 +304,7 @@ export default function StoreListPage() {
     XLSX.writeFile(workbook, fileName);
   };
 
-  if (isLoading) {
+  if (firstLoad) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-6 h-6 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
@@ -312,8 +320,7 @@ export default function StoreListPage() {
           <div>
             <h2 className="text-[16px] font-semibold text-neutral-900">매장 목록</h2>
             <p className="text-[13px] text-neutral-500 mt-0.5">
-              총 {filteredStores.length}개 매장
-              {searchQuery || categoryFilter ? ` (전체 ${stores.length}개)` : ''}
+              {searchQuery || categoryFilter ? '검색 결과 ' : '총 '}{total.toLocaleString()}개 매장
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -326,7 +333,7 @@ export default function StoreListPage() {
             </button>
             <button
               onClick={handleDownloadExcel}
-              disabled={filteredStores.length === 0}
+              disabled={total === 0}
               className="h-10 px-4 bg-green-600 hover:bg-green-700 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <DownloadIcon className="w-4 h-4" />
@@ -349,7 +356,7 @@ export default function StoreListPage() {
           </div>
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
             className="h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
           >
             {CATEGORY_OPTIONS.map((option) => (
@@ -406,14 +413,14 @@ export default function StoreListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#EAEAEA]">
-              {paginatedStores.length === 0 ? (
+              {stores.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="px-4 py-12 text-center text-neutral-500 text-[14px]">
                     {searchQuery || categoryFilter ? '검색 결과가 없습니다.' : '등록된 매장이 없습니다.'}
                   </td>
                 </tr>
               ) : (
-                paginatedStores.map((store) => (
+                stores.map((store) => (
                   <tr key={store.id} className="hover:bg-neutral-50 transition-colors">
                     <td className="px-4 py-3 text-[13px] font-medium text-neutral-900">
                       {store.name}
@@ -471,7 +478,7 @@ export default function StoreListPage() {
           <div className="flex items-center justify-between px-4 py-3 border-t border-[#EAEAEA] bg-neutral-50">
             <p className="text-[13px] text-neutral-500">
               {(currentPage - 1) * ITEMS_PER_PAGE + 1}-
-              {Math.min(currentPage * ITEMS_PER_PAGE, filteredStores.length)} / {filteredStores.length}개
+              {Math.min(currentPage * ITEMS_PER_PAGE, total)} / {total.toLocaleString()}개
             </p>
             <div className="flex items-center gap-2">
               <button

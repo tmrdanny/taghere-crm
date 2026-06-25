@@ -66,7 +66,7 @@ export default function AdminTableLinkPage() {
     const fetchStores = async () => {
       try {
         const token = localStorage.getItem('adminToken');
-        const res = await fetch(`${apiUrl}/api/admin/stores?limit=1000`, {
+        const res = await fetch(`${apiUrl}/api/admin/stores/options`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
