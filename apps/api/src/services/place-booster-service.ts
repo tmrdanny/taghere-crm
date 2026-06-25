@@ -66,14 +66,14 @@ function buildBoosterMessage(c: {
   const validText = c.couponValidUntil
     ? `${formatBoosterValidUntil(c.couponValidUntil)}까지\n\n${BOOSTER_COUPON_GUIDE}`
     : BOOSTER_COUPON_GUIDE;
+  // "[태그히어 플레이스] …" 안내문은 카카오 템플릿(UG_5628) 부가정보로 자동 첨부되므로
+  // 본문에 다시 넣지 않는다(넣으면 회색 부가정보와 중복 출력됨).
   return [
     `${c.couponContent} 쿠폰이 도착했어요.`,
     '',
     `▶ 쿠폰 코드: ${c.couponCode ?? ''}`,
     `▶ 쿠폰: ${c.couponAmount ?? ''}`,
     `▶ 유효기간: ${validText}`,
-    '',
-    '[태그히어 플레이스] 이 메시지는 고객님이 참여한 이벤트 당첨으로 지급된 쿠폰 안내 메시지입니다.',
   ].join('\n');
 }
 
