@@ -5,6 +5,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { BoosterCreateForm, BoosterTargetResult } from '@/components/place-booster/booster-create-form';
+import { BoosterReport, ReportRow, ReportTotals } from '@/components/place-booster/booster-report';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft } from 'lucide-react';
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   DRAFT: { label: '결제 대기', cls: 'bg-gray-100 text-gray-600' },
@@ -98,7 +102,7 @@ export default function AdminPlaceBoosterPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold">네이버 플레이스 부스터</h1>
-        {!showCreate && (
+        {!showCreate && !detailId && (
           <button className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm" onClick={() => setShowCreate(true)}>
             + 캠페인 생성
           </button>
@@ -118,6 +122,10 @@ export default function AdminPlaceBoosterPage() {
             onBack={() => setShowCreate(false)}
             onCreated={() => { setShowCreate(false); setMsg('캠페인을 생성했습니다.'); load(); }}
           />
+        </div>
+      ) : detailId ? (
+        <div className="max-w-5xl">
+          <AdminReportView id={detailId} af={af} onBack={() => setDetailId(null)} onChanged={load} />
         </div>
       ) : (
       <>
@@ -197,7 +205,6 @@ export default function AdminPlaceBoosterPage() {
       </>
       )}
 
-      {detailId && <DetailModal id={detailId} af={af} onClose={() => setDetailId(null)} onChanged={load} />}
     </div>
   );
 }
@@ -211,27 +218,29 @@ function Stat({ label, value, highlight }: { label: string; value: string; highl
   );
 }
 
-interface ReportRow { batchId: string; weekNo: number; status: string; sentCount: number; clickCount: number; clickRate: number; couponUsedCount: number | null; avgTicket: number | null; revenue: number; }
 interface AdminReportData {
-  campaign: { keyword: string; couponContent: string; campaignName: string | null };
+  campaign: { keyword: string; couponContent: string; campaignName: string | null; status: string; perBatchCount: number; totalWeeks: number; totalTargetCount: number };
   store: { name: string; ownerName: string | null } | null;
   isExternal: boolean;
-  totals: { sentCount: number; clickCount: number; clickRate: number; revenue: number; adCost: number; roi: number | null };
+  totals: ReportTotals;
   rows: ReportRow[];
 }
-const ROI_TOOLTIP = 'ROI (투자수익률) — 광고에 쓴 비용 대비 얼마의 매출이 돌아왔는지를 나타내는 수치입니다. 100%면 쓴 비용만큼 매출이 발생, 100%를 넘을수록 비용 대비 수익이 좋았다는 의미입니다.';
-function DetailModal({ id, af, onClose, onChanged }: { id: string; af: (p: string, i?: RequestInit) => Promise<Response>; onClose: () => void; onChanged: () => void; }) {
+
+/** 운영자 성과 리포트 — 사장님 화면과 동일한 전체 페이지 + 운영자 전용(PDF 다운로드·외부 배지·광고비) */
+function AdminReportView({ id, af, onBack, onChanged }: { id: string; af: (p: string, i?: RequestInit) => Promise<Response>; onBack: () => void; onChanged: () => void; }) {
   const [data, setData] = useState<AdminReportData | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
   const [testPhone, setTestPhone] = useState('');
   const [testSending, setTestSending] = useState(false);
   const [testMsg, setTestMsg] = useState('');
+
   const load = useCallback(async () => {
     const res = await af(`/api/admin/place-booster/campaigns/${id}`);
     if (res.ok) setData(await res.json());
   }, [af, id]);
   useEffect(() => { load(); }, [load]);
+  const reload = () => { load(); onChanged(); };
 
   const sendTest = async () => {
     setTestMsg('');
@@ -240,9 +249,9 @@ function DetailModal({ id, af, onClose, onChanged }: { id: string; af: (p: strin
     try {
       const res = await af(`/api/admin/place-booster/campaigns/${id}/test-send`, { method: 'POST', body: JSON.stringify({ phone: testPhone }) });
       const d = await res.json().catch(() => ({}));
-      setTestMsg(res.ok ? '✓ 발송했습니다. 카카오톡 확인' : d.error || '발송 실패');
+      setTestMsg(res.ok ? '✓ 테스트 알림톡을 발송했어요. 카카오톡을 확인해보세요.' : d.error || '발송에 실패했습니다.');
     } catch {
-      setTestMsg('네트워크 오류');
+      setTestMsg('네트워크 오류가 발생했습니다.');
     } finally {
       setTestSending(false);
     }
@@ -258,19 +267,15 @@ function DetailModal({ id, af, onClose, onChanged }: { id: string; af: (p: strin
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pw = pdf.internal.pageSize.getWidth();
       const ph = pdf.internal.pageSize.getHeight();
-      const imgW = pw - 16; // 좌우 8mm 여백
+      const imgW = pw - 16;
       const imgH = (canvas.height * imgW) / canvas.width;
       let remaining = imgH;
       let posY = 8;
       const img = canvas.toDataURL('image/png');
-      // 멀티페이지: 한 장 초과 시 위로 끌어올리며 분할
       while (remaining > 0) {
         pdf.addImage(img, 'PNG', 8, posY, imgW, imgH);
         remaining -= ph - 16;
-        if (remaining > 0) {
-          pdf.addPage();
-          posY = posY - (ph - 16);
-        }
+        if (remaining > 0) { pdf.addPage(); posY = posY - (ph - 16); }
       }
       const d = new Date();
       const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
@@ -281,114 +286,75 @@ function DetailModal({ id, af, onClose, onChanged }: { id: string; af: (p: strin
       setExporting(false);
     }
   };
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  const saveRow = async (batchId: string, couponUsedCount: string, avgTicket: string) => {
-    await af(`/api/admin/place-booster/batches/${batchId}/results`, {
-      method: 'PATCH',
-      body: JSON.stringify({ couponUsedCount: couponUsedCount ? +couponUsedCount : null, avgTicket: avgTicket ? +avgTicket : null }),
-    });
-    load();
-    onChanged();
-  };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-label="캠페인 상세" className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto scrollbar-hide p-6" onClick={(e) => e.stopPropagation()}>
-        {!data ? <p className="text-gray-400">불러오는 중…</p> : (
-          <>
-            <div className="flex justify-between items-start mb-3 gap-2">
-              <button
-                type="button"
-                className="border rounded px-3 py-1.5 text-sm font-medium disabled:opacity-50"
-                onClick={exportPdf}
-                disabled={exporting}
-              >
-                {exporting ? 'PDF 생성 중…' : 'PDF 다운로드'}
-              </button>
-              <button onClick={onClose} className="text-gray-400 text-lg leading-none">✕</button>
-            </div>
-            {/* 테스트 발송 (PDF 캡처 영역 밖) */}
-            <div className="mb-3 rounded border border-gray-200 bg-gray-50 p-2">
-              <div className="text-xs font-medium text-gray-700 mb-1">테스트 발송 — 실제와 똑같은 알림톡 1건을 즉시 (대상/회차/결제 무관)</div>
-              <div className="flex gap-2">
-                <input className="flex-1 border rounded px-3 py-2 text-sm" value={testPhone} onChange={(e) => setTestPhone(e.target.value.replace(/[^0-9]/g, ''))} placeholder="받을 휴대폰 번호 (예: 01012345678)" inputMode="numeric" />
-                <button type="button" className="border rounded px-3 py-2 text-sm font-medium whitespace-nowrap disabled:opacity-50" disabled={testSending} onClick={sendTest}>{testSending ? '발송 중…' : '테스트 발송'}</button>
-              </div>
-              {testMsg && <p className={`text-xs mt-1 ${testMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{testMsg}</p>}
-            </div>
-            <div ref={reportRef} className="bg-white p-1">
-              <div className="mb-3">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-bold">{displayName}</h3>
-                  {data.isExternal && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">외부</span>}
-                </div>
-                <p className="text-sm text-gray-500">유입 키워드: {data.campaign.keyword} · {data.campaign.couponContent}</p>
-              </div>
-              <div className="grid grid-cols-4 gap-2 mb-4 text-center">
-                <KV label="발송" v={won(data.totals.sentCount)} />
-                <KV label="클릭" v={won(data.totals.clickCount)} />
-                <KV label="클릭율" v={`${data.totals.clickRate.toFixed(1)}%`} />
-                <KV label="ROI" v={data.totals.roi == null ? '-' : `${data.totals.roi.toFixed(0)}%`} tooltip={ROI_TOOLTIP} />
-              </div>
-              <p className="text-xs text-gray-400 mb-2">광고비(ROI 기준): ₩{won(data.totals.adCost)} (VAT 제외)</p>
-              <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[520px]">
-                <thead className="bg-gray-50 text-gray-500 text-xs">
-                  <tr>
-                    <th className="px-2 py-1 text-left">주차</th><th className="px-2 py-1 text-right">발송</th>
-                    <th className="px-2 py-1 text-right">클릭</th><th className="px-2 py-1 text-right">쿠폰사용</th>
-                    <th className="px-2 py-1 text-right">평균객단</th><th className="px-2 py-1 text-right">매출</th><th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.rows.map((r: ReportRow) => <AdminBatchRow key={`${r.batchId}:${r.couponUsedCount ?? ''}:${r.avgTicket ?? ''}`} row={r} onSave={saveRow} />)}
-                </tbody>
-              </table>
-              </div>
-            </div>
-          </>
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <button onClick={onBack} className="flex items-center gap-0.5 text-[15px] text-neutral-500 hover:text-neutral-700">
+          <ChevronLeft className="w-5 h-5" /> 목록으로
+        </button>
+        {data && (
+          <Button type="button" variant="secondary" size="sm" onClick={exportPdf} disabled={exporting}>
+            {exporting ? 'PDF 생성 중…' : 'PDF 다운로드'}
+          </Button>
         )}
       </div>
-    </div>
-  );
-}
-function InfoTip({ text }: { text: string }) {
-  return (
-    <span className="relative inline-flex items-center align-middle group/tip">
-      <button type="button" aria-label={text} className="ml-0.5 w-3.5 h-3.5 flex items-center justify-center rounded-full border border-gray-300 text-gray-400 text-[10px] font-bold leading-none cursor-help focus:outline-none">i</button>
-      <span className="pointer-events-none absolute right-0 top-full z-50 mt-1.5 hidden w-56 rounded-lg bg-gray-800 px-3 py-2 text-[11px] leading-relaxed text-white text-left shadow-lg group-hover/tip:block group-focus-within/tip:block">
-        {text}
-      </span>
-    </span>
-  );
-}
 
-function KV({ label, v, tooltip }: { label: string; v: string; tooltip?: string }) {
-  return (
-    <div className="rounded border p-2">
-      <div className="text-xs text-gray-500 flex items-center justify-center">{label}{tooltip && <InfoTip text={tooltip} />}</div>
-      <div className="font-bold">{v}</div>
+      {!data ? (
+        <p className="text-[15px] text-neutral-400">불러오는 중…</p>
+      ) : (
+        <>
+          {/* 테스트 발송 (PDF 캡처 영역 밖) */}
+          <Card className="p-5 mb-4">
+            <div className="text-[15px] font-semibold text-neutral-800 mb-1">테스트 발송</div>
+            <p className="text-sm text-neutral-400 mb-3">입력한 번호로 실제와 똑같은 알림톡 1건을 즉시 보냅니다. (발송 대상·회차·결제와 무관)</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                className="flex-1 border border-neutral-300 rounded-lg px-3.5 py-3 text-base min-h-12"
+                value={testPhone}
+                onChange={(e) => setTestPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="받을 휴대폰 번호 (예: 01012345678)"
+                inputMode="numeric"
+              />
+              <Button type="button" variant="secondary" size="lg" className="shrink-0" onClick={sendTest} disabled={testSending}>
+                {testSending ? '발송 중…' : '테스트 발송'}
+              </Button>
+            </div>
+            {testMsg && <p className={`text-sm mt-2 ${testMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{testMsg}</p>}
+          </Card>
+
+          {/* 캡처 영역: 헤더 + 성과 리포트 */}
+          <div ref={reportRef}>
+            <Card className="p-6 mb-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-bold text-neutral-900">{displayName}</h2>
+                    {data.isExternal && <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">외부</span>}
+                  </div>
+                  <p className="text-base text-neutral-500 mt-1.5">유입 키워드: {data.campaign.keyword} · {data.campaign.couponContent}</p>
+                  <div className="text-sm text-neutral-400 mt-1">
+                    {data.campaign.perBatchCount.toLocaleString()}명 × {data.campaign.totalWeeks}주 (총 {data.campaign.totalTargetCount.toLocaleString()}명)
+                  </div>
+                </div>
+                <span className={`text-sm px-2.5 py-1 rounded-full shrink-0 ${(STATUS[data.campaign.status] || STATUS.DRAFT).cls}`}>
+                  {(STATUS[data.campaign.status] || STATUS.DRAFT).label}
+                </span>
+              </div>
+            </Card>
+
+            <BoosterReport
+              totals={data.totals}
+              rows={data.rows}
+              fetcher={af}
+              apiPrefix="/api/admin/place-booster"
+              reload={reload}
+              showAdCost
+            />
+          </div>
+        </>
+      )}
     </div>
-  );
-}
-function AdminBatchRow({ row, onSave }: { row: ReportRow; onSave: (b: string, u: string, a: string) => void }) {
-  const [u, setU] = useState(row.couponUsedCount?.toString() ?? '');
-  const [a, setA] = useState(row.avgTicket?.toString() ?? '');
-  return (
-    <tr className="border-t">
-      <td className="px-2 py-1">{row.weekNo}주</td>
-      <td className="px-2 py-1 text-right">{won(row.sentCount)}</td>
-      <td className="px-2 py-1 text-right">{won(row.clickCount)} ({row.clickRate.toFixed(1)}%)</td>
-      <td className="px-2 py-1 text-right"><input className="w-14 border rounded px-1 text-right" value={u} onChange={(e) => setU(e.target.value.replace(/[^0-9]/g, ''))} /></td>
-      <td className="px-2 py-1 text-right"><input className="w-20 border rounded px-1 text-right" value={a} onChange={(e) => setA(e.target.value.replace(/[^0-9]/g, ''))} /></td>
-      <td className="px-2 py-1 text-right">{won(row.revenue)}</td>
-      <td className="px-2 py-1 text-right"><button className="text-xs font-medium px-2 py-1 rounded border border-gray-300 text-gray-700 bg-white hover:bg-gray-50" onClick={() => onSave(row.batchId, u, a)}>저장</button></td>
-    </tr>
   );
 }
 
