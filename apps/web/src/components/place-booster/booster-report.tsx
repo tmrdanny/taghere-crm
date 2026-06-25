@@ -10,7 +10,7 @@
 import { useState, type ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { Info, ChevronDown } from 'lucide-react';
-import { fmtDate } from './booster-create-form';
+import { fmtDateTime } from './booster-create-form';
 
 const won = (n: number) => (n ?? 0).toLocaleString('ko-KR');
 
@@ -69,7 +69,7 @@ export function BoosterReport({ totals, rows, fetcher, apiPrefix, reload, showAd
           <thead className="bg-neutral-50 text-neutral-500 text-sm">
             <tr>
               <th className="px-3 py-3 text-left font-semibold">주차</th>
-              <th className="px-3 py-3 text-left font-semibold">발송일</th>
+              <th className="px-3 py-3 text-left font-semibold">발송 일시</th>
               <th className="px-3 py-3 text-right font-semibold">발송</th>
               <th className="px-3 py-3 text-right font-semibold">클릭</th>
               <th className="px-3 py-3 text-right font-semibold">클릭율</th>
@@ -219,7 +219,7 @@ function BatchRow(props: BatchRowProps) {
   return (
     <tr className="border-t">
       <td className="px-3 py-3">{row.weekNo}주</td>
-      <td className="px-3 py-3 text-neutral-500">{fmtDate(row.scheduledAt)}</td>
+      <td className="px-3 py-3 text-neutral-500 whitespace-nowrap">{fmtDateTime(row.scheduledAt)}</td>
       <td className="px-3 py-3 text-right">{won(row.sentCount)}</td>
       <td className="px-3 py-3 text-right">{won(row.clickCount)}</td>
       <td className="px-3 py-3 text-right">{row.clickRate.toFixed(1)}%</td>
@@ -280,7 +280,7 @@ function BatchCard(props: BatchRowProps) {
     <Card className="p-4">
       <div className="flex items-center justify-between mb-3">
         <span className="text-base font-bold text-neutral-900">{row.weekNo}주차</span>
-        <span className="text-sm text-neutral-500">{fmtDate(row.scheduledAt)}</span>
+        <span className="text-sm text-neutral-500">{fmtDateTime(row.scheduledAt)}</span>
       </div>
       <div className="grid grid-cols-3 gap-2 text-center pb-3 border-b border-neutral-100">
         <Cell label="발송" value={won(row.sentCount)} />

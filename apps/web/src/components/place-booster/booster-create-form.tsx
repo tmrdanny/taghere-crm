@@ -46,6 +46,15 @@ export function fmtDate(d: Date | string) {
   return `${kst.getUTCMonth() + 1}/${kst.getUTCDate()}(${'일월화수목금토'[kst.getUTCDay()]})`;
 }
 
+/** 발송일 + 시각 (KST) 예: 7/1(수) 18:00 */
+export function fmtDateTime(d: Date | string) {
+  const date = typeof d === 'string' ? new Date(d) : d;
+  const kst = new Date(date.getTime() + KST_OFFSET);
+  const hh = String(kst.getUTCHours()).padStart(2, '0');
+  const mm = String(kst.getUTCMinutes()).padStart(2, '0');
+  return `${kst.getUTCMonth() + 1}/${kst.getUTCDate()}(${'일월화수목금토'[kst.getUTCDay()]}) ${hh}:${mm}`;
+}
+
 export interface BoosterTargetResult {
   ok: boolean;
   error?: string;
