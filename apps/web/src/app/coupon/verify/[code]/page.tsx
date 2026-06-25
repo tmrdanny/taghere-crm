@@ -4,6 +4,7 @@ import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { CheckCircle2, XCircle, Loader2, Ticket, Store, Calendar, Phone, AlertCircle } from 'lucide-react';
+import { trackEvent } from '@/lib/analytics';
 
 
 interface CouponInfo {
@@ -95,6 +96,7 @@ export default function CouponVerifyPage() {
         return;
       }
 
+      trackEvent('coupon_used', { store_name: coupon?.storeName ?? null, has_staff_name: staffName.trim().length > 0 });
       // 쿠폰 정보 새로고침
       await fetchCoupon();
     } catch (err) {

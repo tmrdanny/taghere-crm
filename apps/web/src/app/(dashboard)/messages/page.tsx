@@ -3,6 +3,7 @@
 import { API_BASE } from '@/lib/api-config';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useEffect, useCallback } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { formatNumber, maskNickname } from '@/lib/utils';
@@ -554,6 +555,7 @@ export default function MessagesPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        trackEvent('owner_message_test_send', { channel: 'kakao' });
         showToast('테스트 발송이 요청되었습니다.', 'success');
         setShowKakaoTestModal(false);
         setKakaoTestPhone('');
@@ -610,6 +612,7 @@ export default function MessagesPage() {
       const data = await res.json();
 
       if (res.ok) {
+        trackEvent('owner_message_send', { channel: 'kakao', target_type: selectedTarget, target_count: data.pendingCount || 0, has_image: !!kakaoUploadedImage });
         if (isSendableTime) {
           const pendingCount = data.pendingCount || 0;
           const failedMsg = data.failedCount > 0 ? `, ${data.failedCount}건 실패` : '';
@@ -944,6 +947,7 @@ export default function MessagesPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        trackEvent('owner_message_test_send', { channel: 'sms' });
         showToast(`테스트 발송 완료 (${data.messageType})`, 'success');
         setShowTestModal(false);
         setTestPhone('');
@@ -994,6 +998,7 @@ export default function MessagesPage() {
 
       if (res.ok) {
         const sentOrPending = data.sentCount || data.pendingCount || 0;
+        trackEvent('owner_message_send', { channel: 'sms', target_type: selectedTarget, target_count: sentOrPending, has_image: !!uploadedImage });
         const failedMsg = data.failedCount > 0 ? `, ${data.failedCount}건 실패` : '';
         const costMsg = data.totalCost ? ` (비용: ${formatNumber(data.totalCost)}원)` : '';
         showToast(`${sentOrPending}건 발송 요청 완료${failedMsg}${costMsg}`, 'success');

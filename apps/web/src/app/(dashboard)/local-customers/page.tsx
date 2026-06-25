@@ -3,6 +3,7 @@
 import { API_BASE } from '@/lib/api-config';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useEffect, useCallback } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   MapPin,
@@ -429,6 +430,7 @@ export default function LocalCustomersPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '발송에 실패했습니다.');
 
+      trackEvent('owner_localmkt_send', { type: 'sms', count: data.pendingCount });
       setSuccessMessage(`${data.pendingCount.toLocaleString()}건 발송 요청 완료! 결과는 발송 내역에서 확인하세요.`);
       setContent('');
       clearDraft();
@@ -481,6 +483,7 @@ export default function LocalCustomersPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '발송에 실패했습니다.');
 
+      trackEvent('owner_localmkt_send', { type: 'coupon', count: data.sentCount });
       setSuccessMessage(`${data.sentCount.toLocaleString()}건 쿠폰 알림톡 발송 요청 완료!`);
       setCouponContent('');
       setCouponExpiryDate('');

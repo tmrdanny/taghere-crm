@@ -2,6 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import { Button } from '@/components/ui/button';
 import {
   Modal,
@@ -512,6 +513,7 @@ export default function CustomersPage() {
         throw new Error(body.error || '포인트 사용 중 오류가 발생했습니다.');
       }
 
+      trackEvent('owner_points_deduct', { amount: parseInt(useAmount, 10) });
       // refresh list to reflect new balance
       setUsePointsModal(false);
       setUseAmount('');
@@ -548,6 +550,7 @@ export default function CustomersPage() {
         throw new Error(body.error || '포인트 적립 중 오류가 발생했습니다.');
       }
 
+      trackEvent('owner_points_earn', { amount: parseInt(earnAmount, 10), source: 'customers' });
       setEarnPointsModal(false);
       setEarnAmount('');
       setEarnReason('');
@@ -584,6 +587,7 @@ export default function CustomersPage() {
         throw new Error(body.error || '스탬프 적립 중 오류가 발생했습니다.');
       }
 
+      trackEvent('owner_stamps_earn', { count: parseInt(earnStampAmount, 10) });
       setEarnStampsModal(false);
       setEarnStampAmount('1');
       setEarnStampReason('');
@@ -800,6 +804,7 @@ export default function CustomersPage() {
       setShowDateFilter(false);
       setCancelMode(false);
       setRefreshKey((key) => key + 1);
+      trackEvent('owner_customer_update');
       showToast('고객 정보가 수정되었습니다.', 'success');
     } catch (err: any) {
       showToast(err.message || '고객 정보 수정 중 오류가 발생했습니다.', 'error');
@@ -831,6 +836,7 @@ export default function CustomersPage() {
       setShowDateFilter(false);
       setCancelMode(false);
       setRefreshKey((key) => key + 1);
+      trackEvent('owner_customer_delete');
       showToast('고객이 삭제되었습니다.', 'success');
     } catch (err: any) {
       showToast(err.message || '고객 삭제 중 오류가 발생했습니다.', 'error');
@@ -879,6 +885,7 @@ export default function CustomersPage() {
       setAddInitialPoints('');
       setPage(1);
       setRefreshKey((key) => key + 1);
+      trackEvent('owner_customer_add');
       showToast('고객이 등록되었습니다.', 'success');
     } catch (err: any) {
       showToast(err.message || '고객 등록 중 오류가 발생했습니다.', 'error');
@@ -994,6 +1001,7 @@ export default function CustomersPage() {
       if (!res.ok) {
         throw new Error(data.error || '대량 등록 중 오류가 발생했습니다.');
       }
+      trackEvent('owner_customer_bulk_upload', { count: data.created ?? bulkParsedData.length });
       setBulkResult(data);
       if (data.created > 0) {
         setPage(1);

@@ -24,3 +24,12 @@ export function setUserId(userId: string | null | undefined): void {
   if (typeof window === 'undefined' || typeof window.gtag !== 'function') return;
   window.gtag('set', { user_id: userId ?? null });
 }
+
+/**
+ * GA user properties 설정(이 호출 이후 발사되는 모든 이벤트에 자동 부착).
+ * 예: 로그인한 사장님의 store_id를 한 번 설정 → 대시보드 이벤트마다 매번 넘길 필요 없음.
+ */
+export function setUserProperties(props: Record<string, string>): void {
+  if (typeof window === 'undefined' || typeof window.gtag !== 'function') return;
+  window.gtag('set', 'user_properties', props);
+}
