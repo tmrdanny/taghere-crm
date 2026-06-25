@@ -82,12 +82,16 @@ export default function AdminPlaceBoosterPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const act = async (path: string, method: string, okMsg: string) => {
+  const act = async (path: string, method: string, okMsg: string | ((data: any) => string)) => {
     if (acting) return;
     setActing(true);
     try {
       const res = await af(path, { method });
-      if (res.ok) { setMsg(okMsg); await load(); }
+      if (res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setMsg(typeof okMsg === 'function' ? okMsg(d) : okMsg);
+        await load();
+      }
       else { const d = await res.json().catch(() => ({})); setMsg(d.error || '실패했습니다.'); }
     } catch {
       setMsg('네트워크 오류가 발생했습니다.');
@@ -114,7 +118,7 @@ export default function AdminPlaceBoosterPage() {
       )}
 
       {analytics && (
-        <div className="grid grid-cols-5 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-5">
           <Stat label="전체 캠페인" value={won(analytics.totalCampaigns)} />
           <Stat label="진행 중" value={won(analytics.activeCampaigns)} />
           <Stat label="승인 대기" value={won(analytics.pendingApproval)} highlight={analytics.pendingApproval > 0} />
@@ -136,8 +140,8 @@ export default function AdminPlaceBoosterPage() {
         </select>
       </div>
 
-      <div className="bg-white rounded-lg border overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-lg border overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-gray-50 text-gray-500 text-xs">
             <tr>
               <th className="px-3 py-2 text-left">매장</th>
@@ -171,7 +175,7 @@ export default function AdminPlaceBoosterPage() {
                       <button disabled={acting} className="text-xs font-medium px-2 py-1 rounded border border-green-200 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-40" onClick={() => act(`/api/admin/place-booster/campaigns/${r.id}/approve`, 'POST', '승인되었습니다.')}>승인</button>
                     )}
                     {r.status !== 'CANCELLED' && r.status !== 'COMPLETED' && (
-                      <button disabled={acting} className="text-xs font-medium px-2 py-1 rounded border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:opacity-40" onClick={() => { if (confirm('취소(중지)하시겠습니까?')) act(`/api/admin/place-booster/campaigns/${r.id}/cancel`, 'POST', '취소되었습니다.'); }}>취소</button>
+                      <button disabled={acting} className="text-xs font-medium px-2 py-1 rounded border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:opacity-40" onClick={() => { if (confirm('취소(중지)하시겠습니까?')) act(`/api/admin/place-booster/campaigns/${r.id}/cancel`, 'POST', (d) => d.failed?.length ? `취소했습니다. 단, ${d.failed.length}개 회차(${d.failed.map((f: any) => `${f.weekNo}주`).join(', ')})는 발송 5분 이내라 취소되지 않고 발송됩니다.` : '취소되었습니다.'); }}>취소</button>
                     )}
                     <button disabled={acting} className="text-xs font-medium px-2 py-1 rounded border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-40" onClick={() => { if (confirm('삭제(숨김)하시겠습니까?')) act(`/api/admin/place-booster/campaigns/${r.id}`, 'DELETE', '삭제되었습니다.'); }}>삭제</button>
                   </div>
@@ -217,11 +221,29 @@ function DetailModal({ id, af, onClose, onChanged }: { id: string; af: (p: strin
   const [data, setData] = useState<AdminReportData | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
+  const [testPhone, setTestPhone] = useState('');
+  const [testSending, setTestSending] = useState(false);
+  const [testMsg, setTestMsg] = useState('');
   const load = useCallback(async () => {
     const res = await af(`/api/admin/place-booster/campaigns/${id}`);
     if (res.ok) setData(await res.json());
   }, [af, id]);
   useEffect(() => { load(); }, [load]);
+
+  const sendTest = async () => {
+    setTestMsg('');
+    if (!testPhone.trim()) { setTestMsg('테스트로 받을 번호를 입력해주세요.'); return; }
+    setTestSending(true);
+    try {
+      const res = await af(`/api/admin/place-booster/campaigns/${id}/test-send`, { method: 'POST', body: JSON.stringify({ phone: testPhone }) });
+      const d = await res.json().catch(() => ({}));
+      setTestMsg(res.ok ? '✓ 발송했습니다. 카카오톡 확인' : d.error || '발송 실패');
+    } catch {
+      setTestMsg('네트워크 오류');
+    } finally {
+      setTestSending(false);
+    }
+  };
 
   const displayName = data ? (data.store?.name || data.campaign.campaignName || '캠페인') : '';
   const exportPdf = async () => {
@@ -287,6 +309,15 @@ function DetailModal({ id, af, onClose, onChanged }: { id: string; af: (p: strin
               </button>
               <button onClick={onClose} className="text-gray-400 text-lg leading-none">✕</button>
             </div>
+            {/* 테스트 발송 (PDF 캡처 영역 밖) */}
+            <div className="mb-3 rounded border border-gray-200 bg-gray-50 p-2">
+              <div className="text-xs font-medium text-gray-700 mb-1">테스트 발송 — 실제와 똑같은 알림톡 1건을 즉시 (대상/회차/결제 무관)</div>
+              <div className="flex gap-2">
+                <input className="flex-1 border rounded px-3 py-2 text-sm" value={testPhone} onChange={(e) => setTestPhone(e.target.value.replace(/[^0-9]/g, ''))} placeholder="받을 휴대폰 번호 (예: 01012345678)" inputMode="numeric" />
+                <button type="button" className="border rounded px-3 py-2 text-sm font-medium whitespace-nowrap disabled:opacity-50" disabled={testSending} onClick={sendTest}>{testSending ? '발송 중…' : '테스트 발송'}</button>
+              </div>
+              {testMsg && <p className={`text-xs mt-1 ${testMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{testMsg}</p>}
+            </div>
             <div ref={reportRef} className="bg-white p-1">
               <div className="mb-3">
                 <div className="flex items-center gap-2">
@@ -302,7 +333,8 @@ function DetailModal({ id, af, onClose, onChanged }: { id: string; af: (p: strin
                 <KV label="ROI" v={data.totals.roi == null ? '-' : `${data.totals.roi.toFixed(0)}%`} tooltip={ROI_TOOLTIP} />
               </div>
               <p className="text-xs text-gray-400 mb-2">광고비(ROI 기준): ₩{won(data.totals.adCost)} (VAT 제외)</p>
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[520px]">
                 <thead className="bg-gray-50 text-gray-500 text-xs">
                   <tr>
                     <th className="px-2 py-1 text-left">주차</th><th className="px-2 py-1 text-right">발송</th>
@@ -314,6 +346,7 @@ function DetailModal({ id, af, onClose, onChanged }: { id: string; af: (p: strin
                   {data.rows.map((r: ReportRow) => <AdminBatchRow key={`${r.batchId}:${r.couponUsedCount ?? ''}:${r.avgTicket ?? ''}`} row={r} onSave={saveRow} />)}
                 </tbody>
               </table>
+              </div>
             </div>
           </>
         )}
@@ -378,6 +411,26 @@ function CreateModal({ af, onClose, onCreated }: { af: (p: string, i?: RequestIn
   const [sendTime, setSendTime] = useState('18:00');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [testPhone, setTestPhone] = useState('');
+  const [testSending, setTestSending] = useState(false);
+  const [testMsg, setTestMsg] = useState('');
+  const sendTestPreview = async () => {
+    setTestMsg('');
+    if (!testPhone.trim()) { setTestMsg('테스트로 받을 번호를 입력해주세요.'); return; }
+    setTestSending(true);
+    try {
+      const res = await af('/api/admin/place-booster/test-send-preview', {
+        method: 'POST',
+        body: JSON.stringify({ phone: testPhone, keyword, naverPlaceUrl, couponContent, couponCode, couponAmount, couponValidUntil }),
+      });
+      const d = await res.json().catch(() => ({}));
+      setTestMsg(res.ok ? '✓ 발송했습니다. 카카오톡 확인' : d.error || '발송 실패');
+    } catch {
+      setTestMsg('네트워크 오류');
+    } finally {
+      setTestSending(false);
+    }
+  };
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -541,6 +594,15 @@ function CreateModal({ af, onClose, onCreated }: { af: (p: string, i?: RequestIn
             <button key={d.value} onClick={() => setWeekday(d.value)} className={`w-9 h-9 rounded text-sm ${weekday === d.value ? 'bg-gray-900 text-white' : 'bg-gray-100'}`}>{d.label}</button>
           ))}
           <input type="time" className="border rounded px-2 ml-2 text-sm cursor-pointer" value={sendTime} onChange={(e) => setSendTime(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} />
+        </div>
+        {/* 생성 전 테스트 발송 */}
+        <div className="rounded border border-gray-200 bg-gray-50 p-2">
+          <div className="text-xs font-medium text-gray-700 mb-1">생성 전 테스트 발송 — 입력값 그대로 1건</div>
+          <div className="flex gap-2">
+            <input className="flex-1 border rounded px-3 py-2 text-sm" value={testPhone} onChange={(e) => setTestPhone(e.target.value.replace(/[^0-9]/g, ''))} placeholder="받을 휴대폰 번호 (예: 01012345678)" inputMode="numeric" />
+            <button type="button" className="border rounded px-3 py-2 text-sm font-medium whitespace-nowrap disabled:opacity-50" disabled={testSending} onClick={sendTestPreview}>{testSending ? '발송 중…' : '테스트 발송'}</button>
+          </div>
+          {testMsg && <p className={`text-xs mt-1 ${testMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{testMsg}</p>}
         </div>
         <button className="w-full bg-gray-900 text-white py-2.5 rounded-lg text-sm disabled:opacity-50" disabled={busy || !placeInfo} onClick={submit}>
           {busy ? '생성 중…' : !placeInfo ? '매장 정보 확인 필요' : '생성 (DRAFT — 결제/승인 필요)'}

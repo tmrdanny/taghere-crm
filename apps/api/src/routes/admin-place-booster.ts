@@ -164,6 +164,28 @@ router.get('/place-booster/campaigns/:id', adminAuthMiddleware, async (req: Admi
   }
 });
 
+// POST /api/admin/place-booster/test-send-preview - 대행 생성 전, 입력값으로 테스트 알림톡 1건
+router.post('/place-booster/test-send-preview', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { phone, ...input } = req.body;
+    const p = (phone || '').toString().trim();
+    if (!p) throw new svc.BoosterError('테스트로 받을 휴대폰 번호를 입력해주세요.');
+    const al = svc.buildBoosterPreviewAlimtalk(input);
+    const result = await sendAligoAlimtalk({
+      phone: p,
+      tplCode: al.tplCode,
+      subject: al.subject,
+      message: al.message,
+      buttonName: al.buttonName,
+      buttonUrl: al.buttonUrl,
+    });
+    if (!result.success) throw new svc.BoosterError(result.error || '테스트 발송에 실패했습니다.', 502);
+    res.json({ success: true });
+  } catch (error) {
+    handleError(res, error, '테스트 발송 중 오류가 발생했습니다.');
+  }
+});
+
 // POST /api/admin/place-booster/campaigns - 대행 생성 (가입 매장 storeId 또는 외부 campaignName)
 router.post('/place-booster/campaigns', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
@@ -235,8 +257,8 @@ router.post('/place-booster/campaigns/:id/test-send', adminAuthMiddleware, async
 router.post('/place-booster/campaigns/:id/cancel', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
     console.log(`[audit][place-booster] cancel campaign=${req.params.id} by=${ADMIN_USERNAME}`);
-    await svc.cancelCampaign(req.params.id);
-    res.json({ success: true });
+    const summary = await svc.cancelCampaign(req.params.id);
+    res.json({ success: true, ...summary });
   } catch (error) {
     handleError(res, error, '캠페인 취소 중 오류가 발생했습니다.');
   }
