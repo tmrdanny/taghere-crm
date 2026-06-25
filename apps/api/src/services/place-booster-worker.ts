@@ -1,24 +1,28 @@
 /**
- * 네이버 플레이스 부스터 - 발송 워커
+ * 네이버 플레이스 부스터 - 예약 등록 워커
  *
- * 1분마다 폴링하여 도래한 회차(batch)를 발송한다.
- * - 발송 직전 대상자 산정(지역+피로도+캠페인 중복제외)
- * - 실제 발송은 AlimTalkOutbox + alimtalk-worker에 위임 (enqueueAlimTalk)
- * - 캠페인은 선결제로 정산되므로 회차 발송 시 추가 차감 없음
+ * 알리고 "예약 발송(senddate)" 으로 미리 등록하는 구조.
+ * 60초 폴링하며 3가지 작업을 수행한다:
+ *  (A) 등록: 활성·결제완료 캠페인의 미등록 회차를 대상자 선별 후 알리고에 senddate로 예약 등록
+ *  (B) 재개: 등록 처리 중(SENDING) 정체 회차를 이어서 등록 (청크 단위 커밋이라 멱등/재개 안전)
+ *  (C) 마감: 발송 시각이 지난 예약(REGISTERED) 회차를 SENT로 플립하고 캠페인 상태 재계산
  *
- * 발송 프로바이더(SOLAPI)는 enqueueAlimTalk 뒤로 추상화되어 있어,
- * 프로바이더 교체 시 이 워커는 영향받지 않는다.
+ * 실제 발송은 알리고가 예약 시각에 수행 → 발송 순간 워커 개입 없음.
  */
 
 import { prisma } from '../lib/prisma.js';
 import { Prisma } from '@prisma/client';
-import { enqueueAlimTalk } from './solapi.js';
 import { selectRecipients, buildBoosterAlimtalk } from './place-booster-service.js';
+import { sendAligoAlimtalkBulk, formatSenddateKST, ALIGO_MAX_RECEIVERS } from './aligo.js';
 
 const POLL_INTERVAL_MS = 60 * 1000; // 1분
-const STUCK_MS = 10 * 60 * 1000; // SENDING 10분 경과 시 재처리
+const STUCK_MS = 10 * 60 * 1000; // SENDING 10분 경과 시 재개
 
-async function processBatch(batchId: string) {
+/**
+ * (A)/(B) 한 회차를 알리고에 예약 등록. 청크(≤500)마다 선별→전송→기록을 커밋하므로
+ * 중간 실패/크래시 후 다음 틱에서 잔여 인원만 이어서 등록(재개)된다.
+ */
+async function registerBatch(batchId: string) {
   const batch = await prisma.placeBoosterBatch.findUnique({
     where: { id: batchId },
     include: { campaign: true },
@@ -30,133 +34,109 @@ async function processBatch(batchId: string) {
     campaign.paymentStatus !== 'PAID' ||
     (campaign.status !== 'SCHEDULED' && campaign.status !== 'RUNNING')
   ) {
-    return;
+    return; // 비활성(취소/미결제) → 건드리지 않음
   }
 
-  // 알림톡 페이로드 (등록 템플릿 UG_5628 본문/버튼) — 공용 빌더
+  // 등록 템플릿(UG_5628) 본문/버튼 — 공용 빌더 (버튼 URL은 회차 추적링크, 수신자 무관)
   const al = buildBoosterAlimtalk(campaign, batch.weekNo);
+  // 발송 시각이 미래면 예약(senddate), 이미 과거면 즉시 발송(senddate 생략)
+  const senddate = batch.scheduledAt.getTime() > Date.now() ? formatSenddateKST(batch.scheduledAt) : undefined;
 
-  // 점주 사본: 회차마다 점주 번호로 동일 알림톡 1통(통계/대상/피로도 미포함). 멱등키로 재처리 중복 방지.
-  if (campaign.ownerPhone?.trim()) {
-    await enqueueAlimTalk({
-      storeId: campaign.storeId ?? `ext:${campaign.id}`,
-      phone: campaign.ownerPhone.trim(),
-      messageType: 'PLACE_BOOSTER',
-      templateId: al.tplCode,
-      variables: { subject: al.subject, message: al.message, buttonName: al.buttonName, buttonUrl: al.buttonUrl },
-      idempotencyKey: `place_booster_owner:${batch.id}`,
-    }).catch((e) => console.error(`[PlaceBoosterWorker] 점주 사본 발송 실패 batch=${batch.id}:`, e));
-  }
+  // 이미 등록된 수신자(재개 시) 제외하고 잔여 인원만 채움
+  const existing = await prisma.placeBoosterRecipient.count({ where: { batchId: batch.id } });
+  let remaining = campaign.perBatchCount - existing;
 
-  const recipients = await selectRecipients(campaign);
-  if (recipients.length === 0) {
-    // 대상자 없음 → 회차 종료 처리
-    await finalizeBatch(batch.id, campaign.id, 0);
-    return;
-  }
+  while (remaining > 0) {
+    const take = Math.min(ALIGO_MAX_RECEIVERS, remaining);
+    // selectRecipients 는 캠페인 내 기존 수신자를 제외 → 매 청크마다 신규 선별
+    const picked = await selectRecipients(campaign, take);
+    if (picked.length === 0) break; // 지역 풀 소진
 
-  let enqueued = 0;
-  let failed = 0;
-  for (const r of recipients) {
-    const result = await enqueueAlimTalk({
-      // 외부(무매장) 캠페인은 합성 storeId — PLACE_BOOSTER 발송 경로는 storeId 미사용(추적/태그용)
-      storeId: campaign.storeId ?? `ext:${campaign.id}`,
-      phone: r.phone,
-      messageType: 'PLACE_BOOSTER',
-      templateId: al.tplCode, // 알리고 tpl_code
-      // 알리고는 본문/버튼을 전송 시 직접 보냄 → 렌더된 값을 variables에 담아 전달
-      variables: {
-        subject: al.subject,
-        message: al.message,
-        buttonName: al.buttonName,
-        buttonUrl: al.buttonUrl,
-      },
-      idempotencyKey: `place_booster:${batch.id}:${r.id}`,
+    const result = await sendAligoAlimtalkBulk({
+      phones: picked.map((p) => p.phone),
+      senddate,
+      tplCode: al.tplCode,
+      subject: al.subject,
+      message: al.message,
+      buttonName: al.buttonName,
+      buttonUrl: al.buttonUrl,
     });
-    // enqueue 실패 시: 수신자 기록/피로도 증가/집계를 하지 않음 → 잘못 '발송됨'으로 굳어
-    // 영구 제외되는 것을 방지(다음 회차/재처리에서 다시 대상이 됨).
     if (!result.success) {
-      failed++;
-      console.error(
-        `[PlaceBoosterWorker] enqueue 실패 campaign=${campaign.id} batch=${batch.id} uc=${r.id}: ${result.error ?? 'unknown'}`
+      // 등록 실패 → 이 청크는 미기록(SENDING 잔류 → 다음 틱/STUCK 재개에서 재시도). 마감하지 않음.
+      console.error(`[PlaceBoosterWorker] 예약 등록 실패 campaign=${campaign.id} batch=${batch.id}: ${result.error ?? 'unknown'}`);
+      return;
+    }
+
+    // 성공: 수신자 기록 + 피로도 증가 + mid 저장을 한 트랜잭션으로 커밋(청크 단위 재개 지점)
+    const ops: Prisma.PrismaPromise<unknown>[] = [
+      prisma.placeBoosterRecipient.createMany({
+        data: picked.map((p) => ({
+          batchId: batch.id,
+          campaignId: campaign.id,
+          uniqueCustomerId: p.id,
+          phone: p.phone,
+        })),
+        skipDuplicates: true,
+      }),
+      prisma.uniqueCustomer.updateMany({
+        where: { id: { in: picked.map((p) => p.id) } },
+        data: { sentCount: { increment: 1 }, lastSentAt: new Date() },
+      }),
+    ];
+    if (result.mid) {
+      ops.push(
+        prisma.placeBoosterBatch.update({
+          where: { id: batch.id },
+          data: { aligoMids: { push: result.mid } },
+        })
       );
-      continue;
     }
-    // 수신자 기록 + 피로도 증가를 한 묶음으로 (신규 생성 시에만 증가 → 재처리 중복/누락 방지)
-    try {
-      await prisma.$transaction([
-        prisma.placeBoosterRecipient.create({
-          data: {
-            batchId: batch.id,
-            campaignId: campaign.id,
-            uniqueCustomerId: r.id,
-            phone: r.phone,
-            outboxId: result.id ?? null,
-          },
-        }),
-        prisma.uniqueCustomer.update({
-          where: { id: r.id },
-          data: { sentCount: { increment: 1 }, lastSentAt: new Date() },
-        }),
-      ]);
-      enqueued++;
-    } catch (e) {
-      // 이미 이 캠페인 수신자(재처리 경합) → 피로도 중복 증가 방지, 발송분으로는 집계
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-        enqueued++;
-      } else {
-        throw e;
-      }
+    await prisma.$transaction(ops);
+    remaining -= picked.length;
+  }
+
+  // 사장님 사본: 회차당 1통(통계/피로도 미포함). 미등록(ownerAligoMid null)일 때만.
+  if (campaign.ownerPhone?.trim() && !batch.ownerAligoMid) {
+    const ownerRes = await sendAligoAlimtalkBulk({
+      phones: [campaign.ownerPhone.trim()],
+      senddate,
+      tplCode: al.tplCode,
+      subject: al.subject,
+      message: al.message,
+      buttonName: al.buttonName,
+      buttonUrl: al.buttonUrl,
+    });
+    if (ownerRes.success && ownerRes.mid) {
+      await prisma.placeBoosterBatch.update({ where: { id: batch.id }, data: { ownerAligoMid: ownerRes.mid } });
+    } else if (!ownerRes.success) {
+      // 사장님 사본 실패는 고객 발송 마감을 막지 않음(부가 통보) — 로그만
+      console.error(`[PlaceBoosterWorker] 사장님 사본 예약 실패 batch=${batch.id}: ${ownerRes.error ?? 'unknown'}`);
     }
   }
 
-  if (failed > 0) {
-    console.warn(`[PlaceBoosterWorker] batch ${batch.id} enqueue 실패 ${failed}건 (성공 ${enqueued}건)`);
-  }
-  await finalizeBatch(batch.id, campaign.id, enqueued);
-}
-
-async function finalizeBatch(batchId: string, campaignId: string, sentCount: number) {
-  // SENDING 상태일 때만 SENT 처리 — 발송 중 취소(CANCELLED)된 배치를 되살리지 않음
-  const upd = await prisma.placeBoosterBatch.updateMany({
-    where: { id: batchId, status: 'SENDING' },
-    data: { status: 'SENT', sentCount, sentAt: new Date() },
-  });
-  if (upd.count === 0) return; // 취소 등으로 이미 종료 → 캠페인 상태 건드리지 않음
-
-  const remaining = await prisma.placeBoosterBatch.count({
-    where: { campaignId, status: { in: ['SCHEDULED', 'SENDING'] } },
-  });
-  // CANCELLED/COMPLETED 캠페인을 RUNNING으로 되살리지 않도록 조건부
-  await prisma.placeBoosterCampaign.updateMany({
-    where: { id: campaignId, status: { in: ['SCHEDULED', 'RUNNING'] } },
-    data: { status: remaining === 0 ? 'COMPLETED' : 'RUNNING' },
+  // 마감: SENDING → REGISTERED (취소로 CANCELLED 된 회차는 status 가드로 되살리지 않음)
+  const finalCount = await prisma.placeBoosterRecipient.count({ where: { batchId: batch.id } });
+  await prisma.placeBoosterBatch.updateMany({
+    where: { id: batch.id, status: 'SENDING' },
+    data: { status: 'REGISTERED', reservedAt: new Date(), sentCount: finalCount },
   });
 }
 
-export async function processDueBatches() {
-  const now = new Date();
-  const stuckBefore = new Date(now.getTime() - STUCK_MS);
-
-  // 후보: 도래한 SCHEDULED + stuck SENDING (paymentStatus PAID, 활성, 미삭제)
-  const due = await prisma.placeBoosterBatch.findMany({
+/** (A)(B): 활성 캠페인의 미등록(SCHEDULED) + 정체(SENDING) 회차를 등록/재개 */
+async function registerPendingBatches() {
+  const stuckBefore = new Date(Date.now() - STUCK_MS);
+  const candidates = await prisma.placeBoosterBatch.findMany({
     where: {
-      OR: [
-        { status: 'SCHEDULED', scheduledAt: { lte: now } },
-        { status: 'SENDING', updatedAt: { lt: stuckBefore } },
-      ],
-      campaign: {
-        deletedAt: null,
-        paymentStatus: 'PAID',
-        status: { in: ['SCHEDULED', 'RUNNING'] },
-      },
+      OR: [{ status: 'SCHEDULED' }, { status: 'SENDING', updatedAt: { lt: stuckBefore } }],
+      campaign: { deletedAt: null, paymentStatus: 'PAID', status: { in: ['SCHEDULED', 'RUNNING'] } },
     },
     select: { id: true, status: true },
+    orderBy: [{ campaignId: 'asc' }, { weekNo: 'asc' }], // 주차 오름차순 → 주차 간 수신자 중복제외 유지
     take: 50,
   });
 
-  for (const b of due) {
-    // 이중 발송 방지: SCHEDULED→SENDING 원자적 클레임
+  for (const b of candidates) {
+    // 미등록은 SCHEDULED→SENDING 원자적 클레임(이중 처리 방지)
     if (b.status === 'SCHEDULED') {
       const claim = await prisma.placeBoosterBatch.updateMany({
         where: { id: b.id, status: 'SCHEDULED' },
@@ -165,18 +145,62 @@ export async function processDueBatches() {
       if (claim.count === 0) continue; // 다른 틱이 선점
     }
     try {
-      await processBatch(b.id);
+      await registerBatch(b.id);
     } catch (error) {
-      console.error(`[PlaceBoosterWorker] batch ${b.id} 처리 실패:`, error);
-      // SENDING으로 남아 stuck 재처리 (멱등키 + Recipient unique로 중복 0)
+      console.error(`[PlaceBoosterWorker] batch ${b.id} 등록 실패:`, error);
+      // SENDING 잔류 → STUCK 재개 (청크 커밋 + Recipient unique 로 중복 0)
     }
   }
 }
 
+/** (C): 발송 시각이 지난 예약 회차를 SENT 로 플립하고 캠페인 상태 재계산 */
+async function flipSentBatches() {
+  const now = new Date();
+  const due = await prisma.placeBoosterBatch.findMany({
+    where: { status: 'REGISTERED', scheduledAt: { lte: now }, campaign: { deletedAt: null } },
+    select: { id: true, campaignId: true, scheduledAt: true },
+    take: 100,
+  });
+  for (const b of due) {
+    const upd = await prisma.placeBoosterBatch.updateMany({
+      where: { id: b.id, status: 'REGISTERED' },
+      data: { status: 'SENT', sentAt: b.scheduledAt },
+    });
+    if (upd.count === 0) continue;
+    await recomputeCampaignStatus(b.campaignId);
+  }
+}
+
+async function recomputeCampaignStatus(campaignId: string) {
+  const [remaining, anySent] = await Promise.all([
+    prisma.placeBoosterBatch.count({
+      where: { campaignId, status: { in: ['SCHEDULED', 'SENDING', 'REGISTERED'] } },
+    }),
+    prisma.placeBoosterBatch.count({ where: { campaignId, status: 'SENT' } }),
+  ]);
+  // CANCELLED/COMPLETED 캠페인은 건드리지 않도록 조건부
+  await prisma.placeBoosterCampaign.updateMany({
+    where: { id: campaignId, status: { in: ['SCHEDULED', 'RUNNING'] } },
+    data: { status: remaining === 0 ? 'COMPLETED' : anySent > 0 ? 'RUNNING' : 'SCHEDULED' },
+  });
+}
+
+let running = false;
+async function processTick() {
+  if (running) return; // 이전 틱이 길어지면(대량 등록) 중첩 방지
+  running = true;
+  try {
+    await registerPendingBatches();
+    await flipSentBatches();
+  } finally {
+    running = false;
+  }
+}
+
 export function startPlaceBoosterWorker() {
-  console.log('[PlaceBoosterWorker] started (poll 60s)');
-  processDueBatches().catch((e) => console.error('[PlaceBoosterWorker] initial run error:', e));
+  console.log('[PlaceBoosterWorker] started (poll 60s, 알리고 예약 발송 등록)');
+  processTick().catch((e) => console.error('[PlaceBoosterWorker] initial run error:', e));
   setInterval(() => {
-    processDueBatches().catch((e) => console.error('[PlaceBoosterWorker] error:', e));
+    processTick().catch((e) => console.error('[PlaceBoosterWorker] error:', e));
   }, POLL_INTERVAL_MS);
 }

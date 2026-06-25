@@ -359,6 +359,26 @@ function CreateView({
   const [weekday, setWeekday] = useState(2);
   const [sendTime, setSendTime] = useState('18:00');
   const [submitting, setSubmitting] = useState(false);
+  const [testPhone, setTestPhone] = useState('');
+  const [testSending, setTestSending] = useState(false);
+  const [testMsg, setTestMsg] = useState('');
+  const sendTestPreview = async () => {
+    setTestMsg('');
+    if (!testPhone.trim()) { setTestMsg('테스트로 받을 번호를 입력해주세요.'); return; }
+    setTestSending(true);
+    try {
+      const res = await authFetch('/api/place-booster/test-send-preview', {
+        method: 'POST',
+        body: JSON.stringify({ phone: testPhone, keyword, naverPlaceUrl, couponContent, couponCode, couponAmount, couponValidUntil }),
+      });
+      const d = await res.json().catch(() => ({}));
+      setTestMsg(res.ok ? '✓ 테스트 알림톡을 발송했어요. 카카오톡을 확인해보세요.' : d.error || '발송에 실패했습니다.');
+    } catch {
+      setTestMsg('네트워크 오류가 발생했습니다.');
+    } finally {
+      setTestSending(false);
+    }
+  };
 
   // 점주 번호 자동 채우기(매장 등록 연락처) — 수정 가능
   useEffect(() => {
@@ -563,6 +583,25 @@ function CreateView({
           </div>
         </Section>
 
+          {/* 생성 전 테스트 발송 */}
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+            <div className="text-[15px] font-semibold text-neutral-800 mb-1">생성 전 테스트 발송</div>
+            <p className="text-sm text-neutral-400 mb-3">지금 입력한 내용 그대로 알림톡 1건을 받아볼 수 있어요. (캠페인 생성·결제 전)</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                className="input flex-1"
+                value={testPhone}
+                onChange={(e) => setTestPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="받을 휴대폰 번호 (예: 01012345678)"
+                inputMode="numeric"
+              />
+              <Button type="button" variant="secondary" size="lg" className="shrink-0" onClick={sendTestPreview} disabled={testSending}>
+                {testSending ? <Loader2 className="w-4 h-4 animate-spin" /> : '테스트 발송'}
+              </Button>
+            </div>
+            {testMsg && <p className={`text-sm mt-2 ${testMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{testMsg}</p>}
+          </div>
+
           <Button className="w-full" size="lg" onClick={submit} disabled={submitting || !placeInfo}>
             {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : !placeInfo ? '매장 정보 확인 필요' : '캠페인 생성 후 결제'}
           </Button>
@@ -646,10 +685,13 @@ function AlimtalkPreview({
   couponValidUntil: string;
 }) {
   // 입력 필드 ↔ 미리보기 1:1 매핑 (값이 비면 {필드명}으로 표시)
+  // 안내문은 실제 발송 본문(buildBoosterAlimtalk의 BOOSTER_COUPON_GUIDE)과 동일하게 유지.
+  const COUPON_GUIDE = '쿠폰 다운받기 > 네이버 길찾기 앱 진입 후 하단 스크롤 > 네이버 쿠폰 다운로드 > 매장 방문시 직원에게 보여주세요.';
   const contentText = couponContent.trim() || '{쿠폰 내용}';
   const codeText = couponCode.trim() || '{쿠폰 코드}';
   const amountText = couponAmount.trim() || '{쿠폰 금액}';
-  const validText = couponValidUntil ? `${couponValidUntil.replace(/-/g, '.')}까지` : '{유효기간}';
+  const validBase = couponValidUntil ? `${couponValidUntil.replace(/-/g, '.')}까지` : '{유효기간}';
+  const validText = `${validBase}\n\n${COUPON_GUIDE}`;
 
   const now = new Date();
   return (
@@ -688,13 +730,13 @@ function AlimtalkPreview({
                         <div className="text-xs font-bold text-neutral-900">쿠폰 발급 완료</div>
                       </div>
                       <div className="px-4 py-4">
-                        <p className="text-xs text-neutral-700 mb-3">
+                        <p className="text-xs text-neutral-700 mb-3 whitespace-pre-line">
                           <span className="font-semibold">{contentText}</span> 쿠폰이 도착했어요.
                         </p>
                         <div className="space-y-1 mb-3">
-                          <p className="text-xs text-neutral-700">▶ 쿠폰 코드: {codeText}</p>
-                          <p className="text-xs text-neutral-700">▶ 쿠폰: {amountText}</p>
-                          <p className="text-xs text-neutral-700">▶ 유효기간: {validText}</p>
+                          <p className="text-xs text-neutral-700 whitespace-pre-line">▶ 쿠폰 코드: {codeText}</p>
+                          <p className="text-xs text-neutral-700 whitespace-pre-line">▶ 쿠폰: {amountText}</p>
+                          <p className="text-xs text-neutral-700 whitespace-pre-line">▶ 유효기간: {validText}</p>
                         </div>
                         <p className="text-[10px] text-neutral-400 mb-3 leading-relaxed">
                           [태그히어 플레이스] 이 메시지는 고객님이 참여한 이벤트 당첨으로 지급된 쿠폰 안내 메시지입니다.
@@ -732,6 +774,26 @@ function DetailView({
   const c = report.campaign;
   const needsPayment = c.paymentStatus !== 'PAID';
   const [showPay, setShowPay] = useState(needsPayment && c.status === 'DRAFT');
+  const [testPhone, setTestPhone] = useState('');
+  const [testSending, setTestSending] = useState(false);
+  const [testMsg, setTestMsg] = useState('');
+  const sendTest = async () => {
+    setTestMsg('');
+    if (!testPhone.trim()) { setTestMsg('테스트로 받을 번호를 입력해주세요.'); return; }
+    setTestSending(true);
+    try {
+      const res = await authFetch(`/api/place-booster/campaigns/${c.id}/test-send`, {
+        method: 'POST',
+        body: JSON.stringify({ phone: testPhone }),
+      });
+      const d = await res.json().catch(() => ({}));
+      setTestMsg(res.ok ? '✓ 테스트 알림톡을 발송했어요. 카카오톡을 확인해보세요.' : d.error || '발송에 실패했습니다.');
+    } catch {
+      setTestMsg('네트워크 오류가 발생했습니다.');
+    } finally {
+      setTestSending(false);
+    }
+  };
 
   return (
     <div>
@@ -769,8 +831,27 @@ function DetailView({
 
       </Card>
 
+      {/* 테스트 발송 */}
+      <Card className="p-5 mb-4">
+        <div className="text-[15px] font-semibold text-neutral-800 mb-1">테스트 발송</div>
+        <p className="text-sm text-neutral-400 mb-3">입력한 번호로 실제와 똑같은 알림톡 1건을 즉시 보냅니다. (발송 대상·회차·결제와 무관)</p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            className="flex-1 border border-neutral-300 rounded-lg px-3.5 py-3 text-base min-h-12"
+            value={testPhone}
+            onChange={(e) => setTestPhone(e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="받을 휴대폰 번호 (예: 01012345678)"
+            inputMode="numeric"
+          />
+          <Button type="button" variant="secondary" size="lg" className="shrink-0" onClick={sendTest} disabled={testSending}>
+            {testSending ? <Loader2 className="w-4 h-4 animate-spin" /> : '테스트 발송'}
+          </Button>
+        </div>
+        {testMsg && <p className={`text-sm mt-2 ${testMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{testMsg}</p>}
+      </Card>
+
       {/* 성과 요약 */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <Stat label="발송수" value={won(report.totals.sentCount)} />
         <Stat label="클릭수" value={won(report.totals.clickCount)} />
         <Stat label="클릭율" value={`${report.totals.clickRate.toFixed(1)}%`} />
@@ -781,8 +862,8 @@ function DetailView({
         />
       </div>
 
-      {/* 주차별 리포트 */}
-      <Card className="p-0 overflow-hidden overflow-x-auto">
+      {/* 주차별 리포트 — 데스크탑: 표 */}
+      <Card className="hidden md:block p-0 overflow-hidden overflow-x-auto">
         <table className="w-full table-fixed text-[15px] whitespace-nowrap">
           <thead className="bg-neutral-50 text-neutral-500 text-sm">
             <tr>
@@ -804,6 +885,13 @@ function DetailView({
           </tbody>
         </table>
       </Card>
+
+      {/* 주차별 리포트 — 모바일: 카드 */}
+      <div className="md:hidden space-y-3">
+        {report.rows.map((r) => (
+          <BatchCard key={`${r.batchId}:${r.couponUsedCount ?? ''}:${r.avgTicket ?? ''}`} row={r} authFetch={authFetch} reload={reload} />
+        ))}
+      </div>
 
       {showPay && (
         <PaymentModal
@@ -843,20 +931,18 @@ function Stat({ label, value, tooltip }: { label: string; value: string; tooltip
   );
 }
 
-function BatchRow({
-  row,
-  authFetch,
-  reload,
-}: {
+type BatchRowProps = {
   row: ReportRow;
   authFetch: (p: string, i?: RequestInit) => Promise<Response>;
   reload: () => void;
-}) {
+};
+
+// 회차 결과 편집 로직 (데스크탑 표 행 / 모바일 카드 공용)
+function useBatchEdit({ row, authFetch, reload }: BatchRowProps) {
   const [editing, setEditing] = useState(false);
   const [used, setUsed] = useState(row.couponUsedCount?.toString() ?? '');
   const [avg, setAvg] = useState(row.avgTicket?.toString() ?? '');
   const liveRevenue = (Number(used) || 0) * (Number(avg) || 0); // 편집 중 매출 미리보기
-
   const save = async () => {
     await authFetch(`/api/place-booster/batches/${row.batchId}/results`, {
       method: 'PATCH',
@@ -868,6 +954,13 @@ function BatchRow({
     setEditing(false);
     reload();
   };
+  return { editing, setEditing, used, setUsed, avg, setAvg, liveRevenue, save };
+}
+
+/* 데스크탑: 표 행 */
+function BatchRow(props: BatchRowProps) {
+  const { row } = props;
+  const { editing, setEditing, used, setUsed, avg, setAvg, liveRevenue, save } = useBatchEdit(props);
 
   return (
     <tr className="border-t">
@@ -916,6 +1009,59 @@ function BatchRow({
         </>
       )}
     </tr>
+  );
+}
+
+/* 모바일: 카드 */
+function BatchCard(props: BatchRowProps) {
+  const { row } = props;
+  const { editing, setEditing, used, setUsed, avg, setAvg, liveRevenue, save } = useBatchEdit(props);
+  const Cell = ({ label, value }: { label: string; value: string | number }) => (
+    <div>
+      <div className="text-xs text-neutral-400">{label}</div>
+      <div className="text-sm font-medium text-neutral-800">{value}</div>
+    </div>
+  );
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-base font-bold text-neutral-900">{row.weekNo}주차</span>
+        <span className="text-sm text-neutral-500">{fmtDate(row.scheduledAt)}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-center pb-3 border-b border-neutral-100">
+        <Cell label="발송" value={won(row.sentCount)} />
+        <Cell label="클릭" value={won(row.clickCount)} />
+        <Cell label="클릭율" value={`${row.clickRate.toFixed(1)}%`} />
+      </div>
+      {editing ? (
+        <div className="space-y-2.5 pt-3">
+          <label className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-neutral-500">쿠폰사용</span>
+            <input className="w-36 h-10 border rounded-lg px-2.5 text-right text-base" inputMode="numeric" value={used} onChange={(e) => setUsed(e.target.value.replace(/[^0-9]/g, ''))} />
+          </label>
+          <label className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-neutral-500">평균객단</span>
+            <input className="w-36 h-10 border rounded-lg px-2.5 text-right text-base" inputMode="numeric" value={avg} onChange={(e) => setAvg(e.target.value.replace(/[^0-9]/g, ''))} />
+          </label>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-neutral-500">매출(예상)</span>
+            <span className="font-semibold text-neutral-800">{liveRevenue ? won(liveRevenue) : '-'}</span>
+          </div>
+          <button className="w-full mt-1 py-3 rounded-lg bg-brand-800 text-white text-base font-semibold" onClick={save}>저장</button>
+        </div>
+      ) : (
+        <div className="pt-3">
+          <div className="grid grid-cols-3 gap-2 text-center mb-3">
+            <Cell label="쿠폰사용" value={row.couponUsedCount ?? '-'} />
+            <Cell label="평균객단" value={row.avgTicket ? won(row.avgTicket) : '-'} />
+            <Cell label="매출" value={row.revenue ? won(row.revenue) : '-'} />
+          </div>
+          <button className="w-full py-2.5 rounded-lg border border-neutral-300 text-neutral-600 text-sm font-medium" onClick={() => setEditing(true)}>
+            {row.revenue ? '매출 수정' : '매출 입력'}
+          </button>
+        </div>
+      )}
+    </Card>
   );
 }
 

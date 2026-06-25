@@ -9,9 +9,11 @@ import { prisma } from '../lib/prisma.js';
 import {
   parseNaverPlaceId,
   generateTrackingCode,
+  buildNaverMapUrl,
 } from '../utils/naver-place.js';
 import { parseStoreRegion, expandRegions, TargetRegion } from '../utils/region.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
+import { cancelAligoReservation } from './aligo.js';
 import type { Prisma, PlaceBoosterCampaign } from '@prisma/client';
 
 /** 결제 금액 (VAT 포함) / ROI 분모 광고비 (VAT 제외) */
@@ -53,31 +55,73 @@ function formatBoosterValidUntil(date: Date | null): string {
 const BOOSTER_COUPON_GUIDE =
   '쿠폰 다운받기 > 네이버 길찾기 앱 진입 후 하단 스크롤 > 네이버 쿠폰 다운로드 > 매장 방문시 직원에게 보여주세요.';
 
-/** 캠페인 → 알리고 알림톡 페이로드(등록 템플릿 본문과 정확히 일치) */
-export function buildBoosterAlimtalk(
-  campaign: Pick<PlaceBoosterCampaign, 'trackingCode' | 'couponContent' | 'couponCode' | 'couponAmount' | 'couponValidUntil'>,
-  weekNo: number
-): BoosterAlimtalk {
-  // 알리고 템플릿 UG_5628의 4개 변수 = 쿠폰 내용 / 쿠폰 코드 / 쿠폰 금액 / 유효기간 (각각 1:1 매핑)
+/** 쿠폰 4개 필드 → 알림톡 본문(등록 템플릿 UG_5628과 정확히 일치). 캠페인/미리보기 공용. */
+function buildBoosterMessage(c: {
+  couponContent: string;
+  couponCode?: string | null;
+  couponAmount?: string | null;
+  couponValidUntil?: Date | null;
+}): string {
   // 유효기간 표기 뒤에 고정 안내문을 줄바꿈과 함께 덧붙인다(변수 값에 포함 → 템플릿 매칭 유지).
-  const validText = campaign.couponValidUntil
-    ? `${formatBoosterValidUntil(campaign.couponValidUntil)}까지\n\n${BOOSTER_COUPON_GUIDE}`
+  const validText = c.couponValidUntil
+    ? `${formatBoosterValidUntil(c.couponValidUntil)}까지\n\n${BOOSTER_COUPON_GUIDE}`
     : BOOSTER_COUPON_GUIDE;
-  const message = [
-    `${campaign.couponContent} 쿠폰이 도착했어요.`,
+  return [
+    `${c.couponContent} 쿠폰이 도착했어요.`,
     '',
-    `▶ 쿠폰 코드: ${campaign.couponCode ?? ''}`,
-    `▶ 쿠폰: ${campaign.couponAmount ?? ''}`,
+    `▶ 쿠폰 코드: ${c.couponCode ?? ''}`,
+    `▶ 쿠폰: ${c.couponAmount ?? ''}`,
     `▶ 유효기간: ${validText}`,
     '',
     '[태그히어 플레이스] 이 메시지는 고객님이 참여한 이벤트 당첨으로 지급된 쿠폰 안내 메시지입니다.',
   ].join('\n');
+}
+
+/** 캠페인 → 알리고 알림톡 페이로드 (버튼=추적 링크 /r/{code}/{weekNo}) */
+export function buildBoosterAlimtalk(
+  campaign: Pick<PlaceBoosterCampaign, 'trackingCode' | 'couponContent' | 'couponCode' | 'couponAmount' | 'couponValidUntil'>,
+  weekNo: number
+): BoosterAlimtalk {
   return {
     tplCode: BOOSTER_TPL_CODE,
     subject: '쿠폰 발급 완료',
-    message,
+    message: buildBoosterMessage(campaign),
     buttonName: '쿠폰 받기',
     buttonUrl: `${PUBLIC_BASE_URL}/r/${campaign.trackingCode}/${weekNo}`,
+  };
+}
+
+/**
+ * 생성 전 테스트용 알림톡 — 입력 폼 값으로 본문 구성, 버튼은 추적링크 대신
+ * 키워드+플레이스 직접 링크(아직 캠페인/추적코드가 없으므로). 본문 형식은 실제와 동일.
+ */
+export interface PreviewAlimtalkInput {
+  keyword: string;
+  naverPlaceUrl: string;
+  couponContent: string;
+  couponCode: string;
+  couponAmount: string;
+  couponValidUntil: string | Date;
+}
+export function buildBoosterPreviewAlimtalk(input: PreviewAlimtalkInput): BoosterAlimtalk {
+  if (!input.couponContent?.trim() || !input.couponCode?.trim() || !input.couponAmount?.trim() || !input.couponValidUntil) {
+    throw new BoosterError('쿠폰 내용/코드/금액/유효기간을 모두 입력 후 테스트해주세요.');
+  }
+  const placeId = parseNaverPlaceId(input.naverPlaceUrl || '');
+  if (!input.keyword?.trim() || !placeId) {
+    throw new BoosterError('키워드와 플레이스 상세 URL을 입력 후 테스트해주세요.');
+  }
+  return {
+    tplCode: BOOSTER_TPL_CODE,
+    subject: '쿠폰 발급 완료',
+    message: buildBoosterMessage({
+      couponContent: input.couponContent.trim(),
+      couponCode: input.couponCode.trim(),
+      couponAmount: input.couponAmount.trim(),
+      couponValidUntil: parseCouponValidUntil(input.couponValidUntil),
+    }),
+    buttonName: '쿠폰 받기',
+    buttonUrl: buildNaverMapUrl(input.keyword.trim(), placeId),
   };
 }
 
@@ -448,10 +492,11 @@ export async function approveBankTransfer(campaignId: string) {
  * unique_customers는 동기화 시 시/도(줄임)·시군구(시 단위)가 정규화돼 있어 정확일치로 매칭한다.
  */
 export async function selectRecipients(
-  campaign: Pick<PlaceBoosterCampaign, 'id' | 'perBatchCount' | 'targetRegions'>
+  campaign: Pick<PlaceBoosterCampaign, 'id' | 'perBatchCount' | 'targetRegions'>,
+  limit?: number // 청크 등록용: 이번에 선별할 최대 인원(기본 perBatchCount)
 ) {
   const region = campaign.targetRegions as unknown as TargetRegion;
-  const need = campaign.perBatchCount;
+  const need = Math.max(0, limit ?? campaign.perBatchCount);
   const picked: { id: string; phone: string }[] = [];
   const pickedIds: string[] = [];
 
@@ -517,19 +562,45 @@ export async function setBatchResults(
   });
 }
 
-/** 캠페인 취소(중지): 미발송 회차 취소, 발송분 보존. 환불은 운영자 수동. */
-export async function cancelCampaign(campaignId: string) {
+export interface CancelCampaignResult {
+  cancelled: number; // 취소된(앞으로 발송 안 될) 회차 수
+  failed: { weekNo: number; reason: string }[]; // 발송 5분 이내 등으로 취소 실패 → 그대로 발송 예정
+}
+
+/**
+ * 캠페인 취소(중지): 알리고에 예약된 발송을 mid 단위로 취소(베스트에포트).
+ * 발송 5분 전까지만 취소 가능 → 5분 이내 회차는 취소 실패로 보고(그대로 발송됨). 환불은 운영자 수동.
+ */
+export async function cancelCampaign(campaignId: string): Promise<CancelCampaignResult> {
   const campaign = await prisma.placeBoosterCampaign.findUnique({
     where: { id: campaignId },
   });
   if (!campaign || campaign.deletedAt) {
     throw new BoosterError('캠페인을 찾을 수 없습니다.', 404);
   }
-  // 이 캠페인 배치들의 미발송(PENDING/RETRY) 알림톡 outbox도 취소 → 취소 후 잔여 발송 방지
+
+  // 미발송(예약/처리중) 회차의 알리고 예약 취소 시도 — SENT(이미 발송)는 제외
   const batches = await prisma.placeBoosterBatch.findMany({
-    where: { campaignId },
-    select: { id: true },
+    where: { campaignId, status: { in: ['SCHEDULED', 'SENDING', 'REGISTERED'] } },
+    select: { id: true, weekNo: true, aligoMids: true, ownerAligoMid: true },
+    orderBy: { weekNo: 'asc' },
   });
+
+  const failed: { weekNo: number; reason: string }[] = [];
+  for (const b of batches) {
+    const mids = [...b.aligoMids, ...(b.ownerAligoMid ? [b.ownerAligoMid] : [])];
+    let weekFailed = false;
+    for (const mid of mids) {
+      const r = await cancelAligoReservation(mid);
+      if (!r.success) {
+        weekFailed = true;
+        console.warn(`[PlaceBooster] 예약 취소 실패 campaign=${campaignId} week=${b.weekNo} mid=${mid}: ${r.error}`);
+      }
+    }
+    if (weekFailed) failed.push({ weekNo: b.weekNo, reason: '발송 5분 이내라 취소되지 않았습니다(그대로 발송됩니다).' });
+  }
+
+  // 레거시 안전망: 구 구조(outbox 경유) 캠페인의 미발송 알림톡도 취소
   const outboxConds = batches.flatMap((b) => [
     { idempotencyKey: { startsWith: `place_booster:${b.id}:` } },
     { idempotencyKey: `place_booster_owner:${b.id}` },
@@ -537,7 +608,7 @@ export async function cancelCampaign(campaignId: string) {
 
   const ops: Prisma.PrismaPromise<unknown>[] = [
     prisma.placeBoosterBatch.updateMany({
-      where: { campaignId, status: { in: ['SCHEDULED', 'SENDING'] } },
+      where: { campaignId, status: { in: ['SCHEDULED', 'SENDING', 'REGISTERED'] } },
       data: { status: 'CANCELLED' },
     }),
     prisma.placeBoosterCampaign.update({
@@ -554,6 +625,8 @@ export async function cancelCampaign(campaignId: string) {
     );
   }
   await prisma.$transaction(ops);
+
+  return { cancelled: batches.length - failed.length, failed };
 }
 
 /** 소프트 삭제 (운영자). 진행 중이면 먼저 중지. */
@@ -565,14 +638,8 @@ export async function softDeleteCampaign(campaignId: string) {
   if (campaign.deletedAt) return;
 
   if (campaign.status !== 'CANCELLED' && campaign.status !== 'COMPLETED') {
-    await prisma.placeBoosterBatch.updateMany({
-      where: { campaignId, status: { in: ['SCHEDULED', 'SENDING'] } },
-      data: { status: 'CANCELLED' },
-    });
-    await prisma.placeBoosterCampaign.update({
-      where: { id: campaignId },
-      data: { status: 'CANCELLED' },
-    });
+    // 알리고 예약까지 함께 취소(베스트에포트) — 삭제 후 잔여 발송 방지
+    await cancelCampaign(campaignId);
   }
   await prisma.placeBoosterCampaign.update({
     where: { id: campaignId },

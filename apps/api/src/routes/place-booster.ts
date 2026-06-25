@@ -8,6 +8,7 @@ import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import * as svc from '../services/place-booster-service.js';
 import { lookupNaverPlace } from '../services/naver-place-lookup.js';
+import { sendAligoAlimtalk } from '../services/aligo.js';
 import { toMobileOrEmpty } from '../utils/phone.js';
 
 const router = Router();
@@ -48,6 +49,28 @@ router.get('/store-info', authMiddleware, async (req: AuthRequest, res: Response
     res.json({ phone: toMobileOrEmpty(store?.phone), ownerName: store?.ownerName || '' });
   } catch (error) {
     handleError(res, error, '매장 정보 조회 중 오류가 발생했습니다.');
+  }
+});
+
+// POST /api/place-booster/test-send-preview - 캠페인 생성 전, 입력값으로 테스트 알림톡 1건
+router.post('/test-send-preview', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { phone, ...input } = req.body;
+    const p = (phone || '').toString().trim();
+    if (!p) throw new svc.BoosterError('테스트로 받을 휴대폰 번호를 입력해주세요.');
+    const al = svc.buildBoosterPreviewAlimtalk(input);
+    const result = await sendAligoAlimtalk({
+      phone: p,
+      tplCode: al.tplCode,
+      subject: al.subject,
+      message: al.message,
+      buttonName: al.buttonName,
+      buttonUrl: al.buttonUrl,
+    });
+    if (!result.success) throw new svc.BoosterError(result.error || '테스트 발송에 실패했습니다.', 502);
+    res.json({ success: true });
+  } catch (error) {
+    handleError(res, error, '테스트 발송 중 오류가 발생했습니다.');
   }
 });
 
@@ -159,6 +182,28 @@ router.patch('/batches/:id/results', authMiddleware, async (req: AuthRequest, re
   }
 });
 
-// 테스트 발송(test-send)과 캠페인 취소(cancel)는 사장님 권한에서 제거됨 — 운영자(어드민) 라우트에서만 제공.
+// POST /api/place-booster/campaigns/:id/test-send - 내 번호로 테스트 알림톡 1건 (풀/회차/결제 미경유)
+router.post('/campaigns/:id/test-send', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const campaign = await loadOwnedCampaign(req.params.id, req.user!.storeId);
+    const phone = (req.body.phone || '').toString().trim();
+    if (!phone) throw new svc.BoosterError('테스트로 받을 휴대폰 번호를 입력해주세요.');
+    const al = svc.buildBoosterAlimtalk(campaign, 1);
+    const result = await sendAligoAlimtalk({
+      phone,
+      tplCode: al.tplCode,
+      subject: al.subject,
+      message: al.message,
+      buttonName: al.buttonName,
+      buttonUrl: al.buttonUrl,
+    });
+    if (!result.success) throw new svc.BoosterError(result.error || '테스트 발송에 실패했습니다.', 502);
+    res.json({ success: true });
+  } catch (error) {
+    handleError(res, error, '테스트 발송 중 오류가 발생했습니다.');
+  }
+});
+
+// 캠페인 취소(cancel)는 사장님 권한에서 제거됨 — 운영자(어드민) 라우트에서만 제공.
 
 export default router;

@@ -2006,9 +2006,10 @@ enum PlaceBoosterStatus {
 }
 
 enum PlaceBoosterBatchStatus {
-  SCHEDULED  // 발송 예약
-  SENDING    // 발송 처리 중 (워커 클레임)
-  SENT       // 발송 완료
+  SCHEDULED  // 생성됨, 알리고 미등록
+  SENDING    // 예약 등록 처리 중 (워커 클레임)
+  REGISTERED // 알리고 예약 발송 등록 완료 — 발송 대기
+  SENT       // 발송 시각 경과 (알리고가 발송)
   CANCELLED  // 취소됨
 }
 
@@ -2074,6 +2075,9 @@ model PlaceBoosterBatch {
   scheduledAt    DateTime                // 발송 예정 시각 (UTC 저장)
   status         PlaceBoosterBatchStatus @default(SCHEDULED)
   sentCount      Int                     @default(0)
+  aligoMids      String[]                @default([]) // 알리고 예약 발송 mid(청크당 1개) — 취소용
+  ownerAligoMid  String?                 // 사장님 사본 예약 mid (통계/피로도 미포함)
+  reservedAt     DateTime?               // 알리고 예약 등록 완료 시각
   couponUsedCount Int?                   // 수동 입력 (쿠폰 사용 횟수)
   avgTicket      Int?                    // 수동 입력 (평균 객단)
   sentAt         DateTime?
