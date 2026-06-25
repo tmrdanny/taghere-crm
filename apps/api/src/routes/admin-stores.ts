@@ -84,7 +84,12 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         where: { storeId: { in: ids }, role: 'OWNER' },
         select: { id: true, email: true, storeId: true },
       }),
-      prisma.customer.groupBy({ by: ['storeId'], where: { storeId: { in: ids } }, _count: { _all: true } }),
+      // 페이지가 사실상 전체(대량 pageSize=fetch-all)면 IN(수천) 필터보다 전체 groupBy가 빠름
+      prisma.customer.groupBy({
+        by: ['storeId'],
+        where: ids.length > 200 ? undefined : { storeId: { in: ids } },
+        _count: { _all: true },
+      }),
       prisma.monthlyCredit.findMany({
         where: { storeId: { in: ids }, yearMonth: currentYearMonth },
         select: { storeId: true, totalCredits: true, usedCredits: true },
