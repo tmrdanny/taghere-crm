@@ -4,16 +4,8 @@ import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { buildBoosterSearchUrl } from '@/lib/booster-link';
+import { BoosterCreateForm, BoosterTargetResult } from '@/components/place-booster/booster-create-form';
 
-const PRESETS = [
-  { key: '1000x5', label: '1,000명 × 5주', perBatchCount: 1000, totalWeeks: 5 },
-  { key: '500x10', label: '500명 × 10주', perBatchCount: 500, totalWeeks: 10 },
-];
-const WEEKDAYS = [
-  { value: 1, label: '월' }, { value: 2, label: '화' }, { value: 3, label: '수' },
-  { value: 4, label: '목' }, { value: 5, label: '금' }, { value: 6, label: '토' }, { value: 0, label: '일' },
-];
 const STATUS: Record<string, { label: string; cls: string }> = {
   DRAFT: { label: '결제 대기', cls: 'bg-gray-100 text-gray-600' },
   SCHEDULED: { label: '발송 예정', cls: 'bg-blue-100 text-blue-700' },
@@ -106,9 +98,11 @@ export default function AdminPlaceBoosterPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold">네이버 플레이스 부스터</h1>
-        <button className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm" onClick={() => setShowCreate(true)}>
-          + 대행 생성
-        </button>
+        {!showCreate && (
+          <button className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm" onClick={() => setShowCreate(true)}>
+            + 캠페인 생성
+          </button>
+        )}
       </div>
 
       {msg && (
@@ -117,13 +111,21 @@ export default function AdminPlaceBoosterPage() {
         </div>
       )}
 
+      {showCreate ? (
+        <div className="max-w-5xl">
+          <AdminCreateView
+            af={af}
+            onBack={() => setShowCreate(false)}
+            onCreated={() => { setShowCreate(false); setMsg('캠페인을 생성했습니다.'); load(); }}
+          />
+        </div>
+      ) : (
+      <>
       {analytics && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-5">
+        <div className="grid grid-cols-3 gap-3 mb-5">
           <Stat label="전체 캠페인" value={won(analytics.totalCampaigns)} />
           <Stat label="진행 중" value={won(analytics.activeCampaigns)} />
           <Stat label="승인 대기" value={won(analytics.pendingApproval)} highlight={analytics.pendingApproval > 0} />
-          <Stat label="총 발송" value={won(analytics.totalSent)} />
-          <Stat label="총 클릭" value={won(analytics.totalClicks)} />
         </div>
       )}
 
@@ -192,9 +194,10 @@ export default function AdminPlaceBoosterPage() {
         <span className="px-2 py-1">{page} / {pages}</span>
         <button disabled={page >= pages} onClick={() => setPage((p) => p + 1)} className="px-3 py-1 border rounded disabled:opacity-40">다음</button>
       </div>
+      </>
+      )}
 
       {detailId && <DetailModal id={detailId} af={af} onClose={() => setDetailId(null)} onChanged={load} />}
-      {showCreate && <CreateModal af={af} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); load(); }} />}
     </div>
   );
 }
@@ -390,47 +393,16 @@ function AdminBatchRow({ row, onSave }: { row: ReportRow; onSave: (b: string, u:
 }
 
 interface StoreOpt { id: string; name: string; ownerName: string | null; address: string | null; phone: string | null; }
-function CreateModal({ af, onClose, onCreated }: { af: (p: string, i?: RequestInit) => Promise<Response>; onClose: () => void; onCreated: () => void; }) {
+
+/** 운영자 캠페인 생성 — 사장님 생성 폼(BoosterCreateForm)에 매장 선택/외부 고객 대상 선택을 주입 */
+function AdminCreateView({ af, onBack, onCreated }: { af: (p: string, i?: RequestInit) => Promise<Response>; onBack: () => void; onCreated: () => void; }) {
   const [mode, setMode] = useState<'store' | 'external'>('store');
   const [campaignName, setCampaignName] = useState('');
   const [stores, setStores] = useState<StoreOpt[]>([]);
   const [storeId, setStoreId] = useState('');
   const [selectedStoreName, setSelectedStoreName] = useState('');
   const [storeSearch, setStoreSearch] = useState('');
-  const [keyword, setKeyword] = useState('');
-  const [naverPlaceUrl, setUrl] = useState('');
-  const [placeInfo, setPlaceInfo] = useState<{ placeId: string; name: string; category: string | null; address: string | null } | null>(null);
-  const [verifying, setVerifying] = useState(false);
-  const [couponContent, setCoupon] = useState('');
-  const [couponCode, setCouponCode] = useState('');
-  const [couponAmount, setCouponAmount] = useState('');
-  const [couponValidUntil, setCouponValidUntil] = useState('');
-  const [ownerPhone, setOwnerPhone] = useState('');
-  const [preset, setPreset] = useState(PRESETS[0]);
-  const [weekday, setWeekday] = useState(2);
-  const [sendTime, setSendTime] = useState('18:00');
-  const [err, setErr] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [testPhone, setTestPhone] = useState('');
-  const [testSending, setTestSending] = useState(false);
-  const [testMsg, setTestMsg] = useState('');
-  const sendTestPreview = async () => {
-    setTestMsg('');
-    if (!testPhone.trim()) { setTestMsg('테스트로 받을 번호를 입력해주세요.'); return; }
-    setTestSending(true);
-    try {
-      const res = await af('/api/admin/place-booster/test-send-preview', {
-        method: 'POST',
-        body: JSON.stringify({ phone: testPhone, keyword, naverPlaceUrl, couponContent, couponCode, couponAmount, couponValidUntil }),
-      });
-      const d = await res.json().catch(() => ({}));
-      setTestMsg(res.ok ? '✓ 발송했습니다. 카카오톡 확인' : d.error || '발송 실패');
-    } catch {
-      setTestMsg('네트워크 오류');
-    } finally {
-      setTestSending(false);
-    }
-  };
+  const [prefillPhone, setPrefillPhone] = useState('');
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -440,175 +412,72 @@ function CreateModal({ af, onClose, onCreated }: { af: (p: string, i?: RequestIn
     return () => clearTimeout(t);
   }, [af, storeSearch]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const renderTarget = () => (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-1 bg-neutral-100 rounded-lg p-1">
+        {([['store', '기존 매장'], ['external', '외부 고객']] as const).map(([m, label]) => (
+          <button
+            key={m}
+            type="button"
+            className={`py-2 rounded-md text-sm font-medium transition-colors ${mode === m ? 'bg-white shadow text-neutral-900' : 'text-neutral-500'}`}
+            onClick={() => setMode(m)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {mode === 'external' ? (
+        <input className="input" placeholder="외부 고객/캠페인 식별용 이름 (예: 행궁동 카페 6월)" value={campaignName} onChange={(e) => setCampaignName(e.target.value)} />
+      ) : selectedStoreName ? (
+        <div className="flex items-center justify-between border border-green-300 bg-green-50 rounded-xl px-4 py-3 text-sm">
+          <span className="font-medium">{selectedStoreName}</span>
+          <button type="button" className="text-xs text-neutral-500 underline" onClick={() => { setStoreId(''); setSelectedStoreName(''); }}>변경</button>
+        </div>
+      ) : (
+        <>
+          <input className="input" placeholder="매장명 / 대표자 검색" value={storeSearch} onChange={(e) => setStoreSearch(e.target.value)} />
+          {storeSearch.trim() && (
+            <div className="max-h-44 overflow-y-auto border border-neutral-200 rounded-xl divide-y">
+              {stores.length === 0 && <div className="px-3 py-2 text-sm text-neutral-400">검색 결과가 없습니다.</div>}
+              {stores.map((s) => (
+                <button
+                  type="button"
+                  key={s.id}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50"
+                  onClick={() => { setStoreId(s.id); setSelectedStoreName(s.name); setStoreSearch(''); setPrefillPhone(s.phone || ''); }}
+                >
+                  <span className="font-medium">{s.name}</span>
+                  {s.ownerName ? <span className="text-neutral-500"> ({s.ownerName})</span> : null}
+                  <span className="text-xs text-neutral-400"> — {s.address || '주소없음'}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 
-  const verifyPlace = async () => {
-    setErr('');
-    if (!naverPlaceUrl.trim()) return setErr('플레이스 URL을 입력해주세요.');
-    setVerifying(true);
-    try {
-      const res = await af('/api/admin/place-booster/verify-place', { method: 'POST', body: JSON.stringify({ url: naverPlaceUrl }) });
-      const d = await res.json();
-      if (res.ok) setPlaceInfo(d);
-      else { setPlaceInfo(null); setErr(d.error || '매장 정보를 확인하지 못했습니다.'); }
-    } catch { setErr('네트워크 오류가 발생했습니다.'); }
-    finally { setVerifying(false); }
-  };
-
-  const submit = async () => {
-    setErr('');
-    if (mode === 'store' && !storeId) return setErr('매장을 선택해주세요.');
-    if (mode === 'external' && !campaignName.trim()) return setErr('캠페인명을 입력해주세요.');
-    if (!placeInfo) return setErr('매장 정보 확인을 먼저 해주세요.');
-    if (!keyword || !couponContent || !couponCode.trim() || !couponAmount.trim() || !couponValidUntil || !ownerPhone.trim())
-      return setErr('키워드, 쿠폰 내용/코드/금액, 유효기간, 사장님 번호를 모두 입력해주세요.');
-    setBusy(true);
-    const res = await af('/api/admin/place-booster/campaigns', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...(mode === 'store' ? { storeId } : { campaignName: campaignName.trim() }),
-        placeAddress: placeInfo.address,
-        keyword,
-        naverPlaceUrl,
-        couponContent,
-        couponCode,
-        couponAmount,
-        couponValidUntil,
-        ownerPhone,
-        weekday,
-        sendTime,
-        perBatchCount: preset.perBatchCount,
-        totalWeeks: preset.totalWeeks,
-      }),
-    });
-    setBusy(false);
-    const d = await res.json().catch(() => ({}));
-    if (res.ok) onCreated();
-    else setErr(d.error || '생성 실패');
+  const getTargetPayload = (): BoosterTargetResult => {
+    if (mode === 'store') {
+      if (!storeId) return { ok: false, error: '매장을 선택해주세요.' };
+      return { ok: true, payload: { storeId } };
+    }
+    if (!campaignName.trim()) return { ok: false, error: '캠페인명을 입력해주세요.' };
+    return { ok: true, payload: { campaignName: campaignName.trim() } };
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-label="대행 캠페인 생성" className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto scrollbar-hide p-6 space-y-3" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between"><h3 className="text-lg font-bold">대행 캠페인 생성</h3><button onClick={onClose}>✕</button></div>
-        {err && <div className="bg-red-50 text-red-600 text-sm px-3 py-2 rounded">{err}</div>}
-        {/* 대상 유형 토글 */}
-        <div className="grid grid-cols-2 gap-1 bg-gray-100 rounded-lg p-1">
-          {([['store', '기존 매장'], ['external', '외부 고객']] as const).map(([m, label]) => (
-            <button
-              key={m}
-              type="button"
-              className={`py-2 rounded-md text-sm font-medium transition-colors ${mode === m ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
-              onClick={() => { setMode(m); setErr(''); }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {mode === 'external' ? (
-          <div>
-            <label className="text-sm font-medium">캠페인명</label>
-            <input
-              className="w-full border rounded px-3 py-2 text-sm mt-1"
-              placeholder="외부 고객/캠페인 식별용 이름 (예: 행궁동 카페 6월)"
-              value={campaignName}
-              onChange={(e) => setCampaignName(e.target.value)}
-            />
-          </div>
-        ) : (
-        <div>
-          <label className="text-sm font-medium">매장 선택</label>
-          {selectedStoreName ? (
-            <div className="flex items-center justify-between border border-green-300 bg-green-50 rounded px-3 py-2 text-sm mt-1">
-              <span className="font-medium">{selectedStoreName}</span>
-              <button type="button" className="text-xs text-gray-500 underline" onClick={() => { setStoreId(''); setSelectedStoreName(''); }}>변경</button>
-            </div>
-          ) : (
-            <>
-              <input
-                className="w-full border rounded px-3 py-2 text-sm mt-1"
-                placeholder="매장명 / 대표자 검색"
-                value={storeSearch}
-                onChange={(e) => setStoreSearch(e.target.value)}
-              />
-              {storeSearch.trim() && (
-                <div className="mt-1 max-h-44 overflow-y-auto border rounded divide-y">
-                  {stores.length === 0 && <div className="px-3 py-2 text-sm text-gray-400">검색 결과가 없습니다.</div>}
-                  {stores.map((s) => (
-                    <button
-                      type="button"
-                      key={s.id}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                      onClick={() => { setStoreId(s.id); setSelectedStoreName(s.name); setStoreSearch(''); setOwnerPhone((prev) => prev || s.phone || ''); }}
-                    >
-                      <span className="font-medium">{s.name}</span>
-                      {s.ownerName ? <span className="text-gray-500"> ({s.ownerName})</span> : null}
-                      <span className="text-xs text-gray-400"> — {s.address || '주소없음'}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-        )}
-        <input className="w-full border rounded px-3 py-2 text-sm" placeholder="유입 키워드" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
-        <div className="flex gap-2">
-          <input className="flex-1 border rounded px-3 py-2 text-sm" placeholder="매장 플레이스 URL" value={naverPlaceUrl} onChange={(e) => { setUrl(e.target.value); setPlaceInfo(null); }} />
-          <button type="button" className="border rounded px-3 py-2 text-sm whitespace-nowrap disabled:opacity-50" disabled={verifying} onClick={verifyPlace}>{verifying ? '확인 중…' : '매장 정보 확인'}</button>
-        </div>
-        {placeInfo && (
-          <div className="rounded border border-green-300 bg-green-50 p-2 text-sm">
-            <span className="font-semibold">{placeInfo.name}</span> <span className="text-xs text-green-700">✓</span>
-            {placeInfo.category && <span className="text-xs text-gray-500"> · {placeInfo.category}</span>}
-            {placeInfo.address && <div className="text-xs text-gray-500">{placeInfo.address}</div>}
-          </div>
-        )}
-        {keyword.trim() && placeInfo && (
-          <div className="rounded border border-gray-200 bg-gray-50 p-2 text-sm">
-            <div className="font-medium text-gray-700 mb-1">쿠폰받기 도착 링크 (키워드 + 플레이스 조합)</div>
-            <a href={buildBoosterSearchUrl(keyword.trim(), placeInfo.placeId)} target="_blank" rel="noopener noreferrer" className="block text-xs text-gray-600 underline break-all">
-              {buildBoosterSearchUrl(keyword.trim(), placeInfo.placeId)}
-            </a>
-            <a href={buildBoosterSearchUrl(keyword.trim(), placeInfo.placeId)} target="_blank" rel="noopener noreferrer" className="inline-block mt-1 text-xs font-medium px-2 py-1 rounded border border-gray-300 text-gray-700 bg-white hover:bg-gray-50">링크 열어서 확인 ↗</a>
-          </div>
-        )}
-        <textarea className="w-full border rounded px-3 py-2 text-sm" rows={3} placeholder="쿠폰 내용 (예: 성수 곱도리탕 맛집 다주막의 10% 할인)" value={couponContent} onChange={(e) => setCoupon(e.target.value)} />
-        <input className="w-full border rounded px-3 py-2 text-sm" placeholder="쿠폰 코드 (예: 다주막 네이버 쿠폰)" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} />
-        <div className="flex gap-2">
-          <input className="flex-1 border rounded px-3 py-2 text-sm" placeholder="쿠폰 금액 (예: 10% 할인)" value={couponAmount} onChange={(e) => setCouponAmount(e.target.value)} />
-          <input type="date" className="border rounded px-3 py-2 text-sm cursor-pointer" value={couponValidUntil} onChange={(e) => setCouponValidUntil(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} />
-        </div>
-        <input className="w-full border rounded px-3 py-2 text-sm" placeholder="사장님 번호 (발송 때마다 사장님에게도 발송, 예: 010-1234-5678)" value={ownerPhone} onChange={(e) => setOwnerPhone(e.target.value)} inputMode="tel" />
-        <div className="flex gap-2">
-          {PRESETS.map((p) => (
-            <button key={p.key} onClick={() => setPreset(p)} className={`flex-1 border rounded px-2 py-2 text-sm ${preset.key === p.key ? 'border-gray-900 bg-gray-100' : ''}`}>{p.label}</button>
-          ))}
-        </div>
-        <div className="flex gap-1">
-          {WEEKDAYS.map((d) => (
-            <button key={d.value} onClick={() => setWeekday(d.value)} className={`w-9 h-9 rounded text-sm ${weekday === d.value ? 'bg-gray-900 text-white' : 'bg-gray-100'}`}>{d.label}</button>
-          ))}
-          <input type="time" className="border rounded px-2 ml-2 text-sm cursor-pointer" value={sendTime} onChange={(e) => setSendTime(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} />
-        </div>
-        {/* 생성 전 테스트 발송 */}
-        <div className="rounded border border-gray-200 bg-gray-50 p-2">
-          <div className="text-xs font-medium text-gray-700 mb-1">생성 전 테스트 발송 — 입력값 그대로 1건</div>
-          <div className="flex gap-2">
-            <input className="flex-1 border rounded px-3 py-2 text-sm" value={testPhone} onChange={(e) => setTestPhone(e.target.value.replace(/[^0-9]/g, ''))} placeholder="받을 휴대폰 번호 (예: 01012345678)" inputMode="numeric" />
-            <button type="button" className="border rounded px-3 py-2 text-sm font-medium whitespace-nowrap disabled:opacity-50" disabled={testSending} onClick={sendTestPreview}>{testSending ? '발송 중…' : '테스트 발송'}</button>
-          </div>
-          {testMsg && <p className={`text-xs mt-1 ${testMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{testMsg}</p>}
-        </div>
-        <button className="w-full bg-gray-900 text-white py-2.5 rounded-lg text-sm disabled:opacity-50" disabled={busy || !placeInfo} onClick={submit}>
-          {busy ? '생성 중…' : !placeInfo ? '매장 정보 확인 필요' : '생성 (DRAFT — 결제/승인 필요)'}
-        </button>
-        <p className="text-xs text-gray-400">생성 후 계좌이체 입금 확인 시 목록에서 &apos;승인&apos; 하면 발송이 시작됩니다.</p>
-      </div>
-    </div>
+    <BoosterCreateForm
+      apiPrefix="/api/admin/place-booster"
+      fetcher={af}
+      submitLabel="캠페인 생성"
+      submitNote="생성 후 계좌이체 입금 확인 시 목록에서 '승인' 하면 발송이 시작됩니다."
+      prefillPhone={prefillPhone}
+      renderTarget={renderTarget}
+      getTargetPayload={getTargetPayload}
+      onBack={onBack}
+      onCreated={onCreated}
+    />
   );
 }

@@ -2053,6 +2053,7 @@ model PlaceBoosterCampaign {
   paymentKey      String?                    // 카드 결제 paymentKey (회계)
   status          PlaceBoosterStatus         @default(DRAFT)
   createdByAdmin  Boolean                    @default(false) // 운영자 대행 생성 여부
+  registeringAt   DateTime?                  // 예약 등록 배타 잠금 (워커 동시 등록 방지, stale 회수)
   deletedAt       DateTime?                  // 소프트 삭제 (운영자)
   createdAt       DateTime                   @default(now())
   updatedAt       DateTime                   @updatedAt
