@@ -2,6 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -253,6 +254,7 @@ export default function SettingsPage() {
       });
 
       if (res.ok) {
+        trackEvent('owner_settings_save', { section: 'store' });
         showToast('매장 정보가 저장되었습니다.', 'success');
       } else {
         const error = await res.json();
@@ -292,6 +294,7 @@ export default function SettingsPage() {
 
       if (res.ok) {
         setPointsAlimtalkEnabled(enabled);
+        trackEvent('owner_settings_save', { section: 'alimtalk' });
         showToast('알림톡 설정이 저장되었습니다.', 'success');
       } else {
         const error = await res.json();
@@ -388,6 +391,7 @@ export default function SettingsPage() {
       });
 
       if (res.ok) {
+        trackEvent('owner_settings_save', { section: 'point_rate' });
         showToast('포인트 적립률이 저장되었습니다.', 'success');
       } else {
         const error = await res.json();

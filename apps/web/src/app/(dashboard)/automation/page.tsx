@@ -2,6 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -214,6 +215,7 @@ export default function AutomationPage() {
       });
 
       if (res.ok) {
+        trackEvent('owner_automation_toggle', { rule_type: type, enabled });
         setRules((prev) =>
           prev.map((r) => (r.type === type ? { ...r, enabled } : r))
         );

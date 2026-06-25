@@ -4,6 +4,7 @@ import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/main-layout';
+import { setUserId, setUserProperties } from '@/lib/analytics';
 
 interface User {
   id: string;
@@ -81,6 +82,13 @@ export default function DashboardLayout({
 
     checkAuth();
   }, [router]);
+
+  // 로그인한 사장님을 GA에 연결 → 이후 대시보드 이벤트에 user_id·store_id 자동 부착
+  useEffect(() => {
+    if (!user) return;
+    setUserId(user.id);
+    setUserProperties({ store_id: user.store.id });
+  }, [user]);
 
   if (isLoading) {
     return (
