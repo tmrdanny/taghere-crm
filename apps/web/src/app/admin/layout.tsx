@@ -121,7 +121,7 @@ export default function AdminLayout({
   ];
 
   return (
-    <div className="min-h-screen bg-white flex">
+    <div className="h-screen bg-white flex">
       {/* Sidebar */}
       <aside
         className={`${
