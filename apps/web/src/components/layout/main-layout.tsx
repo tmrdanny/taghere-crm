@@ -37,7 +37,7 @@ export function MainLayout({ children, taghereVersion }: MainLayoutProps) {
 
         {/* Main Content */}
         <main
-          className="flex-1 min-h-screen lg:min-h-[calc(100vh)] overflow-x-hidden"
+          className="flex-1 min-h-screen lg:min-h-[calc(100vh)] overflow-x-clip"
           style={{ zoom: 0.9 }}
         >
           {children}
