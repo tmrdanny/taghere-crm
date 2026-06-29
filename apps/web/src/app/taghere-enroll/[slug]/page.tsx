@@ -1172,6 +1172,7 @@ function TaghereEnrollContent() {
 
               <button
                 onClick={() => {
+                  trackEvent('earn_cta_click', { flow_type: 'points', store_slug: slug, agreed: isAgreed });
                   if (!isAgreed) {
                     setShowAgreementWarning(true);
                     return;
