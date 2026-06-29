@@ -27,6 +27,12 @@ interface Retention { earners: { once: number; twice: number; three_plus: number
 interface Dropoff { consent: { agreed: number; not_agreed: number }; failReasons: { reason: string; cnt: number }[] }
 interface HeatRow { dow: number; hour: number; cnt: number }
 interface StoreDetail { flow_start: number; cta_click: number; kakao_auth: number; success: number; fail: number; coupon_download: number; feedback_submit: number }
+interface OwnerUsageRow { event_name: string; cnt: number; owners: number }
+interface OwnerStoreRow { name: string; cnt: number }
+interface SegmentRow { segment: string; starts: number; success: number }
+interface CouponEffect { total: { download: number; used: number }; daily: { event_date: string; download: number; used: number }[] }
+interface RatingRow { rating: number; cnt: number }
+interface NewCustRow { event_date: string; cnt: number }
 
 function Stat({ label, value, sub }: { label: string; value: number; sub?: string }) {
   return (
@@ -35,6 +41,36 @@ function Stat({ label, value, sub }: { label: string; value: number; sub?: strin
       <div className="text-lg font-bold text-neutral-900">{value.toLocaleString()}</div>
       {sub && <div className="text-xs text-neutral-400 mt-0.5">{sub}</div>}
     </div>
+  );
+}
+
+function SegTable({ rows }: { rows: SegmentRow[] }) {
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="text-left text-neutral-400 border-b">
+          <th className="py-1 font-medium">세그먼트</th>
+          <th className="py-1 font-medium text-right">진입</th>
+          <th className="py-1 font-medium text-right">성공</th>
+          <th className="py-1 font-medium text-right">전환율</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => {
+          const st = Number(r.starts), su = Number(r.success);
+          const c = st > 0 ? Math.round((su / st) * 1000) / 10 : 0;
+          return (
+            <tr key={r.segment} className="border-b border-neutral-100">
+              <td className="py-1.5 text-neutral-800 break-all">{r.segment}</td>
+              <td className="py-1.5 text-right text-neutral-600">{st.toLocaleString()}</td>
+              <td className="py-1.5 text-right text-neutral-600">{su.toLocaleString()}</td>
+              <td className="py-1.5 text-right font-medium text-neutral-900">{c}%</td>
+            </tr>
+          );
+        })}
+        {rows.length === 0 && <tr><td colSpan={4} className="py-3 text-center text-neutral-400">데이터 없음</td></tr>}
+      </tbody>
+    </table>
   );
 }
 
@@ -53,6 +89,17 @@ export default function InsightsPage() {
   const [heat, setHeat] = useState<HeatRow[]>([]);
   const [openStore, setOpenStore] = useState<string | null>(null);
   const [storeDetail, setStoreDetail] = useState<StoreDetail | null>(null);
+  const [ownerUsage, setOwnerUsage] = useState<OwnerUsageRow[]>([]);
+  const [totalStores, setTotalStores] = useState(0);
+  const [ownerStores, setOwnerStores] = useState<OwnerStoreRow[]>([]);
+  const [coupon, setCoupon] = useState<CouponEffect | null>(null);
+  const [segByDevice, setSegByDevice] = useState<SegmentRow[]>([]);
+  const [segBySource, setSegBySource] = useState<SegmentRow[]>([]);
+  const [ratings, setRatings] = useState<RatingRow[]>([]);
+  const [newCust, setNewCust] = useState<NewCustRow[]>([]);
+  const [prevFunnel, setPrevFunnel] = useState<Funnel | null>(null);
+  const [prevRetention, setPrevRetention] = useState<Retention | null>(null);
+  const [storeSort, setStoreSort] = useState<'asc' | 'desc'>('asc');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,17 +109,21 @@ export default function InsightsPage() {
     const token = localStorage.getItem('adminToken');
     const headers = { Authorization: `Bearer ${token}` };
     const qs = `from=${toYmd(from)}&to=${toYmd(to)}`;
+    // 직전 동일 기간(WoW 비교)
+    const fromD = new Date(from), toD = new Date(to);
+    const days = Math.round((toD.getTime() - fromD.getTime()) / 86400000) + 1;
+    const pTo = new Date(fromD.getTime() - 86400000);
+    const pFrom = new Date(pTo.getTime() - (days - 1) * 86400000);
+    const pqs = `from=${toYmd(fmtDateInput(pFrom))}&to=${toYmd(fmtDateInput(pTo))}`;
+    const get = (p: string, q = qs) => fetch(`${API_BASE}/api/admin/insights/${p}${p.includes('?') ? '&' : '?'}${q}`, { headers }).then((r) => r.json());
     try {
-      const [f, u, d, s, ret, drp, hm] = await Promise.all([
-        fetch(`${API_BASE}/api/admin/insights/funnel?${qs}${flowType ? `&flow_type=${flowType}` : ''}`, { headers }).then((r) => r.json()),
-        fetch(`${API_BASE}/api/admin/insights/feature-usage?${qs}`, { headers }).then((r) => r.json()),
-        fetch(`${API_BASE}/api/admin/insights/daily?${qs}`, { headers }).then((r) => r.json()),
-        fetch(`${API_BASE}/api/admin/insights/stores?${qs}`, { headers }).then((r) => r.json()),
-        fetch(`${API_BASE}/api/admin/insights/retention?${qs}`, { headers }).then((r) => r.json()),
-        fetch(`${API_BASE}/api/admin/insights/dropoff?${qs}`, { headers }).then((r) => r.json()),
-        fetch(`${API_BASE}/api/admin/insights/heatmap?${qs}`, { headers }).then((r) => r.json()),
+      const [f, u, d, s, ret, drp, hm, ou, os, ce, seg, rt, nc, pf, pr] = await Promise.all([
+        get(`funnel${flowType ? `?flow_type=${flowType}` : ''}`),
+        get('feature-usage'), get('daily'), get('stores'), get('retention'), get('dropoff'), get('heatmap'),
+        get('owner-usage'), get('owner-stores'), get('coupon-effect'), get('segments'), get('ratings'), get('new-customers'),
+        get('funnel', pqs), get('retention', pqs),
       ]);
-      const err = f?.error || u?.error || d?.error || s?.error || ret?.error || drp?.error || hm?.error;
+      const err = f?.error || u?.error || d?.error || s?.error || ret?.error || drp?.error || hm?.error || ou?.error || os?.error || ce?.error || seg?.error || rt?.error || nc?.error;
       if (err) throw new Error(err);
       setFunnel(f);
       setFlows(u.flows || []);
@@ -82,6 +133,10 @@ export default function InsightsPage() {
       setRetention(ret);
       setDropoff(drp);
       setHeat(hm.rows || []);
+      setOwnerUsage(ou.usage || []); setTotalStores(ou.totalStores || 0); setOwnerStores(os.rows || []);
+      setCoupon(ce); setSegByDevice(seg.byDevice || []); setSegBySource(seg.bySource || []);
+      setRatings(rt.rows || []); setNewCust(nc.rows || []);
+      setPrevFunnel(pf); setPrevRetention(pr);
       setOpenStore(null);
       setStoreDetail(null);
     } catch (e: any) {
@@ -110,6 +165,19 @@ export default function InsightsPage() {
   const heatMax = Math.max(1, ...heat.map((h) => n(h.cnt)));
   const heatAt = (dow: number, hour: number) => n(heat.find((h) => h.dow === dow && h.hour === hour)?.cnt);
 
+  // WoW 증감(%) — null이면 비교 불가
+  const deltaPct = (cur: number, prev: number) => (prev > 0 ? Math.round(((cur - prev) / prev) * 1000) / 10 : null);
+  const OWNER_LABEL: Record<string, string> = {
+    owner_message_send: '메시지 발송', owner_message_test_send: '메시지 테스트',
+    owner_booster_create: '부스터 생성', owner_booster_payment: '부스터 결제', owner_booster_test_send: '부스터 테스트', owner_booster_report_save: '부스터 성과저장',
+    owner_points_earn: '포인트 적립', owner_points_deduct: '포인트 차감', owner_stamps_earn: '스탬프 적립',
+    owner_customer_add: '고객 추가', owner_customer_update: '고객 수정', owner_customer_delete: '고객 삭제', owner_customer_bulk_upload: '고객 대량등록',
+    owner_automation_toggle: '자동화 토글', owner_automation_quickstart: '자동화 일괄시작',
+    owner_localmkt_send: '지역마케팅 발송', owner_visit_source_save: '방문경로 설정',
+    owner_settings_save: '설정 저장', owner_stamp_rewards_save: '스탬프 보상설정',
+    owner_waiting_add: '웨이팅 추가', owner_waiting_call: '웨이팅 호출', owner_waiting_seat: '웨이팅 착석', owner_waiting_cancel: '웨이팅 취소',
+  };
+
   // 퍼널 단계 (flow_start 대비 %)
   const fs = n(funnel?.flow_start);
   const funnelSteps = funnel
@@ -131,7 +199,7 @@ export default function InsightsPage() {
   }));
   const storeRows = stores
     .map((r) => ({ slug: r.store_slug, name: r.store_name || r.store_slug, starts: n(r.starts), success: n(r.success), conv: pct(n(r.success), n(r.starts)) }))
-    .sort((a, b) => a.conv - b.conv);
+    .sort((a, b) => (storeSort === 'asc' ? a.conv - b.conv : b.conv - a.conv));
 
   return (
     <div className="p-4 md:p-6 max-w-[1200px] mx-auto w-full space-y-5">
@@ -161,6 +229,38 @@ export default function InsightsPage() {
 
       {!loading && !error && (
         <>
+          {/* 0. KPI 요약 (+WoW) */}
+          {funnel && retention && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {(() => {
+                const cur = { earn: n(funnel.success), conv: pct(n(funnel.success), n(funnel.flow_start)), nv: n(retention.visitors.new_visitors), re: pct(n(retention.earners.twice) + n(retention.earners.three_plus), n(retention.earners.total)) };
+                const prev = prevFunnel && prevRetention
+                  ? { earn: n(prevFunnel.success), conv: pct(n(prevFunnel.success), n(prevFunnel.flow_start)), nv: n(prevRetention.visitors.new_visitors), re: pct(n(prevRetention.earners.twice) + n(prevRetention.earners.three_plus), n(prevRetention.earners.total)) }
+                  : null;
+                const cards = [
+                  { label: '총 적립 성공', value: cur.earn, prev: prev?.earn, unit: '' },
+                  { label: '적립 전환율', value: cur.conv, prev: prev?.conv, unit: '%' },
+                  { label: '신규 방문자', value: cur.nv, prev: prev?.nv, unit: '' },
+                  { label: '재적립률', value: cur.re, prev: prev?.re, unit: '%' },
+                ];
+                return cards.map((c) => {
+                  const dp = c.prev != null ? deltaPct(c.value, c.prev) : null;
+                  return (
+                    <Card key={c.label} className="p-4">
+                      <div className="text-xs text-neutral-500">{c.label}</div>
+                      <div className="text-xl font-bold text-neutral-900">{c.value.toLocaleString()}{c.unit}</div>
+                      {dp != null && (
+                        <div className={`text-xs mt-0.5 ${dp > 0 ? 'text-emerald-600' : dp < 0 ? 'text-red-600' : 'text-neutral-400'}`}>
+                          {dp > 0 ? '▲' : dp < 0 ? '▼' : '–'} {Math.abs(dp)}% <span className="text-neutral-400">vs 직전</span>
+                        </div>
+                      )}
+                    </Card>
+                  );
+                });
+              })()}
+            </div>
+          )}
+
           {/* 1. 적립 퍼널 */}
           <Card className="p-5">
             <div className="flex items-center justify-between mb-4">
@@ -338,8 +438,14 @@ export default function InsightsPage() {
 
           {/* 5. 매장별 전환율 (개선 타겟) */}
           <Card className="p-5">
-            <h2 className="font-semibold text-neutral-800 mb-1">매장별 전환율 (개선 타겟)</h2>
-            <p className="text-xs text-neutral-400 mb-3">시작 20건 이상 · 전환율 낮은 순. 낮은 매장이 개선 후보</p>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-semibold text-neutral-800">매장별 전환율 {storeSort === 'asc' ? '(개선 타겟)' : '(우수 매장)'}</h2>
+              <div className="flex gap-1">
+                <button onClick={() => setStoreSort('asc')} className={`px-2.5 py-1 rounded text-xs ${storeSort === 'asc' ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`}>개선 타겟</button>
+                <button onClick={() => setStoreSort('desc')} className={`px-2.5 py-1 rounded text-xs ${storeSort === 'desc' ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`}>우수 매장</button>
+              </div>
+            </div>
+            <p className="text-xs text-neutral-400 mb-3">시작 20건 이상 · {storeSort === 'asc' ? '전환율 낮은 순(개선 후보)' : '전환율 높은 순(잘 쓰는 매장)'}</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -390,6 +496,119 @@ export default function InsightsPage() {
                 </tbody>
               </table>
             </div>
+          </Card>
+
+          {/* 6. 별점 분포 */}
+          {ratings.length > 0 && (
+            <Card className="p-5">
+              <h2 className="font-semibold text-neutral-800 mb-3">피드백 별점 분포</h2>
+              {(() => {
+                const tot = ratings.reduce((s, r) => s + n(r.cnt), 0);
+                const avg = tot > 0 ? Math.round((ratings.reduce((s, r) => s + n(r.rating) * n(r.cnt), 0) / tot) * 100) / 100 : 0;
+                const five = n(ratings.find((r) => n(r.rating) === 5)?.cnt);
+                const max = Math.max(1, ...ratings.map((r) => n(r.cnt)));
+                return (
+                  <>
+                    <div className="flex gap-4 text-sm mb-3">
+                      <span>평균 <b className="text-neutral-900">{avg}점</b></span>
+                      <span>5점 비율 <b className="text-neutral-900">{pct(five, tot)}%</b></span>
+                      <span className="text-neutral-400">총 {tot.toLocaleString()}건</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {[5, 4, 3, 2, 1].map((star) => {
+                        const c = n(ratings.find((r) => n(r.rating) === star)?.cnt);
+                        return (
+                          <div key={star} className="flex items-center gap-2 text-sm">
+                            <span className="w-8 text-neutral-500">{star}점</span>
+                            <div className="flex-1 h-3 bg-neutral-100 rounded"><div className="h-3 rounded bg-[#FFD541]" style={{ width: `${(c / max) * 100}%` }} /></div>
+                            <span className="w-14 text-right text-neutral-700">{c.toLocaleString()}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+            </Card>
+          )}
+
+          {/* 7. 쿠폰 효과 */}
+          {coupon && (
+            <Card className="p-5">
+              <h2 className="font-semibold text-neutral-800 mb-3">쿠폰 효과 (다운 → 사용)</h2>
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                <Stat label="다운로드" value={n(coupon.total.download)} />
+                <Stat label="사용" value={n(coupon.total.used)} />
+                <Stat label="사용 전환율" value={pct(n(coupon.total.used), n(coupon.total.download))} sub="다운 대비 %" />
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={coupon.daily.map((r) => ({ date: `${r.event_date.slice(4, 6)}/${r.event_date.slice(6, 8)}`, 다운: n(r.download), 사용: n(r.used) }))} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Legend />
+                  <Line type="monotone" dataKey="다운" stroke="#C7CCD1" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="사용" stroke="#10B981" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
+
+          {/* 8. 기기/유입경로별 전환 */}
+          <Card className="p-5">
+            <h2 className="font-semibold text-neutral-800 mb-3">기기 · 유입경로별 전환</h2>
+            <div className="grid md:grid-cols-2 gap-5">
+              <div>
+                <div className="text-sm text-neutral-600 mb-2">기기별</div>
+                <SegTable rows={segByDevice} />
+              </div>
+              <div>
+                <div className="text-sm text-neutral-600 mb-2">유입경로별 (source / medium)</div>
+                <SegTable rows={segBySource} />
+              </div>
+            </div>
+          </Card>
+
+          {/* 9. 신규 고객 획득 추이 */}
+          <Card className="p-5">
+            <h2 className="font-semibold text-neutral-800 mb-3">신규 고객 획득 추이 (first_visit)</h2>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={newCust.map((r) => ({ date: `${r.event_date.slice(4, 6)}/${r.event_date.slice(6, 8)}`, 신규: n(r.cnt) }))} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Legend />
+                <Line type="monotone" dataKey="신규" stroke="#6BA3FF" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </Card>
+
+          {/* 10. 사장님 기능 사용 현황 */}
+          <Card className="p-5">
+            <h2 className="font-semibold text-neutral-800 mb-1">사장님 기능 사용 현황</h2>
+            <p className="text-xs text-neutral-400 mb-3">owner 이벤트 · 부스터는 06-30부터 데이터 · 채택률 = 쓴 사장님 / 전체 매장({totalStores.toLocaleString()})</p>
+            {ownerUsage.length === 0 ? (
+              <div className="text-sm text-neutral-400">기간 내 사장님 활동 없음</div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                  {ownerUsage.map((r) => (
+                    <div key={r.event_name} className="rounded-lg bg-neutral-50 p-3">
+                      <div className="text-xs text-neutral-500">{OWNER_LABEL[r.event_name] || r.event_name}</div>
+                      <div className="text-lg font-bold text-neutral-900">{n(r.cnt).toLocaleString()}</div>
+                      <div className="text-xs text-neutral-400">사장님 {n(r.owners)} · 채택 {pct(n(r.owners), totalStores)}%</div>
+                    </div>
+                  ))}
+                </div>
+                {ownerStores.length > 0 && (
+                  <div>
+                    <div className="text-sm text-neutral-600 mb-2">기능 활발한 매장 Top</div>
+                    <div className="space-y-1">
+                      {ownerStores.map((st, i) => (
+                        <div key={i} className="flex justify-between text-sm border-b border-neutral-100 py-1">
+                          <span className="text-neutral-800 break-all">{st.name}</span>
+                          <span className="font-medium text-neutral-900">{n(st.cnt).toLocaleString()}건</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </Card>
         </>
       )}
