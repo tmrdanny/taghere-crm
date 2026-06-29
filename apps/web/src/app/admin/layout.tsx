@@ -89,6 +89,7 @@ export default function AdminLayout({
 
   const getPageTitle = () => {
     if (pathname === '/admin') return '홈';
+    if (pathname === '/admin/insights') return '분석 대시보드';
     if (pathname === '/admin/stores') return '매장 관리';
     if (pathname === '/admin/store-list') return '매장 목록';
     if (pathname === '/admin/franchises') return '프랜차이즈 관리';
@@ -106,6 +107,7 @@ export default function AdminLayout({
 
   const menuItems = [
     { href: '/admin', label: '홈', icon: HomeIcon },
+    { href: '/admin/insights', label: '분석 대시보드', icon: ChartIcon },
     { href: '/admin/stores', label: '매장 관리', icon: StoreIcon },
     { href: '/admin/store-list', label: '매장 목록', icon: ListIcon },
     { href: '/admin/franchises', label: '프랜차이즈 관리', icon: FranchiseIcon },
@@ -212,6 +214,14 @@ export default function AdminLayout({
 }
 
 // Icons
+function ChartIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+    </svg>
+  );
+}
+
 function HomeIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
