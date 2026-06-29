@@ -8,6 +8,7 @@
  */
 
 import { useState, type ReactNode } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import { Card } from '@/components/ui/card';
 import { Info, ChevronDown } from 'lucide-react';
 import { fmtDateTime } from './booster-create-form';
@@ -205,6 +206,7 @@ function useBatchEdit({ row, fetcher, apiPrefix, reload }: BatchRowProps) {
         avgTicket: avg ? parseInt(avg, 10) : null,
       }),
     });
+    trackEvent('owner_booster_report_save', { week_no: row.weekNo });
     setEditing(false);
     reload();
   };

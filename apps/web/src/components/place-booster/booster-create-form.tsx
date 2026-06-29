@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import { Rocket, Ticket, Calendar, ChevronLeft, Loader2, ExternalLink, Store } from 'lucide-react';
 import { buildBoosterSearchUrl } from '@/lib/booster-link';
 import { Button } from '@/components/ui/button';
@@ -145,6 +146,7 @@ export function BoosterCreateForm({
         body: JSON.stringify({ phone: testPhone, keyword, naverPlaceUrl, couponContent, couponCode, couponAmount, couponValidUntil }),
       });
       const d = await res.json().catch(() => ({}));
+      if (res.ok) trackEvent('owner_booster_test_send', { stage: 'preview' });
       setTestMsg(res.ok ? '✓ 테스트 알림톡을 발송했어요. 카카오톡을 확인해보세요.' : d.error || '발송에 실패했습니다.');
     } catch { setTestMsg('네트워크 오류가 발생했습니다.'); }
     finally { setTestSending(false); }
@@ -185,6 +187,7 @@ export function BoosterCreateForm({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data.error || '생성에 실패했습니다.'); return; }
+      trackEvent('owner_booster_create', { keyword, total_target_count: preset.perBatchCount * preset.totalWeeks });
       onCreated(data.id);
     } finally {
       setSubmitting(false);

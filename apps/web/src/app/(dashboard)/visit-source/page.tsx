@@ -2,6 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState, useCallback } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -200,6 +201,7 @@ export default function VisitSourcePage() {
       });
 
       if (res.ok) {
+        trackEvent('owner_visit_source_save', { option_count: options.length });
         showToast('설정이 저장되었습니다.', 'success');
       } else {
         const error = await res.json();

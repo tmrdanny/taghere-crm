@@ -3,6 +3,7 @@
 import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { trackEvent } from '@/lib/analytics';
 
 interface Banner {
   id: string;
@@ -78,7 +79,7 @@ function InlineBannerCarousel({ banners }: { banners: Banner[] }) {
       <div className="relative overflow-hidden rounded-[12px]" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
         <div className="flex transition-transform duration-300 ease-out" style={{ transform: `translateX(-${currentIndex * 100}%)` }}>
           {banners.map((banner) => (
-            <BannerMedia key={banner.id} banner={banner} onClick={() => banner.linkUrl && window.open(banner.linkUrl, '_blank')} />
+            <BannerMedia key={banner.id} banner={banner} onClick={() => { trackEvent('banner_click', { banner_id: banner.id, link_url: banner.linkUrl ?? null }); if (banner.linkUrl) window.open(banner.linkUrl, '_blank'); }} />
           ))}
         </div>
         {banners.length > 1 && (
@@ -189,7 +190,7 @@ function BottomModal({
               <div className="relative overflow-hidden rounded-[12px]" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
                 <div className="flex transition-transform duration-300 ease-out" style={{ transform: `translateX(-${currentIndex * 100}%)` }}>
                   {banners.map((banner) => (
-                    <BannerMedia key={banner.id} banner={banner} onClick={() => banner.linkUrl && window.open(banner.linkUrl, '_blank')} />
+                    <BannerMedia key={banner.id} banner={banner} onClick={() => { trackEvent('banner_click', { banner_id: banner.id, link_url: banner.linkUrl ?? null }); if (banner.linkUrl) window.open(banner.linkUrl, '_blank'); }} />
                   ))}
                 </div>
                 {banners.length > 1 && (
@@ -267,6 +268,7 @@ function StampSuccessContent() {
   useEffect(() => {
     if (drawnReward && drawnRewardTier > 0) {
       setShowRewardPopup(true);
+      trackEvent('reward_popup_show', { store_slug: slug, reward_tier: drawnRewardTier });
     }
   }, [drawnReward, drawnRewardTier]);
 
@@ -306,6 +308,7 @@ function StampSuccessContent() {
   }, [ordersheetId, slug]);
 
   const handleConfirm = () => {
+    trackEvent('completion_cta_click', { store_slug: slug, flow_type: 'stamp', has_menu_link: !!menuLink });
     if (hasOrder && menuLink) {
       // ordersheetId 있고 메뉴링크 있으면 메뉴판으로
       window.location.href = menuLink;
