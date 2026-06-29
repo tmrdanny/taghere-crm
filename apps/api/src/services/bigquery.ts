@@ -114,3 +114,81 @@ export async function getStoreConversion(from: string, to: string) {
     ORDER BY starts DESC`;
   return runQuery(query, { from, to });
 }
+
+/** 신규/재방문 + 재적립(user_id 기반 충성도) */
+export async function getRetention(from: string, to: string) {
+  const earnerQuery = `
+    WITH earners AS (
+      SELECT user_id, COUNT(*) AS earns
+      FROM ${TABLE}
+      WHERE ${PROD_WHERE} AND event_name = 'earn_success' AND user_id IS NOT NULL
+      GROUP BY user_id
+    )
+    SELECT COUNTIF(earns = 1) AS once, COUNTIF(earns = 2) AS twice,
+           COUNTIF(earns >= 3) AS three_plus, COUNT(*) AS total
+    FROM earners`;
+  const visitorQuery = `
+    SELECT COUNTIF(event_name = 'first_visit') AS new_visitors,
+           COUNT(DISTINCT user_pseudo_id) AS total_visitors
+    FROM ${TABLE}
+    WHERE ${PROD_WHERE} AND event_name IN ('first_visit','session_start')`;
+  const [earnRows, visRows] = await Promise.all([
+    runQuery<Record<string, number>>(earnerQuery, { from, to }),
+    runQuery<Record<string, number>>(visitorQuery, { from, to }),
+  ]);
+  return {
+    earners: earnRows[0] ?? { once: 0, twice: 0, three_plus: 0, total: 0 },
+    visitors: visRows[0] ?? { new_visitors: 0, total_visitors: 0 },
+  };
+}
+
+/** 퍼널 이탈 상세 — 동의 이탈(cta_click.agreed) + 실패 사유(earn_fail.reason) */
+export async function getDropoff(from: string, to: string) {
+  const consentQuery = `
+    SELECT
+      COUNTIF((SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'agreed') = 'true') AS agreed,
+      COUNTIF((SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'agreed') = 'false') AS not_agreed
+    FROM ${TABLE} WHERE ${PROD_WHERE} AND event_name = 'earn_cta_click'`;
+  const failQuery = `
+    SELECT (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'reason') AS reason, COUNT(*) AS cnt
+    FROM ${TABLE} WHERE ${PROD_WHERE} AND event_name = 'earn_fail'
+    GROUP BY reason ORDER BY cnt DESC`;
+  const [consentRows, failRows] = await Promise.all([
+    runQuery<Record<string, number>>(consentQuery, { from, to }),
+    runQuery<{ reason: string; cnt: number }>(failQuery, { from, to }),
+  ]);
+  return {
+    consent: consentRows[0] ?? { agreed: 0, not_agreed: 0 },
+    failReasons: failRows,
+  };
+}
+
+/** 시간대(0~23 KST) × 요일(1=일~7=토) 진입 히트맵 */
+export async function getHeatmap(from: string, to: string) {
+  const query = `
+    SELECT
+      EXTRACT(DAYOFWEEK FROM DATETIME(TIMESTAMP_MICROS(event_timestamp), 'Asia/Seoul')) AS dow,
+      EXTRACT(HOUR FROM DATETIME(TIMESTAMP_MICROS(event_timestamp), 'Asia/Seoul')) AS hour,
+      COUNT(*) AS cnt
+    FROM ${TABLE} WHERE ${PROD_WHERE} AND event_name = 'earn_flow_start'
+    GROUP BY dow, hour`;
+  return runQuery<{ dow: number; hour: number; cnt: number }>(query, { from, to });
+}
+
+/** 특정 매장(slug)의 퍼널·핵심액션 — 드릴다운용 */
+export async function getStoreDetail(from: string, to: string, slug: string) {
+  const query = `
+    SELECT
+      COUNTIF(event_name = 'earn_flow_start') AS flow_start,
+      COUNTIF(event_name = 'earn_cta_click') AS cta_click,
+      COUNTIF(event_name = 'kakao_auth_start') AS kakao_auth,
+      COUNTIF(event_name = 'earn_success') AS success,
+      COUNTIF(event_name = 'earn_fail') AS fail,
+      COUNTIF(event_name = 'coupon_download') AS coupon_download,
+      COUNTIF(event_name = 'feedback_submit') AS feedback_submit
+    FROM ${TABLE}
+    WHERE ${PROD_WHERE} AND ${STORE_SLUG} = @slug
+      AND event_name IN ('earn_flow_start','earn_cta_click','kakao_auth_start','earn_success','earn_fail','coupon_download','feedback_submit')`;
+  const rows = await runQuery<Record<string, number>>(query, { from, to, slug });
+  return rows[0] ?? { flow_start: 0, cta_click: 0, kakao_auth: 0, success: 0, fail: 0, coupon_download: 0, feedback_submit: 0 };
+}
