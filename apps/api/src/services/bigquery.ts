@@ -55,6 +55,8 @@ export async function getFunnel(from: string, to: string, flowType?: string) {
       COUNTIF(event_name = 'earn_cta_click') AS cta_click,
       COUNTIF(event_name = 'kakao_auth_start') AS kakao_auth,
       COUNTIF(event_name = 'earn_success') AS success,
+      COUNTIF(event_name = 'earn_success' AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'is_auto_earned') = 'false') AS success_manual,
+      COUNTIF(event_name = 'earn_success' AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'is_auto_earned') = 'true') AS success_auto,
       COUNTIF(event_name = 'earn_fail') AS fail
     FROM ${TABLE}
     WHERE ${PROD_WHERE}
@@ -63,7 +65,7 @@ export async function getFunnel(from: string, to: string, flowType?: string) {
   const params: Record<string, unknown> = { from, to };
   if (flowType) params.flowType = flowType;
   const rows = await runQuery<Record<string, number>>(query, params);
-  return rows[0] ?? { flow_start: 0, cta_click: 0, kakao_auth: 0, success: 0, fail: 0 };
+  return rows[0] ?? { flow_start: 0, cta_click: 0, kakao_auth: 0, success: 0, success_manual: 0, success_auto: 0, fail: 0 };
 }
 
 /** 적립방식(flow_type)별 시작/완주 + 핵심 액션 카운트 */
