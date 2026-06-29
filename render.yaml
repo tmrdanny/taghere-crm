@@ -41,6 +41,13 @@ services:
         sync: false
       - key: SEED_USER_PASSWORD
         sync: false
+      # BigQuery (내부 admin 인사이트 대시보드) — Dashboard에서 직접 설정
+      - key: BIGQUERY_PROJECT_ID
+        sync: false  # taghere-data-analytics
+      - key: BIGQUERY_LOCATION
+        sync: false  # asia-northeast3
+      - key: BIGQUERY_CREDENTIALS
+        sync: false  # 서비스계정 crm-insights-bq JSON 키 통째로
     healthCheckPath: /api/health
     autoDeploy: true
 
