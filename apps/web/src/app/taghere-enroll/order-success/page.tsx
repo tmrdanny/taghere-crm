@@ -3,6 +3,7 @@
 import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { trackEvent } from '@/lib/analytics';
 
 interface OrderDetails {
   storeName: string;
@@ -135,6 +136,7 @@ function InlineBannerCarousel({ banners }: { banners: Banner[] }) {
   };
 
   const handleBannerClick = (banner: Banner) => {
+    trackEvent('banner_click', { banner_id: banner.id, link_url: banner.linkUrl ?? null });
     if (banner.linkUrl) {
       window.open(banner.linkUrl, '_blank');
     }
@@ -248,6 +250,7 @@ function BottomModal({
   };
 
   const handleBannerClick = (banner: Banner) => {
+    trackEvent('banner_click', { banner_id: banner.id, link_url: banner.linkUrl ?? null });
     if (banner.linkUrl) {
       window.open(banner.linkUrl, '_blank');
     }
@@ -479,6 +482,7 @@ function OrderSuccessContent() {
   }, [shouldShowModal]);
 
   const handleGoBack = () => {
+    trackEvent('completion_cta_click', { store_slug: slug, flow_type: type || 'points', has_menu_link: !!orderDetails?.menuLink });
     // menuLink가 있으면 해당 링크로, 없으면 뒤로가기
     if (orderDetails?.menuLink) {
       window.location.href = orderDetails.menuLink;

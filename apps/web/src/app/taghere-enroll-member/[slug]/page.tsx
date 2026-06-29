@@ -410,6 +410,7 @@ function SuccessPopup({
             answers: answersToSubmit,
           }),
         });
+        trackEvent('survey_submit', { flow_type: 'membership', store_slug: storeSlug, answer_count: answersToSubmit.length });
       } catch (error) {
         console.error('Survey submit error:', error);
       }
@@ -455,6 +456,7 @@ function SuccessPopup({
 
   const handleVisitSourceSelect = async (optionId: string) => {
     setSelectedVisitSource(optionId);
+    trackEvent('visit_source_select', { flow_type: 'membership', store_slug: storeSlug });
 
     if (!successData.customerId) return;
 

@@ -259,6 +259,7 @@ export default function AutomationPage() {
 
       const allOk = results.every((r) => r.ok);
       if (allOk) {
+        trackEvent('owner_automation_quickstart', { rule_count: QUICK_START_TYPES.length });
         showToast('추천 시나리오 3개가 활성화되었습니다!', 'success');
         setRules((prev) =>
           prev.map((r) =>

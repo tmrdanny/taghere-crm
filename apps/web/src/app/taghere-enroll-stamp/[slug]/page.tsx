@@ -281,6 +281,7 @@ function SuccessPopup({
             answers: answersToSubmit,
           }),
         });
+        trackEvent('survey_submit', { flow_type: 'stamp', store_slug: storeSlug, answer_count: answersToSubmit.length });
       } catch (error) {
         console.error('Survey submit error:', error);
       }
@@ -427,7 +428,7 @@ function SuccessPopup({
                     <button
                       key={option.id}
                       type="button"
-                      onClick={() => setSelectedVisitSource(isSelected ? null : option.id)}
+                      onClick={() => { if (!isSelected) trackEvent('visit_source_select', { flow_type: 'stamp', store_slug: storeSlug }); setSelectedVisitSource(isSelected ? null : option.id); }}
                       className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${isSelected
                           ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
                           : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
