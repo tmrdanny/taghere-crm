@@ -2,6 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { loadTossPayments, TossPaymentsWidgets } from '@tosspayments/tosspayments-sdk';
 import {
@@ -335,6 +336,7 @@ function DetailView({
         body: JSON.stringify({ phone: testPhone }),
       });
       const d = await res.json().catch(() => ({}));
+      if (res.ok) trackEvent('owner_booster_test_send', { stage: 'campaign' });
       setTestMsg(res.ok ? '✓ 테스트 알림톡을 발송했어요. 카카오톡을 확인해보세요.' : d.error || '발송에 실패했습니다.');
     } catch {
       setTestMsg('네트워크 오류가 발생했습니다.');
@@ -464,6 +466,7 @@ function PaymentModal({
       const res = await authFetch(`/api/place-booster/campaigns/${campaignId}/pay/credit`, { method: 'POST' });
       const d = await res.json().catch(() => ({}));
       if (res.ok) {
+        trackEvent('owner_booster_payment', { method: 'credit' });
         onClose();
         onPaid();
       } else setError(d.error || '결제에 실패했습니다.');
@@ -479,6 +482,7 @@ function PaymentModal({
     try {
       const res = await authFetch(`/api/place-booster/campaigns/${campaignId}/pay/bank-transfer`, { method: 'POST' });
       if (res.ok) {
+        trackEvent('owner_booster_payment', { method: 'bank' });
         onClose();
         onPaid();
       } else setError('요청에 실패했습니다.');

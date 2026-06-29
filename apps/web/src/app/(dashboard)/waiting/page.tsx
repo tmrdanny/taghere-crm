@@ -2,6 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
@@ -272,6 +273,7 @@ export default function WaitingPage() {
       });
 
       if (res.ok) {
+        trackEvent('owner_waiting_add', { party_size: data.partySize });
         showToast('웨이팅이 등록되었습니다.', 'success');
         setAddModalOpen(false);
         refreshData();
@@ -301,6 +303,7 @@ export default function WaitingPage() {
       });
 
       if (res.ok) {
+        trackEvent('owner_waiting_call');
         showToast('호출되었습니다.', 'success');
         refreshData();
       } else {
@@ -355,6 +358,7 @@ export default function WaitingPage() {
       });
 
       if (res.ok) {
+        trackEvent('owner_waiting_seat');
         showToast('착석 처리되었습니다.', 'success');
         refreshData();
       } else {
@@ -393,6 +397,7 @@ export default function WaitingPage() {
       });
 
       if (res.ok) {
+        trackEvent('owner_waiting_cancel', { cancel_reason: reason });
         showToast('취소 처리되었습니다.', 'success');
         setCancelModalOpen(false);
         setCancelTargetId(null);

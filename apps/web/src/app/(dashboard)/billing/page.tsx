@@ -2,6 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -75,6 +76,7 @@ export default function BillingPage() {
   const paymentMethodsWidgetRef = useRef<any>(null);
   const agreementWidgetRef = useRef<any>(null);
   const isInitializingRef = useRef<boolean>(false);
+  const billingChargeTrackedRef = useRef<boolean>(false); // 충전 완료 이벤트 1회만 발사(StrictMode/콜백 재실행 방지)
 
   // 결제 금액 (부가세 없음)
   const totalAmount = amount;
@@ -142,6 +144,10 @@ export default function BillingPage() {
           });
 
           if (res.ok) {
+            if (!billingChargeTrackedRef.current) {
+              billingChargeTrackedRef.current = true;
+              trackEvent('owner_billing_charge', { amount: parseInt(amountParam) });
+            }
             // 결제 성공 - 데이터 새로고침
             await fetchData();
           }

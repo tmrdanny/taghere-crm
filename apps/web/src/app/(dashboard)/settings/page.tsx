@@ -327,6 +327,7 @@ export default function SettingsPage() {
 
       if (res.ok) {
         setStampAlimtalkEnabled(enabled);
+        trackEvent('owner_settings_save', { section: 'stamp_alimtalk' });
         showToast(enabled ? '스탬프 알림톡이 활성화되었습니다.' : '스탬프 알림톡이 비활성화되었습니다.', 'success');
       } else {
         showToast('설정 저장 중 오류가 발생했습니다.', 'error');
@@ -356,6 +357,7 @@ export default function SettingsPage() {
 
       if (res.ok) {
         setPointsAlimtalkFrequency(frequency);
+        trackEvent('owner_settings_save', { section: 'frequency' });
         showToast('발송 빈도 설정이 저장되었습니다.', 'success');
       } else {
         const error = await res.json();
@@ -421,6 +423,7 @@ export default function SettingsPage() {
       });
 
       if (res.ok) {
+        trackEvent('owner_settings_save', { section: 'point_usage_rule' });
         showToast('포인트 사용 규칙이 저장되었습니다.', 'success');
       } else {
         const error = await res.json();
