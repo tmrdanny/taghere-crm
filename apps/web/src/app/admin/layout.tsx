@@ -89,7 +89,7 @@ export default function AdminLayout({
 
   const getPageTitle = () => {
     if (pathname === '/admin') return '홈';
-    if (pathname === '/admin/insights') return '분석 대시보드';
+    if (pathname === '/admin/insights') return 'CRM 분석 대시보드';
     if (pathname === '/admin/stores') return '매장 관리';
     if (pathname === '/admin/store-list') return '매장 목록';
     if (pathname === '/admin/franchises') return '프랜차이즈 관리';
@@ -107,7 +107,6 @@ export default function AdminLayout({
 
   const menuItems = [
     { href: '/admin', label: '홈', icon: HomeIcon },
-    { href: '/admin/insights', label: '분석 대시보드', icon: ChartIcon },
     { href: '/admin/stores', label: '매장 관리', icon: StoreIcon },
     { href: '/admin/store-list', label: '매장 목록', icon: ListIcon },
     { href: '/admin/franchises', label: '프랜차이즈 관리', icon: FranchiseIcon },
@@ -120,6 +119,7 @@ export default function AdminLayout({
     { href: '/admin/table-link', label: '테이블 링크', icon: LinkIcon },
     { href: '/admin/customers', label: '고객 추출', icon: DownloadIcon },
     { href: '/admin/corporate-ad', label: '기업광고', icon: MegaphoneIcon },
+    { href: '/admin/insights', label: 'CRM 분석 대시보드', icon: ChartIcon },
   ];
 
   return (
