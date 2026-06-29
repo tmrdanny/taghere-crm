@@ -16,6 +16,7 @@ import storeProductsRouter from './admin-store-products.js';
 import franchisesRouter from './admin-franchises.js';
 import corporateRouter from './admin-corporate.js';
 import placeBoosterRouter from './admin-place-booster.js';
+import foodCourtRouter from './admin-food-court.js';
 
 const router = Router();
 
@@ -33,6 +34,7 @@ router.use(storeProductsRouter);
 router.use(franchisesRouter);
 router.use(corporateRouter);
 router.use(placeBoosterRouter);
+router.use(foodCourtRouter);
 
 // POST /api/admin/login - 어드민 로그인
 router.post('/login', async (req: Request, res: Response) => {
