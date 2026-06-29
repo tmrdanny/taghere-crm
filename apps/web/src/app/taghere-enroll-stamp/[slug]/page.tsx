@@ -1183,6 +1183,7 @@ function TaghereEnrollStampContent() {
 
               <button
                 onClick={() => {
+                  trackEvent('earn_cta_click', { flow_type: 'stamp', store_slug: slug, agreed: isAgreed });
                   if (!isAgreed) {
                     setShowAgreementWarning(true);
                     return;

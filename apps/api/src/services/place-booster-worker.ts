@@ -12,12 +12,14 @@
 
 import { prisma } from '../lib/prisma.js';
 import { Prisma } from '@prisma/client';
-import { selectRecipients, buildBoosterAlimtalk } from './place-booster-service.js';
+import { selectRecipients, buildBoosterAlimtalk, syncBatchFailures } from './place-booster-service.js';
 import { sendAligoAlimtalkBulk, formatSenddateKST, ALIGO_MAX_RECEIVERS } from './aligo.js';
 
 const POLL_INTERVAL_MS = 60 * 1000; // 1분
 const STUCK_MS = 10 * 60 * 1000; // SENDING 10분 경과 시 재개
 const REGISTERING_STALE_MS = 10 * 60 * 1000; // 캠페인 등록 잠금 stale 회수(크래시 대비)
+const RESULT_LAG_MS = 60 * 60 * 1000; // 발송 후 알리고 결과 적재 대기(1시간) 뒤 차단 회수
+const FAILURE_SYNC_BATCH_LIMIT = 10; // 틱당 결과 수집 회차 수 상한(틱 지연 방지)
 
 /**
  * (A)/(B) 한 회차를 알리고에 예약 등록. 청크(≤500)마다 선별→전송→기록을 커밋하므로
@@ -219,6 +221,35 @@ async function recomputeCampaignStatus(campaignId: string) {
   });
 }
 
+/**
+ * (D): 발송이 끝난(SENT) 회차의 알리고 결과를 수집해 영구 차단 수신자를 부스터에서 영구 제외.
+ * 결과 적재 지연을 감안해 발송 후 RESULT_LAG_MS 경과한 회차만, failureSyncedAt 미설정 건만 처리한다.
+ */
+async function syncSentBatchFailures() {
+  const lagBefore = new Date(Date.now() - RESULT_LAG_MS);
+  const due = await prisma.placeBoosterBatch.findMany({
+    where: {
+      status: 'SENT',
+      scheduledAt: { lt: lagBefore },
+      failureSyncedAt: null,
+      aligoMids: { isEmpty: false },
+    },
+    select: { id: true },
+    take: FAILURE_SYNC_BATCH_LIMIT,
+  });
+  for (const b of due) {
+    try {
+      const { checked, suppressed } = await syncBatchFailures(b.id);
+      if (suppressed > 0) {
+        console.log(`[PlaceBoosterWorker] batch ${b.id} 차단 회수: checked=${checked}, suppressed=${suppressed}`);
+      }
+    } catch (error) {
+      console.error(`[PlaceBoosterWorker] batch ${b.id} 결과 수집 실패:`, error);
+      // failureSyncedAt 미설정 → 다음 틱에서 재시도
+    }
+  }
+}
+
 let running = false;
 async function processTick() {
   if (running) return; // 이전 틱이 길어지면(대량 등록) 중첩 방지
@@ -226,6 +257,7 @@ async function processTick() {
   try {
     await registerPendingBatches();
     await flipSentBatches();
+    await syncSentBatchFailures();
   } finally {
     running = false;
   }

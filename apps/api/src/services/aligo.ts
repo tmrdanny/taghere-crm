@@ -15,6 +15,7 @@ import { normalizePhoneNumber } from '../utils/phone.js';
 
 const ALIGO_SEND_URL = 'https://kakaoapi.aligo.in/akv10/alimtalk/send/';
 const ALIGO_CANCEL_URL = 'https://kakaoapi.aligo.in/akv10/cancel/';
+const ALIGO_HISTORY_DETAIL_URL = 'https://kakaoapi.aligo.in/akv10/history/detail/';
 
 /** 알리고 한 콜당 최대 수신자 수 */
 export const ALIGO_MAX_RECEIVERS = 500;
@@ -207,6 +208,86 @@ export async function sendAligoAlimtalkBulk(params: AligoBulkParams): Promise<Al
   } catch (error: any) {
     return { success: false, error: error?.message || 'Aligo bulk request failed' };
   }
+}
+
+/** 발송 결과 수신자 1건 (history/detail) */
+export interface AligoRecipientResult {
+  phone: string; // 수신번호 (정규화 전 원본)
+  rslt: string; // 결과 코드/상태
+  rsltMessage: string; // 사유 (예: "알림톡 차단을 선택한 사용자")
+}
+
+/**
+ * 영구 차단성 실패 사유 키워드 — 매칭 시 부스터 영구 제외 대상.
+ * 주의: 실제 알리고 응답을 관찰해 확정할 것(추정 하드코딩 지양). 현재는 보수적 부분일치.
+ */
+export const BLOCK_KEYWORDS = ['차단', '번호도용', '수신거부'];
+
+/**
+ * rsltMessage 가 영구 차단 사유인지 판정 (순수 함수, 단위 테스트 용이).
+ * 차단 키워드는 실패 행에만 나타나므로 키워드 부분일치만으로 성공 건은 자연히 제외된다.
+ */
+export function classifyPermanentBlock(row: AligoRecipientResult): boolean {
+  const msg = row.rsltMessage || '';
+  return BLOCK_KEYWORDS.some((kw) => msg.includes(kw));
+}
+
+/**
+ * 알리고 발송 결과(수신자별) 조회. mid 단위, 페이지 끝까지 순회.
+ * 실패/미적재 시 빈 배열(예외 던지지 않음) — 호출측은 재시도 가능(failureSyncedAt 미설정).
+ */
+export async function getAligoSendResults(mid: string): Promise<AligoRecipientResult[]> {
+  const config = getConfig();
+  if (!config) {
+    console.warn('[Aligo] getAligoSendResults: not configured');
+    return [];
+  }
+
+  const out: AligoRecipientResult[] = [];
+  const limit = 500;
+  let page = 1;
+  // 페이지 끝까지 (안전 상한 — 무한루프 방지)
+  for (let guard = 0; guard < 50; guard++) {
+    const body = new URLSearchParams();
+    body.set('apikey', config.apikey);
+    body.set('userid', config.userid);
+    body.set('mid', mid);
+    body.set('page', String(page));
+    body.set('limit', String(limit));
+
+    let data: { code?: number; message?: string; list?: unknown; totalPage?: unknown; total_page?: unknown };
+    try {
+      const res = await fetch(ALIGO_HISTORY_DETAIL_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      });
+      data = (await res.json()) as typeof data;
+    } catch (error: any) {
+      console.error(`[Aligo] history/detail fetch failed (mid=${mid}, page=${page}):`, error?.message);
+      break;
+    }
+
+    if (data?.code !== 0) {
+      if (page === 1) console.warn(`[Aligo] history/detail code=${data?.code} message=${data?.message} (mid=${mid})`);
+      break;
+    }
+
+    const list: any[] = Array.isArray(data.list) ? (data.list as any[]) : [];
+    for (const r of list) {
+      out.push({
+        phone: String(r?.phone ?? r?.receiver ?? ''),
+        rslt: String(r?.rslt ?? ''),
+        rsltMessage: String(r?.rslt_message ?? r?.rsltMessage ?? ''),
+      });
+    }
+
+    const totalPage = Number(data.totalPage ?? data.total_page ?? 1) || 1;
+    if (!list.length || page >= totalPage) break;
+    page += 1;
+  }
+
+  return out;
 }
 
 /** 알리고 예약 발송 취소 (mid 단위). 발송 5분 전까지만 가능. result_code===1 이면 성공. */
