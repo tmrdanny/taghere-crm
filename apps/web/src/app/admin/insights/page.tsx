@@ -19,7 +19,7 @@ const ACTION_LABEL: Record<string, string> = {
   feedback_submit: '피드백 제출', survey_submit: '설문 제출', visit_source_select: '방문경로 선택',
 };
 
-interface Funnel { flow_start: number; cta_click: number; kakao_auth: number; success: number; fail: number }
+interface Funnel { flow_start: number; cta_click: number; kakao_auth: number; success: number; success_manual: number; success_auto: number; fail: number }
 interface FlowRow { flow_type: string; starts: number; success: number }
 interface DailyRow { event_date: string; starts: number; success: number }
 interface StoreRow { store_slug: string; store_name: string | null; starts: number; success: number }
@@ -117,7 +117,7 @@ export default function InsightsPage() {
         { label: '플로우 진입', key: 'flow_start', value: n(funnel.flow_start) },
         { label: 'CTA 클릭', key: 'cta_click', value: n(funnel.cta_click) },
         { label: '카카오 로그인', key: 'kakao_auth', value: n(funnel.kakao_auth) },
-        { label: '적립 성공', key: 'success', value: n(funnel.success) },
+        { label: '적립 성공(수동)', key: 'success_manual', value: n(funnel.success_manual) },
       ]
     : [];
 
@@ -195,7 +195,10 @@ export default function InsightsPage() {
                 );
               })}
               {funnel && (
-                <p className="text-xs text-neutral-500 pt-1">실패(이미적립 등): {n(funnel.fail).toLocaleString()}건</p>
+                <div className="text-xs text-neutral-500 pt-1 space-y-0.5">
+                  <p>+ 자동 적립(재방문·로그인 생략): <b className="text-neutral-700">{n(funnel.success_auto).toLocaleString()}</b>건 → 총 적립 <b className="text-neutral-700">{n(funnel.success).toLocaleString()}</b>건</p>
+                  <p>실패(이미적립 등): {n(funnel.fail).toLocaleString()}건</p>
+                </div>
               )}
             </div>
           </Card>
