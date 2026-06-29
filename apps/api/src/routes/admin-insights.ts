@@ -5,11 +5,16 @@
 
 import { Router, Response } from 'express';
 import { AdminRequest, adminAuthMiddleware } from './admin-shared.js';
+import { prisma } from '../lib/prisma.js';
 import {
   getFunnel,
   getFeatureUsage,
   getDailyTrend,
   getStoreConversion,
+  getRetention,
+  getDropoff,
+  getHeatmap,
+  getStoreDetail,
 } from '../services/bigquery.js';
 
 const router = Router();
@@ -70,11 +75,66 @@ router.get('/daily', adminAuthMiddleware, async (req: AdminRequest, res: Respons
 router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
     const { from, to } = parseRange(req);
-    const rows = await getStoreConversion(from, to);
-    res.json({ from, to, rows });
+    const rows = (await getStoreConversion(from, to)) as Array<{ store_slug: string; starts: number; success: number }>;
+    // BigQuery엔 slug만 있어 CRM DB에서 매장명을 조인
+    const slugs = rows.map((r) => r.store_slug).filter(Boolean);
+    const stores = slugs.length
+      ? await prisma.store.findMany({ where: { slug: { in: slugs } }, select: { slug: true, name: true } })
+      : [];
+    const nameBySlug = new Map(stores.map((s) => [s.slug, s.name]));
+    const enriched = rows.map((r) => ({ ...r, store_name: nameBySlug.get(r.store_slug) ?? null }));
+    res.json({ from, to, rows: enriched });
   } catch (error) {
     console.error('[insights/stores]', error);
     res.status(500).json({ error: '매장별 데이터 조회에 실패했습니다.' });
+  }
+});
+
+// GET /api/admin/insights/retention?from&to
+router.get('/retention', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { from, to } = parseRange(req);
+    res.json({ from, to, ...(await getRetention(from, to)) });
+  } catch (error) {
+    console.error('[insights/retention]', error);
+    res.status(500).json({ error: '리텐션 데이터 조회에 실패했습니다.' });
+  }
+});
+
+// GET /api/admin/insights/dropoff?from&to
+router.get('/dropoff', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { from, to } = parseRange(req);
+    res.json({ from, to, ...(await getDropoff(from, to)) });
+  } catch (error) {
+    console.error('[insights/dropoff]', error);
+    res.status(500).json({ error: '이탈 데이터 조회에 실패했습니다.' });
+  }
+});
+
+// GET /api/admin/insights/heatmap?from&to
+router.get('/heatmap', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { from, to } = parseRange(req);
+    const rows = await getHeatmap(from, to);
+    res.json({ from, to, rows });
+  } catch (error) {
+    console.error('[insights/heatmap]', error);
+    res.status(500).json({ error: '히트맵 데이터 조회에 실패했습니다.' });
+  }
+});
+
+// GET /api/admin/insights/store-detail?from&to&slug
+router.get('/store-detail', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const slug = String(req.query.slug || '');
+    if (!slug) return res.status(400).json({ error: 'slug가 필요합니다.' });
+    const { from, to } = parseRange(req);
+    const data = await getStoreDetail(from, to, slug);
+    res.json({ from, to, slug, ...data });
+  } catch (error) {
+    console.error('[insights/store-detail]', error);
+    res.status(500).json({ error: '매장 상세 조회에 실패했습니다.' });
   }
 });
 
