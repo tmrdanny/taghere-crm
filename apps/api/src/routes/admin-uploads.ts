@@ -16,6 +16,12 @@ if (!fs.existsSync(productUploadDir)) {
   fs.mkdirSync(productUploadDir, { recursive: true });
 }
 
+// 푸드코트 부스/로고 이미지 업로드 디렉토리 설정
+const foodCourtUploadDir = path.join(process.cwd(), 'uploads', 'food-court');
+if (!fs.existsSync(foodCourtUploadDir)) {
+  fs.mkdirSync(foodCourtUploadDir, { recursive: true });
+}
+
 // Multer 설정 - 배너 이미지용
 const bannerStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -55,6 +61,31 @@ const productStorage = multer.diskStorage({
 
 export const productUpload = multer({
   storage: productStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      cb(new Error('JPG, PNG, GIF, WebP 파일만 업로드 가능합니다.'));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+// Multer 설정 - 푸드코트 부스/로고 이미지용
+const foodCourtStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, foodCourtUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `food-court-${uniqueSuffix}${ext}`);
+  },
+});
+
+export const foodCourtUpload = multer({
+  storage: foodCourtStorage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];

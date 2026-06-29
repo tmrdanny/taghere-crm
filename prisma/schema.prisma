@@ -85,6 +85,7 @@ model Store {
 
   // 테이블 링크
   tableLinkSetting      TableLinkSetting?
+  foodCourtSetting      FoodCourtSetting?
 
   // 리타겟 쿠폰
   retargetCoupons       RetargetCoupon[]
@@ -1323,6 +1324,30 @@ model TableLinkSetting {
   store            Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@map("table_link_settings")
+}
+
+// 푸드코트 모드 (테이블별 QR → 매장 선택 → 매장×테이블 결제 링크 리다이렉트)
+model FoodCourtSetting {
+  id               String   @id @default(cuid())
+  storeId          String   @unique
+
+  enabled          Boolean  @default(false)
+  customerTitle    String?  // 예: "안녕하세요. 글로우성수에 오신 것을 환영합니다."
+  customerSubtitle String?
+  noticeText       String?  // 검정 공지 배너 본문 (다국어/줄바꿈 허용)
+  noticeLogoUrl    String?  // 공지 배너 로고 (예: GLOW SEONGSU)
+
+  // 부스 배열:
+  // [{ id, nameKo, nameEn?, categoryKo?, categoryEn?, imageUrl?, order,
+  //    tables: [{ tableNumber, url }] }]
+  stores           Json?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  store            Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("food_court_settings")
 }
 
 // ============================================
