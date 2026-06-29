@@ -756,6 +756,9 @@ model UniqueCustomer {
   source           UniqueCustomerSource // 출처 (양쪽이면 BOTH, 지역/연령은 external 우선)
   sentCount        Int                  @default(0) // 부스터 발송 피로도 (사람 단위)
   lastSentAt       DateTime?
+  suppressed       Boolean              @default(false) // 부스터 영구 제외(알리고 영구차단 회수) — 야간 동기화가 건드리지 않음
+  suppressedReason String?              // 차단 사유 스냅샷 (알리고 rslt_message)
+  suppressedAt     DateTime?
   syncedAt         DateTime             @default(now())
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
@@ -2081,6 +2084,7 @@ model PlaceBoosterBatch {
   aligoMids      String[]                @default([]) // 알리고 예약 발송 mid(청크당 1개) — 취소용
   ownerAligoMid  String?                 // 사장님 사본 예약 mid (통계/피로도 미포함)
   reservedAt     DateTime?               // 알리고 예약 등록 완료 시각
+  failureSyncedAt DateTime?              // 알리고 발송 결과(영구차단) 수집 완료 시각 — 재처리 방지
   couponUsedCount Int?                   // 수동 입력 (쿠폰 사용 횟수)
   avgTicket      Int?                    // 수동 입력 (평균 객단)
   sentAt         DateTime?

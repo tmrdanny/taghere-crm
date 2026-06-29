@@ -264,6 +264,17 @@ router.post('/place-booster/campaigns/:id/cancel', adminAuthMiddleware, async (r
   }
 });
 
+// POST /api/admin/place-booster/campaigns/:id/sync-failures - 알리고 발송 결과 수집 → 영구 차단 수신자 제외
+router.post('/place-booster/campaigns/:id/sync-failures', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    console.log(`[audit][place-booster] sync-failures campaign=${req.params.id} by=${ADMIN_USERNAME}`);
+    const summary = await svc.syncCampaignFailures(req.params.id);
+    res.json({ success: true, ...summary });
+  } catch (error) {
+    handleError(res, error, '발송 결과 동기화 중 오류가 발생했습니다.');
+  }
+});
+
 // DELETE /api/admin/place-booster/campaigns/:id - 소프트 삭제 (운영자 전용)
 router.delete('/place-booster/campaigns/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {

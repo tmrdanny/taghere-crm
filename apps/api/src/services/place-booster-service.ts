@@ -13,7 +13,7 @@ import {
 } from '../utils/naver-place.js';
 import { parseStoreRegion, expandRegions, TargetRegion } from '../utils/region.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
-import { cancelAligoReservation } from './aligo.js';
+import { cancelAligoReservation, getAligoSendResults, classifyPermanentBlock } from './aligo.js';
 import type { Prisma, PlaceBoosterCampaign } from '@prisma/client';
 
 /** 결제 금액 (VAT 포함) / ROI 분모 광고비 (VAT 제외) */
@@ -502,6 +502,7 @@ export async function selectRecipients(
 
   const base = {
     consentMarketing: true,
+    suppressed: false, // 알리고 영구차단 회수 대상 제외 (야간 동기화에도 유지)
     regionSido: region.sido,
     boosterRecipients: { none: { campaignId: campaign.id } },
   };
@@ -538,11 +539,88 @@ export async function selectRecipients(
   return picked;
 }
 
+/** 결과가 끝내 적재되지 않아도 이 기간이 지나면 회차 결과 수집을 강제 종료(무한 재시도 방지) */
+const FAILURE_SYNC_HARD_FINALIZE_MS = 14 * 24 * 60 * 60 * 1000; // 14일
+
+/**
+ * 한 회차의 알리고 발송 결과를 수집해 영구 차단 수신자를 부스터에서 영구 제외(suppressed)한다.
+ * - aligoMids(청크별)만 순회한다. ownerAligoMid(점주 사본)는 제외 대상이 아니다.
+ * - 멱등: 이미 suppressed 인 행은 건너뛴다.
+ * - 종료 처리: 실제 결과를 받았을 때만 failureSyncedAt 을 설정한다(알리고 일시 장애로 빈 결과면
+ *   미설정 → 다음 틱 재시도). 단 발송 후 너무 오래된 회차는 결과 미적재여도 강제 종료한다.
+ */
+export async function syncBatchFailures(batchId: string): Promise<{ checked: number; suppressed: number; finalized: boolean }> {
+  const batch = await prisma.placeBoosterBatch.findUnique({
+    where: { id: batchId },
+    select: { id: true, aligoMids: true, scheduledAt: true },
+  });
+  if (!batch) return { checked: 0, suppressed: 0, finalized: false };
+
+  let checked = 0;
+  const blockedPhones = new Map<string, string>(); // 정규화 phone → 차단 사유(스냅샷)
+
+  for (const mid of batch.aligoMids) {
+    const rows = await getAligoSendResults(mid);
+    checked += rows.length;
+    for (const row of rows) {
+      if (!classifyPermanentBlock(row)) continue;
+      const phone = normalizePhoneNumber(row.phone);
+      if (!phone) continue;
+      if (!blockedPhones.has(phone)) blockedPhones.set(phone, row.rsltMessage);
+    }
+  }
+
+  let suppressed = 0;
+  for (const [phone, reason] of blockedPhones) {
+    const upd = await prisma.uniqueCustomer.updateMany({
+      where: { phone, suppressed: false },
+      data: { suppressed: true, suppressedReason: reason, suppressedAt: new Date() },
+    });
+    if (upd.count > 0) {
+      suppressed += upd.count;
+      console.log(`[BoosterFailureSync] suppressed phone=${phone} reason="${reason}" (batch=${batchId})`);
+    }
+  }
+
+  // 실제 결과를 받았거나(checked>0), mid가 없거나, 너무 오래된 회차면 종료(재처리 방지).
+  const aged = batch.scheduledAt.getTime() < Date.now() - FAILURE_SYNC_HARD_FINALIZE_MS;
+  const finalized = checked > 0 || batch.aligoMids.length === 0 || aged;
+  if (finalized) {
+    await prisma.placeBoosterBatch.update({
+      where: { id: batchId },
+      data: { failureSyncedAt: new Date() },
+    });
+  }
+
+  return { checked, suppressed, finalized };
+}
+
+/**
+ * 캠페인의 발송 완료(SENT) 회차 전체에 대해 결과를 수집·차단 회수한다(수동/검증용).
+ * failureSyncedAt 여부와 무관하게 재실행하며 멱등하다.
+ */
+export async function syncCampaignFailures(campaignId: string): Promise<{ batches: number; checked: number; suppressed: number }> {
+  const batches = await prisma.placeBoosterBatch.findMany({
+    where: { campaignId, status: 'SENT', aligoMids: { isEmpty: false } },
+    select: { id: true },
+    orderBy: { weekNo: 'asc' },
+  });
+  let checked = 0;
+  let suppressed = 0;
+  for (const b of batches) {
+    const r = await syncBatchFailures(b.id);
+    checked += r.checked;
+    suppressed += r.suppressed;
+  }
+  return { batches: batches.length, checked, suppressed };
+}
+
 /** 가용 인원 카운트 (생성 전 검증용) — 최종적으로 동일 시/도 전체에서 채우므로 시/도 풀 기준 */
 export async function countAvailable(region: TargetRegion): Promise<number> {
   return prisma.uniqueCustomer.count({
     where: {
       consentMarketing: true,
+      suppressed: false, // selectRecipients 와 기준 일치 (차단 회수자 제외)
       regionSido: region.sido,
     },
   });
