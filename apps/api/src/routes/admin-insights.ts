@@ -15,6 +15,12 @@ import {
   getDropoff,
   getHeatmap,
   getStoreDetail,
+  getOwnerUsage,
+  getOwnerActiveStores,
+  getCouponEffect,
+  getSegmentConversion,
+  getRatingDistribution,
+  getNewCustomers,
 } from '../services/bigquery.js';
 
 const router = Router();
@@ -135,6 +141,90 @@ router.get('/store-detail', adminAuthMiddleware, async (req: AdminRequest, res: 
   } catch (error) {
     console.error('[insights/store-detail]', error);
     res.status(500).json({ error: '매장 상세 조회에 실패했습니다.' });
+  }
+});
+
+// GET /api/admin/insights/owner-usage?from&to  (+ 채택률 분모용 totalStores)
+router.get('/owner-usage', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { from, to } = parseRange(req);
+    const [usage, totalStores] = await Promise.all([getOwnerUsage(from, to), prisma.store.count()]);
+    res.json({ from, to, usage, totalStores });
+  } catch (error) {
+    console.error('[insights/owner-usage]', error);
+    res.status(500).json({ error: '사장님 기능 사용량 조회에 실패했습니다.' });
+  }
+});
+
+// GET /api/admin/insights/owner-stores?from&to  (user_id→매장 매핑·합산 top)
+router.get('/owner-stores', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { from, to } = parseRange(req);
+    const rows = await getOwnerActiveStores(from, to);
+    const userIds = rows.map((r) => r.user_id).filter(Boolean);
+    const staff = userIds.length
+      ? await prisma.staffUser.findMany({ where: { id: { in: userIds } }, select: { id: true, store: { select: { id: true, name: true } } } })
+      : [];
+    const storeByUser = new Map(staff.map((s) => [s.id, s.store]));
+    const agg = new Map<string, { name: string; cnt: number }>();
+    for (const r of rows) {
+      const st = storeByUser.get(r.user_id);
+      if (!st) continue;
+      const cur = agg.get(st.id) ?? { name: st.name, cnt: 0 };
+      cur.cnt += Number(r.cnt);
+      agg.set(st.id, cur);
+    }
+    const top = [...agg.values()].sort((a, b) => b.cnt - a.cnt).slice(0, 15);
+    res.json({ from, to, rows: top });
+  } catch (error) {
+    console.error('[insights/owner-stores]', error);
+    res.status(500).json({ error: '활발한 매장 조회에 실패했습니다.' });
+  }
+});
+
+// GET /api/admin/insights/coupon-effect?from&to
+router.get('/coupon-effect', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { from, to } = parseRange(req);
+    res.json({ from, to, ...(await getCouponEffect(from, to)) });
+  } catch (error) {
+    console.error('[insights/coupon-effect]', error);
+    res.status(500).json({ error: '쿠폰 효과 조회에 실패했습니다.' });
+  }
+});
+
+// GET /api/admin/insights/segments?from&to
+router.get('/segments', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { from, to } = parseRange(req);
+    res.json({ from, to, ...(await getSegmentConversion(from, to)) });
+  } catch (error) {
+    console.error('[insights/segments]', error);
+    res.status(500).json({ error: '세그먼트 전환 조회에 실패했습니다.' });
+  }
+});
+
+// GET /api/admin/insights/ratings?from&to
+router.get('/ratings', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { from, to } = parseRange(req);
+    const rows = await getRatingDistribution(from, to);
+    res.json({ from, to, rows });
+  } catch (error) {
+    console.error('[insights/ratings]', error);
+    res.status(500).json({ error: '별점 분포 조회에 실패했습니다.' });
+  }
+});
+
+// GET /api/admin/insights/new-customers?from&to
+router.get('/new-customers', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { from, to } = parseRange(req);
+    const rows = await getNewCustomers(from, to);
+    res.json({ from, to, rows });
+  } catch (error) {
+    console.error('[insights/new-customers]', error);
+    res.status(500).json({ error: '신규 고객 조회에 실패했습니다.' });
   }
 });
 

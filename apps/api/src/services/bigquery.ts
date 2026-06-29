@@ -194,3 +194,79 @@ export async function getStoreDetail(from: string, to: string, slug: string) {
   const rows = await runQuery<Record<string, number>>(query, { from, to, slug });
   return rows[0] ?? { flow_start: 0, cta_click: 0, kakao_auth: 0, success: 0, fail: 0, coupon_download: 0, feedback_submit: 0 };
 }
+
+/** 사장님 기능별 사용 건수 + 활성 사장님수(distinct user_id) */
+export async function getOwnerUsage(from: string, to: string) {
+  const query = `
+    SELECT event_name, COUNT(*) AS cnt, COUNT(DISTINCT user_id) AS owners
+    FROM ${TABLE}
+    WHERE ${PROD_WHERE} AND event_name LIKE 'owner_%'
+    GROUP BY event_name ORDER BY cnt DESC`;
+  return runQuery<{ event_name: string; cnt: number; owners: number }>(query, { from, to });
+}
+
+/** 사장님(user_id)별 owner 이벤트 수 — route에서 매장 매핑·합산 */
+export async function getOwnerActiveStores(from: string, to: string) {
+  const query = `
+    SELECT user_id, COUNT(*) AS cnt
+    FROM ${TABLE}
+    WHERE ${PROD_WHERE} AND event_name LIKE 'owner_%' AND user_id IS NOT NULL
+    GROUP BY user_id ORDER BY cnt DESC LIMIT 100`;
+  return runQuery<{ user_id: string; cnt: number }>(query, { from, to });
+}
+
+/** 쿠폰 다운→사용 (전체 + 일별) */
+export async function getCouponEffect(from: string, to: string) {
+  const totalQuery = `
+    SELECT COUNTIF(event_name = 'coupon_download') AS download, COUNTIF(event_name = 'coupon_used') AS used
+    FROM ${TABLE} WHERE ${PROD_WHERE} AND event_name IN ('coupon_download','coupon_used')`;
+  const dailyQuery = `
+    SELECT event_date, COUNTIF(event_name = 'coupon_download') AS download, COUNTIF(event_name = 'coupon_used') AS used
+    FROM ${TABLE} WHERE ${PROD_WHERE} AND event_name IN ('coupon_download','coupon_used')
+    GROUP BY event_date ORDER BY event_date`;
+  const [tot, daily] = await Promise.all([
+    runQuery<Record<string, number>>(totalQuery, { from, to }),
+    runQuery(dailyQuery, { from, to }),
+  ]);
+  return { total: tot[0] ?? { download: 0, used: 0 }, daily };
+}
+
+/** 기기·유입경로별 적립 전환 */
+export async function getSegmentConversion(from: string, to: string) {
+  const deviceQuery = `
+    SELECT device.category AS segment,
+      COUNTIF(event_name = 'earn_flow_start') AS starts,
+      COUNTIF(event_name = 'earn_success') AS success
+    FROM ${TABLE} WHERE ${PROD_WHERE} AND event_name IN ('earn_flow_start','earn_success')
+    GROUP BY segment HAVING segment IS NOT NULL AND starts > 0 ORDER BY starts DESC`;
+  const sourceQuery = `
+    SELECT
+      CONCAT(IFNULL(collected_traffic_source.manual_source, '(direct)'), ' / ', IFNULL(collected_traffic_source.manual_medium, '(none)')) AS segment,
+      COUNTIF(event_name = 'earn_flow_start') AS starts,
+      COUNTIF(event_name = 'earn_success') AS success
+    FROM ${TABLE} WHERE ${PROD_WHERE} AND event_name IN ('earn_flow_start','earn_success')
+    GROUP BY segment HAVING starts >= 20 ORDER BY starts DESC LIMIT 12`;
+  const [byDevice, bySource] = await Promise.all([
+    runQuery(deviceQuery, { from, to }),
+    runQuery(sourceQuery, { from, to }),
+  ]);
+  return { byDevice, bySource };
+}
+
+/** 별점(rating) 분포 */
+export async function getRatingDistribution(from: string, to: string) {
+  const query = `
+    SELECT (SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'rating') AS rating, COUNT(*) AS cnt
+    FROM ${TABLE} WHERE ${PROD_WHERE} AND event_name = 'feedback_submit'
+    GROUP BY rating HAVING rating IS NOT NULL ORDER BY rating`;
+  return runQuery<{ rating: number; cnt: number }>(query, { from, to });
+}
+
+/** 일별 신규 고객(first_visit) 수 */
+export async function getNewCustomers(from: string, to: string) {
+  const query = `
+    SELECT event_date, COUNT(*) AS cnt
+    FROM ${TABLE} WHERE ${PROD_WHERE} AND event_name = 'first_visit'
+    GROUP BY event_date ORDER BY event_date`;
+  return runQuery<{ event_date: string; cnt: number }>(query, { from, to });
+}
