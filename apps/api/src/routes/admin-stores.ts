@@ -15,6 +15,17 @@ import { AdminRequest, adminAuthMiddleware } from './admin-shared.js';
 
 const router = Router();
 
+// enrollmentMode 가 STAMP 인 매장은 스탬프 적립 기능이 자동으로 켜져 있어야 한다.
+// StampSetting 이 없으면 생성(enabled=true), 있으면 enabled=true 로 올린다.
+// 트랜잭션 클라이언트(tx) 또는 prisma 둘 다 전달 가능.
+async function ensureStampEnabled(client: Prisma.TransactionClient, storeId: string) {
+  await client.stampSetting.upsert({
+    where: { storeId },
+    create: { storeId, enabled: true, alimtalkEnabled: true },
+    update: { enabled: true },
+  });
+}
+
 // GET /api/admin/stores - 모든 매장 목록 조회
 router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
@@ -319,6 +330,11 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       } as any,
     });
 
+    // enrollmentMode 를 STAMP 로 수정하면 스탬프 적립 기능 자동 활성화
+    if (enrollmentMode === 'STAMP') {
+      await ensureStampEnabled(prisma, storeId);
+    }
+
     // CRM 활성화 상태 변경, taghereVersion 변경, 또는 enrollmentMode 변경 시 태그히어 서버에 알림
     const wasCrmEnabled = (existingStore as any).crmEnabled ?? true;
     const wasVersion = existingStore.taghereVersion;
@@ -348,7 +364,7 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       const storeSlug = slug || existingStore.slug;
 
       if (storeSlug) {
-        const isStampMode = existingStore.stampSetting?.enabled ?? false;
+        const isStampMode = enrollmentMode === 'STAMP' || (existingStore.stampSetting?.enabled ?? false);
         const effectiveVersion = taghereVersion || existingStore.taghereVersion;
         const effectiveCrmEnabled = crmEnabled ?? wasCrmEnabled;
         const effectiveEnrollmentMode = enrollmentMode || existingStore.enrollmentMode;
@@ -874,6 +890,11 @@ router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: 
             },
           });
 
+          // 스탬프 적립 모드로 생성하는 경우 스탬프 기능 자동 활성화
+          if (validEnrollmentMode === 'STAMP') {
+            await ensureStampEnabled(tx, store.id);
+          }
+
           await tx.wallet.create({
             data: { storeId: store.id, balance: 500 },
           });
@@ -941,7 +962,7 @@ router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: 
             userId: email,
             storeName,
             slug,
-            isStampMode: false,
+            isStampMode: validEnrollmentMode === 'STAMP',
             enrollmentMode: validEnrollmentMode || 'POINTS',
           });
           crmOnResults.push({ storeName, success: true });
@@ -1051,6 +1072,11 @@ router.put('/stores/:storeId/enrollment-mode', adminAuthMiddleware, async (req, 
         slug,
       },
     });
+
+    // 스탬프 적립 모드로 변경하면 스탬프 기능 자동 활성화
+    if (mode === 'STAMP') {
+      await ensureStampEnabled(prisma, storeId);
+    }
 
     res.json({ success: true, storeId, mode, slug });
   } catch (error) {
