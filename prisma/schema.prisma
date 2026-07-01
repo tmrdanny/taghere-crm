@@ -298,6 +298,8 @@ model VisitOrOrder {
   @@unique([storeId, orderId])
   @@index([storeId])
   @@index([customerId])
+  @@index([storeId, visitedAt])
+  @@index([customerId, visitedAt])
   @@map("visits_orders")
 }
 
@@ -327,6 +329,7 @@ model PointLedger {
   @@index([createdAt])
   @@index([storeId, type, createdAt])
   @@index([type, createdAt])
+  @@index([customerId, createdAt])
   @@map("point_ledger")
 }
 
@@ -1427,6 +1430,7 @@ model StampLedger {
   @@index([storeId, customerId])
   @@index([customerId])
   @@index([createdAt])
+  @@index([customerId, createdAt])
   @@map("stamp_ledger")
 }
 

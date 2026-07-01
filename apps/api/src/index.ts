@@ -49,6 +49,7 @@ import franchiseRoutes from './routes/franchise.js';
 import franchiseSmsRoutes from './routes/franchise-sms.js';
 import franchiseLocalCustomersRoutes from './routes/franchise-local-customers.js';
 import franchiseAutomationRoutes from './routes/franchise-automation.js';
+import franchiseRetargetCouponRoutes from './routes/franchise-retarget-coupon.js';
 import waitingRoutes from './routes/waiting.js';
 import waitingTypesRoutes from './routes/waiting-types.js';
 import waitingSettingsRoutes from './routes/waiting-settings.js';
@@ -310,6 +311,7 @@ app.use('/api/v1', v1YahwaRoutes);
 // Franchise routes
 app.use('/api/franchise/auth', franchiseAuthRoutes);
 app.use('/api/franchise/sms', franchiseSmsRoutes);
+app.use('/api/franchise/retarget-coupon', franchiseRetargetCouponRoutes);
 app.use('/api/franchise/local-customers', franchiseLocalCustomersRoutes);
 app.use('/api/franchise/automation', franchiseAutomationRoutes);
 app.use('/api/franchise', franchiseRoutes);

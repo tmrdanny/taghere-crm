@@ -359,49 +359,47 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
     // Use the most recent value across all sources
     const customerIds = customers.map((c) => c.id);
 
-    // 1. VisitOrOrder에서 조회
-    const lastVisitOrders = await prisma.visitOrOrder.findMany({
-      where: {
-        customerId: { in: customerIds },
-      },
-      orderBy: { visitedAt: 'desc' },
-      distinct: ['customerId'],
-      select: {
-        customerId: true,
-        items: true,
-        visitedAt: true,
-      },
-    });
-
-    // 2. PointLedger에서 tableLabel 조회
-    const pointTableLabels = await prisma.pointLedger.findMany({
-      where: {
-        customerId: { in: customerIds },
-        tableLabel: { not: null },
-      },
-      orderBy: { createdAt: 'desc' },
-      distinct: ['customerId'],
-      select: {
-        customerId: true,
-        tableLabel: true,
-        createdAt: true,
-      },
-    });
-
-    // 3. StampLedger에서 tableLabel 조회
-    const stampTableLabels = await prisma.stampLedger.findMany({
-      where: {
-        customerId: { in: customerIds },
-        tableLabel: { not: null },
-      },
-      orderBy: { createdAt: 'desc' },
-      distinct: ['customerId'],
-      select: {
-        customerId: true,
-        tableLabel: true,
-        createdAt: true,
-      },
-    });
+    // 1~3. VisitOrOrder / PointLedger / StampLedger 테이블 라벨을 병렬 조회 (기존: 순차 실행)
+    const [lastVisitOrders, pointTableLabels, stampTableLabels] = await Promise.all([
+      prisma.visitOrOrder.findMany({
+        where: {
+          customerId: { in: customerIds },
+        },
+        orderBy: { visitedAt: 'desc' },
+        distinct: ['customerId'],
+        select: {
+          customerId: true,
+          items: true,
+          visitedAt: true,
+        },
+      }),
+      prisma.pointLedger.findMany({
+        where: {
+          customerId: { in: customerIds },
+          tableLabel: { not: null },
+        },
+        orderBy: { createdAt: 'desc' },
+        distinct: ['customerId'],
+        select: {
+          customerId: true,
+          tableLabel: true,
+          createdAt: true,
+        },
+      }),
+      prisma.stampLedger.findMany({
+        where: {
+          customerId: { in: customerIds },
+          tableLabel: { not: null },
+        },
+        orderBy: { createdAt: 'desc' },
+        distinct: ['customerId'],
+        select: {
+          customerId: true,
+          tableLabel: true,
+          createdAt: true,
+        },
+      }),
+    ]);
 
     // 4. 병합 (가장 최근 값 사용)
     const tableLabelsMap = new Map<string, string>();
@@ -1093,7 +1091,7 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
         storeId: { in: storeIds },
         createdAt: { gte: startDate, lte: endDate }
       },
-      select: { ageGroup: true, birthYear: true, gender: true, id: true }
+      select: { ageGroup: true, birthYear: true, gender: true, id: true, visitSource: true }
     });
 
     const totalCustomers = allCustomers.length;
@@ -1206,21 +1204,23 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
 
     console.log('[Franchise Insights] Retention - 7days:', retention7Days, '% (', revisitCustomers7Days, '/', totalCustomers7Days, '), 30days:', retention30Days, '% (', revisitCustomers30Days, '/', totalCustomers30Days, ')');
 
-    // 6. 월별 고객 추이 (최근 6개월)
+    // 6. 월별 고객 추이 (최근 6개월) — 단일 쿼리로 조회 후 JS에서 월별 버킷팅 (기존: 6회 순차 count)
+    const sixMonthsStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const monthlyCustomers = await prisma.customer.findMany({
+      where: {
+        storeId: { in: storeIds },
+        createdAt: { gte: sixMonthsStart }
+      },
+      select: { createdAt: true }
+    });
+
     const monthlyTrend = [];
     for (let i = 5; i >= 0; i--) {
       const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
-
-      const customerCount = await prisma.customer.count({
-        where: {
-          storeId: { in: storeIds },
-          createdAt: {
-            gte: monthStart,
-            lte: monthEnd
-          }
-        }
-      });
+      const nextMonthStart = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      const customerCount = monthlyCustomers.filter(
+        (c) => c.createdAt >= monthStart && c.createdAt < nextMonthStart
+      ).length;
 
       const monthName = `${monthStart.getMonth() + 1}월`;
       monthlyTrend.push({
@@ -1229,24 +1229,22 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
       });
     }
 
-    // 7. 가맹점별 고객 수 Top 5
-    const storeStats = await Promise.all(
-      stores.map(async (store) => {
-        const customerCount = await prisma.customer.count({
-          where: {
-            storeId: store.id,
-            createdAt: { gte: startDate }
-          }
-        });
+    // 7. 가맹점별 고객 수 Top 5 — 단일 groupBy (기존: 가맹점 수만큼 count 쿼리)
+    const storeCustomerCounts = await prisma.customer.groupBy({
+      by: ['storeId'],
+      where: {
+        storeId: { in: storeIds },
+        createdAt: { gte: startDate }
+      },
+      _count: { id: true }
+    });
 
-        return {
-          name: store.name,
-          customers: customerCount
-        };
-      })
-    );
-
-    const topStores = storeStats
+    const storeNameMap = new Map(stores.map((s) => [s.id, s.name]));
+    const topStores = storeCustomerCounts
+      .map((g) => ({
+        name: storeNameMap.get(g.storeId) || '',
+        customers: g._count.id
+      }))
       .sort((a, b) => b.customers - a.customers)
       .slice(0, 5);
 
@@ -1263,33 +1261,13 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
       passby: '지나가다'
     };
 
-    // visitSource가 있는 고객만 집계
+    // visitSource가 있는 고객만 집계 (allCustomers에 visitSource 포함되어 별도 쿼리 불필요)
     const visitSourceMap = new Map<string, number>();
     let totalWithVisitSource = 0;
 
     allCustomers.forEach(c => {
-      const customer = c as any;
-      if (customer.visitSource) {
-        totalWithVisitSource++;
-        visitSourceMap.set(customer.visitSource, (visitSourceMap.get(customer.visitSource) || 0) + 1);
-      }
-    });
-
-    // visitSource 필드를 가져오기 위해 다시 쿼리 (allCustomers에는 visitSource가 없음)
-    const customersWithVisitSource = await prisma.customer.findMany({
-      where: {
-        storeId: { in: storeIds },
-        createdAt: { gte: startDate, lte: endDate },
-        visitSource: { not: null }
-      },
-      select: { visitSource: true }
-    });
-
-    visitSourceMap.clear();
-    totalWithVisitSource = customersWithVisitSource.length;
-
-    customersWithVisitSource.forEach(c => {
       if (c.visitSource) {
+        totalWithVisitSource++;
         visitSourceMap.set(c.visitSource, (visitSourceMap.get(c.visitSource) || 0) + 1);
       }
     });
