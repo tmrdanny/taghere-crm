@@ -50,6 +50,12 @@ services:
         sync: false  # 서비스계정 crm-insights-bq JSON 키 통째로
     healthCheckPath: /api/health
     autoDeploy: true
+    # 업로드 파일(배너 이미지/영상 등)을 재배포 후에도 유지하기 위한 영구 디스크
+    # process.cwd()가 apps/api 이므로 uploads 경로에 마운트 (admin-uploads.ts의 uploads/banners)
+    disk:
+      name: crm-uploads
+      mountPath: /opt/render/project/src/apps/api/uploads
+      sizeGB: 10
 
   # Frontend (Next.js)
   - type: web
