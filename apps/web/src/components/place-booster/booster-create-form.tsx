@@ -47,6 +47,13 @@ export function fmtDate(d: Date | string) {
   return `${kst.getUTCMonth() + 1}/${kst.getUTCDate()}(${'일월화수목금토'[kst.getUTCDay()]})`;
 }
 
+/** DateTime(ISO) → 'YYYY-MM-DD' (KST 기준, date input 프리필용) */
+export function toDateInput(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const kst = new Date(new Date(iso).getTime() + KST_OFFSET);
+  return kst.toISOString().slice(0, 10);
+}
+
 /** 발송일 + 시각 (KST) 예: 7/1(수) 18:00 */
 export function fmtDateTime(d: Date | string) {
   const date = typeof d === 'string' ? new Date(d) : d;
@@ -62,17 +69,39 @@ export interface BoosterTargetResult {
   payload?: Record<string, unknown>; // 예: { storeId } 또는 { campaignName }
 }
 
+/** 수정(edit) 모드 프리필 값 */
+export interface BoosterFormValues {
+  keyword: string;
+  naverPlaceUrl: string;
+  placeId: string;
+  placeName?: string;
+  placeAddress?: string | null;
+  couponContent: string;
+  couponCode: string;
+  couponAmount: string;
+  couponValidUntil: string; // 'YYYY-MM-DD'
+  ownerPhone: string;
+  weekday: number;
+  sendTime: string;
+  perBatchCount: number;
+  totalWeeks: number;
+}
+
 export interface BoosterCreateFormProps {
   apiPrefix: string; // '/api/place-booster' | '/api/admin/place-booster'
   fetcher: (p: string, init?: RequestInit) => Promise<Response>;
   onBack: () => void;
-  onCreated: (id: string) => void;
+  onCreated?: (id: string) => void; // create 완료 콜백 (edit 모드는 onSaved 사용)
   submitLabel: string; // 준비됐을 때 CTA 문구
   submitNote?: React.ReactNode; // CTA 아래 안내문
   storeInfoEndpoint?: string; // 사장님: 매장 연락처로 사장님 번호 프리필
   prefillPhone?: string; // 운영자: 선택한 매장 연락처로 프리필
   renderTarget?: () => React.ReactNode; // 운영자: 매장 선택 / 외부 고객 UI
   getTargetPayload?: () => BoosterTargetResult; // 운영자: storeId/campaignName 검증·payload
+  mode?: 'create' | 'edit'; // 기본 create
+  campaignId?: string; // edit 모드: 대상 캠페인 id
+  initialValues?: BoosterFormValues; // edit 모드: 프리필 값
+  onSaved?: (id: string) => void; // edit 모드 저장 완료 콜백 (없으면 onCreated)
 }
 
 export function BoosterCreateForm({
@@ -86,20 +115,30 @@ export function BoosterCreateForm({
   prefillPhone,
   renderTarget,
   getTargetPayload,
+  mode = 'create',
+  campaignId,
+  initialValues: iv,
+  onSaved,
 }: BoosterCreateFormProps) {
-  const [keyword, setKeyword] = useState('');
-  const [naverPlaceUrl, setNaverPlaceUrl] = useState('');
-  const [placeInfo, setPlaceInfo] = useState<{ placeId: string; name: string; category: string | null; address: string | null } | null>(null);
+  const isEdit = mode === 'edit' && !!campaignId;
+  const [keyword, setKeyword] = useState(iv?.keyword ?? '');
+  const [naverPlaceUrl, setNaverPlaceUrl] = useState(iv?.naverPlaceUrl ?? '');
+  // edit: 저장된 placeId로 placeInfo 시드 → 재검증 없이 제출 가능(주소는 비어도 백엔드가 placeId 동일 시 지역 유지)
+  const [placeInfo, setPlaceInfo] = useState<{ placeId: string; name: string; category: string | null; address: string | null } | null>(
+    iv?.placeId ? { placeId: iv.placeId, name: iv.placeName ?? '', category: null, address: iv.placeAddress ?? null } : null
+  );
   const [verifying, setVerifying] = useState(false);
   const [verifyErr, setVerifyErr] = useState('');
-  const [couponContent, setCouponContent] = useState('');
-  const [couponCode, setCouponCode] = useState('');
-  const [couponAmount, setCouponAmount] = useState('');
-  const [couponValidUntil, setCouponValidUntil] = useState('');
-  const [ownerPhone, setOwnerPhone] = useState('');
-  const [preset, setPreset] = useState(PRESETS[0]);
-  const [weekday, setWeekday] = useState(2);
-  const [sendTime, setSendTime] = useState('18:00');
+  const [couponContent, setCouponContent] = useState(iv?.couponContent ?? '');
+  const [couponCode, setCouponCode] = useState(iv?.couponCode ?? '');
+  const [couponAmount, setCouponAmount] = useState(iv?.couponAmount ?? '');
+  const [couponValidUntil, setCouponValidUntil] = useState(iv?.couponValidUntil ?? '');
+  const [ownerPhone, setOwnerPhone] = useState(iv?.ownerPhone ?? '');
+  const [preset, setPreset] = useState(
+    () => PRESETS.find((p) => p.perBatchCount === iv?.perBatchCount && p.totalWeeks === iv?.totalWeeks) ?? PRESETS[0]
+  );
+  const [weekday, setWeekday] = useState(iv?.weekday ?? 2);
+  const [sendTime, setSendTime] = useState(iv?.sendTime ?? '18:00');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [testPhone, setTestPhone] = useState('');
@@ -167,28 +206,35 @@ export function BoosterCreateForm({
     }
     setSubmitting(true);
     try {
-      const res = await fetcher(`${apiPrefix}/campaigns`, {
-        method: 'POST',
-        body: JSON.stringify({
-          ...targetPayload,
-          keyword,
-          naverPlaceUrl,
-          placeAddress: placeInfo.address,
-          couponContent,
-          couponCode,
-          couponAmount,
-          couponValidUntil,
-          ownerPhone,
-          weekday,
-          sendTime,
-          perBatchCount: preset.perBatchCount,
-          totalWeeks: preset.totalWeeks,
-        }),
-      });
+      const res = await fetcher(
+        isEdit ? `${apiPrefix}/campaigns/${campaignId}` : `${apiPrefix}/campaigns`,
+        {
+          method: isEdit ? 'PATCH' : 'POST',
+          body: JSON.stringify({
+            ...targetPayload,
+            keyword,
+            naverPlaceUrl,
+            placeAddress: placeInfo.address,
+            couponContent,
+            couponCode,
+            couponAmount,
+            couponValidUntil,
+            ownerPhone,
+            weekday,
+            sendTime,
+            perBatchCount: preset.perBatchCount,
+            totalWeeks: preset.totalWeeks,
+          }),
+        }
+      );
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setError(data.error || '생성에 실패했습니다.'); return; }
-      trackEvent('owner_booster_create', { keyword, total_target_count: preset.perBatchCount * preset.totalWeeks });
-      onCreated(data.id);
+      if (!res.ok) { setError(data.error || (isEdit ? '수정에 실패했습니다.' : '생성에 실패했습니다.')); return; }
+      if (isEdit) {
+        (onSaved ?? onCreated)?.(data.id ?? campaignId!);
+      } else {
+        trackEvent('owner_booster_create', { keyword, total_target_count: preset.perBatchCount * preset.totalWeeks });
+        onCreated?.(data.id);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -231,7 +277,7 @@ export function BoosterCreateForm({
             {placeInfo && (
               <div className="rounded-xl border border-green-300 bg-green-50 p-4">
                 <div className="flex items-center gap-2 text-lg font-bold text-neutral-900">
-                  {placeInfo.name}
+                  {placeInfo.name || '저장된 플레이스 정보'}
                   <span className="text-sm font-medium text-green-700">✓ 확인됨</span>
                 </div>
                 {placeInfo.category && <div className="text-sm text-neutral-500 mt-1">{placeInfo.category}</div>}

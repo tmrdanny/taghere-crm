@@ -204,6 +204,22 @@ router.post('/place-booster/campaigns', adminAuthMiddleware, async (req: AdminRe
   }
 });
 
+// PATCH /api/admin/place-booster/campaigns/:id - 캠페인 수정 (승인 전 DRAFT만, 대상 변경 허용)
+router.patch('/place-booster/campaigns/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { storeId, campaignName, ...input } = req.body;
+    console.log(`[audit][place-booster] update campaign=${req.params.id} by=${ADMIN_USERNAME}`);
+    const campaign = await svc.updateCampaign(req.params.id, input, {
+      storeId: storeId || null,
+      campaignName,
+      createdByAdmin: true,
+    });
+    res.json(campaign);
+  } catch (error) {
+    handleError(res, error, '캠페인 수정 중 오류가 발생했습니다.');
+  }
+});
+
 // POST /api/admin/place-booster/campaigns/:id/approve - 계좌이체 승인 → 활성화
 router.post('/place-booster/campaigns/:id/approve', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {

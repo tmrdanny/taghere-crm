@@ -4,7 +4,7 @@ import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { BoosterCreateForm, BoosterTargetResult } from '@/components/place-booster/booster-create-form';
+import { BoosterCreateForm, BoosterTargetResult, BoosterFormValues, toDateInput } from '@/components/place-booster/booster-create-form';
 import { BoosterReport, CampaignInputCard, ReportRow, ReportTotals } from '@/components/place-booster/booster-report';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ export default function AdminPlaceBoosterPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -102,7 +103,7 @@ export default function AdminPlaceBoosterPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold">네이버 플레이스 부스터</h1>
-        {!showCreate && !detailId && (
+        {!showCreate && !detailId && !editId && (
           <button className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm" onClick={() => setShowCreate(true)}>
             + 캠페인 생성
           </button>
@@ -121,6 +122,15 @@ export default function AdminPlaceBoosterPage() {
             af={af}
             onBack={() => setShowCreate(false)}
             onCreated={() => { setShowCreate(false); setMsg('캠페인을 생성했습니다.'); load(); }}
+          />
+        </div>
+      ) : editId ? (
+        <div className="max-w-5xl">
+          <AdminEditView
+            id={editId}
+            af={af}
+            onBack={() => setEditId(null)}
+            onSaved={() => { setEditId(null); setMsg('캠페인을 수정했습니다.'); load(); }}
           />
         </div>
       ) : detailId ? (
@@ -181,6 +191,9 @@ export default function AdminPlaceBoosterPage() {
                 <td className="px-3 py-2 text-right whitespace-nowrap">
                   <div className="flex justify-end gap-1">
                     <button className="text-xs font-medium px-2 py-1 rounded border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100" onClick={() => setDetailId(r.id)}>상세</button>
+                    {r.status === 'DRAFT' && (
+                      <button disabled={acting} className="text-xs font-medium px-2 py-1 rounded border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-40" onClick={() => setEditId(r.id)}>수정</button>
+                    )}
                     {r.paymentStatus === 'PENDING_APPROVAL' && (
                       <button disabled={acting} className="text-xs font-medium px-2 py-1 rounded border border-green-200 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-40" onClick={() => act(`/api/admin/place-booster/campaigns/${r.id}/approve`, 'POST', '승인되었습니다.')}>승인</button>
                     )}
@@ -378,13 +391,16 @@ function AdminReportView({ id, af, onBack, onChanged }: { id: string; af: (p: st
 
 interface StoreOpt { id: string; name: string; ownerName: string | null; address: string | null; phone: string | null; }
 
-/** 운영자 캠페인 생성 — 사장님 생성 폼(BoosterCreateForm)에 매장 선택/외부 고객 대상 선택을 주입 */
-function AdminCreateView({ af, onBack, onCreated }: { af: (p: string, i?: RequestInit) => Promise<Response>; onBack: () => void; onCreated: () => void; }) {
-  const [mode, setMode] = useState<'store' | 'external'>('store');
-  const [campaignName, setCampaignName] = useState('');
+/** 운영자 대상(매장/외부) 선택 — 생성/수정 공용. initial 로 수정 시 프리필. */
+function useAdminTarget(
+  af: (p: string, i?: RequestInit) => Promise<Response>,
+  initial?: { storeId: string | null; storeName: string; campaignName: string | null }
+) {
+  const [mode, setMode] = useState<'store' | 'external'>(initial?.storeId ? 'store' : initial?.campaignName ? 'external' : 'store');
+  const [campaignName, setCampaignName] = useState(initial?.campaignName ?? '');
   const [stores, setStores] = useState<StoreOpt[]>([]);
-  const [storeId, setStoreId] = useState('');
-  const [selectedStoreName, setSelectedStoreName] = useState('');
+  const [storeId, setStoreId] = useState(initial?.storeId ?? '');
+  const [selectedStoreName, setSelectedStoreName] = useState(initial?.storeName ?? '');
   const [storeSearch, setStoreSearch] = useState('');
   const [prefillPhone, setPrefillPhone] = useState('');
 
@@ -451,6 +467,12 @@ function AdminCreateView({ af, onBack, onCreated }: { af: (p: string, i?: Reques
     return { ok: true, payload: { campaignName: campaignName.trim() } };
   };
 
+  return { renderTarget, getTargetPayload, prefillPhone };
+}
+
+/** 운영자 캠페인 생성 — 사장님 생성 폼(BoosterCreateForm)에 매장 선택/외부 고객 대상 선택을 주입 */
+function AdminCreateView({ af, onBack, onCreated }: { af: (p: string, i?: RequestInit) => Promise<Response>; onBack: () => void; onCreated: () => void; }) {
+  const { renderTarget, getTargetPayload, prefillPhone } = useAdminTarget(af);
   return (
     <BoosterCreateForm
       apiPrefix="/api/admin/place-booster"
@@ -462,6 +484,69 @@ function AdminCreateView({ af, onBack, onCreated }: { af: (p: string, i?: Reques
       getTargetPayload={getTargetPayload}
       onBack={onBack}
       onCreated={onCreated}
+    />
+  );
+}
+
+interface EditCampaign {
+  keyword: string; naverPlaceUrl: string; placeId: string;
+  couponContent: string; couponCode: string | null; couponAmount: string | null;
+  couponValidUntil: string | null; ownerPhone: string | null;
+  weekday: number; sendTime: string; perBatchCount: number; totalWeeks: number;
+  storeId: string | null; campaignName: string | null;
+}
+
+/** 운영자 캠페인 수정 — 상세 로드 후 프리필된 폼(edit 모드) 렌더 */
+function AdminEditView({ id, af, onBack, onSaved }: { id: string; af: (p: string, i?: RequestInit) => Promise<Response>; onBack: () => void; onSaved: () => void; }) {
+  const [data, setData] = useState<{ campaign: EditCampaign; store: { name: string } | null } | null>(null);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    af(`/api/admin/place-booster/campaigns/${id}`)
+      .then(async (r) => {
+        if (!r.ok) { setErr('캠페인을 불러오지 못했습니다.'); return; }
+        const d = await r.json();
+        setData({ campaign: d.campaign, store: d.store });
+      })
+      .catch(() => setErr('네트워크 오류가 발생했습니다.'));
+  }, [af, id]);
+
+  if (err) return <div className="rounded-lg bg-red-50 text-red-700 px-4 py-3 text-sm">{err} <button className="underline ml-2" onClick={onBack}>목록으로</button></div>;
+  if (!data) return <div className="p-10 text-center text-gray-400">불러오는 중…</div>;
+  return <AdminEditForm id={id} af={af} campaign={data.campaign} storeName={data.store?.name ?? ''} onBack={onBack} onSaved={onSaved} />;
+}
+
+function AdminEditForm({ id, af, campaign: c, storeName, onBack, onSaved }: { id: string; af: (p: string, i?: RequestInit) => Promise<Response>; campaign: EditCampaign; storeName: string; onBack: () => void; onSaved: () => void; }) {
+  const { renderTarget, getTargetPayload } = useAdminTarget(af, { storeId: c.storeId, storeName, campaignName: c.campaignName });
+  const initialValues: BoosterFormValues = {
+    keyword: c.keyword,
+    naverPlaceUrl: c.naverPlaceUrl,
+    placeId: c.placeId,
+    placeName: storeName,
+    placeAddress: null,
+    couponContent: c.couponContent,
+    couponCode: c.couponCode ?? '',
+    couponAmount: c.couponAmount ?? '',
+    couponValidUntil: toDateInput(c.couponValidUntil),
+    ownerPhone: c.ownerPhone ?? '',
+    weekday: c.weekday,
+    sendTime: c.sendTime,
+    perBatchCount: c.perBatchCount,
+    totalWeeks: c.totalWeeks,
+  };
+  return (
+    <BoosterCreateForm
+      apiPrefix="/api/admin/place-booster"
+      fetcher={af}
+      mode="edit"
+      campaignId={id}
+      initialValues={initialValues}
+      submitLabel="수정 완료"
+      submitNote="결제/승인 전 캠페인만 수정됩니다. 발송 일정·인원 변경 시 회차가 재생성됩니다."
+      renderTarget={renderTarget}
+      getTargetPayload={getTargetPayload}
+      onBack={onBack}
+      onSaved={onSaved}
     />
   );
 }

@@ -202,27 +202,8 @@ function validatePreset(perBatchCount: number, totalWeeks: number) {
   }
 }
 
-async function generateUniqueTrackingCode(): Promise<string> {
-  for (let i = 0; i < 5; i++) {
-    const code = generateTrackingCode();
-    const exists = await prisma.placeBoosterCampaign.findUnique({
-      where: { trackingCode: code },
-      select: { id: true },
-    });
-    if (!exists) return code;
-  }
-  throw new BoosterError('추적 코드 생성에 실패했습니다. 다시 시도해주세요.', 500);
-}
-
-/** 캠페인 생성 (DRAFT/UNPAID). 회차도 함께 생성. */
-export async function createCampaign(
-  input: CreateCampaignInput,
-  ctx: { storeId?: string | null; campaignName?: string; createdByAdmin: boolean }
-): Promise<PlaceBoosterCampaign> {
-  const isExternal = !ctx.storeId;
-  if (isExternal && !ctx.campaignName?.trim()) {
-    throw new BoosterError('외부 캠페인은 캠페인명을 입력해주세요.');
-  }
+/** 생성/수정 공통 입력 검증 + placeId 파싱 (회차/지역 파생은 호출측). */
+function validateCampaignInput(input: CreateCampaignInput): { placeId: string } {
   validatePreset(input.perBatchCount, input.totalWeeks);
 
   // 알림톡 템플릿(UG_5628)은 4개 변수 슬롯이 모두 채워져야 발송되므로 전부 필수
@@ -245,6 +226,31 @@ export async function createCampaign(
       '플레이스 상세 URL을 붙여넣어 주세요. (단축링크/검색 링크에는 매장 ID가 없습니다)'
     );
   }
+  return { placeId };
+}
+
+async function generateUniqueTrackingCode(): Promise<string> {
+  for (let i = 0; i < 5; i++) {
+    const code = generateTrackingCode();
+    const exists = await prisma.placeBoosterCampaign.findUnique({
+      where: { trackingCode: code },
+      select: { id: true },
+    });
+    if (!exists) return code;
+  }
+  throw new BoosterError('추적 코드 생성에 실패했습니다. 다시 시도해주세요.', 500);
+}
+
+/** 캠페인 생성 (DRAFT/UNPAID). 회차도 함께 생성. */
+export async function createCampaign(
+  input: CreateCampaignInput,
+  ctx: { storeId?: string | null; campaignName?: string; createdByAdmin: boolean }
+): Promise<PlaceBoosterCampaign> {
+  const isExternal = !ctx.storeId;
+  if (isExternal && !ctx.campaignName?.trim()) {
+    throw new BoosterError('외부 캠페인은 캠페인명을 입력해주세요.');
+  }
+  const { placeId } = validateCampaignInput(input);
 
   // 가입 매장이면 존재 확인 (소유권/대상 검증)
   if (ctx.storeId) {
@@ -306,6 +312,98 @@ export async function createCampaign(
       },
     },
   });
+}
+
+/**
+ * 캠페인 수정 (결제/승인 전 DRAFT 한정). 회차를 재생성한다.
+ * - owner: 본인 매장 캠페인만(대상 변경 불가). admin: 대상(매장↔외부)도 변경 가능.
+ * - DRAFT 회차는 aligoMids/recipients가 없어 deleteMany+create 가 안전(가드가 PAID 이후 차단).
+ */
+export async function updateCampaign(
+  campaignId: string,
+  input: CreateCampaignInput,
+  ctx: { storeId?: string | null; campaignName?: string; createdByAdmin: boolean }
+): Promise<PlaceBoosterCampaign> {
+  const existing = await prisma.placeBoosterCampaign.findUnique({ where: { id: campaignId } });
+  if (!existing || existing.deletedAt) throw new BoosterError('캠페인을 찾을 수 없습니다.', 404);
+  // owner 스코프: 본인 매장 캠페인만
+  if (!ctx.createdByAdmin && existing.storeId !== ctx.storeId) {
+    throw new BoosterError('캠페인을 찾을 수 없습니다.', 404);
+  }
+  if (existing.status !== 'DRAFT') {
+    throw new BoosterError('결제/승인 전 캠페인만 수정할 수 있습니다.');
+  }
+
+  const { placeId } = validateCampaignInput(input);
+
+  // 대상(target): admin은 변경 허용(매장 XOR 외부), owner는 기존 유지
+  let storeId = existing.storeId;
+  let campaignName = existing.campaignName;
+  if (ctx.createdByAdmin) {
+    const newStoreId = ctx.storeId || null;
+    const newCampaignName = ctx.campaignName?.trim() || null;
+    if (!newStoreId && !newCampaignName) {
+      throw new BoosterError('매장을 선택하거나 외부 캠페인명을 입력해주세요.');
+    }
+    if (newStoreId) {
+      const store = await prisma.store.findUnique({ where: { id: newStoreId }, select: { id: true } });
+      if (!store) throw new BoosterError('매장을 찾을 수 없습니다.', 404);
+    }
+    storeId = newStoreId;
+    campaignName = newStoreId ? null : newCampaignName;
+  }
+
+  // 지역: 플레이스(placeId) 동일하면 기존 targetRegions 유지, 변경됐으면 placeAddress로 재파싱
+  let targetRegions = existing.targetRegions as unknown as Prisma.InputJsonValue;
+  if (placeId !== existing.placeId) {
+    const region = parseStoreRegion(input.placeAddress);
+    if (!region) {
+      throw new BoosterError(
+        '플레이스 주소에서 지역(시/군/구)을 확인할 수 없습니다. 매장 정보 확인을 다시 시도해주세요.'
+      );
+    }
+    targetRegions = expandRegions(region.sido, region.sigungu) as unknown as Prisma.InputJsonValue;
+  }
+
+  const totalTargetCount = input.perBatchCount * input.totalWeeks;
+  const schedules = computeBatchSchedules(input.weekday, input.sendTime, input.totalWeeks);
+
+  // 원자적 가드: where 에 status='DRAFT' 를 걸어, 수정과 결제/승인(activate)이 경합해도
+  // 이미 PAID/SCHEDULED 로 넘어갔으면 0건 매칭 → 회차 재생성을 하지 않고 중단(알리고 예약 유실 방지).
+  await prisma.$transaction(async (tx) => {
+    const upd = await tx.placeBoosterCampaign.updateMany({
+      where: { id: campaignId, status: 'DRAFT', deletedAt: null },
+      data: {
+        storeId,
+        campaignName,
+        keyword: input.keyword.trim(),
+        naverPlaceUrl: input.naverPlaceUrl.trim(),
+        placeId,
+        couponContent: input.couponContent.trim(),
+        couponCode: input.couponCode.trim(),
+        couponAmount: input.couponAmount.trim(),
+        couponValidUntil: parseCouponValidUntil(input.couponValidUntil),
+        ownerPhone: normalizePhoneNumber(input.ownerPhone.trim()),
+        targetRegions,
+        weekday: input.weekday,
+        sendTime: input.sendTime,
+        perBatchCount: input.perBatchCount,
+        totalWeeks: input.totalWeeks,
+        totalTargetCount,
+        // trackingCode·paymentStatus·status(DRAFT) 는 유지.
+      },
+    });
+    if (upd.count === 0) {
+      throw new BoosterError('결제/승인 전 캠페인만 수정할 수 있습니다.');
+    }
+    // DRAFT 회차는 aligoMids/recipients 가 없어 재생성 안전(@@unique(campaignId,weekNo) 충돌 없음).
+    await tx.placeBoosterBatch.deleteMany({ where: { campaignId } });
+    await tx.placeBoosterBatch.createMany({
+      data: schedules.map((scheduledAt, idx) => ({ campaignId, weekNo: idx + 1, scheduledAt })),
+    });
+  });
+
+  return prisma.placeBoosterCampaign.findUniqueOrThrow({ where: { id: campaignId } });
 }
 
 /** 활성화: 결제/승인 완료 → 발송 예약 시작 */
