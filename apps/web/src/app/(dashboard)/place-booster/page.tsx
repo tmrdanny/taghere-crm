@@ -15,7 +15,7 @@ import {
   X,
   Loader2,
 } from 'lucide-react';
-import { BoosterCreateForm } from '@/components/place-booster/booster-create-form';
+import { BoosterCreateForm, toDateInput } from '@/components/place-booster/booster-create-form';
 import { BoosterReport, CampaignInputCard } from '@/components/place-booster/booster-report';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -63,6 +63,7 @@ interface Report {
     couponAmount: string | null;
     couponValidUntil: string | null;
     naverPlaceUrl: string;
+    placeId: string;
     ownerPhone: string | null;
     sendTime: string;
     weekday: number;
@@ -91,7 +92,7 @@ const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
 export default function PlaceBoosterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
+  const [view, setView] = useState<'list' | 'create' | 'detail' | 'edit'>('list');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(false);
@@ -229,8 +230,39 @@ export default function PlaceBoosterPage() {
             setView('list');
             loadCampaigns();
           }}
+          onEdit={() => setView('edit')}
           reload={() => openDetail(report.campaign.id)}
           setError={setError}
+        />
+      )}
+      {view === 'edit' && report && (
+        <BoosterCreateForm
+          apiPrefix="/api/place-booster"
+          fetcher={authFetch}
+          mode="edit"
+          campaignId={report.campaign.id}
+          initialValues={{
+            keyword: report.campaign.keyword,
+            naverPlaceUrl: report.campaign.naverPlaceUrl,
+            placeId: report.campaign.placeId,
+            placeAddress: null,
+            couponContent: report.campaign.couponContent,
+            couponCode: report.campaign.couponCode ?? '',
+            couponAmount: report.campaign.couponAmount ?? '',
+            couponValidUntil: toDateInput(report.campaign.couponValidUntil),
+            ownerPhone: report.campaign.ownerPhone ?? '',
+            weekday: report.campaign.weekday,
+            sendTime: report.campaign.sendTime,
+            perBatchCount: report.campaign.perBatchCount,
+            totalWeeks: report.campaign.totalWeeks,
+          }}
+          submitLabel="수정 완료"
+          submitNote="결제 전 캠페인만 수정됩니다. 발송 일정·인원 변경 시 회차가 재생성됩니다."
+          onBack={() => setView('detail')}
+          onSaved={async (id) => {
+            await loadCampaigns();
+            await openDetail(id);
+          }}
         />
       )}
     </div>
@@ -311,12 +343,14 @@ function DetailView({
   report,
   authFetch,
   onBack,
+  onEdit,
   reload,
   setError,
 }: {
   report: Report;
   authFetch: (p: string, i?: RequestInit) => Promise<Response>;
   onBack: () => void;
+  onEdit: () => void;
   reload: () => void;
   setError: (s: string) => void;
 }) {
@@ -347,9 +381,14 @@ function DetailView({
 
   return (
     <div>
-      <button onClick={onBack} className="flex items-center gap-0.5 text-[15px] text-neutral-500 hover:text-neutral-700 mb-5">
-        <ChevronLeft className="w-5 h-5" /> 목록으로
-      </button>
+      <div className="flex items-center justify-between mb-5">
+        <button onClick={onBack} className="flex items-center gap-0.5 text-[15px] text-neutral-500 hover:text-neutral-700">
+          <ChevronLeft className="w-5 h-5" /> 목록으로
+        </button>
+        {c.status === 'DRAFT' && (
+          <Button variant="secondary" size="sm" onClick={onEdit}>수정</Button>
+        )}
+      </div>
 
       <Card className="p-6 mb-4">
         <div className="flex items-start justify-between gap-3">

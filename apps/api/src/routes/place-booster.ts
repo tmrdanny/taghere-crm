@@ -87,6 +87,19 @@ router.post('/campaigns', authMiddleware, async (req: AuthRequest, res: Response
   }
 });
 
+// PATCH /api/place-booster/campaigns/:id - 캠페인 수정 (결제 전 DRAFT만)
+router.patch('/campaigns/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const campaign = await svc.updateCampaign(req.params.id, req.body, {
+      storeId: req.user!.storeId,
+      createdByAdmin: false,
+    });
+    res.json(campaign);
+  } catch (error) {
+    handleError(res, error, '캠페인 수정 중 오류가 발생했습니다.');
+  }
+});
+
 // GET /api/place-booster/campaigns - 내 캠페인 목록
 router.get('/campaigns', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
