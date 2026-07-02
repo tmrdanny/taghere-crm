@@ -202,6 +202,10 @@ export default function FranchiseCustomersPage() {
   const [dateRangeDropdownOpen, setDateRangeDropdownOpen] = useState(false);
 
   const dateRangeDropdownRef = useRef<HTMLDivElement>(null);
+  const storeDropdownRef = useRef<HTMLDivElement>(null);
+  const genderDropdownRef = useRef<HTMLDivElement>(null);
+  const visitDropdownRef = useRef<HTMLDivElement>(null);
+  const lastVisitDropdownRef = useRef<HTMLDivElement>(null);
 
   // Column customization states
   const [visibleColumns, setVisibleColumns] = useState<ColumnId[]>(DEFAULT_VISIBLE_COLUMNS);
@@ -494,8 +498,16 @@ export default function FranchiseCustomersPage() {
         return;
       }
 
-      // Check if click is inside date range dropdown
-      if (dateRangeDropdownRef.current && dateRangeDropdownRef.current.contains(target)) {
+      // Check if click is inside any filter dropdown
+      // (mousedown 단계에서 닫으면 옵션 버튼이 click 발생 전에 언마운트되어 선택이 무시됨)
+      const dropdownRefs = [
+        dateRangeDropdownRef,
+        storeDropdownRef,
+        genderDropdownRef,
+        visitDropdownRef,
+        lastVisitDropdownRef,
+      ];
+      if (dropdownRefs.some((ref) => ref.current && ref.current.contains(target))) {
         return;
       }
 
@@ -695,7 +707,7 @@ export default function FranchiseCustomersPage() {
           {/* Filter buttons */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Store Filter */}
-            <div className="relative">
+            <div className="relative" ref={storeDropdownRef}>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -747,7 +759,7 @@ export default function FranchiseCustomersPage() {
             </div>
 
             {/* Gender Filter */}
-            <div className="relative">
+            <div className="relative" ref={genderDropdownRef}>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -789,7 +801,7 @@ export default function FranchiseCustomersPage() {
             </div>
 
             {/* Visit Count Filter */}
-            <div className="relative">
+            <div className="relative" ref={visitDropdownRef}>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -831,7 +843,7 @@ export default function FranchiseCustomersPage() {
             </div>
 
             {/* Last Visit Filter */}
-            <div className="relative">
+            <div className="relative" ref={lastVisitDropdownRef}>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
