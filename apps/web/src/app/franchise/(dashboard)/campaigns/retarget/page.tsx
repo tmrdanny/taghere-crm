@@ -254,6 +254,17 @@ export default function MessagesPage() {
   const [kakaoTestPhone, setKakaoTestPhone] = useState('');
   const [isKakaoTestSending, setIsKakaoTestSending] = useState(false);
 
+  // 카카오톡 쿠폰 알림톡 상태 (messages 페이지와 동일한 템플릿)
+  const [couponContent, setCouponContent] = useState('');
+  const [couponExpiryDate, setCouponExpiryDate] = useState('');
+  const [couponStoreName, setCouponStoreName] = useState('');
+  const [couponEstimate, setCouponEstimate] = useState<{ totalCost: number; walletBalance: number; canSend: boolean } | null>(null);
+  const [isCouponSending, setIsCouponSending] = useState(false);
+
+  // (구) 브랜드 메시지 카카오 UI 비활성 플래그. boolean 타입으로 두어 죽은 분기의
+  // 타입 내로잉(control-flow narrowing)이 유지되도록 한다. (literal false면 unreachable 처리되어 내로잉 소실)
+  const SHOW_LEGACY_KAKAO_UI: boolean = false;
+
   // Get auth token
   const getAuthToken = () => {
     if (typeof window === 'undefined') return 'dev-token';
@@ -633,6 +644,41 @@ export default function MessagesPage() {
     const debounce = setTimeout(fetchKakaoEstimate, 300);
     return () => clearTimeout(debounce);
   }, [activeTab, fetchKakaoEstimate]);
+
+  // 쿠폰 알림톡 비용 예상 + 미리보기 상호명 조회
+  useEffect(() => {
+    if (activeTab !== 'kakao') return;
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const count =
+          selectedTarget === 'CUSTOM' ? selectedCustomers.length
+          : selectedTarget === 'ALL' ? targetCounts.all
+          : selectedTarget === 'REVISIT' ? targetCounts.revisit
+          : targetCounts.new;
+        const [estRes, setRes] = await Promise.all([
+          fetch(`${API_BASE}/api/franchise/retarget-coupon/estimate?targetCount=${count}`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` },
+          }),
+          couponStoreName
+            ? Promise.resolve(null)
+            : fetch(`${API_BASE}/api/franchise/retarget-coupon/settings`, {
+                headers: { Authorization: `Bearer ${getAuthToken()}` },
+              }),
+        ]);
+        if (!cancelled && estRes.ok) setCouponEstimate(await estRes.json());
+        if (!cancelled && setRes && setRes.ok) {
+          const s = await setRes.json();
+          setCouponStoreName(s.storeName || '');
+        }
+      } catch (e) {
+        console.error('coupon estimate failed', e);
+      }
+    };
+    const debounce = setTimeout(run, 300);
+    return () => { cancelled = true; clearTimeout(debounce); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, targetCounts]);
 
   // Update target counts when filters change
   useEffect(() => {
@@ -1039,6 +1085,64 @@ export default function MessagesPage() {
     }
   };
 
+  // 쿠폰 알림톡 발송 (프랜차이즈 전 매장 대상, 각 고객 매장 정보로 발송)
+  const handleCouponSend = async () => {
+    if (!couponContent.trim() || !couponExpiryDate.trim()) {
+      showToast('쿠폰 내용과 유효기간을 입력해주세요.', 'error');
+      return;
+    }
+    if (getCurrentTargetCount() === 0) {
+      showToast('발송 대상을 선택해주세요.', 'error');
+      return;
+    }
+    if (getCurrentTargetCount() > 3000) {
+      showToast('1회 발송 최대 3,000명입니다. 필터를 좁히거나 나눠 발송해 주세요.', 'error');
+      return;
+    }
+
+    setIsCouponSending(true);
+    try {
+      const body: any = {
+        couponContent: couponContent.trim(),
+        expiryDate: couponExpiryDate.trim(),
+        targetType: selectedTarget,
+        genderFilter: genderFilter !== 'all' ? genderFilter : undefined,
+        ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : undefined,
+      };
+      if (selectedTarget === 'CUSTOM') {
+        body.customerIds = selectedCustomers.map((c) => c.id);
+        if (body.customerIds.length === 0) {
+          showToast('발송할 고객이 없습니다.', 'error');
+          setIsCouponSending(false);
+          return;
+        }
+      }
+
+      const res = await fetch(`${API_BASE}/api/franchise/retarget-coupon/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        showToast(data.message || '쿠폰 알림톡이 발송되었습니다.', 'success');
+        setCouponContent('');
+        setCouponExpiryDate('');
+        fetchTargetCounts();
+      } else {
+        showToast(data.error || '발송에 실패했습니다.', 'error');
+      }
+    } catch (error) {
+      showToast('발송 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setIsCouponSending(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -1058,9 +1162,13 @@ export default function MessagesPage() {
           <h1 className="text-lg sm:text-xl font-bold text-[#1e293b]">캠페인 메시지 만들기</h1>
           <div className="flex bg-[#f1f5f9] rounded-lg p-1 self-start sm:self-auto">
             <button
-              disabled
-              className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all text-[#94a3b8] cursor-not-allowed"
-              title="카카오톡 발송은 준비 중입니다"
+              onClick={() => setActiveTab('kakao')}
+              className={cn(
+                'px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all',
+                activeTab === 'kakao'
+                  ? 'bg-white shadow-sm text-[#1e293b]'
+                  : 'text-[#64748b] hover:text-[#1e293b]'
+              )}
             >
               카카오톡
             </button>
@@ -1410,8 +1518,127 @@ export default function MessagesPage() {
           </>
         )}
 
-        {/* 카카오톡 탭 콘텐츠 */}
+        {/* 카카오톡 탭 콘텐츠 (쿠폰 알림톡 — messages 페이지와 동일) */}
         {activeTab === 'kakao' && (
+          <>
+            {/* Step 2: 쿠폰 정보 입력 */}
+            <div className="flex flex-col gap-4">
+              <label className="text-sm font-semibold text-[#1e293b]">2. 어떤 쿠폰을 보낼까요?</label>
+
+              <div>
+                <label className="text-xs text-[#64748b] mb-1.5 block">쿠폰 내용</label>
+                <input
+                  type="text"
+                  value={couponContent}
+                  onChange={(e) => setCouponContent(e.target.value)}
+                  placeholder="예: 아메리카노 1잔 무료"
+                  className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-[#64748b] mb-1.5 block">유효기간</label>
+                <input
+                  type="text"
+                  value={couponExpiryDate}
+                  onChange={(e) => setCouponExpiryDate(e.target.value)}
+                  placeholder="예: 2025년 2월 28일까지"
+                  className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                />
+              </div>
+
+              <p className="text-xs text-[#94a3b8]">
+                * 네이버 길찾기 버튼은 각 매장에 등록된 네이버 플레이스 URL로 자동 연결됩니다.
+              </p>
+            </div>
+
+            {/* Step 3: Expected Effect & CTA */}
+            <div className="p-5 bg-neutral-50 rounded-2xl border border-neutral-200">
+              <div className="mb-4">
+                <span className="text-base font-semibold text-neutral-800">3. 쿠폰을 보내면 이런 효과가 예상돼요</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="bg-white rounded-xl p-3 text-center border border-neutral-100">
+                  <p className="text-xs text-[#64748b]">발송 비용</p>
+                  <p className="text-lg font-bold text-[#1e293b]">
+                    {formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원
+                  </p>
+                  <p className="text-[10px] text-[#94a3b8]">
+                    {formatNumber(getCurrentTargetCount())}명 × 50원
+                  </p>
+                </div>
+                <div className="bg-white rounded-xl p-3 text-center border border-neutral-100">
+                  <p className="text-xs text-[#64748b]">예상 사용</p>
+                  <p className="text-lg font-bold text-brand-600">
+                    {Math.max(1, Math.round(getCurrentTargetCount() * 0.05))}명
+                  </p>
+                  <p className="text-[10px] text-[#94a3b8]">사용율 5%</p>
+                </div>
+                <div className="bg-white rounded-xl p-3 text-center border border-neutral-100">
+                  <p className="text-xs text-[#64748b]">예상 매출</p>
+                  <p className="text-lg font-bold text-brand-600">
+                    {formatNumber(Math.max(1, Math.round(getCurrentTargetCount() * 0.05)) * 25000)}원
+                  </p>
+                  <p className="text-[10px] text-[#94a3b8]">객단가 2.5만원</p>
+                </div>
+              </div>
+
+              <div className="bg-brand-50 rounded-lg px-4 py-2 mb-4 text-center">
+                <p className="text-sm text-brand-700">
+                  <span className="font-bold">1명만 사용해도</span> 투자 대비{' '}
+                  <span className="font-bold text-brand-600">
+                    {Math.round(25000 / Math.max(1, couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)))}배
+                  </span>{' '}
+                  효과!
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between mb-4 text-sm">
+                <span className="text-[#64748b]">현재 잔액</span>
+                <span className={`font-bold ${(couponEstimate?.walletBalance ?? 0) >= (couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)) ? 'text-brand-600' : 'text-red-600'}`}>
+                  {formatNumber(couponEstimate?.walletBalance ?? 0)}원
+                </span>
+              </div>
+
+              <div className="text-xs text-[#64748b] text-center px-2 mb-4">
+                1회 발송 최대 <span className="font-semibold text-[#1e293b]">3,000명</span>까지 가능합니다.
+                {getCurrentTargetCount() > 3000 && (
+                  <div className="mt-1 text-[#ef4444]">
+                    현재 {formatNumber(getCurrentTargetCount())}명 → 필터를 좁히거나 나눠 발송해 주세요.
+                  </div>
+                )}
+              </div>
+
+              <button
+                disabled={
+                  !couponContent.trim() ||
+                  !couponExpiryDate.trim() ||
+                  getCurrentTargetCount() === 0 ||
+                  getCurrentTargetCount() > 3000 ||
+                  isCouponSending
+                }
+                onClick={handleCouponSend}
+                className="w-full py-4 bg-[#2a2d62] text-white rounded-xl text-lg font-bold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isCouponSending ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    발송 중...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-5 h-5" />
+                    쿠폰 알림톡 발송하기 ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
+                  </>
+                )}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* (구) 브랜드 메시지 카카오 콘텐츠 — 비활성 (messages 페이지와 동일하게 쿠폰 알림톡 사용) */}
+        {SHOW_LEGACY_KAKAO_UI && activeTab === 'kakao' && (
           <>
             {/* 메시지 타입 선택 */}
             <div className="flex flex-col gap-3">
@@ -1788,8 +2015,111 @@ export default function MessagesPage() {
                     </>
                   )}
 
-                  {/* Kakao Preview */}
+                  {/* Kakao Preview - 쿠폰 알림톡 (messages 페이지와 동일) */}
                   {activeTab === 'kakao' && (
+                    <>
+                      {/* KakaoTalk header */}
+                      <div className="flex items-center justify-between px-4 pt-10 pb-2">
+                        <ChevronLeft className="w-4 h-4 text-neutral-700" />
+                        <span className="font-medium text-xs text-neutral-800">태그히어</span>
+                        <div className="w-4" />
+                      </div>
+
+                      {/* Date badge */}
+                      <div className="flex justify-center mb-3">
+                        <span className="text-[10px] bg-neutral-500/30 text-neutral-700 px-2 py-0.5 rounded-full">
+                          {new Date().toLocaleDateString('ko-KR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </span>
+                      </div>
+
+                      {/* Message area */}
+                      <div className="flex-1 pl-2 pr-4 overflow-auto">
+                        <div className="flex gap-1.5">
+                          {/* Profile icon */}
+                          <div className="flex-shrink-0">
+                            <div className="w-7 h-7 rounded-full bg-neutral-300" />
+                          </div>
+
+                          {/* Message content */}
+                          <div className="flex-1 min-w-0 mr-4">
+                            <p className="text-[10px] text-neutral-600 mb-0.5">태그히어</p>
+
+                            {/* Coupon Alimtalk bubble */}
+                            <div className="relative">
+                              {/* Kakao badge */}
+                              <div className="absolute -top-1 -right-1 z-10">
+                                <span className="bg-neutral-700 text-white text-[8px] px-1 py-0.5 rounded-full font-medium">
+                                  kakao
+                                </span>
+                              </div>
+
+                              {/* 알림톡 도착 배너 */}
+                              <div className="bg-[#FEE500] rounded-t-md px-2 py-1.5">
+                                <span className="text-xs font-medium text-neutral-800">알림톡 도착</span>
+                              </div>
+
+                              <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
+                                {/* 쿠폰 이미지 */}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src="/images/coupon_kakao.png"
+                                  alt="쿠폰 이미지"
+                                  className="w-full h-auto"
+                                />
+
+                                {/* Message body */}
+                                <div className="px-4 py-4">
+                                  <p className="text-xs font-semibold text-neutral-800 mb-4">
+                                    태그히어 고객 대상 쿠폰
+                                  </p>
+                                  <div className="space-y-1 text-xs text-neutral-700">
+                                    <p>
+                                      <span className="text-[#6BA3FF]">{couponStoreName || '매장명'}</span>에서 쿠폰을 보냈어요!
+                                    </p>
+                                    <p className="text-neutral-500 mb-4">
+                                      태그히어 이용 고객에게만 제공되는 쿠폰이에요.
+                                    </p>
+                                    <div className="space-y-1 mb-4">
+                                      <p>📌 {couponContent || '쿠폰 내용을 입력해주세요'}</p>
+                                      <p>📌 {couponExpiryDate || '유효기간을 입력해주세요'}</p>
+                                    </div>
+                                    <p className="text-neutral-500">
+                                      결제 시 직원 확인을 통해 사용할 수 있어요.
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* 버튼 */}
+                                <div className="px-4 pb-4 space-y-2">
+                                  <button className="w-full py-2.5 bg-white text-neutral-800 text-xs font-medium rounded border border-neutral-300">
+                                    네이버 길찾기
+                                  </button>
+                                  <button className="w-full py-2.5 bg-white text-neutral-800 text-xs font-medium rounded border border-neutral-300">
+                                    직원 확인
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Time */}
+                            <p className="text-[8px] text-neutral-500 mt-0.5 text-right">
+                              오후 12:30
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom safe area */}
+                      <div className="h-6" />
+                    </>
+                  )}
+
+                  {/* (구) 브랜드 메시지 미리보기 — 비활성 */}
+                  {SHOW_LEGACY_KAKAO_UI && activeTab === 'kakao' && (
                     <>
                       {/* KakaoTalk header */}
                       <div className="flex items-center justify-between px-4 pt-10 pb-2">

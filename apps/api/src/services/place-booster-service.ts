@@ -472,6 +472,35 @@ export async function payWithCredit(campaignId: string) {
   return getActivatableCampaign(campaignId);
 }
 
+/**
+ * 프랜차이즈 크레딧(잔액) 결제 — payWithCredit 와 동일하나 franchiseWallet 에서 차감.
+ * 프랜차이즈가 하위 매장 캠페인 비용을 프랜차이즈 지갑으로 일괄 부담한다.
+ */
+export async function payWithFranchiseCredit(campaignId: string, franchiseId: string) {
+  const campaign = await getActivatableCampaign(campaignId);
+  if (campaign.paymentStatus === 'PAID') return campaign; // 멱등
+  if (!campaign.storeId) {
+    throw new BoosterError('외부 캠페인은 운영자 승인으로만 활성화됩니다.');
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const claim = await tx.placeBoosterCampaign.updateMany({
+      where: { id: campaignId, paymentStatus: { not: 'PAID' }, deletedAt: null },
+      data: { paymentStatus: 'PAID', status: 'SCHEDULED', paymentMethod: 'CREDIT' },
+    });
+    if (claim.count === 0) return; // 이미 결제됨 → 멱등 종료
+    const dec = await tx.franchiseWallet.updateMany({
+      where: { franchiseId, balance: { gte: campaign.paidAmount } },
+      data: { balance: { decrement: campaign.paidAmount } },
+    });
+    if (dec.count === 0) {
+      throw new BoosterError('프랜차이즈 잔액이 부족합니다. 충전 후 다시 시도해주세요.', 402);
+    }
+  });
+
+  return getActivatableCampaign(campaignId);
+}
+
 /** 카드 직접 결제 confirm (TossPayments). 지갑 미경유. */
 export async function confirmCardPayment(params: {
   campaignId: string;
