@@ -314,24 +314,36 @@ export async function createCampaign(
   });
 }
 
+/** 활성(발송 진행 중) 캠페인 수정 결과 — 남은 주차 재예약 요약 */
+export interface ActiveEditResult {
+  id: string;
+  restaged: number;
+  failed: { weekNo: number; reason: string }[];
+}
+
 /**
- * 캠페인 수정 (결제/승인 전 DRAFT 한정). 회차를 재생성한다.
- * - owner: 본인 매장 캠페인만(대상 변경 불가). admin: 대상(매장↔외부)도 변경 가능.
- * - DRAFT 회차는 aligoMids/recipients가 없어 deleteMany+create 가 안전(가드가 PAID 이후 차단).
+ * 캠페인 수정.
+ * - DRAFT(결제 전): 전체 필드 + 전 회차 재생성(원자 가드, 알리고 무관).
+ * - SCHEDULED/RUNNING(발송 진행 중): 콘텐츠+요일/시각만 갱신 + 남은 주차 취소·재예약(인원/주차/대상 고정).
+ * - owner: 본인 매장 캠페인만. admin: 대상(매장↔외부)도 변경 가능(DRAFT 한정).
  */
 export async function updateCampaign(
   campaignId: string,
   input: CreateCampaignInput,
   ctx: { storeId?: string | null; campaignName?: string; createdByAdmin: boolean }
-): Promise<PlaceBoosterCampaign> {
+): Promise<PlaceBoosterCampaign | ActiveEditResult> {
   const existing = await prisma.placeBoosterCampaign.findUnique({ where: { id: campaignId } });
   if (!existing || existing.deletedAt) throw new BoosterError('캠페인을 찾을 수 없습니다.', 404);
   // owner 스코프: 본인 매장 캠페인만
   if (!ctx.createdByAdmin && existing.storeId !== ctx.storeId) {
     throw new BoosterError('캠페인을 찾을 수 없습니다.', 404);
   }
+  // 발송 진행 중(결제/승인 후): 활성 수정 경로
+  if (existing.status === 'SCHEDULED' || existing.status === 'RUNNING') {
+    return updateActiveCampaign(existing, input);
+  }
   if (existing.status !== 'DRAFT') {
-    throw new BoosterError('결제/승인 전 캠페인만 수정할 수 있습니다.');
+    throw new BoosterError('수정할 수 없는 상태의 캠페인입니다.');
   }
 
   const { placeId } = validateCampaignInput(input);
@@ -404,6 +416,169 @@ export async function updateCampaign(
   });
 
   return prisma.placeBoosterCampaign.findUniqueOrThrow({ where: { id: campaignId } });
+}
+
+/** 재예약 잠금 stale 회수(워커 registeringAt 클레임과 동일 기준) */
+const REGISTER_LOCK_STALE_MS = 10 * 60 * 1000;
+/** 발송 임박 컷오프 — 이 시각 이내 회차는 알리고 취소 불가로 간주(재예약 후보 제외) */
+const RESTAGE_CUTOFF_MS = 5 * 60 * 1000;
+
+/**
+ * 발송 진행 중 캠페인 수정: 콘텐츠+요일/시각만 갱신하고 남은 주차를 취소·재예약한다.
+ * 인원(perBatchCount)/주차수(totalWeeks)/대상은 고정(제출값 무시). registeringAt 잠금으로 워커와 직렬화.
+ */
+async function updateActiveCampaign(
+  existing: PlaceBoosterCampaign,
+  input: CreateCampaignInput
+): Promise<ActiveEditResult> {
+  // 검증은 제출 프리셋이 아니라 기존 인원/주차 기준(클라 잠금 우회 방지)
+  const { placeId } = validateCampaignInput({
+    ...input,
+    perBatchCount: existing.perBatchCount,
+    totalWeeks: existing.totalWeeks,
+  });
+
+  // 지역: placeId 동일하면 유지, 변경 시 재파싱
+  let targetRegions = existing.targetRegions as unknown as Prisma.InputJsonValue;
+  if (placeId !== existing.placeId) {
+    const region = parseStoreRegion(input.placeAddress);
+    if (!region) {
+      throw new BoosterError(
+        '플레이스 주소에서 지역(시/군/구)을 확인할 수 없습니다. 매장 정보 확인을 다시 시도해주세요.'
+      );
+    }
+    targetRegions = expandRegions(region.sido, region.sigungu) as unknown as Prisma.InputJsonValue;
+  }
+
+  const scheduleChanged = input.weekday !== existing.weekday || input.sendTime !== existing.sendTime;
+
+  // 캠페인 배타 잠금 획득(워커 registeringAt 클레임 재사용) — 재예약 경합 방지
+  const staleClaim = new Date(Date.now() - REGISTER_LOCK_STALE_MS);
+  const claim = await prisma.placeBoosterCampaign.updateMany({
+    where: { id: existing.id, OR: [{ registeringAt: null }, { registeringAt: { lt: staleClaim } }] },
+    data: { registeringAt: new Date() },
+  });
+  if (claim.count === 0) {
+    throw new BoosterError('발송 예약을 처리 중입니다. 잠시 후 다시 시도해주세요.', 409);
+  }
+  try {
+    // 잠금 후 상태 재확인 (read-then-act 경합 방지)
+    const camp = await prisma.placeBoosterCampaign.findUnique({
+      where: { id: existing.id },
+      select: { status: true, deletedAt: true },
+    });
+    if (!camp || camp.deletedAt || (camp.status !== 'SCHEDULED' && camp.status !== 'RUNNING')) {
+      throw new BoosterError('수정할 수 없는 상태의 캠페인입니다.');
+    }
+    // 콘텐츠 + 요일/시각 갱신 (인원/주차/대상/trackingCode/status 는 유지)
+    await prisma.placeBoosterCampaign.update({
+      where: { id: existing.id },
+      data: {
+        keyword: input.keyword.trim(),
+        naverPlaceUrl: input.naverPlaceUrl.trim(),
+        placeId,
+        couponContent: input.couponContent.trim(),
+        couponCode: input.couponCode.trim(),
+        couponAmount: input.couponAmount.trim(),
+        couponValidUntil: parseCouponValidUntil(input.couponValidUntil),
+        ownerPhone: normalizePhoneNumber(input.ownerPhone.trim()),
+        targetRegions,
+        weekday: input.weekday,
+        sendTime: input.sendTime,
+      },
+    });
+    const { restaged, failed } = await restageBatches(existing.id, {
+      weekday: input.weekday,
+      sendTime: input.sendTime,
+      scheduleChanged,
+    });
+    return { id: existing.id, restaged, failed };
+  } finally {
+    await prisma.placeBoosterCampaign.updateMany({
+      where: { id: existing.id },
+      data: { registeringAt: null },
+    });
+  }
+}
+
+/**
+ * 남은(미발송) 주차의 알리고 예약을 취소하고 회차를 SCHEDULED 로 리셋 → 워커가 새 내용/새 수신자로 재예약.
+ * 취소 성공 회차만 리셋(이중 발송 차단). 호출측이 registeringAt 잠금을 보유한 상태여야 한다.
+ */
+async function restageBatches(
+  campaignId: string,
+  opts: { weekday: number; sendTime: string; scheduleChanged: boolean }
+): Promise<{ restaged: number; failed: { weekNo: number; reason: string }[] }> {
+  const cutoff = new Date(Date.now() + RESTAGE_CUTOFF_MS);
+  const candidates = await prisma.placeBoosterBatch.findMany({
+    where: {
+      campaignId,
+      status: { in: ['SCHEDULED', 'SENDING', 'REGISTERED'] },
+      scheduledAt: { gt: cutoff },
+    },
+    select: { id: true, weekNo: true, aligoMids: true, ownerAligoMid: true },
+    orderBy: { weekNo: 'asc' },
+  });
+
+  // 일정 변경 시, 리셋되는 회차에 순서대로 부여할 새 발송시각
+  const newDates = opts.scheduleChanged
+    ? computeBatchSchedules(opts.weekday, opts.sendTime, candidates.length)
+    : null;
+
+  const failed: { weekNo: number; reason: string }[] = [];
+  let restaged = 0;
+  let dateIdx = 0;
+  for (const b of candidates) {
+    // 이 회차의 모든 예약(고객 청크 + 사장님 사본) 취소 시도
+    const mids = [...b.aligoMids, ...(b.ownerAligoMid ? [b.ownerAligoMid] : [])];
+    let cancelOk = true;
+    for (const mid of mids) {
+      const r = await cancelAligoReservation(mid);
+      if (!r.success) {
+        cancelOk = false;
+        console.warn(`[PlaceBooster] restage 취소 실패 campaign=${campaignId} week=${b.weekNo} mid=${mid}: ${r.error}`);
+      }
+    }
+    if (!cancelOk) {
+      // 취소 실패 = 이미 발송/임박 → 손대지 않음(이중 발송 방지)
+      failed.push({ weekNo: b.weekNo, reason: '발송이 임박하여 이 주차는 기존 내용대로 발송됩니다.' });
+      continue;
+    }
+
+    // 리셋 + 재선정: 예정 수신자 제거 & 피로도 복원(미발송분)
+    const recips = await prisma.placeBoosterRecipient.findMany({
+      where: { batchId: b.id },
+      select: { uniqueCustomerId: true },
+    });
+    const ops: Prisma.PrismaPromise<unknown>[] = [];
+    if (recips.length > 0) {
+      ops.push(
+        prisma.uniqueCustomer.updateMany({
+          where: { id: { in: recips.map((r) => r.uniqueCustomerId) } },
+          data: { sentCount: { decrement: 1 } },
+        })
+      );
+    }
+    ops.push(prisma.placeBoosterRecipient.deleteMany({ where: { batchId: b.id } }));
+    ops.push(
+      prisma.placeBoosterBatch.update({
+        where: { id: b.id },
+        data: {
+          status: 'SCHEDULED',
+          aligoMids: [],
+          ownerAligoMid: null,
+          reservedAt: null,
+          sentCount: 0,
+          failureSyncedAt: null,
+          ...(newDates ? { scheduledAt: newDates[dateIdx] } : {}),
+        },
+      })
+    );
+    await prisma.$transaction(ops);
+    restaged++;
+    dateIdx++;
+  }
+  return { restaged, failed };
 }
 
 /** 활성화: 결제/승인 완료 → 발송 예약 시작 */
@@ -751,6 +926,54 @@ export async function countAvailable(region: TargetRegion): Promise<number> {
       regionSido: region.sido,
     },
   });
+}
+
+// ===== 임시저장(draft) — 생성 폼 부분 저장·이어쓰기 =====
+
+type DraftCtx = { storeId?: string | null; createdByAdmin: boolean };
+
+/** draft 소유 확인 (사장님=본인 매장·비어드민, 어드민=어드민 draft) */
+function isDraftOwned(draft: { storeId: string | null; createdByAdmin: boolean }, ctx: DraftCtx): boolean {
+  return ctx.createdByAdmin
+    ? draft.createdByAdmin
+    : !draft.createdByAdmin && draft.storeId === ctx.storeId;
+}
+
+/** 내 임시저장 목록 (formData 포함 — resume용) */
+export async function listDrafts(ctx: DraftCtx) {
+  return prisma.placeBoosterDraft.findMany({
+    where: ctx.createdByAdmin
+      ? { createdByAdmin: true }
+      : { createdByAdmin: false, storeId: ctx.storeId ?? undefined },
+    orderBy: { updatedAt: 'desc' },
+  });
+}
+
+/** 임시저장 생성/갱신 (검증 없음 — 부분 저장 허용). draftId 있으면 갱신, 없으면 신규. */
+export async function saveDraft(formData: Prisma.InputJsonValue, ctx: DraftCtx, draftId?: string) {
+  if (draftId) {
+    const existing = await prisma.placeBoosterDraft.findUnique({ where: { id: draftId } });
+    if (!existing || !isDraftOwned(existing, ctx)) {
+      throw new BoosterError('임시저장을 찾을 수 없습니다.', 404);
+    }
+    return prisma.placeBoosterDraft.update({ where: { id: draftId }, data: { formData } });
+  }
+  return prisma.placeBoosterDraft.create({
+    data: {
+      formData,
+      createdByAdmin: ctx.createdByAdmin,
+      // 사장님 draft는 본인 매장으로 스코프. 어드민 draft의 대상은 formData 안에.
+      storeId: ctx.createdByAdmin ? null : (ctx.storeId ?? null),
+    },
+  });
+}
+
+/** 임시저장 삭제 (멱등) */
+export async function deleteDraft(draftId: string, ctx: DraftCtx) {
+  const existing = await prisma.placeBoosterDraft.findUnique({ where: { id: draftId } });
+  if (!existing) return;
+  if (!isDraftOwned(existing, ctx)) throw new BoosterError('임시저장을 찾을 수 없습니다.', 404);
+  await prisma.placeBoosterDraft.delete({ where: { id: draftId } });
 }
 
 /** 회차 수동 결과 입력 (쿠폰 사용 횟수 / 평균 객단) */

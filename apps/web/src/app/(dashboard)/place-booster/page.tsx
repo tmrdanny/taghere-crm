@@ -15,7 +15,7 @@ import {
   X,
   Loader2,
 } from 'lucide-react';
-import { BoosterCreateForm, toDateInput } from '@/components/place-booster/booster-create-form';
+import { BoosterCreateForm, toDateInput, BoosterFormValues } from '@/components/place-booster/booster-create-form';
 import { BoosterReport, CampaignInputCard } from '@/components/place-booster/booster-report';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -79,7 +79,15 @@ interface Report {
   };
 }
 
+interface Draft {
+  id: string;
+  formData: BoosterFormValues;
+  updatedAt: string;
+}
+
 const won = (n: number) => n.toLocaleString('ko-KR');
+
+const EDITABLE_STATUSES = ['DRAFT', 'SCHEDULED', 'RUNNING'];
 
 const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
   DRAFT: { label: '결제 대기', cls: 'bg-neutral-100 text-neutral-600' },
@@ -94,9 +102,13 @@ export default function PlaceBoosterPage() {
   const searchParams = useSearchParams();
   const [view, setView] = useState<'list' | 'create' | 'detail' | 'edit'>('list');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [draftInitial, setDraftInitial] = useState<BoosterFormValues | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const confirmingRef = useRef(false);
 
   const authFetch = useCallback(
@@ -148,9 +160,49 @@ export default function PlaceBoosterPage() {
     [authFetch]
   );
 
+  const loadDrafts = useCallback(async () => {
+    try {
+      const res = await authFetch('/api/place-booster/drafts');
+      if (res.ok) setDrafts(await res.json());
+    } catch { /* 무시 */ }
+  }, [authFetch]);
+
   useEffect(() => {
     loadCampaigns();
-  }, [loadCampaigns]);
+    loadDrafts();
+  }, [loadCampaigns, loadDrafts]);
+
+  // 임시저장: 새 draft면 POST(id 확보), 이어쓰기면 PATCH
+  const saveDraftFn = useCallback(async (values: BoosterFormValues) => {
+    const res = await authFetch(
+      draftId ? `/api/place-booster/drafts/${draftId}` : '/api/place-booster/drafts',
+      { method: draftId ? 'PATCH' : 'POST', body: JSON.stringify({ formData: values }) }
+    );
+    if (res.ok) {
+      const d = await res.json();
+      if (!draftId && d?.id) setDraftId(d.id);
+      setNotice('임시 저장되었습니다.');
+    } else {
+      throw new Error('임시 저장 실패');
+    }
+  }, [authFetch, draftId]);
+
+  const resumeDraft = (d: Draft) => {
+    setDraftId(d.id);
+    setDraftInitial(d.formData);
+    setView('create');
+  };
+
+  const startCreate = () => {
+    setDraftId(null);
+    setDraftInitial(null);
+    setView('create');
+  };
+
+  const deleteDraft = async (id: string) => {
+    await authFetch(`/api/place-booster/drafts/${id}`, { method: 'DELETE' });
+    await loadDrafts();
+  };
 
   // 카드 결제 복귀 처리 (Toss successUrl → ?pbCampaign=&paymentKey=&orderId=&amount=)
   useEffect(() => {
@@ -199,13 +251,24 @@ export default function PlaceBoosterPage() {
           </button>
         </div>
       )}
+      {notice && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg bg-blue-50 text-blue-700 px-4 py-3 text-sm">
+          <Info className="w-4 h-4" /> {notice}
+          <button className="ml-auto" onClick={() => setNotice('')}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {view === 'list' && (
         <ListView
           campaigns={campaigns}
+          drafts={drafts}
           loading={loading}
-          onCreate={() => setView('create')}
+          onCreate={startCreate}
           onOpen={openDetail}
+          onResumeDraft={resumeDraft}
+          onDeleteDraft={deleteDraft}
         />
       )}
       {view === 'create' && (
@@ -214,8 +277,12 @@ export default function PlaceBoosterPage() {
           fetcher={authFetch}
           storeInfoEndpoint="/api/place-booster/store-info"
           submitLabel="캠페인 생성 후 결제"
-          onBack={() => setView('list')}
+          initialValues={draftInitial ?? undefined}
+          onSaveDraft={saveDraftFn}
+          onBack={() => { setView('list'); loadDrafts(); }}
           onCreated={async (id) => {
+            if (draftId) { await deleteDraft(draftId); setDraftId(null); }
+            setDraftInitial(null);
             await loadCampaigns();
             await openDetail(id);
           }}
@@ -257,9 +324,24 @@ export default function PlaceBoosterPage() {
             totalWeeks: report.campaign.totalWeeks,
           }}
           submitLabel="수정 완료"
-          submitNote="결제 전 캠페인만 수정됩니다. 발송 일정·인원 변경 시 회차가 재생성됩니다."
+          presetLocked={report.campaign.status !== 'DRAFT'}
+          submitNote={
+            report.campaign.status === 'DRAFT'
+              ? '결제 전이라 전체 항목을 수정할 수 있어요. 일정·인원 변경 시 회차가 재생성됩니다.'
+              : '이미 발송된 주차는 그대로 두고, 남은 주차만 새 내용으로 재예약됩니다. (남은 주차 수신자는 새로 선정됩니다)'
+          }
           onBack={() => setView('detail')}
-          onSaved={async (id) => {
+          onSaved={async (id, meta) => {
+            if (meta && typeof meta.restaged === 'number') {
+              const failN = meta.failed?.length ?? 0;
+              setNotice(
+                meta.restaged > 0
+                  ? `남은 ${meta.restaged}개 주차를 새 내용으로 재예약했습니다.${failN ? ` (${failN}개 주차는 발송 임박으로 변경 불가)` : ''}`
+                  : '변경 가능한 남은 주차가 없습니다.'
+              );
+            } else {
+              setNotice('캠페인을 수정했습니다.');
+            }
             await loadCampaigns();
             await openDetail(id);
           }}
@@ -272,14 +354,20 @@ export default function PlaceBoosterPage() {
 /* ---------------- 목록 ---------------- */
 function ListView({
   campaigns,
+  drafts,
   loading,
   onCreate,
   onOpen,
+  onResumeDraft,
+  onDeleteDraft,
 }: {
   campaigns: Campaign[];
+  drafts: Draft[];
   loading: boolean;
   onCreate: () => void;
   onOpen: (id: string) => void;
+  onResumeDraft: (d: Draft) => void;
+  onDeleteDraft: (id: string) => void;
 }) {
   return (
     <div>
@@ -292,10 +380,26 @@ function ListView({
         </Button>
       </div>
       {loading && <p className="text-[15px] text-neutral-400">불러오는 중…</p>}
-      {!loading && campaigns.length === 0 && (
+      {!loading && campaigns.length === 0 && drafts.length === 0 && (
         <Card className="p-12 text-center text-[15px] text-neutral-500">
           아직 캠페인이 없습니다. 첫 캠페인을 만들어보세요.
         </Card>
+      )}
+      {drafts.length > 0 && (
+        <div className="space-y-3 mb-3">
+          {drafts.map((d) => (
+            <Card key={d.id} className="p-5 flex items-center justify-between gap-3">
+              <button className="min-w-0 text-left flex-1" onClick={() => onResumeDraft(d)}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-lg font-bold text-neutral-900">{d.formData?.keyword?.trim() || '(제목 없음)'}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-200 text-neutral-600">임시 저장됨</span>
+                </div>
+                <div className="text-sm text-neutral-500 mt-1.5">이어서 작성하려면 눌러주세요.</div>
+              </button>
+              <Button variant="secondary" size="sm" className="shrink-0" onClick={() => onDeleteDraft(d.id)}>삭제</Button>
+            </Card>
+          ))}
+        </div>
       )}
       <div className="space-y-3">
         {campaigns.map((c) => {
@@ -385,7 +489,7 @@ function DetailView({
         <button onClick={onBack} className="flex items-center gap-0.5 text-[15px] text-neutral-500 hover:text-neutral-700">
           <ChevronLeft className="w-5 h-5" /> 목록으로
         </button>
-        {c.status === 'DRAFT' && (
+        {EDITABLE_STATUSES.includes(c.status) && (
           <Button variant="secondary" size="sm" onClick={onEdit}>수정</Button>
         )}
       </div>

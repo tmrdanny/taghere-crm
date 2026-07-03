@@ -204,19 +204,50 @@ router.post('/place-booster/campaigns', adminAuthMiddleware, async (req: AdminRe
   }
 });
 
-// PATCH /api/admin/place-booster/campaigns/:id - 캠페인 수정 (승인 전 DRAFT만, 대상 변경 허용)
+// PATCH /api/admin/place-booster/campaigns/:id - 캠페인 수정 (DRAFT: 전체+대상 / 발송중: 콘텐츠·일정 + 남은주차 재예약)
 router.patch('/place-booster/campaigns/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
     const { storeId, campaignName, ...input } = req.body;
     console.log(`[audit][place-booster] update campaign=${req.params.id} by=${ADMIN_USERNAME}`);
-    const campaign = await svc.updateCampaign(req.params.id, input, {
+    const result = await svc.updateCampaign(req.params.id, input, {
       storeId: storeId || null,
       campaignName,
       createdByAdmin: true,
     });
-    res.json(campaign);
+    res.json(result);
   } catch (error) {
     handleError(res, error, '캠페인 수정 중 오류가 발생했습니다.');
+  }
+});
+
+// ===== 임시저장(draft) =====
+router.get('/place-booster/drafts', adminAuthMiddleware, async (_req: AdminRequest, res: Response) => {
+  try {
+    res.json(await svc.listDrafts({ createdByAdmin: true }));
+  } catch (error) {
+    handleError(res, error, '임시저장 목록 조회 중 오류가 발생했습니다.');
+  }
+});
+router.post('/place-booster/drafts', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    res.json(await svc.saveDraft(req.body.formData ?? {}, { createdByAdmin: true }));
+  } catch (error) {
+    handleError(res, error, '임시저장 중 오류가 발생했습니다.');
+  }
+});
+router.patch('/place-booster/drafts/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    res.json(await svc.saveDraft(req.body.formData ?? {}, { createdByAdmin: true }, req.params.id));
+  } catch (error) {
+    handleError(res, error, '임시저장 중 오류가 발생했습니다.');
+  }
+});
+router.delete('/place-booster/drafts/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    await svc.deleteDraft(req.params.id, { createdByAdmin: true });
+    res.json({ success: true });
+  } catch (error) {
+    handleError(res, error, '임시저장 삭제 중 오류가 발생했습니다.');
   }
 });
 
