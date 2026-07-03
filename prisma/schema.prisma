@@ -2165,3 +2165,16 @@ model PlaceBoosterClick {
   @@index([campaignId, weekNo, ip, clickedAt]) // 리다이렉트 중복 클릭 판정용
   @@map("place_booster_clicks")
 }
+
+// 부스터 캠페인 임시저장(draft) — 생성 폼을 다 못 채우고 이어쓰기용. 부분 저장이라 캠페인 테이블과 분리.
+model PlaceBoosterDraft {
+  id             String   @id @default(cuid())
+  storeId        String?  // 사장님: 본인 매장 / 어드민: 선택 매장(외부면 null)
+  createdByAdmin Boolean  @default(false)
+  formData       Json     // BoosterFormValues + (어드민) target {mode,storeId,campaignName,storeName}
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([createdByAdmin, storeId])
+  @@map("place_booster_drafts")
+}

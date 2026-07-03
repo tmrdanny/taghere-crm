@@ -100,8 +100,16 @@ export interface BoosterCreateFormProps {
   getTargetPayload?: () => BoosterTargetResult; // 운영자: storeId/campaignName 검증·payload
   mode?: 'create' | 'edit'; // 기본 create
   campaignId?: string; // edit 모드: 대상 캠페인 id
-  initialValues?: BoosterFormValues; // edit 모드: 프리필 값
-  onSaved?: (id: string) => void; // edit 모드 저장 완료 콜백 (없으면 onCreated)
+  initialValues?: BoosterFormValues; // edit/draft resume: 프리필 값
+  onSaved?: (id: string, meta?: ActiveEditMeta) => void; // edit 저장 완료 (없으면 onCreated). meta=발송중 재예약 결과
+  presetLocked?: boolean; // 발송중 수정: 인원/주차(프리셋) 변경 잠금
+  onSaveDraft?: (values: BoosterFormValues) => Promise<void>; // 있으면 [임시 저장] 버튼 노출 (create/draft 이어쓰기 페이지가 create-vs-update 관리)
+}
+
+/** 발송중 수정 저장 결과 (남은 주차 재예약 요약) */
+export interface ActiveEditMeta {
+  restaged?: number;
+  failed?: { weekNo: number; reason: string }[];
 }
 
 export function BoosterCreateForm({
@@ -119,8 +127,11 @@ export function BoosterCreateForm({
   campaignId,
   initialValues: iv,
   onSaved,
+  presetLocked = false,
+  onSaveDraft,
 }: BoosterCreateFormProps) {
   const isEdit = mode === 'edit' && !!campaignId;
+  const [savingDraft, setSavingDraft] = useState(false);
   const [keyword, setKeyword] = useState(iv?.keyword ?? '');
   const [naverPlaceUrl, setNaverPlaceUrl] = useState(iv?.naverPlaceUrl ?? '');
   // edit: 저장된 placeId로 placeInfo 시드 → 재검증 없이 제출 가능(주소는 비어도 백엔드가 placeId 동일 시 지역 유지)
@@ -230,13 +241,44 @@ export function BoosterCreateForm({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data.error || (isEdit ? '수정에 실패했습니다.' : '생성에 실패했습니다.')); return; }
       if (isEdit) {
-        (onSaved ?? onCreated)?.(data.id ?? campaignId!);
+        (onSaved ?? onCreated)?.(data.id ?? campaignId!, { restaged: data.restaged, failed: data.failed });
       } else {
         trackEvent('owner_booster_create', { keyword, total_target_count: preset.perBatchCount * preset.totalWeeks });
         onCreated?.(data.id);
       }
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  /** 현재 폼 값 → BoosterFormValues (임시저장 payload) */
+  const currentValues = (): BoosterFormValues => ({
+    keyword,
+    naverPlaceUrl,
+    placeId: placeInfo?.placeId ?? '',
+    placeName: placeInfo?.name ?? '',
+    placeAddress: placeInfo?.address ?? null,
+    couponContent,
+    couponCode,
+    couponAmount,
+    couponValidUntil,
+    ownerPhone,
+    weekday,
+    sendTime,
+    perBatchCount: preset.perBatchCount,
+    totalWeeks: preset.totalWeeks,
+  });
+
+  const saveDraft = async () => {
+    if (!onSaveDraft) return;
+    setError('');
+    setSavingDraft(true);
+    try {
+      await onSaveDraft(currentValues());
+    } catch {
+      setError('임시 저장에 실패했습니다.');
+    } finally {
+      setSavingDraft(false);
     }
   };
 
@@ -325,15 +367,17 @@ export function BoosterCreateForm({
                 {PRESETS.map((p) => (
                   <button
                     key={p.key}
-                    onClick={() => setPreset(p)}
+                    disabled={presetLocked}
+                    onClick={() => !presetLocked && setPreset(p)}
                     className={`rounded-xl border px-4 py-4 text-base font-semibold transition-colors ${
                       preset.key === p.key ? 'border-brand-800 bg-brand-50 text-brand-800' : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
-                    }`}
+                    } ${presetLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     {p.label}
                   </button>
                 ))}
               </div>
+              {presetLocked && <p className="text-sm text-neutral-400 mt-1.5">발송 중에는 인원·주차 수는 변경할 수 없어요. (요일·시각·내용은 변경 가능)</p>}
             </Field>
             <Field label="발송 요일">
               <div className="flex gap-1.5 flex-wrap">
@@ -360,6 +404,9 @@ export function BoosterCreateForm({
                 매주 {WEEKDAYS.find((w) => w.value === weekday)?.label}요일 {sendTime}
               </div>
               <div className="text-sm text-neutral-500 mt-1.5">발송 예정일 · {dates.map((d) => fmtDate(d)).join(' · ')}</div>
+              {presetLocked && (
+                <div className="text-xs text-neutral-400 mt-1.5">이미 발송된 주차는 유지되고, 남은 주차만 위 요일·시각으로 다시 예약됩니다.</div>
+              )}
             </div>
           </Section>
 
@@ -382,9 +429,16 @@ export function BoosterCreateForm({
             {testMsg && <p className={`text-sm mt-2 ${testMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{testMsg}</p>}
           </div>
 
-          <Button className="w-full" size="lg" onClick={submit} disabled={submitting || !placeInfo}>
-            {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : !placeInfo ? '매장 정보 확인 필요' : submitLabel}
-          </Button>
+          <div className="flex gap-2">
+            {onSaveDraft && (
+              <Button type="button" variant="secondary" size="lg" className="shrink-0" onClick={saveDraft} disabled={savingDraft || submitting}>
+                {savingDraft ? <Loader2 className="w-5 h-5 animate-spin" /> : '임시 저장'}
+              </Button>
+            )}
+            <Button className="flex-1" size="lg" onClick={submit} disabled={submitting || savingDraft || !placeInfo}>
+              {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : !placeInfo ? '매장 정보 확인 필요' : submitLabel}
+            </Button>
+          </div>
           {submitNote && <p className="text-sm text-neutral-400">{submitNote}</p>}
         </div>
 

@@ -87,16 +87,49 @@ router.post('/campaigns', authMiddleware, async (req: AuthRequest, res: Response
   }
 });
 
-// PATCH /api/place-booster/campaigns/:id - 캠페인 수정 (결제 전 DRAFT만)
+// PATCH /api/place-booster/campaigns/:id - 캠페인 수정 (DRAFT: 전체 / 발송중: 콘텐츠·일정 + 남은주차 재예약)
 router.patch('/campaigns/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const campaign = await svc.updateCampaign(req.params.id, req.body, {
+    const result = await svc.updateCampaign(req.params.id, req.body, {
       storeId: req.user!.storeId,
       createdByAdmin: false,
     });
-    res.json(campaign);
+    res.json(result);
   } catch (error) {
     handleError(res, error, '캠페인 수정 중 오류가 발생했습니다.');
+  }
+});
+
+// ===== 임시저장(draft) =====
+router.get('/drafts', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    res.json(await svc.listDrafts({ storeId: req.user!.storeId, createdByAdmin: false }));
+  } catch (error) {
+    handleError(res, error, '임시저장 목록 조회 중 오류가 발생했습니다.');
+  }
+});
+router.post('/drafts', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const draft = await svc.saveDraft(req.body.formData ?? {}, { storeId: req.user!.storeId, createdByAdmin: false });
+    res.json(draft);
+  } catch (error) {
+    handleError(res, error, '임시저장 중 오류가 발생했습니다.');
+  }
+});
+router.patch('/drafts/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const draft = await svc.saveDraft(req.body.formData ?? {}, { storeId: req.user!.storeId, createdByAdmin: false }, req.params.id);
+    res.json(draft);
+  } catch (error) {
+    handleError(res, error, '임시저장 중 오류가 발생했습니다.');
+  }
+});
+router.delete('/drafts/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    await svc.deleteDraft(req.params.id, { storeId: req.user!.storeId, createdByAdmin: false });
+    res.json({ success: true });
+  } catch (error) {
+    handleError(res, error, '임시저장 삭제 중 오류가 발생했습니다.');
   }
 });
 
