@@ -21,6 +21,7 @@ export function CustomerTable({
   onUsePoints,
   onEarnPoints,
   onEarnStamps,
+  onDeductStamps,
   page,
   pageSize,
   pagination,
@@ -41,6 +42,7 @@ export function CustomerTable({
   onUsePoints: (customer: Customer) => void;
   onEarnPoints: (customer: Customer) => void;
   onEarnStamps: (customer: Customer) => void;
+  onDeductStamps: (customer: Customer) => void;
   page: number;
   pageSize: number;
   pagination: { total: number; totalPages: number };
@@ -277,6 +279,14 @@ export function CustomerTable({
                             onClick={() => onEarnStamps(customer)}
                           >
                             스탬프 적립
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="text-red-600"
+                            onClick={() => onDeductStamps(customer)}
+                          >
+                            스탬프 차감
                           </Button>
                         </div>
                       </td>

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Store, User, LogOut, MessageSquare, Percent, FileText } from 'lucide-react';
+import { Store, User, LogOut, MessageSquare, Percent, FileText, Lock } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 
@@ -97,6 +97,12 @@ export default function SettingsPage() {
   // Point usage rule settings (포인트 사용 규칙)
   const [pointUsageRule, setPointUsageRule] = useState('');
   const [isSavingPointUsageRule, setIsSavingPointUsageRule] = useState(false);
+
+  // Password change states
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Fetch store info
   useEffect(() => {
@@ -271,6 +277,50 @@ export default function SettingsPage() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     router.replace('/login');
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      showToast('모든 항목을 입력해주세요.', 'error');
+      return;
+    }
+    if (newPassword.length < 8) {
+      showToast('새 비밀번호는 8자 이상이어야 합니다.', 'error');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showToast('새 비밀번호가 일치하지 않습니다.', 'error');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/api/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        showToast('비밀번호가 변경되었습니다.', 'success');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        trackEvent('password_change');
+      } else {
+        showToast(data.error || '비밀번호 변경에 실패했습니다.', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to change password:', error);
+      showToast('비밀번호 변경 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const handleToggleAlimtalk = async (enabled: boolean) => {
@@ -861,6 +911,67 @@ export default function SettingsPage() {
               >
                 <LogOut className="w-4 h-4 mr-2" />
                 로그아웃
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Password Change Card */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <Lock className="w-5 h-5 text-neutral-600" />
+              <CardTitle className="text-lg">비밀번호 변경</CardTitle>
+            </div>
+            <p className="text-sm text-neutral-500">
+              계정 비밀번호를 변경합니다.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-600">현재 비밀번호</label>
+              <Input
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="현재 비밀번호를 입력하세요"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-600">새 비밀번호</label>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="8자 이상 입력하세요"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-600">새 비밀번호 확인</label>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="새 비밀번호를 다시 입력하세요"
+              />
+              {confirmPassword && newPassword !== confirmPassword && (
+                <p className="text-xs text-red-600">새 비밀번호가 일치하지 않습니다.</p>
+              )}
+            </div>
+            <div className="flex justify-end">
+              <Button
+                onClick={handleChangePassword}
+                disabled={
+                  isChangingPassword ||
+                  !currentPassword ||
+                  !newPassword ||
+                  newPassword !== confirmPassword
+                }
+              >
+                {isChangingPassword ? '변경 중...' : '비밀번호 변경'}
               </Button>
             </div>
           </CardContent>
