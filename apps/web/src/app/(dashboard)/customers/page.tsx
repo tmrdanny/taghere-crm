@@ -72,6 +72,7 @@ export default function CustomersPage() {
   const [earnStampsModal, setEarnStampsModal] = useState(false);
   const [earnStampAmount, setEarnStampAmount] = useState('1');
   const [earnStampReason, setEarnStampReason] = useState('');
+  const [stampMode, setStampMode] = useState<'earn' | 'deduct'>('earn');
   const [submittingEarnStamp, setSubmittingEarnStamp] = useState(false);
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -567,6 +568,8 @@ export default function CustomersPage() {
 
   const handleEarnStamps = async () => {
     if (!selectedCustomer || !earnStampAmount) return;
+    const isDeduct = stampMode === 'deduct';
+    const amount = parseInt(earnStampAmount, 10);
     setSubmittingEarnStamp(true);
     try {
       const res = await fetch(`${apiUrl}/api/stamps/adjust`, {
@@ -577,26 +580,26 @@ export default function CustomersPage() {
         },
         body: JSON.stringify({
           customerId: selectedCustomer.id,
-          delta: parseInt(earnStampAmount, 10),
-          reason: earnStampReason || '스탬프 수동 적립',
+          delta: isDeduct ? -amount : amount,
+          reason: earnStampReason || (isDeduct ? '스탬프 수동 차감' : '스탬프 수동 적립'),
         }),
       });
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || '스탬프 적립 중 오류가 발생했습니다.');
+        throw new Error(body.error || (isDeduct ? '스탬프 차감 중 오류가 발생했습니다.' : '스탬프 적립 중 오류가 발생했습니다.'));
       }
 
-      trackEvent('owner_stamps_earn', { count: parseInt(earnStampAmount, 10) });
+      trackEvent(isDeduct ? 'owner_stamps_deduct' : 'owner_stamps_earn', { count: amount });
       setEarnStampsModal(false);
       setEarnStampAmount('1');
       setEarnStampReason('');
       setSelectedCustomer(null);
       setPage(1);
       setRefreshKey((key) => key + 1);
-      showToast('스탬프가 적립되었습니다.', 'success');
+      showToast(isDeduct ? '스탬프가 차감되었습니다.' : '스탬프가 적립되었습니다.', 'success');
     } catch (err: any) {
-      showToast(err.message || '스탬프 적립 중 오류가 발생했습니다.', 'error');
+      showToast(err.message || (isDeduct ? '스탬프 차감 중 오류가 발생했습니다.' : '스탬프 적립 중 오류가 발생했습니다.'), 'error');
     } finally {
       setSubmittingEarnStamp(false);
     }
@@ -1223,6 +1226,14 @@ export default function CustomersPage() {
         }}
         onEarnStamps={(customer) => {
           setSelectedCustomer(customer);
+          setStampMode('earn');
+          setEarnStampAmount('1');
+          setEarnStampReason('');
+          setEarnStampsModal(true);
+        }}
+        onDeductStamps={(customer) => {
+          setSelectedCustomer(customer);
+          setStampMode('deduct');
           setEarnStampAmount('1');
           setEarnStampReason('');
           setEarnStampsModal(true);
@@ -1282,11 +1293,12 @@ export default function CustomersPage() {
         onSubmit={handleEarnPoints}
       />
 
-      {/* Earn Stamps Modal */}
+      {/* Earn/Deduct Stamps Modal */}
       <EarnStampsModal
         open={earnStampsModal}
         onOpenChange={setEarnStampsModal}
         customer={selectedCustomer}
+        mode={stampMode}
         stampAmount={earnStampAmount}
         onAmountChange={setEarnStampAmount}
         stampReason={earnStampReason}

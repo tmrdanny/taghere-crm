@@ -254,7 +254,22 @@ function StampSuccessContent() {
   });
   rewardList.sort((a, b) => a.count - b.count);
 
-  const displayStamps = stamps % 10 || (stamps > 0 && stamps % 10 === 0 ? 10 : 0);
+  // 스탬프 판 크기 = 최종 보상 티어 (보상 정보가 없으면 기존처럼 10칸)
+  const maxTier = rewardList.length > 0 ? Math.max(...rewardList.map(r => r.count)) : 10;
+
+  const displayStamps = stamps % maxTier || (stamps > 0 && stamps % maxTier === 0 ? maxTier : 0);
+
+  // 칸 수에 따라 줄이 고르게 나뉘는 열 수 선택 (Tailwind 정적 클래스 필요)
+  const gridColsClass = (() => {
+    if (maxTier <= 5) {
+      return ['grid-cols-1', 'grid-cols-2', 'grid-cols-3', 'grid-cols-4', 'grid-cols-5'][maxTier - 1];
+    }
+    if (maxTier % 5 === 0) return 'grid-cols-5';
+    if (maxTier % 4 === 0) return 'grid-cols-4';
+    if (maxTier === 6) return 'grid-cols-3';
+    if (maxTier === 7) return 'grid-cols-4';
+    return 'grid-cols-5';
+  })();
 
   const [menuLink, setMenuLink] = useState<string | null>(null);
 
@@ -333,8 +348,8 @@ function StampSuccessContent() {
 
           {/* Stamp Grid Card */}
           <div className="bg-[#f8f9fa] rounded-[12px] p-5 mb-4">
-            <div className="grid grid-cols-5 gap-3 mb-4">
-              {Array.from({ length: 10 }, (_, i) => {
+            <div className={`grid ${gridColsClass} gap-3 mb-4`}>
+              {Array.from({ length: maxTier }, (_, i) => {
                 const num = i + 1;
                 const isFilled = num <= displayStamps;
                 const hasReward = rewardList.some(r => r.count === num);
