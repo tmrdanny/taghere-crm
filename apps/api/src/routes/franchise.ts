@@ -1720,6 +1720,75 @@ router.put('/stamp-setting', async (req: FranchiseAuthRequest, res) => {
   }
 });
 
+// POST /api/franchise/stamp-setting/apply-to-stores - 공통 보상을 선택한 가맹점 개별 스탬프 설정에 일괄 적용
+router.post('/stamp-setting/apply-to-stores', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { storeIds } = req.body;
+
+    if (!Array.isArray(storeIds) || storeIds.length === 0) {
+      return res.status(400).json({ error: '적용할 가맹점을 선택해주세요.' });
+    }
+
+    const setting = await prisma.franchiseStampSetting.findUnique({
+      where: { franchiseId },
+    });
+
+    if (!setting) {
+      return res.status(400).json({ error: '먼저 공통 보상을 설정해주세요.' });
+    }
+
+    const rewards: RewardEntry[] = setting.rewards
+      ? (setting.rewards as unknown as RewardEntry[])
+      : buildRewardsFromLegacy(setting as any);
+
+    if (rewards.length === 0) {
+      return res.status(400).json({ error: '먼저 공통 보상을 설정해주세요.' });
+    }
+
+    // 해당 프랜차이즈 소속 매장만 필터링
+    const stores = await prisma.store.findMany({
+      where: { id: { in: storeIds }, franchiseId },
+      select: { id: true, name: true },
+    });
+
+    if (stores.length === 0) {
+      return res.status(404).json({ error: '가맹점을 찾을 수 없습니다.' });
+    }
+
+    const legacyData = buildLegacyFromRewards(rewards);
+
+    // 각 매장의 개별 스탬프 설정에 공통 보상 덮어쓰기 (+스탬프 활성화)
+    await prisma.$transaction(
+      stores.map((store) =>
+        prisma.stampSetting.upsert({
+          where: { storeId: store.id },
+          update: {
+            enabled: true,
+            rewards: rewards as any,
+            ...legacyData,
+          },
+          create: {
+            storeId: store.id,
+            enabled: true,
+            rewards: rewards as any,
+            ...legacyData,
+          },
+        })
+      )
+    );
+
+    res.json({
+      success: true,
+      appliedCount: stores.length,
+      appliedStores: stores.map((s) => s.name),
+    });
+  } catch (error) {
+    console.error('Apply franchise stamp setting to stores error:', error);
+    res.status(500).json({ error: '보상 일괄 적용 중 오류가 발생했습니다.' });
+  }
+});
+
 // POST /api/franchise/stamps/earn - 통합 스탬프 적립
 router.post('/stamps/earn', async (req: FranchiseAuthRequest, res) => {
   try {

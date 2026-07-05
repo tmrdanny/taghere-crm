@@ -142,6 +142,11 @@ export default function FranchiseStoresPage() {
   const [stampAlimtalk, setStampAlimtalk] = useState(true);
   const [stampStoreEditLocked, setStampStoreEditLocked] = useState(false);
   const [isSavingStampSetting, setIsSavingStampSetting] = useState(false);
+
+  // 공통 보상 가맹점 일괄 적용 state
+  const [applyStoreIds, setApplyStoreIds] = useState<Set<string>>(new Set());
+  const [isApplyingRewards, setIsApplyingRewards] = useState(false);
+  const [applyMessage, setApplyMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [togglingStoreId, setTogglingStoreId] = useState<string | null>(null);
   const [isTogglingAll, setIsTogglingAll] = useState(false);
 
@@ -300,6 +305,75 @@ export default function FranchiseStoresPage() {
     } finally {
       setIsSavingStampSetting(false);
     }
+  };
+
+  // 공통 보상을 선택한 가맹점의 개별 스탬프 설정에 일괄 적용 (현재 폼 내용 저장 후 적용)
+  const handleApplyRewardsToStores = async () => {
+    if (applyStoreIds.size === 0) return;
+    const validRewards = stampSettingForm.filter((r) => r.description.trim());
+    if (validRewards.length === 0) {
+      setApplyMessage({ type: 'error', text: '먼저 보상 내용을 입력해주세요.' });
+      return;
+    }
+
+    setIsApplyingRewards(true);
+    setApplyMessage(null);
+    try {
+      const token = getAuthToken();
+
+      // 1. 현재 폼의 공통 보상을 먼저 저장
+      const saveRes = await fetch(`${API_BASE}/api/franchise/stamp-setting`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ rewards: validRewards, alimtalkEnabled: stampAlimtalk, storeEditLocked: stampStoreEditLocked }),
+      });
+      if (!saveRes.ok) {
+        const body = await saveRes.json().catch(() => ({}));
+        throw new Error(body.error || '공통 보상 저장에 실패했습니다.');
+      }
+      const saved = await saveRes.json();
+      if (saved.setting) {
+        setStampSetting({
+          id: saved.setting.id,
+          enabled: saved.setting.enabled,
+          rewards: saved.setting.rewards || [],
+          alimtalkEnabled: saved.setting.alimtalkEnabled,
+          storeEditLocked: saved.setting.storeEditLocked,
+        });
+      }
+
+      // 2. 선택한 가맹점에 일괄 적용
+      const res = await fetch(`${API_BASE}/api/franchise/stamp-setting/apply-to-stores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ storeIds: Array.from(applyStoreIds) }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || '보상 일괄 적용에 실패했습니다.');
+      }
+      setApplyMessage({ type: 'success', text: `${data.appliedCount}개 가맹점에 공통 보상을 적용했습니다.` });
+      setApplyStoreIds(new Set());
+    } catch (err: any) {
+      setApplyMessage({ type: 'error', text: err.message || '보상 일괄 적용 중 오류가 발생했습니다.' });
+    } finally {
+      setIsApplyingRewards(false);
+    }
+  };
+
+  const toggleApplyStore = (storeId: string) => {
+    setApplyStoreIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(storeId)) next.delete(storeId);
+      else next.add(storeId);
+      return next;
+    });
+  };
+
+  const toggleApplyAllStores = () => {
+    setApplyStoreIds((prev) =>
+      prev.size === stores.length ? new Set() : new Set(stores.map((s) => s.id))
+    );
   };
 
   // Add reward tier
@@ -633,6 +707,78 @@ export default function FranchiseStoresPage() {
                   >
                     <div className={cn('absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform', stampStoreEditLocked && 'translate-x-5')} />
                   </button>
+                </div>
+
+                {/* 가맹점 일괄 적용 */}
+                <div className="py-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <div>
+                      <span className="text-sm font-medium text-slate-700">가맹점에 공통 보상 일괄 적용</span>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        선택한 가맹점의 개별 스탬프 보상을 위 공통 보상으로 덮어쓰고 스탬프를 활성화합니다
+                      </p>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={stores.length > 0 && applyStoreIds.size === stores.length}
+                        onChange={toggleApplyAllStores}
+                        className="w-4 h-4 rounded border-slate-300 text-franchise-600 focus:ring-franchise-600"
+                      />
+                      모두 선택
+                    </label>
+                  </div>
+                  <div className="mt-3 max-h-52 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100">
+                    {stores.length === 0 ? (
+                      <p className="px-4 py-3 text-sm text-slate-400">가맹점이 없습니다.</p>
+                    ) : (
+                      stores.map((store) => (
+                        <label
+                          key={store.id}
+                          className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={applyStoreIds.has(store.id)}
+                            onChange={() => toggleApplyStore(store.id)}
+                            className="w-4 h-4 rounded border-slate-300 text-franchise-600 focus:ring-franchise-600"
+                          />
+                          <span className="text-sm text-slate-700 flex-1">{store.name}</span>
+                          {store.address && (
+                            <span className="text-xs text-slate-400 truncate max-w-[200px]">{store.address}</span>
+                          )}
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between mt-3">
+                    <p className={cn(
+                      'text-xs',
+                      applyMessage?.type === 'success' ? 'text-green-600' : applyMessage?.type === 'error' ? 'text-red-600' : 'text-slate-500'
+                    )}>
+                      {applyMessage
+                        ? applyMessage.text
+                        : applyStoreIds.size > 0
+                          ? `${applyStoreIds.size}개 가맹점 선택됨`
+                          : ''}
+                    </p>
+                    <button
+                      onClick={handleApplyRewardsToStores}
+                      disabled={isApplyingRewards || applyStoreIds.size === 0}
+                      className={cn(
+                        'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                        isApplyingRewards || applyStoreIds.size === 0
+                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                          : 'bg-franchise-600 text-white hover:bg-franchise-700'
+                      )}
+                    >
+                      {isApplyingRewards ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> 적용 중...</>
+                      ) : (
+                        <><Check className="w-4 h-4" /> 선택 가맹점에 적용</>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Save Button */}
