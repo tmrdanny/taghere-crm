@@ -240,16 +240,16 @@ function StampSuccessContent() {
   // 당첨 보상 정보
   const drawnReward = searchParams.get('drawnReward') || '';
   const drawnRewardTier = parseInt(searchParams.get('drawnRewardTier') || '0');
-  const franchiseName = searchParams.get('franchiseName') || '';
+  const urlFranchiseName = searchParams.get('franchiseName') || '';
 
   // URL 파라미터에서 모든 rewardN 패턴 동적 파싱 (1~50 지원)
-  const rewardList: { count: number; desc: string; isRandom: boolean }[] = [];
+  const urlRewardList: { count: number; desc: string; isRandom: boolean }[] = [];
   searchParams.forEach((value, key) => {
     const match = key.match(/^reward(\d+)$/);
     if (match && !key.endsWith('Random')) {
       const n = parseInt(match[1]);
       if (n >= 1 && n <= 50 && value) {
-        rewardList.push({
+        urlRewardList.push({
           count: n,
           desc: value,
           isRandom: searchParams.get(`reward${n}Random`) === 'true',
@@ -257,7 +257,39 @@ function StampSuccessContent() {
       }
     }
   });
-  rewardList.sort((a, b) => a.count - b.count);
+  urlRewardList.sort((a, b) => a.count - b.count);
+
+  // URL 파라미터가 유실되어도 보상이 항상 표시되도록 서버에서 스탬프 설정 조회 (서버가 원천 데이터)
+  const [fetchedRewards, setFetchedRewards] = useState<{ count: number; desc: string; isRandom: boolean }[] | null>(null);
+  const [fetchedFranchiseName, setFetchedFranchiseName] = useState('');
+
+  useEffect(() => {
+    if (!slug) return;
+    const fetchStampInfo = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/taghere/stamp-info/${slug}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data.rewards) && data.rewards.length > 0) {
+          const list = data.rewards
+            .map((r: any) => ({
+              count: r.tier,
+              desc: r.description || '',
+              isRandom: !!(r.options && Array.isArray(r.options) && r.options.length > 1),
+            }))
+            .sort((a: any, b: any) => a.count - b.count);
+          setFetchedRewards(list);
+        }
+        if (data.franchiseName) setFetchedFranchiseName(data.franchiseName);
+      } catch (e) {
+        console.error('Failed to fetch stamp info:', e);
+      }
+    };
+    fetchStampInfo();
+  }, [slug]);
+
+  const rewardList = fetchedRewards && fetchedRewards.length > 0 ? fetchedRewards : urlRewardList;
+  const franchiseName = urlFranchiseName || fetchedFranchiseName;
 
   // 스탬프 판 크기 = 최종 보상 티어 (보상 정보가 없으면 기존처럼 10칸)
   const maxTier = rewardList.length > 0 ? Math.max(...rewardList.map(r => r.count)) : 10;
