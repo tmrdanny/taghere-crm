@@ -42,6 +42,32 @@
 - `waiting_count` = 당일 영업일(KST 03:00 기준) `WAITING` + `CALLED` 팀 수.
 - 미연동/존재하지 않는 store_id는 결과에서 생략.
 
+### 2-1. `POST /api/v1/stores/gender-stats` — 매장 실시간 성별 비율 일괄 조회 (★지도 핵심)
+
+TagHere 테이블 링크(중앙 QR → 테이블 번호 입력) 이용 고객이 주문 전 선택한 성별(남/여)을
+시간 창(window) 기준으로 집계해 반환한다. "이 매장에 지금 어떤 성별 고객이 있는지"의 근사치.
+
+```json
+{ "store_ids": ["...", "..."], "window_minutes": 180 }   // store_ids 최대 100개, window 기본 180분·최대 1440분
+```
+→
+```json
+{ "stats": [{
+  "store_id": "...",
+  "male_count": 7,
+  "female_count": 13,
+  "total_count": 20,
+  "male_ratio": 35.0,        // %, total 0이면 null
+  "female_ratio": 65.0,      // %, total 0이면 null
+  "window_minutes": 180,
+  "updated_at": "2026-07-06T12:30:00Z"
+}] }
+```
+- 데이터 원천: 매장 테이블 링크의 "성별 선택 수집" 기능 (기본 ON, 매장별 OFF 가능).
+- 수집 OFF이거나 테이블 링크 미사용 매장은 `total_count: 0, ratio: null`로 반환 → 지도에서 "정보 없음" 처리 권장.
+- 폴링 권장 주기: waitings/counts와 동일 (예: 30~60초). 별도 웹훅 없음.
+- `window_minutes`는 야화가 UX에 맞게 조절 (예: 저녁 피크 감성은 180분, "오늘 하루"는 720분).
+
 ### 3. `POST /api/v1/waitings` — 웨이팅 등록
 ```json
 { "store_id": "...", "party_size": 2, "idempotency_key": "yahwa_<uuid>",

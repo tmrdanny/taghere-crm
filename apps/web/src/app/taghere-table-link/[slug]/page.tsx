@@ -27,6 +27,7 @@ interface StoreInfo {
   customerTitle: string | null;
   customerSubtitle: string | null;
   tableNumbers: string[];
+  genderCollectEnabled?: boolean;
 }
 
 function TableLinkContent() {
@@ -40,6 +41,11 @@ function TableLinkContent() {
   const [tableNumber, setTableNumber] = useState('');
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [redirectError, setRedirectError] = useState<string | null>(null);
+
+  // 성별 선택 단계 (테이블 번호 확인 후, 주문 페이지 이동 전)
+  const [step, setStep] = useState<'table' | 'gender'>('table');
+  const [pendingUrl, setPendingUrl] = useState<string | null>(null);
+  const [selectedGender, setSelectedGender] = useState<'MALE' | 'FEMALE' | null>(null);
 
   useEffect(() => {
     const fetchStoreInfo = async () => {
@@ -88,6 +94,13 @@ function TableLinkContent() {
       if (res.ok) {
         const data = await res.json();
         trackEvent('table_link_confirm', { store_slug: slug, table_number: tableNumber });
+        if (storeInfo?.genderCollectEnabled) {
+          // 성별 선택 단계로 전환 후 이동
+          setPendingUrl(data.url);
+          setStep('gender');
+          setIsRedirecting(false);
+          return;
+        }
         window.location.href = data.url;
       } else {
         const errorData = await res.json().catch(() => ({}));
@@ -99,6 +112,30 @@ function TableLinkContent() {
       setRedirectError('연결 중 오류가 발생했습니다.');
       setIsRedirecting(false);
     }
+  };
+
+  // 성별 선택 → 기록 후 즉시 주문 페이지로 이동
+  const handleGenderSelect = async (gender: 'MALE' | 'FEMALE') => {
+    if (!pendingUrl || selectedGender) return;
+    setSelectedGender(gender);
+    trackEvent('table_link_gender_select', { store_slug: slug, table_number: tableNumber, gender });
+
+    try {
+      // 기록 실패해도 고객 흐름은 막지 않음 (짧은 타임아웃)
+      await Promise.race([
+        fetch(`${apiUrl}/api/taghere/table-link/${slug}/gender-log`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tableNumber, gender }),
+          keepalive: true,
+        }),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]);
+    } catch (e) {
+      console.error('Failed to log gender:', e);
+    }
+
+    window.location.href = pendingUrl;
   };
 
   if (isLoading) {
@@ -117,6 +154,61 @@ function TableLinkContent() {
   }
 
   if (!storeInfo) return null;
+
+  // 성별 선택 화면
+  if (step === 'gender') {
+    return (
+      <div className="min-h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-y-auto">
+        <div className="w-full max-w-[430px] min-h-[100dvh] flex flex-col bg-white relative">
+          <div className="flex-1 flex flex-col items-center justify-center px-5 pb-24">
+            <h1 className="text-[22px] font-bold text-[#1d2022] mb-1 text-center">성별을 알려주세요</h1>
+            <p className="text-[14px] text-[#55595e]">주문 전 성별을 선택해주세요</p>
+
+            <div className="mt-10 flex gap-4 w-full max-w-[320px]">
+              <button
+                onClick={() => handleGenderSelect('MALE')}
+                disabled={!!selectedGender}
+                className={`flex-1 aspect-square max-h-[140px] rounded-2xl flex flex-col items-center justify-center gap-2 transition-colors
+                  ${selectedGender === 'MALE'
+                    ? 'bg-[#FFD541]'
+                    : 'bg-[#f8f9fa] hover:bg-[#f0f0f0] active:bg-[#e5e5e5]'}
+                  ${selectedGender && selectedGender !== 'MALE' ? 'opacity-40' : ''}`}
+              >
+                <span className="text-[32px]">🙋‍♂️</span>
+                <span className="text-[18px] font-bold text-[#1d2022]">남</span>
+              </button>
+              <button
+                onClick={() => handleGenderSelect('FEMALE')}
+                disabled={!!selectedGender}
+                className={`flex-1 aspect-square max-h-[140px] rounded-2xl flex flex-col items-center justify-center gap-2 transition-colors
+                  ${selectedGender === 'FEMALE'
+                    ? 'bg-[#FFD541]'
+                    : 'bg-[#f8f9fa] hover:bg-[#f0f0f0] active:bg-[#e5e5e5]'}
+                  ${selectedGender && selectedGender !== 'FEMALE' ? 'opacity-40' : ''}`}
+              >
+                <span className="text-[32px]">🙋‍♀️</span>
+                <span className="text-[18px] font-bold text-[#1d2022]">여</span>
+              </button>
+            </div>
+
+            {selectedGender && (
+              <div className="mt-8 flex items-center gap-2 text-[14px] text-[#55595e]">
+                <div className="w-4 h-4 border-2 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
+                주문 페이지로 이동 중...
+              </div>
+            )}
+          </div>
+        </div>
+
+        <style jsx global>{`
+          @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-jp.min.css');
+          .font-pretendard {
+            font-family: 'Pretendard JP Variable', 'Pretendard JP', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   const title = storeInfo.customerTitle || `${storeInfo.storeName} 모바일 주문`;
   const subtitle = storeInfo.customerSubtitle || '테이블 번호를 입력해주세요';

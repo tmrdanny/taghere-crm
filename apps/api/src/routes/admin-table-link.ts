@@ -54,6 +54,7 @@ router.get('/table-link-settings/:storeId', adminAuthMiddleware, async (req: Adm
 
     res.json({
       enabled: setting.enabled,
+      genderCollectEnabled: setting.genderCollectEnabled,
       customerTitle: setting.customerTitle,
       customerSubtitle: setting.customerSubtitle,
       tables: (setting.tables as unknown as TableEntry[]) || [],
@@ -71,7 +72,7 @@ router.get('/table-link-settings/:storeId', adminAuthMiddleware, async (req: Adm
 router.put('/table-link-settings/:storeId', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
     const { storeId } = req.params;
-    const { enabled, tables, customerTitle, customerSubtitle } = req.body;
+    const { enabled, genderCollectEnabled, tables, customerTitle, customerSubtitle } = req.body;
 
     const store = await prisma.store.findUnique({ where: { id: storeId } });
     if (!store) {
@@ -106,12 +107,14 @@ router.put('/table-link-settings/:storeId', adminAuthMiddleware, async (req: Adm
       create: {
         storeId,
         enabled: enabled ?? false,
+        genderCollectEnabled: genderCollectEnabled ?? true,
         tables: (tables ?? []) as any,
         customerTitle: customerTitle ?? null,
         customerSubtitle: customerSubtitle ?? null,
       },
       update: {
         ...(enabled !== undefined && { enabled }),
+        ...(genderCollectEnabled !== undefined && { genderCollectEnabled }),
         ...(tables !== undefined && { tables: tables as any }),
         ...(customerTitle !== undefined && { customerTitle }),
         ...(customerSubtitle !== undefined && { customerSubtitle }),
@@ -120,6 +123,7 @@ router.put('/table-link-settings/:storeId', adminAuthMiddleware, async (req: Adm
 
     res.json({
       enabled: setting.enabled,
+      genderCollectEnabled: setting.genderCollectEnabled,
       customerTitle: setting.customerTitle,
       customerSubtitle: setting.customerSubtitle,
       tables: (setting.tables as unknown as TableEntry[]) || [],
