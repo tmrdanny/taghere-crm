@@ -380,7 +380,8 @@ export default function SettingsPage() {
         trackEvent('owner_settings_save', { section: 'stamp_alimtalk' });
         showToast(enabled ? '스탬프 알림톡이 활성화되었습니다.' : '스탬프 알림톡이 비활성화되었습니다.', 'success');
       } else {
-        showToast('설정 저장 중 오류가 발생했습니다.', 'error');
+        const body = await res.json().catch(() => ({}));
+        showToast(body.error || '설정 저장 중 오류가 발생했습니다.', 'error');
       }
     } catch (error) {
       console.error('Failed to save stamp alimtalk settings:', error);
