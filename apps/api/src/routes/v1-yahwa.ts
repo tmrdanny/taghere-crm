@@ -83,6 +83,67 @@ router.post('/waitings/counts', async (req, res) => {
 });
 
 /**
+ * 2-1. 매장 실시간 성별 비율 일괄 조회 (★지도 핵심) — POST /api/v1/stores/gender-stats
+ *
+ * 테이블 링크 이용 고객의 성별 선택 데이터를 시간 창(window) 기준으로 집계.
+ * body: { store_ids: string[], window_minutes?: number }  // 기본 180분, 최대 1440분
+ * resp: { stats: [{ store_id, male_count, female_count, total_count, male_ratio, female_ratio, window_minutes, updated_at }] }
+ */
+router.post('/stores/gender-stats', async (req, res) => {
+  try {
+    const { store_ids, window_minutes } = req.body || {};
+    if (!Array.isArray(store_ids)) {
+      return res.status(400).json({ error: 'invalid_request', message: 'store_ids 배열이 필요합니다.' });
+    }
+    if (store_ids.length > 100) {
+      return res.status(400).json({ error: 'invalid_request', message: 'store_ids 는 최대 100개까지 허용됩니다.' });
+    }
+    const ids = store_ids.filter((x: any) => typeof x === 'string');
+
+    let windowMin = Number.isInteger(window_minutes) && window_minutes > 0 ? window_minutes : 180;
+    windowMin = Math.min(windowMin, 1440);
+    const since = new Date(Date.now() - windowMin * 60 * 1000);
+
+    const grouped = await prisma.tableLinkGenderLog.groupBy({
+      by: ['storeId', 'gender'],
+      where: {
+        storeId: { in: ids },
+        createdAt: { gte: since },
+      },
+      _count: { _all: true },
+    });
+
+    const byStore: Record<string, { male: number; female: number }> = {};
+    for (const g of grouped) {
+      if (!byStore[g.storeId]) byStore[g.storeId] = { male: 0, female: 0 };
+      if (g.gender === 'MALE') byStore[g.storeId].male = g._count._all;
+      else if (g.gender === 'FEMALE') byStore[g.storeId].female = g._count._all;
+    }
+
+    const now = new Date().toISOString();
+    const stats = ids.map((storeId: string) => {
+      const c = byStore[storeId] || { male: 0, female: 0 };
+      const total = c.male + c.female;
+      return {
+        store_id: storeId,
+        male_count: c.male,
+        female_count: c.female,
+        total_count: total,
+        male_ratio: total > 0 ? Math.round((c.male / total) * 1000) / 10 : null,
+        female_ratio: total > 0 ? Math.round((c.female / total) * 1000) / 10 : null,
+        window_minutes: windowMin,
+        updated_at: now,
+      };
+    });
+
+    res.status(200).json({ stats });
+  } catch (err) {
+    console.error('[Yahwa] POST /stores/gender-stats error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+/**
  * 3. 웨이팅 등록 — POST /api/v1/waitings
  */
 router.post('/waitings', async (req, res) => {

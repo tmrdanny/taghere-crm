@@ -18,6 +18,7 @@ interface TableEntry {
 
 interface TableLinkSettings {
   enabled: boolean;
+  genderCollectEnabled?: boolean;
   customerTitle: string | null;
   customerSubtitle: string | null;
   tables: TableEntry[];
@@ -44,6 +45,7 @@ export default function AdminTableLinkPage() {
 
   // Editable state
   const [enabled, setEnabled] = useState(false);
+  const [genderCollectEnabled, setGenderCollectEnabled] = useState(true);
   const [customerTitle, setCustomerTitle] = useState('');
   const [customerSubtitle, setCustomerSubtitle] = useState('');
   const [tables, setTables] = useState<TableEntry[]>([]);
@@ -108,6 +110,7 @@ export default function AdminTableLinkPage() {
         const data: TableLinkSettings = await res.json();
         setSettings(data);
         setEnabled(data.enabled);
+        setGenderCollectEnabled(data.genderCollectEnabled ?? true);
         setCustomerTitle(data.customerTitle || '');
         setCustomerSubtitle(data.customerSubtitle || '');
         setTables(data.tables || []);
@@ -155,6 +158,7 @@ export default function AdminTableLinkPage() {
         },
         body: JSON.stringify({
           enabled,
+          genderCollectEnabled,
           tables,
           customerTitle: customerTitle || null,
           customerSubtitle: customerSubtitle || null,
@@ -345,6 +349,27 @@ export default function AdminTableLinkPage() {
                 <div
                   className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
                     enabled ? 'translate-x-[22px]' : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between mt-5 pt-5 border-t border-neutral-100">
+              <div>
+                <h3 className="font-semibold text-neutral-900">성별 선택 수집</h3>
+                <p className="text-[13px] text-neutral-500 mt-1">
+                  테이블 번호 입력 후 성별(남/여) 선택 화면을 표시합니다. 야화 지도의 실시간 성별 비율에 사용됩니다.
+                </p>
+              </div>
+              <button
+                onClick={() => setGenderCollectEnabled(!genderCollectEnabled)}
+                className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
+                  genderCollectEnabled ? 'bg-[#FFD541]' : 'bg-neutral-300'
+                }`}
+              >
+                <div
+                  className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                    genderCollectEnabled ? 'translate-x-[22px]' : 'translate-x-0.5'
                   }`}
                 />
               </button>

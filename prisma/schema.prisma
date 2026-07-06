@@ -85,6 +85,7 @@ model Store {
 
   // 테이블 링크
   tableLinkSetting      TableLinkSetting?
+  tableLinkGenderLogs   TableLinkGenderLog[]
   foodCourtSetting      FoodCourtSetting?
 
   // 리타겟 쿠폰
@@ -1318,6 +1319,9 @@ model TableLinkSetting {
   customerTitle    String?
   customerSubtitle String?
 
+  // 테이블 번호 입력 후 성별 선택 화면 표시 (야화 연동용 데이터 수집)
+  genderCollectEnabled Boolean @default(true)
+
   // [{tableNumber: "1", url: "https://...", label?: "창가"}]
   tables           Json?
 
@@ -1327,6 +1331,21 @@ model TableLinkSetting {
   store            Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@map("table_link_settings")
+}
+
+// 테이블 링크 성별 선택 로그 (야화 실시간 성별 비율 연동용)
+model TableLinkGenderLog {
+  id          String   @id @default(cuid())
+  storeId     String
+  tableNumber String
+  gender      Gender   // MALE | FEMALE
+
+  createdAt   DateTime @default(now())
+
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, createdAt])
+  @@map("table_link_gender_logs")
 }
 
 // 푸드코트 모드 (테이블별 QR → 매장 선택 → 매장×테이블 결제 링크 리다이렉트)
