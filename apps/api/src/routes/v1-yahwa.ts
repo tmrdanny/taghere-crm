@@ -85,10 +85,16 @@ router.post('/waitings/counts', async (req, res) => {
 /**
  * 2-1. 매장 실시간 성별 비율 일괄 조회 (★지도 핵심) — POST /api/v1/stores/gender-stats
  *
- * 테이블 링크 이용 고객의 성별 선택 데이터를 시간 창(window) 기준으로 집계.
- * body: { store_ids: string[], window_minutes?: number }  // 기본 180분, 최대 1440분
+ * "현재 착석 추정" 방식: 테이블별로 가장 최근 일행만 집계한다.
+ * - 같은 테이블에 새 성별 입력이 들어오면 = 새 일행 착석 = 이전 일행은 퇴장한 것으로 간주 (암묵적 퇴장 신호)
+ * - 같은 테이블의 30분 이내 연속 입력은 한 일행으로 묶음 (일행이 각자 폰으로 순차 입력)
+ * - 마지막 입력이 window_minutes(최대 체류시간)보다 오래된 테이블은 만료 처리
+ *
+ * body: { store_ids: string[], window_minutes?: number }  // 최대 체류시간, 기본 180분, 최대 1440분
  * resp: { stats: [{ store_id, male_count, female_count, total_count, male_ratio, female_ratio, window_minutes, updated_at }] }
  */
+const SESSION_GROUP_MS = 30 * 60 * 1000; // 같은 테이블에서 한 일행으로 묶는 입력 간격
+
 router.post('/stores/gender-stats', async (req, res) => {
   try {
     const { store_ids, window_minutes } = req.body || {};
@@ -104,20 +110,29 @@ router.post('/stores/gender-stats', async (req, res) => {
     windowMin = Math.min(windowMin, 1440);
     const since = new Date(Date.now() - windowMin * 60 * 1000);
 
-    const grouped = await prisma.tableLinkGenderLog.groupBy({
-      by: ['storeId', 'gender'],
+    const logs = await prisma.tableLinkGenderLog.findMany({
       where: {
         storeId: { in: ids },
         createdAt: { gte: since },
       },
-      _count: { _all: true },
+      select: { storeId: true, tableNumber: true, gender: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
     });
 
+    // 매장 → 테이블별 최신 일행(세션)만 집계
     const byStore: Record<string, { male: number; female: number }> = {};
-    for (const g of grouped) {
-      if (!byStore[g.storeId]) byStore[g.storeId] = { male: 0, female: 0 };
-      if (g.gender === 'MALE') byStore[g.storeId].male = g._count._all;
-      else if (g.gender === 'FEMALE') byStore[g.storeId].female = g._count._all;
+    const latestByTable: Record<string, number> = {}; // storeId|table → 해당 테이블 최신 입력 시각
+    for (const log of logs) {
+      const tableKey = `${log.storeId}|${log.tableNumber}`;
+      const ts = new Date(log.createdAt).getTime();
+      if (latestByTable[tableKey] === undefined) {
+        latestByTable[tableKey] = ts; // desc 정렬이므로 첫 로그가 그 테이블의 최신
+      } else if (latestByTable[tableKey] - ts > SESSION_GROUP_MS) {
+        continue; // 최신 일행보다 오래된 이전 일행 → 퇴장 간주
+      }
+      if (!byStore[log.storeId]) byStore[log.storeId] = { male: 0, female: 0 };
+      if (log.gender === 'MALE') byStore[log.storeId].male += 1;
+      else if (log.gender === 'FEMALE') byStore[log.storeId].female += 1;
     }
 
     const now = new Date().toISOString();
