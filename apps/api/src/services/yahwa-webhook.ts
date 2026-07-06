@@ -4,6 +4,7 @@ import {
   EXTERNAL_SOURCE,
   computeWaitingState,
   getStoreWaitingCount,
+  getStoreWaitingEta,
 } from './yahwa-waiting.js';
 
 const prisma = prismaClient as any;
@@ -60,6 +61,7 @@ export async function notifyYahwaStatusChange(waitingId: string): Promise<void> 
 
     const state = await computeWaitingState(waiting);
     const waitingCount = await getStoreWaitingCount(waiting.storeId);
+    const storeEta = await getStoreWaitingEta(waiting.storeId);
 
     const payload = {
       event: 'waiting.status_changed' as const,
@@ -68,6 +70,7 @@ export async function notifyYahwaStatusChange(waitingId: string): Promise<void> 
       status: state.status,
       position: state.position,
       waiting_count: waitingCount,
+      store_eta_min: storeEta,
       occurred_at: new Date().toISOString(),
     };
 
@@ -104,10 +107,12 @@ export async function notifyYahwaWaitingChange(waitingId: string): Promise<void>
     if (!store?.yahwaEnabled) return;
 
     const waitingCount = await getStoreWaitingCount(waiting.storeId);
+    const storeEta = await getStoreWaitingEta(waiting.storeId);
     const payload = {
       event: 'waiting.count_changed' as const,
       store_id: waiting.storeId,
       waiting_count: waitingCount,
+      store_eta_min: storeEta,
       occurred_at: new Date().toISOString(),
     };
 

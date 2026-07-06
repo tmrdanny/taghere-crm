@@ -83,6 +83,34 @@ export async function getStoreWaitingCount(storeId: string): Promise<number> {
 }
 
 /**
+ * 매장의 현재 예상 대기시간(분) — 유형별 활성 팀 수 × 팀당 평균 대기시간의 합.
+ * 대시보드 '예상시간'과 같은 기준. 지금 등록하는 손님이 기다릴 대략치.
+ */
+export async function getStoreWaitingEta(storeId: string): Promise<number> {
+  const { todayStart, todayEnd } = getTodayStartEnd();
+  const grouped = await prisma.waitingList.groupBy({
+    by: ['waitingTypeId'],
+    where: {
+      storeId,
+      status: { in: ['WAITING', 'CALLED'] },
+      createdAt: { gte: todayStart, lte: todayEnd },
+    },
+    _count: { id: true },
+  });
+  if (grouped.length === 0) return 0;
+
+  const types = await prisma.waitingType.findMany({
+    where: { id: { in: grouped.map((g: any) => g.waitingTypeId) } },
+    select: { id: true, avgWaitTimePerTeam: true },
+  });
+  const avgById = new Map<string, number>(types.map((t: any) => [t.id, t.avgWaitTimePerTeam ?? 5]));
+  return grouped.reduce(
+    (sum: number, g: any) => sum + g._count.id * (avgById.get(g.waitingTypeId) ?? 5),
+    0
+  );
+}
+
+/**
  * 여러 매장의 대기 팀 수를 한 번에 조회 (★지도 bulk 카운트).
  * yahwaEnabled = true 인 매장만 대상으로 하며, 존재하지 않거나 미연동 매장은 결과에서 생략.
  */
