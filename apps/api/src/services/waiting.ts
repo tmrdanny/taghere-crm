@@ -42,12 +42,13 @@ export interface TodayStats {
 }
 
 /**
- * 야화 연동 웨이팅이면 상태 변경을 야화로 푸시 (fire-and-forget).
+ * 웨이팅 변동을 야화로 푸시 (fire-and-forget).
+ * 야화발 웨이팅은 상태+카운트, 그 외는 yahwaEnabled 매장이면 카운트만.
  * 동적 import 로 순환 참조를 피하고, 호출 흐름을 막지 않는다.
  */
 function notifyYahwaIfExternal(waitingId: string): void {
   void import('./yahwa-webhook.js')
-    .then((m) => m.notifyYahwaStatusChange(waitingId))
+    .then((m) => m.notifyYahwaWaitingChange(waitingId))
     .catch((err) => console.error('[Waiting] yahwa notify failed:', err));
 }
 
@@ -225,6 +226,8 @@ export async function registerWaiting(
         estimatedMinutes,
       });
     }
+
+    notifyYahwaIfExternal(waiting.id);
 
     return {
       success: true,
