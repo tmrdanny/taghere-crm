@@ -84,6 +84,18 @@ router.put('/', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
 
+    // 알림톡 발송 여부만 단독 변경하는 요청은 매장 자율 설정이므로 본사 잠금과 무관하게 허용
+    const bodyKeys = Object.keys(req.body || {});
+    const isAlimtalkOnly = bodyKeys.length > 0 && bodyKeys.every((k) => k === 'alimtalkEnabled');
+    if (isAlimtalkOnly) {
+      const setting = await prisma.stampSetting.upsert({
+        where: { storeId },
+        create: { storeId, alimtalkEnabled: !!req.body.alimtalkEnabled },
+        update: { alimtalkEnabled: !!req.body.alimtalkEnabled },
+      });
+      return res.json({ alimtalkEnabled: setting.alimtalkEnabled });
+    }
+
     // 본사가 스탬프 설정을 잠근 경우 점주는 수정 불가
     if (await isStoreStampLocked(storeId)) {
       return res.status(403).json({
