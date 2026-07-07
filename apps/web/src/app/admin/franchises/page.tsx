@@ -18,6 +18,10 @@ interface Franchise {
   name: string;
   slug: string;
   logoUrl: string | null;
+  priceEarnAlimtalk: number | null;
+  priceMarketingAlimtalk: number | null;
+  priceSms: number | null;
+  priceWaitingAlimtalk: number | null;
   createdAt: string;
   _count: {
     stores: number;
@@ -28,6 +32,14 @@ interface Franchise {
   } | null;
   users: FranchiseUser[];
 }
+
+// 프랜차이즈 오버라이드가 없을 때의 기본 단가 (표시용)
+const DEFAULT_PRICES = {
+  priceEarnAlimtalk: 20,
+  priceMarketingAlimtalk: 50,
+  priceSms: 50,
+  priceWaitingAlimtalk: 20,
+};
 
 interface Store {
   id: string;
@@ -68,6 +80,16 @@ export default function FranchisesPage() {
     ownerPassword: '',
   });
   const [editLoading, setEditLoading] = useState(false);
+
+  // 메시지 단가 설정 모달
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [pricingForm, setPricingForm] = useState({
+    priceEarnAlimtalk: '',
+    priceMarketingAlimtalk: '',
+    priceSms: '',
+    priceWaitingAlimtalk: '',
+  });
+  const [pricingLoading, setPricingLoading] = useState(false);
 
   // 매장 다중 선택 상태
   const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set());
@@ -452,6 +474,53 @@ export default function FranchisesPage() {
     }
   };
 
+  const handleOpenPricingModal = (franchise: Franchise) => {
+    setSelectedFranchise(franchise);
+    setPricingForm({
+      priceEarnAlimtalk: franchise.priceEarnAlimtalk != null ? String(franchise.priceEarnAlimtalk) : '',
+      priceMarketingAlimtalk: franchise.priceMarketingAlimtalk != null ? String(franchise.priceMarketingAlimtalk) : '',
+      priceSms: franchise.priceSms != null ? String(franchise.priceSms) : '',
+      priceWaitingAlimtalk: franchise.priceWaitingAlimtalk != null ? String(franchise.priceWaitingAlimtalk) : '',
+    });
+    setShowPricingModal(true);
+  };
+
+  const handleSavePricing = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFranchise) return;
+
+    setPricingLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      // 빈 문자열은 null(기본단가로 리셋)로 전송
+      const toValue = (s: string) => (s.trim() === '' ? null : Number(s));
+      const res = await fetch(`${API_URL}/api/admin/franchises/${selectedFranchise.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          priceEarnAlimtalk: toValue(pricingForm.priceEarnAlimtalk),
+          priceMarketingAlimtalk: toValue(pricingForm.priceMarketingAlimtalk),
+          priceSms: toValue(pricingForm.priceSms),
+          priceWaitingAlimtalk: toValue(pricingForm.priceWaitingAlimtalk),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '단가 저장에 실패했습니다.');
+
+      alert('메시지 단가가 저장되었습니다. 산하 전 매장에 즉시 적용됩니다.');
+      setShowPricingModal(false);
+      setSelectedFranchise(null);
+      fetchFranchises();
+    } catch (error: any) {
+      alert(error.message);
+    } finally {
+      setPricingLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -578,6 +647,12 @@ export default function FranchisesPage() {
                             className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                           >
                             매장 추가
+                          </button>
+                          <button
+                            onClick={() => handleOpenPricingModal(franchise)}
+                            className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                          >
+                            단가
                           </button>
                           <button
                             onClick={() => {
@@ -965,6 +1040,60 @@ export default function FranchisesPage() {
                   disabled={uploadingLogo || !logoFile}
                 >
                   {uploadingLogo ? '업로드 중...' : '업로드'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 메시지 단가 설정 모달 */}
+      {showPricingModal && selectedFranchise && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-neutral-900 mb-1">메시지 단가 설정</h2>
+            <p className="text-sm text-neutral-500 mb-4">
+              {selectedFranchise.name} · 저장 시 산하 <b>{selectedFranchise._count.stores}개 매장</b>에 동일하게 적용됩니다.
+              비워두면 기본 단가가 적용됩니다.
+            </p>
+            <form onSubmit={handleSavePricing} className="space-y-4">
+              {([
+                { key: 'priceEarnAlimtalk', label: '기본 적립 알림톡', desc: '포인트/스탬프 적립·사용' },
+                { key: 'priceMarketingAlimtalk', label: '마케팅 알림톡', desc: '리뷰요청/리타겟/자동화 등' },
+                { key: 'priceSms', label: '문자 메시지 (SMS/LMS)', desc: '이미지(MMS) 제외' },
+                { key: 'priceWaitingAlimtalk', label: '웨이팅 알림톡', desc: '등록/호출/취소 알림' },
+              ] as const).map((f) => (
+                <div key={f.key}>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    {f.label} <span className="text-xs text-neutral-400 font-normal">· {f.desc}</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      value={pricingForm[f.key]}
+                      onChange={(e) => setPricingForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                      placeholder={`기본 ${DEFAULT_PRICES[f.key]}원`}
+                      className="w-full px-3 py-2 pr-10 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">원</span>
+                  </div>
+                </div>
+              ))}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowPricingModal(false); setSelectedFranchise(null); }}
+                  className="flex-1 px-4 py-2 border border-neutral-300 rounded-lg text-neutral-700 hover:bg-neutral-50"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={pricingLoading}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {pricingLoading ? '저장 중...' : '단가 저장'}
                 </button>
               </div>
             </form>

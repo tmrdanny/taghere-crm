@@ -15,6 +15,10 @@ router.get('/franchises', adminAuthMiddleware, async (req: AdminRequest, res: Re
         name: true,
         slug: true,
         logoUrl: true,
+        priceEarnAlimtalk: true,
+        priceMarketingAlimtalk: true,
+        priceSms: true,
+        priceWaitingAlimtalk: true,
         createdAt: true,
         updatedAt: true,
         _count: {
@@ -63,6 +67,10 @@ router.get('/franchises/:franchiseId', adminAuthMiddleware, async (req: AdminReq
         name: true,
         slug: true,
         logoUrl: true,
+        priceEarnAlimtalk: true,
+        priceMarketingAlimtalk: true,
+        priceSms: true,
+        priceWaitingAlimtalk: true,
         createdAt: true,
         updatedAt: true,
         users: {
@@ -348,12 +356,31 @@ router.post('/franchises/:franchiseId/logo', adminAuthMiddleware, logoUpload.sin
 router.patch('/franchises/:franchiseId', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
     const { franchiseId } = req.params;
-    const { name, logoUrl, ownerName, ownerEmail, ownerPhone, ownerPassword } = req.body;
+    const {
+      name, logoUrl, ownerName, ownerEmail, ownerPhone, ownerPassword,
+      priceEarnAlimtalk, priceMarketingAlimtalk, priceSms, priceWaitingAlimtalk,
+    } = req.body;
+
+    // 단가 필드 정규화: 숫자면 반영, null/'' 이면 기본단가로 리셋(null), 그 외 무시
+    const normalizePrice = (v: any): number | null | undefined => {
+      if (v === undefined) return undefined;
+      if (v === null || v === '') return null;
+      const n = Number(v);
+      return Number.isFinite(n) && n >= 0 ? Math.round(n) : undefined;
+    };
 
     // 1. 프랜차이즈 기본 정보 업데이트
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
+    const pEarn = normalizePrice(priceEarnAlimtalk);
+    const pMkt = normalizePrice(priceMarketingAlimtalk);
+    const pSms = normalizePrice(priceSms);
+    const pWait = normalizePrice(priceWaitingAlimtalk);
+    if (pEarn !== undefined) updateData.priceEarnAlimtalk = pEarn;
+    if (pMkt !== undefined) updateData.priceMarketingAlimtalk = pMkt;
+    if (pSms !== undefined) updateData.priceSms = pSms;
+    if (pWait !== undefined) updateData.priceWaitingAlimtalk = pWait;
 
     if (Object.keys(updateData).length > 0) {
       await prisma.franchise.update({
