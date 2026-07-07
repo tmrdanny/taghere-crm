@@ -20,7 +20,7 @@ import {
   X,
   Gift,
   Rocket,
-  Receipt,
+  MessagesSquare,
 } from 'lucide-react';
 
 interface FranchiseUser {
@@ -74,7 +74,7 @@ const navItems: NavItem[] = [
     ],
   },
   { href: '/franchise/billing', label: '충전', icon: CreditCard },
-  { href: '/franchise/wallet-history', label: '충전금 이용내역', icon: Receipt },
+  { href: '/franchise/wallet-history', label: '사용내역', icon: MessagesSquare },
   { href: '/franchise/insights', label: '인사이트', icon: BarChart3 },
   { href: '/franchise/settings', label: '설정', icon: Settings },
 ];

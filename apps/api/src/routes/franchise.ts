@@ -1321,11 +1321,12 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
       marketing: { count: marketingCount, amount: marketingCount * marketingUnit, unitPrice: marketingUnit },
     };
 
-    // 스탬프 보상 수령 고객 수 (통합 스탬프 + 개별 매장 스탬프) — 기간 내 보상 당첨 고객 distinct
+    // 스탬프 보상 수령 고객 수 (통합 스탬프 + 개별 매장 스탬프) — 기간 내 보상 당첨(적립 시) 또는 실제 사용(USE) 고객 distinct
+    const USE_TYPES = ['USE', 'USE_5', 'USE_10', 'USE_15', 'USE_20', 'USE_25', 'USE_30'] as const;
     const franchiseRewardCustomers = await prisma.franchiseStampLedger.findMany({
       where: {
         franchiseId,
-        drawnReward: { not: null },
+        OR: [{ drawnReward: { not: null } }, { type: { in: USE_TYPES as any } }],
         createdAt: { gte: startDate, lte: endDate },
       },
       select: { franchiseCustomerId: true },
@@ -1334,7 +1335,7 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
     const storeRewardCustomers = await prisma.stampLedger.findMany({
       where: {
         storeId: { in: storeIds },
-        drawnReward: { not: null },
+        OR: [{ drawnReward: { not: null } }, { type: { in: USE_TYPES as any } }],
         createdAt: { gte: startDate, lte: endDate },
       },
       select: { customerId: true },
@@ -2382,8 +2383,8 @@ router.put('/reward-claims/:id', async (req: FranchiseAuthRequest, res) => {
   }
 });
 
-// GET /api/franchise/wallet-usage - 가맹점별 충전금 이용내역
-// storeId 없으면: 가맹점별 요약 (충전/적립 알림톡/마케팅/기타/잔액)
+// GET /api/franchise/wallet-usage - 가맹점별 사용내역 (알림톡/광고톡/문자메시지 등 누적 사용)
+// storeId 없으면: 가맹점별 요약 (채널별 건수+금액)
 // storeId 있으면: 해당 가맹점의 상세 트랜잭션 목록
 router.get('/wallet-usage', async (req: FranchiseAuthRequest, res) => {
   try {
@@ -2459,60 +2460,65 @@ router.get('/wallet-usage', async (req: FranchiseAuthRequest, res) => {
       take: 100000,
     });
 
-    const byStore: Record<string, { topup: number; earnAlimtalk: number; marketing: number; etc: number; used: number }> = {};
+    // 사용 채널 (충전/환불은 "사용"이 아니므로 채널 집계에서 제외)
+    const USAGE_CHANNELS = ['alimtalk', 'brand_message', 'sms', 'subscription', 'booster', 'deduct', 'etc'] as const;
+    type Channel = { count: number; amount: number };
+    const emptyChannels = () => ({
+      alimtalk: { count: 0, amount: 0 } as Channel,
+      brand_message: { count: 0, amount: 0 } as Channel,
+      sms: { count: 0, amount: 0 } as Channel,
+      etc: { count: 0, amount: 0 } as Channel,
+    });
+
+    const byStore: Record<string, ReturnType<typeof emptyChannels>> = {};
     for (const tx of txs) {
-      if (!byStore[tx.storeId]) byStore[tx.storeId] = { topup: 0, earnAlimtalk: 0, marketing: 0, etc: 0, used: 0 };
-      const s = byStore[tx.storeId];
       const cat = classifyWalletTx(tx as any);
-      if (cat === 'topup') {
-        s.topup += tx.amount;
-        continue;
-      }
-      if (tx.amount < 0) {
-        const used = -tx.amount;
-        s.used += used;
-        if (cat === 'earn_alimtalk') s.earnAlimtalk += used;
-        else if (cat === 'marketing') s.marketing += used;
-        else s.etc += used;
-      } else {
-        // 환불 등 양수 유입은 사용액에서 차감
-        s.used -= tx.amount;
-        if (cat === 'earn_alimtalk') s.earnAlimtalk -= tx.amount;
-        else if (cat === 'marketing') s.marketing -= tx.amount;
-        else s.etc -= tx.amount;
-      }
+      if (!(USAGE_CHANNELS as readonly string[]).includes(cat)) continue; // 충전/환불 제외
+      if (!byStore[tx.storeId]) byStore[tx.storeId] = emptyChannels();
+      const key = (cat === 'alimtalk' || cat === 'brand_message' || cat === 'sms') ? cat : 'etc';
+      byStore[tx.storeId][key].count += 1;
+      byStore[tx.storeId][key].amount += -tx.amount; // 사용액은 양수로 표시
     }
 
+    const sumUsage = (c: ReturnType<typeof emptyChannels>) => ({
+      count: c.alimtalk.count + c.brand_message.count + c.sms.count + c.etc.count,
+      amount: c.alimtalk.amount + c.brand_message.amount + c.sms.amount + c.etc.amount,
+    });
+
     const storeSummaries = stores.map((store) => {
-      const s = byStore[store.id] || { topup: 0, earnAlimtalk: 0, marketing: 0, etc: 0, used: 0 };
+      const c = byStore[store.id] || emptyChannels();
       return {
         storeId: store.id,
         storeName: store.name,
         balance: store.wallet?.balance ?? 0,
-        topup: s.topup,
-        earnAlimtalk: s.earnAlimtalk,
-        marketing: s.marketing,
-        etc: s.etc,
-        used: s.used,
+        alimtalk: c.alimtalk,
+        brandMessage: c.brand_message,
+        sms: c.sms,
+        etc: c.etc,
+        total: sumUsage(c),
       };
     });
 
     const totals = storeSummaries.reduce(
       (acc, s) => ({
-        topup: acc.topup + s.topup,
-        earnAlimtalk: acc.earnAlimtalk + s.earnAlimtalk,
-        marketing: acc.marketing + s.marketing,
-        etc: acc.etc + s.etc,
-        used: acc.used + s.used,
+        alimtalk: { count: acc.alimtalk.count + s.alimtalk.count, amount: acc.alimtalk.amount + s.alimtalk.amount },
+        brandMessage: { count: acc.brandMessage.count + s.brandMessage.count, amount: acc.brandMessage.amount + s.brandMessage.amount },
+        sms: { count: acc.sms.count + s.sms.count, amount: acc.sms.amount + s.sms.amount },
+        etc: { count: acc.etc.count + s.etc.count, amount: acc.etc.amount + s.etc.amount },
+        total: { count: acc.total.count + s.total.count, amount: acc.total.amount + s.total.amount },
         balance: acc.balance + s.balance,
       }),
-      { topup: 0, earnAlimtalk: 0, marketing: 0, etc: 0, used: 0, balance: 0 },
+      {
+        alimtalk: { count: 0, amount: 0 }, brandMessage: { count: 0, amount: 0 },
+        sms: { count: 0, amount: 0 }, etc: { count: 0, amount: 0 },
+        total: { count: 0, amount: 0 }, balance: 0,
+      },
     );
 
     res.json({ stores: storeSummaries, totals });
   } catch (error) {
     console.error('Franchise wallet usage error:', error);
-    res.status(500).json({ error: '충전금 이용내역 조회 중 오류가 발생했습니다.' });
+    res.status(500).json({ error: '사용내역 조회 중 오류가 발생했습니다.' });
   }
 });
 

@@ -238,8 +238,9 @@ router.get('/customers', async (req: AuthRequest, res) => {
       });
     }
 
-    // 스탬프 보상 받은 고객 수 (기간 필터 동일 적용, 보상 당첨 이력 distinct 고객)
-    const rewardWhere: any = { storeId, drawnReward: { not: null } };
+    // 스탬프 보상 받은 고객 수 (기간 필터 동일 적용, 보상 당첨(적립 시) 또는 실제 사용(USE) distinct 고객)
+    const USE_TYPES = ['USE', 'USE_5', 'USE_10', 'USE_15', 'USE_20', 'USE_25', 'USE_30'];
+    const rewardWhere: any = { storeId, OR: [{ drawnReward: { not: null } }, { type: { in: USE_TYPES } }] };
     if (whereCondition.createdAt) rewardWhere.createdAt = whereCondition.createdAt;
     const rewardRecipients = await prisma.stampLedger.findMany({
       where: rewardWhere,

@@ -4,7 +4,7 @@ import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wallet, TrendingDown, TrendingUp, RefreshCw } from 'lucide-react';
+import { MessagesSquare, Megaphone, Send, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface UsageTransaction {
@@ -37,21 +37,21 @@ const PERIOD_OPTIONS = [
 
 const CATEGORY_FILTERS = [
   { value: 'all', label: '전체' },
+  { value: 'alimtalk', label: '알림톡' },
+  { value: 'brand_message', label: '광고톡' },
+  { value: 'sms', label: '문자메시지' },
   { value: 'topup', label: '충전' },
-  { value: 'earn_alimtalk', label: '적립 알림톡' },
-  { value: 'marketing', label: '마케팅 발송' },
-  { value: 'waiting_alimtalk', label: '웨이팅 알림톡' },
   { value: 'refund', label: '환불' },
 ];
 
 const CATEGORY_BADGE_STYLES: Record<string, string> = {
+  alimtalk: 'bg-blue-50 text-blue-700',
+  brand_message: 'bg-pink-50 text-pink-700',
+  sms: 'bg-orange-50 text-orange-700',
   topup: 'bg-emerald-50 text-emerald-700',
-  earn_alimtalk: 'bg-blue-50 text-blue-700',
-  marketing: 'bg-purple-50 text-purple-700',
-  waiting_alimtalk: 'bg-cyan-50 text-cyan-700',
   refund: 'bg-amber-50 text-amber-700',
   subscription: 'bg-neutral-100 text-neutral-600',
-  booster: 'bg-pink-50 text-pink-700',
+  booster: 'bg-purple-50 text-purple-700',
   deduct: 'bg-red-50 text-red-700',
   etc: 'bg-neutral-100 text-neutral-600',
 };
@@ -76,7 +76,7 @@ export default function WalletHistoryPage() {
         setData(await res.json());
       }
     } catch (e) {
-      console.error('Failed to fetch wallet usage history:', e);
+      console.error('Failed to fetch usage history:', e);
     } finally {
       setIsLoading(false);
     }
@@ -89,13 +89,17 @@ export default function WalletHistoryPage() {
   const formatAmount = (n: number) =>
     `${n > 0 ? '+' : ''}${n.toLocaleString()}원`;
 
+  const alimtalk = data?.summary.byCategory.alimtalk ?? { count: 0, amount: 0 };
+  const brandMessage = data?.summary.byCategory.brand_message ?? { count: 0, amount: 0 };
+  const sms = data?.summary.byCategory.sms ?? { count: 0, amount: 0 };
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">충전금 이용내역</h1>
-          <p className="text-sm text-neutral-500 mt-1">충전·알림톡·마케팅 발송 등 충전금 사용 흐름을 확인합니다.</p>
+          <h1 className="text-2xl font-bold text-neutral-900">사용내역</h1>
+          <p className="text-sm text-neutral-500 mt-1">알림톡·광고톡·문자메시지 등 누적 사용 내역을 확인합니다.</p>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -113,36 +117,36 @@ export default function WalletHistoryPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Usage Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-brand-50 rounded-lg"><Wallet className="w-5 h-5 text-brand-800" /></div>
-              <span className="text-sm text-neutral-500">현재 잔액</span>
+              <div className="p-2 bg-blue-50 rounded-lg"><MessagesSquare className="w-5 h-5 text-blue-600" /></div>
+              <span className="text-sm text-neutral-500">알림톡</span>
             </div>
-            <p className="text-2xl font-bold text-neutral-900">{(data?.balance ?? 0).toLocaleString()}원</p>
+            <p className="text-2xl font-bold text-neutral-900">{alimtalk.amount.toLocaleString()}원</p>
+            <p className="text-xs text-neutral-400 mt-1">{alimtalk.count.toLocaleString()}건</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-emerald-50 rounded-lg"><TrendingUp className="w-5 h-5 text-emerald-600" /></div>
-              <span className="text-sm text-neutral-500">기간 내 충전</span>
+              <div className="p-2 bg-pink-50 rounded-lg"><Megaphone className="w-5 h-5 text-pink-600" /></div>
+              <span className="text-sm text-neutral-500">광고톡</span>
             </div>
-            <p className="text-2xl font-bold text-neutral-900">{(data?.summary.topupTotal ?? 0).toLocaleString()}원</p>
+            <p className="text-2xl font-bold text-neutral-900">{brandMessage.amount.toLocaleString()}원</p>
+            <p className="text-xs text-neutral-400 mt-1">{brandMessage.count.toLocaleString()}건</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-red-50 rounded-lg"><TrendingDown className="w-5 h-5 text-red-600" /></div>
-              <span className="text-sm text-neutral-500">기간 내 사용</span>
+              <div className="p-2 bg-orange-50 rounded-lg"><Send className="w-5 h-5 text-orange-600" /></div>
+              <span className="text-sm text-neutral-500">문자메시지</span>
             </div>
-            <p className="text-2xl font-bold text-neutral-900">{(data?.summary.usedTotal ?? 0).toLocaleString()}원</p>
-            {(data?.summary.refundTotal ?? 0) > 0 && (
-              <p className="text-xs text-neutral-400 mt-1">환불 {(data?.summary.refundTotal ?? 0).toLocaleString()}원 별도</p>
-            )}
+            <p className="text-2xl font-bold text-neutral-900">{sms.amount.toLocaleString()}원</p>
+            <p className="text-xs text-neutral-400 mt-1">{sms.count.toLocaleString()}건</p>
           </CardContent>
         </Card>
       </div>

@@ -1,31 +1,28 @@
-// 충전금 이용내역 분류 유틸
-// PaymentTransaction(type + meta)을 사용자에게 보여줄 카테고리로 변환한다.
+// 매장 알림톡/문자 사용내역 분류 유틸
+// PaymentTransaction(type + meta)을 채널 기준(알림톡/광고톡/문자메시지 등)으로 분류한다.
 
 export type WalletUsageCategory =
-  | 'topup'            // 충전
-  | 'earn_alimtalk'    // 적립 알림톡 (포인트/스탬프 적립·사용)
-  | 'waiting_alimtalk' // 웨이팅 알림톡
-  | 'marketing'        // 마케팅 (마케팅 알림톡/문자/브랜드메시지 등)
-  | 'refund'           // 환불 (발송 실패 환불 포함)
-  | 'subscription'     // 구독료
-  | 'booster'          // 플레이스 부스터
-  | 'deduct'           // 관리자 차감
+  | 'topup'          // 충전
+  | 'alimtalk'       // 알림톡 (적립/웨이팅/리뷰요청/자동화 등 카카오 알림톡 API 발송 전체)
+  | 'brand_message'  // 광고톡 (카카오 브랜드메시지/친구톡)
+  | 'sms'            // 문자메시지 (SMS/LMS/MMS)
+  | 'refund'         // 환불 (발송 실패 환불 포함)
+  | 'subscription'   // 구독료
+  | 'booster'        // 플레이스 부스터
+  | 'deduct'         // 관리자 차감
   | 'etc';
 
 export const WALLET_USAGE_LABELS: Record<WalletUsageCategory, string> = {
   topup: '충전',
-  earn_alimtalk: '적립 알림톡',
-  waiting_alimtalk: '웨이팅 알림톡',
-  marketing: '마케팅 발송',
+  alimtalk: '알림톡',
+  brand_message: '광고톡',
+  sms: '문자메시지',
   refund: '환불',
   subscription: '구독료',
   booster: '플레이스 부스터',
   deduct: '차감',
   etc: '기타',
 };
-
-const EARN_TYPES = new Set(['POINTS_EARNED', 'POINTS_USED', 'STAMP_EARNED']);
-const WAITING_TYPES = new Set(['WAITING_REGISTERED', 'WAITING_CALLED', 'WAITING_CANCELLED']);
 
 export interface WalletTxLike {
   type: string;
@@ -50,11 +47,10 @@ export function classifyWalletTx(tx: WalletTxLike): WalletUsageCategory {
     case 'ALIMTALK_SEND': {
       // 발송 실패 환불 (amount 양수)
       if (meta.reason === 'send_failed_refund' || tx.amount > 0) return 'refund';
-      const messageType = meta.messageType as string | undefined;
-      if (messageType && EARN_TYPES.has(messageType)) return 'earn_alimtalk';
-      if (messageType && WAITING_TYPES.has(messageType)) return 'waiting_alimtalk';
-      // 캠페인 선차감(meta.type: SMS/BRAND_MESSAGE 등) 및 그 외 알림톡은 마케팅
-      return 'marketing';
+      if (meta.type === 'BRAND_MESSAGE') return 'brand_message';
+      if (meta.type === 'SMS') return 'sms';
+      // messageType 이 있으면 카카오 알림톡 API 발송 (적립/웨이팅/리뷰요청/자동화 등 전부 '알림톡')
+      return 'alimtalk';
     }
     default:
       return 'etc';

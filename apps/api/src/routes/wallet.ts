@@ -126,7 +126,7 @@ router.get('/transactions', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// GET /api/wallet/usage-history - 충전금 이용내역 (충전/적립 알림톡/마케팅 등 전체 흐름)
+// GET /api/wallet/usage-history - 사용내역 (알림톡/광고톡/문자메시지 등 누적 사용 흐름)
 router.get('/usage-history', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
@@ -211,7 +211,7 @@ router.get('/usage-history', authMiddleware, async (req: AuthRequest, res) => {
     });
   } catch (error) {
     console.error('Wallet usage history error:', error);
-    res.status(500).json({ error: '충전금 이용내역 조회 중 오류가 발생했습니다.' });
+    res.status(500).json({ error: '사용내역 조회 중 오류가 발생했습니다.' });
   }
 });
 

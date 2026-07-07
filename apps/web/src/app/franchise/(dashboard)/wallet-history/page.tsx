@@ -2,26 +2,31 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback } from 'react';
-import { Receipt, RefreshCw, X, ChevronRight } from 'lucide-react';
+import { MessagesSquare, RefreshCw, X, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+interface ChannelStat {
+  count: number;
+  amount: number;
+}
 
 interface StoreSummary {
   storeId: string;
   storeName: string;
   balance: number;
-  topup: number;
-  earnAlimtalk: number;
-  marketing: number;
-  etc: number;
-  used: number;
+  alimtalk: ChannelStat;
+  brandMessage: ChannelStat;
+  sms: ChannelStat;
+  etc: ChannelStat;
+  total: ChannelStat;
 }
 
 interface Totals {
-  topup: number;
-  earnAlimtalk: number;
-  marketing: number;
-  etc: number;
-  used: number;
+  alimtalk: ChannelStat;
+  brandMessage: ChannelStat;
+  sms: ChannelStat;
+  etc: ChannelStat;
+  total: ChannelStat;
   balance: number;
 }
 
@@ -66,7 +71,7 @@ export default function FranchiseWalletHistoryPage() {
         setTotals(data.totals || null);
       }
     } catch (e) {
-      console.error('Failed to fetch wallet usage:', e);
+      console.error('Failed to fetch usage summary:', e);
     } finally {
       setIsLoading(false);
     }
@@ -96,14 +101,15 @@ export default function FranchiseWalletHistoryPage() {
   };
 
   const won = (n: number) => `${n.toLocaleString()}원`;
+  const cell = (c: ChannelStat) => (c.count > 0 ? `${won(c.amount)} · ${c.count}건` : '-');
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">충전금 이용내역</h1>
-          <p className="text-sm text-slate-500 mt-1">가맹점별 충전·알림톡·마케팅 사용 내역을 확인합니다.</p>
+          <h1 className="text-2xl font-bold text-slate-900">사용내역</h1>
+          <p className="text-sm text-slate-500 mt-1">가맹점별 알림톡·광고톡·문자메시지 등 누적 사용 내역을 확인합니다.</p>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -125,17 +131,17 @@ export default function FranchiseWalletHistoryPage() {
       </div>
 
       {/* Totals */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: '전체 잔액', value: totals?.balance ?? 0, color: 'text-slate-900' },
-          { label: '기간 내 충전', value: totals?.topup ?? 0, color: 'text-emerald-600' },
-          { label: '적립 알림톡 사용', value: totals?.earnAlimtalk ?? 0, color: 'text-blue-600' },
-          { label: '마케팅 사용', value: totals?.marketing ?? 0, color: 'text-purple-600' },
-          { label: '총 사용', value: totals?.used ?? 0, color: 'text-red-600' },
+          { label: '알림톡', stat: totals?.alimtalk, color: 'text-blue-600' },
+          { label: '광고톡', stat: totals?.brandMessage, color: 'text-pink-600' },
+          { label: '문자메시지', stat: totals?.sms, color: 'text-orange-600' },
+          { label: '총 사용', stat: totals?.total, color: 'text-slate-900' },
         ].map((c) => (
           <div key={c.label} className="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
             <p className="text-xs text-slate-500 mb-1">{c.label}</p>
-            <p className={cn('text-xl font-bold', c.color)}>{won(c.value)}</p>
+            <p className={cn('text-xl font-bold', c.color)}>{won(c.stat?.amount ?? 0)}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{(c.stat?.count ?? 0).toLocaleString()}건</p>
           </div>
         ))}
       </div>
@@ -147,20 +153,18 @@ export default function FranchiseWalletHistoryPage() {
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase">가맹점명</th>
-                <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">충전</th>
-                <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">적립 알림톡</th>
-                <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">마케팅</th>
-                <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">기타</th>
+                <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">알림톡</th>
+                <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">광고톡</th>
+                <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">문자메시지</th>
                 <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">총 사용</th>
-                <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">잔액</th>
                 <th className="px-5 py-3 w-10" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
-                <tr><td colSpan={8} className="p-8 text-center text-slate-400">불러오는 중...</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-slate-400">불러오는 중...</td></tr>
               ) : stores.length === 0 ? (
-                <tr><td colSpan={8} className="p-8 text-center text-slate-400">가맹점이 없습니다.</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-slate-400">가맹점이 없습니다.</td></tr>
               ) : (
                 stores.map((s) => (
                   <tr
@@ -169,12 +173,10 @@ export default function FranchiseWalletHistoryPage() {
                     onClick={() => openDetail(s)}
                   >
                     <td className="px-5 py-3 text-sm font-medium text-slate-900">{s.storeName}</td>
-                    <td className="px-5 py-3 text-sm text-right text-emerald-600">{s.topup > 0 ? won(s.topup) : '-'}</td>
-                    <td className="px-5 py-3 text-sm text-right text-slate-700">{s.earnAlimtalk !== 0 ? won(s.earnAlimtalk) : '-'}</td>
-                    <td className="px-5 py-3 text-sm text-right text-slate-700">{s.marketing !== 0 ? won(s.marketing) : '-'}</td>
-                    <td className="px-5 py-3 text-sm text-right text-slate-500">{s.etc !== 0 ? won(s.etc) : '-'}</td>
-                    <td className="px-5 py-3 text-sm text-right font-semibold text-slate-900">{s.used !== 0 ? won(s.used) : '-'}</td>
-                    <td className="px-5 py-3 text-sm text-right text-slate-700">{won(s.balance)}</td>
+                    <td className="px-5 py-3 text-sm text-right text-slate-700">{cell(s.alimtalk)}</td>
+                    <td className="px-5 py-3 text-sm text-right text-slate-700">{cell(s.brandMessage)}</td>
+                    <td className="px-5 py-3 text-sm text-right text-slate-700">{cell(s.sms)}</td>
+                    <td className="px-5 py-3 text-sm text-right font-semibold text-slate-900">{cell(s.total)}</td>
                     <td className="px-5 py-3"><ChevronRight className="w-4 h-4 text-slate-300" /></td>
                   </tr>
                 ))
@@ -193,9 +195,9 @@ export default function FranchiseWalletHistoryPage() {
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <div className="flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-franchise-600" />
+                <MessagesSquare className="w-5 h-5 text-franchise-600" />
                 <h2 className="text-lg font-bold text-slate-900">{detailStore.storeName}</h2>
-                <span className="text-sm text-slate-500">잔액 {won(detailStore.balance)}</span>
+                <span className="text-sm text-slate-500">총 사용 {cell(detailStore.total)}</span>
               </div>
               <button onClick={() => setDetailStore(null)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
