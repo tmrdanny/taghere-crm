@@ -60,7 +60,7 @@ export default function WalletHistoryPage() {
   const apiUrl = API_BASE;
   const [data, setData] = useState<UsageHistory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [period, setPeriod] = useState('30days');
+  const [period, setPeriod] = useState('all');
   const [category, setCategory] = useState('all');
   const [page, setPage] = useState(1);
 

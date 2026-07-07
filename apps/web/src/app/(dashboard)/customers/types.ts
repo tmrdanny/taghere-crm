@@ -38,6 +38,17 @@ export interface PointLedgerEntry {
   createdAt: string;
 }
 
+export interface StampLedgerEntry {
+  id: string;
+  delta: number;
+  balance: number;
+  type: string;  // EARN, USE, USE_5~USE_30, ADMIN_ADD, ADMIN_REMOVE
+  reason: string | null;
+  tableLabel: string | null;
+  drawnReward: string | null;
+  createdAt: string;
+}
+
 export interface CustomerFeedbackEntry {
   id: string;
   rating: number;

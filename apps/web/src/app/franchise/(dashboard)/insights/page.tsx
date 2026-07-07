@@ -105,7 +105,7 @@ interface Insights {
 export default function FranchiseInsightsPage() {
   const [insights, setInsights] = useState<Insights>(DEMO_INSIGHTS);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState('30days');
+  const [selectedPeriod, setSelectedPeriod] = useState('all');
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
 
   // 날짜 범위 선택 관련 상태

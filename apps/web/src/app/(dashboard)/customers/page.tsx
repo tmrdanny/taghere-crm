@@ -18,6 +18,7 @@ import * as XLSX from 'xlsx';
 import {
   Customer,
   PointLedgerEntry,
+  StampLedgerEntry,
   CustomerFeedbackEntry,
   VisitOrOrderEntry,
   Announcement,
@@ -135,10 +136,11 @@ export default function CustomersPage() {
   const [bulkResult, setBulkResult] = useState<{ created: number; skipped: number; errors: Array<{ row: number; phone: string; reason: string }> } | null>(null);
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
   // Edit modal tab and feedback states
-  const [editModalTab, setEditModalTab] = useState<'feedback' | 'history' | 'orders' | 'messages'>('orders');
+  const [editModalTab, setEditModalTab] = useState<'feedback' | 'history' | 'stamps' | 'orders' | 'messages'>('orders');
   const [editFeedbackRating, setEditFeedbackRating] = useState(0);
   const [editFeedbackText, setEditFeedbackText] = useState('');
   const [pointHistory, setPointHistory] = useState<PointLedgerEntry[]>([]);
+  const [stampHistory, setStampHistory] = useState<StampLedgerEntry[]>([]);
   const [feedbackHistory, setFeedbackHistory] = useState<CustomerFeedbackEntry[]>([]);
   const [orderHistory, setOrderHistory] = useState<VisitOrOrderEntry[]>([]);
   const [messageHistory, setMessageHistory] = useState<MessageHistoryEntry[]>([]);
@@ -624,6 +626,7 @@ export default function CustomersPage() {
     setEditFeedbackText(customer.feedbackText || '');
     setEditModalTab('orders');
     setPointHistory([]);
+    setStampHistory([]);
     setFeedbackHistory([]);
     setOrderHistory([]);
     setMessageHistory([]);
@@ -643,6 +646,7 @@ export default function CustomersPage() {
       if (res.ok) {
         const data = await res.json();
         setPointHistory(Array.isArray(data.pointLedger) ? data.pointLedger : []);
+        setStampHistory(Array.isArray(data.stampLedger) ? data.stampLedger : []);
         setFeedbackHistory(Array.isArray(data.feedbacks) ? data.feedbacks : []);
         setOrderHistory(Array.isArray(data.visitsOrOrders) ? data.visitsOrOrders : []);
       }
@@ -1366,6 +1370,7 @@ export default function CustomersPage() {
         orderHistory={orderHistory}
         feedbackHistory={feedbackHistory}
         pointHistory={pointHistory}
+        stampHistory={stampHistory}
         messageHistory={messageHistory}
         messageSummary={messageSummary}
         loadingHistory={loadingHistory}

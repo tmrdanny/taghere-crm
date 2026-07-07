@@ -295,6 +295,10 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
           orderBy: { createdAt: 'desc' },
           take: 10,
         },
+        stampLedger: {
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        },
         visitsOrOrders: {
           orderBy: { visitedAt: 'desc' },
           take: 10,

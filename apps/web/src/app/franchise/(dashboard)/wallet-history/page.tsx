@@ -50,7 +50,7 @@ export default function FranchiseWalletHistoryPage() {
   const [stores, setStores] = useState<StoreSummary[]>([]);
   const [totals, setTotals] = useState<Totals | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [period, setPeriod] = useState('30days');
+  const [period, setPeriod] = useState('all');
 
   // 매장 상세 모달
   const [detailStore, setDetailStore] = useState<StoreSummary | null>(null);

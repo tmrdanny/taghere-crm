@@ -8,10 +8,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber, formatDate, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
-import { ShoppingBag, MessageSquare, History, Send } from 'lucide-react';
+import { ShoppingBag, MessageSquare, History, Send, Stamp } from 'lucide-react';
 import {
   Customer,
   PointLedgerEntry,
+  StampLedgerEntry,
   CustomerFeedbackEntry,
   VisitOrOrderEntry,
   MessageHistoryEntry,
@@ -19,9 +20,10 @@ import {
 import { OrderHistoryTab } from './edit-tabs/OrderHistoryTab';
 import { FeedbackHistoryTab } from './edit-tabs/FeedbackHistoryTab';
 import { PointHistoryTab } from './edit-tabs/PointHistoryTab';
+import { StampHistoryTab } from './edit-tabs/StampHistoryTab';
 import { MessageHistoryTab } from './edit-tabs/MessageHistoryTab';
 
-type EditTab = 'feedback' | 'history' | 'orders' | 'messages';
+type EditTab = 'feedback' | 'history' | 'stamps' | 'orders' | 'messages';
 
 // 고객 상세/편집 모달. 좌측 정보 폼 + 우측 탭(주문/피드백/포인트/발송내역).
 // 폼 상태·내역 데이터·핸들러는 부모에서 관리하고 props로 전달한다.
@@ -44,6 +46,7 @@ export function EditCustomerModal({
   orderHistory,
   feedbackHistory,
   pointHistory,
+  stampHistory,
   messageHistory,
   messageSummary,
   loadingHistory,
@@ -81,6 +84,7 @@ export function EditCustomerModal({
   orderHistory: VisitOrOrderEntry[];
   feedbackHistory: CustomerFeedbackEntry[];
   pointHistory: PointLedgerEntry[];
+  stampHistory: StampLedgerEntry[];
   messageHistory: MessageHistoryEntry[];
   messageSummary: { total: number; sent: number; failed: number };
   loadingHistory: boolean;
@@ -276,24 +280,6 @@ export function EditCustomerModal({
                   </button>
                   <button
                     type="button"
-                    onClick={() => onTabChange('history')}
-                    className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                      tab === 'history'
-                        ? 'border-brand-800 text-brand-800 bg-brand-50'
-                        : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
-                    }`}
-                  >
-                    <History className="w-4 h-4 flex-shrink-0" />
-                    <span>포인트</span>
-                    {(pointHistory?.length || 0) > 0 && (
-                      <span className="text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full">
-                        {pointHistory.length}
-                      </span>
-                    )}
-                  </button>
-                  {/* Row 2 */}
-                  <button
-                    type="button"
                     onClick={() => onTabChange('messages')}
                     className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                       tab === 'messages'
@@ -309,8 +295,42 @@ export function EditCustomerModal({
                       </span>
                     )}
                   </button>
-                  {/* Empty cells for grid alignment */}
-                  <div></div>
+                  {/* Row 2 */}
+                  <button
+                    type="button"
+                    onClick={() => onTabChange('history')}
+                    className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                      tab === 'history'
+                        ? 'border-brand-800 text-brand-800 bg-brand-50'
+                        : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
+                    }`}
+                  >
+                    <History className="w-4 h-4 flex-shrink-0" />
+                    <span>포인트</span>
+                    {(pointHistory?.length || 0) > 0 && (
+                      <span className="text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full">
+                        {pointHistory.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onTabChange('stamps')}
+                    className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                      tab === 'stamps'
+                        ? 'border-brand-800 text-brand-800 bg-brand-50'
+                        : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
+                    }`}
+                  >
+                    <Stamp className="w-4 h-4 flex-shrink-0" />
+                    <span>스탬프</span>
+                    {(stampHistory?.length || 0) > 0 && (
+                      <span className="text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full">
+                        {stampHistory.length}
+                      </span>
+                    )}
+                  </button>
+                  {/* Empty cell for grid alignment */}
                   <div></div>
                 </div>
               </div>
@@ -343,6 +363,13 @@ export function EditCustomerModal({
               {tab === 'history' && (
                 <PointHistoryTab
                   pointHistory={pointHistory}
+                  loadingHistory={loadingHistory}
+                />
+              )}
+
+              {tab === 'stamps' && (
+                <StampHistoryTab
+                  stampHistory={stampHistory}
                   loadingHistory={loadingHistory}
                 />
               )}
