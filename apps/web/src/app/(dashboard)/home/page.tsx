@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Modal, ModalContent } from '@/components/ui/modal';
 import { formatNumber, formatCurrency } from '@/lib/utils';
 import { fetchJsonCached, readCache, writeCache } from '@/lib/swr-cache';
-import { Users, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin, Mail, Zap, Bell, Cake, UserPlus, ArrowRight } from 'lucide-react';
+import { Users, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin, Mail, Zap, Bell, Cake, UserPlus, ArrowRight, Gift } from 'lucide-react';
 import {
   XAxis,
   YAxis,
@@ -27,6 +27,7 @@ interface DashboardStats {
   reviewBalance: number;
   monthlyReviews: number;
   reviewGrowth: number;
+  stampRewardCustomers?: number;
 }
 
 interface VisitorChartData {
@@ -486,6 +487,24 @@ export default function HomePage() {
               </div>
               <div className="p-3 bg-brand-50 rounded-lg">
                 <Users className="w-6 h-6 text-brand-800" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 스탬프 보상 수령 고객 */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-neutral-500 mb-1">스탬프 보상 수령 고객</p>
+                <p className="text-3xl font-bold text-neutral-900">
+                  {formatNumber(stats?.stampRewardCustomers ?? 0)}
+                </p>
+                <p className="text-sm text-neutral-400 mt-2">누적 보상 받은 고객 수</p>
+              </div>
+              <div className="p-3 bg-amber-50 rounded-lg">
+                <Gift className="w-6 h-6 text-amber-600" />
               </div>
             </div>
           </CardContent>

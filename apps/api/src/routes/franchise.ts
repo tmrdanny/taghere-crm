@@ -10,6 +10,7 @@ import {
   checkMilestoneAndDraw,
   validateRewards,
 } from '../utils/random-reward.js';
+import { DEFAULT_PRICES, alimtalkCategory } from '../services/pricing-service.js';
 
 const router = Router();
 
@@ -1285,6 +1286,61 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
     console.log('[Franchise Insights] Top stores:', topStores.length);
     console.log('[Franchise Insights] Visit source distribution:', visitSourceDistribution.length);
 
+    // 알림톡 발송 통계 (적립 vs 마케팅) — 전 가맹점, 기간 내 발송완료 건 집계
+    const alimtalkGroups = await prisma.alimTalkOutbox.groupBy({
+      by: ['messageType'],
+      where: {
+        storeId: { in: storeIds },
+        status: 'SENT',
+        createdAt: { gte: startDate, lte: endDate },
+      },
+      _count: { _all: true },
+    });
+
+    // 프랜차이즈 단가 오버라이드 (없으면 기본 단가)
+    const franchisePricing = await prisma.franchise.findUnique({
+      where: { id: franchiseId },
+      select: { priceEarnAlimtalk: true, priceMarketingAlimtalk: true },
+    });
+    const earnUnit = franchisePricing?.priceEarnAlimtalk ?? DEFAULT_PRICES.earnAlimtalk;
+    const marketingUnit = franchisePricing?.priceMarketingAlimtalk ?? DEFAULT_PRICES.marketingAlimtalk;
+
+    let earnCount = 0;
+    let marketingCount = 0;
+    for (const g of alimtalkGroups) {
+      const cnt = g._count._all;
+      const category = alimtalkCategory(g.messageType);
+      if (category === 'earnAlimtalk') earnCount += cnt;
+      else if (category === 'marketingAlimtalk') marketingCount += cnt;
+      // waitingAlimtalk 등은 별도 지표에서 제외
+    }
+
+    const messageStats = {
+      earn: { count: earnCount, amount: earnCount * earnUnit, unitPrice: earnUnit },
+      marketing: { count: marketingCount, amount: marketingCount * marketingUnit, unitPrice: marketingUnit },
+    };
+
+    // 스탬프 보상 수령 고객 수 (통합 스탬프 + 개별 매장 스탬프) — 기간 내 보상 당첨 고객 distinct
+    const franchiseRewardCustomers = await prisma.franchiseStampLedger.findMany({
+      where: {
+        franchiseId,
+        drawnReward: { not: null },
+        createdAt: { gte: startDate, lte: endDate },
+      },
+      select: { franchiseCustomerId: true },
+      distinct: ['franchiseCustomerId'],
+    });
+    const storeRewardCustomers = await prisma.stampLedger.findMany({
+      where: {
+        storeId: { in: storeIds },
+        drawnReward: { not: null },
+        createdAt: { gte: startDate, lte: endDate },
+      },
+      select: { customerId: true },
+      distinct: ['customerId'],
+    });
+    const stampRewardCustomers = franchiseRewardCustomers.length + storeRewardCustomers.length;
+
     // 응답 반환
     res.json({
       ageDistribution,
@@ -1295,7 +1351,9 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
       },
       monthlyTrend,
       topStores,
-      visitSourceDistribution
+      visitSourceDistribution,
+      messageStats,
+      stampRewardCustomers
     });
 
   } catch (error) {
