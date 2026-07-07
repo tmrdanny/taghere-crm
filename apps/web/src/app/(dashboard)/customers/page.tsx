@@ -178,6 +178,8 @@ export default function CustomersPage() {
 
   // 스탬프 보상 티어 목록 (매장 설정 기반)
   const [stampRewardTiers, setStampRewardTiers] = useState<number[]>([5, 10, 15, 20, 25, 30]);
+  // 스탬프 적립 활성화 매장 여부 (활성화 시 포인트 사용/적립 액션 숨김)
+  const [stampEnabled, setStampEnabled] = useState(false);
 
   // 방문 경로 라벨 맵
   const [visitSourceLabelMap, setVisitSourceLabelMap] = useState<Record<string, string>>({});
@@ -270,6 +272,7 @@ export default function CustomersPage() {
         });
         if (res.ok) {
           const data = await res.json();
+          setStampEnabled(!!data.enabled);
           if (data.rewards && Array.isArray(data.rewards) && data.rewards.length > 0) {
             const tiers = data.rewards.map((r: any) => r.tier).sort((a: number, b: number) => a - b);
             setStampRewardTiers(tiers);
@@ -1219,6 +1222,7 @@ export default function CustomersPage() {
         visitSourceLabelMap={visitSourceLabelMap}
         getVisitDescription={getVisitDescription}
         onRowClick={openEditModal}
+        stampEnabled={stampEnabled}
         onUsePoints={openUsePointsModal}
         onEarnPoints={(customer) => {
           setSelectedCustomer(customer);

@@ -129,16 +129,19 @@ function getOrderPaymentHref(taghereVersion?: string): string {
 }
 
 // navGroups 에서 "매장 운영 > 주문/결제" 항목의 href 를 버전에 맞게 치환
-function buildNavGroups(taghereVersion?: string): NavGroup[] {
+// stampEnabled(스탬프 적립 활성화 매장)이면 "포인트 적립" 탭 숨김
+function buildNavGroups(taghereVersion?: string, stampEnabled?: boolean): NavGroup[] {
   const orderPaymentHref = getOrderPaymentHref(taghereVersion);
   return navGroups.map((g) =>
     g.title !== '매장 운영'
       ? g
       : {
           ...g,
-          items: g.items.map((it) =>
-            it.label === '주문/결제' ? { ...it, href: orderPaymentHref } : it
-          ),
+          items: g.items
+            .filter((it) => !(stampEnabled && it.label === '포인트 적립'))
+            .map((it) =>
+              it.label === '주문/결제' ? { ...it, href: orderPaymentHref } : it
+            ),
         }
   );
 }
@@ -227,10 +230,11 @@ interface SidebarProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   taghereVersion?: string;
+  stampEnabled?: boolean;
 }
 
-export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion }: SidebarProps) {
-  const navGroupsForUser = useMemo(() => buildNavGroups(taghereVersion), [taghereVersion]);
+export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEnabled }: SidebarProps) {
+  const navGroupsForUser = useMemo(() => buildNavGroups(taghereVersion, stampEnabled), [taghereVersion, stampEnabled]);
   const pathname = usePathname();
   const { canInstall, handleInstall } = useInstallPrompt();
   const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; featureName?: string }>({ open: false });
@@ -581,9 +585,9 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion }: Sideb
 }
 
 // Mobile Header with Hamburger Menu
-export function MobileHeader({ taghereVersion }: { taghereVersion?: string }) {
+export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?: string; stampEnabled?: boolean }) {
   const pathname = usePathname();
-  const navGroupsForUser = useMemo(() => buildNavGroups(taghereVersion), [taghereVersion]);
+  const navGroupsForUser = useMemo(() => buildNavGroups(taghereVersion, stampEnabled), [taghereVersion, stampEnabled]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { canInstall, handleInstall } = useInstallPrompt();
   const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; featureName?: string }>({ open: false });
