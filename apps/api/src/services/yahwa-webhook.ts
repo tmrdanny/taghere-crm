@@ -106,11 +106,28 @@ export async function notifyYahwaWaitingChange(waitingId: string): Promise<void>
     });
     if (!store?.yahwaEnabled) return;
 
-    const waitingCount = await getStoreWaitingCount(waiting.storeId);
-    const storeEta = await getStoreWaitingEta(waiting.storeId);
+    await notifyYahwaStoreCount(waiting.storeId);
+  } catch (err) {
+    console.error('[Yahwa] notifyYahwaWaitingChange failed:', err);
+  }
+}
+
+/**
+ * 매장의 현재 대기 팀 수/예상시간을 야화로 푸시한다 (카운트 웹훅).
+ * 이벤트 경유(notifyYahwaWaitingChange)와 주기 동기화 워커가 공용으로 사용.
+ * 호출 전 yahwaEnabled 확인은 호출자 책임. env 미설정 시 조용히 스킵.
+ */
+export async function notifyYahwaStoreCount(storeId: string): Promise<void> {
+  try {
+    const url = process.env.YAHWA_WEBHOOK_URL || '';
+    const secret = process.env.YAHWA_WEBHOOK_SECRET || '';
+    if (!url || !secret) return;
+
+    const waitingCount = await getStoreWaitingCount(storeId);
+    const storeEta = await getStoreWaitingEta(storeId);
     const payload = {
       event: 'waiting.count_changed' as const,
-      store_id: waiting.storeId,
+      store_id: storeId,
       waiting_count: waitingCount,
       store_eta_min: storeEta,
       occurred_at: new Date().toISOString(),
@@ -120,6 +137,6 @@ export async function notifyYahwaWaitingChange(waitingId: string): Promise<void>
     const signature = sign(rawBody, secret);
     await postWithRetry(url, rawBody, signature);
   } catch (err) {
-    console.error('[Yahwa] notifyYahwaWaitingChange failed:', err);
+    console.error('[Yahwa] notifyYahwaStoreCount failed:', err);
   }
 }
