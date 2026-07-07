@@ -140,3 +140,38 @@ export async function notifyYahwaStoreCount(storeId: string): Promise<void> {
     console.error('[Yahwa] notifyYahwaStoreCount failed:', err);
   }
 }
+
+/**
+ * 포인트 적립/조정으로 매장 내 고객 잔액이 바뀔 때 야화로 푸시한다 (fire-and-forget).
+ * - yahwaEnabled 매장의 고객 건에만 발송 (그 외 매장은 조용히 스킵).
+ * - 야화가 앱에서 직접 소비(POST /customers/points/spend)한 건은 그 응답으로 이미
+ *   결과를 알고 있으므로 이 웹훅이 필요 없다 — 이건 POS/어드민 등 그 외 모든 변경 경로용.
+ * - 호출 측(포인트 적립/사용 라우트)의 흐름을 막지 않도록 절대 throw 하지 않는다.
+ */
+export async function notifyYahwaPointsChange(customerId: string): Promise<void> {
+  try {
+    const url = process.env.YAHWA_WEBHOOK_URL || '';
+    const secret = process.env.YAHWA_WEBHOOK_SECRET || '';
+    if (!url || !secret) return;
+
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { storeId: true, phoneLastDigits: true, totalPoints: true, store: { select: { yahwaEnabled: true } } },
+    });
+    if (!customer || !customer.store?.yahwaEnabled || !customer.phoneLastDigits) return;
+
+    const payload = {
+      event: 'points.balance_changed' as const,
+      store_id: customer.storeId,
+      phone_last_digits: customer.phoneLastDigits,
+      balance: customer.totalPoints,
+      occurred_at: new Date().toISOString(),
+    };
+
+    const rawBody = JSON.stringify(payload);
+    const signature = sign(rawBody, secret);
+    await postWithRetry(url, rawBody, signature);
+  } catch (err) {
+    console.error('[Yahwa] notifyYahwaPointsChange failed:', err);
+  }
+}

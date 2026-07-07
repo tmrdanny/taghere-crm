@@ -4,6 +4,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { enqueuePointsEarnedAlimTalk, enqueueNaverReviewAlimTalk, enqueuePointsUsedAlimTalk } from '../services/solapi.js';
 import { sidoToShort } from '../utils/address-parser.js';
 import { syncToMetacity } from '../services/metacity.js';
+import { notifyYahwaPointsChange } from '../services/yahwa-webhook.js';
 
 const router = Router();
 
@@ -130,6 +131,7 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
         },
       }),
     ]);
+    notifyYahwaPointsChange(updatedCustomer.id).catch(() => {});
 
     // Create visit record if orderId provided
     if (orderId) {
@@ -296,6 +298,7 @@ router.post('/use', authMiddleware, async (req: AuthRequest, res) => {
         },
       }),
     ]);
+    notifyYahwaPointsChange(updatedCustomer.id).catch(() => {});
 
     // 메타씨티 포인트 사용 동기화 (비동기)
     {
@@ -483,6 +486,7 @@ router.post('/tablet-earn', authMiddleware, async (req: AuthRequest, res) => {
         },
       }),
     ]);
+    notifyYahwaPointsChange(updatedCustomer.id).catch(() => {});
 
     // 메타씨티 포인트 동기화 (비동기)
     {
@@ -818,6 +822,7 @@ router.post('/session/:id/complete', authMiddleware, async (req: AuthRequest, re
         },
       }),
     ]);
+    notifyYahwaPointsChange(updatedCustomer.id).catch(() => {});
 
     // 세션 완료 처리
     await prisma.pointSession.update({
