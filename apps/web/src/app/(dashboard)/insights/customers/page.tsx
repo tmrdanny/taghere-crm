@@ -2,7 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Users, RefreshCw, TrendingUp, MapPin, Calendar } from 'lucide-react';
+import { Users, RefreshCw, TrendingUp, MapPin, Calendar, Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 
@@ -42,6 +42,7 @@ interface CustomerInsights {
   genderAgeSpending: GenderAgeSpending[];
   retention: { day7: number; day30: number };
   visitSourceDistribution: VisitSourceItem[];
+  stampRewardCustomers?: number;
 }
 
 export default function CustomerInsightsPage() {
@@ -475,8 +476,8 @@ export default function CustomerInsightsPage() {
             </div>
           </div>
 
-          {/* 재방문율 카드 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 재방문율 + 스탬프 보상 카드 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white rounded-xl border border-neutral-200 p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -500,6 +501,20 @@ export default function CustomerInsightsPage() {
                 </div>
               </div>
               <div className="text-3xl font-bold text-neutral-900">{insights.retention.day30}%</div>
+            </div>
+            <div className="bg-white rounded-xl border border-neutral-200 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                  <Gift className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-neutral-900">스탬프 보상 수령 고객</h3>
+                  <p className="text-xs text-neutral-500">기간 내 보상 받은 고객 수</p>
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-neutral-900">
+                {(insights.stampRewardCustomers ?? 0).toLocaleString()}명
+              </div>
             </div>
           </div>
 
