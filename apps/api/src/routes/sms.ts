@@ -9,6 +9,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { SolapiService, buildPhoneResultMap } from '../services/solapi.js';
 import { calculateCostWithCredits } from '../services/credit-service.js';
 import { chargeCampaignUpfront } from '../services/message-billing.js';
+import { resolvePrice } from '../services/pricing-service.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 import { getByteLength } from '../utils/byte-length.js';
 import { getAgeGroupBirthYearRange, buildRegionConditions, buildFilterConditions } from '../lib/customer-filters.js';
@@ -200,7 +201,10 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
     // 비용 계산 - 이미지 첨부 시 MMS 비용(110원), 아니면 SMS 비용(50원)
     const byteLength = getByteLength((content as string) || '');
     const isImageAttached = hasImage === 'true';
-    const costPerMessage = isImageAttached ? MMS_COST : (byteLength > 90 ? SMS_COST_LONG : SMS_COST_SHORT);
+    // 문자(SMS/LMS) 단가는 프랜차이즈 오버라이드 적용, MMS(이미지)는 별도 단가 유지
+    const costPerMessage = isImageAttached
+      ? MMS_COST
+      : await resolvePrice(storeId, 'sms', byteLength > 90 ? SMS_COST_LONG : SMS_COST_SHORT);
     const messageType = isImageAttached ? 'MMS' : (byteLength > 90 ? 'LMS' : 'SMS');
 
     // 리타겟 페이지 여부 확인 (/messages 페이지에서 호출 시 무료 크레딧 적용)
@@ -328,9 +332,11 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     // 이미지 첨부 여부 확인
     const hasImage = !!imageUrl;
 
-    // 비용 계산 - 이미지 첨부 시 MMS 비용(110원)
+    // 비용 계산 - 이미지 첨부 시 MMS 비용, 문자(SMS/LMS)는 프랜차이즈 단가 오버라이드 적용
     const byteLength = getByteLength(content);
-    const costPerMessage = hasImage ? MMS_COST : (byteLength > 90 ? SMS_COST_LONG : SMS_COST_SHORT);
+    const costPerMessage = hasImage
+      ? MMS_COST
+      : await resolvePrice(storeId, 'sms', byteLength > 90 ? SMS_COST_LONG : SMS_COST_SHORT);
     const messageType = hasImage ? 'MMS' : (byteLength > 90 ? 'LMS' : 'SMS');
 
     // 무료 크레딧 적용 계산 (리타겟 페이지에서 발송하므로 isRetarget = true)

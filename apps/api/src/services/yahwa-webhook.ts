@@ -4,6 +4,7 @@ import {
   EXTERNAL_SOURCE,
   computeWaitingState,
   getStoreWaitingCount,
+  getStoreWaitingEta,
 } from './yahwa-waiting.js';
 
 const prisma = prismaClient as any;
@@ -60,6 +61,7 @@ export async function notifyYahwaStatusChange(waitingId: string): Promise<void> 
 
     const state = await computeWaitingState(waiting);
     const waitingCount = await getStoreWaitingCount(waiting.storeId);
+    const storeEta = await getStoreWaitingEta(waiting.storeId);
 
     const payload = {
       event: 'waiting.status_changed' as const,
@@ -68,6 +70,7 @@ export async function notifyYahwaStatusChange(waitingId: string): Promise<void> 
       status: state.status,
       position: state.position,
       waiting_count: waitingCount,
+      store_eta_min: storeEta,
       occurred_at: new Date().toISOString(),
     };
 
@@ -76,5 +79,99 @@ export async function notifyYahwaStatusChange(waitingId: string): Promise<void> 
     await postWithRetry(url, rawBody, signature);
   } catch (err) {
     console.error('[Yahwa] notifyYahwaStatusChange failed:', err);
+  }
+}
+
+/**
+ * 웨이팅 변동을 야화로 푸시한다 (fire-and-forget). 모든 등록 경로 공용.
+ * - 야화 연동(externalSource=YAHWA) 웨이팅: 상태+카운트 웹훅 (notifyYahwaStatusChange).
+ * - 그 외(태블릿/수기 등): 매장이 yahwaEnabled면 카운트만 푸시 —
+ *   야화 지도의 "웨이팅 N팀" 표시는 매장 전체 대기 수가 필요해서 출처와 무관하게 보낸다.
+ */
+export async function notifyYahwaWaitingChange(waitingId: string): Promise<void> {
+  try {
+    const url = process.env.YAHWA_WEBHOOK_URL || '';
+    const secret = process.env.YAHWA_WEBHOOK_SECRET || '';
+    if (!url || !secret) return;
+
+    const waiting = await prisma.waitingList.findUnique({ where: { id: waitingId } });
+    if (!waiting) return;
+    if (waiting.externalSource === EXTERNAL_SOURCE) {
+      return notifyYahwaStatusChange(waitingId);
+    }
+
+    const store = await prisma.store.findUnique({
+      where: { id: waiting.storeId },
+      select: { yahwaEnabled: true },
+    });
+    if (!store?.yahwaEnabled) return;
+
+    await notifyYahwaStoreCount(waiting.storeId);
+  } catch (err) {
+    console.error('[Yahwa] notifyYahwaWaitingChange failed:', err);
+  }
+}
+
+/**
+ * 매장의 현재 대기 팀 수/예상시간을 야화로 푸시한다 (카운트 웹훅).
+ * 이벤트 경유(notifyYahwaWaitingChange)와 주기 동기화 워커가 공용으로 사용.
+ * 호출 전 yahwaEnabled 확인은 호출자 책임. env 미설정 시 조용히 스킵.
+ */
+export async function notifyYahwaStoreCount(storeId: string): Promise<void> {
+  try {
+    const url = process.env.YAHWA_WEBHOOK_URL || '';
+    const secret = process.env.YAHWA_WEBHOOK_SECRET || '';
+    if (!url || !secret) return;
+
+    const waitingCount = await getStoreWaitingCount(storeId);
+    const storeEta = await getStoreWaitingEta(storeId);
+    const payload = {
+      event: 'waiting.count_changed' as const,
+      store_id: storeId,
+      waiting_count: waitingCount,
+      store_eta_min: storeEta,
+      occurred_at: new Date().toISOString(),
+    };
+
+    const rawBody = JSON.stringify(payload);
+    const signature = sign(rawBody, secret);
+    await postWithRetry(url, rawBody, signature);
+  } catch (err) {
+    console.error('[Yahwa] notifyYahwaStoreCount failed:', err);
+  }
+}
+
+/**
+ * 포인트 적립/조정으로 매장 내 고객 잔액이 바뀔 때 야화로 푸시한다 (fire-and-forget).
+ * - yahwaEnabled 매장의 고객 건에만 발송 (그 외 매장은 조용히 스킵).
+ * - 야화가 앱에서 직접 소비(POST /customers/points/spend)한 건은 그 응답으로 이미
+ *   결과를 알고 있으므로 이 웹훅이 필요 없다 — 이건 POS/어드민 등 그 외 모든 변경 경로용.
+ * - 호출 측(포인트 적립/사용 라우트)의 흐름을 막지 않도록 절대 throw 하지 않는다.
+ */
+export async function notifyYahwaPointsChange(customerId: string): Promise<void> {
+  try {
+    const url = process.env.YAHWA_WEBHOOK_URL || '';
+    const secret = process.env.YAHWA_WEBHOOK_SECRET || '';
+    if (!url || !secret) return;
+
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { storeId: true, phoneLastDigits: true, totalPoints: true, store: { select: { yahwaEnabled: true } } },
+    });
+    if (!customer || !customer.store?.yahwaEnabled || !customer.phoneLastDigits) return;
+
+    const payload = {
+      event: 'points.balance_changed' as const,
+      store_id: customer.storeId,
+      phone_last_digits: customer.phoneLastDigits,
+      balance: customer.totalPoints,
+      occurred_at: new Date().toISOString(),
+    };
+
+    const rawBody = JSON.stringify(payload);
+    const signature = sign(rawBody, secret);
+    await postWithRetry(url, rawBody, signature);
+  } catch (err) {
+    console.error('[Yahwa] notifyYahwaPointsChange failed:', err);
   }
 }

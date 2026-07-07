@@ -14,6 +14,8 @@ import {
   MessageSquare,
   ChevronDown,
   Compass,
+  Gift,
+  Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -53,6 +55,11 @@ const DEMO_INSIGHTS = {
     { source: 'kakao', label: '카카오톡', count: 300, percentage: 8 },
     { source: 'youtube', label: '유튜브', count: 200, percentage: 4 },
   ],
+  messageStats: {
+    earn: { count: 12400, amount: 124000, unitPrice: 10 },
+    marketing: { count: 3200, amount: 160000, unitPrice: 50 },
+  },
+  stampRewardCustomers: 842,
 };
 
 interface AgeDistribution {
@@ -78,6 +85,12 @@ interface VisitSourceData {
   percentage: number;
 }
 
+interface MessageStat {
+  count: number;
+  amount: number;
+  unitPrice: number;
+}
+
 interface Insights {
   ageDistribution: AgeDistribution[];
   genderDistribution: { male: number; female: number; total: number };
@@ -85,6 +98,8 @@ interface Insights {
   monthlyTrend: MonthlyTrend[];
   topStores: TopStore[];
   visitSourceDistribution: VisitSourceData[];
+  messageStats?: { earn: MessageStat; marketing: MessageStat };
+  stampRewardCustomers?: number;
 }
 
 export default function FranchiseInsightsPage() {
@@ -590,6 +605,67 @@ export default function FranchiseInsightsPage() {
                 <p className="text-xs text-slate-500 mt-1">최근 30일 내 재방문한 고객 비율</p>
               </div>
             </div>
+
+            {/* 알림톡 발송 통계 + 스탬프 보상 수령 고객 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {/* 적립 알림톡 */}
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <MessageSquare className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">적립 알림톡 발송</span>
+                </div>
+                <p className="text-3xl font-bold text-slate-900">
+                  {(insights.messageStats?.earn.count ?? 0).toLocaleString()}
+                  <span className="text-lg font-medium text-slate-500 ml-1">건</span>
+                </p>
+                <p className="text-sm text-slate-600 mt-1">
+                  {(insights.messageStats?.earn.amount ?? 0).toLocaleString()}원
+                  <span className="text-xs text-slate-400 ml-1">
+                    (건당 {(insights.messageStats?.earn.unitPrice ?? 0).toLocaleString()}원)
+                  </span>
+                </p>
+              </div>
+
+              {/* 마케팅 알림톡 */}
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Send className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">마케팅 알림톡 발송</span>
+                </div>
+                <p className="text-3xl font-bold text-slate-900">
+                  {(insights.messageStats?.marketing.count ?? 0).toLocaleString()}
+                  <span className="text-lg font-medium text-slate-500 ml-1">건</span>
+                </p>
+                <p className="text-sm text-slate-600 mt-1">
+                  {(insights.messageStats?.marketing.amount ?? 0).toLocaleString()}원
+                  <span className="text-xs text-slate-400 ml-1">
+                    (건당 {(insights.messageStats?.marketing.unitPrice ?? 0).toLocaleString()}원)
+                  </span>
+                </p>
+              </div>
+
+              {/* 스탬프 보상 수령 고객 */}
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-2 bg-amber-100 rounded-lg">
+                    <Gift className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">스탬프 보상 수령 고객</span>
+                </div>
+                <p className="text-3xl font-bold text-slate-900">
+                  {(insights.stampRewardCustomers ?? 0).toLocaleString()}
+                  <span className="text-lg font-medium text-slate-500 ml-1">명</span>
+                </p>
+                <p className="text-xs text-slate-500 mt-1">전 가맹점 · 기간 내 보상 받은 고객 수</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 -mt-4 mb-6">
+              * 알림톡 금액은 현재 단가 기준 추정치이며 무료 발송분은 포함하지 않습니다.
+            </p>
 
             {/* Charts Row 1 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

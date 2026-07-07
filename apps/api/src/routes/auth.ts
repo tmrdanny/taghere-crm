@@ -302,7 +302,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const user = await prisma.staffUser.findUnique({
       where: { id: req.user!.id },
-      include: { store: true },
+      include: { store: { include: { stampSetting: { select: { enabled: true } } } } },
     });
 
     if (!user) {
@@ -320,6 +320,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res) => {
         id: user.store.id,
         name: user.store.name,
         taghereVersion: user.store.taghereVersion,
+        stampEnabled: user.store.stampSetting?.enabled ?? false,
       },
     });
   } catch (error) {

@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma.js';
 import { SolapiService, sendLowBalanceAlimTalk } from './solapi.js';
 import { getRemainingCredits, useCredits } from './credit-service.js';
 import { sendAligoAlimtalk } from './aligo.js';
+import { resolveAlimtalkCost } from './pricing-service.js';
 
 const BATCH_SIZE = 10;
 const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
@@ -117,7 +118,10 @@ async function processMessage(messageId: string): Promise<void> {
           // 발송 성공 확인됨
           const isLowBalanceMessage = msg.messageType === 'LOW_BALANCE';
           const isFreeMsg = isLowBalanceMessage || msg.messageType === 'CORPORATE_AD';
-          const cost = isFreeMsg ? 0 : (ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST);
+          // 프랜차이즈 단가 오버라이드 적용 (없으면 기본 단가)
+          const cost = isFreeMsg
+            ? 0
+            : await resolveAlimtalkCost(msg.storeId, msg.messageType, ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST);
 
           if (isFreeMsg) {
             await prisma.alimTalkOutbox.update({
@@ -180,8 +184,10 @@ async function processMessage(messageId: string): Promise<void> {
     const isLowBalanceMessage = msg.messageType === 'LOW_BALANCE';
     const isFreeMessage = isLowBalanceMessage || msg.messageType === 'CORPORATE_AD';
 
-    // 메시지 타입에 따른 비용 결정 (무료 타입은 0원)
-    const cost = isFreeMessage ? 0 : (ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST);
+    // 메시지 타입에 따른 비용 결정 (무료 타입은 0원, 프랜차이즈 단가 오버라이드 적용)
+    const cost = isFreeMessage
+      ? 0
+      : await resolveAlimtalkCost(msg.storeId, msg.messageType, ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST);
 
     // LOW_BALANCE가 아닌 경우에만 잔액 확인
     // RETARGET_COUPON 및 자동화 메시지는 무료 크레딧 적용 가능

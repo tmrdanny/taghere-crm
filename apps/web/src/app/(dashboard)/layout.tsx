@@ -17,6 +17,7 @@ interface User {
     id: string;
     name: string;
     taghereVersion?: string;
+    stampEnabled?: boolean;
   };
 }
 
@@ -105,5 +106,5 @@ export default function DashboardLayout({
     return null;
   }
 
-  return <MainLayout taghereVersion={user.store.taghereVersion}>{children}</MainLayout>;
+  return <MainLayout taghereVersion={user.store.taghereVersion} stampEnabled={user.store.stampEnabled}>{children}</MainLayout>;
 }

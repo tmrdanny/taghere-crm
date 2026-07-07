@@ -94,6 +94,14 @@ router.get('/summary', authMiddleware, async (req: AuthRequest, res) => {
       },
     });
 
+    // 스탬프 보상 받은 총 고객 수 (전체 기간, 보상 당첨 이력이 있는 distinct 고객)
+    const rewardRecipients = await prisma.stampLedger.findMany({
+      where: { storeId, drawnReward: { not: null } },
+      select: { customerId: true },
+      distinct: ['customerId'],
+    });
+    const stampRewardCustomers = rewardRecipients.length;
+
     res.json({
       totalCustomers,
       customerGrowth,
@@ -103,6 +111,7 @@ router.get('/summary', authMiddleware, async (req: AuthRequest, res) => {
       reviewBalance: wallet?.balance || 0,
       monthlyReviews: reviewLogsThisMonth,
       reviewGrowth,
+      stampRewardCustomers,
     });
   } catch (error) {
     console.error('Dashboard summary error:', error);

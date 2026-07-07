@@ -18,6 +18,7 @@ export function CustomerTable({
   visitSourceLabelMap,
   getVisitDescription,
   onRowClick,
+  stampEnabled,
   onUsePoints,
   onEarnPoints,
   onEarnStamps,
@@ -39,6 +40,7 @@ export function CustomerTable({
   visitSourceLabelMap: Record<string, string>;
   getVisitDescription: (customer: Customer) => string;
   onRowClick: (customer: Customer) => void;
+  stampEnabled?: boolean;
   onUsePoints: (customer: Customer) => void;
   onEarnPoints: (customer: Customer) => void;
   onEarnStamps: (customer: Customer) => void;
@@ -259,20 +261,24 @@ export function CustomerTable({
                     {isColumnVisible('actions') && (
                       <td className="p-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex flex-col gap-2">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => onUsePoints(customer)}
-                          >
-                            포인트 사용
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => onEarnPoints(customer)}
-                          >
-                            포인트 적립
-                          </Button>
+                          {!stampEnabled && (
+                            <>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => onUsePoints(customer)}
+                              >
+                                포인트 사용
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => onEarnPoints(customer)}
+                              >
+                                포인트 적립
+                              </Button>
+                            </>
+                          )}
                           <Button
                             variant="secondary"
                             size="sm"

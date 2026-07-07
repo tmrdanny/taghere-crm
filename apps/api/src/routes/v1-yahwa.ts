@@ -8,6 +8,7 @@ import {
 } from '../services/yahwa-waiting.js';
 import { cancelWaiting } from '../services/waiting.js';
 import { notifyYahwaStatusChange } from '../services/yahwa-webhook.js';
+import { spendYahwaPoints } from '../services/yahwa-points.js';
 
 const prisma = prismaClient as any;
 
@@ -277,6 +278,71 @@ router.post('/waitings/:waitingId/cancel', async (req, res) => {
     res.status(200).json({ waiting_id: waiting.id, status: 'cancelled' });
   } catch (err) {
     console.error('[Yahwa] POST /waitings/:id/cancel error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+/**
+ * 6. 포인트 조회 — POST /api/v1/customers/points/lookup
+ * 야화 연동(yahwaEnabled) 매장들 중, 전화번호 뒷 8자리가 일치하는 고객의 매장별 포인트 잔액을 반환.
+ * 야화 사용자가 연락처를 등록/변경할 때 초기 동기화(pull)에 사용.
+ *
+ * body: { phone_last_digits: string }  // 숫자 8자리
+ * resp: { balances: [{ store_id, balance, updated_at }] }
+ */
+router.post('/customers/points/lookup', async (req, res) => {
+  try {
+    const phoneLastDigits = String(req.body?.phone_last_digits ?? '').replace(/\D/g, '');
+    if (phoneLastDigits.length !== 8) {
+      return res.status(400).json({ error: 'invalid_request', message: 'phone_last_digits는 숫자 8자리여야 합니다.' });
+    }
+
+    const customers = await prisma.customer.findMany({
+      where: { phoneLastDigits, store: { yahwaEnabled: true } },
+      select: { storeId: true, totalPoints: true, updatedAt: true },
+    });
+
+    res.status(200).json({
+      balances: customers.map((c: any) => ({
+        store_id: c.storeId,
+        balance: c.totalPoints,
+        updated_at: c.updatedAt.toISOString(),
+      })),
+    });
+  } catch (err) {
+    console.error('[Yahwa] POST /customers/points/lookup error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+/**
+ * 7. 포인트 차감(사용) — POST /api/v1/customers/points/spend
+ * 야화 앱에서 포인트를 소비할 때 호출. 태그히어가 진실원천 — 이 매장들(고객의 야화 연동
+ * 매장 잔액) 중에서 잔액이 큰 순으로 차감해 매장 수를 최소화한다. 전액 부족 시 아무것도
+ * 차감하지 않고 실패 반환(원자적, 부분 차감 없음). idempotency_key로 재요청 시 최초 결과 재반환.
+ *
+ * body: { phone_last_digits: string, amount: number, idempotency_key: string }
+ * resp 200: { ok:true, spent: number, total_balance: number, stores: [{store_id, balance}] }
+ * resp 409: { ok:false, error: 'insufficient_points', available: number }
+ * resp 404: { ok:false, error: 'not_found' }  // 야화 연동 매장에 해당 전화번호 고객 없음
+ */
+router.post('/customers/points/spend', async (req, res) => {
+  try {
+    const phoneLastDigits = String(req.body?.phone_last_digits ?? '').replace(/\D/g, '');
+    const amount = Number(req.body?.amount);
+    const idempotencyKey = String(req.body?.idempotency_key ?? '');
+    if (phoneLastDigits.length !== 8 || !Number.isInteger(amount) || amount <= 0 || !idempotencyKey) {
+      return res.status(400).json({ error: 'invalid_request' });
+    }
+
+    const result = await spendYahwaPoints({ phoneLastDigits, amount, idempotencyKey });
+    if (!result.ok) {
+      const statusCode = result.error === 'not_found' ? 404 : 409;
+      return res.status(statusCode).json(result);
+    }
+    res.status(200).json(result);
+  } catch (err) {
+    console.error('[Yahwa] POST /customers/points/spend error:', err);
     res.status(500).json({ error: 'internal_error' });
   }
 });

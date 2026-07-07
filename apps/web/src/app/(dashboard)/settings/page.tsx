@@ -56,6 +56,9 @@ interface UserInfo {
   email: string;
 }
 
+// 비밀번호 변경 기능 노출 여부 (요청에 따라 일단 숨김)
+const SHOW_PASSWORD_CHANGE = false;
+
 export default function SettingsPage() {
   const router = useRouter();
   const apiUrl = API_BASE;
@@ -798,9 +801,10 @@ export default function SettingsPage() {
                   </p>
                 </div>
                 <Switch
-                  checked={stampAlimtalkEnabled && canEnableAlimtalk}
+                  checked={stampAlimtalkEnabled}
                   onCheckedChange={handleToggleStampAlimtalk}
-                  disabled={isSavingStampAlimtalk || !canEnableAlimtalk}
+                  // 끄기는 충전금과 무관하게 항상 허용, 켜기는 잔액 부족 시에만 차단
+                  disabled={isSavingStampAlimtalk || (!canEnableAlimtalk && !stampAlimtalkEnabled)}
                 />
               </div>
             </div>
@@ -917,7 +921,8 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Password Change Card */}
+        {/* Password Change Card — 일단 숨김 (SHOW_PASSWORD_CHANGE 로 재노출 가능) */}
+        {SHOW_PASSWORD_CHANGE && (
         <Card>
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
@@ -977,6 +982,7 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );

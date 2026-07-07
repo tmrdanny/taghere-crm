@@ -1008,6 +1008,13 @@ model Franchise {
   logoUrl       String?
   logo          Bytes?   // 로고 이미지 파일 (DB 저장)
   logoMimeType  String?  // 로고 MIME 타입 (image/png, image/jpeg 등)
+
+  // 산하 매장에 일괄 적용되는 메시지 단가 오버라이드 (null = 기본 단가 사용)
+  priceEarnAlimtalk      Int?   // 기본 적립 알림톡(포인트/스탬프 적립·사용) 단가, 기본 20원
+  priceMarketingAlimtalk Int?   // 마케팅 알림톡(리뷰요청/리타겟/자동화 등) 단가, 기본 50원
+  priceSms               Int?   // 문자(SMS/LMS) 단가, 기본 50원
+  priceWaitingAlimtalk   Int?   // 웨이팅 알림톡 단가, 기본 20원
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
