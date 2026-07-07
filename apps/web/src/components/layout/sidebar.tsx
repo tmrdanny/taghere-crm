@@ -149,6 +149,7 @@ function buildNavGroups(taghereVersion?: string, stampEnabled?: boolean): NavGro
 // 하단 독립 메뉴
 const bottomNavItems: NavItem[] = [
   { href: '/message-history', label: '발송 내역', icon: History },
+  { href: '/wallet-history', label: '충전금 이용내역', icon: DollarSign },
   { href: '/store', label: '스토어', icon: ShoppingBag, badge: '태블릿' },
   { href: '/billing', label: '충전 관리', icon: CreditCard },
   { href: '/settings', label: '설정', icon: Settings },

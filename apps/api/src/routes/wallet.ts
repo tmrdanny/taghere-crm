@@ -2,6 +2,12 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { PaymentTransactionType } from '@prisma/client';
+import {
+  classifyWalletTx,
+  describeWalletTx,
+  WALLET_USAGE_LABELS,
+  WalletUsageCategory,
+} from '../utils/wallet-usage.js';
 
 const router = Router();
 
@@ -117,6 +123,95 @@ router.get('/transactions', authMiddleware, async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Wallet transactions error:', error);
     res.status(500).json({ error: '결제 내역 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/wallet/usage-history - 충전금 이용내역 (충전/적립 알림톡/마케팅 등 전체 흐름)
+router.get('/usage-history', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { page = '1', limit = '30', period = '30days', startDate: startDateParam, endDate: endDateParam, category } = req.query;
+
+    const pageNum = Math.max(1, parseInt(page as string) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string) || 30));
+
+    // 기간 계산
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date = now;
+    if (startDateParam && typeof startDateParam === 'string') {
+      startDate = new Date(startDateParam);
+      startDate.setHours(0, 0, 0, 0);
+      if (endDateParam && typeof endDateParam === 'string') {
+        endDate = new Date(endDateParam);
+        endDate.setHours(23, 59, 59, 999);
+      }
+    } else {
+      switch (period) {
+        case '7days': startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+        case '90days': startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); break;
+        case 'all': startDate = new Date(0); break;
+        case '30days':
+        default: startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+      }
+    }
+
+    // 기간 내 전체 트랜잭션 조회 (분류가 meta 기반이라 메모리 집계, 상한 20,000건)
+    const txs = await prisma.paymentTransaction.findMany({
+      where: {
+        storeId,
+        status: 'SUCCESS',
+        createdAt: { gte: startDate, lte: endDate },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, amount: true, type: true, meta: true, createdAt: true },
+      take: 20000,
+    });
+
+    const classified = txs.map((tx) => {
+      const cat = classifyWalletTx(tx as any);
+      return {
+        id: tx.id,
+        createdAt: tx.createdAt,
+        amount: tx.amount,
+        category: cat,
+        categoryLabel: WALLET_USAGE_LABELS[cat],
+        description: describeWalletTx(tx as any),
+      };
+    });
+
+    // 요약 (기간 전체 기준): 충전 = TOPUP 합, 사용 = 음수 합, 환불 = TOPUP 외 양수 합
+    let topupTotal = 0;
+    let usedTotal = 0;
+    let refundTotal = 0;
+    const byCategory: Record<string, { count: number; amount: number }> = {};
+    for (const tx of classified) {
+      if (!byCategory[tx.category]) byCategory[tx.category] = { count: 0, amount: 0 };
+      byCategory[tx.category].count += 1;
+      byCategory[tx.category].amount += tx.amount;
+      if (tx.category === 'topup') topupTotal += tx.amount;
+      else if (tx.amount > 0) refundTotal += tx.amount;
+      else usedTotal += -tx.amount;
+    }
+
+    // 카테고리 필터 + 페이지네이션
+    const filtered = category && typeof category === 'string' && category !== 'all'
+      ? classified.filter((t) => t.category === (category as WalletUsageCategory))
+      : classified;
+    const total = filtered.length;
+    const transactions = filtered.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+
+    const wallet = await prisma.wallet.findUnique({ where: { storeId } });
+
+    res.json({
+      balance: wallet?.balance ?? 0,
+      summary: { topupTotal, usedTotal, refundTotal, byCategory },
+      transactions,
+      pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
+    });
+  } catch (error) {
+    console.error('Wallet usage history error:', error);
+    res.status(500).json({ error: '충전금 이용내역 조회 중 오류가 발생했습니다.' });
   }
 });
 

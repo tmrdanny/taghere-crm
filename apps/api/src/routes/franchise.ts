@@ -11,6 +11,7 @@ import {
   validateRewards,
 } from '../utils/random-reward.js';
 import { DEFAULT_PRICES, alimtalkCategory } from '../services/pricing-service.js';
+import { classifyWalletTx, describeWalletTx, WALLET_USAGE_LABELS } from '../utils/wallet-usage.js';
 
 const router = Router();
 
@@ -2378,6 +2379,140 @@ router.put('/reward-claims/:id', async (req: FranchiseAuthRequest, res) => {
   } catch (error) {
     console.error('Update reward claim error:', error);
     res.status(500).json({ error: '보상 신청 처리 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/franchise/wallet-usage - 가맹점별 충전금 이용내역
+// storeId 없으면: 가맹점별 요약 (충전/적립 알림톡/마케팅/기타/잔액)
+// storeId 있으면: 해당 가맹점의 상세 트랜잭션 목록
+router.get('/wallet-usage', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { period = '30days', startDate: startDateParam, endDate: endDateParam, storeId } = req.query;
+
+    // 기간 계산 (인사이트와 동일한 규칙)
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date = now;
+    if (startDateParam && typeof startDateParam === 'string') {
+      startDate = new Date(startDateParam);
+      startDate.setHours(0, 0, 0, 0);
+      if (endDateParam && typeof endDateParam === 'string') {
+        endDate = new Date(endDateParam);
+        endDate.setHours(23, 59, 59, 999);
+      }
+    } else {
+      switch (period) {
+        case '7days': startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+        case '90days': startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); break;
+        case 'all': startDate = new Date(0); break;
+        case '30days':
+        default: startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+      }
+    }
+
+    // 특정 가맹점 상세 내역
+    if (storeId && typeof storeId === 'string') {
+      const store = await prisma.store.findFirst({
+        where: { id: storeId, franchiseId },
+        select: { id: true, name: true, wallet: { select: { balance: true } } },
+      });
+      if (!store) {
+        return res.status(404).json({ error: '가맹점을 찾을 수 없습니다.' });
+      }
+
+      const txs = await prisma.paymentTransaction.findMany({
+        where: { storeId, status: 'SUCCESS', createdAt: { gte: startDate, lte: endDate } },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, amount: true, type: true, meta: true, createdAt: true },
+        take: 200,
+      });
+
+      return res.json({
+        storeName: store.name,
+        balance: store.wallet?.balance ?? 0,
+        transactions: txs.map((tx) => {
+          const cat = classifyWalletTx(tx as any);
+          return {
+            id: tx.id,
+            createdAt: tx.createdAt,
+            amount: tx.amount,
+            category: cat,
+            categoryLabel: WALLET_USAGE_LABELS[cat],
+            description: describeWalletTx(tx as any),
+          };
+        }),
+      });
+    }
+
+    // 가맹점별 요약
+    const stores = await prisma.store.findMany({
+      where: { franchiseId },
+      select: { id: true, name: true, wallet: { select: { balance: true } } },
+      orderBy: { name: 'asc' },
+    });
+    const storeIds = stores.map((s) => s.id);
+
+    const txs = await prisma.paymentTransaction.findMany({
+      where: { storeId: { in: storeIds }, status: 'SUCCESS', createdAt: { gte: startDate, lte: endDate } },
+      select: { storeId: true, amount: true, type: true, meta: true },
+      take: 100000,
+    });
+
+    const byStore: Record<string, { topup: number; earnAlimtalk: number; marketing: number; etc: number; used: number }> = {};
+    for (const tx of txs) {
+      if (!byStore[tx.storeId]) byStore[tx.storeId] = { topup: 0, earnAlimtalk: 0, marketing: 0, etc: 0, used: 0 };
+      const s = byStore[tx.storeId];
+      const cat = classifyWalletTx(tx as any);
+      if (cat === 'topup') {
+        s.topup += tx.amount;
+        continue;
+      }
+      if (tx.amount < 0) {
+        const used = -tx.amount;
+        s.used += used;
+        if (cat === 'earn_alimtalk') s.earnAlimtalk += used;
+        else if (cat === 'marketing') s.marketing += used;
+        else s.etc += used;
+      } else {
+        // 환불 등 양수 유입은 사용액에서 차감
+        s.used -= tx.amount;
+        if (cat === 'earn_alimtalk') s.earnAlimtalk -= tx.amount;
+        else if (cat === 'marketing') s.marketing -= tx.amount;
+        else s.etc -= tx.amount;
+      }
+    }
+
+    const storeSummaries = stores.map((store) => {
+      const s = byStore[store.id] || { topup: 0, earnAlimtalk: 0, marketing: 0, etc: 0, used: 0 };
+      return {
+        storeId: store.id,
+        storeName: store.name,
+        balance: store.wallet?.balance ?? 0,
+        topup: s.topup,
+        earnAlimtalk: s.earnAlimtalk,
+        marketing: s.marketing,
+        etc: s.etc,
+        used: s.used,
+      };
+    });
+
+    const totals = storeSummaries.reduce(
+      (acc, s) => ({
+        topup: acc.topup + s.topup,
+        earnAlimtalk: acc.earnAlimtalk + s.earnAlimtalk,
+        marketing: acc.marketing + s.marketing,
+        etc: acc.etc + s.etc,
+        used: acc.used + s.used,
+        balance: acc.balance + s.balance,
+      }),
+      { topup: 0, earnAlimtalk: 0, marketing: 0, etc: 0, used: 0, balance: 0 },
+    );
+
+    res.json({ stores: storeSummaries, totals });
+  } catch (error) {
+    console.error('Franchise wallet usage error:', error);
+    res.status(500).json({ error: '충전금 이용내역 조회 중 오류가 발생했습니다.' });
   }
 });
 
