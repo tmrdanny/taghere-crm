@@ -238,6 +238,16 @@ router.get('/customers', async (req: AuthRequest, res) => {
       });
     }
 
+    // 스탬프 보상 받은 고객 수 (기간 필터 동일 적용, 보상 당첨 이력 distinct 고객)
+    const rewardWhere: any = { storeId, drawnReward: { not: null } };
+    if (whereCondition.createdAt) rewardWhere.createdAt = whereCondition.createdAt;
+    const rewardRecipients = await prisma.stampLedger.findMany({
+      where: rewardWhere,
+      select: { customerId: true },
+      distinct: ['customerId'],
+    });
+    const stampRewardCustomers = rewardRecipients.length;
+
     res.json({
       totalCustomers,
       genderDistribution,
@@ -245,6 +255,7 @@ router.get('/customers', async (req: AuthRequest, res) => {
       genderAgeSpending,
       retention,
       visitSourceDistribution,
+      stampRewardCustomers,
     });
   } catch (error) {
     console.error('Customer insights error:', error);
