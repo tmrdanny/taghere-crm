@@ -43,6 +43,8 @@ interface Store {
   metacityStoreIdx?: string | null;
   metacityAccessCode?: string | null;
   metacityMembershipType?: 'INTEGRATED' | 'STANDALONE';
+  // 야화 연동(웨이팅·성별통계·포인트 동기화) — /api/v1 노출 여부
+  yahwaEnabled?: boolean;
   // Monthly credit
   monthlyCredit?: {
     total: number;
@@ -259,6 +261,7 @@ export default function AdminStoresPage() {
       metacityStoreIdx: store.metacityStoreIdx ?? '',
       metacityAccessCode: store.metacityAccessCode ?? '',
       metacityMembershipType: store.metacityMembershipType ?? 'INTEGRATED',
+      yahwaEnabled: store.yahwaEnabled ?? false,
     });
     setPointRateInput(String(store.pointRatePercent ?? 5));
     setIsEditMode(false);
@@ -1452,6 +1455,35 @@ export default function AdminStoresPage() {
                         : 'bg-blue-100 text-blue-700'
                     }`}>
                       {selectedStore.taghereVersion === 'v2' ? 'V2' : 'V1'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* 야화 연동 카드 (웨이팅·실시간 성별통계·포인트 동기화) */}
+              <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-[15px] font-semibold text-neutral-900">야화 연동</h4>
+                    <p className="text-[12px] text-neutral-500 mt-0.5">웨이팅·실시간 성별통계·포인트가 야화 앱과 동기화됩니다.</p>
+                  </div>
+                  {isEditMode ? (
+                    <button
+                      type="button"
+                      onClick={() => setEditForm({ ...editForm, yahwaEnabled: !editForm.yahwaEnabled })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
+                        editForm.yahwaEnabled ? 'bg-green-500' : 'bg-neutral-300'
+                      }`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        editForm.yahwaEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`} />
+                    </button>
+                  ) : (
+                    <span className={`inline-block px-2.5 py-1 text-[12px] font-medium rounded-full shrink-0 ${
+                      selectedStore.yahwaEnabled ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'
+                    }`}>
+                      {selectedStore.yahwaEnabled ? 'ON' : 'OFF'}
                     </span>
                   )}
                 </div>

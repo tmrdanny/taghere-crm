@@ -83,6 +83,7 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
           metacityStoreIdx: true,
           metacityAccessCode: true,
           metacityMembershipType: true,
+          yahwaEnabled: true,
           wallet: { select: { balance: true } },
         },
       }),
@@ -141,6 +142,8 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         metacityStoreIdx: (store as any).metacityStoreIdx ?? null,
         metacityAccessCode: (store as any).metacityAccessCode ?? null,
         metacityMembershipType: (store as any).metacityMembershipType ?? 'INTEGRATED',
+        // 야화 연동(웨이팅·성별통계·포인트 동기화) — /api/v1 노출 여부
+        yahwaEnabled: (store as any).yahwaEnabled ?? false,
         walletBalance: store.wallet?.balance || 0,
         monthlyCredit: {
           total: totalCredits,
@@ -241,6 +244,7 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       metacityStoreIdx,
       metacityAccessCode,
       metacityMembershipType,
+      yahwaEnabled,
     } = req.body;
 
     // 메타씨티 회원 유형 정규화
@@ -327,6 +331,7 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
         ...(metacityStoreIdx !== undefined && { metacityStoreIdx: metacityStoreIdx || null }),
         ...(metacityAccessCode !== undefined && { metacityAccessCode: metacityAccessCode || null }),
         ...(normalizedMembershipType !== undefined && { metacityMembershipType: normalizedMembershipType }),
+        ...(yahwaEnabled !== undefined && { yahwaEnabled: !!yahwaEnabled }),
       } as any,
     });
 

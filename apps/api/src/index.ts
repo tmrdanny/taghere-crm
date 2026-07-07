@@ -78,6 +78,7 @@ import { startChatResetWorker } from './services/chat-reset-worker.js';
 import { startPlaceBoosterWorker } from './services/place-booster-worker.js';
 import { startUniqueCustomerSyncWorker } from './services/unique-customer-sync.js';
 import { startYahwaCountSyncWorker } from './services/yahwa-count-sync-worker.js';
+import { bootstrapEnableYahwaStoresByName } from './services/yahwa-bootstrap.js';
 import { initChatSocket } from './services/chat-socket.js';
 import chatSettingsRoutes from './routes/chat-settings.js';
 import publicChatRoutes from './routes/public-chat.js';
@@ -412,4 +413,5 @@ httpServer.listen(PORT, () => {
   startPlaceBoosterWorker();
   startUniqueCustomerSyncWorker();
   startYahwaCountSyncWorker();
+  void bootstrapEnableYahwaStoresByName();
 });
