@@ -13,7 +13,7 @@ router.use(authMiddleware);
 // POST /api/stamps/tablet-earn - 태블릿에서 전화번호 기반 스탬프 적립
 router.post('/tablet-earn', async (req: AuthRequest, res) => {
   try {
-    const { phone, marketingConsent, gender, ageGroup } = req.body;
+    const { phone, marketingConsent, gender, ageGroup, count } = req.body;
     const storeId = req.user!.storeId;
 
     if (marketingConsent !== true) {
@@ -57,6 +57,16 @@ router.post('/tablet-earn', async (req: AuthRequest, res) => {
       return res.status(400).json({ error: '스탬프 기능이 비활성화되어 있습니다.' });
     }
 
+    // 매번 적립 개수 직접 입력 모드: count(양의 정수) 필수, 하루 1회 제한 해제, 첫 보너스 무시
+    const manualMode = !!stampSetting.manualStampCountEnabled;
+    let earnCount = 1;
+    if (manualMode) {
+      earnCount = Number(count);
+      if (!Number.isInteger(earnCount) || earnCount < 1) {
+        return res.status(400).json({ error: '적립할 스탬프 개수를 올바르게 입력해주세요.' });
+      }
+    }
+
     // 고객 조회 또는 생성
     let customer = await prisma.customer.findFirst({
       where: { storeId, phoneLastDigits },
@@ -98,21 +108,24 @@ router.post('/tablet-earn', async (req: AuthRequest, res) => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const todayEarn = await prisma.stampLedger.findFirst({
-      where: {
-        storeId,
-        customerId: customer.id,
-        type: 'EARN',
-        createdAt: { gte: todayStart },
-      },
-    });
-
-    if (todayEarn) {
-      return res.status(400).json({
-        error: '오늘 이미 스탬프를 적립했습니다.',
-        alreadyEarned: true,
-        currentStamps: customer.totalStamps,
+    // 수동 개수 모드가 아닐 때만 하루 1회 제한 적용
+    if (!manualMode) {
+      const todayEarn = await prisma.stampLedger.findFirst({
+        where: {
+          storeId,
+          customerId: customer.id,
+          type: 'EARN',
+          createdAt: { gte: todayStart },
+        },
       });
+
+      if (todayEarn) {
+        return res.status(400).json({
+          error: '오늘 이미 스탬프를 적립했습니다.',
+          alreadyEarned: true,
+          currentStamps: customer.totalStamps,
+        });
+      }
     }
 
     // 방문 판단
@@ -129,7 +142,7 @@ router.post('/tablet-earn', async (req: AuthRequest, res) => {
 
     // 스탬프 적립 (트랜잭션)
     const result = await prisma.$transaction(async (tx) => {
-      const newBalance = customer!.totalStamps + 1;
+      const newBalance = customer!.totalStamps + earnCount;
 
       const updatedCustomer = await tx.customer.update({
         where: { id: customer!.id },
@@ -145,7 +158,7 @@ router.post('/tablet-earn', async (req: AuthRequest, res) => {
           storeId,
           customerId: customer!.id,
           type: 'EARN',
-          delta: 1,
+          delta: earnCount,
           balance: newBalance,
           earnMethod: 'MANUAL',
           reason: '태블릿 적립',
@@ -170,7 +183,7 @@ router.post('/tablet-earn', async (req: AuthRequest, res) => {
       phone: phoneNumber,
       variables: {
         storeName: store.name || '매장',
-        earnedStamps: 1,
+        earnedStamps: earnCount,
         totalStamps: result.customer.totalStamps,
         stampUsageRule,
         reviewGuide: '',
@@ -187,7 +200,7 @@ router.post('/tablet-earn', async (req: AuthRequest, res) => {
         totalStamps: result.customer.totalStamps,
         visitCount: result.customer.visitCount,
       },
-      earnedStamps: 1,
+      earnedStamps: earnCount,
       newBalance: result.customer.totalStamps,
       isNewCustomer,
     });
@@ -421,6 +434,39 @@ router.post('/adjust', async (req: AuthRequest, res) => {
 
       return { customer: updatedCustomer, ledger };
     });
+
+    // 매번 적립 개수 직접 입력 모드 매장은 CRM 수동 적립(delta>0) 시에도 고객에게 적립 알림톡 발송
+    if (delta > 0) {
+      const [setting, store] = await Promise.all([
+        prisma.stampSetting.findUnique({ where: { storeId } }),
+        prisma.store.findUnique({ where: { id: storeId }, select: { name: true } }),
+      ]);
+      if (setting?.manualStampCountEnabled) {
+        const phoneNumber = (customer.phone || '').replace(/[^0-9]/g, '');
+        const rewards = (setting.rewards as unknown as RewardEntry[] | null)
+          ?? buildRewardsFromLegacy(setting as any);
+        const stampUsageRule = rewards && rewards.length > 0
+          ? rewards.map((r) => `${r.tier}개: ${r.description}`).join(', ')
+          : '';
+        if (phoneNumber) {
+          enqueueStampEarnedAlimTalk({
+            storeId,
+            customerId,
+            stampLedgerId: result.ledger.id,
+            phone: phoneNumber,
+            variables: {
+              storeName: store?.name || '매장',
+              earnedStamps: delta,
+              totalStamps: result.customer.totalStamps,
+              stampUsageRule,
+              reviewGuide: '',
+            },
+          }).catch((err) => {
+            console.error('[StampAdjust] AlimTalk enqueue failed:', err);
+          });
+        }
+      }
+    }
 
     res.json({
       success: true,

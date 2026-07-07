@@ -4,6 +4,7 @@ import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { trackEvent, setUserId } from '@/lib/analytics';
+import { StampCountPrompt } from '@/components/StampCountPrompt';
 
 // ============================================
 // 로컬스토리지 헬퍼 함수 (kakaoId 저장용)
@@ -679,6 +680,11 @@ function TaghereEnrollStampContent() {
   const [showAgreementWarning, setShowAgreementWarning] = useState(false);
   const [isAutoEarning, setIsAutoEarning] = useState(false);
   const autoEarnAttemptedRef = useRef(false);
+  // 매번 적립 개수 직접 입력 모드: 개수 팝업 상태
+  const [showCountPrompt, setShowCountPrompt] = useState(false);
+  const [countPromptStoreName, setCountPromptStoreName] = useState('');
+  const [countKakaoId, setCountKakaoId] = useState<string | null>(null);
+  const [isSubmittingCount, setIsSubmittingCount] = useState(false);
   const [visitSourceOptions, setVisitSourceOptions] = useState<VisitSourceOption[]>([]);
   const [visitSourceEnabled, setVisitSourceEnabled] = useState(false);
   const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[]>([]);
@@ -833,7 +839,77 @@ function TaghereEnrollStampContent() {
     }
   };
 
+  // 적립 성공 데이터 반영 (개수 입력 적립/자동 적립 공용)
+  const applyEarnSuccess = (data: any) => {
+    const apiRewards: RewardInfo[] = Array.isArray(data.rewards)
+      ? data.rewards.map((r: any) => ({
+          tier: r.tier,
+          description: r.description || '',
+          isRandom: r.options && Array.isArray(r.options) && r.options.length > 1,
+        }))
+      : [];
+    setSuccessData({
+      storeName: data.storeName,
+      customerId: data.customerId,
+      currentStamps: data.currentStamps,
+      hasExistingPreferences: data.hasExistingPreferences || false,
+      hasVisitSource: data.hasVisitSource || false,
+      rewards: apiRewards,
+      drawnReward: data.drawnReward || null,
+      drawnRewardTier: data.drawnRewardTier || null,
+      franchiseName: data.franchiseName || null,
+    });
+    setStampInfo(null);
+    setUserId(data.customerId);
+    trackOnce('earn_success', { flow_type: 'stamp', store_slug: slug, stamps: data.currentStamps, has_reward: !!data.drawnReward, is_auto_earned: false });
+  };
+
+  // 매번 적립 개수 직접 입력 모드: 팝업에서 개수 확정 시 적립 실행
+  const submitCountEarn = async (kakaoId: string, count: number) => {
+    setIsSubmittingCount(true);
+    try {
+      const apiUrl = API_BASE;
+      const res = await fetch(`${apiUrl}/api/taghere/stamp-earn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kakaoId,
+          ordersheetId: ordersheetId || undefined,
+          slug,
+          count,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setShowCountPrompt(false);
+        applyEarnSuccess(data);
+      } else if (data.error === 'invalid_kakao_id') {
+        removeStoredKakaoId();
+        setShowCountPrompt(false);
+        setError('로그인 정보가 만료되었습니다. 다시 시도해주세요.');
+      } else {
+        setError(data.message || '적립 중 오류가 발생했습니다.');
+      }
+    } catch (e) {
+      console.error('Count earn failed:', e);
+      setError('적립 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmittingCount(false);
+    }
+  };
+
   useEffect(() => {
+    // 매번 적립 개수 직접 입력 모드: 카카오 로그인 복귀 후 개수 입력 팝업을 띄운다 (아직 적립 전)
+    const needCount = searchParams.get('needCount');
+    if (needCount === '1' && urlKakaoId) {
+      saveKakaoId(urlKakaoId);
+      setCountKakaoId(urlKakaoId);
+      setCountPromptStoreName(successStoreName || '');
+      setShowCountPrompt(true);
+      setIsLoading(false);
+      return;
+    }
+
     // Check if redirected back with success data
     if (successStamps && customerId) {
       // 카카오 로그인 성공 후 리다이렉트 → kakaoId 저장
@@ -923,9 +999,17 @@ function TaghereEnrollStampContent() {
           setStampInfo(data);
           setIsLoading(false);
 
-          // 자동 적립 시도
           if (shouldAutoEarn && storedKakaoId) {
-            attemptAutoEarn(storedKakaoId, data);
+            if (data.manualStampCountEnabled) {
+              // 매번 개수 직접 입력 모드: 자동 적립 대신 개수 팝업을 띄운다
+              setIsAutoEarning(false);
+              setCountKakaoId(storedKakaoId);
+              setCountPromptStoreName(data.storeName || '');
+              setShowCountPrompt(true);
+            } else {
+              // 자동 적립 시도
+              attemptAutoEarn(storedKakaoId, data);
+            }
           }
           return;
         } else if (res.status === 404) {
@@ -1020,6 +1104,41 @@ function TaghereEnrollStampContent() {
     window.location.href = url.toString();
   };
 
+  // X 버튼/취소 시 처리 (early return보다 위에 선언되어야 TDZ 회피)
+  const handleSkipEarn = () => {
+    const url = new URL(window.location.origin + '/taghere-enroll/order-success');
+    url.searchParams.set('type', 'stamp');
+    url.searchParams.set('slug', slug);
+    if (ordersheetId) {
+      url.searchParams.set(orderParamName, ordersheetId);
+    }
+    window.location.href = url.toString();
+  };
+
+  // 매번 적립 개수 직접 입력 모드: 개수 입력 팝업 (적립 전, 다른 UI 위에 오버레이)
+  if (showCountPrompt && !successData) {
+    return (
+      <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
+        <div className="w-full max-w-md h-full flex flex-col items-center justify-center bg-white gap-4">
+          <div className="text-4xl">🎫</div>
+          <p className="text-sm text-neutral-500">스탬프 적립을 진행해주세요.</p>
+        </div>
+        <StampCountPrompt
+          open={showCountPrompt}
+          storeName={countPromptStoreName}
+          submitting={isSubmittingCount}
+          onCancel={() => {
+            setShowCountPrompt(false);
+            handleSkipEarn();
+          }}
+          onConfirm={(count) => {
+            if (countKakaoId) submitCountEarn(countKakaoId, count);
+          }}
+        />
+      </div>
+    );
+  }
+
   if (isLoading || isAutoEarning) {
     return (
       <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
@@ -1050,17 +1169,6 @@ function TaghereEnrollStampContent() {
       </div>
     );
   }
-
-  // X 버튼 클릭 시 처리
-  const handleSkipEarn = () => {
-    const url = new URL(window.location.origin + '/taghere-enroll/order-success');
-    url.searchParams.set('type', 'stamp');
-    url.searchParams.set('slug', slug);
-    if (ordersheetId) {
-      url.searchParams.set(orderParamName, ordersheetId);
-    }
-    window.location.href = url.toString();
-  };
 
   // 보상 텍스트 결정 (가장 낮은 단계의 보상 표시)
   const rewardText = (() => {

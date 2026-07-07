@@ -174,6 +174,7 @@ export default function StampSettingsPage() {
   const [enabled, setEnabled] = useState(true);
   const [firstStampBonus, setFirstStampBonus] = useState(1);
   const [isSavingBonus, setIsSavingBonus] = useState(false);
+  const [manualStampCountEnabled, setManualStampCountEnabled] = useState(false);
   const [selectedTiers, setSelectedTiers] = useState<number[]>([]);
   const [rewardOptions, setRewardOptions] = useState<Record<number, RewardOption[]>>({});
 
@@ -223,6 +224,7 @@ export default function StampSettingsPage() {
           setLocked(data.locked ?? false);
           setEnabled(data.enabled);
           setFirstStampBonus(data.firstStampBonus && data.firstStampBonus >= 1 ? data.firstStampBonus : 1);
+          setManualStampCountEnabled(!!data.manualStampCountEnabled);
 
           // rewards JSON 기반으로 로드
           const rewards: RewardEntry[] = data.rewards || [];
@@ -359,6 +361,40 @@ export default function StampSettingsPage() {
     } catch (error) {
       console.error('Failed to toggle stamp enabled:', error);
       setEnabled(!newEnabled);
+    }
+  };
+
+  const handleToggleManualCount = async (newValue: boolean) => {
+    if (locked) {
+      showToast('본사에서 스탬프 설정을 관리하고 있어 수정할 수 없습니다.', 'error');
+      return;
+    }
+    setManualStampCountEnabled(newValue);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/api/stamp-settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ manualStampCountEnabled: newValue }),
+      });
+      if (res.ok) {
+        showToast(
+          newValue
+            ? '매번 적립 개수 직접 입력이 켜졌습니다.'
+            : '매번 적립 개수 직접 입력이 꺼졌습니다.',
+          'success'
+        );
+      } else {
+        setManualStampCountEnabled(!newValue);
+        showToast('저장 중 오류가 발생했습니다.', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to toggle manual stamp count:', error);
+      setManualStampCountEnabled(!newValue);
+      showToast('저장 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -544,6 +580,35 @@ export default function StampSettingsPage() {
               >
                 {isSavingBonus ? '저장 중...' : '저장'}
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 매번 적립 개수 직접 입력 카드 */}
+        <Card className={!enabled ? 'opacity-50 pointer-events-none' : ''}>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <Stamp className="w-5 h-5 text-neutral-600" />
+              <CardTitle className="text-lg">매번 적립 개수 직접 입력</CardTitle>
+            </div>
+            <p className="text-sm text-neutral-500 mt-1">
+              카페 음료 개수처럼, 적립할 때마다 스탬프 개수를 직접 입력합니다.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="pr-4">
+                <p className="font-medium text-neutral-900">적립 개수 직접 입력</p>
+                <p className="text-sm text-neutral-500 mt-1">
+                  토글 ON 하시면 스탬프 적립 시 개수 입력 팝업이 뜹니다. <strong>하루 1회 적립 제한이 해제되고</strong>,
+                  첫 방문 보너스 대신 입력한 개수만 적립됩니다. CRM 수동 적립 시에도 고객에게 적립 알림톡이 발송됩니다.
+                </p>
+              </div>
+              <Switch
+                checked={manualStampCountEnabled}
+                onCheckedChange={handleToggleManualCount}
+                disabled={!enabled}
+              />
             </div>
           </CardContent>
         </Card>

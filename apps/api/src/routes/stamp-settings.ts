@@ -57,6 +57,7 @@ router.get('/', async (req: AuthRequest, res) => {
       enabled: setting.enabled,
       rewards,
       firstStampBonus: setting.firstStampBonus,
+      manualStampCountEnabled: setting.manualStampCountEnabled,
       alimtalkEnabled: setting.alimtalkEnabled,
       locked,
       // 레거시 호환 필드 (기존 클라이언트용)
@@ -94,6 +95,18 @@ router.put('/', async (req: AuthRequest, res) => {
         update: { alimtalkEnabled: !!req.body.alimtalkEnabled },
       });
       return res.json({ alimtalkEnabled: setting.alimtalkEnabled });
+    }
+
+    // 매번 적립 개수 직접 입력 토글만 단독 변경 (매장 자율 설정 → 본사 잠금과 무관)
+    const isManualCountOnly = bodyKeys.length > 0 && bodyKeys.every((k) => k === 'manualStampCountEnabled');
+    if (isManualCountOnly) {
+      const value = !!req.body.manualStampCountEnabled;
+      const setting = await prisma.stampSetting.upsert({
+        where: { storeId },
+        create: { storeId, manualStampCountEnabled: value },
+        update: { manualStampCountEnabled: value },
+      });
+      return res.json({ manualStampCountEnabled: setting.manualStampCountEnabled });
     }
 
     // 본사가 스탬프 설정을 잠근 경우 점주는 수정 불가

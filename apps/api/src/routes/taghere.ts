@@ -1036,6 +1036,7 @@ router.get('/stamp-info/:slug', async (req, res) => {
       storeId: store.id,
       storeName: store.name,
       enabled: true,
+      manualStampCountEnabled: !!store.stampSetting.manualStampCountEnabled,
       rewards,
       ...legacyFields,
     });
@@ -1273,7 +1274,7 @@ router.get('/food-court/:slug/:tableNumber/redirect/:boothId', async (req, res) 
 // POST /api/taghere/stamp-earn - 스탬프 자동 적립 (카카오 로그인 후)
 router.post('/stamp-earn', async (req, res) => {
   try {
-    const { kakaoId, slug, earnMethod = 'NFC_TAG', isHitejinro } = req.body;
+    const { kakaoId, slug, earnMethod = 'NFC_TAG', isHitejinro, count } = req.body;
     const ordersheetId = req.body.ordersheetId || req.body.orderId;
 
     // 1. 파라미터 검증
@@ -1344,6 +1345,21 @@ router.post('/stamp-earn', async (req, res) => {
         error: 'stamp_disabled',
         message: '스탬프 기능이 비활성화되어 있습니다.',
       });
+    }
+
+    // 매번 적립 개수 직접 입력 모드 (하이트진로/프랜차이즈 통합 제외)
+    // → count(양의 정수) 필수, 하루 1회 제한 해제, 첫 방문 보너스 무시
+    const manualMode = !isHitejinro && !isFranchiseStampMode && !!store.stampSetting?.manualStampCountEnabled;
+    let manualCount = 1;
+    if (manualMode) {
+      manualCount = Number(count);
+      if (!Number.isInteger(manualCount) || manualCount < 1) {
+        return res.status(400).json({
+          success: false,
+          error: 'invalid_count',
+          message: '적립할 스탬프 개수를 올바르게 입력해주세요.',
+        });
+      }
     }
 
     // 4. kakaoId로 해당 매장의 고객 조회
@@ -1422,7 +1438,7 @@ router.post('/stamp-earn', async (req, res) => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    if (!isFranchiseStampMode) {
+    if (!isFranchiseStampMode && !manualMode) {
       const todayEarn = await prisma.stampLedger.findFirst({
         where: {
           storeId: store.id,
@@ -1721,7 +1737,10 @@ router.post('/stamp-earn', async (req, res) => {
     const previousStamps = customer!.totalStamps ?? 0;
     const isFirstEarn = (customer!.visitCount ?? 0) === 0;
     const firstStampCount = store.stampSetting?.firstStampBonus ?? 1;
-    const stampDelta = isFirstEarn && firstStampCount > 1 ? firstStampCount : 1;
+    // 수동 개수 모드: 입력한 개수만 적립 (첫 방문 보너스 무시)
+    const stampDelta = manualMode
+      ? manualCount
+      : (isFirstEarn && firstStampCount > 1 ? firstStampCount : 1);
     console.log(`[TagHere Stamp-Earn] Before transaction - customerId: ${customer!.id}, previousStamps: ${previousStamps}${stampDelta > 1 ? `, firstStampCount: ${stampDelta}` : ''}`);
 
     const result = await prisma.$transaction(async (tx) => {
@@ -1748,9 +1767,11 @@ router.post('/stamp-earn', async (req, res) => {
           ordersheetId: ordersheetId || null,
           earnMethod: earnMethod as any,
           tableLabel: tableLabel,
-          reason: stampDelta > 1
-            ? `첫 방문 스탬프 적립 (${stampDelta}개)`
-            : (ordersheetId ? `태그히어 주문 적립 (${ordersheetId})` : '스탬프 적립'),
+          reason: manualMode
+            ? `스탬프 적립 (${stampDelta}개)`
+            : (stampDelta > 1
+              ? `첫 방문 스탬프 적립 (${stampDelta}개)`
+              : (ordersheetId ? `태그히어 주문 적립 (${ordersheetId})` : '스탬프 적립')),
         },
       });
 

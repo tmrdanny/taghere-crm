@@ -1414,6 +1414,9 @@ model StampSetting {
   // 첫 적립 보너스 (0 = 보너스 없음, 예: 2 → 첫 방문 시 1+2=3개 적립)
   firstStampBonus       Int      @default(0)
 
+  // 매번 적립 개수 직접 입력 (true = 적립 시마다 직원이 개수 입력, 하루 1회 제한 해제, 첫 보너스 무시)
+  manualStampCountEnabled Boolean @default(false)
+
   // 알림톡 설정
   alimtalkEnabled       Boolean  @default(true)
 

@@ -874,6 +874,9 @@ async function handleStampCallback(
     store.franchise?.franchiseStampSetting
   );
 
+  // 매번 적립 개수 직접 입력 모드 (하이트진로/프랜차이즈 제외) → 하루 1회 제한 해제, 클라이언트에서 적립
+  const manualCountMode = !stateData.isHitejinro && !isFranchiseStampMode && !!store.stampSetting?.manualStampCountEnabled;
+
   // 스탬프 기능 활성화 확인 (통합 스탬프 또는 개별 스탬프)
   // 하이트진로 전용 링크는 매장 스탬프 설정과 무관하게 적립 허용
   if (!stateData.isHitejinro && !isFranchiseStampMode && !store.stampSetting?.enabled) {
@@ -934,7 +937,7 @@ async function handleStampCallback(
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  if (customer) {
+  if (customer && !manualCountMode) {
     const todayEarn = await prisma.stampLedger.findFirst({
       where: {
         storeId: store.id,
@@ -1287,6 +1290,18 @@ async function handleStampCallback(
   // ============================================
   // 기존 매장 개별 스탬프 적립
   // ============================================
+
+  // 매번 적립 개수 직접 입력 모드: 서버에서 적립하지 않고 개수 입력을 위해 클라이언트로 복귀
+  // (고객은 위에서 이미 생성/조회됨 → 클라이언트가 kakaoId+count로 stamp-earn 호출)
+  if (manualCountMode) {
+    const countUrl = new URL(`${redirectOrigin}${stampBasePath}`);
+    countUrl.searchParams.set('needCount', '1');
+    countUrl.searchParams.set('kakaoId', kakaoId);
+    countUrl.searchParams.set('customerId', customer!.id);
+    countUrl.searchParams.set('successStoreName', store.name);
+    if (stateData.ordersheetId) countUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
+    return res.redirect(countUrl.toString());
+  }
 
   // 스탬프 적립 (트랜잭션) - 스탬프 적립 시 무조건 방문횟수 +1
   const previousStamps = customer!.totalStamps ?? 0;

@@ -6,6 +6,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Delete, Loader2, CheckCircle2, Stamp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { StampCountPrompt } from '@/components/StampCountPrompt';
 
 
 const GENDER_OPTIONS = [
@@ -40,6 +41,9 @@ export default function StampTabletPage() {
 
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [newBalance, setNewBalance] = useState(0);
+
+  const [manualCountEnabled, setManualCountEnabled] = useState(false);
+  const [showCountPrompt, setShowCountPrompt] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +84,22 @@ export default function StampTabletPage() {
     }
   }, [router]);
 
+  const fetchStampSetting = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      const res = await fetch(`${API_BASE}/api/stamp-settings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setManualCountEnabled(!!data.manualStampCountEnabled);
+      }
+    } catch (err) {
+      console.error('Failed to fetch stamp setting:', err);
+    }
+  }, []);
+
   const fetchVisitSourceOptions = useCallback(async (slug: string) => {
     if (!slug) return;
     try {
@@ -96,7 +116,8 @@ export default function StampTabletPage() {
 
   useEffect(() => {
     fetchStoreInfo();
-  }, [fetchStoreInfo]);
+    fetchStampSetting();
+  }, [fetchStoreInfo, fetchStampSetting]);
 
   useEffect(() => {
     if (storeSlug) fetchVisitSourceOptions(storeSlug);
@@ -143,6 +164,17 @@ export default function StampTabletPage() {
       return;
     }
 
+    // 매번 적립 개수 직접 입력 모드: 개수 입력 팝업을 먼저 띄운다
+    if (manualCountEnabled) {
+      setError(null);
+      setShowCountPrompt(true);
+      return;
+    }
+
+    await doEarn();
+  };
+
+  const doEarn = async (count?: number) => {
     setIsLoading(true);
     setError(null);
 
@@ -164,6 +196,7 @@ export default function StampTabletPage() {
           marketingConsent: true,
           gender: gender || undefined,
           ageGroup: ageGroup || undefined,
+          ...(count !== undefined && { count }),
         }),
       });
 
@@ -179,6 +212,7 @@ export default function StampTabletPage() {
       }
 
       const data = await res.json();
+      setShowCountPrompt(false);
       setCustomerId(data.customer?.id ?? null);
       setNewBalance(data.newBalance);
 
@@ -230,6 +264,7 @@ export default function StampTabletPage() {
     setSelectedVisitSource(null);
     setCustomerId(null);
     setNewBalance(0);
+    setShowCountPrompt(false);
     setError(null);
     setTimeout(() => hiddenInputRef.current?.focus(), 100);
   };
@@ -593,6 +628,17 @@ export default function StampTabletPage() {
           )}
         </div>
       </div>
+
+      <StampCountPrompt
+        open={showCountPrompt}
+        storeName={storeName}
+        submitting={isLoading}
+        variant="tablet"
+        onCancel={() => {
+          setShowCountPrompt(false);
+        }}
+        onConfirm={(count) => doEarn(count)}
+      />
     </div>
   );
 }
