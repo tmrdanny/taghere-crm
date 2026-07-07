@@ -74,6 +74,7 @@ type PeriodKey = '7일' | '30일' | '90일' | '전체';
 
 export default function HomePage() {
   const router = useRouter();
+  const [storeName, setStoreName] = useState('');
   const [chartPeriod, setChartPeriod] = useState<PeriodKey>('7일');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [visitorChartData, setVisitorChartData] = useState<{ day: string; visitors: number }[]>([]);
@@ -99,6 +100,19 @@ export default function HomePage() {
     const dismissed = localStorage.getItem('promo-popup-dismissed');
     if (!dismissed) {
       setShowPromoPopup(true);
+    }
+  }, []);
+
+  // 상호명 표시 (DashboardLayout이 /api/auth/me 조회 후 저장한 캐시 재사용)
+  useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem('auth-me-cache');
+      if (cached) {
+        const { user } = JSON.parse(cached);
+        if (user?.store?.name) setStoreName(user.store.name);
+      }
+    } catch {
+      // 캐시 파싱 실패 시 무시
     }
   }, []);
 
@@ -448,6 +462,11 @@ export default function HomePage() {
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+      {/* 가맹점 상호명 */}
+      {storeName && (
+        <h1 className="text-xl md:text-2xl font-bold text-neutral-900 mb-4">{storeName}</h1>
+      )}
+
       {/* Announcements */}
       {announcements.length > 0 && (
         <div className="mb-6 space-y-3">
