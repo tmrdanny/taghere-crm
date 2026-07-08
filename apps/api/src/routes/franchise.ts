@@ -1231,7 +1231,8 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
       });
     }
 
-    // 7. 가맹점별 고객 수 Top 5 — 단일 groupBy (기존: 가맹점 수만큼 count 쿼리)
+    // 7. 가맹점별 고객 수 — 단일 groupBy (기존: 가맹점 수만큼 count 쿼리)
+    // 전체 가맹점을 고객 수 내림차순으로 반환 (프론트에서 페이지네이션 처리)
     const storeCustomerCounts = await prisma.customer.groupBy({
       by: ['storeId'],
       where: {
@@ -1247,8 +1248,7 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
         name: storeNameMap.get(g.storeId) || '',
         customers: g._count.id
       }))
-      .sort((a, b) => b.customers - a.customers)
-      .slice(0, 5);
+      .sort((a, b) => b.customers - a.customers);
 
     // 8. 방문경로별 통계
     const visitSourceLabels: Record<string, string> = {

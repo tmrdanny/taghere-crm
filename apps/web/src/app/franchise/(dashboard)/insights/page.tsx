@@ -13,6 +13,8 @@ import {
   ArrowDown,
   MessageSquare,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Compass,
   Gift,
   Send,
@@ -108,6 +110,10 @@ export default function FranchiseInsightsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState('all');
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
 
+  // 가맹점별 고객 현황 페이지네이션 (20개씩)
+  const STORES_PER_PAGE = 20;
+  const [storesPage, setStoresPage] = useState(1);
+
   // 날짜 범위 선택 관련 상태
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -180,6 +186,11 @@ export default function FranchiseInsightsPage() {
   useEffect(() => {
     fetchInsights();
   }, [fetchInsights]);
+
+  // 데이터(기간 등)가 바뀌면 가맹점 목록 페이지를 1로 초기화
+  useEffect(() => {
+    setStoresPage(1);
+  }, [insights.topStores]);
 
   // 날짜 범위 적용
   const applyDateRange = () => {
@@ -737,7 +748,9 @@ export default function FranchiseInsightsPage() {
                 <Users className="w-5 h-5 text-slate-600" />
                 <h3 className="text-lg font-semibold text-slate-900">가맹점별 고객 현황</h3>
               </div>
-              <p className="text-sm text-slate-500 mb-4">가맹점별 고객 수를 보여줍니다</p>
+              <p className="text-sm text-slate-500 mb-4">
+                전체 {insights.topStores.length.toLocaleString()}개 가맹점을 고객 수 순으로 보여줍니다
+              </p>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -747,30 +760,77 @@ export default function FranchiseInsightsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {insights.topStores.map((store, index) => (
-                      <tr key={store.name} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <span className={cn(
-                              'w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium',
-                              index === 0 ? 'bg-amber-100 text-amber-700' :
-                                index === 1 ? 'bg-slate-200 text-slate-600' :
-                                  index === 2 ? 'bg-orange-100 text-orange-700' :
-                                    'bg-slate-100 text-slate-500'
-                            )}>
-                              {index + 1}
-                            </span>
-                            <span className="text-sm font-medium text-slate-900">{store.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm font-medium text-slate-900">
-                          {store.customers.toLocaleString()}명
+                    {insights.topStores
+                      .slice((storesPage - 1) * STORES_PER_PAGE, storesPage * STORES_PER_PAGE)
+                      .map((store, i) => {
+                        const rank = (storesPage - 1) * STORES_PER_PAGE + i;
+                        return (
+                          <tr key={`${store.name}-${rank}`} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <span className={cn(
+                                  'w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-medium',
+                                  rank === 0 ? 'bg-amber-100 text-amber-700' :
+                                    rank === 1 ? 'bg-slate-200 text-slate-600' :
+                                      rank === 2 ? 'bg-orange-100 text-orange-700' :
+                                        'bg-slate-100 text-slate-500'
+                                )}>
+                                  {rank + 1}
+                                </span>
+                                <span className="text-sm font-medium text-slate-900">{store.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right text-sm font-medium text-slate-900">
+                              {store.customers.toLocaleString()}명
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    {insights.topStores.length === 0 && (
+                      <tr>
+                        <td colSpan={2} className="px-4 py-8 text-center text-sm text-slate-400">
+                          표시할 가맹점이 없습니다
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
+
+              {/* 페이지네이션 */}
+              {insights.topStores.length > STORES_PER_PAGE && (() => {
+                const totalPages = Math.ceil(insights.topStores.length / STORES_PER_PAGE);
+                const rangeStart = (storesPage - 1) * STORES_PER_PAGE + 1;
+                const rangeEnd = Math.min(storesPage * STORES_PER_PAGE, insights.topStores.length);
+                return (
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                    <p className="text-xs text-slate-500">
+                      {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} / {insights.topStores.length.toLocaleString()}개
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setStoresPage((p) => Math.max(1, p - 1))}
+                        disabled={storesPage === 1}
+                        className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        aria-label="이전 페이지"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <span className="px-3 text-sm font-medium text-slate-700 tabular-nums">
+                        {storesPage} / {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setStoresPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={storesPage === totalPages}
+                        className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        aria-label="다음 페이지"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </>
         )}
