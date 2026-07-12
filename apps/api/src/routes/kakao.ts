@@ -412,7 +412,7 @@ router.get('/callback', async (req, res) => {
 
 // GET /auth/kakao/taghere-start - TagHere 전용 카카오 로그인 시작
 router.get('/taghere-start', (req, res) => {
-  const { storeId, slug, origin, isStamp, isMyPage, isMembership, isHitejinro, barcode, returnPath } = req.query;
+  const { storeId, slug, origin, isStamp, isMyPage, isMembership, isHitejinro, barcode, returnPath, t } = req.query;
   const ordersheetId = (req.query.ordersheetId || req.query.orderId) as string | undefined;
 
   // origin 검증: 허용된 도메인만 허용 (보안)
@@ -445,6 +445,7 @@ router.get('/taghere-start', (req, res) => {
       isHitejinro: isHitejinro === 'true',  // 하이트진로 프랜차이즈
       ...(barcode ? { barcode: String(barcode) } : {}),
       ...(returnPath ? { returnPath: String(returnPath) } : {}),
+      ...(t ? { t: String(t) } : {}),  // 링크 스캔 토큰
       origin: validOrigin,  // origin을 state에 포함
     })
   ).toString('base64');
@@ -761,7 +762,7 @@ async function handleMembershipCallback(
 async function handleStampCallback(
   req: Request,
   res: Response,
-  stateData: { storeId: string; ordersheetId: string; slug: string; isStamp: boolean; origin: string; isHitejinro?: boolean; returnPath?: string; barcode?: string },
+  stateData: { storeId: string; ordersheetId: string; slug: string; isStamp: boolean; origin: string; isHitejinro?: boolean; returnPath?: string; barcode?: string; t?: string },
   redirectOrigin: string
 ) {
   const { code } = req.query;
@@ -1303,6 +1304,24 @@ async function handleStampCallback(
     return res.redirect(countUrl.toString());
   }
 
+  // 링크 스캔 토큰 가드 (브랜치-로컬 AND: standalone + 비하이트진로 + 비프랜차이즈 + 비수동개수)
+  // manualCountMode/isFranchiseStampMode는 위에서 이미 분기·early-return → 여기선 ordersheetId/hitejinro만 추가 확인.
+  const scanGuardActive =
+    !!store.stampSetting?.linkGuardEnabled &&
+    !stateData.ordersheetId &&
+    !stateData.isHitejinro;
+  const scanToken: string | undefined = stateData.t && String(stateData.t) ? String(stateData.t) : undefined;
+  if (scanGuardActive) {
+    const tok = scanToken
+      ? await prisma.stampScanToken.findUnique({ where: { id: scanToken } })
+      : null;
+    if (!tok || tok.storeId !== store.id || tok.status !== 'PENDING' || tok.expiresAt <= new Date()) {
+      const invalidUrl = new URL(`${redirectOrigin}${stampBasePath}`);
+      invalidUrl.searchParams.set('error', 'invalid_token');
+      return res.redirect(invalidUrl.toString());
+    }
+  }
+
   // 스탬프 적립 (트랜잭션) - 스탬프 적립 시 무조건 방문횟수 +1
   const previousStamps = customer!.totalStamps ?? 0;
   const isFirstEarn = (customer!.visitCount ?? 0) === 0;
@@ -1310,8 +1329,21 @@ async function handleStampCallback(
   const stampDelta = isFirstEarn && firstStampCount > 1 ? firstStampCount : 1;
   console.log(`[Kakao Stamp] Before transaction - customerId: ${customer!.id}, previousStamps: ${previousStamps}${stampDelta > 1 ? `, firstStampCount: ${stampDelta}` : ''}`);
 
-  const result = await prisma.$transaction(async (tx) => {
+  let result;
+  try {
+    result = await prisma.$transaction(async (tx) => {
     const newBalance = previousStamps + stampDelta;
+
+    // 링크 스캔 토큰 원자적 소비 (낙관적 락) — ledger 생성 전에 소비, 경합 시 1회만 적립.
+    if (scanGuardActive && scanToken) {
+      const consumed = await tx.stampScanToken.updateMany({
+        where: { id: scanToken, status: 'PENDING', expiresAt: { gt: new Date() } },
+        data: { status: 'CONSUMED', consumedAt: new Date(), consumedByCustomerId: customer!.id },
+      });
+      if (consumed.count !== 1) {
+        throw new Error('SCAN_TOKEN_INVALID');
+      }
+    }
 
     // 고객 스탬프 업데이트
     const updatedCustomer = await tx.customer.update({
@@ -1368,7 +1400,16 @@ async function handleStampCallback(
     }
 
     return { customer: updatedCustomer, ledger, milestoneResult };
-  });
+    });
+  } catch (txErr: any) {
+    // 스캔 토큰 소비 실패(경합/만료) → 적립 롤백, 다시 스캔 안내
+    if (txErr?.message === 'SCAN_TOKEN_INVALID') {
+      const invalidUrl = new URL(`${redirectOrigin}${stampBasePath}`);
+      invalidUrl.searchParams.set('error', 'invalid_token');
+      return res.redirect(invalidUrl.toString());
+    }
+    throw txErr;
+  }
 
   console.log(`[Kakao Stamp] Stamp earned - customerId: ${customer.id}, newBalance: ${result.customer.totalStamps}${result.milestoneResult ? `, milestone: ${result.milestoneResult.tier}개 - ${result.milestoneResult.reward}` : ''}`);
 

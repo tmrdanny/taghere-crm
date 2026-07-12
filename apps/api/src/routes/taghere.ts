@@ -1032,17 +1032,78 @@ router.get('/stamp-info/:slug', async (req, res) => {
       legacyFields[`reward${r.tier}IsRandom`] = r.options && Array.isArray(r.options) && r.options.length > 1;
     }
 
+    // 링크 스캔 토큰 가드 최종값 (franchise는 위에서 early-return, hitejinro는 별도 페이지)
+    // → 개별 매장 standalone 기준: 가드 ON & manual-count OFF일 때만 true.
+    //   ordersheetId 제외는 클라에서 `&& !ordersheetId`로 최종 판단.
+    const linkGuardEnabled = !!store.stampSetting.linkGuardEnabled && !store.stampSetting.manualStampCountEnabled;
+
     res.json({
       storeId: store.id,
       storeName: store.name,
       enabled: true,
       manualStampCountEnabled: !!store.stampSetting.manualStampCountEnabled,
+      linkGuardEnabled,
       rewards,
       ...legacyFields,
     });
   } catch (error: any) {
     console.error('[TagHere] Stamp info error:', error);
     res.status(500).json({ error: '스탬프 정보 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// 스탬프 링크 스캔 토큰 TTL (밀리초) — 스캔→카카오 로그인→적립 왕복 커버
+const STAMP_SCAN_TOKEN_TTL_MS = 10 * 60 * 1000;
+
+// POST /api/taghere/stamp-scan/:slug - 링크 진입 시 1회용 스캔 토큰 발급 (공개)
+// 가드 미적용 매장은 { token: null } → 클라이언트 no-op.
+router.post('/stamp-scan/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const store = await prisma.store.findFirst({
+      where: { slug },
+      select: {
+        id: true,
+        stampSetting: { select: { linkGuardEnabled: true, manualStampCountEnabled: true, enabled: true } },
+        franchiseStampEnabled: true,
+        franchiseId: true,
+        franchise: { select: { franchiseStampSetting: { select: { id: true } } } },
+      },
+    });
+
+    if (!store) {
+      return res.status(404).json({ error: 'store_not_found' });
+    }
+
+    const isFranchiseStampMode = !!(
+      store.franchiseStampEnabled &&
+      store.franchiseId &&
+      store.franchise?.franchiseStampSetting
+    );
+
+    // 가드 발동 조건 (브랜치-로컬 AND). ordersheetId/hitejinro는 이 엔드포인트를
+    // 호출하는 standalone 클라 경로에서만 오므로 여기선 franchise/manual/enabled만 체크.
+    const guardActive =
+      !!store.stampSetting?.enabled &&
+      !!store.stampSetting?.linkGuardEnabled &&
+      !store.stampSetting?.manualStampCountEnabled &&
+      !isFranchiseStampMode;
+
+    if (!guardActive) {
+      return res.json({ token: null });
+    }
+
+    const expiresAt = new Date(Date.now() + STAMP_SCAN_TOKEN_TTL_MS);
+    const created = await prisma.stampScanToken.create({
+      data: { storeId: store.id, status: 'PENDING', expiresAt },
+      select: { id: true, expiresAt: true },
+    });
+
+    return res.json({ token: created.id, expiresAt: created.expiresAt });
+  } catch (error: any) {
+    console.error('[TagHere] Stamp scan token mint error:', error);
+    res.status(500).json({ error: 'mint_failed' });
   }
 });
 
@@ -1358,6 +1419,30 @@ router.post('/stamp-earn', async (req, res) => {
           success: false,
           error: 'invalid_count',
           message: '적립할 스탬프 개수를 올바르게 입력해주세요.',
+        });
+      }
+    }
+
+    // 링크 스캔 토큰 가드 (브랜치-로컬 AND: standalone + 비하이트진로 + 비프랜차이즈 + 비수동개수)
+    // 유효·미소비 토큰이 있을 때만 적립 허용. 원자적 소비는 아래 트랜잭션에서 수행.
+    const scanGuardActive =
+      !!store.stampSetting?.linkGuardEnabled &&
+      !ordersheetId &&
+      !isHitejinro &&
+      !isFranchiseStampMode &&
+      !manualMode;
+    const scanToken: string | undefined =
+      typeof req.body.t === 'string' && req.body.t ? req.body.t : undefined;
+    if (scanGuardActive) {
+      // 부작용(고객 생성) 전 조기 검증 — 명백히 무효면 여기서 차단.
+      const tok = scanToken
+        ? await prisma.stampScanToken.findUnique({ where: { id: scanToken } })
+        : null;
+      if (!tok || tok.storeId !== store.id || tok.status !== 'PENDING' || tok.expiresAt <= new Date()) {
+        return res.status(400).json({
+          success: false,
+          error: 'invalid_token',
+          message: '링크가 만료되었어요. 매장에서 다시 스캔해주세요.',
         });
       }
     }
@@ -1743,8 +1828,22 @@ router.post('/stamp-earn', async (req, res) => {
       : (isFirstEarn && firstStampCount > 1 ? firstStampCount : 1);
     console.log(`[TagHere Stamp-Earn] Before transaction - customerId: ${customer!.id}, previousStamps: ${previousStamps}${stampDelta > 1 ? `, firstStampCount: ${stampDelta}` : ''}`);
 
-    const result = await prisma.$transaction(async (tx) => {
+    let result;
+    try {
+      result = await prisma.$transaction(async (tx) => {
       const newBalance = previousStamps + stampDelta;
+
+      // 링크 스캔 토큰 원자적 소비 (낙관적 락: PENDING & 미만료인 경우에만 count===1)
+      // 더블탭·동시요청·경합 시 1회만 적립되도록 ledger 생성 전에 소비.
+      if (scanGuardActive && scanToken) {
+        const consumed = await tx.stampScanToken.updateMany({
+          where: { id: scanToken, status: 'PENDING', expiresAt: { gt: new Date() } },
+          data: { status: 'CONSUMED', consumedAt: new Date(), consumedByCustomerId: customer!.id },
+        });
+        if (consumed.count !== 1) {
+          throw new Error('SCAN_TOKEN_INVALID');
+        }
+      }
 
       // 고객 스탬프 업데이트
       const updatedCustomer = await tx.customer.update({
@@ -1803,7 +1902,18 @@ router.post('/stamp-earn', async (req, res) => {
       }
 
       return { customer: updatedCustomer, ledger, milestoneResult };
-    });
+      });
+    } catch (txErr: any) {
+      // 스캔 토큰 소비 실패(경합/만료) → 적립 롤백, 다시 스캔 안내
+      if (txErr?.message === 'SCAN_TOKEN_INVALID') {
+        return res.status(400).json({
+          success: false,
+          error: 'invalid_token',
+          message: '링크가 만료되었어요. 매장에서 다시 스캔해주세요.',
+        });
+      }
+      throw txErr;
+    }
 
     console.log(`[TagHere Stamp-Earn] Stamp earned - customerId: ${customer.id}, newBalance: ${result.customer.totalStamps}, orderItemsCount: ${orderItems.length}, tableLabel: ${tableLabel}${result.milestoneResult ? `, milestone: ${result.milestoneResult.tier}개 - ${result.milestoneResult.reward}` : ''}`);
 
