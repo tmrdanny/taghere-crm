@@ -74,6 +74,7 @@ model Store {
   externalSmsCampaigns  ExternalSmsCampaign[]
   brandMessageCampaigns BrandMessageCampaign[]
   pointSessions         PointSession[]
+  stampScanTokens       StampScanToken[]
 
   // 웨이팅 서비스
   waitingTypes          WaitingType[]
@@ -1417,6 +1418,10 @@ model StampSetting {
   // 매번 적립 개수 직접 입력 (true = 적립 시마다 직원이 개수 입력, 하루 1회 제한 해제, 첫 보너스 무시)
   manualStampCountEnabled Boolean @default(false)
 
+  // 링크 공유/재사용 방어 (true = "태그히어 사용 X" 스탬프 링크에 1회용 스캔 토큰 요구)
+  // 적용 조건: !ordersheetId && !isHitejinro && !franchiseStampMode && !manualStampCountEnabled
+  linkGuardEnabled      Boolean  @default(false)
+
   // 알림톡 설정
   alimtalkEnabled       Boolean  @default(true)
 
@@ -1427,6 +1432,25 @@ model StampSetting {
   store                 Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@map("stamp_settings")
+}
+
+// 스탬프 링크 스캔 토큰 (1회용·단기 만료) — 링크 공유/재사용 방어
+// slug 진입 시 발급, 적립 시 원자적으로 CONSUMED 처리. TTL 10분.
+model StampScanToken {
+  id                   String    @id @default(cuid())
+  storeId              String
+  status               String    @default("PENDING") // PENDING | CONSUMED
+  createdAt            DateTime  @default(now())
+  expiresAt            DateTime
+  consumedAt           DateTime?
+  consumedByCustomerId String?
+
+  // Relations
+  store                Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([storeId, status])
+  @@map("stamp_scan_tokens")
 }
 
 // 스탬프 거래 내역

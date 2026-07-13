@@ -2,7 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState, useRef } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { trackEvent, setUserId } from '@/lib/analytics';
 import { StampCountPrompt } from '@/components/StampCountPrompt';
 
@@ -123,6 +123,8 @@ interface StampInfo {
   enabled: boolean;
   franchiseStampEnabled?: boolean;
   franchiseName?: string;
+  manualStampCountEnabled?: boolean;
+  linkGuardEnabled?: boolean;
 }
 
 interface VisitSourceOption {
@@ -669,6 +671,7 @@ function SuccessPopup({
 function TaghereEnrollStampContent() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [stampInfo, setStampInfo] = useState<StampInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isOpening, setIsOpening] = useState(false);
@@ -680,6 +683,9 @@ function TaghereEnrollStampContent() {
   const [showAgreementWarning, setShowAgreementWarning] = useState(false);
   const [isAutoEarning, setIsAutoEarning] = useState(false);
   const autoEarnAttemptedRef = useRef(false);
+  // 링크 스캔 토큰 가드: 만료/재사용 안내 + mint 1회 보장
+  const [showExpiredLink, setShowExpiredLink] = useState(false);
+  const mintAttemptedRef = useRef(false);
   // 매번 적립 개수 직접 입력 모드: 개수 팝업 상태
   const [showCountPrompt, setShowCountPrompt] = useState(false);
   const [countPromptStoreName, setCountPromptStoreName] = useState('');
@@ -694,6 +700,7 @@ function TaghereEnrollStampContent() {
   const ordersheetId = rawOrderId && /^\{.+\}$/.test(rawOrderId) ? null : rawOrderId;
   const orderParamName = searchParams.get('orderId') ? 'orderId' : 'ordersheetId';
   const urlError = searchParams.get('error');
+  const scanToken = searchParams.get('t');
 
   // Success params from redirect
   const successStamps = searchParams.get('stamps');
@@ -775,6 +782,7 @@ function TaghereEnrollStampContent() {
           kakaoId,
           ordersheetId: ordersheetId || undefined,
           slug,
+          t: scanToken || undefined,
         }),
       });
 
@@ -806,7 +814,12 @@ function TaghereEnrollStampContent() {
         trackOnce('earn_success', { flow_type: 'stamp', store_slug: slug, stamps: data.currentStamps, has_reward: !!data.drawnReward, is_auto_earned: true });
       } else {
         // 에러 처리
-        if (data.error === 'invalid_kakao_id') {
+        if (data.error === 'invalid_token') {
+          // 링크 스캔 토큰 만료/재사용 → 다시 스캔 안내
+          setShowExpiredLink(true);
+          setStampInfo(null);
+          trackOnce('earn_fail', { flow_type: 'stamp', store_slug: slug, reason: 'invalid_token' });
+        } else if (data.error === 'invalid_kakao_id') {
           // 유효하지 않은 kakaoId → 로컬스토리지 삭제, 기존 흐름으로
           removeStoredKakaoId();
         } else if (data.error === 'already_earned_today' || data.error === 'already_earned') {
@@ -962,6 +975,12 @@ function TaghereEnrollStampContent() {
       trackOnce('earn_fail', { flow_type: 'stamp', store_slug: slug, reason: 'already_earned' });
       setIsLoading(false);
       return;
+    } else if (urlError === 'invalid_token') {
+      // 링크 스캔 토큰 만료/재사용 → 다시 스캔 안내
+      setShowExpiredLink(true);
+      trackOnce('earn_fail', { flow_type: 'stamp', store_slug: slug, reason: 'invalid_token' });
+      setIsLoading(false);
+      return;
     } else if (urlError) {
       setError('로그인에 실패했습니다. 다시 시도해주세요.');
       setIsLoading(false);
@@ -981,6 +1000,28 @@ function TaghereEnrollStampContent() {
             setError('이 매장은 스탬프 적립 서비스를 제공하지 않습니다.');
             setIsLoading(false);
             return;
+          }
+
+          // 링크 스캔 토큰 가드: 토큰 없이 진입하면 발급 후 ?t= 로 재진입.
+          // 자동적립/버튼 트리거보다 먼저 처리해 토큰 없는 적립을 원천 차단.
+          const guardActive = !!data.linkGuardEnabled && !ordersheetId;
+          if (guardActive && !scanToken && !mintAttemptedRef.current) {
+            mintAttemptedRef.current = true;
+            setStampInfo(data); // 재진입 전까지 매장 정보 유지 (로딩 스피너 유지)
+            try {
+              const mintRes = await fetch(`${apiUrl}/api/taghere/stamp-scan/${slug}`, { method: 'POST' });
+              const mintData = mintRes.ok ? await mintRes.json().catch(() => ({})) : {};
+              if (mintData?.token) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('t', mintData.token);
+                router.replace(url.pathname + url.search);
+                return; // 재진입 시 scanToken 존재 → 정상 적립 흐름
+              }
+              // token === null (실질 가드 미적용) → 폴백하여 아래 정상 흐름
+            } catch (e) {
+              console.error('[Stamp] scan token mint failed:', e);
+              // 실패 → 폴백. 토큰 없이 적립 시도 시 서버가 invalid_token으로 차단(안전)
+            }
           }
 
           // 자동 적립 시도: 로컬스토리지에 kakaoId가 있으면 자동 적립
@@ -1028,7 +1069,7 @@ function TaghereEnrollStampContent() {
     };
 
     fetchStampInfo();
-  }, [slug, ordersheetId, urlError, successStamps, customerId, successStoreName, urlKakaoId]);
+  }, [slug, ordersheetId, urlError, successStamps, customerId, successStoreName, urlKakaoId, scanToken]);
 
   // 스탬프 플로우 최초 진입(start). 카카오 로그인 복귀(successStamps/urlError)는 진입으로 치지 않는다.
   useEffect(() => {
@@ -1054,6 +1095,7 @@ function TaghereEnrollStampContent() {
         ordersheetId: ordersheetId || '',
         isTaghere: true,
         isStamp: true,
+        ...(scanToken ? { t: scanToken } : {}),
         origin: window.location.origin,
       };
       const state = btoa(JSON.stringify(stateData));
@@ -1073,6 +1115,7 @@ function TaghereEnrollStampContent() {
         params.set('slug', slug);
         params.set('isStamp', 'true');
         if (ordersheetId) params.set(orderParamName, ordersheetId);
+        if (scanToken) params.set('t', scanToken);
         params.set('origin', window.location.origin);
         window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
       }
@@ -1164,6 +1207,28 @@ function TaghereEnrollStampContent() {
             className="px-5 py-2.5 bg-[#FFD541] text-neutral-900 font-semibold rounded-xl text-sm"
           >
             다시 시도
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 링크 만료/재사용 (스캔 토큰 가드) → 다시 스캔 유도, 자동 재발급 버튼 없음
+  if (showExpiredLink) {
+    return (
+      <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
+        <div className="w-full max-w-md h-full flex flex-col items-center justify-center bg-white p-6 text-center">
+          <div className="text-5xl mb-4">🔒</div>
+          <h1 className="text-lg font-semibold text-neutral-900 mb-2">링크가 만료되었어요</h1>
+          <p className="text-neutral-500 text-sm mb-6 leading-relaxed">
+            스탬프 적립은 매장에서 직접 QR을 스캔했을 때만 가능합니다.
+            <br />매장에 비치된 QR을 다시 스캔해주세요.
+          </p>
+          <button
+            onClick={() => handleSkipEarn()}
+            className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold rounded-xl text-sm transition-colors"
+          >
+            확인
           </button>
         </div>
       </div>
