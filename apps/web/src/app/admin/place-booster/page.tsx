@@ -1,9 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
-import { useState, useEffect, useCallback, useRef } from 'react';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
+import { useState, useEffect, useCallback } from 'react';
 import { BoosterCreateForm, BoosterTargetResult, BoosterFormValues, ActiveEditMeta, toDateInput } from '@/components/place-booster/booster-create-form';
 import { BoosterReport, CampaignInputCard, ReportRow, ReportTotals } from '@/components/place-booster/booster-report';
 import { Card } from '@/components/ui/card';
@@ -327,7 +325,6 @@ interface AdminReportData {
 /** 운영자 성과 리포트 — 사장님 화면과 동일한 전체 페이지 + 운영자 전용(PDF 다운로드·외부 배지·광고비) */
 function AdminReportView({ id, af, onBack, onChanged }: { id: string; af: (p: string, i?: RequestInit) => Promise<Response>; onBack: () => void; onChanged: () => void; }) {
   const [data, setData] = useState<AdminReportData | null>(null);
-  const reportRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
   const [testPhone, setTestPhone] = useState('');
   const [testSending, setTestSending] = useState(false);
@@ -357,27 +354,12 @@ function AdminReportView({ id, af, onBack, onChanged }: { id: string; af: (p: st
 
   const displayName = data ? (data.store?.name || data.campaign.campaignName || '캠페인') : '';
   const exportPdf = async () => {
-    const el = reportRef.current;
-    if (!el || exporting) return;
+    if (!data || exporting) return;
     setExporting(true);
     try {
-      const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pw = pdf.internal.pageSize.getWidth();
-      const ph = pdf.internal.pageSize.getHeight();
-      const imgW = pw - 16;
-      const imgH = (canvas.height * imgW) / canvas.width;
-      let remaining = imgH;
-      let posY = 8;
-      const img = canvas.toDataURL('image/png');
-      while (remaining > 0) {
-        pdf.addImage(img, 'PNG', 8, posY, imgW, imgH);
-        remaining -= ph - 16;
-        if (remaining > 0) { pdf.addPage(); posY = posY - (ph - 16); }
-      }
-      const d = new Date();
-      const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-      pdf.save(`성과리포트_${displayName}_${ymd}.pdf`);
+      // react-pdf는 브라우저 전용이라 클릭 시점에 동적 import (SSR/초기 번들 제외)
+      const { downloadBoosterReportPdf } = await import('@/components/place-booster/booster-report-pdf');
+      await downloadBoosterReportPdf(data, displayName);
     } catch {
       alert('PDF 생성에 실패했습니다. 다시 시도해주세요.');
     } finally {
@@ -421,8 +403,8 @@ function AdminReportView({ id, af, onBack, onChanged }: { id: string; af: (p: st
             {testMsg && <p className={`text-sm mt-2 ${testMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{testMsg}</p>}
           </Card>
 
-          {/* 캡처 영역: 헤더 + 성과 리포트 */}
-          <div ref={reportRef}>
+          {/* 성과 리포트 (화면용 — PDF는 데이터로 별도 렌더) */}
+          <div>
             <Card className="p-6 mb-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
