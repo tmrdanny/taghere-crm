@@ -28,6 +28,7 @@ router.get('/stores', async (_req, res) => {
       select: {
         id: true,
         name: true,
+        slug: true,
         address: true,
         addressSido: true,
         addressSigungu: true,
@@ -52,6 +53,7 @@ router.get('/stores', async (_req, res) => {
       return {
         store_id: s.id,
         name: s.name,
+        slug: s.slug ?? null,  // 야화 원격 웨이팅 링크(/w/{slug}) 자동 연결용
         address,
         biz_no: s.businessRegNumber ?? null,
         active,
