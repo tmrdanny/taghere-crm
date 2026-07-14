@@ -34,6 +34,7 @@ router.get('/stores', async (_req, res) => {
         addressDetail: true,
         businessRegNumber: true,
         waitingSetting: { select: { operationStatus: true, enabled: true } },
+        tableLinkSetting: { select: { tables: true } },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -45,12 +46,16 @@ router.get('/stores', async (_req, res) => {
         null;
       const setting = s.waitingSetting;
       const active = !!setting && setting.enabled && setting.operationStatus !== 'CLOSED';
+      // 좌석수 = 테이블 링크 개수 (야화 "N/20명" 표시용)
+      const tables = s.tableLinkSetting?.tables;
+      const seatCapacity = Array.isArray(tables) ? tables.length : null;
       return {
         store_id: s.id,
         name: s.name,
         address,
         biz_no: s.businessRegNumber ?? null,
         active,
+        seat_capacity: seatCapacity,
       };
     });
 
