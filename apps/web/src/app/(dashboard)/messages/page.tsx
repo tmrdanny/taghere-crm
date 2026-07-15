@@ -52,6 +52,11 @@ import { KakaoConfirmModal } from './KakaoConfirmModal';
 import { KakaoTestModal } from './KakaoTestModal';
 import { CustomerSelectModal } from './CustomerSelectModal';
 
+// 문자(SMS/LMS/MMS) 발송 일시 중단 플래그. 재개 시 false 로 변경.
+// 카카오톡(쿠폰 알림톡)은 영향받지 않음.
+const SMS_SENDING_PAUSED = true;
+const SMS_PAUSED_NOTICE = '원활한 서비스 제공을 위해 서비스 점검중입니다';
+
 export default function MessagesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -919,6 +924,10 @@ export default function MessagesPage() {
 
   // Test send message
   const handleTestSend = async () => {
+    if (SMS_SENDING_PAUSED) {
+      showToast(SMS_PAUSED_NOTICE, 'error');
+      return;
+    }
     if (!messageContent.trim()) {
       showToast('메시지 내용을 입력해주세요.', 'error');
       return;
@@ -964,6 +973,10 @@ export default function MessagesPage() {
 
   // Send messages
   const handleSend = async () => {
+    if (SMS_SENDING_PAUSED) {
+      showToast(SMS_PAUSED_NOTICE, 'error');
+      return;
+    }
     if (!messageContent.trim()) {
       showToast('메시지 내용을 입력해주세요.', 'error');
       return;
@@ -1406,28 +1419,40 @@ export default function MessagesPage() {
                 </div>
               </div>
 
-              {/* CTA 버튼 */}
-              <button
-                disabled={
-                  !messageContent.trim() ||
-                  getCurrentTargetCount() === 0 ||
-                  (estimate !== null && !estimate.canSend)
-                }
-                onClick={() => setShowConfirmModal(true)}
-                className="w-full py-4 bg-[#2a2d62] text-white rounded-xl text-lg font-bold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <Send className="w-5 h-5" />
-                메시지 발송하기 ({formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원)
-              </button>
+              {SMS_SENDING_PAUSED ? (
+                /* 문자 발송 일시 중단 안내 */
+                <div className="w-full py-5 px-4 bg-amber-50 border border-amber-200 rounded-xl text-center">
+                  <p className="text-base font-semibold text-amber-800">{SMS_PAUSED_NOTICE}</p>
+                  <p className="mt-1.5 text-sm text-amber-700">
+                    카카오톡 발송은 정상 이용하실 수 있습니다.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* CTA 버튼 */}
+                  <button
+                    disabled={
+                      !messageContent.trim() ||
+                      getCurrentTargetCount() === 0 ||
+                      (estimate !== null && !estimate.canSend)
+                    }
+                    onClick={() => setShowConfirmModal(true)}
+                    className="w-full py-4 bg-[#2a2d62] text-white rounded-xl text-lg font-bold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <Send className="w-5 h-5" />
+                    메시지 발송하기 ({formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원)
+                  </button>
 
-              {/* 테스트 발송 링크 */}
-              <button
-                disabled={!messageContent.trim()}
-                onClick={() => setShowTestModal(true)}
-                className="w-full mt-2 py-2 text-sm text-[#64748b] hover:text-[#3b82f6] transition-colors disabled:opacity-50"
-              >
-                내 번호로 테스트 발송해보기
-              </button>
+                  {/* 테스트 발송 링크 */}
+                  <button
+                    disabled={!messageContent.trim()}
+                    onClick={() => setShowTestModal(true)}
+                    className="w-full mt-2 py-2 text-sm text-[#64748b] hover:text-[#3b82f6] transition-colors disabled:opacity-50"
+                  >
+                    내 번호로 테스트 발송해보기
+                  </button>
+                </>
+              )}
 
               {/* 광고 메시지 체크박스 - 간소화 */}
               <div className="mt-4 pt-4 border-t border-emerald-200/50">
