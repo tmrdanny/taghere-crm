@@ -1126,6 +1126,9 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
     });
     console.log('[Franchise Insights] Customers without ageGroup:', customersWithoutAgeGroup, '/', totalCustomers);
 
+    // 퍼센트 분모는 연령대가 확인된 고객 수만 사용 (미상 제외 → 합계 100%)
+    const totalWithAge = totalCustomers - customersWithoutAgeGroup;
+
     const ageDistribution = Array.from(ageMap.entries()).map(([ageGroup, count]) => {
       let ageLabel = '';
       switch (ageGroup) {
@@ -1138,7 +1141,7 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
       return {
         age: ageLabel,
         count,
-        percentage: totalCustomers > 0 ? Math.round((count / totalCustomers) * 100) : 0
+        percentage: totalWithAge > 0 ? Math.round((count / totalWithAge) * 100) : 0
       };
     }).filter(item => item.age !== '') // 빈 라벨 제외
       .sort((a, b) => {

@@ -90,19 +90,22 @@ router.get('/customers', async (req: AuthRequest, res) => {
 
     // 3. 연령대 분포
     const ageMap = new Map<string, number>();
+    let ageClassifiedCount = 0;
     allCustomers.forEach((c) => {
       const ageGroup = c.ageGroup || calculateAgeGroup(c.birthYear);
       if (ageGroup) {
         ageMap.set(ageGroup, (ageMap.get(ageGroup) || 0) + 1);
+        ageClassifiedCount++;
       }
     });
 
+    // 퍼센트 분모는 연령대가 확인된 고객 수만 사용 (미상 제외 → 합계 100%)
     const ageDistribution = Array.from(ageMap.entries())
       .map(([ageGroup, count]) => ({
         ageGroup,
         label: getAgeLabel(ageGroup),
         count,
-        percentage: totalCustomers > 0 ? Math.round((count / totalCustomers) * 100) : 0,
+        percentage: ageClassifiedCount > 0 ? Math.round((count / ageClassifiedCount) * 100) : 0,
       }))
       .sort((a, b) => {
         const order: Record<string, number> = {
