@@ -884,6 +884,21 @@ async function handleStampCallback(
     return res.redirect(`${redirectOrigin}${stampBasePath}?error=stamp_disabled`);
   }
 
+  // 링크 스캔 토큰 가드 — standalone 링크에 기본 적용 (선택 아님, 프랜차이즈 통합 포함).
+  // 하이트진로/매번개수입력/주문연동만 제외. 조기 검증 후 소비는 각 적립 트랜잭션에서.
+  const scanGuardActive = !stateData.ordersheetId && !stateData.isHitejinro && !manualCountMode;
+  const scanToken: string | undefined = stateData.t && String(stateData.t) ? String(stateData.t) : undefined;
+  if (scanGuardActive) {
+    const tok = scanToken
+      ? await prisma.stampScanToken.findUnique({ where: { id: scanToken } })
+      : null;
+    if (!tok || tok.storeId !== store.id || tok.status !== 'PENDING' || tok.expiresAt <= new Date()) {
+      const invalidUrl = new URL(`${redirectOrigin}${stampBasePath}`);
+      invalidUrl.searchParams.set('error', 'invalid_token');
+      return res.redirect(invalidUrl.toString());
+    }
+  }
+
   // 전화번호 정규화
   const phoneLastDigits = kakaoAccount.phone_number
     ? kakaoAccount.phone_number.replace(/[^0-9]/g, '').slice(-8)
@@ -1149,7 +1164,20 @@ async function handleStampCallback(
     const previousFranchiseStamps = franchiseCustomer.totalStamps;
     const newFranchiseBalance = previousFranchiseStamps + 1;
 
-    const franchiseResult = await prisma.$transaction(async (tx) => {
+    let franchiseResult;
+    try {
+      franchiseResult = await prisma.$transaction(async (tx) => {
+      // 링크 스캔 토큰 원자적 소비 (낙관적 락) — 프랜차이즈 통합 경로도 동일 적용
+      if (scanGuardActive && scanToken) {
+        const consumed = await tx.stampScanToken.updateMany({
+          where: { id: scanToken, status: 'PENDING', expiresAt: { gt: new Date() } },
+          data: { status: 'CONSUMED', consumedAt: new Date(), consumedByCustomerId: customer?.id || null },
+        });
+        if (consumed.count !== 1) {
+          throw new Error('SCAN_TOKEN_INVALID');
+        }
+      }
+
       const updated = await tx.franchiseCustomer.update({
         where: { id: franchiseCustomer!.id },
         data: {
@@ -1194,7 +1222,15 @@ async function handleStampCallback(
       }
 
       return { customer: updated, ledger, milestoneResult };
-    });
+      });
+    } catch (txErr: any) {
+      if (txErr?.message === 'SCAN_TOKEN_INVALID') {
+        const invalidUrl = new URL(`${redirectOrigin}${stampBasePath}`);
+        invalidUrl.searchParams.set('error', 'invalid_token');
+        return res.redirect(invalidUrl.toString());
+      }
+      throw txErr;
+    }
 
     console.log(`[Kakao Stamp] Franchise stamp earned - franchiseCustomerId: ${franchiseCustomer.id}, newBalance: ${franchiseResult.customer.totalStamps}${franchiseResult.milestoneResult ? `, milestone: ${franchiseResult.milestoneResult.tier}개 - ${franchiseResult.milestoneResult.reward}` : ''}`);
 
@@ -1302,24 +1338,6 @@ async function handleStampCallback(
     countUrl.searchParams.set('successStoreName', store.name);
     if (stateData.ordersheetId) countUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
     return res.redirect(countUrl.toString());
-  }
-
-  // 링크 스캔 토큰 가드 (브랜치-로컬 AND: standalone + 비하이트진로 + 비프랜차이즈 + 비수동개수)
-  // manualCountMode/isFranchiseStampMode는 위에서 이미 분기·early-return → 여기선 ordersheetId/hitejinro만 추가 확인.
-  const scanGuardActive =
-    !!store.stampSetting?.linkGuardEnabled &&
-    !stateData.ordersheetId &&
-    !stateData.isHitejinro;
-  const scanToken: string | undefined = stateData.t && String(stateData.t) ? String(stateData.t) : undefined;
-  if (scanGuardActive) {
-    const tok = scanToken
-      ? await prisma.stampScanToken.findUnique({ where: { id: scanToken } })
-      : null;
-    if (!tok || tok.storeId !== store.id || tok.status !== 'PENDING' || tok.expiresAt <= new Date()) {
-      const invalidUrl = new URL(`${redirectOrigin}${stampBasePath}`);
-      invalidUrl.searchParams.set('error', 'invalid_token');
-      return res.redirect(invalidUrl.toString());
-    }
   }
 
   // 스탬프 적립 (트랜잭션) - 스탬프 적립 시 무조건 방문횟수 +1

@@ -58,7 +58,6 @@ router.get('/', async (req: AuthRequest, res) => {
       rewards,
       firstStampBonus: setting.firstStampBonus,
       manualStampCountEnabled: setting.manualStampCountEnabled,
-      linkGuardEnabled: setting.linkGuardEnabled,
       alimtalkEnabled: setting.alimtalkEnabled,
       locked,
       // 레거시 호환 필드 (기존 클라이언트용)
@@ -110,17 +109,6 @@ router.put('/', async (req: AuthRequest, res) => {
       return res.json({ manualStampCountEnabled: setting.manualStampCountEnabled });
     }
 
-    // 링크 공유/재사용 방어 토글만 단독 변경
-    const isLinkGuardOnly = bodyKeys.length > 0 && bodyKeys.every((k) => k === 'linkGuardEnabled');
-    if (isLinkGuardOnly) {
-      const value = !!req.body.linkGuardEnabled;
-      const setting = await prisma.stampSetting.upsert({
-        where: { storeId },
-        create: { storeId, linkGuardEnabled: value },
-        update: { linkGuardEnabled: value },
-      });
-      return res.json({ linkGuardEnabled: setting.linkGuardEnabled });
-    }
 
     // 본사가 스탬프 설정을 잠근 경우 점주는 수정 불가
     if (await isStoreStampLocked(storeId)) {

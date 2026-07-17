@@ -45,6 +45,8 @@ interface Store {
   metacityMembershipType?: 'INTEGRATED' | 'STANDALONE';
   // 야화 연동(웨이팅·성별통계·포인트 동기화) — /api/v1 노출 여부
   yahwaEnabled?: boolean;
+  // 스탬프 링크 비밀 입구 secret (QR shortURL 목적지 구성용)
+  scanEntrySecret?: string | null;
   // Monthly credit
   monthlyCredit?: {
     total: number;
@@ -1189,16 +1191,18 @@ export default function AdminStoresPage() {
                   )}
                 </div>
 
-                {/* 스탬프 적립 링크 (태그히어 사용 X) */}
+                {/* 스탬프 적립 링크 (태그히어 사용 X) — QR에는 반드시 비밀 입구(스캔 토큰 발급) URL 사용 */}
                 <div className="rounded-xl p-4 bg-neutral-50">
-                  <label className="block text-[12px] text-neutral-500 mb-1">스탬프 적립 링크 (태그히어 사용 X)</label>
-                  {selectedStore.slug ? (
+                  <label className="block text-[12px] text-neutral-500 mb-1">
+                    스탬프 적립 QR 링크 (태그히어 사용 X · 스캔 토큰 발급 입구)
+                  </label>
+                  {selectedStore.slug && selectedStore.scanEntrySecret ? (
                     <div className="flex items-center gap-2">
                       <code className="text-[13px] text-neutral-600 font-mono truncate flex-1">
-                        /taghere-enroll-stamp/{selectedStore.slug}
+                        /api/taghere/stamp-scan-entry/{selectedStore.slug}/{selectedStore.scanEntrySecret}
                       </code>
                       <button
-                        onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll-stamp/${selectedStore.slug}`, e)}
+                        onClick={(e) => copyToClipboard(`${API_BASE}/api/taghere/stamp-scan-entry/${selectedStore.slug}/${selectedStore.scanEntrySecret}`, e)}
                         className="p-1 text-neutral-400 hover:text-neutral-600 transition-colors flex-shrink-0"
                         title="복사"
                       >
@@ -1207,9 +1211,14 @@ export default function AdminStoresPage() {
                         </svg>
                       </button>
                     </div>
+                  ) : selectedStore.slug ? (
+                    <span className="text-[14px] text-amber-500">입구 secret 미발급 — 발급 스크립트 실행 필요</span>
                   ) : (
                     <span className="text-[14px] text-neutral-400">slug 없음</span>
                   )}
+                  <p className="mt-1 text-[11px] text-neutral-400">
+                    이전 페이지 직링크(/taghere-enroll-stamp/…)는 이제 적립되지 않습니다. QR/shortURL 목적지를 위 링크로 교체하세요.
+                  </p>
                 </div>
 
                 {/* 하이트진로 스탬프 적립 링크 */}
