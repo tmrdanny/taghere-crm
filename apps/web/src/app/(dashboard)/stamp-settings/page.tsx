@@ -175,7 +175,6 @@ export default function StampSettingsPage() {
   const [firstStampBonus, setFirstStampBonus] = useState(1);
   const [isSavingBonus, setIsSavingBonus] = useState(false);
   const [manualStampCountEnabled, setManualStampCountEnabled] = useState(false);
-  const [linkGuardEnabled, setLinkGuardEnabled] = useState(false);
   const [selectedTiers, setSelectedTiers] = useState<number[]>([]);
   const [rewardOptions, setRewardOptions] = useState<Record<number, RewardOption[]>>({});
 
@@ -226,7 +225,6 @@ export default function StampSettingsPage() {
           setEnabled(data.enabled);
           setFirstStampBonus(data.firstStampBonus && data.firstStampBonus >= 1 ? data.firstStampBonus : 1);
           setManualStampCountEnabled(!!data.manualStampCountEnabled);
-          setLinkGuardEnabled(!!data.linkGuardEnabled);
 
           // rewards JSON 기반으로 로드
           const rewards: RewardEntry[] = data.rewards || [];
@@ -396,40 +394,6 @@ export default function StampSettingsPage() {
     } catch (error) {
       console.error('Failed to toggle manual stamp count:', error);
       setManualStampCountEnabled(!newValue);
-      showToast('저장 중 오류가 발생했습니다.', 'error');
-    }
-  };
-
-  const handleToggleLinkGuard = async (newValue: boolean) => {
-    if (locked) {
-      showToast('본사에서 스탬프 설정을 관리하고 있어 수정할 수 없습니다.', 'error');
-      return;
-    }
-    setLinkGuardEnabled(newValue);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/stamp-settings`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ linkGuardEnabled: newValue }),
-      });
-      if (res.ok) {
-        showToast(
-          newValue
-            ? '링크 공유·재사용 방어가 켜졌습니다.'
-            : '링크 공유·재사용 방어가 꺼졌습니다.',
-          'success'
-        );
-      } else {
-        setLinkGuardEnabled(!newValue);
-        showToast('저장 중 오류가 발생했습니다.', 'error');
-      }
-    } catch (error) {
-      console.error('Failed to toggle link guard:', error);
-      setLinkGuardEnabled(!newValue);
       showToast('저장 중 오류가 발생했습니다.', 'error');
     }
   };
@@ -643,36 +607,6 @@ export default function StampSettingsPage() {
               <Switch
                 checked={manualStampCountEnabled}
                 onCheckedChange={handleToggleManualCount}
-                disabled={!enabled}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 링크 공유·재사용 방어 카드 */}
-        <Card className={!enabled ? 'opacity-50 pointer-events-none' : ''}>
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2">
-              <Lock className="w-5 h-5 text-neutral-600" />
-              <CardTitle className="text-lg">링크 공유·재사용 방어</CardTitle>
-            </div>
-            <p className="text-sm text-neutral-500 mt-1">
-              스탬프 적립 링크가 공유되거나 저장 후 재사용되는 것을 막습니다.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="pr-4">
-                <p className="font-medium text-neutral-900">스캔 토큰 방어</p>
-                <p className="text-sm text-neutral-500 mt-1">
-                  토글 ON 하시면 적립 링크에 <strong>10분 만료·1회용 스캔 토큰</strong>이 적용됩니다.
-                  복사·북마크한 링크를 공유하거나 다음날 재사용해 적립하는 것을 차단합니다.
-                  ("태그히어 사용 X" 개별 스탬프 링크에만 적용 — 주문 연동·매번 개수 입력 매장은 제외.)
-                </p>
-              </div>
-              <Switch
-                checked={linkGuardEnabled}
-                onCheckedChange={handleToggleLinkGuard}
                 disabled={!enabled}
               />
             </div>

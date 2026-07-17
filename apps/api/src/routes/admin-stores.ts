@@ -85,6 +85,7 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
           metacityMembershipType: true,
           yahwaEnabled: true,
           wallet: { select: { balance: true } },
+          stampSetting: { select: { scanEntrySecret: true } },
         },
       }),
     ]);
@@ -144,6 +145,8 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         metacityMembershipType: (store as any).metacityMembershipType ?? 'INTEGRATED',
         // 야화 연동(웨이팅·성별통계·포인트 동기화) — /api/v1 노출 여부
         yahwaEnabled: (store as any).yahwaEnabled ?? false,
+        // 스탬프 링크 비밀 입구 secret (QR shortURL 목적지 구성용)
+        scanEntrySecret: (store as any).stampSetting?.scanEntrySecret ?? null,
         walletBalance: store.wallet?.balance || 0,
         monthlyCredit: {
           total: totalCredits,

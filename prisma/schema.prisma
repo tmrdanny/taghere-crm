@@ -1419,8 +1419,11 @@ model StampSetting {
   manualStampCountEnabled Boolean @default(false)
 
   // 링크 공유/재사용 방어 (true = "태그히어 사용 X" 스탬프 링크에 1회용 스캔 토큰 요구)
-  // 적용 조건: !ordersheetId && !isHitejinro && !franchiseStampMode && !manualStampCountEnabled
+  // 적용 조건: !ordersheetId && !isHitejinro && !manualStampCountEnabled (프랜차이즈 통합 스탬프 포함)
   linkGuardEnabled      Boolean  @default(false)
+  // 비밀 입구 secret — QR(shortURL)이 가리키는 토큰 발급 입구 URL의 경로 조각.
+  // GET /api/taghere/stamp-scan-entry/:slug/:secret 에서 검증. 유출 시 회전(재발급).
+  scanEntrySecret       String?
 
   // 알림톡 설정
   alimtalkEnabled       Boolean  @default(true)

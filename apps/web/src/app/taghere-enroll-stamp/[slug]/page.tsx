@@ -2,7 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState, useRef } from 'react';
-import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { trackEvent, setUserId } from '@/lib/analytics';
 import { StampCountPrompt } from '@/components/StampCountPrompt';
 
@@ -671,7 +671,6 @@ function SuccessPopup({
 function TaghereEnrollStampContent() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [stampInfo, setStampInfo] = useState<StampInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isOpening, setIsOpening] = useState(false);
@@ -683,9 +682,8 @@ function TaghereEnrollStampContent() {
   const [showAgreementWarning, setShowAgreementWarning] = useState(false);
   const [isAutoEarning, setIsAutoEarning] = useState(false);
   const autoEarnAttemptedRef = useRef(false);
-  // 링크 스캔 토큰 가드: 만료/재사용 안내 + mint 1회 보장
+  // 링크 스캔 토큰 가드: 토큰 없음/만료/재사용 → "QR 스캔" 안내
   const [showExpiredLink, setShowExpiredLink] = useState(false);
-  const mintAttemptedRef = useRef(false);
   // 매번 적립 개수 직접 입력 모드: 개수 팝업 상태
   const [showCountPrompt, setShowCountPrompt] = useState(false);
   const [countPromptStoreName, setCountPromptStoreName] = useState('');
@@ -1002,26 +1000,15 @@ function TaghereEnrollStampContent() {
             return;
           }
 
-          // 링크 스캔 토큰 가드: 토큰 없이 진입하면 발급 후 ?t= 로 재진입.
-          // 자동적립/버튼 트리거보다 먼저 처리해 토큰 없는 적립을 원천 차단.
+          // 링크 스캔 토큰 가드 (기본 적용): 페이지는 토큰을 절대 발급하지 않는다.
+          // 토큰은 QR(shortURL)이 가리키는 비밀 입구(stamp-scan-entry)에서만 발급되므로,
+          // 저장된 링크·탭 복원 등 토큰 없는 진입은 적립 불가 → "QR 스캔" 안내.
           const guardActive = !!data.linkGuardEnabled && !ordersheetId;
-          if (guardActive && !scanToken && !mintAttemptedRef.current) {
-            mintAttemptedRef.current = true;
-            setStampInfo(data); // 재진입 전까지 매장 정보 유지 (로딩 스피너 유지)
-            try {
-              const mintRes = await fetch(`${apiUrl}/api/taghere/stamp-scan/${slug}`, { method: 'POST' });
-              const mintData = mintRes.ok ? await mintRes.json().catch(() => ({})) : {};
-              if (mintData?.token) {
-                const url = new URL(window.location.href);
-                url.searchParams.set('t', mintData.token);
-                router.replace(url.pathname + url.search);
-                return; // 재진입 시 scanToken 존재 → 정상 적립 흐름
-              }
-              // token === null (실질 가드 미적용) → 폴백하여 아래 정상 흐름
-            } catch (e) {
-              console.error('[Stamp] scan token mint failed:', e);
-              // 실패 → 폴백. 토큰 없이 적립 시도 시 서버가 invalid_token으로 차단(안전)
-            }
+          if (guardActive && !scanToken) {
+            setShowExpiredLink(true);
+            setIsLoading(false);
+            trackOnce('earn_fail', { flow_type: 'stamp', store_slug: slug, reason: 'no_scan_token' });
+            return;
           }
 
           // 자동 적립 시도: 로컬스토리지에 kakaoId가 있으면 자동 적립
@@ -1213,23 +1200,17 @@ function TaghereEnrollStampContent() {
     );
   }
 
-  // 링크 만료/재사용 (스캔 토큰 가드) → 다시 스캔 유도, 자동 재발급 버튼 없음
+  // 링크 토큰 없음/만료/재사용 (스캔 토큰 가드) → 다시 스캔 유도, 자동 재발급 없음
   if (showExpiredLink) {
     return (
       <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
         <div className="w-full max-w-md h-full flex flex-col items-center justify-center bg-white p-6 text-center">
-          <div className="text-5xl mb-4">🔒</div>
-          <h1 className="text-lg font-semibold text-neutral-900 mb-2">링크가 만료되었어요</h1>
-          <p className="text-neutral-500 text-sm mb-6 leading-relaxed">
-            스탬프 적립은 매장에서 직접 QR을 스캔했을 때만 가능합니다.
-            <br />매장에 비치된 QR을 다시 스캔해주세요.
+          <div className="text-5xl mb-4">📷</div>
+          <h1 className="text-lg font-semibold text-neutral-900 mb-2">매장 QR을 스캔해주세요</h1>
+          <p className="text-neutral-500 text-sm leading-relaxed">
+            스탬프 적립은 매장에서 QR을 스캔했을 때만 가능해요.
+            <br />저장된 링크로는 적립할 수 없습니다.
           </p>
-          <button
-            onClick={() => handleSkipEarn()}
-            className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold rounded-xl text-sm transition-colors"
-          >
-            확인
-          </button>
         </div>
       </div>
     );

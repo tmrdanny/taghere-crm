@@ -1007,6 +1007,8 @@ router.get('/stamp-info/:slug', async (req, res) => {
         franchiseName: store.franchise!.name,
         franchiseStampEnabled: true,
         enabled: true,
+        // 링크 가드 기본 적용 (프랜차이즈 통합 스탬프 포함) — 클라는 !ordersheetId일 때 토큰 요구
+        linkGuardEnabled: true,
         rewards,
         ...legacyFields,
       });
@@ -1032,10 +1034,9 @@ router.get('/stamp-info/:slug', async (req, res) => {
       legacyFields[`reward${r.tier}IsRandom`] = r.options && Array.isArray(r.options) && r.options.length > 1;
     }
 
-    // 링크 스캔 토큰 가드 최종값 (franchise는 위에서 early-return, hitejinro는 별도 페이지)
-    // → 개별 매장 standalone 기준: 가드 ON & manual-count OFF일 때만 true.
-    //   ordersheetId 제외는 클라에서 `&& !ordersheetId`로 최종 판단.
-    const linkGuardEnabled = !!store.stampSetting.linkGuardEnabled && !store.stampSetting.manualStampCountEnabled;
+    // 링크 스캔 토큰 가드 — standalone 링크에 기본 적용 (매번개수입력 매장만 제외).
+    // ordersheetId 제외는 클라에서 `&& !ordersheetId`로 최종 판단.
+    const linkGuardEnabled = !store.stampSetting.manualStampCountEnabled;
 
     res.json({
       storeId: store.id,
@@ -1055,25 +1056,30 @@ router.get('/stamp-info/:slug', async (req, res) => {
 // 스탬프 링크 스캔 토큰 TTL (밀리초) — 스캔→카카오 로그인→적립 왕복 커버
 const STAMP_SCAN_TOKEN_TTL_MS = 10 * 60 * 1000;
 
-// POST /api/taghere/stamp-scan/:slug - 링크 진입 시 1회용 스캔 토큰 발급 (공개)
-// 가드 미적용 매장은 { token: null } → 클라이언트 no-op.
-router.post('/stamp-scan/:slug', async (req, res) => {
+// GET /api/taghere/stamp-scan-entry/:slug/:secret - 토큰 발급 비밀 입구 (QR shortURL 목적지)
+// 스캔 순간에만 새 1회용 토큰을 발급하고 적립 페이지로 302. 페이지/클라이언트는 토큰을 발급할 수 없다.
+// secret 불일치·가드 미적용이면 토큰 없이 페이지로 보낸다(페이지에서 "QR 스캔" 안내).
+router.get('/stamp-scan-entry/:slug/:secret', async (req, res) => {
+  const { slug, secret } = req.params;
+  const webUrl = process.env.PUBLIC_APP_URL || 'https://taghere-crm-web-g96p.onrender.com';
+  const pageUrl = `${webUrl}/taghere-enroll-stamp/${encodeURIComponent(slug)}`;
   try {
-    const { slug } = req.params;
-
     const store = await prisma.store.findFirst({
       where: { slug },
       select: {
         id: true,
-        stampSetting: { select: { linkGuardEnabled: true, manualStampCountEnabled: true, enabled: true } },
         franchiseStampEnabled: true,
         franchiseId: true,
         franchise: { select: { franchiseStampSetting: { select: { id: true } } } },
+        stampSetting: {
+          select: { manualStampCountEnabled: true, enabled: true, scanEntrySecret: true },
+        },
       },
     });
 
-    if (!store) {
-      return res.status(404).json({ error: 'store_not_found' });
+    if (!store || !store.stampSetting?.scanEntrySecret || store.stampSetting.scanEntrySecret !== secret) {
+      // 매장 없음/secret 불일치(회전됨 포함) → 토큰 없이 페이지로 (적립 불가 안내)
+      return res.redirect(pageUrl);
     }
 
     const isFranchiseStampMode = !!(
@@ -1082,28 +1088,27 @@ router.post('/stamp-scan/:slug', async (req, res) => {
       store.franchise?.franchiseStampSetting
     );
 
-    // 가드 발동 조건 (브랜치-로컬 AND). ordersheetId/hitejinro는 이 엔드포인트를
-    // 호출하는 standalone 클라 경로에서만 오므로 여기선 franchise/manual/enabled만 체크.
+    // 스탬프가 활성(개별 또는 프랜차이즈 통합)이고 매번개수입력이 아니면 토큰 발급
     const guardActive =
-      !!store.stampSetting?.enabled &&
-      !!store.stampSetting?.linkGuardEnabled &&
-      !store.stampSetting?.manualStampCountEnabled &&
-      !isFranchiseStampMode;
+      (!!store.stampSetting.enabled || isFranchiseStampMode) &&
+      !store.stampSetting.manualStampCountEnabled;
 
     if (!guardActive) {
-      return res.json({ token: null });
+      // 매번개수입력 등 가드 제외 매장 → 토큰 불요, 그냥 페이지로
+      return res.redirect(pageUrl);
     }
 
     const expiresAt = new Date(Date.now() + STAMP_SCAN_TOKEN_TTL_MS);
     const created = await prisma.stampScanToken.create({
       data: { storeId: store.id, status: 'PENDING', expiresAt },
-      select: { id: true, expiresAt: true },
+      select: { id: true },
     });
 
-    return res.json({ token: created.id, expiresAt: created.expiresAt });
+    return res.redirect(`${pageUrl}?t=${created.id}`);
   } catch (error: any) {
-    console.error('[TagHere] Stamp scan token mint error:', error);
-    res.status(500).json({ error: 'mint_failed' });
+    console.error('[TagHere] Stamp scan entry error:', error);
+    // 오류 시에도 고객이 빈 화면을 보지 않도록 페이지로
+    return res.redirect(pageUrl);
   }
 });
 
@@ -1423,14 +1428,10 @@ router.post('/stamp-earn', async (req, res) => {
       }
     }
 
-    // 링크 스캔 토큰 가드 (브랜치-로컬 AND: standalone + 비하이트진로 + 비프랜차이즈 + 비수동개수)
-    // 유효·미소비 토큰이 있을 때만 적립 허용. 원자적 소비는 아래 트랜잭션에서 수행.
-    const scanGuardActive =
-      !!store.stampSetting?.linkGuardEnabled &&
-      !ordersheetId &&
-      !isHitejinro &&
-      !isFranchiseStampMode &&
-      !manualMode;
+    // 링크 스캔 토큰 가드 — standalone(주문 미연동) 스탬프 링크에 기본 적용 (선택 아님).
+    // 프랜차이즈 통합 스탬프 포함, 하이트진로/매번개수입력만 제외.
+    // 유효·미소비 토큰이 있을 때만 적립 허용. 원자적 소비는 적립 트랜잭션에서 수행.
+    const scanGuardActive = !ordersheetId && !isHitejinro && !manualMode;
     const scanToken: string | undefined =
       typeof req.body.t === 'string' && req.body.t ? req.body.t : undefined;
     if (scanGuardActive) {
@@ -1695,7 +1696,20 @@ router.post('/stamp-earn', async (req, res) => {
       const previousFranchiseStamps = franchiseCustomer.totalStamps;
       const newFranchiseBalance = previousFranchiseStamps + 1;
 
-      const franchiseResult = await prisma.$transaction(async (tx) => {
+      let franchiseResult;
+      try {
+        franchiseResult = await prisma.$transaction(async (tx) => {
+        // 링크 스캔 토큰 원자적 소비 (낙관적 락) — 프랜차이즈 통합 경로도 동일 적용
+        if (scanGuardActive && scanToken) {
+          const consumed = await tx.stampScanToken.updateMany({
+            where: { id: scanToken, status: 'PENDING', expiresAt: { gt: new Date() } },
+            data: { status: 'CONSUMED', consumedAt: new Date(), consumedByCustomerId: customer!.id },
+          });
+          if (consumed.count !== 1) {
+            throw new Error('SCAN_TOKEN_INVALID');
+          }
+        }
+
         const updated = await tx.franchiseCustomer.update({
           where: { id: franchiseCustomer!.id },
           data: {
@@ -1737,7 +1751,17 @@ router.post('/stamp-earn', async (req, res) => {
         }
 
         return { customer: updated, ledger, milestoneResult };
-      });
+        });
+      } catch (txErr: any) {
+        if (txErr?.message === 'SCAN_TOKEN_INVALID') {
+          return res.status(400).json({
+            success: false,
+            error: 'invalid_token',
+            message: '링크가 만료되었어요. 매장에서 다시 스캔해주세요.',
+          });
+        }
+        throw txErr;
+      }
 
       console.log(`[TagHere Stamp-Earn] Franchise stamp earned - franchiseCustomerId: ${franchiseCustomer.id}, newBalance: ${franchiseResult.customer.totalStamps}${franchiseResult.milestoneResult ? `, milestone: ${franchiseResult.milestoneResult.tier}개` : ''}`);
 
