@@ -6,6 +6,7 @@ import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../u
 import { isValidWebhookToken, fetchOrder, TaghereOrderData } from '../services/taghere-api.js';
 import { sidoToShort } from '../utils/address-parser.js';
 import { syncToMetacity } from '../services/metacity.js';
+import { haversineMeters } from '../services/geocode.js';
 
 const router = Router();
 
@@ -965,6 +966,8 @@ router.get('/stamp-info/:slug', async (req, res) => {
       select: {
         id: true,
         name: true,
+        latitude: true,
+        longitude: true,
         stampSetting: true,
         franchiseStampEnabled: true,
         franchiseId: true,
@@ -1009,6 +1012,9 @@ router.get('/stamp-info/:slug', async (req, res) => {
         enabled: true,
         // 링크 가드 기본 적용 (프랜차이즈 통합 스탬프 포함) — 클라는 !ordersheetId일 때 토큰 요구
         linkGuardEnabled: true,
+        // 위치 기반 적립 확인 (매장별 토글, 기본 OFF) — 좌표가 있어야 실효
+        locationGuardEnabled:
+          !!store.stampSetting?.locationGuardEnabled && store.latitude != null && store.longitude != null,
         rewards,
         ...legacyFields,
       });
@@ -1044,6 +1050,9 @@ router.get('/stamp-info/:slug', async (req, res) => {
       enabled: true,
       manualStampCountEnabled: !!store.stampSetting.manualStampCountEnabled,
       linkGuardEnabled,
+      // 위치 기반 적립 확인 (매장별 토글, 기본 OFF) — 좌표가 있어야 실효
+      locationGuardEnabled:
+        linkGuardEnabled && !!store.stampSetting.locationGuardEnabled && store.latitude != null && store.longitude != null,
       rewards,
       ...legacyFields,
     });
@@ -1109,6 +1118,77 @@ router.get('/stamp-scan-entry/:slug/:secret', async (req, res) => {
     console.error('[TagHere] Stamp scan entry error:', error);
     // 오류 시에도 고객이 빈 화면을 보지 않도록 페이지로
     return res.redirect(pageUrl);
+  }
+});
+
+// POST /api/taghere/stamp-scan-verify-location - 스캔 토큰에 위치 검증 기록 (공개)
+// 위치 기반 적립 확인(locationGuardEnabled) 매장에서 적립 전에 호출.
+// 서버가 매장 좌표와의 거리를 계산해 토큰에 결과를 기록한다 (좌표는 OAuth state에 싣지 않음 → 위조 불가).
+// 판정: 거리 - 오차 <= 반경 이면 통과 (확신할 때만 차단 — 실내 GPS 오차로 정상 손님이 튕기지 않게).
+router.post('/stamp-scan-verify-location', async (req, res) => {
+  try {
+    const { t, lat, lng, accuracy } = req.body || {};
+    const latNum = Number(lat);
+    const lngNum = Number(lng);
+    const accNum = Math.max(0, Number(accuracy) || 0);
+
+    if (!t || typeof t !== 'string' || !Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+      return res.status(400).json({ success: false, error: 'missing_params' });
+    }
+
+    const token = await prisma.stampScanToken.findUnique({
+      where: { id: t },
+      select: { id: true, storeId: true, status: true, expiresAt: true },
+    });
+    if (!token || token.status !== 'PENDING' || token.expiresAt <= new Date()) {
+      return res.status(400).json({ success: false, error: 'invalid_token' });
+    }
+
+    const store = await prisma.store.findUnique({
+      where: { id: token.storeId },
+      select: {
+        latitude: true,
+        longitude: true,
+        stampSetting: { select: { locationGuardEnabled: true, locationGuardRadiusM: true } },
+      },
+    });
+    if (!store) return res.status(404).json({ success: false, error: 'store_not_found' });
+
+    // 가드 미적용/좌표 없음 → 검증 불요, 통과 처리
+    if (!store.stampSetting?.locationGuardEnabled || store.latitude == null || store.longitude == null) {
+      await prisma.stampScanToken.update({
+        where: { id: token.id },
+        data: { locationVerified: true, locationVerifiedAt: new Date() },
+      });
+      return res.json({ success: true, verified: true, skipped: true });
+    }
+
+    const distanceM = haversineMeters(latNum, lngNum, store.latitude, store.longitude);
+    const radiusM = store.stampSetting.locationGuardRadiusM ?? 200;
+    // 확신할 때만 차단: 보고된 오차를 감안해도 반경 밖일 때만 거부
+    const verified = distanceM - accNum <= radiusM;
+
+    await prisma.stampScanToken.update({
+      where: { id: token.id },
+      data: {
+        locationVerified: verified,
+        locationDistanceM: Math.round(distanceM),
+        locationAccuracyM: Math.round(accNum),
+        locationVerifiedAt: new Date(),
+      },
+    });
+
+    console.log(
+      `[TagHere Location] token=${token.id} distance=${Math.round(distanceM)}m accuracy=${Math.round(accNum)}m radius=${radiusM}m → ${verified ? 'PASS' : 'BLOCK'}`,
+    );
+
+    if (!verified) {
+      return res.json({ success: false, verified: false, error: 'too_far', distanceM: Math.round(distanceM) });
+    }
+    return res.json({ success: true, verified: true });
+  } catch (error: any) {
+    console.error('[TagHere] Location verify error:', error);
+    res.status(500).json({ success: false, error: 'verify_failed' });
   }
 });
 
@@ -1369,6 +1449,8 @@ router.post('/stamp-earn', async (req, res) => {
       select: {
         id: true,
         name: true,
+        latitude: true,
+        longitude: true,
         stampSetting: true,
         franchiseStampEnabled: true,
         franchiseId: true,
@@ -1444,6 +1526,20 @@ router.post('/stamp-earn', async (req, res) => {
           success: false,
           error: 'invalid_token',
           message: '링크가 만료되었어요. 매장에서 다시 스캔해주세요.',
+        });
+      }
+
+      // 위치 기반 적립 확인 (매장별 토글, 기본 OFF): 토큰에 위치 검증 기록이 있어야 적립 가능.
+      // 검증은 stamp-scan-verify-location에서 서버가 수행·기록 → 클라이언트 위조 불가.
+      const locationGuardActive =
+        !!store.stampSetting?.locationGuardEnabled &&
+        store.latitude != null &&
+        store.longitude != null;
+      if (locationGuardActive && !tok.locationVerified) {
+        return res.status(400).json({
+          success: false,
+          error: 'location_required',
+          message: '매장 근처에서만 스탬프를 적립할 수 있어요.',
         });
       }
     }

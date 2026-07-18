@@ -832,6 +832,8 @@ async function handleStampCallback(
   const storeSelect = {
     id: true,
     name: true,
+    latitude: true,
+    longitude: true,
     stampSetting: true,
     franchiseStampEnabled: true,
     franchiseId: true,
@@ -895,6 +897,18 @@ async function handleStampCallback(
     if (!tok || tok.storeId !== store.id || tok.status !== 'PENDING' || tok.expiresAt <= new Date()) {
       const invalidUrl = new URL(`${redirectOrigin}${stampBasePath}`);
       invalidUrl.searchParams.set('error', 'invalid_token');
+      return res.redirect(invalidUrl.toString());
+    }
+
+    // 위치 기반 적립 확인 (매장별 토글, 기본 OFF): 토큰에 위치 검증 기록이 있어야 적립 가능.
+    // 검증·기록은 stamp-scan-verify-location에서 서버가 수행 (OAuth state에 좌표 미탑재 → 위조 불가).
+    const locationGuardActive =
+      !!store.stampSetting?.locationGuardEnabled &&
+      store.latitude != null &&
+      store.longitude != null;
+    if (locationGuardActive && !tok.locationVerified) {
+      const invalidUrl = new URL(`${redirectOrigin}${stampBasePath}`);
+      invalidUrl.searchParams.set('error', 'location_required');
       return res.redirect(invalidUrl.toString());
     }
   }
