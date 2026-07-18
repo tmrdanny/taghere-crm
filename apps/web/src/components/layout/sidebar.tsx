@@ -34,6 +34,7 @@ import {
   Clock,
   Rocket,
   MessagesSquare,
+  Ticket,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -108,6 +109,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/automation', label: '자동 마케팅', icon: Zap, badge: '30건 무료' },
       { href: '/messages', label: '메시지 발송', icon: MessageSquareMore },
+      { href: '/coupon-links', label: '쿠폰 발행 링크', icon: Ticket, isNew: true },
       { href: '/place-booster', label: '네이버 플레이스 부스터', icon: Rocket, isNew: true },
       { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
     ],
