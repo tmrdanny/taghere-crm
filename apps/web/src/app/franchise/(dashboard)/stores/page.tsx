@@ -517,6 +517,11 @@ export default function FranchiseStoresPage() {
 
   // 필터 옵션 (데이터에서 유니크 추출)
   const sidoOptions = Array.from(new Set(stores.map(getSido).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ko'));
+  // "시" 구분(특별시/광역시/특별자치시) vs "도" 구분(도/특별자치도) 분리
+  // 예: 서울특별시·부산광역시·세종특별자치시 → 시 / 경기도·강원특별자치도·제주특별자치도 → 도
+  const isSiType = (sido: string) => /(특별시|광역시|특별자치시)$/.test(sido);
+  const siOptions = sidoOptions.filter(isSiType);
+  const doOptions = sidoOptions.filter((s) => !isSiType(s));
   // 시/군/구 옵션은 선택된 시/도에 종속
   const sigunguOptions = Array.from(
     new Set(
@@ -730,17 +735,30 @@ export default function FranchiseStoresPage() {
               )}
             </div>
 
-            {/* 지역 필터: 시/도 → 시/군/구 (시 단위만으로도 필터 가능) */}
+            {/* 지역 필터: "시"(특별시·광역시·특별자치시)와 "도"를 별도 드롭다운으로 구분 */}
             <select
-              value={sidoFilter}
+              value={siOptions.includes(sidoFilter) ? sidoFilter : 'all'}
               onChange={(e) => {
                 setSidoFilter(e.target.value);
                 setSigunguFilter('all'); // 시/도 변경 시 세부지역 초기화
               }}
               className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-franchise-600"
             >
-              <option value="all">시/도 전체</option>
-              {sidoOptions.map((r) => (
+              <option value="all">시 전체</option>
+              {siOptions.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            <select
+              value={doOptions.includes(sidoFilter) ? sidoFilter : 'all'}
+              onChange={(e) => {
+                setSidoFilter(e.target.value);
+                setSigunguFilter('all'); // 시/도 변경 시 세부지역 초기화
+              }}
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-franchise-600"
+            >
+              <option value="all">도 전체</option>
+              {doOptions.map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
