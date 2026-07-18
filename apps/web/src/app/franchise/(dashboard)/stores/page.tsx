@@ -124,9 +124,13 @@ export default function FranchiseStoresPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  // 지역/담당자 필터
-  const [regionFilter, setRegionFilter] = useState('all');
+  // 지역(시/도 + 시/군/구)/담당자 필터
+  const [sidoFilter, setSidoFilter] = useState('all');
+  const [sigunguFilter, setSigunguFilter] = useState('all');
   const [managerFilter, setManagerFilter] = useState('all');
+  // 정렬 (고객수/스탬프 보상 수령)
+  const [sortKey, setSortKey] = useState<'customerCount' | 'stampRewardCustomers' | null>(null);
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   // 담당자 인라인 편집 상태
   const [editingManagerStoreId, setEditingManagerStoreId] = useState<string | null>(null);
   const [managerInput, setManagerInput] = useState('');
@@ -500,15 +504,28 @@ export default function FranchiseStoresPage() {
     return num ? parseInt(num, 10).toLocaleString() : '';
   };
 
-  // 지역 라벨 (시/도 + 시/군/구, 없으면 주소 앞부분)
+  // 지역 헬퍼: 시/도, 시/군/구 (정규화 필드 우선, 없으면 주소 토큰)
+  const getSido = (store: StoreData): string =>
+    (store.addressSido || '').trim() || (store.address || '').split(' ')[0] || '미상';
+  const getSigungu = (store: StoreData): string =>
+    (store.addressSigungu || '').trim() || (store.address || '').split(' ')[1] || '';
+  // 지역 라벨 (시/도 + 시/군/구)
   const getRegionLabel = (store: StoreData): string => {
-    const parts = [store.addressSido, store.addressSigungu].filter(Boolean);
-    if (parts.length > 0) return parts.join(' ');
-    return (store.address || '').split(' ').slice(0, 2).join(' ') || '미상';
+    const parts = [getSido(store), getSigungu(store)].filter(Boolean);
+    return parts.join(' ') || '미상';
   };
 
   // 필터 옵션 (데이터에서 유니크 추출)
-  const regionOptions = Array.from(new Set(stores.map(getRegionLabel))).sort((a, b) => a.localeCompare(b, 'ko'));
+  const sidoOptions = Array.from(new Set(stores.map(getSido).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ko'));
+  // 시/군/구 옵션은 선택된 시/도에 종속
+  const sigunguOptions = Array.from(
+    new Set(
+      stores
+        .filter((s) => sidoFilter === 'all' || getSido(s) === sidoFilter)
+        .map(getSigungu)
+        .filter(Boolean),
+    ),
+  ).sort((a, b) => a.localeCompare(b, 'ko'));
   const managerOptions = Array.from(
     new Set(stores.map((s) => (s.managerName || '').trim()).filter(Boolean)),
   ).sort((a, b) => a.localeCompare(b, 'ko'));
@@ -519,15 +536,35 @@ export default function FranchiseStoresPage() {
     const matchesSearch = store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (store.address || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || store.category === categoryFilter;
-    const matchesRegion = regionFilter === 'all' || getRegionLabel(store) === regionFilter;
+    const matchesSido = sidoFilter === 'all' || getSido(store) === sidoFilter;
+    const matchesSigungu = sigunguFilter === 'all' || getSigungu(store) === sigunguFilter;
     const matchesManager =
       managerFilter === 'all' ||
       (managerFilter === '__unassigned__'
         ? !(store.managerName || '').trim()
         : (store.managerName || '').trim() === managerFilter);
 
-    return matchesSearch && matchesCategory && matchesRegion && matchesManager;
+    return matchesSearch && matchesCategory && matchesSido && matchesSigungu && matchesManager;
   });
+
+  // 정렬 적용 (미선택 시 기존 순서 = 최신 등록순)
+  const sortedStores = sortKey
+    ? [...filteredStores].sort((a, b) => {
+        const av = (a[sortKey] as number) || 0;
+        const bv = (b[sortKey] as number) || 0;
+        return sortDir === 'desc' ? bv - av : av - bv;
+      })
+    : filteredStores;
+
+  // 정렬 헤더 클릭: 같은 키면 방향 토글, 다른 키면 많은 순부터
+  const handleSortClick = (key: 'customerCount' | 'stampRewardCustomers') => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  };
 
   // 필터 결과 합계
   const filteredTotalCustomers = filteredStores.reduce((sum, s) => sum + (s.customerCount || 0), 0);
@@ -563,7 +600,7 @@ export default function FranchiseStoresPage() {
   // 엑셀 다운로드 (현재 필터 결과)
   const handleExcelDownload = async () => {
     const XLSX = await import('xlsx');
-    const rows = filteredStores.map((s) => ({
+    const rows = sortedStores.map((s) => ({
       상호명: s.name,
       지역: getRegionLabel(s),
       담당자: (s.managerName || '').trim() || '미지정',
@@ -693,14 +730,27 @@ export default function FranchiseStoresPage() {
               )}
             </div>
 
-            {/* 지역 필터 */}
+            {/* 지역 필터: 시/도 → 시/군/구 (시 단위만으로도 필터 가능) */}
             <select
-              value={regionFilter}
-              onChange={(e) => setRegionFilter(e.target.value)}
+              value={sidoFilter}
+              onChange={(e) => {
+                setSidoFilter(e.target.value);
+                setSigunguFilter('all'); // 시/도 변경 시 세부지역 초기화
+              }}
               className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-franchise-600"
             >
-              <option value="all">지역 전체</option>
-              {regionOptions.map((r) => (
+              <option value="all">시/도 전체</option>
+              {sidoOptions.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            <select
+              value={sigunguFilter}
+              onChange={(e) => setSigunguFilter(e.target.value)}
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-franchise-600"
+            >
+              <option value="all">시/군/구 전체</option>
+              {sigunguOptions.map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
@@ -940,19 +990,19 @@ export default function FranchiseStoresPage() {
         {/* Table */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[960px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-1/3">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap w-full">
                     가맹점명
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-1/3">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
                     지역
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
                     업종
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
                     <div className="flex items-center justify-center gap-2">
                       <span>통합 스탬프</span>
                       <button
@@ -974,14 +1024,32 @@ export default function FranchiseStoresPage() {
                       </button>
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
                     담당자
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    고객수
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                    <button
+                      onClick={() => handleSortClick('customerCount')}
+                      className="inline-flex items-center gap-1 hover:text-slate-800 transition-colors uppercase"
+                      title="클릭하여 정렬 (많은 순 ↔ 적은 순)"
+                    >
+                      고객수
+                      <span className={cn('text-[10px]', sortKey === 'customerCount' ? 'text-franchise-600' : 'text-slate-300')}>
+                        {sortKey === 'customerCount' ? (sortDir === 'desc' ? '▼' : '▲') : '▼'}
+                      </span>
+                    </button>
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    스탬프 보상 수령
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                    <button
+                      onClick={() => handleSortClick('stampRewardCustomers')}
+                      className="inline-flex items-center gap-1 hover:text-slate-800 transition-colors uppercase"
+                      title="클릭하여 정렬 (많은 순 ↔ 적은 순)"
+                    >
+                      스탬프 보상 수령
+                      <span className={cn('text-[10px]', sortKey === 'stampRewardCustomers' ? 'text-franchise-600' : 'text-slate-300')}>
+                        {sortKey === 'stampRewardCustomers' ? (sortDir === 'desc' ? '▼' : '▲') : '▼'}
+                      </span>
+                    </button>
                   </th>
                 </tr>
               </thead>
@@ -995,7 +1063,7 @@ export default function FranchiseStoresPage() {
                     <td colSpan={7}>{renderEmptyState()}</td>
                   </tr>
                 ) : (
-                  filteredStores.map((store) => (
+                  sortedStores.map((store) => (
                     <tr
                       key={store.id}
                       onClick={() => handleRowClick(store)}
@@ -1003,16 +1071,16 @@ export default function FranchiseStoresPage() {
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-franchise-100 rounded-lg flex items-center justify-center">
+                          <div className="w-8 h-8 bg-franchise-100 rounded-lg flex items-center justify-center shrink-0">
                             <Store className="w-4 h-4 text-franchise-600" />
                           </div>
-                          <span className="text-sm font-medium text-slate-900">{store.name}</span>
+                          <span className="text-sm font-medium text-slate-900 whitespace-nowrap">{store.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
+                      <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">
                         <span title={store.address || ''}>{getRegionLabel(store)}</span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{store.category ? CATEGORY_LABELS[store.category] || store.category : '-'}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">{store.category ? CATEGORY_LABELS[store.category] || store.category : '-'}</td>
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={(e) => handleStampToggle(store.id, e)}
@@ -1029,7 +1097,7 @@ export default function FranchiseStoresPage() {
                           )} />
                         </button>
                       </td>
-                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         {editingManagerStoreId === store.id ? (
                           <input
                             autoFocus
@@ -1055,7 +1123,7 @@ export default function FranchiseStoresPage() {
                               setManagerInput((store.managerName || '').trim());
                             }}
                             className={cn(
-                              'px-2 py-1 text-sm rounded-lg transition-colors',
+                              'px-2 py-1 text-sm rounded-lg transition-colors whitespace-nowrap',
                               (store.managerName || '').trim()
                                 ? 'text-slate-900 hover:bg-slate-100'
                                 : 'text-slate-400 hover:bg-slate-100 border border-dashed border-slate-300'
@@ -1066,10 +1134,10 @@ export default function FranchiseStoresPage() {
                           </button>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-900 text-right font-medium">
+                      <td className="px-6 py-4 text-sm text-slate-900 text-right font-medium whitespace-nowrap">
                         {store.customerCount.toLocaleString()}명
                       </td>
-                      <td className="px-6 py-4 text-sm text-amber-600 text-right font-medium">
+                      <td className="px-6 py-4 text-sm text-amber-600 text-right font-medium whitespace-nowrap">
                         {(store.stampRewardCustomers || 0).toLocaleString()}명
                       </td>
                     </tr>
