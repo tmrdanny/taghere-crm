@@ -46,8 +46,12 @@ interface StoreData {
   id: string;
   name: string;
   address?: string;
+  addressSido?: string | null;
+  addressSigungu?: string | null;
+  managerName?: string | null;
   category?: string;
   customerCount: number;
+  stampRewardCustomers?: number;
   ownerName?: string;
   phone?: string;
   createdAt?: string;
@@ -120,6 +124,13 @@ export default function FranchiseStoresPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  // 지역/담당자 필터
+  const [regionFilter, setRegionFilter] = useState('all');
+  const [managerFilter, setManagerFilter] = useState('all');
+  // 담당자 인라인 편집 상태
+  const [editingManagerStoreId, setEditingManagerStoreId] = useState<string | null>(null);
+  const [managerInput, setManagerInput] = useState('');
+  const [savingManager, setSavingManager] = useState(false);
   const [selectedStore, setSelectedStore] = useState<StoreData | null>(null);
   const [isSlideoverOpen, setIsSlideoverOpen] = useState(false);
   const [storeDetail, setStoreDetail] = useState<StoreData | null>(null);
@@ -489,14 +500,91 @@ export default function FranchiseStoresPage() {
     return num ? parseInt(num, 10).toLocaleString() : '';
   };
 
+  // 지역 라벨 (시/도 + 시/군/구, 없으면 주소 앞부분)
+  const getRegionLabel = (store: StoreData): string => {
+    const parts = [store.addressSido, store.addressSigungu].filter(Boolean);
+    if (parts.length > 0) return parts.join(' ');
+    return (store.address || '').split(' ').slice(0, 2).join(' ') || '미상';
+  };
+
+  // 필터 옵션 (데이터에서 유니크 추출)
+  const regionOptions = Array.from(new Set(stores.map(getRegionLabel))).sort((a, b) => a.localeCompare(b, 'ko'));
+  const managerOptions = Array.from(
+    new Set(stores.map((s) => (s.managerName || '').trim()).filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b, 'ko'));
+  const hasUnassigned = stores.some((s) => !(s.managerName || '').trim());
+
   // Filter stores
   const filteredStores = stores.filter((store) => {
     const matchesSearch = store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (store.address || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || store.category === categoryFilter;
+    const matchesRegion = regionFilter === 'all' || getRegionLabel(store) === regionFilter;
+    const matchesManager =
+      managerFilter === 'all' ||
+      (managerFilter === '__unassigned__'
+        ? !(store.managerName || '').trim()
+        : (store.managerName || '').trim() === managerFilter);
 
-    return matchesSearch && matchesCategory;
+    return matchesSearch && matchesCategory && matchesRegion && matchesManager;
   });
+
+  // 필터 결과 합계
+  const filteredTotalCustomers = filteredStores.reduce((sum, s) => sum + (s.customerCount || 0), 0);
+  const filteredTotalRewardCustomers = filteredStores.reduce((sum, s) => sum + (s.stampRewardCustomers || 0), 0);
+
+  // 담당자 저장
+  const saveManagerName = async (storeId: string) => {
+    if (savingManager) return;
+    setSavingManager(true);
+    const name = managerInput.trim();
+    try {
+      const token = localStorage.getItem('franchiseToken');
+      const res = await fetch(`${API_BASE}/api/franchise/stores/${storeId}/manager`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ managerName: name }),
+      });
+      if (res.ok) {
+        setStores((prev) => prev.map((s) => (s.id === storeId ? { ...s, managerName: name || null } : s)));
+      }
+    } catch (e) {
+      console.error('Failed to save manager name:', e);
+    } finally {
+      setSavingManager(false);
+      setEditingManagerStoreId(null);
+      setManagerInput('');
+    }
+  };
+
+  // 엑셀 다운로드 (현재 필터 결과)
+  const handleExcelDownload = async () => {
+    const XLSX = await import('xlsx');
+    const rows = filteredStores.map((s) => ({
+      상호명: s.name,
+      지역: getRegionLabel(s),
+      담당자: (s.managerName || '').trim() || '미지정',
+      '고객 수': s.customerCount || 0,
+      '스탬프 보상 수령 고객': s.stampRewardCustomers || 0,
+    }));
+    // 합계 행
+    rows.push({
+      상호명: `합계 (${filteredStores.length}개 매장)`,
+      지역: '',
+      담당자: '',
+      '고객 수': filteredTotalCustomers,
+      '스탬프 보상 수령 고객': filteredTotalRewardCustomers,
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 26 }, { wch: 16 }, { wch: 12 }, { wch: 10 }, { wch: 18 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '가맹점 고객 현황');
+    const date = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `가맹점_고객현황_${date}.xlsx`);
+  };
 
   // Open slideover
   const handleRowClick = (store: StoreData) => {
@@ -604,6 +692,52 @@ export default function FranchiseStoresPage() {
                 </>
               )}
             </div>
+
+            {/* 지역 필터 */}
+            <select
+              value={regionFilter}
+              onChange={(e) => setRegionFilter(e.target.value)}
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-franchise-600"
+            >
+              <option value="all">지역 전체</option>
+              {regionOptions.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+
+            {/* 담당자 필터 */}
+            <select
+              value={managerFilter}
+              onChange={(e) => setManagerFilter(e.target.value)}
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-franchise-600"
+            >
+              <option value="all">담당자 전체</option>
+              {managerOptions.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+              {hasUnassigned && <option value="__unassigned__">미지정</option>}
+            </select>
+
+            {/* 엑셀 다운로드 */}
+            <button
+              onClick={handleExcelDownload}
+              className="ml-auto flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              엑셀 다운로드
+            </button>
+          </div>
+
+          {/* 필터 결과 합계 */}
+          <div className="px-4 pb-4 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+            <span className="text-slate-500">
+              필터 결과 <span className="font-semibold text-slate-900">{filteredStores.length.toLocaleString()}개</span> 매장
+            </span>
+            <span className="text-slate-500">
+              총 고객 수 <span className="font-semibold text-franchise-700">{filteredTotalCustomers.toLocaleString()}명</span>
+            </span>
+            <span className="text-slate-500">
+              스탬프 보상 수령 고객 <span className="font-semibold text-amber-600">{filteredTotalRewardCustomers.toLocaleString()}명</span>
+            </span>
           </div>
         </div>
 
@@ -840,19 +974,25 @@ export default function FranchiseStoresPage() {
                       </button>
                     </div>
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    담당자
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                     고객수
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    스탬프 보상 수령
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={5}>{renderSkeleton()}</td>
+                    <td colSpan={7}>{renderSkeleton()}</td>
                   </tr>
                 ) : filteredStores.length === 0 ? (
                   <tr>
-                    <td colSpan={5}>{renderEmptyState()}</td>
+                    <td colSpan={7}>{renderEmptyState()}</td>
                   </tr>
                 ) : (
                   filteredStores.map((store) => (
@@ -869,7 +1009,9 @@ export default function FranchiseStoresPage() {
                           <span className="text-sm font-medium text-slate-900">{store.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{store.address || '-'}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        <span title={store.address || ''}>{getRegionLabel(store)}</span>
+                      </td>
                       <td className="px-6 py-4 text-sm text-slate-600">{store.category ? CATEGORY_LABELS[store.category] || store.category : '-'}</td>
                       <td className="px-6 py-4 text-center">
                         <button
@@ -887,8 +1029,48 @@ export default function FranchiseStoresPage() {
                           )} />
                         </button>
                       </td>
+                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                        {editingManagerStoreId === store.id ? (
+                          <input
+                            autoFocus
+                            type="text"
+                            value={managerInput}
+                            onChange={(e) => setManagerInput(e.target.value)}
+                            onBlur={() => saveManagerName(store.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                              if (e.key === 'Escape') {
+                                setEditingManagerStoreId(null);
+                                setManagerInput('');
+                              }
+                            }}
+                            placeholder="담당자 이름"
+                            disabled={savingManager}
+                            className="w-24 px-2 py-1 text-sm border border-franchise-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600"
+                          />
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setEditingManagerStoreId(store.id);
+                              setManagerInput((store.managerName || '').trim());
+                            }}
+                            className={cn(
+                              'px-2 py-1 text-sm rounded-lg transition-colors',
+                              (store.managerName || '').trim()
+                                ? 'text-slate-900 hover:bg-slate-100'
+                                : 'text-slate-400 hover:bg-slate-100 border border-dashed border-slate-300'
+                            )}
+                            title="클릭하여 담당자 입력"
+                          >
+                            {(store.managerName || '').trim() || '+ 입력'}
+                          </button>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-sm text-slate-900 text-right font-medium">
                         {store.customerCount.toLocaleString()}명
+                      </td>
+                      <td className="px-6 py-4 text-sm text-amber-600 text-right font-medium">
+                        {(store.stampRewardCustomers || 0).toLocaleString()}명
                       </td>
                     </tr>
                   ))

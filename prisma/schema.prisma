@@ -49,6 +49,7 @@ model Store {
   franchiseId           String?
   franchise             Franchise? @relation(fields: [franchiseId], references: [id])
   franchiseStampEnabled Boolean    @default(false)  // 통합 스탬프 참여 여부
+  franchiseManagerName  String?    // 본사 담당자 이름 (프랜차이즈 대시보드에서 직접 입력)
 
   // 태그히어 모바일오더 연동 버전 ("v1" | "v2")
   taghereVersion        String     @default("v1")
