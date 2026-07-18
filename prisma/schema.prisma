@@ -1602,6 +1602,7 @@ model CouponFormLink {
   slug          String   @unique            // 공개 폼 URL 조각 (랜덤)
   title         String   @default("쿠폰 받기")
   description   String?                     // 폼 상단 안내문
+  bannerUrl     String?                     // 폼 상단 배너 이미지 (상대경로 /uploads/...)
   // 커스텀 필드 정의: [{id, type: 'TEXT'|'CHOICE', label, required, choiceOptions?: string[]}]
   // 연락처(phone)는 항상 필수라 fields에 포함하지 않음
   fields        Json

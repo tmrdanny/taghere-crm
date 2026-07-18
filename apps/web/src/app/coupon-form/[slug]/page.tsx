@@ -16,10 +16,16 @@ interface CouponFormInfo {
   slug: string;
   title: string;
   description: string | null;
+  bannerUrl: string | null;
   fields: FormField[];
   couponContent: string;
   expiryDate: string;
   storeName: string;
+}
+
+function fullImageUrl(url: string): string {
+  if (!url) return '';
+  return url.startsWith('http') ? url : `${API_BASE}${url}`;
 }
 
 function formatPhoneInput(raw: string): string {
@@ -147,7 +153,16 @@ function CouponFormContent() {
   // ── 폼
   return (
     <PageShell scrollable>
-      <div className="px-6 pt-10 pb-8">
+      {/* 상단 배너 */}
+      {form.bannerUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={fullImageUrl(form.bannerUrl)}
+          alt=""
+          className="w-full aspect-[3/1] object-cover"
+        />
+      )}
+      <div className={`px-6 pb-8 ${form.bannerUrl ? 'pt-6' : 'pt-10'}`}>
         {/* 헤더 */}
         <p className="text-[13px] font-medium text-neutral-400 mb-2">{form.storeName}</p>
         <h1 className="text-[22px] font-bold text-neutral-900 leading-snug">{form.title}</h1>

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toast';
-import { Ticket, Plus, Trash2, Copy, Download, Link2, Pencil, Users, CheckCircle2 } from 'lucide-react';
+import { Ticket, Plus, Trash2, Copy, Download, Link2, Pencil, Users, CheckCircle2, Image as ImageIcon } from 'lucide-react';
 
 interface FormField {
   id: string;
@@ -24,6 +24,7 @@ interface CouponFormLink {
   slug: string;
   title: string;
   description: string | null;
+  bannerUrl: string | null;
   fields: FormField[];
   couponContent: string;
   expiryDate: string;
@@ -49,8 +50,13 @@ export default function CouponLinksPage() {
   const [expiryDate, setExpiryDate] = useState('');
   const [naverPlaceUrl, setNaverPlaceUrl] = useState('');
   const [storeNaverPlaceUrl, setStoreNaverPlaceUrl] = useState('');
+  const [bannerUrl, setBannerUrl] = useState('');
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
   const [fields, setFields] = useState<FormField[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+
+  const fullImageUrl = (url: string) => (url.startsWith('http') ? url : `${API_BASE}${url}`);
 
   // QR 표시 모달
   const [qrForm, setQrForm] = useState<CouponFormLink | null>(null);
@@ -89,6 +95,7 @@ export default function CouponLinksPage() {
     setCouponContent('');
     setExpiryDate('');
     setNaverPlaceUrl(storeNaverPlaceUrl);
+    setBannerUrl('');
     setFields([]);
     setIsEditorOpen(true);
   };
@@ -100,8 +107,36 @@ export default function CouponLinksPage() {
     setCouponContent(f.couponContent);
     setExpiryDate(f.expiryDate);
     setNaverPlaceUrl(storeNaverPlaceUrl);
+    setBannerUrl(f.bannerUrl || '');
     setFields(Array.isArray(f.fields) ? f.fields : []);
     setIsEditorOpen(true);
+  };
+
+  const handleBannerUpload = async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('이미지는 5MB 이하만 업로드할 수 있어요.', 'error');
+      return;
+    }
+    setIsUploadingBanner(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await fetch(`${API_BASE}/api/coupon-form/upload-banner`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.bannerUrl) {
+        setBannerUrl(data.bannerUrl);
+      } else {
+        showToast(data.error || '이미지 업로드에 실패했어요.', 'error');
+      }
+    } catch {
+      showToast('이미지 업로드 중 오류가 발생했어요.', 'error');
+    } finally {
+      setIsUploadingBanner(false);
+    }
   };
 
   // ── 필드 빌더
@@ -163,6 +198,7 @@ export default function CouponLinksPage() {
         couponContent: couponContent.trim(),
         expiryDate: expiryDate.trim(),
         naverPlaceUrl: naverPlaceUrl.trim(),
+        bannerUrl: bannerUrl || '',
         fields,
       };
       const res = await fetch(`${API_BASE}/api/coupon-form${editingId ? `/${editingId}` : ''}`, {
@@ -376,6 +412,50 @@ export default function CouponLinksPage() {
           </ModalHeader>
 
           <div className="space-y-5 py-2">
+            {/* 상단 배너 이미지 */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-700">상단 배너 이미지 (선택)</label>
+              <input
+                ref={bannerInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleBannerUpload(file);
+                  e.target.value = '';
+                }}
+              />
+              {bannerUrl ? (
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={fullImageUrl(bannerUrl)}
+                    alt="배너 미리보기"
+                    className="w-full max-h-48 object-cover rounded-lg border border-neutral-200"
+                  />
+                  <div className="mt-2 flex gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => bannerInputRef.current?.click()} disabled={isUploadingBanner}>
+                      {isUploadingBanner ? '업로드 중...' : '이미지 변경'}
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setBannerUrl('')}>
+                      제거
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => bannerInputRef.current?.click()}
+                  disabled={isUploadingBanner}
+                  className="w-full py-8 border-2 border-dashed border-neutral-300 rounded-lg text-sm text-neutral-500 hover:border-neutral-400 hover:text-neutral-600 transition-colors flex flex-col items-center gap-1"
+                >
+                  <ImageIcon className="w-6 h-6 text-neutral-400" />
+                  {isUploadingBanner ? '업로드 중...' : '배너 이미지 업로드 (권장 비율 3:1, 최대 5MB)'}
+                </button>
+              )}
+            </div>
+
             {/* 기본 정보 */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-neutral-700">폼 제목</label>

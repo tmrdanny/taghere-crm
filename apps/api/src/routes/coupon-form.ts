@@ -13,11 +13,39 @@
  *   DELETE /api/coupon-form/:id        폼 삭제
  */
 import { Router } from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { customAlphabet } from 'nanoid';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
+
+// 쿠폰 폼 배너 이미지 업로드 (로컬 디스크 → /uploads 정적 서빙)
+const bannerUploadDir = path.join(process.cwd(), 'uploads', 'coupon-banners');
+if (!fs.existsSync(bannerUploadDir)) {
+  fs.mkdirSync(bannerUploadDir, { recursive: true });
+}
+const bannerUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, bannerUploadDir),
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      const ext = path.extname(file.originalname).toLowerCase();
+      cb(null, `coupon-banner-${uniqueSuffix}${ext}`);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowed.includes(file.mimetype)) {
+      cb(new Error('JPG, PNG, GIF, WebP 파일만 업로드 가능합니다.'));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 // 혼동 문자 제외 (retarget-coupon과 동일 알파벳)
 const generateCouponCode = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 10);
@@ -76,6 +104,7 @@ router.get('/public/:slug', async (req, res) => {
         slug: true,
         title: true,
         description: true,
+        bannerUrl: true,
         fields: true,
         couponContent: true,
         expiryDate: true,
@@ -92,6 +121,7 @@ router.get('/public/:slug', async (req, res) => {
       slug: form.slug,
       title: form.title,
       description: form.description,
+      bannerUrl: form.bannerUrl,
       fields: form.fields,
       couponContent: form.couponContent,
       expiryDate: form.expiryDate,
@@ -226,6 +256,20 @@ router.post('/public/:slug/submit', async (req, res) => {
 // ============================================================
 router.use(authMiddleware);
 
+// POST /api/coupon-form/upload-banner - 폼 상단 배너 이미지 업로드
+router.post('/upload-banner', (req: AuthRequest, res) => {
+  bannerUpload.single('image')(req as any, res as any, (err: any) => {
+    if (err) {
+      return res.status(400).json({ error: err.message || '이미지 업로드에 실패했습니다.' });
+    }
+    const file = (req as any).file;
+    if (!file) {
+      return res.status(400).json({ error: '이미지 파일이 없습니다.' });
+    }
+    res.json({ success: true, bannerUrl: `/uploads/coupon-banners/${file.filename}` });
+  });
+});
+
 // GET /api/coupon-form - 폼 목록 + 통계 (+ 매장 네이버플레이스 URL)
 router.get('/', async (req: AuthRequest, res) => {
   try {
@@ -272,6 +316,7 @@ router.get('/', async (req: AuthRequest, res) => {
         slug: f.slug,
         title: f.title,
         description: f.description,
+        bannerUrl: f.bannerUrl,
         fields: f.fields,
         couponContent: f.couponContent,
         expiryDate: f.expiryDate,
@@ -300,6 +345,15 @@ function sanitizeNaverPlaceUrl(raw: unknown): string | null {
   } catch {
     return null;
   }
+}
+
+// 배너 URL 검증 — 우리 업로드 경로(/uploads/coupon-banners/)만 허용. 빈 값이면 null.
+function sanitizeBannerUrl(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const v = raw.trim();
+  if (!v) return null;
+  if (!v.startsWith('/uploads/coupon-banners/')) return null;
+  return v.slice(0, 300);
 }
 
 // POST /api/coupon-form - 폼 생성 (네이버 플레이스 URL 필수 — 매장 정보에 저장)
@@ -331,6 +385,7 @@ router.post('/', async (req: AuthRequest, res) => {
           slug: generateFormSlug(),
           title: typeof title === 'string' && title.trim() ? title.trim().slice(0, 50) : '쿠폰 받기',
           description: typeof description === 'string' && description.trim() ? description.trim().slice(0, 300) : null,
+          bannerUrl: sanitizeBannerUrl(req.body?.bannerUrl),
           fields: fields as any,
           couponContent: couponContent.trim().slice(0, 200),
           expiryDate: expiryDate.trim().slice(0, 100),
@@ -365,6 +420,11 @@ router.put('/:id', async (req: AuthRequest, res) => {
     }
     if (description !== undefined) {
       data.description = typeof description === 'string' && description.trim() ? description.trim().slice(0, 300) : null;
+    }
+    if (req.body?.bannerUrl !== undefined) {
+      // 빈 문자열/null이면 배너 제거, 유효 경로면 설정
+      const b = req.body.bannerUrl;
+      data.bannerUrl = b ? sanitizeBannerUrl(b) : null;
     }
     if (couponContent !== undefined) {
       if (typeof couponContent !== 'string' || !couponContent.trim()) return res.status(400).json({ error: '쿠폰 내용을 입력해주세요.' });
