@@ -61,6 +61,7 @@ import monthlyCreditRoutes from './routes/monthly-credit.js';
 import visitSourceSettingsRoutes from './routes/visit-source-settings.js';
 import insightsRoutes from './routes/insights.js';
 import retargetCouponRoutes from './routes/retarget-coupon.js';
+import couponFormRoutes from './routes/coupon-form.js';
 import automationRoutes from './routes/automation.js';
 import storeProductsRoutes from './routes/store-products.js';
 import storeOrdersRoutes from './routes/store-orders.js';
@@ -293,6 +294,9 @@ app.use('/api/insights', insightsRoutes);
 
 // Retarget coupon routes
 app.use('/api/retarget-coupon', retargetCouponRoutes);
+
+// 쿠폰 발행 링크 (점주 CRUD + 공개 폼 제출)
+app.use('/api/coupon-form', couponFormRoutes);
 
 // Automation routes
 app.use('/api/automation', automationRoutes);

@@ -96,6 +96,7 @@ model Store {
 
   // 리타겟 쿠폰
   retargetCoupons       RetargetCoupon[]
+  couponFormLinks       CouponFormLink[]
 
   // 자동 마케팅
   automationRules       AutomationRule[]
@@ -1592,6 +1593,46 @@ model RetargetCoupon {
   @@index([code])
   @@index([phone])
   @@map("retarget_coupons")
+}
+
+// 쿠폰 발행 링크 — 점주가 만든 공개 설문 폼. 손님이 제출하면 쿠폰 알림톡 자동 발송.
+model CouponFormLink {
+  id            String   @id @default(cuid())
+  storeId       String
+  slug          String   @unique            // 공개 폼 URL 조각 (랜덤)
+  title         String   @default("쿠폰 받기")
+  description   String?                     // 폼 상단 안내문
+  // 커스텀 필드 정의: [{id, type: 'TEXT'|'CHOICE', label, required, choiceOptions?: string[]}]
+  // 연락처(phone)는 항상 필수라 fields에 포함하지 않음
+  fields        Json
+  couponContent String                      // 알림톡 #{쿠폰내용}
+  expiryDate    String                      // 알림톡 #{유효기간} (텍스트)
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  submissions   CouponFormSubmission[]
+
+  @@index([storeId])
+  @@map("coupon_form_links")
+}
+
+// 쿠폰 발행 링크 제출 기록 (폼당 전화번호 1회)
+model CouponFormSubmission {
+  id         String   @id @default(cuid())
+  formId     String
+  storeId    String
+  phone      String                          // 정규화된 번호
+  answers    Json                            // {fieldId: 응답}
+  couponCode String?                         // 발급된 RetargetCoupon.code
+  createdAt  DateTime @default(now())
+
+  form       CouponFormLink @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@unique([formId, phone])
+  @@index([storeId])
+  @@map("coupon_form_submissions")
 }
 
 // ============================================
