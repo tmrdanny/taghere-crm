@@ -55,6 +55,9 @@ router.get('/stores', async (req: FranchiseAuthRequest, res) => {
         ownerName: true,
         phone: true,
         address: true,
+        addressSido: true,
+        addressSigungu: true,
+        franchiseManagerName: true,
         franchiseStampEnabled: true,
         createdAt: true,
         _count: {
@@ -66,6 +69,41 @@ router.get('/stores', async (req: FranchiseAuthRequest, res) => {
       orderBy: { createdAt: 'desc' },
     });
 
+    // 매장별 스탬프 보상 수령 고객 수 (전 기간, distinct 고객)
+    // 인사이트의 stampRewardCustomers 계산(franchise.ts insights)과 동일 기준:
+    // drawnReward 존재 또는 USE 계열 ledger가 있는 고객
+    const USE_TYPES = ['USE', 'USE_5', 'USE_10', 'USE_15', 'USE_20', 'USE_25', 'USE_30'] as const;
+    const storeIds = stores.map((s) => s.id);
+    const rewardCountByStore = new Map<string, number>();
+    if (storeIds.length > 0) {
+      const [storeLedgerPairs, franchiseLedgerPairs] = await Promise.all([
+        prisma.stampLedger.findMany({
+          where: {
+            storeId: { in: storeIds },
+            OR: [{ drawnReward: { not: null } }, { type: { in: USE_TYPES as any } }],
+          },
+          select: { storeId: true, customerId: true },
+          distinct: ['storeId', 'customerId'],
+        }),
+        prisma.franchiseStampLedger.findMany({
+          where: {
+            franchiseId,
+            storeId: { in: storeIds },
+            OR: [{ drawnReward: { not: null } }, { type: { in: USE_TYPES as any } }],
+          },
+          select: { storeId: true, franchiseCustomerId: true },
+          distinct: ['storeId', 'franchiseCustomerId'],
+        }),
+      ]);
+      for (const p of storeLedgerPairs) {
+        rewardCountByStore.set(p.storeId, (rewardCountByStore.get(p.storeId) || 0) + 1);
+      }
+      for (const p of franchiseLedgerPairs) {
+        if (!p.storeId) continue;
+        rewardCountByStore.set(p.storeId, (rewardCountByStore.get(p.storeId) || 0) + 1);
+      }
+    }
+
     res.json({
       stores: stores.map((store) => ({
         id: store.id,
@@ -75,8 +113,12 @@ router.get('/stores', async (req: FranchiseAuthRequest, res) => {
         ownerName: store.ownerName,
         phone: store.phone,
         address: store.address,
+        addressSido: store.addressSido,
+        addressSigungu: store.addressSigungu,
+        managerName: store.franchiseManagerName,
         franchiseStampEnabled: store.franchiseStampEnabled,
         customerCount: store._count.customers,
+        stampRewardCustomers: rewardCountByStore.get(store.id) || 0,
         createdAt: store.createdAt,
       })),
       total: stores.length,
@@ -84,6 +126,33 @@ router.get('/stores', async (req: FranchiseAuthRequest, res) => {
   } catch (error) {
     console.error('Get franchise stores error:', error);
     res.status(500).json({ error: '가맹점 목록 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// PATCH /api/franchise/stores/:storeId/manager - 가맹점 담당자 이름 설정
+router.patch('/stores/:storeId/manager', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { storeId } = req.params;
+    const raw = req.body?.managerName;
+    const managerName = typeof raw === 'string' ? raw.trim().slice(0, 50) : '';
+
+    // 소유권 확인 (내 프랜차이즈 가맹점만)
+    const store = await prisma.store.findFirst({ where: { id: storeId, franchiseId }, select: { id: true } });
+    if (!store) {
+      return res.status(404).json({ error: '가맹점을 찾을 수 없습니다.' });
+    }
+
+    const updated = await prisma.store.update({
+      where: { id: storeId },
+      data: { franchiseManagerName: managerName || null },
+      select: { id: true, franchiseManagerName: true },
+    });
+
+    res.json({ success: true, managerName: updated.franchiseManagerName });
+  } catch (error) {
+    console.error('Update store manager error:', error);
+    res.status(500).json({ error: '담당자 설정 중 오류가 발생했습니다.' });
   }
 });
 
