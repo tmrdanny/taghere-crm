@@ -47,6 +47,8 @@ export default function CouponLinksPage() {
   const [description, setDescription] = useState('');
   const [couponContent, setCouponContent] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
+  const [naverPlaceUrl, setNaverPlaceUrl] = useState('');
+  const [storeNaverPlaceUrl, setStoreNaverPlaceUrl] = useState('');
   const [fields, setFields] = useState<FormField[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -66,6 +68,7 @@ export default function CouponLinksPage() {
       if (res.ok) {
         const data = await res.json();
         setForms(data.forms || []);
+        setStoreNaverPlaceUrl(data.naverPlaceUrl || '');
       }
     } catch (e) {
       console.error('Failed to fetch coupon forms:', e);
@@ -85,6 +88,7 @@ export default function CouponLinksPage() {
     setDescription('');
     setCouponContent('');
     setExpiryDate('');
+    setNaverPlaceUrl(storeNaverPlaceUrl);
     setFields([]);
     setIsEditorOpen(true);
   };
@@ -95,6 +99,7 @@ export default function CouponLinksPage() {
     setDescription(f.description || '');
     setCouponContent(f.couponContent);
     setExpiryDate(f.expiryDate);
+    setNaverPlaceUrl(storeNaverPlaceUrl);
     setFields(Array.isArray(f.fields) ? f.fields : []);
     setIsEditorOpen(true);
   };
@@ -135,6 +140,10 @@ export default function CouponLinksPage() {
       showToast('유효기간을 입력해주세요.', 'error');
       return;
     }
+    if (!naverPlaceUrl.trim()) {
+      showToast('네이버 플레이스 URL을 입력해주세요.', 'error');
+      return;
+    }
     for (const f of fields) {
       if (!f.label.trim()) {
         showToast('항목 이름이 비어있는 설문 항목이 있어요.', 'error');
@@ -153,6 +162,7 @@ export default function CouponLinksPage() {
         description: description.trim(),
         couponContent: couponContent.trim(),
         expiryDate: expiryDate.trim(),
+        naverPlaceUrl: naverPlaceUrl.trim(),
         fields,
       };
       const res = await fetch(`${API_BASE}/api/coupon-form${editingId ? `/${editingId}` : ''}`, {
@@ -388,6 +398,19 @@ export default function CouponLinksPage() {
                 </label>
                 <Input value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} placeholder="예: 2026년 8월 31일까지" />
               </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-700">
+                네이버 플레이스 URL <span className="text-red-500">*</span>
+              </label>
+              <Input
+                value={naverPlaceUrl}
+                onChange={(e) => setNaverPlaceUrl(e.target.value)}
+                placeholder="예: https://naver.me/xxxxx 또는 네이버 플레이스 공유 링크"
+              />
+              <p className="text-xs text-neutral-400">
+                쿠폰 알림톡의 길찾기 버튼에 사용돼요. 매장 정보에 함께 저장됩니다.
+              </p>
             </div>
 
             {/* 설문 항목 */}
