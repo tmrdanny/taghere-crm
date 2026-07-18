@@ -125,6 +125,7 @@ interface StampInfo {
   franchiseName?: string;
   manualStampCountEnabled?: boolean;
   linkGuardEnabled?: boolean;
+  locationGuardEnabled?: boolean;
 }
 
 interface VisitSourceOption {
@@ -684,6 +685,10 @@ function TaghereEnrollStampContent() {
   const autoEarnAttemptedRef = useRef(false);
   // 링크 스캔 토큰 가드: 토큰 없음/만료/재사용 → "QR 스캔" 안내
   const [showExpiredLink, setShowExpiredLink] = useState(false);
+  // 위치 기반 적립 확인 상태 (locationGuardEnabled 매장)
+  const [locationStatus, setLocationStatus] = useState<
+    'idle' | 'checking' | 'verified' | 'denied' | 'too_far' | 'error'
+  >('idle');
   // 매번 적립 개수 직접 입력 모드: 개수 팝업 상태
   const [showCountPrompt, setShowCountPrompt] = useState(false);
   const [countPromptStoreName, setCountPromptStoreName] = useState('');
@@ -767,6 +772,64 @@ function TaghereEnrollStampContent() {
     trackEvent(name, params);
   };
 
+  // 위치 확인: 브라우저 위치 요청 → 서버에 검증 기록 (스캔 토큰에 결과 저장)
+  // 반환값이 'verified'일 때만 적립 진행. 상태는 locationStatus로 화면에 반영.
+  const verifyLocationForToken = async (
+    token: string,
+  ): Promise<'verified' | 'denied' | 'too_far' | 'error'> => {
+    setLocationStatus('checking');
+
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLocationStatus('error');
+      return 'error';
+    }
+
+    const position = await new Promise<GeolocationPosition | 'denied' | 'error'>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve(pos),
+        (err) => resolve(err.code === 1 ? 'denied' : 'error'), // 1 = PERMISSION_DENIED
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 },
+      );
+    });
+
+    if (position === 'denied') {
+      setLocationStatus('denied');
+      return 'denied';
+    }
+    if (position === 'error') {
+      setLocationStatus('error');
+      return 'error';
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/taghere/stamp-scan-verify-location`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          t: token,
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.verified) {
+        setLocationStatus('verified');
+        return 'verified';
+      }
+      if (data.error === 'too_far') {
+        setLocationStatus('too_far');
+        return 'too_far';
+      }
+      setLocationStatus('error');
+      return 'error';
+    } catch (e) {
+      console.error('Location verify failed:', e);
+      setLocationStatus('error');
+      return 'error';
+    }
+  };
+
   // 자동 적립 시도 함수
   const attemptAutoEarn = async (kakaoId: string, storeData: StampInfo) => {
     setIsAutoEarning(true);
@@ -817,6 +880,11 @@ function TaghereEnrollStampContent() {
           setShowExpiredLink(true);
           setStampInfo(null);
           trackOnce('earn_fail', { flow_type: 'stamp', store_slug: slug, reason: 'invalid_token' });
+        } else if (data.error === 'location_required') {
+          // 위치 미검증 → 위치 확인 안내
+          setLocationStatus('too_far');
+          setStampInfo(null);
+          trackOnce('earn_fail', { flow_type: 'stamp', store_slug: slug, reason: 'location_required' });
         } else if (data.error === 'invalid_kakao_id') {
           // 유효하지 않은 kakaoId → 로컬스토리지 삭제, 기존 흐름으로
           removeStoredKakaoId();
@@ -979,6 +1047,12 @@ function TaghereEnrollStampContent() {
       trackOnce('earn_fail', { flow_type: 'stamp', store_slug: slug, reason: 'invalid_token' });
       setIsLoading(false);
       return;
+    } else if (urlError === 'location_required') {
+      // 위치 미검증 상태로 적립 시도됨 (콜백) → 위치 확인 안내
+      setLocationStatus('too_far');
+      trackOnce('earn_fail', { flow_type: 'stamp', store_slug: slug, reason: 'location_required' });
+      setIsLoading(false);
+      return;
     } else if (urlError) {
       setError('로그인에 실패했습니다. 다시 시도해주세요.');
       setIsLoading(false);
@@ -1027,6 +1101,19 @@ function TaghereEnrollStampContent() {
           setStampInfo(data);
           setIsLoading(false);
 
+          // 위치 기반 적립 확인 (매장별 토글): 적립(자동적립/카카오 로그인) 전에
+          // 위치를 검증해 스캔 토큰에 기록한다. 검증 실패 시 적립 진행 안 함.
+          const needLocation = guardActive && !!data.locationGuardEnabled && !!scanToken;
+          if (needLocation) {
+            setIsAutoEarning(false);
+            const status = await verifyLocationForToken(scanToken!);
+            if (status !== 'verified') {
+              trackOnce('earn_fail', { flow_type: 'stamp', store_slug: slug, reason: `location_${status}` });
+              return; // 상태별 안내 화면 렌더 (locationStatus)
+            }
+            if (shouldAutoEarn && storedKakaoId) setIsAutoEarning(true);
+          }
+
           if (shouldAutoEarn && storedKakaoId) {
             if (data.manualStampCountEnabled) {
               // 매번 개수 직접 입력 모드: 자동 적립 대신 개수 팝업을 띄운다
@@ -1068,6 +1155,12 @@ function TaghereEnrollStampContent() {
 
   const handleOpenGift = () => {
     if (!stampInfo) return;
+
+    // 위치 확인 매장: 검증 완료 전에는 적립 진행 불가 (안전 가드 — 정상 흐름에선 로드 시 이미 검증됨)
+    if (stampInfo.locationGuardEnabled && !ordersheetId && scanToken && locationStatus !== 'verified') {
+      verifyLocationForToken(scanToken);
+      return;
+    }
 
     setIsOpening(true);
 
@@ -1211,6 +1304,73 @@ function TaghereEnrollStampContent() {
             스탬프 적립은 매장에서 QR을 스캔했을 때만 가능해요.
             <br />저장된 링크로는 적립할 수 없습니다.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 위치 기반 적립 확인 상태 화면
+  if (locationStatus === 'checking') {
+    return (
+      <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
+        <div className="w-full max-w-md h-full flex flex-col items-center justify-center bg-white gap-4 p-6 text-center">
+          <div className="w-8 h-8 border-2 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-neutral-500">매장 방문 확인 중...</p>
+          <p className="text-xs text-neutral-400">위치 권한을 요청하면 허용해주세요</p>
+        </div>
+      </div>
+    );
+  }
+  if (locationStatus === 'denied') {
+    return (
+      <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
+        <div className="w-full max-w-md h-full flex flex-col items-center justify-center bg-white p-6 text-center">
+          <div className="text-5xl mb-4">📍</div>
+          <h1 className="text-lg font-semibold text-neutral-900 mb-2">위치 권한이 필요해요</h1>
+          <p className="text-neutral-500 text-sm mb-6 leading-relaxed">
+            이 매장은 방문 확인 후 스탬프를 적립해드려요.
+            <br />브라우저 설정에서 위치 권한을 허용한 뒤 다시 시도해주세요.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-5 py-2.5 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold rounded-xl text-sm transition-colors"
+          >
+            다시 시도
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (locationStatus === 'too_far') {
+    return (
+      <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
+        <div className="w-full max-w-md h-full flex flex-col items-center justify-center bg-white p-6 text-center">
+          <div className="text-5xl mb-4">🏃</div>
+          <h1 className="text-lg font-semibold text-neutral-900 mb-2">매장 근처에서만 적립할 수 있어요</h1>
+          <p className="text-neutral-500 text-sm leading-relaxed">
+            현재 위치가 매장에서 떨어져 있는 것으로 확인됐어요.
+            <br />매장 방문 시 다시 스캔해주세요.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (locationStatus === 'error') {
+    return (
+      <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
+        <div className="w-full max-w-md h-full flex flex-col items-center justify-center bg-white p-6 text-center">
+          <div className="text-5xl mb-4">📍</div>
+          <h1 className="text-lg font-semibold text-neutral-900 mb-2">위치를 확인하지 못했어요</h1>
+          <p className="text-neutral-500 text-sm mb-6 leading-relaxed">
+            위치 정보를 가져오는 데 실패했어요.
+            <br />잠시 후 다시 시도해주세요.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-5 py-2.5 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold rounded-xl text-sm transition-colors"
+          >
+            다시 시도
+          </button>
         </div>
       </div>
     );

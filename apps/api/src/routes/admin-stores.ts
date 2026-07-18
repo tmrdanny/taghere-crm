@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma.js';
 import { Prisma } from '@prisma/client';
 import { parseKoreanAddress } from '../utils/address-parser.js';
+import { geocodeAddress } from '../services/geocode.js';
 import { generateSlug, getUniqueSlug } from './auth.js';
 import {
   notifyCrmOn,
@@ -84,8 +85,10 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
           metacityAccessCode: true,
           metacityMembershipType: true,
           yahwaEnabled: true,
+          latitude: true,
+          longitude: true,
           wallet: { select: { balance: true } },
-          stampSetting: { select: { scanEntrySecret: true } },
+          stampSetting: { select: { scanEntrySecret: true, locationGuardEnabled: true, locationGuardRadiusM: true } },
         },
       }),
     ]);
@@ -147,6 +150,11 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         yahwaEnabled: (store as any).yahwaEnabled ?? false,
         // 스탬프 링크 비밀 입구 secret (QR shortURL 목적지 구성용)
         scanEntrySecret: (store as any).stampSetting?.scanEntrySecret ?? null,
+        // 위치 기반 적립 확인 (매장별 토글, 기본 OFF)
+        locationGuardEnabled: (store as any).stampSetting?.locationGuardEnabled ?? false,
+        locationGuardRadiusM: (store as any).stampSetting?.locationGuardRadiusM ?? 200,
+        latitude: (store as any).latitude ?? null,
+        longitude: (store as any).longitude ?? null,
         walletBalance: store.wallet?.balance || 0,
         monthlyCredit: {
           total: totalCredits,
@@ -248,6 +256,8 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       metacityAccessCode,
       metacityMembershipType,
       yahwaEnabled,
+      locationGuardEnabled,
+      locationGuardRadiusM,
     } = req.body;
 
     // 메타씨티 회원 유형 정규화
@@ -343,6 +353,54 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       await ensureStampEnabled(prisma, storeId);
     }
 
+    // 위치 기반 적립 확인 (매장별 토글, 기본 OFF)
+    let locationGuardWarning: string | null = null;
+    if (locationGuardEnabled !== undefined || locationGuardRadiusM !== undefined) {
+      const radius =
+        locationGuardRadiusM !== undefined
+          ? Math.max(50, Math.min(2000, Number(locationGuardRadiusM) || 200))
+          : undefined;
+      await prisma.stampSetting.upsert({
+        where: { storeId },
+        create: {
+          storeId,
+          ...(locationGuardEnabled !== undefined && { locationGuardEnabled: !!locationGuardEnabled }),
+          ...(radius !== undefined && { locationGuardRadiusM: radius }),
+        },
+        update: {
+          ...(locationGuardEnabled !== undefined && { locationGuardEnabled: !!locationGuardEnabled }),
+          ...(radius !== undefined && { locationGuardRadiusM: radius }),
+        },
+      });
+
+      // 켜는 경우: 매장 좌표가 없으면 주소 지오코딩 시도. 실패하면 경고 반환 (좌표 없으면 가드 미발동).
+      if (locationGuardEnabled === true && updatedStore.latitude == null) {
+        const addr = (address !== undefined ? address : existingStore.address) || '';
+        const geo = addr ? await geocodeAddress(addr) : null;
+        if (geo) {
+          await prisma.store.update({
+            where: { id: storeId },
+            data: { latitude: geo.latitude, longitude: geo.longitude },
+          });
+          console.log(`[Admin] Store ${storeId} geocoded: ${geo.latitude},${geo.longitude} (${geo.matchedAddress})`);
+        } else {
+          locationGuardWarning =
+            '주소 좌표 변환에 실패했습니다. 주소를 확인해주세요. 좌표가 없으면 위치 확인이 동작하지 않습니다.';
+          console.warn(`[Admin] Store ${storeId} geocode failed for address: ${addr}`);
+        }
+      }
+    }
+
+    // 주소가 변경됐고 좌표가 이미 있던 매장이면 좌표 재계산 (best-effort)
+    if (address !== undefined && existingStore.latitude != null) {
+      const addrStr = (address || '').trim();
+      const geo = addrStr ? await geocodeAddress(addrStr) : null;
+      await prisma.store.update({
+        where: { id: storeId },
+        data: { latitude: geo?.latitude ?? null, longitude: geo?.longitude ?? null },
+      });
+    }
+
     // CRM 활성화 상태 변경, taghereVersion 변경, 또는 enrollmentMode 변경 시 태그히어 서버에 알림
     const wasCrmEnabled = (existingStore as any).crmEnabled ?? true;
     const wasVersion = existingStore.taghereVersion;
@@ -406,6 +464,7 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       success: true,
       message: '매장 정보가 수정되었습니다.',
       store: updatedStore,
+      ...(locationGuardWarning ? { locationGuardWarning } : {}),
     });
   } catch (error) {
     console.error('Admin update store error:', error);

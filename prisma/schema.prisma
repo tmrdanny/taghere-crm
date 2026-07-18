@@ -26,6 +26,10 @@ model Store {
   addressSigungu         String?        // 시/군/구
   addressDetail          String?        // 상세 주소
 
+  // 매장 좌표 (위치 기반 적립 확인용 — 주소 지오코딩 결과)
+  latitude               Float?
+  longitude              Float?
+
   naverPlaceId           String?        // 네이버 플레이스 ID (리뷰 연동용)
   naverPlaceUrl          String?  // 네이버 플레이스 공유 링크
   crmEnabled             Boolean  @default(true) // CRM 기능 활성화 여부 (태그히어 연동)
@@ -1425,6 +1429,11 @@ model StampSetting {
   // GET /api/taghere/stamp-scan-entry/:slug/:secret 에서 검증. 유출 시 회전(재발급).
   scanEntrySecret       String?
 
+  // 위치 기반 적립 확인 (true = 적립 전 고객 위치가 매장 반경 내인지 검증. 기본 OFF)
+  locationGuardEnabled  Boolean  @default(false)
+  // 허용 반경 (미터)
+  locationGuardRadiusM  Int      @default(200)
+
   // 알림톡 설정
   alimtalkEnabled       Boolean  @default(true)
 
@@ -1447,6 +1456,12 @@ model StampScanToken {
   expiresAt            DateTime
   consumedAt           DateTime?
   consumedByCustomerId String?
+
+  // 위치 기반 적립 확인 결과 (locationGuardEnabled 매장에서 적립 전 서버가 기록)
+  locationVerified     Boolean   @default(false)
+  locationDistanceM    Float?    // 매장까지 거리 (m)
+  locationAccuracyM    Float?    // 브라우저가 보고한 위치 오차 (m)
+  locationVerifiedAt   DateTime?
 
   // Relations
   store                Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)

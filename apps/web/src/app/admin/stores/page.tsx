@@ -47,6 +47,11 @@ interface Store {
   yahwaEnabled?: boolean;
   // 스탬프 링크 비밀 입구 secret (QR shortURL 목적지 구성용)
   scanEntrySecret?: string | null;
+  // 위치 기반 적립 확인 (매장별 토글, 기본 OFF)
+  locationGuardEnabled?: boolean;
+  locationGuardRadiusM?: number;
+  latitude?: number | null;
+  longitude?: number | null;
   // Monthly credit
   monthlyCredit?: {
     total: number;
@@ -264,6 +269,8 @@ export default function AdminStoresPage() {
       metacityAccessCode: store.metacityAccessCode ?? '',
       metacityMembershipType: store.metacityMembershipType ?? 'INTEGRATED',
       yahwaEnabled: store.yahwaEnabled ?? false,
+      locationGuardEnabled: store.locationGuardEnabled ?? false,
+      locationGuardRadiusM: store.locationGuardRadiusM ?? 200,
     });
     setPointRateInput(String(store.pointRatePercent ?? 5));
     setIsEditMode(false);
@@ -299,7 +306,11 @@ export default function AdminStoresPage() {
       const data = await res.json();
 
       if (res.ok) {
-        setToast({ message: '매장 정보가 수정되었습니다.', type: 'success' });
+        if (data.locationGuardWarning) {
+          setToast({ message: data.locationGuardWarning, type: 'error' });
+        } else {
+          setToast({ message: '매장 정보가 수정되었습니다.', type: 'success' });
+        }
         // Update local store data
         setStores((prevStores) =>
           prevStores.map((store) =>
@@ -1496,6 +1507,66 @@ export default function AdminStoresPage() {
                     </span>
                   )}
                 </div>
+              </div>
+
+              {/* 위치 기반 적립 확인 카드 (기본 OFF) */}
+              <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-[15px] font-semibold text-neutral-900">위치 기반 적립 확인</h4>
+                    <p className="text-[12px] text-neutral-500 mt-0.5">
+                      스탬프 적립 시 고객 위치가 매장 반경 내인지 검증합니다. 켜면 매장 주소로 좌표를 자동 계산합니다.
+                    </p>
+                  </div>
+                  {isEditMode ? (
+                    <button
+                      type="button"
+                      onClick={() => setEditForm({ ...editForm, locationGuardEnabled: !editForm.locationGuardEnabled })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
+                        editForm.locationGuardEnabled ? 'bg-green-500' : 'bg-neutral-300'
+                      }`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        editForm.locationGuardEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`} />
+                    </button>
+                  ) : (
+                    <span className={`inline-block px-2.5 py-1 text-[12px] font-medium rounded-full shrink-0 ${
+                      selectedStore.locationGuardEnabled ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'
+                    }`}>
+                      {selectedStore.locationGuardEnabled ? 'ON' : 'OFF'}
+                    </span>
+                  )}
+                </div>
+                {((isEditMode && editForm.locationGuardEnabled) || (!isEditMode && selectedStore.locationGuardEnabled)) && (
+                  <div className="space-y-2 pt-1">
+                    <div className={`rounded-xl p-3 flex items-center justify-between ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
+                      <span className="text-[13px] text-neutral-500">허용 반경 (m)</span>
+                      {isEditMode ? (
+                        <input
+                          type="number"
+                          min={50}
+                          max={2000}
+                          value={editForm.locationGuardRadiusM ?? 200}
+                          onChange={(e) => setEditForm({ ...editForm, locationGuardRadiusM: parseInt(e.target.value) || 200 })}
+                          className="w-24 px-2 py-1 text-[14px] text-right border border-neutral-200 rounded-lg"
+                        />
+                      ) : (
+                        <span className="text-[14px] font-medium text-neutral-900">{selectedStore.locationGuardRadiusM ?? 200}m</span>
+                      )}
+                    </div>
+                    <div className="rounded-xl p-3 bg-neutral-50 flex items-center justify-between">
+                      <span className="text-[13px] text-neutral-500">매장 좌표</span>
+                      {selectedStore.latitude != null && selectedStore.longitude != null ? (
+                        <span className="text-[13px] font-mono text-neutral-700">
+                          {selectedStore.latitude.toFixed(6)}, {selectedStore.longitude.toFixed(6)}
+                        </span>
+                      ) : (
+                        <span className="text-[13px] text-amber-500">미설정 — 저장 시 주소로 자동 계산</span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 메타씨티 POS 연동 카드 */}
