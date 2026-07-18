@@ -226,10 +226,15 @@ router.post('/public/:slug/submit', async (req, res) => {
 // ============================================================
 router.use(authMiddleware);
 
-// GET /api/coupon-form - 폼 목록 + 통계
+// GET /api/coupon-form - 폼 목록 + 통계 (+ 매장 네이버플레이스 URL)
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
+
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { naverPlaceUrl: true },
+    });
 
     const forms = await prisma.couponFormLink.findMany({
       where: { storeId },
@@ -261,6 +266,7 @@ router.get('/', async (req: AuthRequest, res) => {
     }
 
     res.json({
+      naverPlaceUrl: store?.naverPlaceUrl || '',
       forms: forms.map((f) => ({
         id: f.id,
         slug: f.slug,
@@ -281,7 +287,22 @@ router.get('/', async (req: AuthRequest, res) => {
   }
 });
 
-// POST /api/coupon-form - 폼 생성
+// 네이버 플레이스 URL 검증 (필수) — naver 도메인 링크만 허용
+function sanitizeNaverPlaceUrl(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const v = raw.trim();
+  if (!v) return null;
+  const withScheme = /^https?:\/\//.test(v) ? v : `https://${v}`;
+  try {
+    const u = new URL(withScheme);
+    if (!/(^|\.)naver\.(com|me)$/.test(u.hostname)) return null;
+    return withScheme.slice(0, 300);
+  } catch {
+    return null;
+  }
+}
+
+// POST /api/coupon-form - 폼 생성 (네이버 플레이스 URL 필수 — 매장 정보에 저장)
 router.post('/', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
@@ -293,22 +314,29 @@ router.post('/', async (req: AuthRequest, res) => {
     if (typeof expiryDate !== 'string' || !expiryDate.trim()) {
       return res.status(400).json({ error: '유효기간을 입력해주세요.' });
     }
+    const naverPlaceUrl = sanitizeNaverPlaceUrl(req.body?.naverPlaceUrl);
+    if (!naverPlaceUrl) {
+      return res.status(400).json({ error: '네이버 플레이스 URL을 입력해주세요. (naver.com / naver.me 링크)' });
+    }
     const fields = sanitizeFields(req.body?.fields ?? []);
     if (fields === null) {
       return res.status(400).json({ error: '설문 항목 형식이 올바르지 않습니다.' });
     }
 
-    const form = await prisma.couponFormLink.create({
-      data: {
-        storeId,
-        slug: generateFormSlug(),
-        title: typeof title === 'string' && title.trim() ? title.trim().slice(0, 50) : '쿠폰 받기',
-        description: typeof description === 'string' && description.trim() ? description.trim().slice(0, 300) : null,
-        fields: fields as any,
-        couponContent: couponContent.trim().slice(0, 200),
-        expiryDate: expiryDate.trim().slice(0, 100),
-      },
-    });
+    const [, form] = await prisma.$transaction([
+      prisma.store.update({ where: { id: storeId }, data: { naverPlaceUrl } }),
+      prisma.couponFormLink.create({
+        data: {
+          storeId,
+          slug: generateFormSlug(),
+          title: typeof title === 'string' && title.trim() ? title.trim().slice(0, 50) : '쿠폰 받기',
+          description: typeof description === 'string' && description.trim() ? description.trim().slice(0, 300) : null,
+          fields: fields as any,
+          couponContent: couponContent.trim().slice(0, 200),
+          expiryDate: expiryDate.trim().slice(0, 100),
+        },
+      }),
+    ]);
 
     res.json({ success: true, form });
   } catch (error) {
@@ -353,6 +381,15 @@ router.put('/:id', async (req: AuthRequest, res) => {
     }
     if (enabled !== undefined) {
       data.enabled = !!enabled;
+    }
+
+    // 네이버 플레이스 URL 갱신 (전달된 경우 필수 검증 후 매장 정보에 저장)
+    if (req.body?.naverPlaceUrl !== undefined) {
+      const naverPlaceUrl = sanitizeNaverPlaceUrl(req.body.naverPlaceUrl);
+      if (!naverPlaceUrl) {
+        return res.status(400).json({ error: '네이버 플레이스 URL을 입력해주세요. (naver.com / naver.me 링크)' });
+      }
+      await prisma.store.update({ where: { id: storeId }, data: { naverPlaceUrl } });
     }
 
     const form = await prisma.couponFormLink.update({ where: { id }, data });
