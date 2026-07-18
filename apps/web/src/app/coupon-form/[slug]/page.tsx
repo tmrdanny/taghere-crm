@@ -159,7 +159,7 @@ function CouponFormContent() {
         <img
           src={fullImageUrl(form.bannerUrl)}
           alt=""
-          className="w-full aspect-[3/1] object-cover"
+          className="w-full aspect-[860/260] object-cover"
         />
       )}
       <div className={`px-6 pb-8 ${form.bannerUrl ? 'pt-6' : 'pt-10'}`}>

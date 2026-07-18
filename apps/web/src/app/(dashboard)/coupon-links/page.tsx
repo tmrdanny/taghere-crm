@@ -432,7 +432,7 @@ export default function CouponLinksPage() {
                   <img
                     src={fullImageUrl(bannerUrl)}
                     alt="배너 미리보기"
-                    className="w-full max-h-48 object-cover rounded-lg border border-neutral-200"
+                    className="w-full aspect-[860/260] object-cover rounded-lg border border-neutral-200"
                   />
                   <div className="mt-2 flex gap-2">
                     <Button type="button" variant="outline" size="sm" onClick={() => bannerInputRef.current?.click()} disabled={isUploadingBanner}>
@@ -451,7 +451,7 @@ export default function CouponLinksPage() {
                   className="w-full py-8 border-2 border-dashed border-neutral-300 rounded-lg text-sm text-neutral-500 hover:border-neutral-400 hover:text-neutral-600 transition-colors flex flex-col items-center gap-1"
                 >
                   <ImageIcon className="w-6 h-6 text-neutral-400" />
-                  {isUploadingBanner ? '업로드 중...' : '배너 이미지 업로드 (권장 비율 3:1, 최대 5MB)'}
+                  {isUploadingBanner ? '업로드 중...' : '배너 이미지 업로드 (권장 크기 860 x 260px, 최대 5MB)'}
                 </button>
               )}
             </div>
