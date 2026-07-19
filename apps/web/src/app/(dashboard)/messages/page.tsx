@@ -54,7 +54,7 @@ import { CustomerSelectModal } from './CustomerSelectModal';
 
 // 문자(SMS/LMS/MMS) 발송 일시 중단 플래그. 재개 시 false 로 변경.
 // 카카오톡(쿠폰 알림톡)은 영향받지 않음.
-const SMS_SENDING_PAUSED = true;
+const SMS_SENDING_PAUSED = false;
 const SMS_PAUSED_NOTICE = '원활한 서비스 제공을 위해 서비스 점검중입니다';
 
 export default function MessagesPage() {
