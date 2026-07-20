@@ -22,6 +22,7 @@ import {
   Gift,
   Settings,
   Check,
+  Compass,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -153,6 +154,14 @@ export default function FranchiseStoresPage() {
   // Stamp setting state
   const [stampSetting, setStampSetting] = useState<FranchiseStampSettingData | null>(null);
   const [isStampSettingOpen, setIsStampSettingOpen] = useState(false);
+
+  // 방문 경로 설정 (전 가맹점 일괄)
+  const [isVisitSourceOpen, setIsVisitSourceOpen] = useState(false);
+  const [visitSourceEnabled, setVisitSourceEnabled] = useState(true);
+  const [visitSourceOptions, setVisitSourceOptions] = useState<Array<{ id: string; label: string; order: number; enabled: boolean }>>([]);
+  const [newVisitSourceLabel, setNewVisitSourceLabel] = useState('');
+  const [isSavingVisitSource, setIsSavingVisitSource] = useState(false);
+  const [visitSourceMsg, setVisitSourceMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [stampSettingForm, setStampSettingForm] = useState<StampRewardSetting[]>([]);
   const [stampAlimtalk, setStampAlimtalk] = useState(true);
   const [stampStoreEditLocked, setStampStoreEditLocked] = useState(false);
@@ -239,6 +248,68 @@ export default function FranchiseStoresPage() {
       console.error('Failed to fetch stamp setting:', err);
     }
   }, []);
+
+  // 방문 경로 설정 조회 (전 가맹점 일괄 편집 기준값)
+  const fetchVisitSource = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE}/api/franchise/visit-source`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setVisitSourceEnabled(data.enabled ?? true);
+        setVisitSourceOptions(Array.isArray(data.options) ? data.options : []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch visit source:', err);
+    }
+  }, []);
+
+  // 방문 경로 설정 전 가맹점 일괄 적용
+  const handleSaveVisitSource = async () => {
+    const enabledCount = visitSourceOptions.filter((o) => o.enabled).length;
+    if (visitSourceOptions.length === 0 || enabledCount === 0) {
+      setVisitSourceMsg({ type: 'error', text: '활성화된 방문 경로가 1개 이상 필요합니다.' });
+      return;
+    }
+    if (!window.confirm(`모든 가맹점(${stores.length}개)의 방문 경로 설정을 이 내용으로 덮어씁니다. 진행할까요?`)) return;
+    setIsSavingVisitSource(true);
+    setVisitSourceMsg(null);
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE}/api/franchise/visit-source`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ enabled: visitSourceEnabled, options: visitSourceOptions }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setVisitSourceMsg({ type: 'success', text: `${data.appliedStores}개 가맹점에 적용됐습니다.` });
+        setVisitSourceOptions(data.options || visitSourceOptions);
+      } else {
+        setVisitSourceMsg({ type: 'error', text: data.error || '적용에 실패했습니다.' });
+      }
+    } catch {
+      setVisitSourceMsg({ type: 'error', text: '적용 중 오류가 발생했습니다.' });
+    } finally {
+      setIsSavingVisitSource(false);
+    }
+  };
+
+  const addVisitSourceOption = () => {
+    const label = newVisitSourceLabel.trim();
+    if (!label) return;
+    if (visitSourceOptions.length >= 12) {
+      setVisitSourceMsg({ type: 'error', text: '방문 경로 옵션은 최대 12개까지 가능합니다.' });
+      return;
+    }
+    setVisitSourceOptions((prev) => [
+      ...prev,
+      { id: `custom_${Date.now()}`, label, order: prev.length + 1, enabled: true },
+    ]);
+    setNewVisitSourceLabel('');
+  };
 
   // Toggle individual store stamp
   const handleStampToggle = async (storeId: string, e: React.MouseEvent) => {
@@ -414,7 +485,8 @@ export default function FranchiseStoresPage() {
     fetchStores();
     fetchFranchiseWallet();
     fetchStampSetting();
-  }, [fetchStores, fetchFranchiseWallet, fetchStampSetting]);
+    fetchVisitSource();
+  }, [fetchStores, fetchFranchiseWallet, fetchStampSetting, fetchVisitSource]);
 
   // Fetch store detail
   const fetchStoreDetail = useCallback(async (storeId: string) => {
@@ -997,6 +1069,137 @@ export default function FranchiseStoresPage() {
                       <><Loader2 className="w-4 h-4 animate-spin" /> 저장 중...</>
                     ) : (
                       <><Check className="w-4 h-4" /> 보상 설정 저장</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 방문 경로 설정 (전 가맹점 일괄) */}
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm mb-6">
+          <button
+            onClick={() => setIsVisitSourceOpen(!isVisitSourceOpen)}
+            className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-franchise-100 rounded-lg flex items-center justify-center">
+                <Compass className="w-5 h-5 text-franchise-600" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-sm font-semibold text-slate-900">방문 경로 설정</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  고객 적립 시 묻는 방문 경로 선택지를 전 가맹점에 일괄 적용합니다
+                </p>
+              </div>
+            </div>
+            <ChevronDown className={cn('w-5 h-5 text-slate-400 transition-transform', isVisitSourceOpen && 'rotate-180')} />
+          </button>
+
+          {isVisitSourceOpen && (
+            <div className="px-6 pb-6 border-t border-slate-100">
+              <div className="pt-4 space-y-4">
+                {/* 전체 사용 여부 */}
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">방문 경로 질문 사용</p>
+                    <p className="text-xs text-slate-500 mt-0.5">끄면 전 가맹점에서 방문 경로를 묻지 않습니다</p>
+                  </div>
+                  <button
+                    onClick={() => setVisitSourceEnabled(!visitSourceEnabled)}
+                    className={cn(
+                      'relative w-9 h-5 rounded-full transition-colors',
+                      visitSourceEnabled ? 'bg-franchise-600' : 'bg-slate-200'
+                    )}
+                  >
+                    <div className={cn(
+                      'absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
+                      visitSourceEnabled && 'translate-x-4'
+                    )} />
+                  </button>
+                </div>
+
+                {/* 옵션 목록 */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    선택지 목록 <span className="text-slate-400 font-normal">({visitSourceOptions.length}/12)</span>
+                  </label>
+                  <div className="space-y-2">
+                    {visitSourceOptions.map((opt, idx) => (
+                      <div key={opt.id} className="flex items-center gap-2">
+                        <span className="w-6 text-center text-xs text-slate-400">{idx + 1}</span>
+                        <input
+                          type="text"
+                          value={opt.label}
+                          onChange={(e) =>
+                            setVisitSourceOptions((prev) =>
+                              prev.map((o) => (o.id === opt.id ? { ...o, label: e.target.value } : o))
+                            )
+                          }
+                          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600"
+                        />
+                        <button
+                          onClick={() =>
+                            setVisitSourceOptions((prev) =>
+                              prev.map((o) => (o.id === opt.id ? { ...o, enabled: !o.enabled } : o))
+                            )
+                          }
+                          className={cn(
+                            'px-2.5 py-1.5 text-xs rounded-lg border transition-colors shrink-0',
+                            opt.enabled
+                              ? 'bg-franchise-50 border-franchise-200 text-franchise-700'
+                              : 'bg-slate-50 border-slate-200 text-slate-400'
+                          )}
+                        >
+                          {opt.enabled ? '노출' : '숨김'}
+                        </button>
+                        <button
+                          onClick={() => setVisitSourceOptions((prev) => prev.filter((o) => o.id !== opt.id))}
+                          className="p-1.5 text-slate-400 hover:text-red-500 transition-colors shrink-0"
+                          title="삭제"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 옵션 추가 */}
+                  <div className="flex items-center gap-2 mt-3">
+                    <input
+                      type="text"
+                      value={newVisitSourceLabel}
+                      onChange={(e) => setNewVisitSourceLabel(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') addVisitSourceOption(); }}
+                      placeholder="새 선택지 이름 (예: 틱톡)"
+                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600"
+                    />
+                    <button
+                      onClick={addVisitSourceOption}
+                      className="px-3 py-2 text-sm text-franchise-700 bg-franchise-50 hover:bg-franchise-100 rounded-lg transition-colors"
+                    >
+                      추가
+                    </button>
+                  </div>
+                </div>
+
+                {visitSourceMsg && (
+                  <p className={cn('text-sm', visitSourceMsg.type === 'success' ? 'text-emerald-600' : 'text-red-500')}>
+                    {visitSourceMsg.text}
+                  </p>
+                )}
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleSaveVisitSource}
+                    disabled={isSavingVisitSource}
+                    className="flex items-center gap-2 px-4 py-2 bg-franchise-600 hover:bg-franchise-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    {isSavingVisitSource ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> 적용 중...</>
+                    ) : (
+                      <><Check className="w-4 h-4" /> 전 가맹점에 일괄 적용</>
                     )}
                   </button>
                 </div>

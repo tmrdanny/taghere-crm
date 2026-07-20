@@ -1687,6 +1687,116 @@ router.get('/feedbacks/summary', async (req: FranchiseAuthRequest, res) => {
 // ============================================
 
 // PUT /api/franchise/stores/:storeId/stamp-toggle - 매장별 통합 스탬프 ON/OFF 토글
+// ============================================================
+// 방문 경로 설정 — 전 가맹점 일괄 컨트롤
+// ============================================================
+
+const VISIT_SOURCE_DEFAULT_OPTIONS = [
+  { id: 'revisit', label: '단순 재방문', order: 1, enabled: true },
+  { id: 'friend', label: '지인 추천', order: 2, enabled: true },
+  { id: 'naver', label: '네이버', order: 3, enabled: true },
+  { id: 'youtube', label: '유튜브', order: 4, enabled: true },
+  { id: 'daangn', label: '당근', order: 5, enabled: true },
+  { id: 'instagram', label: '인스타그램', order: 6, enabled: true },
+  { id: 'sms', label: '문자', order: 7, enabled: true },
+  { id: 'kakao', label: '카카오톡', order: 8, enabled: true },
+  { id: 'passby', label: '지나가다 방문', order: 9, enabled: true },
+];
+const VISIT_SOURCE_MAX_OPTIONS = 12;
+
+// GET /api/franchise/visit-source - 일괄 편집 기준값 조회
+// (매장별 설정이 제각각일 수 있으므로: 첫 가맹점 설정을 기준으로 반환, 없으면 기본값)
+router.get('/visit-source', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const stores = await prisma.store.findMany({
+      where: { franchiseId },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    const firstSetting = stores.length
+      ? await prisma.visitSourceSetting.findFirst({
+          where: { storeId: { in: stores.map((s) => s.id) } },
+          orderBy: { createdAt: 'asc' },
+        })
+      : null;
+
+    res.json({
+      storeCount: stores.length,
+      enabled: firstSetting?.enabled ?? true,
+      options: (firstSetting?.options as any) ?? VISIT_SOURCE_DEFAULT_OPTIONS,
+    });
+  } catch (error) {
+    console.error('Get franchise visit source error:', error);
+    res.status(500).json({ error: '방문 경로 설정 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// PUT /api/franchise/visit-source - 전 가맹점에 방문 경로 설정 일괄 적용
+router.put('/visit-source', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { enabled, options } = req.body || {};
+
+    if (!Array.isArray(options) || options.length === 0) {
+      return res.status(400).json({ error: '방문 경로 옵션을 1개 이상 입력해주세요.' });
+    }
+    if (options.length > VISIT_SOURCE_MAX_OPTIONS) {
+      return res.status(400).json({ error: `방문 경로 옵션은 최대 ${VISIT_SOURCE_MAX_OPTIONS}개까지만 가능합니다.` });
+    }
+    // 옵션 형식 검증 + 정규화 (order는 배열 순서로 재부여)
+    const clean: Array<{ id: string; label: string; order: number; enabled: boolean }> = [];
+    for (let i = 0; i < options.length; i++) {
+      const o = options[i];
+      if (!o || typeof o.id !== 'string' || !o.id.trim()) {
+        return res.status(400).json({ error: '옵션 형식이 올바르지 않습니다.' });
+      }
+      if (typeof o.label !== 'string' || !o.label.trim() || o.label.length > 30) {
+        return res.status(400).json({ error: '옵션 이름은 1~30자로 입력해주세요.' });
+      }
+      clean.push({ id: o.id.trim(), label: o.label.trim(), order: i + 1, enabled: !!o.enabled });
+    }
+    // id 중복 방지
+    if (new Set(clean.map((o) => o.id)).size !== clean.length) {
+      return res.status(400).json({ error: '중복된 옵션이 있습니다.' });
+    }
+
+    const stores = await prisma.store.findMany({ where: { franchiseId }, select: { id: true } });
+    if (stores.length === 0) {
+      return res.status(400).json({ error: '가맹점이 없습니다.' });
+    }
+
+    // 전 가맹점 upsert (청크로 나눠 트랜잭션)
+    const CHUNK = 50;
+    let applied = 0;
+    for (let i = 0; i < stores.length; i += CHUNK) {
+      const slice = stores.slice(i, i + CHUNK);
+      await prisma.$transaction(
+        slice.map((s) =>
+          prisma.visitSourceSetting.upsert({
+            where: { storeId: s.id },
+            create: {
+              storeId: s.id,
+              enabled: enabled ?? true,
+              options: clean as any,
+            },
+            update: {
+              ...(enabled !== undefined && { enabled: !!enabled }),
+              options: clean as any,
+            },
+          }),
+        ),
+      );
+      applied += slice.length;
+    }
+
+    res.json({ success: true, appliedStores: applied, enabled: enabled ?? true, options: clean });
+  } catch (error) {
+    console.error('Update franchise visit source error:', error);
+    res.status(500).json({ error: '방문 경로 설정 일괄 적용 중 오류가 발생했습니다.' });
+  }
+});
+
 router.put('/stores/:storeId/stamp-toggle', async (req: FranchiseAuthRequest, res) => {
   try {
     const franchiseId = req.franchiseUser!.franchiseId;
