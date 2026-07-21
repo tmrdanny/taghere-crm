@@ -1346,7 +1346,7 @@ function TaghereEnrollStampContent() {
       <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
         <div className="w-full max-w-md h-full flex flex-col items-center justify-center bg-white p-6 text-center">
           <div className="text-5xl mb-4">🏃</div>
-          <h1 className="text-lg font-semibold text-neutral-900 mb-2">매장 근처에서만 적립할 수 있어요</h1>
+          <h1 className="text-lg font-semibold text-neutral-900 mb-2">매장 내부에서만 적립할 수 있어요</h1>
           <p className="text-neutral-500 text-sm leading-relaxed">
             현재 위치가 매장에서 떨어져 있는 것으로 확인됐어요.
             <br />매장 방문 시 다시 스캔해주세요.

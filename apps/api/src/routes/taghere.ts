@@ -1539,7 +1539,7 @@ router.post('/stamp-earn', async (req, res) => {
         return res.status(400).json({
           success: false,
           error: 'location_required',
-          message: '매장 근처에서만 스탬프를 적립할 수 있어요.',
+          message: '매장 내부에서만 스탬프를 적립할 수 있어요.',
         });
       }
     }

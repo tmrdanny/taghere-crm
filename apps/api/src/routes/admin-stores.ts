@@ -258,6 +258,7 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       yahwaEnabled,
       locationGuardEnabled,
       locationGuardRadiusM,
+      ownerEmail,
     } = req.body;
 
     // 메타씨티 회원 유형 정규화
@@ -289,6 +290,30 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
 
     if (!existingStore) {
       return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
+    }
+
+    // 점주 이메일 변경 (OWNER StaffUser의 로그인 계정 이메일)
+    if (ownerEmail !== undefined) {
+      const newEmail = String(ownerEmail || '').trim().toLowerCase();
+      if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+        return res.status(400).json({ error: '올바른 이메일 형식이 아닙니다.' });
+      }
+      const owner = await prisma.staffUser.findFirst({
+        where: { storeId, role: 'OWNER' },
+        select: { id: true, email: true },
+      });
+      if (!owner) {
+        return res.status(400).json({ error: '이 매장에 점주 계정이 없습니다.' });
+      }
+      if (owner.email !== newEmail) {
+        // 이메일 unique — 다른 계정이 이미 사용 중인지 확인
+        const taken = await prisma.staffUser.findUnique({ where: { email: newEmail }, select: { id: true } });
+        if (taken && taken.id !== owner.id) {
+          return res.status(400).json({ error: '이미 사용 중인 이메일입니다.' });
+        }
+        await prisma.staffUser.update({ where: { id: owner.id }, data: { email: newEmail } });
+        console.log(`[Admin] Store ${storeId} owner email changed: ${owner.email} → ${newEmail}`);
+      }
     }
 
     // slug 중복 체크 (변경하려는 경우)

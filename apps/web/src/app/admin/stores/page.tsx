@@ -254,6 +254,7 @@ export default function AdminStoresPage() {
       category: store.category,
       slug: store.slug,
       ownerName: store.ownerName,
+      ownerEmail: store.ownerEmail,
       phone: store.phone,
       businessRegNumber: store.businessRegNumber,
       address: store.address,
@@ -1045,9 +1046,19 @@ export default function AdminStoresPage() {
                       <p className="text-[16px] font-medium text-neutral-900">{selectedStore.ownerName || '-'}</p>
                     )}
                   </div>
-                  <div className="rounded-xl p-4 bg-neutral-50">
-                    <label className="block text-[12px] text-neutral-500 mb-1">점주 이메일</label>
-                    <p className="text-[16px] font-medium text-neutral-900">{selectedStore.ownerEmail || '-'}</p>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
+                    <label className="block text-[12px] text-neutral-500 mb-1">점주 이메일 (로그인 계정)</label>
+                    {isEditMode ? (
+                      <input
+                        type="email"
+                        value={editForm.ownerEmail || ''}
+                        onChange={(e) => setEditForm({ ...editForm, ownerEmail: e.target.value })}
+                        className="w-full text-[16px] font-medium text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
+                        placeholder="점주 이메일 입력"
+                      />
+                    ) : (
+                      <p className="text-[16px] font-medium text-neutral-900">{selectedStore.ownerEmail || '-'}</p>
+                    )}
                   </div>
                 </div>
 
