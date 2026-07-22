@@ -483,13 +483,13 @@ export default function AutomationSettingPage() {
                   value={couponContent}
                   onChange={(e) => setCouponContent(e.target.value)}
                   placeholder={
-                    type === 'BIRTHDAY' ? '생일 축하 10% 할인' :
-                    type === 'ANNIVERSARY' ? '가입 기념일 축하 10% 할인' :
-                    type === 'FIRST_VISIT_FOLLOWUP' ? '첫 방문 감사 10% 할인' :
-                    type === 'VIP_MILESTONE' ? 'VIP 감사 특별 할인' :
-                    type === 'WINBACK' ? '다시 만나고 싶어요! 20% 할인' :
-                    type === 'SLOW_DAY' ? '오늘만의 특별 할인 10%' :
-                    '재방문 감사 10% 할인'
+                    type === 'BIRTHDAY' ? '🥳 생일 축하 특별 20% 할인' :
+                    type === 'ANNIVERSARY' ? '🎉 가입 1주년 기념 15% 할인' :
+                    type === 'FIRST_VISIT_FOLLOWUP' ? '💝 재방문 시 아메리카노 1잔 무료' :
+                    type === 'VIP_MILESTONE' ? '👑 VIP 고객님 전 메뉴 30% 할인' :
+                    type === 'WINBACK' ? '🙌 오랜만에 오시면 5,000원 할인' :
+                    type === 'SLOW_DAY' ? '⚡ 오늘만 전 메뉴 10% 할인' :
+                    '😊 재방문 감사 3,000원 할인'
                   }
                   maxLength={50}
                 />

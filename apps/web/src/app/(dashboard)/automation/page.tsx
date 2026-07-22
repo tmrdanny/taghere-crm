@@ -202,6 +202,15 @@ export default function AutomationPage() {
   };
 
   const handleToggle = async (type: string, enabled: boolean) => {
+    // ON 시 쿠폰 내용 필수 — 비어 있으면 상세 페이지로 유도
+    if (enabled) {
+      const rule = rules.find((r) => r.type === type);
+      if (!rule?.couponContent?.trim()) {
+        showToast('쿠폰 내용을 입력해주세요. 상세 설정으로 이동합니다.', 'error');
+        router.push(`/automation/${type}`);
+        return;
+      }
+    }
     setTogglingType(type);
     try {
       const token = localStorage.getItem('token');
@@ -226,6 +235,10 @@ export default function AutomationPage() {
       } else {
         const error = await res.json();
         showToast(error.error || '설정 변경에 실패했습니다.', 'error');
+        // 서버 검증에서 쿠폰 내용 누락으로 거부된 경우에도 상세 설정으로 유도
+        if (error.code === 'coupon_content_required') {
+          router.push(`/automation/${type}`);
+        }
       }
     } catch (error) {
       console.error('Failed to toggle automation:', error);
@@ -238,6 +251,17 @@ export default function AutomationPage() {
   const handleQuickStart = async () => {
     if (!previewAll?.hasNaverPlaceUrl) {
       showToast('네이버 플레이스 링크가 없으면 자동 마케팅을 활성화할 수 없습니다. 매장 설정에서 입력해주세요.', 'error');
+      return;
+    }
+
+    // 쿠폰 내용이 비어있는 시나리오가 있으면 먼저 입력 유도
+    const missingContent = QUICK_START_TYPES.find(
+      (type) => !rules.find((r) => r.type === type)?.couponContent?.trim()
+    );
+    if (missingContent) {
+      showToast('쿠폰 내용을 입력해주세요. 상세 설정으로 이동합니다.', 'error');
+      setShowQuickStartModal(false);
+      router.push(`/automation/${missingContent}`);
       return;
     }
 
