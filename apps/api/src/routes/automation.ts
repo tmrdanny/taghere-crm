@@ -70,7 +70,8 @@ export async function ensureRulesExist(storeId: string) {
         enabled: false,
         triggerConfig: DEFAULT_TRIGGER_CONFIG[type] as any,
         cooldownDays: DEFAULT_COOLDOWN[type],
-        couponContent: DEFAULT_COUPON_CONTENT[type] || '특별 할인 쿠폰',
+        // 쿠폰 내용은 빈값으로 시작 — 점주가 직접 입력해야 ON 가능 (아래 활성화 검증)
+        couponContent: '',
       })),
     });
   }
@@ -164,6 +165,20 @@ router.put('/rules/:type', authMiddleware, async (req: AuthRequest, res: Respons
       });
       if (!store?.naverPlaceUrl) {
         return res.status(400).json({ error: '네이버 플레이스 링크가 없으면 자동 마케팅을 활성화할 수 없습니다. 매장 설정에서 입력해주세요.' });
+      }
+
+      // 활성화 시 쿠폰 내용 필수 확인 (요청에 없으면 기존 저장값 기준)
+      const existingRule = await prisma.automationRule.findUnique({
+        where: { storeId_type: { storeId, type } },
+        select: { couponContent: true },
+      });
+      const effectiveCouponContent =
+        couponContent !== undefined ? couponContent : existingRule?.couponContent;
+      if (!effectiveCouponContent || !String(effectiveCouponContent).trim()) {
+        return res.status(400).json({
+          error: '쿠폰 내용을 입력해주세요. 상세 설정에서 고객에게 보낼 쿠폰 혜택을 작성한 뒤 켤 수 있습니다.',
+          code: 'coupon_content_required',
+        });
       }
     }
 
