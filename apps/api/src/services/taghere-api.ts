@@ -159,6 +159,22 @@ async function fetchOrderV2(orderId: string): Promise<TaghereOrderData | null> {
   };
 }
 
+export type CrmPageMode = 'MEMBERSHIP' | 'STAMP' | 'POINTS';
+
+/**
+ * 적립 화면(등록 페이지) 선택에 쓰이는 수렴 모드 판별.
+ * 우선순위: MEMBERSHIP > (STAMP || 스탬프 활성) > POINTS.
+ * `notifyCrmOn` 의 리다이렉트 페이지 선택과 `store-crm-info` 조회가 동일 규칙을 공유한다.
+ */
+export function resolveCrmPageMode(params: {
+  enrollmentMode?: string | null;
+  isStampMode: boolean;
+}): CrmPageMode {
+  if (params.enrollmentMode === 'MEMBERSHIP') return 'MEMBERSHIP';
+  if (params.enrollmentMode === 'STAMP' || params.isStampMode) return 'STAMP';
+  return 'POINTS';
+}
+
 /**
  * CRM ON 알림 — 태그히어 서버에 매장 CRM 활성화 통보
  */
@@ -172,10 +188,11 @@ export async function notifyCrmOn(params: {
   enrollmentMode?: string; // 'POINTS' | 'STAMP' | 'MEMBERSHIP'
 }): Promise<void> {
   const orderParam = params.version === 'v2' ? 'orderId' : 'ordersheetId';
+  const mode = resolveCrmPageMode({ enrollmentMode: params.enrollmentMode, isStampMode: params.isStampMode });
   let pathSegment = 'taghere-enroll';
-  if (params.enrollmentMode === 'MEMBERSHIP') {
+  if (mode === 'MEMBERSHIP') {
     pathSegment = 'taghere-enroll-member';
-  } else if (params.enrollmentMode === 'STAMP' || params.isStampMode) {
+  } else if (mode === 'STAMP') {
     pathSegment = params.isHitejinro ? 'taghere-enroll-stamp-hitejinro' : 'taghere-enroll-stamp';
   }
   const redirectUrl = `${CRM_BASE_URL}/${pathSegment}/${params.slug}?${orderParam}={${orderParam}}`;

@@ -27,6 +27,16 @@ async function ensureStampEnabled(client: Prisma.TransactionClient, storeId: str
   });
 }
 
+// enrollmentMode 가 POINTS 인 매장은 스탬프 적립 기능이 꺼져 있어야 한다.
+// (스탬프가 켜져 있으면 적립 페이지/모드 수렴이 STAMP 로 덮여 포인트 모드 설정이 무시되기 때문)
+// StampSetting 이 없으면 아무것도 하지 않는다(updateMany 라 not-found 에러 없음).
+async function ensureStampDisabled(client: Prisma.TransactionClient, storeId: string) {
+  await client.stampSetting.updateMany({
+    where: { storeId },
+    data: { enabled: false },
+  });
+}
+
 // GET /api/admin/stores - 모든 매장 목록 조회
 router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
@@ -378,6 +388,11 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       await ensureStampEnabled(prisma, storeId);
     }
 
+    // enrollmentMode 를 POINTS 로 수정하면 스탬프 적립 기능 자동 비활성화 (모드 수렴 충돌 방지)
+    if (enrollmentMode === 'POINTS') {
+      await ensureStampDisabled(prisma, storeId);
+    }
+
     // 위치 기반 적립 확인 (매장별 토글, 기본 OFF)
     let locationGuardWarning: string | null = null;
     if (locationGuardEnabled !== undefined || locationGuardRadiusM !== undefined) {
@@ -455,7 +470,10 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       const storeSlug = slug || existingStore.slug;
 
       if (storeSlug) {
-        const isStampMode = enrollmentMode === 'STAMP' || (existingStore.stampSetting?.enabled ?? false);
+        // POINTS 로 변경한 요청은 위에서 스탬프를 방금 껐으므로 변경 전(existingStore) 스탬프 상태를 참조하면 안 됨
+        const isStampMode =
+          enrollmentMode === 'STAMP' ||
+          (enrollmentMode !== 'POINTS' && (existingStore.stampSetting?.enabled ?? false));
         const effectiveVersion = taghereVersion || existingStore.taghereVersion;
         const effectiveCrmEnabled = crmEnabled ?? wasCrmEnabled;
         const effectiveEnrollmentMode = enrollmentMode || existingStore.enrollmentMode;
@@ -1168,6 +1186,11 @@ router.put('/stores/:storeId/enrollment-mode', adminAuthMiddleware, async (req, 
     // 스탬프 적립 모드로 변경하면 스탬프 기능 자동 활성화
     if (mode === 'STAMP') {
       await ensureStampEnabled(prisma, storeId);
+    }
+
+    // 포인트 적립 모드로 변경하면 스탬프 기능 자동 비활성화 (모드 수렴 충돌 방지)
+    if (mode === 'POINTS') {
+      await ensureStampDisabled(prisma, storeId);
     }
 
     res.json({ success: true, storeId, mode, slug });
