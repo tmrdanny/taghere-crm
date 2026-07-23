@@ -478,6 +478,7 @@ router.post('/store-crm-info', webhookAuthMiddleware, async (req: WebhookRequest
         crmEnabled: true,
         enrollmentMode: true,
         pointRatePercent: true,
+        metacityEnabled: true,
         stampSetting: { select: { enabled: true } },
       },
     });
@@ -501,6 +502,9 @@ router.post('/store-crm-info', webhookAuthMiddleware, async (req: WebhookRequest
       mode,
       storeName: store.name,
       pointRatePercent: store.pointRatePercent,
+      // 매직포스 연동 매장 여부 — V1 주문 서버가 인앱 포인트 지원 여부(pointsInAppSupported) 판단에 사용.
+      // (metacityEnabled 매장은 /transaction 이 CRM 포인트를 적립하지 않으므로 인앱 포인트 제외 대상)
+      metacityEnabled: store.metacityEnabled,
     });
   } catch (error: any) {
     console.error('[TagHere Order Webhook] Store CRM info error:', error);
