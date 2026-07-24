@@ -870,6 +870,10 @@ function TaghereMemberEnrollContent() {
   const hasVisitSourceParam = searchParams.get('hasVisitSource') === 'true';
   const showCouponSheetParam = searchParams.get('showCouponSheet') === 'true';
 
+  // customerId는 URL 파라미터가 기본이지만, auto-earn(재방문 자동등록) 경로는
+  // URL에 안 담기고 successData에만 담기므로 그쪽으로 폴백한다.
+  const resolvedCustomerId = customerId ?? successData?.customerId ?? null;
+
   // 같은 이벤트가 mount당 한 번만 발사되도록 보장 (StrictMode/effect 재실행 대비)
   const trackedEventsRef = useRef<Set<string>>(new Set());
   const trackOnce = (name: string, params: Record<string, unknown>) => {
@@ -946,10 +950,10 @@ function TaghereMemberEnrollContent() {
 
   // showCouponSheet=true 파라미터 감지 시 시트 자동 오픈
   useEffect(() => {
-    if (showCouponSheetParam && customerId) {
+    if (showCouponSheetParam && resolvedCustomerId) {
       setShowCouponSheet(true);
     }
-  }, [showCouponSheetParam, customerId]);
+  }, [showCouponSheetParam, resolvedCustomerId]);
 
   // 방문 경로 옵션 + 설문 조회
   useEffect(() => {
@@ -1221,7 +1225,7 @@ function TaghereMemberEnrollContent() {
   return (
     <>
       {/* 쿠폰 시트가 열려있으면 시트 우선 표시 */}
-      {showCouponSheet && customerId ? (
+      {showCouponSheet && resolvedCustomerId ? (
         <>
           {/* 배경: 멤버십 첫 화면 그대로 보여서 자연스러운 느낌 */}
           <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
@@ -1250,14 +1254,14 @@ function TaghereMemberEnrollContent() {
           </div>
           <CouponBottomSheet
             coupons={coupons}
-            customerId={customerId}
+            customerId={resolvedCustomerId}
             onAllDownloaded={() => {
               setShowCouponSheet(false);
               setProceedToNext(true);
               if (!successData) {
                 setSuccessData({
                   storeName: successStoreName || '태그히어',
-                  customerId,
+                  customerId: resolvedCustomerId,
                   hasExistingPreferences: hasPreferences,
                   hasVisitSource: hasVisitSourceParam,
                 });
@@ -1314,7 +1318,7 @@ function TaghereMemberEnrollContent() {
                     return;
                   }
                   if (isOpening) return;
-                  if (customerId) {
+                  if (resolvedCustomerId) {
                     setShowCouponSheet(true);
                   } else {
                     handleOpenGift();
@@ -1389,7 +1393,7 @@ function TaghereMemberEnrollContent() {
                     setShowAgreementWarning(true);
                     return;
                   }
-                  if (customerId) {
+                  if (resolvedCustomerId) {
                     setShowCouponSheet(true);
                   } else {
                     handleOpenGift();
@@ -1398,7 +1402,7 @@ function TaghereMemberEnrollContent() {
                 disabled={isOpening}
                 className="w-full py-4 font-semibold text-base rounded-[10px] transition-colors bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022]"
               >
-                {isOpening ? '가입 중...' : customerId ? '쿠폰 다시 보기' : '쿠폰 다운받기'}
+                {isOpening ? '가입 중...' : resolvedCustomerId ? '쿠폰 다시 보기' : '쿠폰 다운받기'}
               </button>
             </div>
           </div>
