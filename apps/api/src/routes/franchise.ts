@@ -513,6 +513,7 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
       const currentYear = new Date().getFullYear();
       const age = currentYear - birthYear;
 
+      if (age >= 10 && age < 20) return 'TEENS';
       if (age >= 20 && age < 30) return 'TWENTIES';
       if (age >= 30 && age < 40) return 'THIRTIES';
       if (age >= 40 && age < 50) return 'FORTIES';
@@ -1050,6 +1051,7 @@ router.get('/customers/:customerId', franchiseAuthMiddleware, async (req: Franch
       const currentYear = new Date().getFullYear();
       const age = currentYear - birthYear;
 
+      if (age >= 10 && age < 20) return 'TEENS';
       if (age >= 20 && age < 30) return 'TWENTIES';
       if (age >= 30 && age < 40) return 'THIRTIES';
       if (age >= 40 && age < 50) return 'FORTIES';
@@ -1174,6 +1176,7 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
       const currentYear = new Date().getFullYear();
       const age = currentYear - birthYear;
 
+      if (age >= 10 && age < 20) return 'TEENS';
       if (age >= 20 && age < 30) return 'TWENTIES';
       if (age >= 30 && age < 40) return 'THIRTIES';
       if (age >= 40 && age < 50) return 'FORTIES';
@@ -1201,6 +1204,7 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
     const ageDistribution = Array.from(ageMap.entries()).map(([ageGroup, count]) => {
       let ageLabel = '';
       switch (ageGroup) {
+        case 'TEENS': ageLabel = '10대'; break;
         case 'TWENTIES': ageLabel = '20대'; break;
         case 'THIRTIES': ageLabel = '30대'; break;
         case 'FORTIES': ageLabel = '40대'; break;
@@ -1214,7 +1218,7 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
       };
     }).filter(item => item.age !== '') // 빈 라벨 제외
       .sort((a, b) => {
-        const order = { '20대': 1, '30대': 2, '40대': 3, '50대': 4, '60대 이상': 5 };
+        const order = { '10대': 1, '20대': 2, '30대': 3, '40대': 4, '50대': 5, '60대 이상': 6 };
         return (order[a.age as keyof typeof order] || 999) - (order[b.age as keyof typeof order] || 999);
       });
 

@@ -213,8 +213,9 @@ export default function CustomerInsightsPage() {
     const maxAvg = Math.max(...insights.genderAgeSpending.map((d) => d.avgPoints));
 
     // 연령대별로 그룹화
-    const ageGroups = ['TWENTIES', 'THIRTIES', 'FORTIES', 'FIFTIES', 'SIXTY_PLUS'];
+    const ageGroups = ['TEENS', 'TWENTIES', 'THIRTIES', 'FORTIES', 'FIFTIES', 'SIXTY_PLUS'];
     const ageLabels: Record<string, string> = {
+      TEENS: '10대',
       TWENTIES: '20대',
       THIRTIES: '30대',
       FORTIES: '40대',

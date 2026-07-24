@@ -10,6 +10,7 @@ router.use(authMiddleware);
 // 연령대 라벨 변환
 const getAgeLabel = (ageGroup: string): string => {
   switch (ageGroup) {
+    case 'TEENS': return '10대';
     case 'TWENTIES': return '20대';
     case 'THIRTIES': return '30대';
     case 'FORTIES': return '40대';
@@ -25,6 +26,7 @@ const calculateAgeGroup = (birthYear: number | null): string | null => {
   const currentYear = new Date().getFullYear();
   const age = currentYear - birthYear;
 
+  if (age >= 10 && age < 20) return 'TEENS';
   if (age >= 20 && age < 30) return 'TWENTIES';
   if (age >= 30 && age < 40) return 'THIRTIES';
   if (age >= 40 && age < 50) return 'FORTIES';
@@ -109,11 +111,12 @@ router.get('/customers', async (req: AuthRequest, res) => {
       }))
       .sort((a, b) => {
         const order: Record<string, number> = {
-          TWENTIES: 1,
-          THIRTIES: 2,
-          FORTIES: 3,
-          FIFTIES: 4,
-          SIXTY_PLUS: 5,
+          TEENS: 1,
+          TWENTIES: 2,
+          THIRTIES: 3,
+          FORTIES: 4,
+          FIFTIES: 5,
+          SIXTY_PLUS: 6,
         };
         return (order[a.ageGroup] || 999) - (order[b.ageGroup] || 999);
       });
