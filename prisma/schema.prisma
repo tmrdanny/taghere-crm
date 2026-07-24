@@ -720,6 +720,7 @@ enum BannerMediaType {
 
 // 연령대 enum
 enum AgeGroup {
+  TEENS       // 10대
   TWENTIES    // 20대
   THIRTIES    // 30대
   FORTIES     // 40대

@@ -11,6 +11,7 @@ const GENDER_LABELS: Record<string, string> = {
 };
 
 const AGE_GROUP_LABELS: Record<string, string> = {
+  TEENS: '10대',
   TWENTIES: '20대',
   THIRTIES: '30대',
   FORTIES: '40대',
