@@ -39,12 +39,15 @@ interface TabletWaitingFormProps {
     phone: string;
     waitingTypeId: string;
     partySize: number;
-    adultCount: number;
-    childCount: number;
+    adultCount?: number;
+    childCount?: number;
+    maleCount?: number;
+    femaleCount?: number;
     marketingConsent?: boolean;
   }) => Promise<RegistrationResult>;
   onViewWaitingList?: () => void;
   onCancel?: () => Promise<void>;
+  genderSplitEnabled?: boolean;
   isSubmitting?: boolean;
   className?: string;
 }
@@ -57,6 +60,7 @@ export function TabletWaitingForm({
   onSubmit,
   onViewWaitingList,
   onCancel,
+  genderSplitEnabled = false,
   isSubmitting = false,
   className,
 }: TabletWaitingFormProps) {
@@ -200,14 +204,21 @@ export function TabletWaitingForm({
       setError('개인정보 수집 및 이용에 동의해주세요.');
       return;
     }
+    const totalCount = adultCount + childCount;
+    if (genderSplitEnabled && totalCount < 1) {
+      setError('인원 수를 선택해주세요.');
+      return;
+    }
     try {
-      const partySize = adultCount + childCount;
+      const partySize = totalCount;
       const result = await onSubmit({
         phone: `010${phone}`,
         waitingTypeId: selectedTypeId,
         partySize,
-        adultCount,
-        childCount,
+        // 성별 구분 입력 시 성인/유아 카운터를 남성/여성으로 사용
+        ...(genderSplitEnabled
+          ? { maleCount: adultCount, femaleCount: childCount }
+          : { adultCount, childCount }),
       });
       setRegistrationResult(result);
       setStep('complete');
@@ -561,12 +572,12 @@ export function TabletWaitingForm({
 
               {/* Adult Count Selector */}
               <div className="mb-6">
-                <p className="text-lg font-medium text-neutral-700 mb-3">성인</p>
+                <p className="text-lg font-medium text-neutral-700 mb-3">{genderSplitEnabled ? '남성' : '성인'}</p>
                 <div className="flex items-center justify-center gap-6">
                   <button
                     type="button"
-                    onClick={() => setAdultCount(Math.max(1, adultCount - 1))}
-                    disabled={adultCount <= 1}
+                    onClick={() => setAdultCount(Math.max(genderSplitEnabled ? 0 : 1, adultCount - 1))}
+                    disabled={adultCount <= (genderSplitEnabled ? 0 : 1)}
                     className="w-14 h-14 rounded-xl border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <Minus className="w-5 h-5" />
@@ -593,7 +604,7 @@ export function TabletWaitingForm({
 
               {/* Child Count Selector */}
               <div className="mb-6">
-                <p className="text-lg font-medium text-neutral-700 mb-3">유아</p>
+                <p className="text-lg font-medium text-neutral-700 mb-3">{genderSplitEnabled ? '여성' : '유아'}</p>
                 <div className="flex items-center justify-center gap-6">
                   <button
                     type="button"

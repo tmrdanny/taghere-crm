@@ -63,6 +63,7 @@ router.put('/', authMiddleware, async (req: AuthRequest, res) => {
       enabled,
       maxWaitingCount,
       showEstimatedTime,
+      genderSplitEnabled,
       callTimeoutMinutes,
       maxCallCount,
       autoCancel,
@@ -81,6 +82,7 @@ router.put('/', authMiddleware, async (req: AuthRequest, res) => {
       updateData.maxWaitingCount = maxWaitingCount;
     }
     if (showEstimatedTime !== undefined) updateData.showEstimatedTime = showEstimatedTime;
+    if (genderSplitEnabled !== undefined) updateData.genderSplitEnabled = genderSplitEnabled;
     if (callTimeoutMinutes !== undefined) {
       if (callTimeoutMinutes < 1 || callTimeoutMinutes > 30) {
         return res.status(400).json({ error: '호출 후 대기 시간은 1~30분 사이여야 합니다.' });

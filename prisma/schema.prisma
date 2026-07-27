@@ -1218,6 +1218,8 @@ model WaitingList {
   partySize           Int             // 총 인원 수 (adultCount + childCount)
   adultCount          Int?            // 성인 인원 (null이면 레거시 데이터)
   childCount          Int?            // 유아 인원 (null이면 레거시 데이터)
+  maleCount           Int?            // 남성 인원 (성별 구분 입력 사용 시)
+  femaleCount         Int?            // 여성 인원 (성별 구분 입력 사용 시)
   memo                String?         @db.Text  // 요청사항/메모
 
   // 상태 관리
@@ -1279,6 +1281,7 @@ model WaitingSetting {
   enabled                 Boolean                 @default(true)
   maxWaitingCount         Int                     @default(50)     // 최대 대기 인원
   showEstimatedTime       Boolean                 @default(true)   // 예상 시간 노출 여부
+  genderSplitEnabled      Boolean                 @default(false)  // 인원 입력 시 남/녀 구분 입력 여부
 
   // 호출 설정
   callTimeoutMinutes      Int                     @default(3)      // 호출 후 대기 시간 (분)
