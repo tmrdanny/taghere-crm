@@ -25,12 +25,15 @@ interface CustomerWaitingFormProps {
     phone: string;
     waitingTypeId: string;
     partySize: number;
-    adultCount: number;
-    childCount: number;
+    adultCount?: number;
+    childCount?: number;
+    maleCount?: number;
+    femaleCount?: number;
     memo?: string;
     consentPrivacy: boolean;
     consentMarketing: boolean;
   }) => Promise<void>;
+  genderSplitEnabled?: boolean;
   isSubmitting?: boolean;
   className?: string;
 }
@@ -42,6 +45,7 @@ export function CustomerWaitingForm({
   estimatedMinutes,
   waitingTypes,
   onSubmit,
+  genderSplitEnabled = false,
   isSubmitting = false,
   className,
 }: CustomerWaitingFormProps) {
@@ -49,6 +53,8 @@ export function CustomerWaitingForm({
   const [selectedTypeId, setSelectedTypeId] = useState<string>('');
   const [adultCount, setAdultCount] = useState<number>(1);
   const [childCount, setChildCount] = useState<number>(0);
+  const [maleCount, setMaleCount] = useState<number>(0);
+  const [femaleCount, setFemaleCount] = useState<number>(0);
   const [consentPrivacy, setConsentPrivacy] = useState(false);
   const [consentMarketing, setConsentMarketing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,8 +65,12 @@ export function CustomerWaitingForm({
     const type = waitingTypes.find(t => t.id === typeId);
     if (type) {
       const min = type.minPartySize || 1;
-      const totalPartySize = adultCount + childCount;
-      if (totalPartySize < min) setAdultCount(min);
+      if (genderSplitEnabled) {
+        if (maleCount + femaleCount < min) setMaleCount(min - femaleCount);
+      } else {
+        const totalPartySize = adultCount + childCount;
+        if (totalPartySize < min) setAdultCount(min);
+      }
     }
   };
 
@@ -99,14 +109,20 @@ export function CustomerWaitingForm({
       return;
     }
 
+    if (genderSplitEnabled && maleCount + femaleCount < 1) {
+      setError('인원 수를 입력해주세요.');
+      return;
+    }
+
     try {
-      const partySize = adultCount + childCount;
+      const partySize = genderSplitEnabled ? maleCount + femaleCount : adultCount + childCount;
       await onSubmit({
         phone: phoneNumbers,
         waitingTypeId: selectedTypeId,
         partySize,
-        adultCount,
-        childCount,
+        ...(genderSplitEnabled
+          ? { maleCount, femaleCount }
+          : { adultCount, childCount }),
         consentPrivacy,
         consentMarketing,
       });
@@ -118,7 +134,7 @@ export function CustomerWaitingForm({
   const selectedType = waitingTypes.find(t => t.id === selectedTypeId);
   const maxPartySize = selectedType?.maxPartySize || 20;
   const minPartySize = selectedType?.minPartySize || 1;
-  const totalPartySize = adultCount + childCount;
+  const totalPartySize = genderSplitEnabled ? maleCount + femaleCount : adultCount + childCount;
 
   return (
     <div className={cn('min-h-screen bg-white font-pretendard', className)}>
@@ -221,7 +237,76 @@ export function CustomerWaitingForm({
             </div>
           </div>
 
+          {/* Party Size - Male (성별 구분 입력) */}
+          {genderSplitEnabled && (
+          <div>
+            <label className="block text-sm font-medium text-[#1d2022] mb-2">
+              남성
+            </label>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMaleCount(Math.max(0, maleCount - 1))}
+                disabled={maleCount <= 0}
+                className="w-12 h-12 rounded-xl bg-white border border-[#ebeced] text-[#55595e] font-bold text-xl flex items-center justify-center hover:border-[#d1d5db] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                -
+              </button>
+              <div className="flex-1 h-12 bg-white border border-[#ebeced] rounded-xl flex items-center justify-center">
+                <span className="text-xl font-bold text-[#1d2022]">{maleCount}명</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (totalPartySize < maxPartySize) {
+                    setMaleCount(maleCount + 1);
+                  }
+                }}
+                disabled={totalPartySize >= maxPartySize}
+                className="w-12 h-12 rounded-xl bg-white border border-[#ebeced] text-[#55595e] font-bold text-xl flex items-center justify-center hover:border-[#d1d5db] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                +
+              </button>
+            </div>
+          </div>
+          )}
+
+          {/* Party Size - Female (성별 구분 입력) */}
+          {genderSplitEnabled && (
+          <div>
+            <label className="block text-sm font-medium text-[#1d2022] mb-2">
+              여성
+            </label>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setFemaleCount(Math.max(0, femaleCount - 1))}
+                disabled={femaleCount <= 0}
+                className="w-12 h-12 rounded-xl bg-white border border-[#ebeced] text-[#55595e] font-bold text-xl flex items-center justify-center hover:border-[#d1d5db] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                -
+              </button>
+              <div className="flex-1 h-12 bg-white border border-[#ebeced] rounded-xl flex items-center justify-center">
+                <span className="text-xl font-bold text-[#1d2022]">{femaleCount}명</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (totalPartySize < maxPartySize) {
+                    setFemaleCount(femaleCount + 1);
+                  }
+                }}
+                disabled={totalPartySize >= maxPartySize}
+                className="w-12 h-12 rounded-xl bg-white border border-[#ebeced] text-[#55595e] font-bold text-xl flex items-center justify-center hover:border-[#d1d5db] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                +
+              </button>
+            </div>
+          </div>
+          )}
+
           {/* Party Size - Adult */}
+          {!genderSplitEnabled && (
           <div>
             <label className="block text-sm font-medium text-[#1d2022] mb-2">
               성인
@@ -252,8 +337,10 @@ export function CustomerWaitingForm({
               </button>
             </div>
           </div>
+          )}
 
           {/* Party Size - Child */}
+          {!genderSplitEnabled && (
           <div>
             <label className="block text-sm font-medium text-[#1d2022] mb-2">
               유아
@@ -284,6 +371,7 @@ export function CustomerWaitingForm({
               </button>
             </div>
           </div>
+          )}
 
           {/* Total Party Size */}
           <div className="bg-white border border-[#ebeced] rounded-xl p-3 text-center">

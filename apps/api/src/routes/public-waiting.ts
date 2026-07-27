@@ -67,6 +67,7 @@ router.get('/:storeSlug/info', async (req: Request, res: Response) => {
       isAccepting: setting.operationStatus === 'ACCEPTING',
       pauseMessage: setting.pauseMessage,
       showEstimatedTime: setting.showEstimatedTime,
+      genderSplitEnabled: setting.genderSplitEnabled ?? false,
       types: types.map((type: any) => {
         const typeStats = stats.byType.find((s) => s.typeId === type.id);
         return {
@@ -90,7 +91,7 @@ router.get('/:storeSlug/info', async (req: Request, res: Response) => {
 router.post('/:storeSlug/register', async (req: Request, res: Response) => {
   try {
     const { storeSlug } = req.params;
-    const { waitingTypeId, phone, partySize, adultCount, childCount, memo, consentMarketing, source } = req.body;
+    const { waitingTypeId, phone, partySize, adultCount, childCount, maleCount, femaleCount, memo, consentMarketing, source } = req.body;
 
     const store = await prisma.store.findUnique({
       where: { slug: storeSlug },
@@ -136,10 +137,22 @@ router.post('/:storeSlug/register', async (req: Request, res: Response) => {
 
     const waitingSource = source === 'TABLET' ? 'TABLET' : 'QR';
 
+    // 남/녀 구분 입력 검증 (제공된 경우 합계가 1명 이상이어야 함)
+    if (maleCount !== undefined || femaleCount !== undefined) {
+      const m = Number(maleCount ?? 0);
+      const f = Number(femaleCount ?? 0);
+      if (!Number.isInteger(m) || !Number.isInteger(f) || m < 0 || f < 0 || m + f < 1) {
+        return res.status(400).json({ error: '남/녀 인원 수를 올바르게 입력해주세요.' });
+      }
+    }
+
     // adultCount와 childCount가 제공된 경우, partySize는 합계로 재계산
-    const finalPartySize = (adultCount !== undefined && childCount !== undefined)
-      ? adultCount + childCount
-      : partySize;
+    // 남/녀 구분 입력이 제공된 경우는 그 합계를 우선 사용
+    const finalPartySize = (maleCount !== undefined && femaleCount !== undefined)
+      ? Number(maleCount) + Number(femaleCount)
+      : (adultCount !== undefined && childCount !== undefined)
+        ? adultCount + childCount
+        : partySize;
 
     const result = await registerWaiting({
       storeId: store.id,
@@ -148,6 +161,8 @@ router.post('/:storeSlug/register', async (req: Request, res: Response) => {
       partySize: finalPartySize,
       adultCount: adultCount ?? undefined,
       childCount: childCount ?? undefined,
+      maleCount: maleCount !== undefined ? Number(maleCount) : undefined,
+      femaleCount: femaleCount !== undefined ? Number(femaleCount) : undefined,
       memo,
       source: waitingSource,
       consentMarketing: consentMarketing ?? false,

@@ -150,7 +150,11 @@ export const WaitingTableRow = memo(function WaitingTableRow({
       <td className="py-3 px-3 align-middle">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-1.5">
-            {item.adultCount != null && item.childCount != null ? (
+            {item.maleCount != null && item.femaleCount != null ? (
+              <span className="text-sm font-semibold text-neutral-900">
+                남 {item.maleCount} / 여 {item.femaleCount}
+              </span>
+            ) : item.adultCount != null && item.childCount != null ? (
               <span className="text-sm font-semibold text-neutral-900">
                 성인 {item.adultCount} / 유아 {item.childCount}
               </span>

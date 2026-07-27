@@ -30,6 +30,8 @@ export interface WaitingItem {
   partySize: number;
   adultCount?: number | null;
   childCount?: number | null;
+  maleCount?: number | null;
+  femaleCount?: number | null;
   memo?: string | null;
   status: WaitingStatus;
   calledAt?: string | null;
@@ -55,6 +57,7 @@ export interface WaitingSetting {
   enabled: boolean;
   maxWaitingCount: number;
   showEstimatedTime: boolean;
+  genderSplitEnabled: boolean;
   callTimeoutMinutes: number;
   maxCallCount: number;
   autoCancel: boolean;

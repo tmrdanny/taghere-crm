@@ -16,6 +16,8 @@ export interface WaitingRegistrationParams {
   partySize: number;
   adultCount?: number;
   childCount?: number;
+  maleCount?: number;
+  femaleCount?: number;
   memo?: string;
   source: WaitingSource;
   consentMarketing?: boolean;
@@ -199,6 +201,8 @@ export async function registerWaiting(
         partySize: params.partySize,
         adultCount: params.adultCount ?? null,
         childCount: params.childCount ?? null,
+        maleCount: params.maleCount ?? null,
+        femaleCount: params.femaleCount ?? null,
         memo: params.memo,
         source: params.source,
         consentMarketing: params.consentMarketing ?? false,

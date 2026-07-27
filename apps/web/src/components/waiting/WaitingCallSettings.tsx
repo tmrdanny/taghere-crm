@@ -138,6 +138,22 @@ export function WaitingCallSettings({
               onCheckedChange={(checked) => onChange('showEstimatedTime', checked)}
             />
           </div>
+
+          {/* Gender Split Input */}
+          <div className="flex items-center justify-between pt-4 border-t border-neutral-100">
+            <div>
+              <label className="text-sm font-medium text-neutral-900">
+                남/녀 인원 구분 입력
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                웨이팅 등록 시 인원 수를 남성/여성으로 구분해서 입력받습니다.
+              </p>
+            </div>
+            <Switch
+              checked={settings.genderSplitEnabled ?? false}
+              onCheckedChange={(checked) => onChange('genderSplitEnabled', checked)}
+            />
+          </div>
         </Card>
       </div>
 
