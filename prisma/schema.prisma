@@ -1369,6 +1369,7 @@ model FoodCourtSetting {
   storeId          String   @unique
 
   enabled          Boolean  @default(false)
+  randomizeOrder   Boolean  @default(false) // 고객 페이지에서 매 세션마다 매장 순서 랜덤 배치
   customerTitle    String?  // 예: "안녕하세요. 글로우성수에 오신 것을 환영합니다."
   customerSubtitle String?
   noticeText       String?  // 검정 공지 배너 본문 (다국어/줄바꿈 허용)

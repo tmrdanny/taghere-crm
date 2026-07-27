@@ -69,6 +69,7 @@ router.get('/food-court-settings/:storeId', adminAuthMiddleware, async (req: Adm
 
     res.json({
       enabled: setting.enabled,
+      randomizeOrder: setting.randomizeOrder,
       customerTitle: setting.customerTitle,
       customerSubtitle: setting.customerSubtitle,
       noticeText: setting.noticeText,
@@ -88,7 +89,7 @@ router.get('/food-court-settings/:storeId', adminAuthMiddleware, async (req: Adm
 router.put('/food-court-settings/:storeId', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
     const { storeId } = req.params;
-    const { enabled, stores, customerTitle, customerSubtitle, noticeText, noticeLogoUrl } = req.body;
+    const { enabled, randomizeOrder, stores, customerTitle, customerSubtitle, noticeText, noticeLogoUrl } = req.body;
 
     const store = await prisma.store.findUnique({ where: { id: storeId } });
     if (!store) {
@@ -152,6 +153,7 @@ router.put('/food-court-settings/:storeId', adminAuthMiddleware, async (req: Adm
       create: {
         storeId,
         enabled: enabled ?? false,
+        randomizeOrder: randomizeOrder ?? false,
         stores: (normalizedStores ?? []) as any,
         customerTitle: customerTitle ?? null,
         customerSubtitle: customerSubtitle ?? null,
@@ -160,6 +162,7 @@ router.put('/food-court-settings/:storeId', adminAuthMiddleware, async (req: Adm
       },
       update: {
         ...(enabled !== undefined && { enabled }),
+        ...(randomizeOrder !== undefined && { randomizeOrder }),
         ...(normalizedStores !== undefined && { stores: normalizedStores as any }),
         ...(customerTitle !== undefined && { customerTitle }),
         ...(customerSubtitle !== undefined && { customerSubtitle }),
@@ -170,6 +173,7 @@ router.put('/food-court-settings/:storeId', adminAuthMiddleware, async (req: Adm
 
     res.json({
       enabled: setting.enabled,
+      randomizeOrder: setting.randomizeOrder,
       customerTitle: setting.customerTitle,
       customerSubtitle: setting.customerSubtitle,
       noticeText: setting.noticeText,

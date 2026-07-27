@@ -1354,9 +1354,17 @@ router.get('/food-court/:slug/:tableNumber', async (req, res) => {
       return res.status(404).json({ error: '푸드코트 서비스가 비활성화되어 있습니다.' });
     }
 
-    const booths = ((setting.stores as unknown as FoodCourtBooth[]) || [])
+    let booths = ((setting.stores as unknown as FoodCourtBooth[]) || [])
       .slice()
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    // 랜덤 배치: 매 요청(=고객 세션)마다 매장 순서를 섞음 (Fisher-Yates)
+    if (setting.randomizeOrder) {
+      for (let i = booths.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [booths[i], booths[j]] = [booths[j], booths[i]];
+      }
+    }
 
     res.json({
       storeName: store.name,
