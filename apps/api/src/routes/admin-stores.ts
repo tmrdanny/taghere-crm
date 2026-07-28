@@ -304,9 +304,9 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
 
     // 점주 이메일 변경 (OWNER StaffUser의 로그인 계정 이메일)
     if (ownerEmail !== undefined) {
-      const newEmail = String(ownerEmail || '').trim().toLowerCase();
-      if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
-        return res.status(400).json({ error: '올바른 이메일 형식이 아닙니다.' });
+      const newEmail = String(ownerEmail || '').trim();
+      if (!newEmail) {
+        return res.status(400).json({ error: '점주 이메일(로그인 계정)을 입력해주세요.' });
       }
       const owner = await prisma.staffUser.findFirst({
         where: { storeId, role: 'OWNER' },
