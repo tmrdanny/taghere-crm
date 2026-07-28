@@ -11,6 +11,8 @@ import {
 } from '../services/metacity.js';
 import { sidoToShort } from '../utils/address-parser.js';
 import { fetchOrder } from '../services/taghere-api.js';
+import { findOrCreateCustomerByPhone } from '../services/customer-identity.js';
+import { enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
 
 const router = Router();
 
@@ -104,45 +106,14 @@ router.post('/customer-search', webhookAuthMiddleware, async (req: WebhookReques
       });
     }
 
-    // 3. 전화번호 정규화
-    const phoneDigits = phone.replace(/[^0-9]/g, '');
-    // +82 국제번호 처리
-    let normalizedDigits = phoneDigits;
-    if (normalizedDigits.startsWith('82') && normalizedDigits.length >= 11) {
-      normalizedDigits = '0' + normalizedDigits.slice(2);
-    }
-    const phoneLastDigits = normalizedDigits.slice(-8);
-
-    // 4. 고객 검색
-    let isNewCustomer = false;
-    let customer = await prisma.customer.findFirst({
-      where: {
-        storeId: store.id,
-        phoneLastDigits,
-      },
-    });
-
-    // 5. 고객이 없는 경우: 로컬 고객 생성 (MetaCity 동기화는 포인트 트랜잭션 시 syncToMetacity가 처리)
-    if (!customer) {
-      isNewCustomer = true;
-      const formattedPhone = normalizedDigits.length === 11
-        ? `${normalizedDigits.slice(0, 3)}-${normalizedDigits.slice(3, 7)}-${normalizedDigits.slice(7)}`
-        : normalizedDigits;
-
-      customer = await prisma.customer.create({
-        data: {
-          storeId: store.id,
-          phone: formattedPhone,
-          phoneLastDigits,
-          totalPoints: 0,
-          visitCount: 0,
-          regionSido: sidoToShort(store.addressSido ?? null),
-          regionSigungu: store.addressSigungu || null,
-          consentMarketing: true,
-          consentAt: new Date(),
-        },
-      });
-
+    // 3~5. 전화번호로 고객 검색/생성 (동시성 P2002 재조회 포함)
+    const { customer, isNewCustomer } = await findOrCreateCustomerByPhone(
+      store.id,
+      phone,
+      store.addressSido ?? null,
+      store.addressSigungu ?? null,
+    );
+    if (isNewCustomer) {
       console.log(`[Point Webhook] Customer created locally - customerId: ${customer.id}, storeId: ${store.id}`);
     }
 
@@ -222,7 +193,9 @@ router.post('/customer-search', webhookAuthMiddleware, async (req: WebhookReques
  */
 router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
   try {
-    const { storeSlug, crmCustomerId, orderId, purAmt, usedPoint } = req.body;
+    // sendAlimtalk: 인앱(주문 서비스 내) 적립처럼 알림톡 안내가 필요한 호출만 true 로 opt-in.
+    // 기존 POS 결제완료 자동적립 경로는 미전달(false) → 발송 동작 변화 없음.
+    const { storeSlug, crmCustomerId, orderId, purAmt, usedPoint, sendAlimtalk } = req.body;
 
     // 1. 파라미터 검증
     if (!storeSlug || !crmCustomerId || !orderId || purAmt === undefined) {
@@ -243,6 +216,8 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
         metacityEnabled: true,
         metacityStoreIdx: true,
         taghereVersion: true,
+        pointsAlimtalkEnabled: true,
+        pointsAlimtalkFrequency: true,
       },
     });
 
@@ -530,6 +505,37 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
     await prisma.$transaction(transactionOps);
 
     console.log(`[Point Webhook] Transaction completed - customerId: ${customer.id}, storeId: ${store.id}, usedPoint: ${effectiveUsedPoint}, savePoint: ${savePoint}, balance: ${currentBalance}`);
+
+    // 알림톡 발송 (opt-in: 인앱 적립 호출만) — auto-earn 과 동일한 게이트/변수 재사용.
+    // 재호출은 위의 멱등 조기반환에서 걸러지므로 중복 발송 없음.
+    if (sendAlimtalk === true && savePoint > 0) {
+      const frequency = store.pointsAlimtalkFrequency || 'EVERY_ORDER';
+      const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstVisitToday));
+      const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
+
+      if (phoneNumber && shouldSendAlimtalk) {
+        const earnLedger = await prisma.pointLedger.findFirst({
+          where: { customerId: customer.id, storeId: store.id, type: 'EARN', orderId },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (earnLedger) {
+          enqueuePointsEarnedAlimTalk({
+            storeId: store.id,
+            customerId: customer.id,
+            pointLedgerId: earnLedger.id,
+            phone: phoneNumber,
+            variables: {
+              storeName: store.name,
+              points: savePoint,
+              totalPoints: currentBalance,
+            },
+          }).catch((err) => {
+            console.error('[Point Webhook] Points AlimTalk enqueue failed:', err);
+          });
+        }
+      }
+    }
 
     // 매직포스 매장은 위 분기에서 이미 return 됨 → 여기는 일반 매장 경로.
     // 메타씨티 동기화는 매직포스 매장에서만 의미가 있으므로 호출하지 않는다.
