@@ -95,6 +95,7 @@ export default function WaitingSettingsPage() {
           autoCancel: settings.autoCancel,
           maxWaitingCount: settings.maxWaitingCount,
           showEstimatedTime: settings.showEstimatedTime,
+          genderSplitEnabled: settings.genderSplitEnabled,
           waitingNote: settings.waitingNote,
           waitingCallNote: settings.waitingCallNote,
         }),

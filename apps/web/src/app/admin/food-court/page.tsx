@@ -28,6 +28,7 @@ interface Booth {
 
 interface FoodCourtSettings {
   enabled: boolean;
+  randomizeOrder: boolean;
   customerTitle: string | null;
   customerSubtitle: string | null;
   noticeText: string | null;
@@ -66,6 +67,7 @@ export default function AdminFoodCourtPage() {
 
   // Editable state
   const [enabled, setEnabled] = useState(false);
+  const [randomizeOrder, setRandomizeOrder] = useState(false);
   const [customerTitle, setCustomerTitle] = useState('');
   const [customerSubtitle, setCustomerSubtitle] = useState('');
   const [noticeText, setNoticeText] = useState('');
@@ -129,6 +131,7 @@ export default function AdminFoodCourtPage() {
         const data: FoodCourtSettings = await res.json();
         setSettings(data);
         setEnabled(data.enabled);
+        setRandomizeOrder(data.randomizeOrder ?? false);
         setCustomerTitle(data.customerTitle || '');
         setCustomerSubtitle(data.customerSubtitle || '');
         setNoticeText(data.noticeText || '');
@@ -147,6 +150,7 @@ export default function AdminFoodCourtPage() {
 
   const buildPayload = () => ({
     enabled,
+    randomizeOrder,
     stores: booths,
     customerTitle: customerTitle || null,
     customerSubtitle: customerSubtitle || null,
@@ -423,6 +427,28 @@ export default function AdminFoodCourtPage() {
                 <div
                   className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
                     enabled ? 'translate-x-[22px]' : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* 랜덤 배치 토글 */}
+          <div className="bg-white border border-neutral-200 rounded-xl p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-neutral-900">매장 랜덤 배치</h3>
+                <p className="text-[13px] text-neutral-500 mt-1">
+                  활성화하면 고객이 접속할 때마다 매장 노출 순서가 랜덤으로 바뀝니다. (특정 매장 상단 고정 노출 방지)
+                </p>
+              </div>
+              <button
+                onClick={() => setRandomizeOrder(!randomizeOrder)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${randomizeOrder ? 'bg-[#FFD541]' : 'bg-neutral-300'}`}
+              >
+                <div
+                  className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                    randomizeOrder ? 'translate-x-[22px]' : 'translate-x-0.5'
                   }`}
                 />
               </button>

@@ -31,6 +31,7 @@ interface StoreInfo {
   logo: string | null;
   operationStatus: 'ACCEPTING' | 'WALK_IN' | 'PAUSED' | 'CLOSED';
   pauseMessage: string | null;
+  genderSplitEnabled: boolean;
   totalWaiting: number;
   estimatedMinutes: number;
   waitingTypes: WaitingType[];
@@ -81,6 +82,7 @@ export default function WaitingQRPage() {
         logo: data.store?.logo || null,
         operationStatus: data.operationStatus || 'CLOSED',
         pauseMessage: data.pauseMessage || null,
+        genderSplitEnabled: data.genderSplitEnabled ?? false,
         totalWaiting: data.stats?.totalWaiting || 0,
         estimatedMinutes: data.stats?.estimatedMinutes || 0,
         waitingTypes: (data.types || []).map((type: any) => ({
@@ -114,8 +116,10 @@ export default function WaitingQRPage() {
     phone: string;
     waitingTypeId: string;
     partySize: number;
-    adultCount: number;
-    childCount: number;
+    adultCount?: number;
+    childCount?: number;
+    maleCount?: number;
+    femaleCount?: number;
     memo?: string;
     consentPrivacy: boolean;
     consentMarketing: boolean;
@@ -136,6 +140,8 @@ export default function WaitingQRPage() {
           partySize: data.partySize,
           adultCount: data.adultCount,
           childCount: data.childCount,
+          maleCount: data.maleCount,
+          femaleCount: data.femaleCount,
           memo: data.memo,
           consentMarketing: data.consentMarketing,
         }),
@@ -243,6 +249,7 @@ export default function WaitingQRPage() {
             estimatedMinutes={storeInfo.estimatedMinutes}
             waitingTypes={storeInfo.waitingTypes}
             onSubmit={handleSubmit}
+            genderSplitEnabled={storeInfo.genderSplitEnabled}
             isSubmitting={isSubmitting}
           />
         </>

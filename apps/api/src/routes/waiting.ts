@@ -164,16 +164,19 @@ router.get('/stats/today', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { waitingTypeId, phone, name, partySize, adultCount, childCount, memo, consentMarketing } = req.body;
+    const { waitingTypeId, phone, name, partySize, adultCount, childCount, maleCount, femaleCount, memo, consentMarketing } = req.body;
 
     if (!waitingTypeId) {
       return res.status(400).json({ error: '웨이팅 유형을 선택해주세요.' });
     }
 
     // adultCount와 childCount가 제공된 경우, partySize는 합계로 계산
-    const finalPartySize = (adultCount !== undefined && childCount !== undefined)
-      ? adultCount + childCount
-      : partySize;
+    // 남/녀 구분 입력이 제공된 경우는 그 합계를 우선 사용
+    const finalPartySize = (maleCount !== undefined && femaleCount !== undefined)
+      ? Number(maleCount) + Number(femaleCount)
+      : (adultCount !== undefined && childCount !== undefined)
+        ? adultCount + childCount
+        : partySize;
 
     if (!finalPartySize || finalPartySize < 1) {
       return res.status(400).json({ error: '인원 수를 입력해주세요.' });
@@ -191,6 +194,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       partySize: finalPartySize,
       adultCount: adultCount ?? undefined,
       childCount: childCount ?? undefined,
+      maleCount: maleCount !== undefined ? Number(maleCount) : undefined,
+      femaleCount: femaleCount !== undefined ? Number(femaleCount) : undefined,
       memo,
       source: 'MANUAL',
       consentMarketing,
