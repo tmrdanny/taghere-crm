@@ -5,6 +5,7 @@ import { fetchOrder, resolveCrmPageMode, TaghereOrderData } from '../services/ta
 import { findOrCreateCustomerByPhone } from '../services/customer-identity.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 import { enqueueStampEarnedAlimTalk } from '../services/solapi.js';
+import { toPhoneLastDigits } from '../utils/phone.js';
 
 const router = Router();
 
@@ -512,6 +513,95 @@ router.post('/store-crm-info', webhookAuthMiddleware, async (req: WebhookRequest
       success: false,
       error: 'server_error',
       message: '매장 CRM 정보 조회 중 오류가 발생했습니다.',
+    });
+  }
+});
+
+/**
+ * POST /api/taghere/webhook/stamp/balance
+ * 현재 보유 스탬프 조회 (읽기 전용). 주문 서비스가 적립 화면 부제에 표시한다.
+ *
+ * /stamp/earn 과 달리 고객을 생성하지 않는다 — 화면만 보고 이탈한 사용자까지
+ * consentMarketing=true 로 만들지 않기 위해 findFirst 만 한다.
+ * 보상 추첨(checkMilestoneAndDraw)도 호출하지 않는다. 아직 일어나지 않은 당첨이 뽑히기 때문.
+ *
+ * 프랜차이즈/비활성 매장은 400 이 아니라 200 + supported:false 로 응답한다.
+ * 호출자(V2)가 4xx 를 장애로 취급해 502 로 승격시키는 구조라, 정상적인 미지원 상태를
+ * 에러로 내리면 해당 매장의 모든 페이지뷰가 알람이 된다.
+ */
+router.post('/stamp/balance', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
+  try {
+    const { storeSlug, phone } = req.body;
+
+    if (!storeSlug || !phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'missing_params',
+        message: 'storeSlug, phone은 필수입니다.',
+      });
+    }
+
+    const store = await prisma.store.findFirst({
+      where: { slug: storeSlug },
+      select: {
+        id: true,
+        franchiseStampEnabled: true,
+        franchiseId: true,
+        franchise: { select: { franchiseStampSetting: true } },
+        stampSetting: { select: { enabled: true } },
+      },
+    });
+
+    if (!store) {
+      return res.status(404).json({
+        success: false,
+        error: 'store_not_found',
+        message: '매장을 찾을 수 없습니다.',
+      });
+    }
+
+    // /stamp/earn 과 동일한 가드. 프랜차이즈 스탬프는 kakaoId 기반 FranchiseCustomer 라
+    // 전화번호로 조회할 수 없어 숫자를 주지 않는다.
+    const isFranchiseStampMode = !!(
+      store.franchiseStampEnabled &&
+      store.franchiseId &&
+      store.franchise?.franchiseStampSetting
+    );
+    if (isFranchiseStampMode) {
+      return res.json({
+        success: true,
+        supported: false,
+        currentStamps: null,
+        reason: 'franchise_not_supported',
+      });
+    }
+
+    if (!store.stampSetting?.enabled) {
+      return res.json({
+        success: true,
+        supported: false,
+        currentStamps: null,
+        reason: 'stamp_disabled',
+      });
+    }
+
+    const customer = await prisma.customer.findFirst({
+      where: { storeId: store.id, phoneLastDigits: toPhoneLastDigits(phone) },
+      select: { totalStamps: true },
+    });
+
+    return res.json({
+      success: true,
+      supported: true,
+      currentStamps: customer?.totalStamps ?? 0,
+    });
+  } catch (error: any) {
+    // phone 은 로그에 남기지 않는다.
+    console.error('[TagHere Order Webhook] Stamp balance error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'server_error',
+      message: '스탬프 조회 중 오류가 발생했습니다.',
     });
   }
 });
