@@ -986,7 +986,14 @@ function TaghereEnrollStampContent() {
       try {
         const res = await fetch(`${apiUrl}/api/taghere/stamp-request/${pendingRequestId}`);
         const data = await res.json();
-        if (cancelled || !data.success) return;
+        if (cancelled) return;
+        if (res.status === 404) {
+          // 요청이 유실된 비정상 상황 — 무한 대기 방지
+          setPendingRequestId(null);
+          setError('적립 요청을 찾을 수 없습니다. 다시 시도해주세요.');
+          return;
+        }
+        if (!data.success) return;
         if (data.status === 'APPROVED' && data.result) {
           setPendingRequestId(null);
           applyEarnSuccess(data.result);

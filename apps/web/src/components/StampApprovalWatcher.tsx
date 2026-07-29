@@ -25,18 +25,28 @@ export function StampApprovalWatcher() {
   const [actionError, setActionError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 매장 설정 확인 — manualStampCountEnabled 매장만 폴링
+  // 매장 설정 확인 — manualStampCountEnabled 매장만 폴링.
+  // 최초 1회가 아니라 60초마다 재확인: 토글을 나중에 켜거나, 첫 요청이 일시적으로
+  // 실패해도(네트워크/토큰 준비 전) 새로고침 없이 팝업이 활성화되도록.
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    fetch(`${API_BASE}/api/stamp-settings`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.manualStampCountEnabled) setEnabled(true);
-      })
-      .catch(() => {});
+    let stopped = false;
+    const check = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      try {
+        const r = await fetch(`${API_BASE}/api/stamp-settings`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!r.ok) return;
+        const data = await r.json();
+        if (!stopped) setEnabled(!!data?.manualStampCountEnabled);
+      } catch {
+        // 다음 주기에 재시도
+      }
+    };
+    check();
+    const interval = setInterval(check, 60000);
+    return () => { stopped = true; clearInterval(interval); };
   }, []);
 
   const fetchPending = useCallback(async () => {
@@ -63,12 +73,26 @@ export function StampApprovalWatcher() {
 
   const current = requests[0] || null;
 
-  // 새 요청이 표시되면 입력 초기화 + 포커스
+  // 새 요청이 표시되면 입력 초기화 + 포커스 + 알림음 (재생 불가 환경은 무시)
   useEffect(() => {
     if (current) {
       setCountInput('');
       setActionError(null);
       setTimeout(() => inputRef.current?.focus(), 100);
+      try {
+        const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+        const ctx = new Ctx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc.start(); osc.stop(ctx.currentTime + 0.6);
+        setTimeout(() => ctx.close().catch(() => {}), 800);
+      } catch {
+        // 자동재생 차단 등 — 무시
+      }
     }
   }, [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
