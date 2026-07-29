@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
+import { buildRewardsFromLegacy, checkMilestoneAndDraw, RewardEntry } from '../utils/random-reward.js';
 import { enqueueStampEarnedAlimTalk } from '../services/solapi.js';
 import { sidoToShort } from '../utils/address-parser.js';
 
@@ -524,6 +524,192 @@ router.get('/history/:customerId', async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Get stamp history error:', error);
     res.status(500).json({ error: '스탬프 내역 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// ============================================
+// 스탬프 적립 승인 요청 (매번 적립 개수 직접 입력 모드)
+// 고객이 적립하기를 누르면 PENDING 생성 → 대시보드 팝업에서 직원이 개수 입력 후 승인/취소
+// ============================================
+
+// GET /api/stamps/approval-requests/pending - 대기 중인 적립 승인 요청 목록 (대시보드 폴링)
+router.get('/approval-requests/pending', async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const now = new Date();
+
+    // lazy 만료 처리
+    await prisma.stampApprovalRequest.updateMany({
+      where: { storeId, status: 'PENDING', expiresAt: { lte: now } },
+      data: { status: 'EXPIRED', decidedAt: now },
+    });
+
+    const requests = await prisma.stampApprovalRequest.findMany({
+      where: { storeId, status: 'PENDING' },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        customer: { select: { id: true, name: true, phone: true, phoneLastDigits: true, totalStamps: true } },
+      },
+    });
+
+    res.json({
+      requests: requests.map((r) => ({
+        id: r.id,
+        createdAt: r.createdAt,
+        expiresAt: r.expiresAt,
+        customer: {
+          id: r.customer.id,
+          name: r.customer.name,
+          phoneLastDigits: r.customer.phoneLastDigits,
+          totalStamps: r.customer.totalStamps,
+        },
+      })),
+    });
+  } catch (error) {
+    console.error('Stamp approval pending list error:', error);
+    res.status(500).json({ error: '승인 요청 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/stamps/approval-requests/:id/approve - 적립 승인 (개수 입력)
+router.post('/approval-requests/:id/approve', async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { id } = req.params;
+    const count = Number(req.body?.count);
+
+    if (!Number.isInteger(count) || count < 1 || count > 100) {
+      return res.status(400).json({ error: '적립할 스탬프 개수를 올바르게 입력해주세요. (1~100)' });
+    }
+
+    const request = await prisma.stampApprovalRequest.findFirst({
+      where: { id, storeId },
+      include: { customer: true },
+    });
+    if (!request) {
+      return res.status(404).json({ error: '승인 요청을 찾을 수 없습니다.' });
+    }
+    if (request.status !== 'PENDING') {
+      return res.status(400).json({ error: '이미 처리된 요청입니다.' });
+    }
+    if (request.expiresAt <= new Date()) {
+      await prisma.stampApprovalRequest.update({
+        where: { id: request.id },
+        data: { status: 'EXPIRED', decidedAt: new Date() },
+      });
+      return res.status(400).json({ error: '만료된 요청입니다. 고객에게 다시 시도하도록 안내해주세요.' });
+    }
+
+    const setting = await prisma.stampSetting.findUnique({ where: { storeId } });
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 원자적 상태 전이 (동시 승인 방지)
+      const transition = await tx.stampApprovalRequest.updateMany({
+        where: { id: request.id, status: 'PENDING' },
+        data: { status: 'APPROVED', count, decidedAt: new Date() },
+      });
+      if (transition.count !== 1) {
+        throw new Error('REQUEST_ALREADY_DECIDED');
+      }
+
+      const previousStamps = request.customer.totalStamps;
+      const newBalance = previousStamps + count;
+
+      const updatedCustomer = await tx.customer.update({
+        where: { id: request.customerId },
+        data: { totalStamps: newBalance },
+      });
+
+      const ledger = await tx.stampLedger.create({
+        data: {
+          storeId,
+          customerId: request.customerId,
+          type: 'EARN',
+          delta: count,
+          balance: newBalance,
+          ordersheetId: request.ordersheetId || null,
+          reason: `스탬프 적립 (${count}개, 관리자 승인)`,
+        },
+      });
+
+      // 마일스톤 도달 시 보상 추첨
+      const milestoneResult = setting ? checkMilestoneAndDraw(previousStamps, newBalance, setting) : null;
+      if (milestoneResult) {
+        await tx.stampLedger.update({
+          where: { id: ledger.id },
+          data: { drawnReward: milestoneResult.reward, drawnRewardTier: milestoneResult.tier },
+        });
+      }
+
+      await tx.stampApprovalRequest.update({
+        where: { id: request.id },
+        data: { stampLedgerId: ledger.id },
+      });
+
+      return { customer: updatedCustomer, ledger, milestoneResult };
+    });
+
+    // 적립 알림톡 (매장 알림톡 설정 활성 시)
+    const phoneNumber = (request.customer.phone || '').replace(/[^0-9]/g, '');
+    if (setting?.alimtalkEnabled && phoneNumber) {
+      const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
+      const rewards = (setting.rewards as unknown as RewardEntry[] | null) ?? buildRewardsFromLegacy(setting as any);
+      const rules = rewards
+        .sort((a, b) => a.tier - b.tier)
+        .map((r) => {
+          const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
+          return `- ${r.tier}개 모을 시: ${isRandom ? '랜덤 박스!' : r.description}`;
+        });
+      const stampUsageRule = rules.length > 0 ? '\n' + rules.join('\n') : '\n- 10개 모을시 매장 선물 증정!';
+      enqueueStampEarnedAlimTalk({
+        storeId,
+        customerId: request.customerId,
+        stampLedgerId: result.ledger.id,
+        phone: phoneNumber,
+        variables: {
+          storeName: store?.name || '매장',
+          earnedStamps: count,
+          totalStamps: result.customer.totalStamps,
+          stampUsageRule,
+          reviewGuide: '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)',
+        },
+      }).catch((err) => {
+        console.error('[StampApproval] AlimTalk enqueue failed:', err);
+      });
+    }
+
+    res.json({
+      success: true,
+      approvedCount: count,
+      currentStamps: result.customer.totalStamps,
+      drawnReward: result.milestoneResult?.reward || null,
+    });
+  } catch (error: any) {
+    if (error?.message === 'REQUEST_ALREADY_DECIDED') {
+      return res.status(400).json({ error: '이미 처리된 요청입니다.' });
+    }
+    console.error('Stamp approval approve error:', error);
+    res.status(500).json({ error: '적립 승인 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/stamps/approval-requests/:id/reject - 적립 취소
+router.post('/approval-requests/:id/reject', async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { id } = req.params;
+
+    const updated = await prisma.stampApprovalRequest.updateMany({
+      where: { id, storeId, status: 'PENDING' },
+      data: { status: 'REJECTED', decidedAt: new Date() },
+    });
+    if (updated.count !== 1) {
+      return res.status(400).json({ error: '이미 처리되었거나 존재하지 않는 요청입니다.' });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Stamp approval reject error:', error);
+    res.status(500).json({ error: '적립 취소 중 오류가 발생했습니다.' });
   }
 });
 

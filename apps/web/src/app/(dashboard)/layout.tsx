@@ -4,6 +4,7 @@ import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/main-layout';
+import { StampApprovalWatcher } from '@/components/StampApprovalWatcher';
 import { setUserId, setUserProperties } from '@/lib/analytics';
 
 interface User {
@@ -106,5 +107,10 @@ export default function DashboardLayout({
     return null;
   }
 
-  return <MainLayout taghereVersion={user.store.taghereVersion} stampEnabled={user.store.stampEnabled}>{children}</MainLayout>;
+  return (
+    <MainLayout taghereVersion={user.store.taghereVersion} stampEnabled={user.store.stampEnabled}>
+      {children}
+      <StampApprovalWatcher />
+    </MainLayout>
+  );
 }
