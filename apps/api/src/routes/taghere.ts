@@ -1736,38 +1736,60 @@ router.post('/stamp-earn', async (req, res) => {
         });
       }
 
-      const request = await prisma.$transaction(async (tx) => {
-        const created = await tx.stampApprovalRequest.create({
-          data: {
-            storeId: store.id,
-            customerId: customer!.id,
-            ordersheetId: ordersheetId || null,
-            status: 'PENDING',
-            expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
-          },
-        });
-
-        // 방문 자체는 요청 시점에 기록 (스탬프는 승인 시 적립)
-        await tx.customer.update({
-          where: { id: customer!.id },
-          data: { lastVisitAt: now, visitCount: { increment: 1 } },
-        });
-        await tx.visitOrOrder.create({
-          data: {
-            storeId: store.id,
-            customerId: customer!.id,
-            orderId: ordersheetId || null,
-            visitedAt: now,
-            totalAmount: totalAmount,
-            items: orderItems.length > 0 || tableLabel ? {
-              items: orderItems,
-              tableNumber: tableLabel,
-            } : undefined,
-          },
-        });
-
-        return created;
+      const request = await prisma.stampApprovalRequest.create({
+        data: {
+          storeId: store.id,
+          customerId: customer!.id,
+          ordersheetId: ordersheetId || null,
+          status: 'PENDING',
+          expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
+        },
       });
+
+      // 방문 자체는 요청 시점에 기록 (스탬프는 승인 시 적립).
+      // 취소/만료 후 재시도 시 (storeId, orderId) 유니크 충돌·방문 중복 집계를 막기 위해
+      // 이미 기록된 방문(같은 주문 or 같은 고객의 최근 1시간 내 요청)이 있으면 건너뛴다.
+      // 방문 기록 실패가 적립 요청 자체를 막지 않도록 요청 생성과 분리 (best-effort).
+      try {
+        const priorVisit = ordersheetId
+          ? await prisma.visitOrOrder.findFirst({
+              where: { storeId: store.id, orderId: ordersheetId },
+              select: { id: true },
+            })
+          : await prisma.stampApprovalRequest.findFirst({
+              where: {
+                storeId: store.id,
+                customerId: customer.id,
+                id: { not: request.id },
+                createdAt: { gte: new Date(now.getTime() - 60 * 60 * 1000) },
+              },
+              select: { id: true },
+            });
+        if (!priorVisit) {
+          await prisma.$transaction([
+            prisma.customer.update({
+              where: { id: customer.id },
+              data: { lastVisitAt: now, visitCount: { increment: 1 } },
+            }),
+            prisma.visitOrOrder.create({
+              data: {
+                storeId: store.id,
+                customerId: customer.id,
+                orderId: ordersheetId || null,
+                visitedAt: now,
+                totalAmount: totalAmount,
+                items: orderItems.length > 0 || tableLabel ? {
+                  items: orderItems,
+                  tableNumber: tableLabel,
+                } : undefined,
+              },
+            }),
+          ]);
+        }
+      } catch (visitErr: any) {
+        // P2002(동시 요청 경합 등) 포함 — 방문 기록은 best-effort
+        console.error('[TagHere Stamp-Earn] Visit record skipped:', visitErr?.code || visitErr?.message);
+      }
 
       console.log(`[TagHere Stamp-Earn] Approval request created - requestId: ${request.id}, customerId: ${customer.id}, storeId: ${store.id}`);
 
