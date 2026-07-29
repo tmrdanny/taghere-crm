@@ -1504,19 +1504,11 @@ router.post('/stamp-earn', async (req, res) => {
     }
 
     // 매번 적립 개수 직접 입력 모드 (하이트진로/프랜차이즈 통합 제외)
-    // → count(양의 정수) 필수, 하루 1회 제한 해제, 첫 방문 보너스 무시
+    // → 고객이 개수를 입력하지 않는다. 적립 요청(PENDING)을 만들고 CRM 대시보드에서
+    //   직원이 개수를 입력해 승인/취소한다. 하루 1회 제한 해제, 첫 방문 보너스 무시.
     const manualMode = !isHitejinro && !isFranchiseStampMode && !!store.stampSetting?.manualStampCountEnabled;
-    let manualCount = 1;
-    if (manualMode) {
-      manualCount = Number(count);
-      if (!Number.isInteger(manualCount) || manualCount < 1) {
-        return res.status(400).json({
-          success: false,
-          error: 'invalid_count',
-          message: '적립할 스탬프 개수를 올바르게 입력해주세요.',
-        });
-      }
-    }
+    const manualCount = 1; // manualMode에서는 승인 시점에 직원이 입력한 개수를 사용
+    void count; // 레거시 클라이언트가 보내는 count는 무시 (고객 입력값 신뢰 안 함)
 
     // 링크 스캔 토큰 가드 — standalone(주문 미연동) 스탬프 링크에 기본 적용 (선택 아님).
     // 프랜차이즈 통합 스탬프 포함, 하이트진로/매번개수입력만 제외.
@@ -1718,6 +1710,73 @@ router.post('/stamp-earn', async (req, res) => {
         console.error('[TagHere Stamp-Earn] Failed to fetch ordersheet:', e);
         // 조회 실패해도 스탬프 적립은 계속 진행
       }
+    }
+
+    // ============================================
+    // 매번 적립 개수 직접 입력 모드 → 관리자 승인 대기 요청 생성
+    // ============================================
+    if (manualMode) {
+      const now = new Date();
+
+      // 이미 대기 중인 요청이 있으면 재사용 (더블탭/새로고침 멱등)
+      const existingReq = await prisma.stampApprovalRequest.findFirst({
+        where: {
+          storeId: store.id,
+          customerId: customer.id,
+          status: 'PENDING',
+          expiresAt: { gt: now },
+        },
+      });
+      if (existingReq) {
+        return res.json({
+          success: true,
+          pending: true,
+          requestId: existingReq.id,
+          storeName: store.name,
+        });
+      }
+
+      const request = await prisma.$transaction(async (tx) => {
+        const created = await tx.stampApprovalRequest.create({
+          data: {
+            storeId: store.id,
+            customerId: customer!.id,
+            ordersheetId: ordersheetId || null,
+            status: 'PENDING',
+            expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
+          },
+        });
+
+        // 방문 자체는 요청 시점에 기록 (스탬프는 승인 시 적립)
+        await tx.customer.update({
+          where: { id: customer!.id },
+          data: { lastVisitAt: now, visitCount: { increment: 1 } },
+        });
+        await tx.visitOrOrder.create({
+          data: {
+            storeId: store.id,
+            customerId: customer!.id,
+            orderId: ordersheetId || null,
+            visitedAt: now,
+            totalAmount: totalAmount,
+            items: orderItems.length > 0 || tableLabel ? {
+              items: orderItems,
+              tableNumber: tableLabel,
+            } : undefined,
+          },
+        });
+
+        return created;
+      });
+
+      console.log(`[TagHere Stamp-Earn] Approval request created - requestId: ${request.id}, customerId: ${customer.id}, storeId: ${store.id}`);
+
+      return res.json({
+        success: true,
+        pending: true,
+        requestId: request.id,
+        storeName: store.name,
+      });
     }
 
     // ============================================
@@ -2140,6 +2199,71 @@ router.post('/stamp-earn', async (req, res) => {
       error: 'server_error',
       message: '스탬프 적립 중 오류가 발생했습니다.',
     });
+  }
+});
+
+// GET /api/taghere/stamp-request/:id - 스탬프 적립 승인 요청 상태 조회 (공개 API, 고객 폴링용)
+router.get('/stamp-request/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await prisma.stampApprovalRequest.findUnique({
+      where: { id },
+      include: {
+        customer: { select: { id: true, totalStamps: true, visitSourceUpdatedAt: true } },
+        store: { select: { id: true, name: true, stampSetting: true } },
+      },
+    });
+
+    if (!request) {
+      return res.status(404).json({ success: false, error: 'not_found', message: '요청을 찾을 수 없습니다.' });
+    }
+
+    // lazy 만료 처리
+    if (request.status === 'PENDING' && request.expiresAt <= new Date()) {
+      await prisma.stampApprovalRequest.update({
+        where: { id: request.id },
+        data: { status: 'EXPIRED', decidedAt: new Date() },
+      });
+      return res.json({ success: true, status: 'EXPIRED' });
+    }
+
+    if (request.status !== 'APPROVED') {
+      return res.json({ success: true, status: request.status });
+    }
+
+    // APPROVED → stamp-earn 성공 응답과 동일한 형태의 결과 제공
+    const setting = request.store.stampSetting;
+    const rewards: RewardEntry[] = setting?.rewards
+      ? (setting.rewards as unknown as RewardEntry[])
+      : setting ? buildRewardsFromLegacy(setting as any) : [];
+    const legacy: Record<string, any> = {};
+    for (const entry of rewards) {
+      legacy[`reward${entry.tier}Description`] = entry.description;
+      legacy[`reward${entry.tier}IsRandom`] = entry.options && Array.isArray(entry.options) && entry.options.length > 1;
+    }
+    const ledger = request.stampLedgerId
+      ? await prisma.stampLedger.findUnique({ where: { id: request.stampLedgerId }, select: { drawnReward: true, drawnRewardTier: true } })
+      : null;
+
+    return res.json({
+      success: true,
+      status: 'APPROVED',
+      result: {
+        success: true,
+        currentStamps: request.customer.totalStamps,
+        customerId: request.customer.id,
+        storeName: request.store.name,
+        earnedStamps: request.count,
+        hasVisitSource: isVisitSourceRecent(request.customer.visitSourceUpdatedAt),
+        rewards,
+        ...legacy,
+        drawnReward: ledger?.drawnReward || null,
+        drawnRewardTier: ledger?.drawnRewardTier || null,
+      },
+    });
+  } catch (error) {
+    console.error('[TagHere Stamp-Request] Status error:', error);
+    res.status(500).json({ success: false, error: 'server_error', message: '요청 상태 조회 중 오류가 발생했습니다.' });
   }
 });
 

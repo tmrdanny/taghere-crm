@@ -80,6 +80,7 @@ model Store {
   brandMessageCampaigns BrandMessageCampaign[]
   pointSessions         PointSession[]
   stampScanTokens       StampScanToken[]
+  stampApprovalRequests StampApprovalRequest[]
 
   // 웨이팅 서비스
   waitingTypes          WaitingType[]
@@ -244,6 +245,7 @@ model Customer {
   visitsOrOrders    VisitOrOrder[]
   pointLedger       PointLedger[]
   stampLedger       StampLedger[]
+  stampApprovalRequests StampApprovalRequest[]
   reviewRequestLogs ReviewRequestLog[]
   feedbacks         CustomerFeedback[]
   pointSessions     PointSession[]
@@ -1451,6 +1453,29 @@ model StampSetting {
   store                 Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@map("stamp_settings")
+}
+
+// 스탬프 적립 승인 요청 (매번 적립 개수 직접 입력 모드)
+// 고객이 적립하기를 누르면 PENDING 생성 → CRM 대시보드 팝업에서 직원이 개수 입력 후 승인/취소.
+model StampApprovalRequest {
+  id            String   @id @default(cuid())
+  storeId       String
+  customerId    String
+  ordersheetId  String?  // 주문 연동 시
+  status        String   @default("PENDING") // PENDING | APPROVED | REJECTED | EXPIRED
+  count         Int?     // 승인 시 적립 개수
+  stampLedgerId String?  // 승인 후 생성된 ledger
+  expiresAt     DateTime // TTL (기본 10분) — 지나면 lazy EXPIRED 처리
+  decidedAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, status, createdAt])
+  @@index([customerId, status])
+  @@map("stamp_approval_requests")
 }
 
 // 스탬프 링크 스캔 토큰 (1회용·단기 만료) — 링크 공유/재사용 방어
