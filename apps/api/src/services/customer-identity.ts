@@ -1,6 +1,7 @@
 import type { Customer } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { sidoToShort } from '../utils/address-parser.js';
+import { normalizeCustomerKeyDigits } from '../utils/phone.js';
 
 /**
  * 전화번호로 매장 고객을 찾거나(없으면) 생성한다.
@@ -20,11 +21,7 @@ export async function findOrCreateCustomerByPhone(
   addressSigungu: string | null,
 ): Promise<{ customer: Customer; isNewCustomer: boolean }> {
   // 전화번호 정규화
-  const phoneDigits = phone.replace(/[^0-9]/g, '');
-  let normalizedDigits = phoneDigits;
-  if (normalizedDigits.startsWith('82') && normalizedDigits.length >= 11) {
-    normalizedDigits = '0' + normalizedDigits.slice(2);
-  }
+  const normalizedDigits = normalizeCustomerKeyDigits(phone);
   const phoneLastDigits = normalizedDigits.slice(-8);
 
   // 기존 고객 조회
