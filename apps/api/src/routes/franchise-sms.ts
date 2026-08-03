@@ -497,7 +497,7 @@ router.post('/upload-image', franchiseAuthMiddleware, upload.single('image'), as
 router.post('/test-send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
     const franchiseId = req.franchiseUser!.franchiseId;
-    const { phone, content, imageId } = req.body;
+    const { phone, content, imageId, isAdMessage } = req.body;
 
     if (!phone) {
       return res.status(400).json({ error: '전화번호를 입력해주세요.' });
@@ -537,9 +537,14 @@ router.post('/test-send', franchiseAuthMiddleware, async (req: FranchiseAuthRequ
       return res.status(400).json({ error: 'SMS 발송 설정이 되어있지 않습니다.' });
     }
 
+    // 광고 메시지 형식 적용
+    const formattedContent = isAdMessage
+      ? `(광고)\n${content}\n무료수신거부 080-500-4233`
+      : content;
+
     // 메시지 유형 결정
     const hasImage = !!imageId;
-    const byteLength = getByteLength(content);
+    const byteLength = getByteLength(formattedContent);
     const messageType = hasImage ? 'MMS' : (byteLength > 90 ? 'LMS' : 'SMS');
 
     // SOLAPI 서비스 초기화
@@ -550,7 +555,7 @@ router.post('/test-send', franchiseAuthMiddleware, async (req: FranchiseAuthRequ
     const sendOptions: any = {
       to: normalizedPhone,
       from: '07041380263', // 발신번호 고정
-      text: content,
+      text: formattedContent,
       type: messageType,
     };
 
@@ -665,6 +670,11 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       return res.status(400).json({ error: '필수 정보가 누락되었습니다.' });
     }
 
+    // 광고 메시지 형식 적용
+    const formattedContent = isAdMessage
+      ? `(광고)\n${content}\n무료수신거부 080-500-4233`
+      : content;
+
     await prisma.$transaction(async (tx) => {
       // 1. 타겟 고객 조회
       const stores = await tx.store.findMany({
@@ -729,7 +739,7 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       const campaign = await tx.franchiseSmsCampaign.create({
         data: {
           franchiseId,
-          content,
+          content: formattedContent,
           messageType,
           targetType,
           targetCount: customers.length,
@@ -761,7 +771,7 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
           // 벌크 메시지 배열 구성
           const bulkMessages = customers.map((customer) => ({
             to: normalizePhoneNumber(customer.phone!),
-            text: content,
+            text: formattedContent,
             type: msgType as 'SMS' | 'LMS' | 'MMS',
             ...(imageId ? { imageId } : {}),
           }));
@@ -786,7 +796,7 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
                 campaignId: campaign.id,
                 customerId: customer.id,
                 phone: customer.phone!,
-                content,
+                content: formattedContent,
                 messageType,
                 cost: isFailed ? 0 : costPerMessage,
                 status: isFailed ? 'FAILED' : 'PENDING',

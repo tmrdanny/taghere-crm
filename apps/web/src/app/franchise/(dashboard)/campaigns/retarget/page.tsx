@@ -1008,6 +1008,7 @@ export default function MessagesPage() {
           phone: testPhone,
           content: messageContent,
           imageId: uploadedImage?.imageId || undefined,
+          isAdMessage,
         }),
       });
 
