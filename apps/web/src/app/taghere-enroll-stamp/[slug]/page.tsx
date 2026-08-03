@@ -4,7 +4,6 @@ import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { trackEvent, setUserId } from '@/lib/analytics';
-import { StampCountPrompt } from '@/components/StampCountPrompt';
 
 // ============================================
 // 로컬스토리지 헬퍼 함수 (kakaoId 저장용)
@@ -690,10 +689,10 @@ function TaghereEnrollStampContent() {
     'idle' | 'checking' | 'verified' | 'denied' | 'too_far' | 'error'
   >('idle');
   // 매번 적립 개수 직접 입력 모드: 개수 팝업 상태
-  const [showCountPrompt, setShowCountPrompt] = useState(false);
-  const [countPromptStoreName, setCountPromptStoreName] = useState('');
-  const [countKakaoId, setCountKakaoId] = useState<string | null>(null);
-  const [isSubmittingCount, setIsSubmittingCount] = useState(false);
+  // 매번 적립 개수 직접 입력 모드: 관리자 승인 대기 상태
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+  const [pendingStoreName, setPendingStoreName] = useState('');
+  const [approvalStatus, setApprovalStatus] = useState<'rejected' | 'expired' | null>(null);
   const [visitSourceOptions, setVisitSourceOptions] = useState<VisitSourceOption[]>([]);
   const [visitSourceEnabled, setVisitSourceEnabled] = useState(false);
   const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[]>([]);
@@ -943,9 +942,8 @@ function TaghereEnrollStampContent() {
     trackOnce('earn_success', { flow_type: 'stamp', store_slug: slug, stamps: data.currentStamps, has_reward: !!data.drawnReward, is_auto_earned: false });
   };
 
-  // 매번 적립 개수 직접 입력 모드: 팝업에서 개수 확정 시 적립 실행
-  const submitCountEarn = async (kakaoId: string, count: number) => {
-    setIsSubmittingCount(true);
+  // 매번 적립 개수 직접 입력 모드: 적립 요청 생성 → 관리자 승인 대기
+  const submitEarnRequest = async (kakaoId: string) => {
     try {
       const apiUrl = API_BASE;
       const res = await fetch(`${apiUrl}/api/taghere/stamp-earn`, {
@@ -955,37 +953,75 @@ function TaghereEnrollStampContent() {
           kakaoId,
           ordersheetId: ordersheetId || undefined,
           slug,
-          count,
         }),
       });
       const data = await res.json();
-      if (res.ok && data.success) {
-        setShowCountPrompt(false);
+      if (res.ok && data.success && data.pending) {
+        setPendingStoreName(data.storeName || '');
+        setApprovalStatus(null);
+        setPendingRequestId(data.requestId);
+        setStampInfo(null);
+        setIsLoading(false);
+      } else if (res.ok && data.success) {
+        // 설정이 그 사이 꺼진 경우 등 — 일반 적립 성공
         applyEarnSuccess(data);
       } else if (data.error === 'invalid_kakao_id') {
         removeStoredKakaoId();
-        setShowCountPrompt(false);
         setError('로그인 정보가 만료되었습니다. 다시 시도해주세요.');
       } else {
-        setError(data.message || '적립 중 오류가 발생했습니다.');
+        setError(data.message || '적립 요청 중 오류가 발생했습니다.');
       }
     } catch (e) {
-      console.error('Count earn failed:', e);
-      setError('적립 중 오류가 발생했습니다.');
-    } finally {
-      setIsSubmittingCount(false);
+      console.error('Earn request failed:', e);
+      setError('적립 요청 중 오류가 발생했습니다.');
     }
   };
+
+  // 승인 대기 폴링 (2.5초 간격)
+  useEffect(() => {
+    if (!pendingRequestId) return;
+    let cancelled = false;
+    const apiUrl = API_BASE;
+    const poll = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/api/taghere/stamp-request/${pendingRequestId}`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (res.status === 404) {
+          // 요청이 유실된 비정상 상황 — 무한 대기 방지
+          setPendingRequestId(null);
+          setError('적립 요청을 찾을 수 없습니다. 다시 시도해주세요.');
+          return;
+        }
+        if (!data.success) return;
+        if (data.status === 'APPROVED' && data.result) {
+          setPendingRequestId(null);
+          applyEarnSuccess(data.result);
+        } else if (data.status === 'REJECTED') {
+          setPendingRequestId(null);
+          setApprovalStatus('rejected');
+        } else if (data.status === 'EXPIRED') {
+          setPendingRequestId(null);
+          setApprovalStatus('expired');
+        }
+      } catch {
+        // 네트워크 오류는 다음 폴링에서 재시도
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 2500);
+    return () => { cancelled = true; clearInterval(interval); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingRequestId]);
 
   useEffect(() => {
     // 매번 적립 개수 직접 입력 모드: 카카오 로그인 복귀 후 개수 입력 팝업을 띄운다 (아직 적립 전)
     const needCount = searchParams.get('needCount');
     if (needCount === '1' && urlKakaoId) {
       saveKakaoId(urlKakaoId);
-      setCountKakaoId(urlKakaoId);
-      setCountPromptStoreName(successStoreName || '');
-      setShowCountPrompt(true);
-      setIsLoading(false);
+      // 카카오 로그인 복귀 후 곧바로 적립 요청 생성 → 관리자 승인 대기
+      setPendingStoreName(successStoreName || '');
+      submitEarnRequest(urlKakaoId);
       return;
     }
 
@@ -1116,11 +1152,10 @@ function TaghereEnrollStampContent() {
 
           if (shouldAutoEarn && storedKakaoId) {
             if (data.manualStampCountEnabled) {
-              // 매번 개수 직접 입력 모드: 자동 적립 대신 개수 팝업을 띄운다
+              // 매번 개수 직접 입력 모드: 적립 요청 생성 → 관리자 승인 대기
               setIsAutoEarning(false);
-              setCountKakaoId(storedKakaoId);
-              setCountPromptStoreName(data.storeName || '');
-              setShowCountPrompt(true);
+              setPendingStoreName(data.storeName || '');
+              submitEarnRequest(storedKakaoId);
             } else {
               // 자동 적립 시도
               attemptAutoEarn(storedKakaoId, data);
@@ -1238,26 +1273,45 @@ function TaghereEnrollStampContent() {
     window.location.href = url.toString();
   };
 
-  // 매번 적립 개수 직접 입력 모드: 개수 입력 팝업 (적립 전, 다른 UI 위에 오버레이)
-  if (showCountPrompt && !successData) {
+  // 매번 적립 개수 직접 입력 모드: 관리자 승인 대기 화면
+  if (pendingRequestId && !successData) {
     return (
       <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
-        <div className="w-full max-w-md h-full flex flex-col items-center justify-center bg-white gap-4">
+        <div className="w-full max-w-md h-full flex flex-col items-center justify-center bg-white gap-4 p-6 text-center">
           <div className="text-4xl">🎫</div>
-          <p className="text-sm text-neutral-500">스탬프 적립을 진행해주세요.</p>
+          <div className="w-8 h-8 border-2 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
+          <h1 className="text-lg font-semibold text-neutral-900">
+            {pendingStoreName ? `${pendingStoreName} 사장님이` : '사장님이'} 확인하고 있어요
+          </h1>
+          <p className="text-sm text-neutral-500">
+            잠시만 기다려주세요.<br />적립할 스탬프 개수를 확인한 뒤 바로 적립됩니다.
+          </p>
         </div>
-        <StampCountPrompt
-          open={showCountPrompt}
-          storeName={countPromptStoreName}
-          submitting={isSubmittingCount}
-          onCancel={() => {
-            setShowCountPrompt(false);
-            handleSkipEarn();
-          }}
-          onConfirm={(count) => {
-            if (countKakaoId) submitCountEarn(countKakaoId, count);
-          }}
-        />
+      </div>
+    );
+  }
+
+  // 승인 취소/만료 화면
+  if (approvalStatus && !successData) {
+    return (
+      <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
+        <div className="w-full max-w-md h-full flex flex-col items-center justify-center bg-white p-6 text-center">
+          <div className="text-5xl mb-4">{approvalStatus === 'rejected' ? '🙏' : '⏰'}</div>
+          <h1 className="text-lg font-semibold text-neutral-900 mb-2">
+            {approvalStatus === 'rejected' ? '적립이 취소되었어요' : '요청 시간이 지났어요'}
+          </h1>
+          <p className="text-neutral-500 text-sm mb-6">
+            {approvalStatus === 'rejected'
+              ? '매장에서 적립을 취소했습니다. 자세한 내용은 직원에게 문의해주세요.'
+              : '매장 확인이 늦어져 요청이 만료되었습니다. 직원에게 문의 후 다시 시도해주세요.'}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-5 py-2.5 bg-[#FFD541] text-neutral-900 font-semibold rounded-xl text-sm"
+          >
+            다시 시도
+          </button>
+        </div>
       </div>
     );
   }
