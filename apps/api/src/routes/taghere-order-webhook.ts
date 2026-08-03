@@ -5,6 +5,7 @@ import { fetchOrder, resolveCrmPageMode, TaghereOrderData } from '../services/ta
 import { findOrCreateCustomerByPhone } from '../services/customer-identity.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 import { enqueueStampEarnedAlimTalk } from '../services/solapi.js';
+import { toPhoneLastDigits } from '../utils/phone.js';
 
 const router = Router();
 
@@ -276,6 +277,8 @@ router.post('/stamp/earn', webhookAuthMiddleware, async (req: WebhookRequest, re
     );
 
     // 일일 적립 제한 (1일 1회) — 수동 개수 모드 제외
+    // 이 판정식은 /stamp/balance 의 alreadyEarnedToday 와 쌍이다. 한쪽만 바꾸면 판정이 어긋난다.
+    // (todayStart 가 UTC 기준이라 실제 리셋이 KST 09시인 것도 양쪽 공통 — 교정 시 함께 변경)
     if (!manualMode) {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
@@ -512,6 +515,121 @@ router.post('/store-crm-info', webhookAuthMiddleware, async (req: WebhookRequest
       success: false,
       error: 'server_error',
       message: '매장 CRM 정보 조회 중 오류가 발생했습니다.',
+    });
+  }
+});
+
+/**
+ * POST /api/taghere/webhook/stamp/balance
+ * 현재 보유 스탬프 조회 (읽기 전용). 주문 서비스가 적립 화면 부제에 표시한다.
+ *
+ * /stamp/earn 과 달리 고객을 생성하지 않는다 — 화면만 보고 이탈한 사용자까지
+ * consentMarketing=true 로 만들지 않기 위해 findFirst 만 한다.
+ * 보상 추첨(checkMilestoneAndDraw)도 호출하지 않는다. 아직 일어나지 않은 당첨이 뽑히기 때문.
+ *
+ * 프랜차이즈/비활성 매장은 400 이 아니라 200 + supported:false 로 응답한다.
+ * 호출자(V2)가 4xx 를 장애로 취급해 502 로 승격시키는 구조라, 정상적인 미지원 상태를
+ * 에러로 내리면 해당 매장의 모든 페이지뷰가 알람이 된다.
+ */
+router.post('/stamp/balance', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
+  try {
+    const { storeSlug, phone } = req.body;
+
+    if (!storeSlug || !phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'missing_params',
+        message: 'storeSlug, phone은 필수입니다.',
+      });
+    }
+
+    const store = await prisma.store.findFirst({
+      where: { slug: storeSlug },
+      select: {
+        id: true,
+        franchiseStampEnabled: true,
+        franchiseId: true,
+        franchise: { select: { franchiseStampSetting: true } },
+        stampSetting: { select: { enabled: true, manualStampCountEnabled: true } },
+      },
+    });
+
+    if (!store) {
+      return res.status(404).json({
+        success: false,
+        error: 'store_not_found',
+        message: '매장을 찾을 수 없습니다.',
+      });
+    }
+
+    // /stamp/earn 과 동일한 가드. 프랜차이즈 스탬프는 kakaoId 기반 FranchiseCustomer 라
+    // 전화번호로 조회할 수 없어 숫자를 주지 않는다.
+    const isFranchiseStampMode = !!(
+      store.franchiseStampEnabled &&
+      store.franchiseId &&
+      store.franchise?.franchiseStampSetting
+    );
+    if (isFranchiseStampMode) {
+      return res.json({
+        success: true,
+        supported: false,
+        currentStamps: null,
+        reason: 'franchise_not_supported',
+      });
+    }
+
+    if (!store.stampSetting?.enabled) {
+      return res.json({
+        success: true,
+        supported: false,
+        currentStamps: null,
+        reason: 'stamp_disabled',
+      });
+    }
+
+    const customer = await prisma.customer.findFirst({
+      where: { storeId: store.id, phoneLastDigits: toPhoneLastDigits(phone) },
+      select: { id: true, totalStamps: true },
+    });
+
+    // 오늘 이미 적립했는지 — 주문 서비스가 적립 화면을 띄우기 전에 판단하는 데 쓴다.
+    // 판정식은 같은 파일의 /stamp/earn 일일 제한 블록과 반드시 동일해야 한다.
+    //
+    // todayStart 가 서버 로컬(UTC) 기준이라 실제 리셋은 KST 09시다(알려진 버그).
+    // 여기서만 KST 로 고치면 "적립 가능이라 했는데 400" 이 생기므로 일부러 같은 기준을 쓴다.
+    // 타임존을 교정할 땐 이 판정식을 쓰는 지점을 모두 함께 바꿔야 한다 —
+    // /stamp/earn, /stamp/balance(여기), routes/stamps.ts(관리자·태블릿 적립),
+    // routes/taghere.ts(스탬프 링크), routes/kakao.ts(카카오 로그인 적립).
+    // (프랜차이즈 통합 스탬프는 franchiseStampLedger 로 원장이 달라 별도다)
+    let alreadyEarnedToday = false;
+    if (customer && !store.stampSetting.manualStampCountEnabled) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const todayEarn = await prisma.stampLedger.findFirst({
+        where: {
+          storeId: store.id,
+          customerId: customer.id,
+          type: 'EARN',
+          createdAt: { gte: todayStart },
+        },
+      });
+      alreadyEarnedToday = !!todayEarn;
+    }
+
+    return res.json({
+      success: true,
+      supported: true,
+      currentStamps: customer?.totalStamps ?? 0,
+      alreadyEarnedToday,
+    });
+  } catch (error: any) {
+    // phone 은 로그에 남기지 않는다.
+    console.error('[TagHere Order Webhook] Stamp balance error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'server_error',
+      message: '스탬프 조회 중 오류가 발생했습니다.',
     });
   }
 });
