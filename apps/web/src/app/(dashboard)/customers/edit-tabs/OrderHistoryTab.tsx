@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { formatNumber, formatDate } from '@/lib/utils';
 import { Calendar, X } from 'lucide-react';
-import { OrderItem, VisitOrOrderEntry, getOrderItems } from '../types';
+import { OrderItem, VisitOrOrderEntry, getOrderItems, formatOrderItemOption } from '../types';
 
 // 고객 상세 모달의 주문 내역 탭. (날짜 필터 + 적립 취소 모드)
 export function OrderHistoryTab({
@@ -140,6 +140,7 @@ export function OrderHistoryTab({
                       const isFullyCancelled = item.cancelled === true || cancelledQty >= qty;
                       const isPartlyCancelled = cancelledQty > 0 && cancelledQty < qty;
                       const remainingQty = qty - cancelledQty;
+                      const optionText = formatOrderItemOption(item.option);
 
                       return (
                         <div key={idx} className={`flex items-center justify-between text-sm py-0.5 group ${isFullyCancelled ? 'opacity-50' : ''}`}>
@@ -156,8 +157,8 @@ export function OrderHistoryTab({
                                 <span className="ml-2 text-xs text-orange-500">({cancelledQty}개 취소)</span>
                               )}
                             </span>
-                            {item.option && (
-                              <div className="text-xs text-neutral-400 mt-0.5">{item.option}</div>
+                            {optionText && (
+                              <div className="text-xs text-neutral-400 mt-0.5">{optionText}</div>
                             )}
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">

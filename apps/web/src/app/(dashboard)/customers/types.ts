@@ -68,7 +68,9 @@ export interface OrderItem {
   price?: number;
   amount?: number;
   totalPrice?: number;
-  option?: string;  // 옵션 정보 (예: "온도: HOT")
+  // 옵션 정보. 주문 서비스 버전에 따라 문자열("온도: HOT") 또는 옵션 객체 배열로 들어온다.
+  // 렌더링 전 반드시 formatOrderItemOption()으로 문자열화할 것.
+  option?: unknown;
   cancelled?: boolean;
   cancelledAt?: string;
   cancelledQuantity?: number;  // 부분 취소된 수량
@@ -92,6 +94,30 @@ export function getOrderItems(items: unknown): OrderItem[] {
     return (items as any).items;
   }
   return [];
+}
+
+// 주문 아이템의 옵션을 표시용 문자열로 변환한다.
+// 주문 서비스(V1)는 옵션을 객체 배열로 보내고 구버전은 문자열로 보내는데,
+// 객체를 그대로 JSX에 넣으면 React가 렌더 중 throw 해서 페이지 전체가 죽는다.
+export function formatOrderItemOption(option: unknown): string {
+  if (option == null) return '';
+  if (typeof option === 'string') return option.trim();
+  if (typeof option === 'number' || typeof option === 'boolean') return String(option);
+
+  if (Array.isArray(option)) {
+    return option.map(formatOrderItemOption).filter(Boolean).join(', ');
+  }
+
+  if (typeof option === 'object') {
+    const o = option as Record<string, unknown>;
+    const group = typeof o.optionGroupTitle === 'string' ? o.optionGroupTitle.replace(/\.$/, '').trim() : '';
+    const item = [o.optionItemTitle, o.optionItemLabel, o.title, o.name, o.label]
+      .find((v) => typeof v === 'string' && v.trim()) as string | undefined;
+    if (!item) return '';
+    return group ? `${group}: ${item.trim()}` : item.trim();
+  }
+
+  return '';
 }
 
 export interface Announcement {
