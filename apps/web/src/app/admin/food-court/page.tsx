@@ -90,7 +90,9 @@ export default function AdminFoodCourtPage() {
     const fetchStores = async () => {
       try {
         const token = localStorage.getItem('adminToken');
-        const res = await fetch(`${apiUrl}/api/admin/stores?limit=1000`, {
+        // 전 매장 목록은 /stores/options 를 쓴다 — /stores 는 pageSize 기반 페이지네이션이라
+        // limit 을 넘겨도 무시되고 기본 30개(최근 생성순)만 돌아온다.
+        const res = await fetch(`${apiUrl}/api/admin/stores/options`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
