@@ -56,8 +56,8 @@ function FoodCourtContent() {
   const [info, setInfo] = useState<FoodCourtInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  // 탭한 즉시 해당 매장으로 이동한다. 이동 요청 중인 부스 id를 담아 로딩 표시/중복 탭 방지에 쓴다.
+  const [redirectingId, setRedirectingId] = useState<string | null>(null);
   const [redirectError, setRedirectError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -84,17 +84,15 @@ function FoodCourtContent() {
     fetchInfo();
   }, [apiUrl, slug, table]);
 
-  const selectedBooth = info?.stores.find((s) => s.id === selectedId) || null;
+  const handleSelectBooth = async (booth: Booth) => {
+    if (!booth.available || redirectingId) return;
 
-  const handleConfirm = async () => {
-    if (!selectedBooth) return;
-
-    setIsRedirecting(true);
+    setRedirectingId(booth.id);
     setRedirectError(null);
 
     try {
       const res = await fetch(
-        `${apiUrl}/api/taghere/food-court/${slug}/${encodeURIComponent(table)}/redirect/${selectedBooth.id}`
+        `${apiUrl}/api/taghere/food-court/${slug}/${encodeURIComponent(table)}/redirect/${booth.id}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -102,12 +100,12 @@ function FoodCourtContent() {
       } else {
         const errorData = await res.json().catch(() => ({}));
         setRedirectError(errorData.error || '주문 링크를 찾을 수 없습니다.');
-        setIsRedirecting(false);
+        setRedirectingId(null);
       }
     } catch (e) {
       console.error('Failed to redirect:', e);
       setRedirectError('연결 중 오류가 발생했습니다.');
-      setIsRedirecting(false);
+      setRedirectingId(null);
     }
   };
 
@@ -131,8 +129,8 @@ function FoodCourtContent() {
   return (
     <div className="min-h-[100dvh] bg-neutral-100 font-pretendard flex justify-center">
       <div className="w-full max-w-[430px] min-h-[100dvh] flex flex-col bg-neutral-100 relative">
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto px-5 pt-12 pb-[120px]">
+        {/* Scrollable content — 부스를 탭하면 바로 이동하므로 하단 CTA 없음 */}
+        <div className="flex-1 overflow-y-auto px-5 pt-12 pb-[max(2rem,env(safe-area-inset-bottom))]">
           {/* Header */}
           <h1 className="text-[26px] leading-[1.3] font-bold text-[#1d2022] whitespace-pre-line mb-6">
             {info.customerTitle}
@@ -161,18 +159,19 @@ function FoodCourtContent() {
           {/* Booth list */}
           <div className="space-y-3">
             {info.stores.map((booth) => {
-              const isSelected = booth.id === selectedId;
-              const disabled = !booth.available;
+              const isRedirecting = booth.id === redirectingId;
+              // 이동 요청 중에는 다른 부스 탭을 막는다 (중복 요청·오이동 방지)
+              const disabled = !booth.available || (!!redirectingId && !isRedirecting);
               return (
                 <button
                   key={booth.id}
-                  onClick={() => !disabled && setSelectedId(booth.id)}
-                  disabled={disabled}
+                  onClick={() => handleSelectBooth(booth)}
+                  disabled={disabled || isRedirecting}
                   className={`w-full text-left bg-white rounded-2xl p-3 flex items-center gap-4 transition-all ${
-                    isSelected ? 'ring-2 ring-[#1d2022]' : 'ring-1 ring-transparent'
-                  } ${disabled ? 'opacity-40' : 'active:scale-[0.99]'}`}
+                    isRedirecting ? 'ring-2 ring-[#1d2022]' : 'ring-1 ring-transparent'
+                  } ${!booth.available || disabled ? 'opacity-40' : 'active:scale-[0.99]'}`}
                 >
-                  <div className="w-[88px] h-[88px] rounded-xl overflow-hidden bg-neutral-100 flex-shrink-0">
+                  <div className="w-[88px] h-[88px] rounded-xl overflow-hidden bg-neutral-100 flex-shrink-0 relative">
                     {booth.imageUrl ? (
                       <img
                         src={getFullImageUrl(booth.imageUrl)}
@@ -182,6 +181,11 @@ function FoodCourtContent() {
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-neutral-300 text-[24px] font-bold">
                         {booth.nameKo.charAt(0)}
+                      </div>
+                    )}
+                    {isRedirecting && (
+                      <div className="absolute inset-0 bg-black/45 flex items-center justify-center">
+                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       </div>
                     )}
                   </div>
@@ -211,29 +215,17 @@ function FoodCourtContent() {
             })}
           </div>
 
-          {redirectError && (
-            <p className="text-center text-[13px] text-[#ff6b6b] mt-4">{redirectError}</p>
-          )}
         </div>
 
-        {/* Fixed bottom CTA */}
-        <div className="absolute bottom-0 left-0 right-0 bg-neutral-100 px-5 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))]">
-          <button
-            onClick={handleConfirm}
-            disabled={!selectedBooth || isRedirecting}
-            className={`w-full py-4 font-bold text-[16px] rounded-2xl transition-colors ${
-              selectedBooth
-                ? 'bg-[#FFD541] hover:bg-[#FFCA00] active:bg-[#F5C400] text-[#1d2022]'
-                : 'bg-neutral-200 text-[#b1b5b8] cursor-not-allowed'
-            }`}
-          >
-            {isRedirecting
-              ? '이동 중...'
-              : selectedBooth
-              ? `${selectedBooth.nameKo} 메뉴판 보기`
-              : '가게를 선택해주세요'}
-          </button>
-        </div>
+        {/* 이동 실패 안내 — 목록 어디를 탭했든 보이도록 화면 하단에 고정 */}
+        {redirectError && (
+          <div className="fixed bottom-0 left-0 right-0 flex justify-center px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pointer-events-none">
+            <p className="w-full max-w-[390px] text-center text-[14px] font-medium text-white bg-[#1d2022] rounded-xl px-4 py-3 shadow-lg">
+              {redirectError}
+            </p>
+          </div>
+        )}
+
       </div>
 
       <style jsx global>{`
