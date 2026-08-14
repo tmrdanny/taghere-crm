@@ -81,6 +81,7 @@ model Store {
   pointSessions         PointSession[]
   stampScanTokens       StampScanToken[]
   stampApprovalRequests StampApprovalRequest[]
+  pendingPointAccruals  PendingPointAccrual[]
 
   // 웨이팅 서비스
   waitingTypes          WaitingType[]
@@ -246,6 +247,7 @@ model Customer {
   pointLedger       PointLedger[]
   stampLedger       StampLedger[]
   stampApprovalRequests StampApprovalRequest[]
+  pendingPointAccruals PendingPointAccrual[]
   reviewRequestLogs ReviewRequestLog[]
   feedbacks         CustomerFeedback[]
   pointSessions     PointSession[]
@@ -998,6 +1000,47 @@ model PointSession {
   @@index([storeId, status])
   @@index([expiresAt])
   @@map("point_sessions")
+}
+
+// 적립 예약 상태
+enum PendingPointAccrualStatus {
+  PENDING   // 결제완료 신호 대기 중
+  ACCRUED   // 실제 PointLedger EARN 생성 완료
+  CANCELED  // 주문취소로 예약 파기 (적립 없음)
+}
+
+// 후불 주문 일반 포인트 적립 예약.
+// 고객이 적립을 요청한 시점에는 아직 결제 전이라 PointLedger 를 쓰지 않고 이 행만 만든다.
+// POS 결제완료 통보(/webhook/order-paid) 또는 12시간 타임아웃 워커가 실제 적립으로 전환한다.
+// 스탬프/멤버십·선불 주문·메타씨티(매직포스) 매장은 이 경로를 타지 않는다(즉시 적립 유지).
+model PendingPointAccrual {
+  id             String                    @id @default(cuid())
+  storeId        String
+  customerId     String
+  orderId        String                    // V1 ordersheetId / V2 orderId
+  purAmt         Int                       // 예약 시점 결제 예정 금액
+  ratePercent    Float                     // 예약 시점 매장 적립률 (감사용)
+  earnPoints     Int                       // 예약 시점 확정 적립 포인트 — 전환 시 이 값을 그대로 적립
+  tableLabel     String?
+  sendAlimtalk   Boolean                   @default(false) // 전환 시 적립 알림톡 발송 여부
+  source         String                    // IN_APP | AUTO_EARN | KAKAO_CALLBACK
+  status         PendingPointAccrualStatus @default(PENDING)
+  expiresAt      DateTime                  // 예약 + 12h. 지나면 워커가 결제신호 없이 자동 적립
+  finalizedAt    DateTime?
+  finalizeReason String?                   // PAYMENT | TIMEOUT
+  pointLedgerId  String?                   // 전환 후 생성된 원장
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  // Relations
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, orderId])
+  @@index([status, expiresAt])
+  @@index([storeId, status, createdAt])
+  @@index([customerId])
+  @@map("pending_point_accruals")
 }
 
 // ============================================

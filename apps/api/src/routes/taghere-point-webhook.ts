@@ -13,6 +13,13 @@ import { sidoToShort } from '../utils/address-parser.js';
 import { fetchOrder } from '../services/taghere-api.js';
 import { findOrCreateCustomerByPhone } from '../services/customer-identity.js';
 import { enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
+import {
+  buildPendingAccrualData,
+  DEFERRED_ACCRUAL_REASON_PREFIX,
+  findPendingAccrual,
+  hasTodayEarnLedger,
+  hasTodayPendingAccrual,
+} from '../services/pending-point-accrual.js';
 
 const router = Router();
 
@@ -195,7 +202,8 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
   try {
     // sendAlimtalk: 인앱(주문 서비스 내) 적립처럼 알림톡 안내가 필요한 호출만 true 로 opt-in.
     // 기존 POS 결제완료 자동적립 경로는 미전달(false) → 발송 동작 변화 없음.
-    const { storeSlug, crmCustomerId, orderId, purAmt, usedPoint, sendAlimtalk } = req.body;
+    // deferUntilPaid: 후불 + 결제완료 감지 가능 POS 주문. 실제 적립을 결제완료까지 미룬다.
+    const { storeSlug, crmCustomerId, orderId, purAmt, usedPoint, sendAlimtalk, deferUntilPaid } = req.body;
 
     // 1. 파라미터 검증
     if (!storeSlug || !crmCustomerId || !orderId || purAmt === undefined) {
@@ -203,6 +211,17 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
         success: false,
         error: 'missing_params',
         message: 'storeSlug, crmCustomerId, orderId, purAmt는 필수입니다.',
+      });
+    }
+
+    // 예약 행의 purAmt 는 Int 컬럼이라 문자열/소수가 그대로 들어가면 지연 경로에서만 500 이 난다.
+    // (즉시 경로는 산술 강제변환으로 통과하던 값들) → 여기서 숫자로 확정한다.
+    const purAmtNumber = Math.round(Number(purAmt));
+    if (!Number.isFinite(purAmtNumber)) {
+      return res.status(400).json({
+        success: false,
+        error: 'invalid_pur_amt',
+        message: 'purAmt 는 숫자여야 합니다.',
       });
     }
 
@@ -280,7 +299,7 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
       }
 
       // 적립 포인트 계산 + 오늘 첫 방문 체크 (VisitOrOrder 기반)
-      const savePoint = Math.round((purAmt * store.pointRatePercent) / 100);
+      const savePoint = Math.round((purAmtNumber * store.pointRatePercent) / 100);
       const effectiveUsedPoint = usedPoint || 0;
 
       const todayStart = new Date();
@@ -310,7 +329,7 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
           customer,
           operationType: 'POINT_COMBINE',
           orderNo: orderId.slice(0, 20), // 스펙 1.7.3: ORDER_NO 최대 20자
-          purAmt: purAmt > 0 ? purAmt : 0,
+          purAmt: purAmtNumber > 0 ? purAmtNumber : 0,
           usedPoint: effectiveUsedPoint,
           savePoint,
         });
@@ -345,7 +364,7 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
             customerId: customer.id,
             orderId,
             visitedAt: new Date(),
-            totalAmount: purAmt > 0 ? purAmt : null,
+            totalAmount: purAmtNumber > 0 ? purAmtNumber : null,
             ...(magicposOrderItems && { items: magicposOrderItems }),
           },
         }),
@@ -373,6 +392,21 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
     }
 
     // 4. 멱등성 체크: 동일 orderId로 이미 처리된 건이 있으면 이전 결과 반환
+    //
+    // 예약 조회를 원장 조회보다 **먼저** 한다. 취소된 지연 주문은 USE/ADJUST 원장이 남아 있어
+    // 아래 existingLedger 조기반환에 먼저 걸리는데, 그러면 "예약분 만큼 적립됨"으로 응답해
+    // 실제로는 영영 적립되지 않을 금액을 성공으로 안내하게 된다.
+    const existingPending = await findPendingAccrual(store.id, orderId);
+
+    // 취소된 주문은 적립 대상이 아니고, 재예약하면 (storeId, orderId) 유니크도 위반한다.
+    if (existingPending?.status === 'CANCELED') {
+      return res.status(409).json({
+        success: false,
+        error: 'accrual_canceled',
+        message: '취소된 주문입니다.',
+      });
+    }
+
     const existingLedger = await prisma.pointLedger.findFirst({
       where: {
         customerId: customer.id,
@@ -381,27 +415,64 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
       },
     });
 
-    if (existingLedger) {
-      console.log(`[Point Webhook] 이미 처리된 주문, 기존 결과 반환: orderId=${orderId}`);
-      // 해당 orderId의 적립/사용 합산
+    // 4-1. 정책: 주문 1건당 적립 1회. 예약 유니크가 (storeId, orderId) 라 다른 고객이 같은 주문으로
+    // 들어오면 재예약이 유니크를 위반한다. 성공으로 응답하면 적립되지 않았는데 남의 포인트 숫자를
+    // 보여주게 되므로, 다른 고객의 예약이면 명시적으로 거절한다.
+    //
+    // NOTE 이 강제는 **지연 적립 경로 한정**이다. 위 4번 원장 조회(existingLedger)는 여전히
+    //      customerId 스코프라, 즉시 적립 주문(선불·미감지 POS)은 기존대로 고객별 중복 적립이
+    //      가능하다. 즉시 경로까지 매장 스코프로 좁히는 건 회귀 범위가 커 후속 과제로 둔다.
+    // (CANCELED 는 위에서 이미 409 로 걸러졌다)
+    if (existingPending && existingPending.customerId !== customer.id) {
+      console.log(
+        `[Point Webhook] 다른 고객이 이미 적립한 주문: orderId=${orderId}, status=${existingPending.status}`,
+      );
+      return res.status(409).json({
+        success: false,
+        error: 'already_earned_by_other',
+        message: '이미 다른 고객이 적립한 주문입니다.',
+      });
+    }
+
+    const isPendingReserved = existingPending?.status === 'PENDING';
+    // 지연 적립은 EARN 원장이 없어 위 4번 원장 조회에 안 걸린다. 이미 전환(ACCRUED)된 경우도
+    // 재예약하면 유니크를 위반하므로 여기서 "이미 처리된 주문"으로 함께 흡수한다.
+    const isPendingAccrued = existingPending?.status === 'ACCRUED';
+
+    if (existingLedger || isPendingReserved || isPendingAccrued) {
+      console.log(
+        `[Point Webhook] 이미 처리된 주문, 기존 결과 반환: orderId=${orderId}, deferred=${isPendingReserved}`,
+      );
+      // 해당 orderId의 적립/사용 합산 (예약 상태면 EARN 원장이 없으므로 예약 포인트를 쓴다)
       const ledgers = await prisma.pointLedger.findMany({
         where: { customerId: customer.id, storeId: store.id, orderId },
       });
-      const savedPoint = ledgers.filter(l => l.type === 'EARN').reduce((sum, l) => sum + l.delta, 0);
-      const usedPointResult = Math.abs(ledgers.filter(l => l.type === 'USE').reduce((sum, l) => sum + l.delta, 0));
+      const earnedFromLedger = ledgers
+        .filter(l => l.type === 'EARN')
+        .reduce((sum, l) => sum + l.delta, 0);
+      const usedPointResult = Math.abs(
+        ledgers.filter(l => l.type === 'USE').reduce((sum, l) => sum + l.delta, 0),
+      );
       return res.json({
         success: true,
         data: {
-          savedPoint,
+          // 여기까지 온 예약은 이 고객 본인 것이다(다른 고객은 위에서 409). 원장이 있으면 그 값이
+          // 정확하고, 아직 예약 상태면 예약 스냅샷이 곧 적립될 금액이다.
+          savedPoint: earnedFromLedger > 0 ? earnedFromLedger : (existingPending?.earnPoints ?? 0),
           usedPoint: usedPointResult,
           balance: customer.totalPoints,
+          ...(isPendingReserved && { deferred: true, pendingId: existingPending!.id }),
         },
       });
     }
 
     // 5. 적립 포인트 계산
-    const savePoint = Math.round(purAmt * store.pointRatePercent / 100);
+    const savePoint = Math.round(purAmtNumber * store.pointRatePercent / 100);
     const effectiveUsedPoint = usedPoint || 0;
+
+    // 후불 + 결제완료 감지 가능 POS 주문은 실제 적립을 결제완료 시점까지 미룬다.
+    // (메타씨티 매장은 위에서 이미 return 되므로 여기 도달하지 않는다)
+    const shouldDefer = deferUntilPaid === true && savePoint > 0;
 
     // 6. 포인트 사용 검증
     if (effectiveUsedPoint > 0 && customer.totalPoints < effectiveUsedPoint) {
@@ -424,9 +495,18 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
         storeId: store.id,
         type: 'EARN',
         createdAt: { gte: todayStart, lte: todayEnd },
+        // 지연 전환분은 createdAt 이 결제완료 시각이라 방문 판정 근거가 될 수 없다.
+        // reason 은 nullable 이라 NOT startsWith 만 쓰면 NULL 행이 통째로 빠진다(NULL LIKE → NULL).
+        OR: [{ reason: null }, { reason: { not: { startsWith: DEFERRED_ACCRUAL_REASON_PREFIX } } }],
       },
     });
-    const isFirstVisitToday = !todayVisit;
+    // 방문 카운트용: 지연 적립은 EARN 원장을 만들지 않으므로 예약도 함께 봐야
+    // 같은 날 추가주문에서 visitCount 가 또 오르지 않는다.
+    const isFirstVisitToday = !todayVisit && !(await hasTodayPendingAccrual(store.id, customer.id));
+    // 알림톡 FIRST_ONLY 빈도용: "오늘 첫 적립" 기준이므로 EARN 원장만 본다.
+    // (예약까지 포함하면 지연+즉시가 섞인 날 알림톡이 한 통도 안 나갈 수 있다)
+    // 알림톡 FIRST_ONLY 는 "오늘 이미 적립 알림톡이 나갔는가" 기준이라 지연 전환분도 포함해서 본다.
+    const isFirstEarnToday = !(await hasTodayEarnLedger(store.id, customer.id));
 
     // 8. 트랜잭션 처리
     let currentBalance = customer.totalPoints;
@@ -451,7 +531,24 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
     }
 
     // 8-2. 포인트 적립
-    if (savePoint > 0) {
+    //      지연 대상이면 EARN 원장/잔액 증가를 만들지 않고 예약 행만 남긴다.
+    //      (포인트 사용·방문 기록은 위아래 그대로 즉시 처리)
+    if (shouldDefer) {
+      transactionOps.push(
+        prisma.pendingPointAccrual.create({
+          data: buildPendingAccrualData({
+            storeId: store.id,
+            customerId: customer.id,
+            orderId,
+            purAmt: purAmtNumber,
+            ratePercent: store.pointRatePercent,
+            earnPoints: savePoint,
+            sendAlimtalk: sendAlimtalk === true,
+            source: 'IN_APP',
+          }),
+        }),
+      );
+    } else if (savePoint > 0) {
       currentBalance += savePoint;
       transactionOps.push(
         prisma.pointLedger.create({
@@ -496,7 +593,7 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
           customerId: customer.id,
           orderId,
           visitedAt: new Date(),
-          totalAmount: purAmt > 0 ? purAmt : null,
+          totalAmount: purAmtNumber > 0 ? purAmtNumber : null,
           ...(orderItemsData && { items: orderItemsData }),
         },
       }),
@@ -508,9 +605,10 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
 
     // 알림톡 발송 (opt-in: 인앱 적립 호출만) — auto-earn 과 동일한 게이트/변수 재사용.
     // 재호출은 위의 멱등 조기반환에서 걸러지므로 중복 발송 없음.
-    if (sendAlimtalk === true && savePoint > 0) {
+    // 지연 적립은 여기서 보내지 않는다 — 실제 적립 시점(finalizePendingAccrual)에서 발송.
+    if (!shouldDefer && sendAlimtalk === true && savePoint > 0) {
       const frequency = store.pointsAlimtalkFrequency || 'EVERY_ORDER';
-      const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstVisitToday));
+      const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstEarnToday));
       const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
 
       if (phoneNumber && shouldSendAlimtalk) {
@@ -540,16 +638,27 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
     // 매직포스 매장은 위 분기에서 이미 return 됨 → 여기는 일반 매장 경로.
     // 메타씨티 동기화는 매직포스 매장에서만 의미가 있으므로 호출하지 않는다.
 
-    // 9. 응답
+    // 9. 응답 (deferred=true 면 savedPoint 는 "결제 완료 시 적립될 예정 포인트")
     res.json({
       success: true,
       data: {
         savedPoint: savePoint,
         usedPoint: effectiveUsedPoint,
         balance: currentBalance,
+        ...(shouldDefer && { deferred: true }),
       },
     });
   } catch (error: any) {
+    // 예약 생성은 (storeId, orderId) 유니크라 동시 요청(더블탭·두 기기)에서 진 쪽이 P2002 로
+    // 트랜잭션 전체가 롤백된다. 실제로는 예약이 이미 만들어진 상태이므로 500 대신 멱등 성공으로 흡수한다.
+    if (error?.code === 'P2002') {
+      console.log(`[Point Webhook] 동시 예약 생성 감지, 멱등 응답: orderId=${req.body?.orderId}`);
+      return res.json({
+        success: true,
+        data: { savedPoint: 0, usedPoint: 0, balance: 0, deferred: true, alreadyReserved: true },
+      });
+    }
+
     console.error('[Point Webhook] Transaction error:', error);
     res.status(500).json({
       success: false,

@@ -7,6 +7,15 @@ import { isValidWebhookToken, fetchOrder, TaghereOrderData } from '../services/t
 import { sidoToShort } from '../utils/address-parser.js';
 import { syncToMetacity } from '../services/metacity.js';
 import { haversineMeters } from '../services/geocode.js';
+import {
+  buildPendingAccrualData,
+  cancelPendingAccrualByOrderId,
+  DEFERRED_ACCRUAL_REASON_PREFIX,
+  finalizePendingAccrual,
+  findPendingAccrual,
+  hasTodayEarnLedger,
+  hasTodayPendingAccrual,
+} from '../services/pending-point-accrual.js';
 
 const router = Router();
 
@@ -70,6 +79,7 @@ router.get('/ordersheet', async (req, res) => {
         taghereVersion: true,
         addressSido: true,
         addressSigungu: true,
+        metacityEnabled: true,
       },
     });
 
@@ -117,6 +127,12 @@ router.get('/ordersheet', async (req, res) => {
       }
     }
 
+    // 결제완료까지 적립을 미루는 주문인지 (후불 + 결제완료 감지 가능 POS). 메타씨티 매장은 항상 즉시.
+    const pointAccrualDeferred = orderData.pointAccrualDeferred === true && !store.metacityEnabled;
+
+    // 이미 적립 "예약"된 주문인지 (원장이 없어 alreadyEarned 로는 잡히지 않는다)
+    const pendingAccrual = await findPendingAccrual(store.id, ordersheetId);
+
     res.json({
       storeId: store.id,
       storeName: (orderData as any).storeName || store.name,
@@ -125,6 +141,8 @@ router.get('/ordersheet', async (req, res) => {
       ratePercent,
       earnPoints,
       alreadyEarned: !!existingEarn,
+      pointAccrualDeferred,
+      accrualPending: pendingAccrual?.status === 'PENDING',
       orderItems: orderData.content?.items || orderData.orderItems || orderData.items || [],
       orderNumber: (orderData as any).displayOrderNumber || (orderData as any).orderNumber || null,
       menuLink: (orderData as any).menuLink || null,
@@ -175,6 +193,7 @@ router.post('/auto-earn', async (req, res) => {
         addressSigungu: true,
         pointsAlimtalkEnabled: true,
         pointsAlimtalkFrequency: true,
+        metacityEnabled: true,
       },
     });
 
@@ -211,6 +230,25 @@ router.post('/auto-earn', async (req, res) => {
           success: false,
           error: 'already_earned',
           message: '이미 포인트가 적립된 주문입니다.',
+        });
+      }
+
+      // 적립 예약된 주문은 원장이 없어 위 체크에 걸리지 않는다 → 별도 코드로 구분해 응답
+      const existingPending = await findPendingAccrual(store.id, ordersheetId);
+      if (existingPending?.status === 'PENDING') {
+        return res.status(409).json({
+          success: false,
+          error: 'already_reserved',
+          message: '이미 적립 예약된 주문입니다. 결제가 완료되면 자동으로 적립돼요.',
+          earnPoints: existingPending.earnPoints,
+        });
+      }
+      // 취소된 주문은 적립 대상이 아니다. 그대로 진행하면 재예약이 (storeId, orderId) 유니크를 위반한다.
+      if (existingPending?.status === 'CANCELED') {
+        return res.status(409).json({
+          success: false,
+          error: 'accrual_canceled',
+          message: '취소된 주문입니다.',
         });
       }
     }
@@ -385,7 +423,12 @@ router.post('/auto-earn', async (req, res) => {
       // 0원 주문은 포인트 적립 불가 (악용 방지)
       const earnPoints = resultPrice > 0 ? Math.round(resultPrice * ratePercent / 100) : 0;
       console.log(`[TagHere Auto-Earn Points] storeId: ${store.id}, resultPrice: ${resultPrice}, ratePercent: ${ratePercent}, earnPoints: ${earnPoints}`);
-      const newBalance = customer.totalPoints + earnPoints;
+
+      // 후불 + 결제완료 감지 가능 POS 주문은 결제완료까지 적립을 미룬다(메타씨티 매장 제외).
+      const shouldDefer =
+        orderData?.pointAccrualDeferred === true && !store.metacityEnabled && earnPoints > 0;
+
+      const newBalance = shouldDefer ? customer.totalPoints : customer.totalPoints + earnPoints;
 
       const todayVisit = await prisma.pointLedger.findFirst({
         where: {
@@ -393,20 +436,50 @@ router.post('/auto-earn', async (req, res) => {
           storeId: store.id,
           type: 'EARN',
           createdAt: { gte: todayStart, lte: todayEnd },
+          // 지연 전환분은 createdAt 이 결제완료 시각이라 방문 판정 근거가 될 수 없다.
+          // reason 은 nullable 이라 NOT startsWith 만 쓰면 NULL 행이 통째로 빠진다(NULL LIKE → NULL).
+          OR: [{ reason: null }, { reason: { not: { startsWith: DEFERRED_ACCRUAL_REASON_PREFIX } } }],
         },
       });
-      const isFirstVisitToday = !todayVisit;
+      // 방문 카운트용: 지연 적립은 EARN 원장을 만들지 않으므로 예약도 함께 봐야
+      // 같은 날 추가주문에서 visitCount 가 또 오르지 않는다.
+      const isFirstVisitToday =
+        !todayVisit && !(await hasTodayPendingAccrual(store.id, customer.id));
+      // 알림톡 FIRST_ONLY 빈도용: "오늘 첫 적립" 기준이므로 EARN 원장만 본다.
+      // 알림톡 FIRST_ONLY 는 "오늘 이미 적립 알림톡이 나갔는가" 기준이라 지연 전환분도 포함해서 본다.
+      const isFirstEarnToday = !(await hasTodayEarnLedger(store.id, customer.id));
 
-      await prisma.$transaction([
+      const earnTransactionOps: any[] = [
         prisma.customer.update({
           where: { id: customer.id },
           data: {
-            ...(earnPoints > 0 && { totalPoints: newBalance }),
+            // 지연 적립이면 잔액은 그대로 두고 방문 통계만 갱신한다.
+            ...(!shouldDefer && earnPoints > 0 && { totalPoints: newBalance }),
             ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
             lastVisitAt: new Date(),
           },
         }),
-        ...(earnPoints > 0 ? [
+      ];
+
+      if (shouldDefer) {
+        earnTransactionOps.push(
+          prisma.pendingPointAccrual.create({
+            data: buildPendingAccrualData({
+              storeId: store.id,
+              customerId: customer.id,
+              orderId: ordersheetId,
+              purAmt: resultPrice,
+              ratePercent,
+              earnPoints,
+              tableLabel,
+              // 리다이렉트 경로는 원래 항상 적립 알림톡을 보냈다 → 전환 시점에 발송.
+              sendAlimtalk: true,
+              source: 'AUTO_EARN',
+            }),
+          }),
+        );
+      } else if (earnPoints > 0) {
+        earnTransactionOps.push(
           prisma.pointLedger.create({
             data: {
               storeId: store.id,
@@ -419,7 +492,10 @@ router.post('/auto-earn', async (req, res) => {
               tableLabel: tableLabel,
             },
           }),
-        ] : []),
+        );
+      }
+
+      earnTransactionOps.push(
         prisma.visitOrOrder.create({
           data: {
             storeId: store.id,
@@ -433,12 +509,15 @@ router.post('/auto-earn', async (req, res) => {
             } : undefined,
           },
         }),
-      ]);
+      );
+
+      await prisma.$transaction(earnTransactionOps);
 
       console.log(`[TagHere Auto-Earn] Points earned - customerId: ${customer.id}, earnPoints: ${earnPoints}, newBalance: ${newBalance}, orderItemsCount: ${orderItems.length}, tableLabel: ${tableLabel}`);
 
       // 0원 주문은 메타씨티 동기화 / 알림톡 모두 스킵
-      if (earnPoints > 0) {
+      // 지연 적립도 여기서는 스킵 — 실제 적립 시점(finalizePendingAccrual)에서 알림톡을 보낸다.
+      if (!shouldDefer && earnPoints > 0) {
         // 메타씨티 포인트 동기화 (비동기)
         {
           const storeForMetacity = await prisma.store.findUnique({
@@ -469,7 +548,7 @@ router.post('/auto-earn', async (req, res) => {
         // 알림톡 발송 (전화번호가 있는 경우만, 비동기)
         // 발송 빈도 확인: EVERY_ORDER(매 주문) 또는 FIRST_ONLY(오늘 첫 주문만)
         const frequency = store.pointsAlimtalkFrequency || 'EVERY_ORDER';
-        const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstVisitToday));
+        const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstEarnToday));
 
         const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
         if (phoneNumber && shouldSendAlimtalk) {
@@ -496,7 +575,7 @@ router.post('/auto-earn', async (req, res) => {
         }
       }
 
-      // 포인트 성공 응답
+      // 포인트 성공 응답 (deferred=true 면 points 는 "결제 완료 시 적립될 예정 포인트")
       res.json({
         success: true,
         points: earnPoints,
@@ -505,6 +584,7 @@ router.post('/auto-earn', async (req, res) => {
         customerId: customer.id,
         resultPrice,
         isNewCustomer,
+        deferred: shouldDefer,
         hasExistingPreferences: !!(customer as any).preferredCategories,
         hasVisitSource: isVisitSourceRecent((customer as any).visitSourceUpdatedAt),
       });
@@ -730,6 +810,14 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
 
     console.log(`[Webhook] Order cancel request - ordersheetId: ${ordersheetId}, type: ${cancelType}, reason: ${reason || 'N/A'}`);
 
+    // 1-5. 적립 예약 파기 (아직 적립 전이라 회수할 원장이 없다 → ADJUST 불필요)
+    //      원장 조회보다 먼저 해야 한다. 뒤에 두면 그 사이 결제완료 통보/타임아웃 워커가 전환을 커밋했을 때
+    //      원장 스냅샷에는 EARN 이 없고 파기도 0건이라 404 로 빠져 방금 적립된 포인트를 회수하지 못한다.
+    //      전환이 먼저 커밋된 경우 여기서는 no-op 이 되고, 아래 원장 조회가 새 EARN 을 잡아 정상 회수된다.
+    //      파기했더라도 지연 적립의 포인트 "사용"은 즉시 처리됐을 수 있으므로 여기서 return 하지 않고
+    //      아래 기존 흐름을 계속 타서 USE 복원까지 처리하게 둔다.
+    const canceledPending = await cancelPendingAccrualByOrderId(ordersheetId);
+
     // 2. 해당 ordersheetId로 포인트 내역 조회 (EARN + USE 모두)
     const ledgerRecords = await prisma.pointLedger.findMany({
       where: {
@@ -762,6 +850,51 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
 
     // 3. 관련 내역이 없는 경우
     if (!earnRecord && !useRecord) {
+      // 재취소 멱등: 이미 파기된 예약만 있는 주문은 이번 호출에서 파기 0건이라 아래 분기를 못 탄다.
+      // 404 로 응답하면 주문 서비스가 취소 통보 실패로 로깅하므로 성공으로 응답한다.
+      if (canceledPending.length === 0) {
+        const alreadyCanceled = await prisma.pendingPointAccrual.findFirst({
+          where: { orderId: ordersheetId, status: 'CANCELED' },
+          select: { id: true },
+        });
+        if (alreadyCanceled) {
+          return res.json({
+            success: true,
+            canceledPending: true,
+            ordersheetId,
+            message: '이미 취소된 적립 예약입니다.',
+          });
+        }
+      }
+
+      // 예약만 있고 원장이 없던 주문 → 정상적으로 파기 완료. 404 로 응답하면 주문 서비스가 실패로 로깅한다.
+      if (canceledPending.length > 0) {
+        // 방문 기록은 예약 시점에 이미 만들어졌다. 아래 기존 취소 흐름(5-4)을 타지 못하고
+        // 여기서 반환하므로, 동일한 시맨틱으로 직접 지운다.
+        // 예약은 이미 CANCELED 라 재시도해도 파기 0건 → 404 로 빠진다. 삭제 실패로 500 을 내면
+        // 그 재시도 함정에 걸리므로, 실패는 로깅만 하고 취소 자체는 성공으로 응답한다.
+        try {
+          for (const { storeId, customerId } of canceledPending) {
+            await prisma.visitOrOrder.deleteMany({
+              where: { storeId, customerId, orderId: ordersheetId },
+            });
+          }
+        } catch (err) {
+          console.error(
+            `[Webhook] Canceled pending accrual - visitOrOrder 삭제 실패 ordersheetId: ${ordersheetId}`,
+            err,
+          );
+        }
+
+        console.log(`[Webhook] Canceled pending accrual (no ledger) - ordersheetId: ${ordersheetId}`);
+        return res.json({
+          success: true,
+          canceledPending: true,
+          ordersheetId,
+          message: '적립 예약이 취소되었습니다.',
+        });
+      }
+
       console.log(`[Webhook] No point record found for ordersheetId: ${ordersheetId}`);
       return res.status(404).json({
         success: false,
@@ -777,12 +910,23 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
     const usedPoints = useRecord ? Math.abs(useRecord.delta) : 0; // 양수 (사용한 금액)
 
     // 4. 이미 차감되었는지 확인 (중복 처리 방지)
+    //
+    // NOTE reason 문자열만 보면 안 된다. 사용환원 원장의 reason 은 `주문취소(사용환원): {id}` 라
+    //      `주문취소: {id}` 를 포함하지 않고, 적립 원장이 없는 주문(지연 적립 예약만 있고 포인트는
+    //      사용한 경우)은 적립취소 ADJUST 자체가 안 만들어져 가드 레코드가 영영 생기지 않는다.
+    //      그 상태로 취소 웹훅이 재전송되면 사용분이 호출 횟수만큼 반복 환급된다.
+    //      두 ADJUST 모두 orderId 를 채우므로 그것을 1차 기준으로 삼고,
+    //      orderId 가 비어 있을 수 있는 과거 데이터는 기존 reason 매칭으로 함께 커버한다.
     const existingDeduction = await prisma.pointLedger.findFirst({
       where: {
         customerId: customer.id,
         storeId: store.id,
         type: 'ADJUST',
-        reason: { contains: `주문취소: ${ordersheetId}` }
+        OR: [
+          { orderId: ordersheetId },
+          { reason: { contains: `주문취소: ${ordersheetId}` } },
+          { reason: { contains: `주문취소(사용환원): ${ordersheetId}` } },
+        ],
       }
     });
 
@@ -921,6 +1065,121 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
       error: 'Internal server error',
       message: '주문 취소 처리 중 오류가 발생했습니다.',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/** order-paid 웹훅 1회 처리 상한. 한 결제 신호가 잡는 후불 주문은 많아야 수십 건이다. */
+const ORDER_PAID_MAX_BATCH = 200;
+
+/**
+ * POST /api/taghere/webhook/order-paid
+ *
+ * 후불 주문 POS 결제완료 통보 → 적립 예약을 실제 적립으로 전환한다.
+ * 주문 서비스(V1/V2)가 결제완료를 감지한 모든 주문에 대해 호출하므로,
+ * 예약이 없는 주문(대다수)은 정상적인 no-op 이다 — 주문별 에러 로그를 남기지 않는다.
+ *
+ * Body:
+ * {
+ *   "storeSlug": "my-store",
+ *   "orderIds": ["665...", "666..."],   // 또는 "orderId": "665..."
+ *   "paidAt": "2026-08-12T10:00:00.000Z" // 선택(로깅용)
+ * }
+ */
+router.post('/webhook/order-paid', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
+  try {
+    const { storeSlug, paidAt } = req.body;
+    const rawOrderIds: unknown[] = Array.isArray(req.body.orderIds)
+      ? req.body.orderIds
+      : req.body.orderId
+        ? [req.body.orderId]
+        : [];
+    // 문자열이 아닌 값이 섞이면 Prisma `in` 에서 던지고, 중복은 집계만 부풀린다.
+    const orderIds = [...new Set(rawOrderIds.filter((v): v is string => typeof v === 'string' && v.length > 0))];
+
+    if (typeof storeSlug !== 'string' || !storeSlug || orderIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'missing_params',
+        message: 'storeSlug 와 orderIds(또는 orderId)는 필수입니다.',
+      });
+    }
+
+    // 한 결제 신호가 잡는 주문은 많아야 수십 건이다. 비정상적으로 큰 배열은 거절한다.
+    if (orderIds.length > ORDER_PAID_MAX_BATCH) {
+      return res.status(400).json({
+        success: false,
+        error: 'too_many_orders',
+        message: `orderIds 는 최대 ${ORDER_PAID_MAX_BATCH}건까지 처리합니다.`,
+      });
+    }
+
+    const store = await prisma.store.findFirst({
+      where: { slug: storeSlug },
+      select: { id: true },
+    });
+
+    if (!store) {
+      return res.status(404).json({
+        success: false,
+        error: 'store_not_found',
+        message: '매장을 찾을 수 없습니다.',
+      });
+    }
+
+    // 예약 없는 주문이 대다수이므로 주문별 왕복 대신 한 번에 조회한다.
+    const pendings = await prisma.pendingPointAccrual.findMany({
+      where: { storeId: store.id, orderId: { in: orderIds } },
+      select: { id: true, orderId: true, status: true },
+    });
+
+    // 응답 크기를 억제하기 위해 예약이 있던 주문만 결과에 담는다(나머지는 skipped 수에만 반영).
+    const results: Array<{ orderId: string; status: string; savedPoint?: number }> = [];
+
+    for (const pending of pendings) {
+      if (pending.status !== 'PENDING') {
+        results.push({
+          orderId: pending.orderId,
+          status: pending.status === 'ACCRUED' ? 'ALREADY_ACCRUED' : 'CANCELED',
+        });
+        continue;
+      }
+
+      try {
+        const finalized = await finalizePendingAccrual(pending.id, 'PAYMENT');
+        results.push({
+          orderId: pending.orderId,
+          status: finalized.status,
+          savedPoint: finalized.savedPoint,
+        });
+      } catch (error) {
+        console.error(`[Webhook] order-paid 전환 실패 - orderId: ${pending.orderId}`, error);
+        results.push({ orderId: pending.orderId, status: 'ERROR' });
+      }
+    }
+
+    const finalizedCount = results.filter(r => r.status === 'ACCRUED').length;
+    if (finalizedCount > 0) {
+      console.log(
+        `[Webhook] order-paid - storeSlug: ${storeSlug}, requested: ${orderIds.length}, finalized: ${finalizedCount}, paidAt: ${paidAt ?? '-'}`,
+      );
+    }
+
+    res.json({
+      success: true,
+      data: {
+        requested: orderIds.length,
+        finalized: finalizedCount,
+        skipped: orderIds.length - finalizedCount,
+        results,
+      },
+    });
+  } catch (error: any) {
+    console.error('[Webhook] order-paid error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'server_error',
+      message: '결제완료 처리 중 오류가 발생했습니다.',
     });
   }
 });

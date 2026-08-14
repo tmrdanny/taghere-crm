@@ -1017,6 +1017,34 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
       data: { items: updatedItemsData },
     });
 
+    // 지연 적립 예약만 있고 아직 적립되지 않은 주문이면, 고객의 다른 잔액에서 빼면 안 된다.
+    // 대신 아직 지급 전인 예약 금액을 줄여 결제완료 시 감액된 금액만 적립되게 한다.
+    const pendingAccrual = visitOrOrder.orderId
+      ? await prisma.pendingPointAccrual.findUnique({
+          where: { storeId_orderId: { storeId, orderId: visitOrOrder.orderId } },
+          select: { id: true, status: true, earnPoints: true },
+        })
+      : null;
+
+    if (pendingAccrual?.status === 'PENDING' && pointsToDeduct > 0) {
+      const reducedEarnPoints = Math.max(0, pendingAccrual.earnPoints - pointsToDeduct);
+      await prisma.pendingPointAccrual.update({
+        where: { id: pendingAccrual.id },
+        data: { earnPoints: reducedEarnPoints },
+      });
+      console.log(
+        `[Cancel Order Item] 적립 예약 감액 - orderId: ${visitOrOrder.orderId}, ${pendingAccrual.earnPoints} → ${reducedEarnPoints}`,
+      );
+
+      return res.json({
+        success: true,
+        cancelledQuantity: newCancelledQty,
+        isFullyCancelled,
+        pointsDeducted: 0,
+        pendingAccrualReduced: pendingAccrual.earnPoints - reducedEarnPoints,
+      });
+    }
+
     // Deduct points if applicable
     if (pointsToDeduct > 0) {
       // Get current customer points

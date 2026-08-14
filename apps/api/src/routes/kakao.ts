@@ -4,6 +4,13 @@ import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEa
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 import { fetchOrder, TaghereOrderData } from '../services/taghere-api.js';
 import { sidoToShort } from '../utils/address-parser.js';
+import {
+  buildPendingAccrualData,
+  DEFERRED_ACCRUAL_REASON_PREFIX,
+  findPendingAccrual,
+  hasTodayEarnLedger,
+  hasTodayPendingAccrual,
+} from '../services/pending-point-accrual.js';
 
 const router = Router();
 
@@ -269,10 +276,19 @@ router.get('/callback', async (req, res) => {
           gte: todayStart,
           lte: todayEnd,
         },
+        // 지연 적립 전환분은 createdAt 이 결제완료 시각이라 방문 판정 근거가 될 수 없다.
+        // reason 은 nullable 이라 NOT startsWith 만 쓰면 NULL 행이 통째로 빠진다(NULL LIKE → NULL).
+        OR: [{ reason: null }, { reason: { not: { startsWith: DEFERRED_ACCRUAL_REASON_PREFIX } } }],
       },
     });
 
-    const isFirstVisitToday = !todayVisit;
+    // 방문 카운트용: 지연 적립은 EARN 원장을 만들지 않으므로 예약도 함께 봐야 이중 증가하지 않는다.
+    // (아래 네이버 리뷰 알림톡의 first_only 판정도 "방문" 기준이라 이 값을 쓰는 게 맞다)
+    const isFirstVisitToday =
+      !todayVisit && !(await hasTodayPendingAccrual(store.id, customer.id));
+    // 적립 알림톡 FIRST_ONLY 빈도용: "오늘 첫 적립" 기준이므로 EARN 원장만 본다.
+    // 알림톡 FIRST_ONLY 는 "오늘 이미 적립 알림톡이 나갔는가" 기준이라 지연 전환분도 포함해서 본다.
+    const isFirstEarnToday = !(await hasTodayEarnLedger(store.id, customer.id));
 
     await prisma.$transaction([
       prisma.customer.update({
@@ -320,7 +336,7 @@ router.get('/callback', async (req, res) => {
       // 1. 포인트 적립 알림톡
       // 발송 빈도 확인: EVERY_ORDER(매 주문) 또는 FIRST_ONLY(오늘 첫 주문만)
       const frequency = (store as any).pointsAlimtalkFrequency || 'EVERY_ORDER';
-      const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstVisitToday));
+      const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstEarnToday));
 
       if (shouldSendAlimtalk) {
         const pointLedger = await prisma.pointLedger.findFirst({
@@ -1664,6 +1680,7 @@ router.get('/taghere-callback', async (req, res) => {
       taghereVersion: true,
       addressSido: true,
       addressSigungu: true,
+      metacityEnabled: true,
     };
 
     if (storeId) {
@@ -1716,7 +1733,15 @@ router.get('/taghere-callback', async (req, res) => {
         },
       });
 
-      if (existingEarn) {
+      // 지연 적립된 주문은 EARN 원장이 없어 위 조회에 걸리지 않는다.
+      // 그대로 진행하면 예약 생성이 (storeId, orderId) 유니크를 위반해 트랜잭션 전체가 실패한다.
+      const existingPending = existingEarn
+        ? null
+        : await findPendingAccrual(store.id, stateData.ordersheetId);
+
+      // CANCELED 도 함께 막는다 — 취소된 주문은 적립 대상이 아니고,
+      // 그대로 진행하면 재예약이 (storeId, orderId) 유니크를 위반해 트랜잭션이 통째로 실패한다.
+      if (existingEarn || existingPending) {
         const alreadyUrl = new URL(`${redirectOrigin}/taghere-enroll/${stateData.slug || ''}`);
         alreadyUrl.searchParams.set('error', 'already_participated');
         alreadyUrl.searchParams.set('storeName', store.name);
@@ -1729,9 +1754,12 @@ router.get('/taghere-callback', async (req, res) => {
     let resultPrice = 0;
     let orderItems: any[] = [];
     let tableLabel: string | null = null;
+    // 후불 + 결제완료 감지 가능 POS 주문 여부 (주문 서비스가 계산해 내려준다)
+    let orderPointAccrualDeferred = false;
     if (stateData.ordersheetId) {
       const orderData = await fetchOrder(stateData.ordersheetId, store.taghereVersion);
       if (orderData) {
+        orderPointAccrualDeferred = orderData.pointAccrualDeferred === true;
         // resultPrice는 content.resultPrice에 있고, 문자열일 수 있음
         const rawPrice = orderData.content?.resultPrice || orderData.resultPrice || orderData.content?.totalPrice || orderData.totalPrice || 0;
         resultPrice = typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : rawPrice;
@@ -1757,6 +1785,14 @@ router.get('/taghere-callback', async (req, res) => {
     const ratePercent = store.pointRatePercent ?? 5;
     const earnPoints = resultPrice > 0 ? Math.round(resultPrice * ratePercent / 100) : 100;
     console.log(`[TagHere Kakao Earn] storeId: ${store.id}, resultPrice: ${resultPrice}, ratePercent: ${ratePercent}, earnPoints: ${earnPoints}`);
+
+    // 후불 + 결제완료 감지 가능 POS 주문은 결제완료까지 적립을 미룬다(메타씨티 매장 제외).
+    // resultPrice<=0 의 100P 폴백은 실제 주문 금액이 없는 케이스라 지연 대상에서 뺀다.
+    const shouldDefer =
+      orderPointAccrualDeferred &&
+      !store.metacityEnabled &&
+      resultPrice > 0 &&
+      !!stateData.ordersheetId;
 
     if (!customer) {
       // 신규 고객 생성
@@ -1799,8 +1835,8 @@ router.get('/taghere-callback', async (req, res) => {
       });
     }
 
-    // Earn points
-    const newBalance = customer.totalPoints + earnPoints;
+    // Earn points (지연 적립이면 잔액은 아직 움직이지 않는다)
+    const newBalance = shouldDefer ? customer.totalPoints : customer.totalPoints + earnPoints;
 
     // 오늘 날짜의 시작/끝 계산
     const taghereTodayStart = new Date();
@@ -1819,35 +1855,61 @@ router.get('/taghere-callback', async (req, res) => {
           gte: taghereTodayStart,
           lte: taghereTodayEnd,
         },
+        // 지연 전환분은 createdAt 이 결제완료 시각이라 방문 판정 근거가 될 수 없다.
+        // reason 은 nullable 이라 NOT startsWith 만 쓰면 NULL 행이 통째로 빠진다(NULL LIKE → NULL).
+        OR: [{ reason: null }, { reason: { not: { startsWith: DEFERRED_ACCRUAL_REASON_PREFIX } } }],
       },
     });
 
-    const isFirstVisitTodayTaghere = !taghereTodayVisit;
+    // 방문 카운트용: 지연 적립은 EARN 원장을 만들지 않으므로 예약도 함께 봐야
+    // 같은 날 추가주문에서 visitCount 가 또 오르지 않는다.
+    // (아래 네이버 리뷰 알림톡의 first_only 판정도 "방문" 기준이라 이 값을 쓰는 게 맞다)
+    const isFirstVisitTodayTaghere =
+      !taghereTodayVisit && !(await hasTodayPendingAccrual(store.id, customer.id));
+    // 적립 알림톡 FIRST_ONLY 빈도용: "오늘 첫 적립" 기준이므로 EARN 원장만 본다.
+    // 알림톡 FIRST_ONLY 는 "오늘 이미 적립 알림톡이 나갔는가" 기준이라 지연 전환분도 포함해서 본다.
+    const isFirstEarnTodayTaghere = !(await hasTodayEarnLedger(store.id, customer.id));
 
     await prisma.$transaction([
       prisma.customer.update({
         where: { id: customer.id },
         data: {
-          totalPoints: newBalance,
+          // 지연 적립이면 잔액은 그대로 두고 방문 통계만 갱신한다.
+          ...(!shouldDefer && { totalPoints: newBalance }),
           // 오늘 첫 방문인 경우에만 visitCount 증가
           ...(isFirstVisitTodayTaghere && { visitCount: { increment: 1 } }),
           lastVisitAt: new Date(),
         },
       }),
-      prisma.pointLedger.create({
-        data: {
-          storeId: store.id,
-          customerId: customer.id,
-          delta: earnPoints,
-          balance: newBalance,
-          type: 'EARN',
-          reason: stateData.ordersheetId
-            ? `TagHere 주문 적립 (ordersheetId: ${stateData.ordersheetId})`
-            : 'TagHere 적립',
-          orderId: stateData.ordersheetId || null,
-          tableLabel: tableLabel,
-        },
-      }),
+      shouldDefer
+        ? prisma.pendingPointAccrual.create({
+            data: buildPendingAccrualData({
+              storeId: store.id,
+              customerId: customer.id,
+              orderId: stateData.ordersheetId!,
+              purAmt: resultPrice,
+              ratePercent,
+              earnPoints,
+              tableLabel,
+              // 리다이렉트 경로는 원래 항상 적립 알림톡을 보냈다 → 전환 시점에 발송.
+              sendAlimtalk: true,
+              source: 'KAKAO_CALLBACK',
+            }),
+          })
+        : prisma.pointLedger.create({
+            data: {
+              storeId: store.id,
+              customerId: customer.id,
+              delta: earnPoints,
+              balance: newBalance,
+              type: 'EARN',
+              reason: stateData.ordersheetId
+                ? `TagHere 주문 적립 (ordersheetId: ${stateData.ordersheetId})`
+                : 'TagHere 적립',
+              orderId: stateData.ordersheetId || null,
+              tableLabel: tableLabel,
+            },
+          }),
       // 주문 정보를 VisitOrOrder 테이블에 저장
       prisma.visitOrOrder.create({
         data: {
@@ -1870,7 +1932,9 @@ router.get('/taghere-callback', async (req, res) => {
     if (phoneNumber) {
       // 발송 빈도 확인: EVERY_ORDER(매 주문) 또는 FIRST_ONLY(오늘 첫 주문만)
       const frequency = (store as any).pointsAlimtalkFrequency || 'EVERY_ORDER';
-      const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstVisitTodayTaghere));
+      // 지연 적립은 여기서 보내지 않는다 — 실제 적립 시점(finalizePendingAccrual)에서 발송.
+      // 아래 네이버 리뷰 알림톡은 적립 안내가 아니므로 지연 대상이 아니다.
+      const shouldSendAlimtalk = !shouldDefer && store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstEarnTodayTaghere));
 
       if (shouldSendAlimtalk) {
         const pointLedger = await prisma.pointLedger.findFirst({
@@ -1942,6 +2006,10 @@ router.get('/taghere-callback', async (req, res) => {
     successUrl.searchParams.set('hasVisitSource', hasVisitSource.toString());
     if (stateData.ordersheetId) {
       successUrl.searchParams.set('ordersheetId', stateData.ordersheetId);
+    }
+    if (shouldDefer) {
+      // 등록 페이지가 "결제 완료 후 자동 적립" 안내를 띄우도록 알린다.
+      successUrl.searchParams.set('deferred', 'true');
     }
 
     res.redirect(successUrl.toString());
