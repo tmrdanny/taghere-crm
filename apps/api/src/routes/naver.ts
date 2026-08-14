@@ -2,6 +2,11 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
 import { sidoToShort } from '../utils/address-parser.js';
+import {
+  DEFERRED_ACCRUAL_REASON_PREFIX,
+  hasTodayEarnLedger,
+  hasTodayPendingAccrual,
+} from '../services/pending-point-accrual.js';
 
 const router = Router();
 
@@ -275,10 +280,19 @@ router.get('/callback', async (req, res) => {
           gte: todayStart,
           lte: todayEnd,
         },
+        // 지연 적립 전환분은 createdAt 이 결제완료 시각이라 방문 판정 근거가 될 수 없다.
+        // reason 은 nullable 이라 NOT startsWith 만 쓰면 NULL 행이 통째로 빠진다(NULL LIKE → NULL).
+        OR: [{ reason: null }, { reason: { not: { startsWith: DEFERRED_ACCRUAL_REASON_PREFIX } } }],
       },
     });
 
-    const isFirstVisitToday = !todayVisit;
+    // 방문 카운트용: 지연 적립은 EARN 원장을 만들지 않으므로 예약도 함께 봐야 이중 증가하지 않는다.
+    // (아래 네이버 리뷰 알림톡의 first_only 판정도 "방문" 기준이라 이 값을 쓰는 게 맞다)
+    const isFirstVisitToday =
+      !todayVisit && !(await hasTodayPendingAccrual(store.id, customer.id));
+    // 적립 알림톡 FIRST_ONLY 빈도용: "오늘 첫 적립" 기준이므로 EARN 원장만 본다.
+    // 알림톡 FIRST_ONLY 는 "오늘 이미 적립 알림톡이 나갔는가" 기준이라 지연 전환분도 포함해서 본다.
+    const isFirstEarnToday = !(await hasTodayEarnLedger(store.id, customer.id));
 
     await prisma.$transaction([
       prisma.customer.update({
@@ -326,7 +340,7 @@ router.get('/callback', async (req, res) => {
       // 1. 포인트 적립 알림톡
       // 발송 빈도 확인: EVERY_ORDER(매 주문) 또는 FIRST_ONLY(오늘 첫 주문만)
       const frequency = (store as any).pointsAlimtalkFrequency || 'EVERY_ORDER';
-      const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstVisitToday));
+      const shouldSendAlimtalk = store.pointsAlimtalkEnabled && (frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstEarnToday));
 
       if (shouldSendAlimtalk) {
         const pointLedger = await prisma.pointLedger.findFirst({
