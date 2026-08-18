@@ -81,6 +81,7 @@ import { startPlaceBoosterWorker } from './services/place-booster-worker.js';
 import { startUniqueCustomerSyncWorker } from './services/unique-customer-sync.js';
 import { startYahwaCountSyncWorker } from './services/yahwa-count-sync-worker.js';
 import { bootstrapEnableYahwaStoresByName } from './services/yahwa-bootstrap.js';
+import { scheduleScanEntrySecretBackfill } from './utils/stamp-scan-secret.js';
 import { initChatSocket } from './services/chat-socket.js';
 import chatSettingsRoutes from './routes/chat-settings.js';
 import publicChatRoutes from './routes/public-chat.js';
@@ -420,4 +421,6 @@ httpServer.listen(PORT, () => {
   startUniqueCustomerSyncWorker();
   startYahwaCountSyncWorker();
   void bootstrapEnableYahwaStoresByName();
+  // 스탬프 QR 입구 secret 미발급 매장 백필 (멱등 — 이미 발급된 매장은 건드리지 않음)
+  scheduleScanEntrySecretBackfill();
 });
