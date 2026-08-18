@@ -1009,6 +1009,12 @@ router.post('/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: 
             data: { storeId: store.id, balance: 500 },
           });
 
+          // 스탬프 설정 행을 미리 만들어 QR 입구 secret(스키마 기본값)을 즉시 발급한다.
+          // enabled=false 라 스탬프가 켜지지는 않는다 — 어드민에서 QR 링크만 바로 뽑을 수 있게 하는 목적.
+          await tx.stampSetting.create({
+            data: { storeId: store.id },
+          });
+
           await tx.waitingSetting.create({
             data: { storeId: store.id, operationStatus: 'ACCEPTING' },
           });
