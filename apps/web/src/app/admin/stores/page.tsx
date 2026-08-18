@@ -1234,7 +1234,7 @@ export default function AdminStoresPage() {
                       </button>
                     </div>
                   ) : selectedStore.slug ? (
-                    <span className="text-[14px] text-amber-500">입구 secret 미발급 — 발급 스크립트 실행 필요</span>
+                    <span className="text-[14px] text-amber-500">입구 secret 발급 대기 — 잠시 후 새로고침해주세요</span>
                   ) : (
                     <span className="text-[14px] text-neutral-400">slug 없음</span>
                   )}
