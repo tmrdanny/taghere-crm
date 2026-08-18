@@ -2,7 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -886,9 +886,13 @@ export default function MessagesPage() {
   };
 
   // Fetch all customer IDs for the selected store (for "Select All")
+  // 가맹점 내 상세 필터(성별·연령대)를 함께 보낸다 — 전체 가맹점 필터와 동일 기준(API buildFilterConditions)
   const fetchAllCustomerIds = useCallback(async (storeId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/franchise/sms/customers/all-ids?storeId=${storeId}`, {
+      const params = new URLSearchParams({ storeId });
+      if (genderFilter !== 'all') params.set('genderFilter', genderFilter);
+      if (selectedAgeGroups.length > 0) params.set('ageGroups', selectedAgeGroups.join(','));
+      const res = await fetch(`${API_BASE}/api/franchise/sms/customers/all-ids?${params.toString()}`, {
         headers: { Authorization: `Bearer ${getAuthToken()}` },
       });
 
@@ -901,7 +905,7 @@ export default function MessagesPage() {
       console.error('Failed to fetch all customer IDs:', error);
       return [];
     }
-  }, []);
+  }, [genderFilter, selectedAgeGroups]);
 
   // Select all customers (fetch all from store, not just displayed 100)
   const selectAllCustomers = async () => {
@@ -939,6 +943,23 @@ export default function MessagesPage() {
     }
     setShowCustomerModal(false);
   };
+
+  // 가맹점 선택 상태에서 상세 필터(성별·연령)를 바꾸면 해당 가맹점 고객을 필터 기준으로 다시 뽑는다.
+  // (이전엔 필터가 '전체 가맹점' 카운트에만 적용되고, 선택된 가맹점 명단은 그대로였음)
+  const isFirstFilterRun = useRef(true);
+  useEffect(() => {
+    if (isFirstFilterRun.current) { isFirstFilterRun.current = false; return; }
+    if (!selectedStore) return;
+    let alive = true;
+    (async () => {
+      const filtered = await fetchAllCustomerIds(selectedStore.id);
+      if (!alive) return;
+      setSelectedCustomers(filtered);
+      setSelectedTarget(filtered.length > 0 ? 'CUSTOM' : 'ALL');
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [genderFilter, selectedAgeGroups]);
 
   // Search stores with debounce
   useEffect(() => {
