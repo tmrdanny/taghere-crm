@@ -136,10 +136,13 @@ function BottomModal({
   isOpen,
   onClose,
   banners,
+  deferred = false,
 }: {
   isOpen: boolean;
   onClose: () => void;
   banners: Banner[];
+  /** 후불 지연 적립 — 아직 적립 전이므로 "적립 완료" 문구를 쓰면 안 된다. */
+  deferred?: boolean;
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -179,10 +182,10 @@ function BottomModal({
           </div>
           <div className="px-5 pb-4 text-center">
             <h2 className="text-xl font-bold text-black leading-[1.3] tracking-[-0.08px]">
-              스탬프가 적립되었어요
+              {deferred ? '결제 완료 후 스탬프가 자동 적립돼요' : '스탬프가 적립되었어요'}
             </h2>
             <p className="text-base text-[#91949a] mt-2 leading-[1.5]">
-              매장을 이용해주셔서 감사합니다
+              {deferred ? '적립되면 알림톡으로 알려드릴게요' : '매장을 이용해주셔서 감사합니다'}
             </p>
           </div>
           {banners.length > 0 && (
@@ -236,6 +239,9 @@ function StampSuccessContent() {
   const rawOrderId = searchParams.get('ordersheetId') || searchParams.get('orderId');
   const ordersheetId = rawOrderId && /^\{.+\}$/.test(rawOrderId) ? null : rawOrderId;
   const hasOrder = Boolean(ordersheetId);
+
+  // 후불 주문 지연 적립 — 아직 적립 전이라 "결제 완료 후 반영" 안내로 바꾼다.
+  const deferred = searchParams.get('deferred') === '1';
 
   // 당첨 보상 정보
   const drawnReward = searchParams.get('drawnReward') || '';
@@ -373,7 +379,7 @@ function StampSuccessContent() {
       <div className="w-full max-w-[430px] h-full flex flex-col relative">
         {/* Header */}
         <div className="flex-shrink-0 h-[54px] border-b border-[#ebeced] flex items-center justify-center">
-          <span className="text-lg font-bold text-[#1d2022]">스탬프 적립 완료</span>
+          <span className="text-lg font-bold text-[#1d2022]">{deferred ? '스탬프 적립 예약 완료' : '스탬프 적립 완료'}</span>
         </div>
 
         {/* Main Content */}
@@ -386,12 +392,21 @@ function StampSuccessContent() {
               </svg>
             </div>
             <h1 className="text-xl font-bold text-[#1d2022] mt-4 tracking-tight">
-              {franchiseName ? `${franchiseName} 통합 스탬프 적립 완료` : '스탬프가 적립되었어요'}
+              {deferred
+                ? '결제 완료 후 스탬프가 적립돼요'
+                : (franchiseName ? `${franchiseName} 통합 스탬프 적립 완료` : '스탬프가 적립되었어요')}
             </h1>
             {storeName && (
               <p className="text-sm text-[#91949a] mt-1">{storeName}</p>
             )}
           </div>
+
+          {/* 지연 적립 안내 — 아래 스탬프 판은 아직 반영 전 잔액이다. */}
+          {deferred && (
+            <p className="text-sm text-[#55595e] text-center bg-[#FFF4D6] rounded-[10px] px-4 py-3 mb-4">
+              결제가 끝나면 자동으로 적립되고, 알림톡으로 알려드려요.
+            </p>
+          )}
 
           {/* Stamp Grid Card */}
           <div className="bg-[#f8f9fa] rounded-[12px] p-5 mb-4">
@@ -490,6 +505,7 @@ function StampSuccessContent() {
         isOpen={showBottomModal}
         onClose={() => setShowBottomModal(false)}
         banners={banners}
+        deferred={deferred}
       />
     </div>
   );

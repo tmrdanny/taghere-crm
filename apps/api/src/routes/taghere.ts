@@ -16,6 +16,15 @@ import {
   hasTodayEarnLedger,
   hasTodayPendingAccrual,
 } from '../services/pending-point-accrual.js';
+import {
+  buildPendingStampAccrualData,
+  cancelPendingStampAccrualByOrderId,
+  DEFERRED_STAMP_REASON_PREFIX,
+  finalizePendingStampAccrual,
+  findPendingStampAccrual,
+  hasTodayPendingStampAccrual,
+  isPendingStampAccrualConflict,
+} from '../services/pending-stamp-accrual.js';
 
 const router = Router();
 
@@ -817,6 +826,10 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
     //      파기했더라도 지연 적립의 포인트 "사용"은 즉시 처리됐을 수 있으므로 여기서 return 하지 않고
     //      아래 기존 흐름을 계속 타서 USE 복원까지 처리하게 둔다.
     const canceledPending = await cancelPendingAccrualByOrderId(ordersheetId);
+    // 스탬프 예약도 같은 이유로 파기한다. 스탬프는 취소 회수(ADJUST) 경로가 없어
+    // 아래 원장 흐름을 타지 않으므로, 방문 기록 정리를 위해 대상만 합쳐서 쓴다.
+    const canceledStampPending = await cancelPendingStampAccrualByOrderId(ordersheetId);
+    const canceledAnyPending = [...canceledPending, ...canceledStampPending];
 
     // 2. 해당 ordersheetId로 포인트 내역 조회 (EARN + USE 모두)
     const ledgerRecords = await prisma.pointLedger.findMany({
@@ -852,12 +865,18 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
     if (!earnRecord && !useRecord) {
       // 재취소 멱등: 이미 파기된 예약만 있는 주문은 이번 호출에서 파기 0건이라 아래 분기를 못 탄다.
       // 404 로 응답하면 주문 서비스가 취소 통보 실패로 로깅하므로 성공으로 응답한다.
-      if (canceledPending.length === 0) {
-        const alreadyCanceled = await prisma.pendingPointAccrual.findFirst({
-          where: { orderId: ordersheetId, status: 'CANCELED' },
-          select: { id: true },
-        });
-        if (alreadyCanceled) {
+      if (canceledAnyPending.length === 0) {
+        const [alreadyCanceled, alreadyCanceledStamp] = await Promise.all([
+          prisma.pendingPointAccrual.findFirst({
+            where: { orderId: ordersheetId, status: 'CANCELED' },
+            select: { id: true },
+          }),
+          prisma.pendingStampAccrual.findFirst({
+            where: { orderId: ordersheetId, status: 'CANCELED' },
+            select: { id: true },
+          }),
+        ]);
+        if (alreadyCanceled || alreadyCanceledStamp) {
           return res.json({
             success: true,
             canceledPending: true,
@@ -868,13 +887,13 @@ router.post('/webhook/order-cancel', webhookAuthMiddleware, async (req: WebhookR
       }
 
       // 예약만 있고 원장이 없던 주문 → 정상적으로 파기 완료. 404 로 응답하면 주문 서비스가 실패로 로깅한다.
-      if (canceledPending.length > 0) {
+      if (canceledAnyPending.length > 0) {
         // 방문 기록은 예약 시점에 이미 만들어졌다. 아래 기존 취소 흐름(5-4)을 타지 못하고
         // 여기서 반환하므로, 동일한 시맨틱으로 직접 지운다.
         // 예약은 이미 CANCELED 라 재시도해도 파기 0건 → 404 로 빠진다. 삭제 실패로 500 을 내면
         // 그 재시도 함정에 걸리므로, 실패는 로깅만 하고 취소 자체는 성공으로 응답한다.
         try {
-          for (const { storeId, customerId } of canceledPending) {
+          for (const { storeId, customerId } of canceledAnyPending) {
             await prisma.visitOrOrder.deleteMany({
               where: { storeId, customerId, orderId: ordersheetId },
             });
@@ -1132,13 +1151,19 @@ router.post('/webhook/order-paid', webhookAuthMiddleware, async (req: WebhookReq
       where: { storeId: store.id, orderId: { in: orderIds } },
       select: { id: true, orderId: true, status: true },
     });
+    // 스탬프 예약도 같은 결제 신호로 전환된다(포인트와 독립적으로 존재할 수 있다).
+    const stampPendings = await prisma.pendingStampAccrual.findMany({
+      where: { storeId: store.id, orderId: { in: orderIds } },
+      select: { id: true, orderId: true, status: true },
+    });
 
     // 응답 크기를 억제하기 위해 예약이 있던 주문만 결과에 담는다(나머지는 skipped 수에만 반영).
-    const results: Array<{ orderId: string; status: string; savedPoint?: number }> = [];
+    const results: Array<{ kind: 'POINT' | 'STAMP'; orderId: string; status: string; savedPoint?: number; earnedStamps?: number }> = [];
 
     for (const pending of pendings) {
       if (pending.status !== 'PENDING') {
         results.push({
+          kind: 'POINT',
           orderId: pending.orderId,
           status: pending.status === 'ACCRUED' ? 'ALREADY_ACCRUED' : 'CANCELED',
         });
@@ -1148,20 +1173,48 @@ router.post('/webhook/order-paid', webhookAuthMiddleware, async (req: WebhookReq
       try {
         const finalized = await finalizePendingAccrual(pending.id, 'PAYMENT');
         results.push({
+          kind: 'POINT',
           orderId: pending.orderId,
           status: finalized.status,
           savedPoint: finalized.savedPoint,
         });
       } catch (error) {
         console.error(`[Webhook] order-paid 전환 실패 - orderId: ${pending.orderId}`, error);
-        results.push({ orderId: pending.orderId, status: 'ERROR' });
+        results.push({ kind: 'POINT', orderId: pending.orderId, status: 'ERROR' });
       }
     }
 
-    const finalizedCount = results.filter(r => r.status === 'ACCRUED').length;
+    for (const pending of stampPendings) {
+      if (pending.status !== 'PENDING') {
+        results.push({
+          kind: 'STAMP',
+          orderId: pending.orderId,
+          status: pending.status === 'ACCRUED' ? 'ALREADY_ACCRUED' : 'CANCELED',
+        });
+        continue;
+      }
+
+      try {
+        const finalized = await finalizePendingStampAccrual(pending.id, 'PAYMENT');
+        results.push({
+          kind: 'STAMP',
+          orderId: pending.orderId,
+          status: finalized.status,
+          earnedStamps: finalized.earnedStamps,
+        });
+      } catch (error) {
+        console.error(`[Webhook] order-paid 스탬프 전환 실패 - orderId: ${pending.orderId}`, error);
+        results.push({ kind: 'STAMP', orderId: pending.orderId, status: 'ERROR' });
+      }
+    }
+
+    // 포인트·스탬프가 한 주문에 섞여 들어오므로 총계만으로는 어느 쪽이 전환됐는지 알 수 없다(로그 전용 분리).
+    const finalizedPoints = results.filter(r => r.kind === 'POINT' && r.status === 'ACCRUED').length;
+    const finalizedStamps = results.filter(r => r.kind === 'STAMP' && r.status === 'ACCRUED').length;
+    const finalizedCount = finalizedPoints + finalizedStamps;
     if (finalizedCount > 0) {
       console.log(
-        `[Webhook] order-paid - storeSlug: ${storeSlug}, requested: ${orderIds.length}, finalized: ${finalizedCount}, paidAt: ${paidAt ?? '-'}`,
+        `[Webhook] order-paid - storeSlug: ${storeSlug}, requested: ${orderIds.length}, finalized: ${finalizedCount}, finalizedPoints: ${finalizedPoints}, finalizedStamps: ${finalizedStamps}, paidAt: ${paidAt ?? '-'}`,
       );
     }
 
@@ -1170,7 +1223,8 @@ router.post('/webhook/order-paid', webhookAuthMiddleware, async (req: WebhookReq
       data: {
         requested: orderIds.length,
         finalized: finalizedCount,
-        skipped: orderIds.length - finalizedCount,
+        // 한 주문이 포인트·스탬프 예약을 동시에 가질 수 있어 finalized 가 requested 를 넘길 수 있다.
+        skipped: Math.max(0, orderIds.length - finalizedCount),
         results,
       },
     });
@@ -1875,6 +1929,30 @@ router.post('/stamp-earn', async (req, res) => {
       console.log(`[TagHere Stamp-Earn] New customer created - customerId: ${customer.id}, storeId: ${store.id}`);
     }
 
+    // 이 주문에 이미 지연 적립 예약이 있으면 "오늘 이미 적립"이 아니라 "예약됨"으로 안내해야 한다.
+    // 일일 제한 판정도 이 예약을 적립으로 세므로 먼저 조회해 둔다.
+    const existingStampPending = ordersheetId
+      ? await findPendingStampAccrual(store.id, ordersheetId)
+      : null;
+    if (existingStampPending?.status === 'PENDING') {
+      // 예약을 소유한 고객 본인의 재요청만 "예약됨"이다.
+      if (existingStampPending.customerId === customer.id) {
+        return res.status(400).json({
+          success: false,
+          error: 'already_reserved',
+          message: '결제 완료 후 적립될 예약이 있습니다.',
+        });
+      }
+      // 다른 고객이 이미 예약한 주문 — 이 고객에게는 적립이 가지 않으므로 예약 안내는 오안내다.
+      // 통과시키면 재예약이 (storeId, orderId) 유니크로 P2002 를 내고 예약 안내로 오흡수되므로,
+      // 즉시 적립 경로의 "이미 적립된 주문"과 같은 확정 응답으로 여기서 명시 반환한다.
+      return res.status(400).json({
+        success: false,
+        error: 'already_earned_order',
+        message: '이미 적립된 주문입니다.',
+      });
+    }
+
     // 6. 일일 적립 제한 확인 (1일 1회) - 프랜차이즈 모드는 위에서 처리
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -1886,10 +1964,14 @@ router.post('/stamp-earn', async (req, res) => {
           customerId: customer.id,
           type: 'EARN',
           createdAt: { gte: todayStart },
+          // 지연 전환분은 createdAt 이 결제완료 시각이라 "오늘 적립" 판정 근거가 될 수 없다.
+          // reason 은 nullable 이라 NOT startsWith 만 쓰면 NULL 행이 통째로 빠진다(NULL LIKE → NULL).
+          OR: [{ reason: null }, { reason: { not: { startsWith: DEFERRED_STAMP_REASON_PREFIX } } }],
         },
       });
 
-      if (todayEarn) {
+      // 지연 적립은 EARN 원장을 만들지 않으므로 예약도 함께 봐야 같은 날 재적립을 막을 수 있다.
+      if (todayEarn || (await hasTodayPendingStampAccrual(store.id, customer.id))) {
         // rewards JSON 기반 보상 정보
         const alreadyRewards: RewardEntry[] = store.stampSetting!.rewards
           ? (store.stampSetting!.rewards as unknown as RewardEntry[])
@@ -1921,6 +2003,17 @@ router.post('/stamp-earn', async (req, res) => {
           success: false,
           error: 'already_earned_order',
           message: '이미 적립된 주문입니다.',
+        });
+      }
+
+      // 전환(ACCRUED)된 예약은 EARN 원장이 남아 위에서 이미 걸린다. 취소(CANCELED)된 예약은
+      // 재적립 대상이 아니지만 재예약 시 (storeId, orderId) 유니크를 위반하므로 여기서 막는다.
+      // (PENDING 은 위 일일 제한 앞에서 already_reserved 로 먼저 반환된다)
+      if (existingStampPending?.status === 'CANCELED') {
+        return res.status(409).json({
+          success: false,
+          error: 'accrual_canceled',
+          message: '취소된 주문입니다.',
         });
       }
     }
@@ -2294,7 +2387,13 @@ router.post('/stamp-earn', async (req, res) => {
     const stampDelta = manualMode
       ? manualCount
       : (isFirstEarn && firstStampCount > 1 ? firstStampCount : 1);
-    console.log(`[TagHere Stamp-Earn] Before transaction - customerId: ${customer!.id}, previousStamps: ${previousStamps}${stampDelta > 1 ? `, firstStampCount: ${stampDelta}` : ''}`);
+    // 후불 + 결제완료 감지 가능 POS 주문은 실제 적립을 결제완료 시점까지 미룬다.
+    // (manual/프랜차이즈 통합은 위 분기에서 이미 반환됐고, 하이트진로 링크는 지연 대상이 아니다)
+    // 포인트 게이트와 달리 !store.metacityEnabled 를 보지 않는다 — 메타씨티는 포인트 전용 연동이고
+    // 스탬프는 CRM 네이티브라 메타씨티 매장에서도 지연 적립 대상이다.
+    const shouldDeferStamp =
+      orderData?.pointAccrualDeferred === true && !!ordersheetId && !isHitejinro;
+    console.log(`[TagHere Stamp-Earn] Before transaction - customerId: ${customer!.id}, previousStamps: ${previousStamps}${stampDelta > 1 ? `, firstStampCount: ${stampDelta}` : ''}${shouldDeferStamp ? ', deferred: true' : ''}`);
 
     let result;
     try {
@@ -2317,14 +2416,32 @@ router.post('/stamp-earn', async (req, res) => {
       const updatedCustomer = await tx.customer.update({
         where: { id: customer!.id },
         data: {
-          totalStamps: newBalance,
+          // 지연 적립이면 잔액은 그대로 두고 방문 통계만 갱신한다.
+          ...(!shouldDeferStamp && { totalStamps: newBalance }),
           lastVisitAt: new Date(),
           visitCount: { increment: 1 },
         },
       });
 
+      // 지연 대상이면 EARN 원장/잔액/추첨을 만들지 않고 예약 행만 남긴다.
+      if (shouldDeferStamp) {
+        await tx.pendingStampAccrual.create({
+          data: buildPendingStampAccrualData({
+            storeId: store.id,
+            customerId: customer!.id,
+            orderId: ordersheetId,
+            stampDelta,
+            earnMethod: earnMethod as any,
+            tableLabel,
+            // 이 경로는 원래 항상 적립 알림톡을 보냈다 → 전환 시점에 발송.
+            sendAlimtalk: true,
+            source: 'IN_APP',
+          }),
+        });
+      }
+
       // 거래 내역 기록
-      const ledger = await tx.stampLedger.create({
+      const ledger = shouldDeferStamp ? null : await tx.stampLedger.create({
         data: {
           storeId: store.id,
           customerId: customer!.id,
@@ -2343,23 +2460,37 @@ router.post('/stamp-earn', async (req, res) => {
       });
 
       // 방문/주문 내역 생성 (ordersheetId 유무와 관계없이 항상 생성)
-      await tx.visitOrOrder.create({
-        data: {
-          storeId: store.id,
-          customerId: customer!.id,
-          orderId: ordersheetId || null,
-          visitedAt: new Date(),
-          totalAmount: totalAmount,
-          items: orderItems.length > 0 || tableLabel ? {
-            items: orderItems,
-            tableNumber: tableLabel,
-          } : undefined,
-        },
-      });
+      const visitOrOrderData = {
+        storeId: store.id,
+        customerId: customer!.id,
+        orderId: ordersheetId || null,
+        visitedAt: new Date(),
+        totalAmount: totalAmount,
+        items: orderItems.length > 0 || tableLabel ? {
+          items: orderItems,
+          tableNumber: tableLabel,
+        } : undefined,
+      };
+      // 지연 예약 분기는 같은 주문의 방문 기록이 이미 있을 수 있다(포인트 예약 등 다른 경로가 먼저 생성).
+      // create 로 두면 (storeId, orderId) 유니크가 터져 예약 트랜잭션이 통째로 롤백되고,
+      // 아래 P2002 흡수가 "예약됨"으로 삼켜 스탬프가 조용히 유실된다 → 포인트 예약 경로와 같은 upsert.
+      // (즉시 적립 경로는 기존 create 유지)
+      if (shouldDeferStamp) {
+        await tx.visitOrOrder.upsert({
+          where: { storeId_orderId: { storeId: store.id, orderId: ordersheetId! } },
+          update: {},
+          create: visitOrOrderData,
+        });
+      } else {
+        await tx.visitOrOrder.create({ data: visitOrOrderData });
+      }
 
       // 마일스톤 도달 시 보상 추첨
-      const milestoneResult = checkMilestoneAndDraw(previousStamps, newBalance, store.stampSetting!);
-      if (milestoneResult) {
+      // 지연 적립이면 전환 시점(finalizePendingStampAccrual)에서 추첨한다.
+      const milestoneResult = ledger
+        ? checkMilestoneAndDraw(previousStamps, newBalance, store.stampSetting!)
+        : null;
+      if (ledger && milestoneResult) {
         await tx.stampLedger.update({
           where: { id: ledger.id },
           data: {
@@ -2380,17 +2511,41 @@ router.post('/stamp-earn', async (req, res) => {
           message: '링크가 만료되었어요. 매장에서 다시 스캔해주세요.',
         });
       }
+      // 예약 행은 (storeId, orderId) 유니크라 더블탭·동시 요청에서 진 쪽이 P2002 로 롤백된다.
+      // 예약 자체는 이긴 쪽이 이미 만들어 놨으므로 500 대신 선조회 가드와 같은 안내로 흡수한다.
+      // (지연 분기에서만 흡수 — 즉시 적립 경로의 다른 유니크 위반은 그대로 500 으로 남긴다)
+      // 예약 유니크가 아닌 P2002(예: 방문 기록)는 흡수하면 스탬프가 조용히 유실되므로 그대로 던진다.
+      if (
+        shouldDeferStamp &&
+        txErr?.code === 'P2002' &&
+        (await isPendingStampAccrualConflict(txErr, store.id, ordersheetId!))
+      ) {
+        console.log(`[TagHere Stamp-Earn] 동시 예약 생성 감지, 멱등 응답 - ordersheetId: ${ordersheetId}`);
+        return res.status(400).json({
+          success: false,
+          error: 'already_reserved',
+          message: '결제 완료 후 적립될 예약이 있습니다.',
+        });
+      }
       throw txErr;
     }
 
-    console.log(`[TagHere Stamp-Earn] Stamp earned - customerId: ${customer.id}, newBalance: ${result.customer.totalStamps}, orderItemsCount: ${orderItems.length}, tableLabel: ${tableLabel}${result.milestoneResult ? `, milestone: ${result.milestoneResult.tier}개 - ${result.milestoneResult.reward}` : ''}`);
+    if (shouldDeferStamp) {
+      console.log(`[TagHere Stamp-Earn] Stamp accrual reserved - customerId: ${customer.id}, ordersheetId: ${ordersheetId}, stampDelta: ${stampDelta}`);
+    } else {
+      console.log(`[TagHere Stamp-Earn] Stamp earned - customerId: ${customer.id}, newBalance: ${result.customer.totalStamps}, orderItemsCount: ${orderItems.length}, tableLabel: ${tableLabel}${result.milestoneResult ? `, milestone: ${result.milestoneResult.tier}개 - ${result.milestoneResult.reward}` : ''}`);
+    }
 
     // 9. 알림톡 발송 (비동기)
     // 하이트진로 전용 링크: alimtalkEnabled 설정과 무관하게 발송
+    // 지연 적립은 여기서 보내지 않는다 — 실제 적립 시점(finalizePendingStampAccrual)에서 발송.
     const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
-    const shouldSendAlimtalk = isHitejinro
-      ? !!phoneNumber
-      : !!(store.stampSetting?.alimtalkEnabled && phoneNumber);
+    const stampLedgerId = result.ledger?.id;
+    const shouldSendAlimtalk = !stampLedgerId
+      ? false
+      : isHitejinro
+        ? !!phoneNumber
+        : !!(store.stampSetting?.alimtalkEnabled && phoneNumber);
 
     if (shouldSendAlimtalk) {
       // 하이트진로: 프랜차이즈 통합 스탬프 보상 설정에서 가져옴
@@ -2420,7 +2575,7 @@ router.post('/stamp-earn', async (req, res) => {
         enqueueHitejinroStampEarnedAlimTalk({
           storeId: store.id,
           customerId: customer.id,
-          stampLedgerId: result.ledger.id,
+          stampLedgerId: stampLedgerId!,
           phone: phoneNumber!,
           variables: {
             storeName: store.name,
@@ -2436,7 +2591,7 @@ router.post('/stamp-earn', async (req, res) => {
         enqueueStampEarnedAlimTalk({
           storeId: store.id,
           customerId: customer.id,
-          stampLedgerId: result.ledger.id,
+          stampLedgerId: stampLedgerId!,
           phone: phoneNumber!,
           variables: {
             storeName: store.name,
@@ -2463,6 +2618,8 @@ router.post('/stamp-earn', async (req, res) => {
 
     res.json({
       success: true,
+      // 지연 적립이면 잔액이 아직 안 움직였으므로 currentStamps 는 기존 잔액 그대로다.
+      ...(shouldDeferStamp && { deferred: true }),
       currentStamps: result.customer.totalStamps,
       customerId: customer.id,
       storeName: store.name,

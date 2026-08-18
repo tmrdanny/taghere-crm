@@ -148,6 +148,8 @@ interface SuccessData {
   drawnReward?: string | null;
   drawnRewardTier?: number | null;
   franchiseName?: string | null;
+  /** 후불 주문 지연 적립 — 아직 적립 전이라 결제완료 시 자동 적립된다는 안내로 바꾼다. */
+  deferred?: boolean;
 }
 
 interface SurveyQuestion {
@@ -394,17 +396,21 @@ function SuccessPopup({
           {/* Stamp Display */}
           <div className="text-center mb-4 mt-4">
             <p className="text-[30px] font-bold text-[#61EB49] leading-none">
-              스탬프 적립 완료
+              {successData.deferred ? '스탬프 적립 예약 완료' : '스탬프 적립 완료'}
             </p>
           </div>
 
           {/* Main Message */}
           <div className="text-center mb-5">
             <h2 className="text-[18px] font-bold text-neutral-900 mb-1">
-              알림톡으로 적립내역을 보내드렸어요!
+              {successData.deferred
+                ? '결제 완료 후 스탬프가 자동 적립돼요'
+                : '알림톡으로 적립내역을 보내드렸어요!'}
             </h2>
             <p className="text-[14px] text-neutral-400">
-              소중한 의견은 큰 도움이 돼요
+              {successData.deferred
+                ? '적립되면 알림톡으로 알려드려요'
+                : '소중한 의견은 큰 도움이 돼요'}
             </p>
           </div>
 
@@ -676,6 +682,8 @@ function TaghereEnrollStampContent() {
   const [isOpening, setIsOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAlreadyParticipated, setShowAlreadyParticipated] = useState(false);
+  // 결제 완료 후 적립될 예약이 이미 있는 주문 (지연 적립)
+  const [showAlreadyReserved, setShowAlreadyReserved] = useState(false);
   const [alreadyParticipatedData, setAlreadyParticipatedData] = useState<{ stamps: number; storeName: string; rewards: Record<number, string> } | null>(null);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const [isAgreed, setIsAgreed] = useState(false);
@@ -726,6 +734,8 @@ function TaghereEnrollStampContent() {
   });
   const urlDrawnReward = searchParams.get('drawnReward');
   const urlDrawnRewardTier = searchParams.get('drawnRewardTier');
+  // 카카오 콜백이 지연 적립으로 예약만 만든 경우
+  const urlDeferred = searchParams.get('deferred') === '1';
   const urlFranchiseName = searchParams.get('franchiseName');
 
   // 방문 경로 옵션은 항상 조회 (별도 useEffect - 카카오 로그인 리다이렉트 시에도 실행되도록)
@@ -868,6 +878,7 @@ function TaghereEnrollStampContent() {
           drawnReward: data.drawnReward || null,
           drawnRewardTier: data.drawnRewardTier || null,
           franchiseName: data.franchiseName || null,
+          deferred: data.deferred === true,
         });
         setStampInfo(null); // 기본 UI 숨김
         setUserId(data.customerId);
@@ -887,6 +898,11 @@ function TaghereEnrollStampContent() {
         } else if (data.error === 'invalid_kakao_id') {
           // 유효하지 않은 kakaoId → 로컬스토리지 삭제, 기존 흐름으로
           removeStoredKakaoId();
+        } else if (data.error === 'already_reserved') {
+          // 결제 완료 후 적립될 예약이 이미 있는 주문 → 중복 적립이 아니라 "예약됨" 안내
+          setShowAlreadyReserved(true);
+          setStampInfo(null);
+          trackOnce('earn_fail', { flow_type: 'stamp', store_slug: slug, reason: 'already_reserved' });
         } else if (data.error === 'already_earned_today' || data.error === 'already_earned') {
           // 오늘 이미 적립됨
           if (data.currentStamps !== undefined) {
@@ -936,6 +952,7 @@ function TaghereEnrollStampContent() {
       drawnReward: data.drawnReward || null,
       drawnRewardTier: data.drawnRewardTier || null,
       franchiseName: data.franchiseName || null,
+      deferred: data.deferred === true,
     });
     setStampInfo(null);
     setUserId(data.customerId);
@@ -1051,6 +1068,7 @@ function TaghereEnrollStampContent() {
         drawnReward: urlDrawnReward,
         drawnRewardTier: urlDrawnRewardTier ? parseInt(urlDrawnRewardTier) : null,
         franchiseName: urlFranchiseName,
+        deferred: urlDeferred,
       });
       setUserId(customerId);
       trackOnce('earn_success', { flow_type: 'stamp', store_slug: slug, stamps: parseInt(successStamps), has_reward: !!urlDrawnReward, is_auto_earned: false });
@@ -1257,6 +1275,10 @@ function TaghereEnrollStampContent() {
       }
       if (successData.franchiseName) {
         url.searchParams.set('franchiseName', successData.franchiseName);
+      }
+      // 지연 적립이면 누적 현황 페이지도 "적립 완료"가 아니라 "결제 후 반영" 안내를 보여야 한다.
+      if (successData.deferred) {
+        url.searchParams.set('deferred', '1');
       }
     }
     window.location.href = url.toString();
@@ -1596,6 +1618,29 @@ function TaghereEnrollStampContent() {
                   handleSkipEarn();
                 }
               }}
+              className="w-full py-3 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Already Reserved Popup (지연 적립 예약이 이미 있는 주문) */}
+      {showAlreadyReserved && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-xl">
+            <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <img src="/images/gold-box.webp" alt="보상 상자" className="w-full h-full object-contain" />
+            </div>
+            <h2 className="text-lg font-bold text-neutral-900 mb-2">
+              적립 예약 완료
+            </h2>
+            <p className="text-sm text-neutral-500 mb-5">
+              결제가 끝나면 자동 적립돼요.<br />적립되면 알림톡으로 알려드려요.
+            </p>
+            <button
+              onClick={handleSkipEarn}
               className="w-full py-3 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
             >
               확인
