@@ -337,13 +337,15 @@ router.get('/customers/selectable', franchiseAuthMiddleware, async (req: Franchi
 });
 
 // 3-1. GET /api/franchise/sms/customers/all-ids - 특정 가맹점의 모든 고객 ID 조회 (전체 선택용)
+//   genderFilter / ageGroups 를 받으면 가맹점 안에서 성별·연령 상세 필터를 적용한다
+//   (전체 가맹점 target-counts와 동일한 buildFilterConditions 사용 — 기준 일치).
 router.get('/customers/all-ids', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res) => {
   try {
     const franchiseId = req.franchiseUser!.franchiseId;
-    const { storeId } = req.query;
+    const { storeId, genderFilter, ageGroups } = req.query;
 
     console.log('[All Customer IDs] franchiseId:', franchiseId);
-    console.log('[All Customer IDs] storeId:', storeId);
+    console.log('[All Customer IDs] storeId:', storeId, 'gender:', genderFilter, 'ages:', ageGroups);
 
     if (!storeId) {
       return res.status(400).json({ error: 'storeId가 필요합니다.' });
@@ -364,10 +366,14 @@ router.get('/customers/all-ids', franchiseAuthMiddleware, async (req: FranchiseA
     }
 
     // 전화번호가 있는 모든 고객의 ID, 이름, 전화번호만 조회 (마스킹 적용)
+    // + 가맹점 내 상세 필터(성별·연령대)
+    const ageGroupList = ageGroups ? (ageGroups as string).split(',').filter(Boolean) : undefined;
+    const filterConditions = buildFilterConditions(genderFilter as string | undefined, ageGroupList);
     const customers = await prisma.customer.findMany({
       where: {
         storeId: storeId as string,
-        phone: { not: null }
+        phone: { not: null },
+        ...filterConditions
       },
       select: {
         id: true,
