@@ -124,6 +124,10 @@ interface OrderInfo {
   ratePercent: number;
   earnPoints: number;
   alreadyEarned: boolean;
+  /** 후불 + 결제완료 감지 가능 POS 주문 → 적립이 결제완료 시점으로 미뤄진다 */
+  pointAccrualDeferred?: boolean;
+  /** 이미 적립 "예약"된 주문 (원장이 없어 alreadyEarned 로는 잡히지 않는다) */
+  accrualPending?: boolean;
 }
 
 interface VisitSourceOption {
@@ -138,6 +142,8 @@ interface SuccessData {
   resultPrice: number;
   hasExistingPreferences: boolean;
   hasVisitSource?: boolean;
+  /** 적립이 결제완료 시점으로 예약된 경우 (아직 실제 적립 전) */
+  deferred?: boolean;
 }
 
 interface SurveyQuestion {
@@ -430,10 +436,14 @@ function SuccessPopup({
           {/* Main Message */}
           <div className="text-center mb-5">
             <h2 className="text-[18px] font-bold text-neutral-900 mb-1">
-              알림톡으로 적립내역을 보내드렸어요!
+              {successData.deferred
+                ? '결제 완료 후 자동으로 적립돼요'
+                : '알림톡으로 적립내역을 보내드렸어요!'}
             </h2>
             <p className="text-[14px] text-neutral-400">
-              소중한 의견은 큰 도움이 돼요
+              {successData.deferred
+                ? '결제가 끝나면 알림톡으로 알려드릴게요'
+                : '소중한 의견은 큰 도움이 돼요'}
             </p>
           </div>
 
@@ -740,6 +750,8 @@ function TaghereEnrollContent() {
   const [isOpening, setIsOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAlreadyParticipated, setShowAlreadyParticipated] = useState(false);
+  // 이미 "적립 예약"된 주문 — 아직 적립 전이라 안내 문구가 다르다
+  const [alreadyReserved, setAlreadyReserved] = useState(false);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const [isAgreed, setIsAgreed] = useState(false);
   const [showAgreementWarning, setShowAgreementWarning] = useState(false);
@@ -763,6 +775,8 @@ function TaghereEnrollContent() {
   const urlKakaoId = searchParams.get('kakaoId');
   const hasPreferences = searchParams.get('hasPreferences') === 'true';
   const hasVisitSourceParam = searchParams.get('hasVisitSource') === 'true';
+  // 카카오 콜백이 지연 적립(결제완료 후 적립)으로 처리한 경우
+  const deferredParam = searchParams.get('deferred') === 'true';
 
   // 같은 이벤트가 mount당 한 번만 발사되도록 보장 (StrictMode/effect 재실행 대비)
   const trackedEventsRef = useRef<Set<string>>(new Set());
@@ -799,6 +813,7 @@ function TaghereEnrollContent() {
           resultPrice: data.resultPrice,
           hasExistingPreferences: data.hasExistingPreferences || false,
           hasVisitSource: data.hasVisitSource || false,
+          deferred: data.deferred === true,
         });
         setOrderInfo(null); // 기본 UI 숨김
         setUserId(data.customerId);
@@ -808,11 +823,12 @@ function TaghereEnrollContent() {
         if (data.error === 'invalid_kakao_id') {
           // 유효하지 않은 kakaoId → 로컬스토리지 삭제, 기존 흐름으로
           removeStoredKakaoId();
-        } else if (data.error === 'already_earned') {
-          // 이미 적립됨
+        } else if (data.error === 'already_earned' || data.error === 'already_reserved') {
+          // 이미 적립됐거나, 결제완료 대기 중인 적립 예약이 있음
+          setAlreadyReserved(data.error === 'already_reserved');
           setShowAlreadyParticipated(true);
           setOrderInfo(null);
-          trackOnce('earn_fail', { flow_type: 'points', store_slug: slug, reason: 'already_earned' });
+          trackOnce('earn_fail', { flow_type: 'points', store_slug: slug, reason: data.error });
         }
         // 그 외 에러는 기존 흐름 유지 (수동 적립 가능)
       }
@@ -894,6 +910,7 @@ function TaghereEnrollContent() {
         resultPrice: parseInt(successResultPrice || '0'),
         hasExistingPreferences: hasPreferences,
         hasVisitSource: hasVisitSourceParam,
+        deferred: deferredParam,
       });
       setUserId(customerId);
       trackOnce('earn_success', { flow_type: 'points', store_slug: slug, points: parseInt(successPoints), is_auto_earned: false });
@@ -927,10 +944,15 @@ function TaghereEnrollContent() {
         if (res.ok) {
           const data = await res.json();
 
-          if (data.alreadyEarned) {
+          if (data.alreadyEarned || data.accrualPending) {
+            setAlreadyReserved(!data.alreadyEarned && data.accrualPending === true);
             setShowAlreadyParticipated(true);
             setIsLoading(false);
-            trackOnce('earn_fail', { flow_type: 'points', store_slug: slug, reason: 'already_earned' });
+            trackOnce('earn_fail', {
+              flow_type: 'points',
+              store_slug: slug,
+              reason: data.alreadyEarned ? 'already_earned' : 'already_reserved',
+            });
           } else {
             // 자동 적립 시도: 로컬스토리지에 kakaoId가 있으면 자동 적립
             // isLoading이 false가 되기 전에 isAutoEarning을 true로 설정해서 동의 UI가 안 보이게 함
@@ -1093,7 +1115,7 @@ function TaghereEnrollContent() {
             <div className="flex-1 flex flex-col justify-end pb-4">
               <div className="text-center">
                 <p className="text-[25px] font-bold text-[#1d2022] leading-[130%] tracking-[-0.6px]">
-                  방금 전 주문으로 적립된
+                  {orderInfo?.pointAccrualDeferred ? '결제 완료 후 자동 적립' : '방금 전 주문으로 적립된'}
                   <br />
                   <span className="text-[#61EB49]">{formatNumber(orderInfo?.earnPoints || 0)}P</span>
                   <span> 받아가세요</span>
@@ -1101,6 +1123,7 @@ function TaghereEnrollContent() {
                 {orderInfo && orderInfo.resultPrice > 0 && (
                   <p className="text-[14px] font-medium text-[#b1b5b8] leading-[130%] mt-2">
                     주문 금액 {formatNumber(orderInfo.resultPrice)}원 x {orderInfo.ratePercent}% 적립
+                    {orderInfo.pointAccrualDeferred && ' · 결제 완료 시 자동 적립'}
                   </p>
                 )}
               </div>
@@ -1195,10 +1218,12 @@ function TaghereEnrollContent() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-xl">
             <div className="text-4xl mb-4">🎁</div>
             <h2 className="text-lg font-bold text-neutral-900 mb-2">
-              이미 적립이 완료되었어요
+              {alreadyReserved ? '적립 예약이 완료되었어요' : '이미 적립이 완료되었어요'}
             </h2>
             <p className="text-sm text-neutral-500 mb-5">
-              이 주문에 대한 포인트가 이미 적립되었습니다.
+              {alreadyReserved
+                ? '결제가 완료되면 자동으로 적립되고 알림톡으로 알려드릴게요.'
+                : '이 주문에 대한 포인트가 이미 적립되었습니다.'}
             </p>
             <button
               onClick={() => {

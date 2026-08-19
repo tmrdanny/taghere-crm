@@ -4,6 +4,10 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { buildRewardsFromLegacy, checkMilestoneAndDraw, RewardEntry } from '../utils/random-reward.js';
 import { enqueueStampEarnedAlimTalk } from '../services/solapi.js';
 import { sidoToShort } from '../utils/address-parser.js';
+import {
+  DEFERRED_STAMP_REASON_PREFIX,
+  hasTodayPendingStampAccrual,
+} from '../services/pending-stamp-accrual.js';
 
 const router = Router();
 
@@ -116,10 +120,14 @@ router.post('/tablet-earn', async (req: AuthRequest, res) => {
           customerId: customer.id,
           type: 'EARN',
           createdAt: { gte: todayStart },
+          // 지연 전환분은 createdAt 이 결제완료 시각이라 "오늘 적립" 판정 근거가 될 수 없다.
+          // reason 은 nullable 이라 NOT startsWith 만 쓰면 NULL 행이 통째로 빠진다(NULL LIKE → NULL).
+          OR: [{ reason: null }, { reason: { not: { startsWith: DEFERRED_STAMP_REASON_PREFIX } } }],
         },
       });
 
-      if (todayEarn) {
+      // 지연 적립은 EARN 원장을 만들지 않으므로 예약도 함께 봐야 같은 날 재적립을 막을 수 있다.
+      if (todayEarn || (await hasTodayPendingStampAccrual(storeId, customer.id))) {
         return res.status(400).json({
           error: '오늘 이미 스탬프를 적립했습니다.',
           alreadyEarned: true,
@@ -248,10 +256,14 @@ router.post('/earn', async (req: AuthRequest, res) => {
         customerId,
         type: 'EARN',
         createdAt: { gte: todayStart },
+        // 지연 전환분은 createdAt 이 결제완료 시각이라 "오늘 적립" 판정 근거가 될 수 없다.
+        // reason 은 nullable 이라 NOT startsWith 만 쓰면 NULL 행이 통째로 빠진다(NULL LIKE → NULL).
+        OR: [{ reason: null }, { reason: { not: { startsWith: DEFERRED_STAMP_REASON_PREFIX } } }],
       },
     });
 
-    if (todayEarn) {
+    // 지연 적립은 EARN 원장을 만들지 않으므로 예약도 함께 봐야 같은 날 재적립을 막을 수 있다.
+    if (todayEarn || (await hasTodayPendingStampAccrual(storeId, customerId))) {
       return res.status(400).json({
         error: '오늘 이미 스탬프를 적립했습니다.',
         alreadyEarned: true,

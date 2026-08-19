@@ -34,6 +34,11 @@ export interface TaghereOrderData {
   menuLink?: string;
   displayOrderNumber?: string;
   orderNumber?: string;
+  /**
+   * 후불 + 결제완료 감지 가능 POS 주문 → 적립을 결제완료 시점까지 미뤄야 함.
+   * 주문 서비스(V1/V2)가 POS 타입·주문 타입·결제 여부를 보고 계산해 내려준다.
+   */
+  pointAccrualDeferred?: boolean;
   content?: {
     resultPrice?: number | string;
     totalPrice?: number | string;
@@ -155,6 +160,7 @@ async function fetchOrderV2(orderId: string): Promise<TaghereOrderData | null> {
     items: normalizedItems,
     orderItems: normalizedItems,
     menuLink: menu?.menuLink ?? null,
+    pointAccrualDeferred: order?.pointAccrualDeferred === true,
     content: order,
   };
 }
