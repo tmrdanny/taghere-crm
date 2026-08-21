@@ -3,6 +3,7 @@
 import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { getStoredKakaoId, saveKakaoId } from '@/features/enroll/kakao-storage';
 
 // ─── 타입 ───────────────────────────────────
 
@@ -61,39 +62,6 @@ interface MyPageData {
   customer: { name: string; phone: string } | null;
   franchises: FranchiseData[];
   stores: StoreData[];
-}
-
-// ─── 로컬스토리지 헬퍼 ─────────────────────
-
-const KAKAO_STORAGE_KEY = 'taghere_kakao_id';
-const KAKAO_STORAGE_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000; // 90일
-
-interface StoredKakaoData {
-  kakaoId: string;
-  savedAt: number;
-}
-
-function getStoredKakaoId(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const stored = localStorage.getItem(KAKAO_STORAGE_KEY);
-    if (!stored) return null;
-    const data: StoredKakaoData = JSON.parse(stored);
-    if (Date.now() - data.savedAt > KAKAO_STORAGE_EXPIRY_MS) {
-      localStorage.removeItem(KAKAO_STORAGE_KEY);
-      return null;
-    }
-    return data.kakaoId;
-  } catch {
-    localStorage.removeItem(KAKAO_STORAGE_KEY);
-    return null;
-  }
-}
-
-function saveKakaoId(kakaoId: string): void {
-  if (typeof window === 'undefined') return;
-  const data: StoredKakaoData = { kakaoId, savedAt: Date.now() };
-  localStorage.setItem(KAKAO_STORAGE_KEY, JSON.stringify(data));
 }
 
 // ─── 유틸 ───────────────────────────────────

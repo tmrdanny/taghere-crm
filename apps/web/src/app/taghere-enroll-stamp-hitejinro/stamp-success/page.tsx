@@ -3,42 +3,10 @@
 import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { BannerMedia, type Banner } from '@/features/enroll/banners';
+import { RewardPopupModal } from '@/features/enroll/RewardPopupModal';
 
-interface Banner {
-  id: string;
-  title: string;
-  imageUrl: string;
-  linkUrl: string | null;
-  autoSlide: boolean;
-  slideInterval: number;
-  mediaType?: 'IMAGE' | 'VIDEO';
-}
-
-function getFullImageUrl(imageUrl: string): string {
-  if (!imageUrl) return '';
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
-  return `${API_BASE}${imageUrl}`;
-}
-
-function BannerMedia({ banner, onClick }: { banner: Banner; onClick: () => void }) {
-  const isVideo = banner.mediaType === 'VIDEO';
-  const mediaUrl = getFullImageUrl(banner.imageUrl);
-
-  if (isVideo) {
-    return (
-      <div className="w-full flex-shrink-0 cursor-pointer" onClick={onClick}>
-        <video src={mediaUrl} className="w-full aspect-[2/1] object-cover rounded-[12px]" autoPlay muted loop playsInline preload="auto" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full flex-shrink-0 cursor-pointer" onClick={onClick}>
-      <img src={mediaUrl} alt={banner.title} className="w-full aspect-[2/1] object-cover rounded-[12px]" />
-    </div>
-  );
-}
-
+// 하이트진로 전용 캐러셀/바텀모달 — 공용 버전과 달리 배너 클릭 트래킹이 없고 버튼 색이 다르다 (인라인 유지).
 function InlineBannerCarousel({ banners }: { banners: Banner[] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -95,31 +63,6 @@ function InlineBannerCarousel({ banners }: { banners: Banner[] }) {
             ))}
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function RewardPopupModal({ reward, tier, onClose }: { reward: string; tier: number; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-xl">
-        <div className="w-20 h-20 flex items-center justify-center mx-auto mb-4">
-          <img src="/images/gold-box.webp" alt="보상 상자" className="w-full h-full object-contain" />
-        </div>
-
-        <h2 className="text-lg font-bold text-[#1d2022] mb-1">축하합니다!</h2>
-        <p className="text-sm text-[#91949a] mb-4">{tier}개 달성 보상</p>
-
-        <div className="bg-[#E8F5E9] rounded-xl px-4 py-3 mb-4">
-          <p className="text-base font-bold text-[#1d2022]">{reward}</p>
-        </div>
-
-        <p className="text-sm text-[#55595e] mb-5">직원에게 현재 화면을 보여주세요.</p>
-
-        <button onClick={onClose} className="w-full py-3.5 bg-[#00A859] text-white font-semibold text-base rounded-xl">
-          확인
-        </button>
       </div>
     </div>
   );
@@ -437,7 +380,15 @@ function StampSuccessContent() {
       </div>
 
       {/* Reward Popup Modal */}
-      {showRewardPopup && drawnReward && <RewardPopupModal reward={drawnReward} tier={drawnRewardTier} onClose={() => setShowRewardPopup(false)} />}
+      {showRewardPopup && drawnReward && (
+        <RewardPopupModal
+          reward={drawnReward}
+          tier={drawnRewardTier}
+          onClose={() => setShowRewardPopup(false)}
+          cardClassName="bg-[#E8F5E9] rounded-xl px-4 py-3 mb-4"
+          buttonClassName="w-full py-3.5 bg-[#00A859] text-white font-semibold text-base rounded-xl"
+        />
+      )}
 
       <style jsx global>{`
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-jp.min.css');
