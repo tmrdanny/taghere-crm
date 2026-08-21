@@ -27,7 +27,6 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
-const apiUrl = API_BASE;
 
 interface AutomationRule {
   id: string;
@@ -118,10 +117,10 @@ export default function AutomationSettingPage() {
       const headers = { Authorization: `Bearer ${token}` };
 
       const [rulesRes, previewRes, logsRes, storeRes] = await Promise.all([
-        fetch(`${apiUrl}/api/automation/rules`, { headers }),
-        fetch(`${apiUrl}/api/automation/preview/${type}`, { headers }),
-        fetch(`${apiUrl}/api/automation/rules/${type}/logs?limit=10`, { headers }),
-        fetch(`${apiUrl}/api/retarget-coupon/settings`, { headers }),
+        fetch(`${API_BASE}/api/automation/rules`, { headers }),
+        fetch(`${API_BASE}/api/automation/preview/${type}`, { headers }),
+        fetch(`${API_BASE}/api/automation/rules/${type}/logs?limit=10`, { headers }),
+        fetch(`${API_BASE}/api/retarget-coupon/settings`, { headers }),
       ]);
 
       if (rulesRes.ok) {
@@ -200,7 +199,7 @@ export default function AutomationSettingPage() {
       };
       const triggerConfig = triggerConfigMap[type] || {};
 
-      const res = await fetch(`${apiUrl}/api/automation/rules/${type}`, {
+      const res = await fetch(`${API_BASE}/api/automation/rules/${type}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

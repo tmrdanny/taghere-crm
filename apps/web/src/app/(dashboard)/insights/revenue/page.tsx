@@ -13,7 +13,6 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
-const apiUrl = API_BASE;
 
 interface Channel {
   name: string;
@@ -62,7 +61,7 @@ export default function RevenuePage() {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/insights/revenue`, {
+      const res = await fetch(`${API_BASE}/api/insights/revenue`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

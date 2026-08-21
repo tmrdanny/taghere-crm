@@ -45,8 +45,7 @@ function getFullImageUrl(imageUrl: string): string {
     return imageUrl;
   }
   // 상대 경로면 API URL 붙이기
-  const apiUrl = API_BASE;
-  return `${apiUrl}${imageUrl}`;
+  return `${API_BASE}${imageUrl}`;
 }
 
 // 배너 미디어 렌더링 컴포넌트
@@ -412,9 +411,8 @@ function OrderSuccessContent() {
 
     const fetchOrderDetails = async () => {
       try {
-        const apiUrl = API_BASE;
         // ordersheetId로 주문 정보 조회
-        const res = await fetch(`${apiUrl}/api/taghere/ordersheet?ordersheetId=${ordersheetId}&slug=${slug}`);
+        const res = await fetch(`${API_BASE}/api/taghere/ordersheet?ordersheetId=${ordersheetId}&slug=${slug}`);
 
         if (res.ok) {
           const data = await res.json();
@@ -460,8 +458,7 @@ function OrderSuccessContent() {
   useEffect(() => {
     const fetchBanners = async () => {
       try {
-        const apiUrl = API_BASE;
-        const res = await fetch(`${apiUrl}/api/admin/banners/active?slug=${slug}`);
+        const res = await fetch(`${API_BASE}/api/admin/banners/active?slug=${slug}`);
         if (res.ok) {
           const data = await res.json();
           setBanners(data);

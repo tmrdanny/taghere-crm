@@ -329,8 +329,7 @@ function FranchiseSection({
     setClaimingTier(tier);
 
     try {
-      const apiUrl = API_BASE;
-      const res = await fetch(`${apiUrl}/api/my-page/reward-claim`, {
+      const res = await fetch(`${API_BASE}/api/my-page/reward-claim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -590,8 +589,7 @@ function MyPageContent() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const apiUrl = API_BASE;
-        const res = await fetch(`${apiUrl}/api/my-page?kakaoId=${kakaoId}`);
+        const res = await fetch(`${API_BASE}/api/my-page?kakaoId=${kakaoId}`);
         if (!res.ok) throw new Error('API error');
         const result: MyPageData = await res.json();
         setData(result);
@@ -608,11 +606,10 @@ function MyPageContent() {
 
   // 카카오 로그인 시작
   const handleKakaoLogin = () => {
-    const apiUrl = API_BASE;
     const params = new URLSearchParams();
     params.set('isMyPage', 'true');
     params.set('origin', window.location.origin);
-    window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
+    window.location.href = `${API_BASE}/auth/kakao/taghere-start?${params.toString()}`;
   };
 
   // 로딩 상태

@@ -162,7 +162,6 @@ function RewardTierEditor({
 }
 
 export default function StampSettingsPage() {
-  const apiUrl = API_BASE;
   const { showToast, ToastComponent } = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -213,7 +212,7 @@ export default function StampSettingsPage() {
     const fetchSettings = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/stamp-settings`, {
+        const res = await fetch(`${API_BASE}/api/stamp-settings`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -254,7 +253,7 @@ export default function StampSettingsPage() {
     };
 
     fetchSettings();
-  }, [apiUrl]);
+  }, []);
 
   // 저장 전 유효성 검증
   const validateBeforeSave = (): string | null => {
@@ -315,7 +314,7 @@ export default function StampSettingsPage() {
           };
         });
 
-      const res = await fetch(`${apiUrl}/api/stamp-settings`, {
+      const res = await fetch(`${API_BASE}/api/stamp-settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -347,7 +346,7 @@ export default function StampSettingsPage() {
     setEnabled(newEnabled);
     try {
       const token = localStorage.getItem('token');
-      await fetch(`${apiUrl}/api/stamp-settings`, {
+      await fetch(`${API_BASE}/api/stamp-settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -372,7 +371,7 @@ export default function StampSettingsPage() {
     setManualStampCountEnabled(newValue);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/stamp-settings`, {
+      const res = await fetch(`${API_BASE}/api/stamp-settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -558,7 +557,7 @@ export default function StampSettingsPage() {
                   setIsSavingBonus(true);
                   try {
                     const token = localStorage.getItem('token');
-                    const res = await fetch(`${apiUrl}/api/stamp-settings`, {
+                    const res = await fetch(`${API_BASE}/api/stamp-settings`, {
                       method: 'PUT',
                       headers: {
                         'Content-Type': 'application/json',

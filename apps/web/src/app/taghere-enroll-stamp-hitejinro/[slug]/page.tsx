@@ -177,8 +177,7 @@ function SuccessPopup({
 
     if (answersToSubmit.length > 0 && successData?.customerId) {
       try {
-        const apiUrl = API_BASE;
-        await fetch(`${apiUrl}/api/taghere/survey-answers`, {
+        await fetch(`${API_BASE}/api/taghere/survey-answers`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ customerId: successData.customerId, answers: answersToSubmit }),
@@ -228,7 +227,6 @@ function SuccessPopup({
 
     setIsSubmitting(true);
     try {
-      const apiUrl = API_BASE;
 
       const expandedCategories = selectedCategories
         .filter((c) => c !== ALL_CATEGORIES_VALUE)
@@ -237,7 +235,7 @@ function SuccessPopup({
           return option ? option.mappedCategories : [];
         });
 
-      await fetch(`${apiUrl}/api/customers/feedback`, {
+      await fetch(`${API_BASE}/api/customers/feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -249,7 +247,7 @@ function SuccessPopup({
       });
 
       if (selectedVisitSource) {
-        await fetch(`${apiUrl}/api/customers/visit-source`, {
+        await fetch(`${API_BASE}/api/customers/visit-source`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ customerId: successData.customerId, visitSource: selectedVisitSource }),
@@ -761,8 +759,7 @@ function HitejinroEnrollStampContent() {
     const currentStampInfo = stampInfoRef.current;
     if (!currentStampInfo) return;
 
-    const apiUrl = API_BASE;
-    const redirectUri = `${apiUrl}/auth/kakao/taghere-callback`;
+    const redirectUri = `${API_BASE}/auth/kakao/taghere-callback`;
 
     const stateData = {
       storeId: currentStampInfo.storeId,
@@ -793,7 +790,7 @@ function HitejinroEnrollStampContent() {
       if (ordersheetId) params.set(orderParamName, ordersheetId);
       params.set('origin', window.location.origin);
       params.set('returnPath', `/taghere-enroll-stamp-hitejinro/${slug}`);
-      window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
+      window.location.href = `${API_BASE}/auth/kakao/taghere-start?${params.toString()}`;
     }
   };
 
@@ -801,8 +798,7 @@ function HitejinroEnrollStampContent() {
   const proceedToKakaoLogin = (barcode: string) => {
     if (!stampInfo) return;
 
-    const apiUrl = API_BASE;
-    const redirectUri = `${apiUrl}/auth/kakao/taghere-callback`;
+    const redirectUri = `${API_BASE}/auth/kakao/taghere-callback`;
 
     const stateData = {
       storeId: stampInfo.storeId,
@@ -833,7 +829,7 @@ function HitejinroEnrollStampContent() {
       if (ordersheetId) params.set(orderParamName, ordersheetId);
       params.set('origin', window.location.origin);
       params.set('returnPath', `/taghere-enroll-stamp-hitejinro/${slug}`);
-      window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
+      window.location.href = `${API_BASE}/auth/kakao/taghere-start?${params.toString()}`;
     }
   };
 
@@ -842,8 +838,7 @@ function HitejinroEnrollStampContent() {
     setIsAutoEarning(true);
 
     try {
-      const apiUrl = API_BASE;
-      const res = await fetch(`${apiUrl}/api/taghere/stamp-earn`, {
+      const res = await fetch(`${API_BASE}/api/taghere/stamp-earn`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -915,8 +910,7 @@ function HitejinroEnrollStampContent() {
   useEffect(() => {
     const fetchVisitSourceOptions = async () => {
       try {
-        const apiUrl = API_BASE;
-        const res = await fetch(`${apiUrl}/api/taghere/visit-source-options/${slug}`);
+        const res = await fetch(`${API_BASE}/api/taghere/visit-source-options/${slug}`);
         if (res.ok) {
           const data = await res.json();
           setVisitSourceEnabled(data.enabled);
@@ -929,8 +923,7 @@ function HitejinroEnrollStampContent() {
 
     const fetchSurveyQuestions = async () => {
       try {
-        const apiUrl = API_BASE;
-        const res = await fetch(`${apiUrl}/api/taghere/survey-questions/${slug}`);
+        const res = await fetch(`${API_BASE}/api/taghere/survey-questions/${slug}`);
         if (res.ok) {
           const data = await res.json();
           setSurveyQuestions(data.questions || data);
@@ -1001,9 +994,8 @@ function HitejinroEnrollStampContent() {
 
     const fetchStampInfo = async () => {
       try {
-        const apiUrl = API_BASE;
 
-        const res = await fetch(`${apiUrl}/api/taghere/stamp-info/${slug}`);
+        const res = await fetch(`${API_BASE}/api/taghere/stamp-info/${slug}`);
         if (res.ok) {
           const data = await res.json();
 

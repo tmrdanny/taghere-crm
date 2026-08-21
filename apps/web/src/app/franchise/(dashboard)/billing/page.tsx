@@ -1,6 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
+import { getFranchiseToken } from '@/lib/auth-token';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
@@ -74,15 +75,10 @@ export default function FranchiseBillingPage() {
   const totalAmount = amount;
 
   // Auth token helper
-  const getAuthToken = () => {
-    if (typeof window === 'undefined') return '';
-    return localStorage.getItem('franchiseToken') || '';
-  };
-
   // Fetch balance and transactions
   const fetchData = useCallback(async () => {
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
 
       const balanceRes = await fetch(`${API_BASE}/api/franchise/wallet`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -120,7 +116,7 @@ export default function FranchiseBillingPage() {
       const confirmPayment = async () => {
         setIsConfirmingPayment(true);
         try {
-          const token = getAuthToken();
+          const token = getFranchiseToken();
           const res = await fetch(`${API_BASE}/api/franchise/payments/confirm`, {
             method: 'POST',
             headers: {

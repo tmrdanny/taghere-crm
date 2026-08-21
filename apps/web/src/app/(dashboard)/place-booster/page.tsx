@@ -1,6 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
+import { getStoreToken } from '@/lib/auth-token';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -25,9 +26,6 @@ const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || '';
 const BOOSTER_PRICE = 544500;
 // 카드 결제(토스 위젯)는 잠시 보류 — 크레딧/계좌이체만 노출. 재개하려면 true로.
 const CARD_PAYMENT_ENABLED = false;
-
-const getAuthToken = () =>
-  typeof window !== 'undefined' ? localStorage.getItem('token') || '' : '';
 
 interface BatchSummary {
   status: string;
@@ -117,7 +115,7 @@ export default function PlaceBoosterPage() {
         ...init,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${getAuthToken()}`,
+          Authorization: `Bearer ${getStoreToken()}`,
           ...(init?.headers || {}),
         },
       }),

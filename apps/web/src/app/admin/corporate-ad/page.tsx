@@ -596,7 +596,7 @@ function RegionBarChart({ data }: { data: AnalyticsData['demographics']['byRegio
   );
 }
 
-function CorporateAdAnalyticsSection({ apiUrl }: { apiUrl: string }) {
+function CorporateAdAnalyticsSection() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [period, setPeriod] = useState<AnalyticsPeriod>('30');
   const [loading, setLoading] = useState(false);
@@ -607,7 +607,7 @@ function CorporateAdAnalyticsSection({ apiUrl }: { apiUrl: string }) {
       if (!token) return;
       setLoading(true);
       try {
-        const res = await fetch(`${apiUrl}/api/admin/corporate-ad-analytics?days=${period}`, {
+        const res = await fetch(`${API_BASE}/api/admin/corporate-ad-analytics?days=${period}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -620,7 +620,7 @@ function CorporateAdAnalyticsSection({ apiUrl }: { apiUrl: string }) {
       }
     };
     fetchData();
-  }, [period, apiUrl]);
+  }, [period]);
 
   return (
     <div className="mb-8 space-y-4">
@@ -707,11 +707,9 @@ function CorporateAdAnalyticsSection({ apiUrl }: { apiUrl: string }) {
 // ============================================
 function CouponCodePoolSection({
   couponId,
-  apiUrl,
   onToast,
 }: {
   couponId: string;
-  apiUrl: string;
   onToast: (msg: string, type: 'success' | 'error') => void;
 }) {
   const [stats, setStats] = useState<CodeStats | null>(null);
@@ -729,7 +727,7 @@ function CouponCodePoolSection({
     const token = localStorage.getItem('adminToken');
     if (!token) return;
     try {
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes/stats`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads/${couponId}/codes/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setStats(await res.json());
@@ -743,7 +741,7 @@ function CouponCodePoolSection({
     if (!token) return;
     try {
       const res = await fetch(
-        `${apiUrl}/api/admin/corporate-ads/${couponId}/codes?page=${page}&limit=${PAGE_SIZE}&filter=${filter}`,
+        `${API_BASE}/api/admin/corporate-ads/${couponId}/codes?page=${page}&limit=${PAGE_SIZE}&filter=${filter}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (res.ok) {
@@ -780,7 +778,7 @@ function CouponCodePoolSection({
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes/upload`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads/${couponId}/codes/upload`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -811,7 +809,7 @@ function CouponCodePoolSection({
     if (!token) return;
     if (!confirm('이 코드를 삭제하시겠습니까?')) return;
     try {
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes/${codeId}`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads/${couponId}/codes/${codeId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -834,7 +832,7 @@ function CouponCodePoolSection({
       return;
     }
     try {
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads/${couponId}/codes`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -857,7 +855,7 @@ function CouponCodePoolSection({
       return;
     }
     try {
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes/shuffle`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads/${couponId}/codes/shuffle`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -1035,8 +1033,6 @@ export default function CorporateAdPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  const apiUrl = API_BASE;
-
   useEffect(() => {
     fetchCoupons();
   }, []);
@@ -1052,7 +1048,7 @@ export default function CorporateAdPage() {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
     try {
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -1080,7 +1076,7 @@ export default function CorporateAdPage() {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
     try {
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -1097,7 +1093,7 @@ export default function CorporateAdPage() {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
     try {
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${coupon.id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads/${coupon.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ enabled: !coupon.enabled }),
@@ -1121,7 +1117,7 @@ export default function CorporateAdPage() {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
     try {
-      await fetch(`${apiUrl}/api/admin/corporate-ads/reorder`, {
+      await fetch(`${API_BASE}/api/admin/corporate-ads/reorder`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -1142,8 +1138,8 @@ export default function CorporateAdPage() {
     try {
       const isNew = !('id' in editing) || !editing.id;
       const url = isNew
-        ? `${apiUrl}/api/admin/corporate-ads`
-        : `${apiUrl}/api/admin/corporate-ads/${editing.id}`;
+        ? `${API_BASE}/api/admin/corporate-ads`
+        : `${API_BASE}/api/admin/corporate-ads/${editing.id}`;
       const method = isNew ? 'POST' : 'PUT';
       const res = await fetch(url, {
         method,
@@ -1191,7 +1187,7 @@ export default function CorporateAdPage() {
       </div>
 
       {/* 성과 분석 섹션 */}
-      <CorporateAdAnalyticsSection apiUrl={apiUrl} />
+      <CorporateAdAnalyticsSection />
 
       {/* Coupons List */}
       {coupons.length === 0 ? (
@@ -1485,7 +1481,6 @@ export default function CorporateAdPage() {
                 {'id' in editing && editing.id ? (
                   <CouponCodePoolSection
                     couponId={editing.id}
-                    apiUrl={apiUrl}
                     onToast={(message, type) => setToast({ message, type })}
                   />
                 ) : (

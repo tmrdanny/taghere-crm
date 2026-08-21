@@ -31,7 +31,6 @@ type StatusFilter = 'WAITING' | 'SEATED' | 'CANCELLED';
 export default function WaitingPage() {
   const router = useRouter();
   const { showToast, ToastComponent } = useToast();
-  const apiUrl = API_BASE;
 
   // Data states
   const [settings, setSettings] = useState<WaitingSetting | null>(null);
@@ -81,13 +80,13 @@ export default function WaitingPage() {
 
       // Fetch settings, types, today's stats, store info, wallet, and ALL items in parallel
       const [settingsRes, typesRes, statsRes, storeRes, walletRes, itemsRes] = await Promise.all([
-        fetch(`${apiUrl}/api/waiting/settings`, { headers }),
-        fetch(`${apiUrl}/api/waiting/types`, { headers }),
-        fetch(`${apiUrl}/api/waiting/stats/today`, { headers }),
-        fetch(`${apiUrl}/api/settings/store`, { headers }),
-        fetch(`${apiUrl}/api/wallet`, { headers }),
+        fetch(`${API_BASE}/api/waiting/settings`, { headers }),
+        fetch(`${API_BASE}/api/waiting/types`, { headers }),
+        fetch(`${API_BASE}/api/waiting/stats/today`, { headers }),
+        fetch(`${API_BASE}/api/settings/store`, { headers }),
+        fetch(`${API_BASE}/api/wallet`, { headers }),
         // 전체 상태 조회 (클라이언트 사이드 필터링용)
-        fetch(`${apiUrl}/api/waiting?status=WAITING,CALLED,SEATED,CANCELLED,NO_SHOW&limit=500`, { headers }),
+        fetch(`${API_BASE}/api/waiting?status=WAITING,CALLED,SEATED,CANCELLED,NO_SHOW&limit=500`, { headers }),
       ]);
 
       if (settingsRes.ok) {
@@ -127,7 +126,7 @@ export default function WaitingPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [apiUrl, showToast]);
+  }, [showToast]);
 
   // 폴링용 - 목록과 통계만 갱신 (설정, 타입, 스토어는 갱신 안함)
   const refreshData = useCallback(async () => {
@@ -139,8 +138,8 @@ export default function WaitingPage() {
       };
 
       const [statsRes, itemsRes] = await Promise.all([
-        fetch(`${apiUrl}/api/waiting/stats/today`, { headers }),
-        fetch(`${apiUrl}/api/waiting?status=WAITING,CALLED,SEATED,CANCELLED,NO_SHOW&limit=500`, { headers }),
+        fetch(`${API_BASE}/api/waiting/stats/today`, { headers }),
+        fetch(`${API_BASE}/api/waiting?status=WAITING,CALLED,SEATED,CANCELLED,NO_SHOW&limit=500`, { headers }),
       ]);
 
       if (statsRes.ok) {
@@ -155,7 +154,7 @@ export default function WaitingPage() {
     } catch (error) {
       console.error('Failed to refresh waiting data:', error);
     }
-  }, [apiUrl]);
+  }, []);
 
   // 수동 새로고침
   const handleRefresh = useCallback(async () => {
@@ -210,7 +209,7 @@ export default function WaitingPage() {
     setIsStatusChanging(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/waiting/settings/status`, {
+      const res = await fetch(`${API_BASE}/api/waiting/settings/status`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -255,7 +254,7 @@ export default function WaitingPage() {
     setIsAddingWaiting(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/waiting`, {
+      const res = await fetch(`${API_BASE}/api/waiting`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -294,7 +293,7 @@ export default function WaitingPage() {
     setLoadingStates((prev) => ({ ...prev, call: id }));
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/waiting/${id}/call`, {
+      const res = await fetch(`${API_BASE}/api/waiting/${id}/call`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -322,7 +321,7 @@ export default function WaitingPage() {
     setLoadingStates((prev) => ({ ...prev, call: id }));
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/waiting/${id}/recall`, {
+      const res = await fetch(`${API_BASE}/api/waiting/${id}/recall`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -349,7 +348,7 @@ export default function WaitingPage() {
     setLoadingStates((prev) => ({ ...prev, seat: id }));
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/waiting/${id}/seat`, {
+      const res = await fetch(`${API_BASE}/api/waiting/${id}/seat`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -387,7 +386,7 @@ export default function WaitingPage() {
     setIsCancelling(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/waiting/${cancelTargetId}/cancel`, {
+      const res = await fetch(`${API_BASE}/api/waiting/${cancelTargetId}/cancel`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -419,7 +418,7 @@ export default function WaitingPage() {
     setLoadingStates((prev) => ({ ...prev, restore: id }));
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/waiting/${id}/restore`, {
+      const res = await fetch(`${API_BASE}/api/waiting/${id}/restore`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

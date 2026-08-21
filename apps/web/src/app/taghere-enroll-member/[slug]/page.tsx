@@ -171,12 +171,11 @@ function CouponBottomSheet({
   const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [isBatchSending, setIsBatchSending] = useState(false);
-  const apiUrl = API_BASE;
 
   // 이미 발송된 쿠폰 조회
   useEffect(() => {
     if (!customerId) return;
-    fetch(`${apiUrl}/api/membership/coupons/sent/${customerId}`)
+    fetch(`${API_BASE}/api/membership/coupons/sent/${customerId}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.sentCouponIds) {
@@ -184,11 +183,11 @@ function CouponBottomSheet({
         }
       })
       .catch(() => {});
-  }, [customerId, apiUrl]);
+  }, [customerId]);
 
   const sendCoupons = async (couponIds: string[], method: 'single' | 'all') => {
     if (couponIds.length === 0) return;
-    const res = await fetch(`${apiUrl}/api/membership/coupons/send`, {
+    const res = await fetch(`${API_BASE}/api/membership/coupons/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ customerId, couponIds }),
@@ -401,8 +400,7 @@ function SuccessPopup({
 
     if (answersToSubmit.length > 0 && successData?.customerId) {
       try {
-        const apiUrl = API_BASE;
-        await fetch(`${apiUrl}/api/taghere/survey-answers`, {
+        await fetch(`${API_BASE}/api/taghere/survey-answers`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -461,8 +459,7 @@ function SuccessPopup({
     if (!successData.customerId) return;
 
     try {
-      const apiUrl = API_BASE;
-      await fetch(`${apiUrl}/api/customers/visit-source`, {
+      await fetch(`${API_BASE}/api/customers/visit-source`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -497,7 +494,6 @@ function SuccessPopup({
 
     setIsSubmitting(true);
     try {
-      const apiUrl = API_BASE;
 
       const expandedCategories = selectedCategories
         .filter(c => c !== ALL_CATEGORIES_VALUE)
@@ -507,7 +503,7 @@ function SuccessPopup({
         });
 
       trackEvent('feedback_submit', { flow_type: 'membership', store_slug: storeSlug, rating: feedbackRating, has_text: feedbackText.trim().length > 0 });
-      await fetch(`${apiUrl}/api/customers/feedback`, {
+      await fetch(`${API_BASE}/api/customers/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -887,8 +883,7 @@ function TaghereMemberEnrollContent() {
     setIsAutoEarning(true);
 
     try {
-      const apiUrl = API_BASE;
-      const res = await fetch(`${apiUrl}/api/taghere/auto-earn`, {
+      const res = await fetch(`${API_BASE}/api/taghere/auto-earn`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -935,8 +930,7 @@ function TaghereMemberEnrollContent() {
   useEffect(() => {
     const fetchCoupons = async () => {
       try {
-        const apiUrl = API_BASE;
-        const res = await fetch(`${apiUrl}/api/membership/coupons`);
+        const res = await fetch(`${API_BASE}/api/membership/coupons`);
         if (res.ok) {
           const data = await res.json();
           setCoupons(data.coupons || []);
@@ -959,8 +953,7 @@ function TaghereMemberEnrollContent() {
   useEffect(() => {
     const fetchVisitSourceOptions = async () => {
       try {
-        const apiUrl = API_BASE;
-        const res = await fetch(`${apiUrl}/api/taghere/visit-source-options/${slug}`);
+        const res = await fetch(`${API_BASE}/api/taghere/visit-source-options/${slug}`);
         if (res.ok) {
           const data = await res.json();
           setVisitSourceEnabled(data.enabled);
@@ -973,8 +966,7 @@ function TaghereMemberEnrollContent() {
 
     const fetchSurveyQuestions = async () => {
       try {
-        const apiUrl = API_BASE;
-        const res = await fetch(`${apiUrl}/api/taghere/survey-questions/${slug}`);
+        const res = await fetch(`${API_BASE}/api/taghere/survey-questions/${slug}`);
         if (res.ok) {
           const data = await res.json();
           setSurveyQuestions(data.questions || data);
@@ -1031,11 +1023,10 @@ function TaghereMemberEnrollContent() {
 
     const fetchOrderInfo = async () => {
       try {
-        const apiUrl = API_BASE;
 
         if (ordersheetId) {
           // ordersheetId가 있으면 주문 정보와 함께 조회
-          const res = await fetch(`${apiUrl}/api/taghere/ordersheet?ordersheetId=${ordersheetId}&slug=${slug}&mode=membership`);
+          const res = await fetch(`${API_BASE}/api/taghere/ordersheet?ordersheetId=${ordersheetId}&slug=${slug}&mode=membership`);
           if (res.ok) {
             const data = await res.json();
 
@@ -1082,7 +1073,7 @@ function TaghereMemberEnrollContent() {
         }
 
         // ordersheetId 없거나 주문 조회 실패 → 매장 정보만으로 멤버십 등록
-        const storeRes = await fetch(`${apiUrl}/api/stores/by-slug/${slug}`);
+        const storeRes = await fetch(`${API_BASE}/api/stores/by-slug/${slug}`);
         if (storeRes.ok) {
           const storeData = await storeRes.json();
 
@@ -1139,8 +1130,7 @@ function TaghereMemberEnrollContent() {
     setIsOpening(true);
 
     setTimeout(() => {
-      const apiUrl = API_BASE;
-      const redirectUri = `${apiUrl}/auth/kakao/taghere-callback`;
+      const redirectUri = `${API_BASE}/auth/kakao/taghere-callback`;
 
       const stateData = {
         storeId: orderInfo.storeId,
@@ -1167,7 +1157,7 @@ function TaghereMemberEnrollContent() {
         if (ordersheetId) params.set(orderParamName, ordersheetId);
         params.set('origin', window.location.origin);
         params.set('isMembership', 'true');
-        window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
+        window.location.href = `${API_BASE}/auth/kakao/taghere-start?${params.toString()}`;
       }
     }, 500);
   };

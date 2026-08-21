@@ -71,11 +71,6 @@ export function ChargeModal({
 
   const totalAmount = amount;
 
-  const getAuthToken = () => {
-    if (typeof window === 'undefined') return '';
-    return localStorage.getItem('token') || '';
-  };
-
   // 숫자에 콤마 추가
   const formatWithComma = (num: number) => {
     return num.toLocaleString('ko-KR');

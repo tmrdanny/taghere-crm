@@ -1,6 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
+import { getFranchiseToken } from '@/lib/auth-token';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -90,13 +91,6 @@ const KAKAO_TEXT_COST = 200;
 const KAKAO_IMAGE_COST = 230;
 
 // 인증 토큰 가져오기
-const getAuthToken = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('franchiseToken') || '';
-  }
-  return '';
-};
-
 // 카카오톡 버튼 타입
 interface KakaoButton {
   type: 'WL';
@@ -191,7 +185,7 @@ export default function LocalCustomersPage() {
       try {
         const res = await fetch(`${API_BASE}/api/franchise/local-customers/total-count`, {
           headers: {
-            Authorization: `Bearer ${getAuthToken()}`,
+            Authorization: `Bearer ${getFranchiseToken()}`,
           },
         });
         const data = await res.json();
@@ -205,7 +199,7 @@ export default function LocalCustomersPage() {
       try {
         const res = await fetch(`${API_BASE}/api/franchise/local-customers/region-counts`, {
           headers: {
-            Authorization: `Bearer ${getAuthToken()}`,
+            Authorization: `Bearer ${getFranchiseToken()}`,
           },
         });
         const data = await res.json();
@@ -225,7 +219,7 @@ export default function LocalCustomersPage() {
     const fetchStores = async () => {
       try {
         const res = await fetch(`${API_BASE}/api/franchise/stores`, {
-          headers: { Authorization: `Bearer ${getAuthToken()}` },
+          headers: { Authorization: `Bearer ${getFranchiseToken()}` },
         });
         if (res.ok) {
           const data = await res.json();
@@ -248,7 +242,7 @@ export default function LocalCustomersPage() {
       try {
         const res = await fetch(`${API_BASE}/api/franchise/local-customers/kakao/send-available`, {
           headers: {
-            Authorization: `Bearer ${getAuthToken()}`,
+            Authorization: `Bearer ${getFranchiseToken()}`,
           },
         });
         const data = await res.json();
@@ -308,7 +302,7 @@ export default function LocalCustomersPage() {
 
       const res = await fetch(`${API_BASE}/api/franchise/local-customers/count?${params}`, {
         headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
+          Authorization: `Bearer ${getFranchiseToken()}`,
         },
       });
       const data = await res.json();
@@ -334,7 +328,7 @@ export default function LocalCustomersPage() {
     try {
       const res = await fetch(`${API_BASE}/api/franchise/local-customers/estimate?sendCount=${sendCount}`, {
         headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
+          Authorization: `Bearer ${getFranchiseToken()}`,
         },
       });
       const data = await res.json();
@@ -355,7 +349,7 @@ export default function LocalCustomersPage() {
         `${API_BASE}/api/franchise/local-customers/kakao/estimate?sendCount=${sendCount}&messageType=${kakaoMessageType}`,
         {
           headers: {
-            Authorization: `Bearer ${getAuthToken()}`,
+            Authorization: `Bearer ${getFranchiseToken()}`,
           },
         }
       );
@@ -474,7 +468,7 @@ export default function LocalCustomersPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${getAuthToken()}`,
+          Authorization: `Bearer ${getFranchiseToken()}`,
         },
         body: JSON.stringify({
           content,
@@ -536,7 +530,7 @@ export default function LocalCustomersPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${getAuthToken()}`,
+          Authorization: `Bearer ${getFranchiseToken()}`,
         },
         body: JSON.stringify({
           content,
@@ -598,7 +592,7 @@ export default function LocalCustomersPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${getAuthToken()}`,
+          Authorization: `Bearer ${getFranchiseToken()}`,
         },
         body: JSON.stringify({
           couponContent,
@@ -653,7 +647,7 @@ export default function LocalCustomersPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${getAuthToken()}`,
+          Authorization: `Bearer ${getFranchiseToken()}`,
         },
         body: JSON.stringify({ content, phone: testPhone }),
       });
@@ -717,7 +711,7 @@ export default function LocalCustomersPage() {
       const res = await fetch(`${API_BASE}/api/brand-message/upload-image`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
+          Authorization: `Bearer ${getFranchiseToken()}`,
         },
         body: formData,
       });

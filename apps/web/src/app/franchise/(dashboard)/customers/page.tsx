@@ -1,6 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
+import { getFranchiseToken } from '@/lib/auth-token';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search,
@@ -237,17 +238,10 @@ export default function FranchiseCustomersPage() {
   ];
 
   // Auth token helper
-  const getAuthToken = () => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('franchiseToken') || '';
-    }
-    return '';
-  };
-
   // Fetch stores for filter
   const fetchStores = useCallback(async () => {
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       if (!token) return;
 
       const response = await fetch(`${API_BASE}/api/franchise/stores`, {
@@ -288,7 +282,7 @@ export default function FranchiseCustomersPage() {
   useEffect(() => {
     const fetchVisitSourceSettings = async () => {
       try {
-        const token = getAuthToken();
+        const token = getFranchiseToken();
         if (!token) return;
 
         const res = await fetch(`${API_BASE}/api/franchise/visit-source-settings`, {
@@ -347,7 +341,7 @@ export default function FranchiseCustomersPage() {
   const fetchCustomers = useCallback(async () => {
     setIsLoading(true);
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       if (!token) {
         console.error('No auth token found');
         setIsLoading(false);
@@ -398,7 +392,7 @@ export default function FranchiseCustomersPage() {
   const fetchCustomerDetail = async (customerId: string) => {
     setIsDetailLoading(true);
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       if (!token) {
         console.error('No auth token found');
         return;
@@ -428,7 +422,7 @@ export default function FranchiseCustomersPage() {
   const fetchFranchiseCustomers = useCallback(async () => {
     setIsFranchiseLoading(true);
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       if (!token) {
         setIsFranchiseLoading(false);
         return;
@@ -469,7 +463,7 @@ export default function FranchiseCustomersPage() {
   const fetchFranchiseCustomerDetail = async (kakaoId: string) => {
     setIsFranchiseDetailLoading(true);
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       if (!token) return;
 
       const response = await fetch(`${API_BASE}/api/franchise/franchise-customers/${kakaoId}`, {

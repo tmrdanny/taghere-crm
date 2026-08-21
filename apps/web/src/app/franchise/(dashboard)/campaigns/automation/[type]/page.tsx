@@ -28,7 +28,6 @@ import {
   Store,
 } from 'lucide-react';
 
-const apiUrl = API_BASE;
 
 interface AutomationRule {
   id: string;
@@ -132,9 +131,9 @@ export default function FranchiseAutomationSettingPage() {
     try {
       const headers = getHeaders();
       const [rulesRes, previewRes, logsRes] = await Promise.all([
-        fetch(`${apiUrl}/api/franchise/automation/stores/${storeId}/rules`, { headers }),
-        fetch(`${apiUrl}/api/franchise/automation/stores/${storeId}/preview/${type}`, { headers }),
-        fetch(`${apiUrl}/api/franchise/automation/stores/${storeId}/rules/${type}/logs?limit=10`, { headers }),
+        fetch(`${API_BASE}/api/franchise/automation/stores/${storeId}/rules`, { headers }),
+        fetch(`${API_BASE}/api/franchise/automation/stores/${storeId}/preview/${type}`, { headers }),
+        fetch(`${API_BASE}/api/franchise/automation/stores/${storeId}/rules/${type}/logs?limit=10`, { headers }),
       ]);
 
       if (rulesRes.ok) {
@@ -180,7 +179,7 @@ export default function FranchiseAutomationSettingPage() {
     }
     setIsSavingNaverUrl(true);
     try {
-      const res = await fetch(`${apiUrl}/api/franchise/automation/stores/${storeId}/naver-place-url`, {
+      const res = await fetch(`${API_BASE}/api/franchise/automation/stores/${storeId}/naver-place-url`, {
         method: 'PUT',
         headers: { ...getHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ naverPlaceUrl: naverPlaceUrlInput.trim() }),
@@ -228,8 +227,8 @@ export default function FranchiseAutomationSettingPage() {
       };
 
       const url = isBulk
-        ? `${apiUrl}/api/franchise/automation/bulk/rules/${type}`
-        : `${apiUrl}/api/franchise/automation/stores/${storeId}/rules/${type}`;
+        ? `${API_BASE}/api/franchise/automation/bulk/rules/${type}`
+        : `${API_BASE}/api/franchise/automation/stores/${storeId}/rules/${type}`;
 
       const res = await fetch(url, {
         method: 'PUT',

@@ -17,8 +17,7 @@ interface Banner {
 function getFullImageUrl(imageUrl: string): string {
   if (!imageUrl) return '';
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
-  const apiUrl = API_BASE;
-  return `${apiUrl}${imageUrl}`;
+  return `${API_BASE}${imageUrl}`;
 }
 
 function BannerMedia({ banner, onClick }: { banner: Banner; onClick: () => void }) {
@@ -314,8 +313,7 @@ function StampSuccessContent() {
   useEffect(() => {
     const fetchBanners = async () => {
       try {
-        const apiUrl = API_BASE;
-        const res = await fetch(`${apiUrl}/api/admin/banners/active?slug=${slug}`);
+        const res = await fetch(`${API_BASE}/api/admin/banners/active?slug=${slug}`);
         if (res.ok) {
           const data = await res.json();
           setBanners(data);
@@ -332,8 +330,7 @@ function StampSuccessContent() {
     if (!ordersheetId || !slug) return;
     const fetchMenuLink = async () => {
       try {
-        const apiUrl = API_BASE;
-        const res = await fetch(`${apiUrl}/api/taghere/ordersheet?ordersheetId=${ordersheetId}&slug=${slug}`);
+        const res = await fetch(`${API_BASE}/api/taghere/ordersheet?ordersheetId=${ordersheetId}&slug=${slug}`);
         if (res.ok) {
           const data = await res.json();
           if (data.menuLink) setMenuLink(data.menuLink);

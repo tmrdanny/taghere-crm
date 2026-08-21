@@ -1,6 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
+import { getStoreToken } from '@/lib/auth-token';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Delete, Loader2, CheckCircle2, Clock } from 'lucide-react';
@@ -51,15 +52,10 @@ export default function PointTabletPage() {
   const hiddenInputRef = useRef<HTMLInputElement>(null);
 
   // Get auth token from localStorage
-  const getAuthToken = () => {
-    if (typeof window === 'undefined') return '';
-    return localStorage.getItem('token') || '';
-  };
-
   // 매장 정보 조회
   const fetchStoreInfo = useCallback(async () => {
     try {
-      const token = getAuthToken();
+      const token = getStoreToken();
       if (!token) return;
 
       const res = await fetch(`${API_BASE}/api/settings`, {
@@ -78,7 +74,7 @@ export default function PointTabletPage() {
   // 세션 조회 (polling)
   const fetchSession = useCallback(async () => {
     try {
-      const token = getAuthToken();
+      const token = getStoreToken();
       if (!token) return;
 
       const res = await fetch(`${API_BASE}/api/points/session/current`, {
@@ -174,7 +170,7 @@ export default function PointTabletPage() {
     setError(null);
 
     try {
-      const token = getAuthToken();
+      const token = getStoreToken();
       if (!token) {
         setError('로그인이 필요합니다.');
         return;

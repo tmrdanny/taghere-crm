@@ -23,7 +23,6 @@ import {
   ChevronDown,
 } from 'lucide-react';
 
-const apiUrl = API_BASE;
 
 interface StoreInfo {
   id: string;
@@ -100,7 +99,7 @@ export default function FranchiseAutomationPage() {
 
   const fetchStores = async () => {
     try {
-      const res = await fetch(`${apiUrl}/api/franchise/automation/stores`, { headers: getHeaders() });
+      const res = await fetch(`${API_BASE}/api/franchise/automation/stores`, { headers: getHeaders() });
       if (res.ok) {
         const data = await res.json();
         setStores(data.stores);
@@ -122,8 +121,8 @@ export default function FranchiseAutomationPage() {
     setIsLoadingRules(true);
     try {
       const [rulesRes, dashboardRes] = await Promise.all([
-        fetch(`${apiUrl}/api/franchise/automation/stores/${storeId}/rules`, { headers: getHeaders() }),
-        fetch(`${apiUrl}/api/franchise/automation/stores/${storeId}/dashboard`, { headers: getHeaders() }),
+        fetch(`${API_BASE}/api/franchise/automation/stores/${storeId}/rules`, { headers: getHeaders() }),
+        fetch(`${API_BASE}/api/franchise/automation/stores/${storeId}/dashboard`, { headers: getHeaders() }),
       ]);
       if (rulesRes.ok) {
         const data = await rulesRes.json();
@@ -145,7 +144,7 @@ export default function FranchiseAutomationPage() {
       // 전체 가맹점 일괄 토글
       setTogglingType(type);
       try {
-        const res = await fetch(`${apiUrl}/api/franchise/automation/bulk/rules/${type}`, {
+        const res = await fetch(`${API_BASE}/api/franchise/automation/bulk/rules/${type}`, {
           method: 'PUT',
           headers: { ...getHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify({ enabled }),
@@ -175,7 +174,7 @@ export default function FranchiseAutomationPage() {
 
     setTogglingType(type);
     try {
-      const res = await fetch(`${apiUrl}/api/franchise/automation/stores/${selectedStoreId}/rules/${type}`, {
+      const res = await fetch(`${API_BASE}/api/franchise/automation/stores/${selectedStoreId}/rules/${type}`, {
         method: 'PUT',
         headers: { ...getHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled }),

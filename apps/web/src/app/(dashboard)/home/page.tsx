@@ -93,7 +93,6 @@ export default function HomePage() {
     dashboard: { totalSent: number; totalCouponUsed: number; usageRate: number; estimatedRevenue: number } | null;
   } | null>(null);
 
-  const apiUrl = API_BASE;
 
   // Show promo popup on first visit
   useEffect(() => {
@@ -131,43 +130,43 @@ export default function HomePage() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    fetchJsonCached<Announcement[]>(`${apiUrl}/api/dashboard/announcements`, token, setAnnouncements)
+    fetchJsonCached<Announcement[]>(`${API_BASE}/api/dashboard/announcements`, token, setAnnouncements)
       .catch((error) => console.error('Failed to fetch announcements:', error));
-  }, [apiUrl]);
+  }, []);
 
   // Fetch dashboard stats
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    fetchJsonCached<DashboardStats>(`${apiUrl}/api/dashboard/summary`, token, setStats)
+    fetchJsonCached<DashboardStats>(`${API_BASE}/api/dashboard/summary`, token, setStats)
       .catch((error) => console.error('Failed to fetch dashboard stats:', error));
-  }, [apiUrl]);
+  }, []);
 
   // Fetch feedback summary
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    fetchJsonCached<FeedbackSummary>(`${apiUrl}/api/dashboard/feedback-summary`, token, setFeedbackSummary)
+    fetchJsonCached<FeedbackSummary>(`${API_BASE}/api/dashboard/feedback-summary`, token, setFeedbackSummary)
       .catch((error) => console.error('Failed to fetch feedback summary:', error));
-  }, [apiUrl]);
+  }, []);
 
   // Fetch visit source stats
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
     fetchJsonCached<{ distribution?: VisitSourceItem[] }>(
-      `${apiUrl}/api/visit-source-settings/stats`,
+      `${API_BASE}/api/visit-source-settings/stats`,
       token,
       (data) => setVisitSourceData(data.distribution || [])
     ).catch((error) => console.error('Failed to fetch visit source stats:', error));
-  }, [apiUrl]);
+  }, []);
 
   // Fetch retarget credits
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
     fetchJsonCached<{ success: boolean; data?: { remainingCredits: number; totalCredits: number } }>(
-      `${apiUrl}/api/monthly-credit/status`,
+      `${API_BASE}/api/monthly-credit/status`,
       token,
       (data) => {
         if (data.success && data.data) {
@@ -178,7 +177,7 @@ export default function HomePage() {
         }
       }
     ).catch((error) => console.error('Failed to fetch retarget credits:', error));
-  }, [apiUrl]);
+  }, []);
 
   // Fetch automation marketing status
   useEffect(() => {
@@ -195,9 +194,9 @@ export default function HomePage() {
         const headers = { Authorization: `Bearer ${token}` };
 
         const [rulesRes, previewRes, dashRes] = await Promise.all([
-          fetch(`${apiUrl}/api/automation/rules`, { headers }),
-          fetch(`${apiUrl}/api/automation/preview-all`, { headers }),
-          fetch(`${apiUrl}/api/automation/dashboard`, { headers }),
+          fetch(`${API_BASE}/api/automation/rules`, { headers }),
+          fetch(`${API_BASE}/api/automation/preview-all`, { headers }),
+          fetch(`${API_BASE}/api/automation/dashboard`, { headers }),
         ]);
 
         let hasActiveRules = false;
@@ -225,14 +224,14 @@ export default function HomePage() {
     };
 
     fetchAutomationStatus();
-  }, [apiUrl]);
+  }, []);
 
   // Refresh feedback summary
   const handleRefreshFeedback = async () => {
     setIsRefreshingFeedback(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/dashboard/feedback-summary`, {
+      const res = await fetch(`${API_BASE}/api/dashboard/feedback-summary`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -256,7 +255,7 @@ export default function HomePage() {
     const days = chartPeriod === '7일' ? 7 : chartPeriod === '30일' ? 30 : chartPeriod === '90일' ? 90 : 365;
 
     fetchJsonCached<VisitorStats>(
-      `${apiUrl}/api/dashboard/visitor-chart?days=${days}`,
+      `${API_BASE}/api/dashboard/visitor-chart?days=${days}`,
       token,
       (data) => {
         setVisitorStats(data);
@@ -273,7 +272,7 @@ export default function HomePage() {
         setVisitorChartData(formattedData);
       }
     ).catch((error) => console.error('Failed to fetch visitor chart data:', error));
-  }, [apiUrl, chartPeriod]);
+  }, [chartPeriod]);
 
   // Refresh visitor chart data
   const handleRefreshVisitorChart = async () => {
@@ -284,7 +283,7 @@ export default function HomePage() {
       const days = chartPeriod === '7일' ? 7 : chartPeriod === '30일' ? 30 : chartPeriod === '90일' ? 90 : 365;
 
       // Refetch visitor chart data
-      const res = await fetch(`${apiUrl}/api/dashboard/visitor-chart?days=${days}`, {
+      const res = await fetch(`${API_BASE}/api/dashboard/visitor-chart?days=${days}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
