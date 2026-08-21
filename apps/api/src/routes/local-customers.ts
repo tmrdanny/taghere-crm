@@ -1,20 +1,26 @@
 import { Router } from 'express';
-import { SolapiMessageService } from 'solapi';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { SolapiService, BrandMessageButton, enqueueAlimTalk, buildPhoneResultMap } from '../services/solapi.js';
-import { getSolapiService } from '../services/solapi-instance.js';
-import { isSendableTime, getNextSendableTime } from '../utils/send-window.js';
+import { enqueueAlimTalk } from '../services/solapi.js';
+import {
+  LocalCampaignScope,
+  buildExternalRegionOrConditions,
+  buildCustomerRegionOrConditions,
+  getRegions,
+  getTotalCustomerCount,
+  getRegionCounts,
+  getFilteredCount,
+  getSmsEstimate,
+  sendCampaignSms,
+  sendTestSms,
+  getKakaoSendAvailable,
+  getKakaoEstimate,
+  sendKakaoBrandMessage,
+  getCampaigns,
+} from '../services/local-campaign.js';
 import { customAlphabet } from 'nanoid';
 
 const router = Router();
-
-// 건당 비용 (외부 고객 SMS)
-const EXTERNAL_SMS_COST = 150;
-
-// 카카오톡 브랜드 메시지 비용 (건당) - 레거시
-const EXTERNAL_KAKAO_TEXT_COST = 200;
-const EXTERNAL_KAKAO_IMAGE_COST = 230;
 
 // 쿠폰 알림톡 비용 (건당)
 const COUPON_ALIMTALK_COST = 150;
@@ -22,68 +28,16 @@ const COUPON_ALIMTALK_COST = 150;
 // 쿠폰 코드 생성기 (10자리, 헷갈리는 문자 제외)
 const generateCouponCode = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 10);
 
-// SOLAPI 서비스 인스턴스 (카카오톡용)
-
-
-
-// 지역 필터 조건 빌드 헬퍼
-// ExternalCustomer용 (regionSido: String, non-nullable)
-function buildExternalRegionOrConditions(regionFilters: Array<{ sido: string; sigungu?: string }>) {
-  return regionFilters.map((r) => {
-    if (r.sido === '미지정') {
-      return { regionSido: '' };
-    }
-    if (r.sigungu) {
-      return { regionSido: r.sido, regionSigungu: r.sigungu };
-    }
-    return { regionSido: r.sido };
-  });
-}
-
-// Customer용 (regionSido: String?, nullable)
-function buildCustomerRegionOrConditions(regionFilters: Array<{ sido: string; sigungu?: string }>) {
-  return regionFilters.map((r) => {
-    if (r.sido === '미지정') {
-      return { OR: [{ regionSido: null }, { regionSido: '' }] } as any;
-    }
-    if (r.sigungu) {
-      return { regionSido: r.sido, regionSigungu: r.sigungu };
-    }
-    return { regionSido: r.sido };
-  });
+// 매장 스코프 (Wallet / storeId 캠페인 귀속)
+function storeScope(req: AuthRequest): LocalCampaignScope {
+  return { kind: 'store', storeId: req.user!.storeId };
 }
 
 // GET /api/local-customers/regions - 지역 목록 조회 (ExternalCustomer 기반)
 router.get('/regions', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { sido } = req.query;
-
-    if (!sido) {
-      // 시/도 목록 조회 (ExternalCustomer에 있는 지역만)
-      const sidos = await prisma.externalCustomer.findMany({
-        select: { regionSido: true },
-        distinct: ['regionSido'],
-        orderBy: { regionSido: 'asc' },
-      });
-
-      return res.json({
-        sidos: sidos.map((r) => r.regionSido),
-        sigungus: [],
-      });
-    }
-
-    // 특정 시/도의 시/군/구 목록 조회
-    const sigungus = await prisma.externalCustomer.findMany({
-      where: { regionSido: sido as string },
-      select: { regionSigungu: true },
-      distinct: ['regionSigungu'],
-      orderBy: { regionSigungu: 'asc' },
-    });
-
-    return res.json({
-      sidos: [],
-      sigungus: sigungus.map((r) => r.regionSigungu),
-    });
+    const result = await getRegions(req.query);
+    return res.status(result.status).json(result.body);
   } catch (error) {
     console.error('Regions fetch error:', error);
     res.status(500).json({ error: '지역 목록 조회 중 오류가 발생했습니다.' });
@@ -93,149 +47,19 @@ router.get('/regions', authMiddleware, async (req: AuthRequest, res) => {
 // GET /api/local-customers/total-count - 전체 고객 수 조회 (ExternalCustomer + 전체 CRM 고객)
 router.get('/total-count', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    // 1. ExternalCustomer 수 조회
-    const externalCount = await prisma.externalCustomer.count({
-      where: { consentMarketing: true },
-    });
-
-    // 2. 전체 CRM 고객 수 조회 (모든 매장의 고객)
-    const customerCount = await prisma.customer.count({
-      where: { consentMarketing: true },
-    });
-
-    // 3. 통합 카운트 반환
-    const totalCount = externalCount + customerCount;
-
-    res.json({
-      totalCount,
-      breakdown: {
-        external: externalCount,
-        customer: customerCount,
-      },
-    });
+    const result = await getTotalCustomerCount();
+    res.status(result.status).json(result.body);
   } catch (error) {
     console.error('Total count fetch error:', error);
     res.status(500).json({ error: '전체 고객 수 조회 중 오류가 발생했습니다.' });
   }
 });
 
-// 시/도 줄임말 → 전체 이름 매핑 (Customer DB용)
-const SIDO_SHORT_TO_FULL: Record<string, string> = {
-  서울: '서울특별시',
-  경기: '경기도',
-  인천: '인천광역시',
-  부산: '부산광역시',
-  대구: '대구광역시',
-  광주: '광주광역시',
-  대전: '대전광역시',
-  울산: '울산광역시',
-  세종: '세종특별자치시',
-  강원: '강원특별자치도',
-  충북: '충청북도',
-  충남: '충청남도',
-  전북: '전북특별자치도',
-  전남: '전라남도',
-  경북: '경상북도',
-  경남: '경상남도',
-  제주: '제주특별자치도',
-};
-
-// 전체 이름 → 시/도 줄임말 매핑 (역변환용)
-const SIDO_FULL_TO_SHORT: Record<string, string> = Object.fromEntries(
-  Object.entries(SIDO_SHORT_TO_FULL).map(([short, full]) => [full, short])
-);
-
 // GET /api/local-customers/region-counts - 지역별 고객 수 조회
 router.get('/region-counts', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    // 1. ExternalCustomer 시/도별 카운트 (줄임말 사용: 서울, 경기)
-    const externalSidoCounts = await prisma.externalCustomer.groupBy({
-      by: ['regionSido'],
-      where: { consentMarketing: true, regionSido: { not: '' } },
-      _count: { _all: true },
-    });
-
-    // 2. Customer 시/도별 카운트 (전체 이름 사용: 서울특별시, 경기도)
-    const customerSidoCounts = await prisma.customer.groupBy({
-      by: ['regionSido'],
-      where: { consentMarketing: true, regionSido: { not: '' } },
-      _count: { _all: true },
-    });
-
-    // 3. Customer 시/군/구별 카운트
-    const customerSigunguCounts = await prisma.customer.groupBy({
-      by: ['regionSido', 'regionSigungu'],
-      where: { consentMarketing: true, regionSido: { not: '' }, regionSigungu: { not: '' } },
-      _count: { _all: true },
-    });
-
-    // 4. ExternalCustomer 시/군/구별 카운트
-    const externalSigunguCounts = await prisma.externalCustomer.groupBy({
-      by: ['regionSido', 'regionSigungu'],
-      where: { consentMarketing: true, regionSido: { not: '' }, regionSigungu: { not: '' } },
-      _count: { _all: true },
-    });
-
-    // 시/도별 통합 카운트 계산 (줄임말 키로 통합)
-    const sidoCountMap: Record<string, number> = {};
-
-    // ExternalCustomer 카운트 (이미 줄임말 사용)
-    externalSidoCounts.forEach((item) => {
-      if (item.regionSido) {
-        sidoCountMap[item.regionSido] = (sidoCountMap[item.regionSido] || 0) + (item._count?._all || 0);
-      }
-    });
-
-    // Customer 카운트 (전체 이름을 줄임말로 변환하여 합산)
-    customerSidoCounts.forEach((item) => {
-      if (item.regionSido) {
-        const shortName = SIDO_FULL_TO_SHORT[item.regionSido] || item.regionSido;
-        sidoCountMap[shortName] = (sidoCountMap[shortName] || 0) + (item._count?._all || 0);
-      }
-    });
-
-    // 시/군/구별 카운트 (Customer + ExternalCustomer 통합)
-    const sigunguCountMap: Record<string, Record<string, number>> = {};
-
-    // Customer 시/군/구 카운트 (전체 이름을 줄임말로 변환)
-    customerSigunguCounts.forEach((item) => {
-      if (item.regionSido && item.regionSigungu) {
-        const shortSido = SIDO_FULL_TO_SHORT[item.regionSido] || item.regionSido;
-        if (!sigunguCountMap[shortSido]) {
-          sigunguCountMap[shortSido] = {};
-        }
-        sigunguCountMap[shortSido][item.regionSigungu] = (sigunguCountMap[shortSido][item.regionSigungu] || 0) + (item._count?._all || 0);
-      }
-    });
-
-    // ExternalCustomer 시/군/구 카운트 합산 (이미 줄임말 사용)
-    externalSigunguCounts.forEach((item) => {
-      if (item.regionSido && item.regionSigungu) {
-        if (!sigunguCountMap[item.regionSido]) {
-          sigunguCountMap[item.regionSido] = {};
-        }
-        sigunguCountMap[item.regionSido][item.regionSigungu] = (sigunguCountMap[item.regionSido][item.regionSigungu] || 0) + (item._count?._all || 0);
-      }
-    });
-
-    // 미지정 고객 수 (ExternalCustomer: 빈 문자열, Customer: null 또는 빈 문자열)
-    const [externalUnknown, customerUnknown] = await Promise.all([
-      prisma.externalCustomer.count({
-        where: { consentMarketing: true, regionSido: '' },
-      }),
-      prisma.customer.count({
-        where: { consentMarketing: true, OR: [{ regionSido: null }, { regionSido: '' }] },
-      }),
-    ]);
-    const unknownCount = externalUnknown + customerUnknown;
-    if (unknownCount > 0) {
-      sidoCountMap['미지정'] = unknownCount;
-    }
-
-    res.json({
-      sidoCounts: sidoCountMap,
-      sigunguCounts: sigunguCountMap,
-    });
+    const result = await getRegionCounts(storeScope(req));
+    res.status(result.status).json(result.body);
   } catch (error) {
     console.error('Region counts fetch error:', error);
     res.status(500).json({ error: '지역별 고객 수 조회 중 오류가 발생했습니다.' });
@@ -245,101 +69,8 @@ router.get('/region-counts', authMiddleware, async (req: AuthRequest, res) => {
 // GET /api/local-customers/count - 조건에 맞는 고객 수 조회 (ExternalCustomer + Customer 통합)
 router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { ageGroups, gender, regions, regionSidos, regionSigungus, categories } = req.query;
-
-    // 새 형식 (regions JSON) 또는 구 형식 (regionSidos, regionSigungus) 지원
-    let regionFilters: Array<{ sido: string; sigungu?: string }> = [];
-
-    if (regions) {
-      // 새 형식: regions JSON 파싱
-      try {
-        regionFilters = JSON.parse(regions as string);
-      } catch (e) {
-        return res.status(400).json({ error: '지역 데이터 형식이 올바르지 않습니다.' });
-      }
-    } else if (regionSigungus) {
-      // 시/군/구 선택 형식: '서울/강남구,서울/서초구' 파싱
-      const sigunguList = (regionSigungus as string).split(',').filter(Boolean);
-      regionFilters = sigunguList.map((item) => {
-        const [sido, sigungu] = item.split('/');
-        return { sido, sigungu };
-      });
-    } else if (regionSidos) {
-      // 구 형식: regionSidos 콤마 구분
-      const regionSidoList = (regionSidos as string).split(',').filter(Boolean);
-      regionFilters = regionSidoList.map((sido) => ({ sido }));
-    }
-
-    if (regionFilters.length === 0) {
-      return res.status(400).json({ error: '지역을 선택해주세요.' });
-    }
-
-    let externalCount = 0;
-    let customerCount = 0;
-
-    // 1. ExternalCustomer 조회
-    {
-      const regionOrConditions = buildExternalRegionOrConditions(regionFilters);
-
-      // categories가 있으면 AND로 지역+카테고리 결합 (OR 덮어쓰기 방지)
-      const categoryList = categories ? (categories as string).split(',').filter(Boolean) : [];
-      const externalWhere: any = {
-        AND: [
-          { OR: regionOrConditions },
-          ...(categoryList.length > 0
-            ? [{ OR: categoryList.map((cat) => ({ preferredCategories: { contains: cat } })) }]
-            : []),
-        ],
-        consentMarketing: true,
-      };
-
-      // 연령대 필터
-      if (ageGroups) {
-        const ageGroupList = (ageGroups as string).split(',');
-        externalWhere.ageGroup = { in: ageGroupList };
-      }
-
-      // 성별 필터
-      if (gender && gender !== 'all') {
-        externalWhere.gender = gender as string;
-      }
-
-      externalCount = await prisma.externalCustomer.count({ where: externalWhere });
-    }
-
-    // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
-    const customerRegionOrConditions = buildCustomerRegionOrConditions(regionFilters);
-
-    const customerWhere: any = {
-      OR: customerRegionOrConditions,
-      consentMarketing: true,
-    };
-
-    // 연령대 필터
-    if (ageGroups) {
-      const ageGroupList = (ageGroups as string).split(',');
-      customerWhere.ageGroup = { in: ageGroupList };
-    }
-
-    // 성별 필터
-    if (gender && gender !== 'all') {
-      customerWhere.gender = gender as string;
-    }
-
-    customerCount = await prisma.customer.count({ where: customerWhere });
-
-    // 3. 통합 카운트 반환
-    const totalCount = externalCount + customerCount;
-    const availableCount = totalCount;
-
-    res.json({
-      totalCount,
-      availableCount,
-      breakdown: {
-        external: externalCount,
-        customer: customerCount,
-      },
-    });
+    const result = await getFilteredCount(storeScope(req), req.query);
+    res.status(result.status).json(result.body);
   } catch (error) {
     console.error('Count fetch error:', error);
     res.status(500).json({ error: '고객 수 조회 중 오류가 발생했습니다.' });
@@ -349,31 +80,8 @@ router.get('/count', authMiddleware, async (req: AuthRequest, res) => {
 // GET /api/local-customers/estimate - 비용 예상
 router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const storeId = req.user!.storeId;
-    const { sendCount } = req.query;
-
-    if (!sendCount) {
-      return res.status(400).json({ error: '발송 수량을 입력해주세요.' });
-    }
-
-    const count = parseInt(sendCount as string);
-    const totalCost = count * EXTERNAL_SMS_COST;
-
-    // 지갑 잔액 조회
-    const wallet = await prisma.wallet.findUnique({
-      where: { storeId },
-    });
-
-    const walletBalance = wallet?.balance || 0;
-    const canSend = walletBalance >= totalCost;
-
-    res.json({
-      sendCount: count,
-      costPerMessage: EXTERNAL_SMS_COST,
-      totalCost,
-      walletBalance,
-      canSend,
-    });
+    const result = await getSmsEstimate(storeScope(req), req.query);
+    res.status(result.status).json(result.body);
   } catch (error) {
     console.error('Estimate error:', error);
     res.status(500).json({ error: '비용 예상 중 오류가 발생했습니다.' });
@@ -383,230 +91,8 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
 // POST /api/local-customers/send - 메시지 발송 (다중 지역 지원)
 router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const storeId = req.user!.storeId;
-    const { content, ageGroups, gender, regions, regionSidos, regionSigungus, sendCount, categories, isAdMessage = true } = req.body;
-
-    // 새 형식 (regions) 또는 구 형식 (regionSidos, regionSigungus) 지원
-    let regionFilters: Array<{ sido: string; sigungu?: string }> = [];
-
-    if (regions && Array.isArray(regions) && regions.length > 0) {
-      regionFilters = regions;
-    } else if (regionSigungus && Array.isArray(regionSigungus) && regionSigungus.length > 0) {
-      // 시/군/구 선택 형식: ['서울/강남구', '서울/서초구'] 파싱
-      regionFilters = regionSigungus.map((item: string) => {
-        const [sido, sigungu] = item.split('/');
-        return { sido, sigungu };
-      });
-    } else if (regionSidos && Array.isArray(regionSidos) && regionSidos.length > 0) {
-      regionFilters = regionSidos.map((sido: string) => ({ sido }));
-    }
-
-    // 유효성 검사
-    if (!content || regionFilters.length === 0 || !sendCount) {
-      return res.status(400).json({ error: '필수 항목을 모두 입력해주세요.' });
-    }
-
-    if (sendCount <= 0) {
-      return res.status(400).json({ error: '발송 수량은 1 이상이어야 합니다.' });
-    }
-
-    // 지갑 잔액 확인
-    const wallet = await prisma.wallet.findUnique({
-      where: { storeId },
-    });
-
-    const totalCost = sendCount * EXTERNAL_SMS_COST;
-    if (!wallet || wallet.balance < totalCost) {
-      return res.status(400).json({
-        error: '잔액이 부족합니다.',
-        walletBalance: wallet?.balance || 0,
-        requiredAmount: totalCost,
-      });
-    }
-
-    // 1. ExternalCustomer 조회
-    let externalCustomers: Array<{ id: string; phone: string; source: 'external' }> = [];
-
-    {
-      const regionOrConditions = buildExternalRegionOrConditions(regionFilters);
-      // categories가 있으면 AND로 지역+카테고리 결합 (OR 덮어쓰기 방지)
-      const externalWhere: any = {
-        AND: [
-          { OR: regionOrConditions },
-          ...(categories && categories.length > 0
-            ? [{ OR: categories.map((cat: string) => ({ preferredCategories: { contains: cat } })) }]
-            : []),
-        ],
-        consentMarketing: true,
-      };
-
-      if (ageGroups && ageGroups.length > 0) {
-        externalWhere.ageGroup = { in: ageGroups };
-      }
-
-      if (gender && gender !== 'all') {
-        externalWhere.gender = gender;
-      }
-
-      const externalResult = await prisma.externalCustomer.findMany({
-        where: externalWhere,
-        select: {
-          id: true,
-          phone: true,
-        },
-      });
-
-      externalCustomers = externalResult.map((c) => ({ id: c.id, phone: c.phone, source: 'external' as const }));
-    }
-
-    // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
-    let customers: Array<{ id: string; phone: string; source: 'customer' }> = [];
-
-    const customerRegionOrConditions = buildCustomerRegionOrConditions(regionFilters);
-
-    const customerWhere: any = {
-      OR: customerRegionOrConditions,
-      consentMarketing: true,
-      phone: { not: null }, // 전화번호 있는 고객만
-    };
-
-    if (ageGroups && ageGroups.length > 0) {
-      customerWhere.ageGroup = { in: ageGroups };
-    }
-
-    if (gender && gender !== 'all') {
-      customerWhere.gender = gender;
-    }
-
-    const customerResult = await prisma.customer.findMany({
-      where: customerWhere,
-      select: {
-        id: true,
-        phone: true,
-      },
-    });
-
-    customers = customerResult
-      .filter((c) => c.phone) // 전화번호 있는 고객만
-      .map((c) => ({ id: c.id, phone: c.phone!, source: 'customer' as const }));
-
-    // 3. 두 소스 통합
-    const allCustomers = [...externalCustomers, ...customers];
-
-    // 4. 가용 수량 확인
-    const availableCount = allCustomers.length;
-    if (sendCount > availableCount) {
-      return res.status(400).json({
-        error: `발송 가능한 고객이 ${availableCount}명입니다.`,
-        availableCount,
-      });
-    }
-
-    // 5. sendCount만큼 선택
-    const selectedCustomers = allCustomers.slice(0, sendCount);
-
-    // 매장 정보 조회 (발송자명용)
-    const store = await prisma.store.findUnique({
-      where: { id: storeId },
-      select: { name: true },
-    });
-
-    // 광고 메시지 형식 적용
-    const formattedContent = isAdMessage
-      ? `(광고)\n${content}\n무료수신거부 080-500-4233`
-      : content;
-
-    // 캠페인 생성 (지역 정보를 JSON으로 저장)
-    const regionSidoList = [...new Set(regionFilters.map((r) => r.sido))];
-    const regionSigunguList = regionFilters.filter((r) => r.sigungu).map((r) => r.sigungu);
-
-    const campaign = await prisma.externalSmsCampaign.create({
-      data: {
-        storeId,
-        title: `신규 고객 유치 - ${new Date().toLocaleDateString('ko-KR')}`,
-        content: formattedContent,
-        filterAgeGroups: JSON.stringify(ageGroups || []),
-        filterGender: gender || null,
-        filterRegionSido: regionSidoList.join(','),
-        filterRegionSigungu: regionSigunguList.join(','),
-        filterCategories: categories && categories.length > 0 ? JSON.stringify(categories) : null,
-        targetCount: sendCount,
-        costPerMessage: EXTERNAL_SMS_COST,
-        status: 'SENDING',
-      },
-    });
-
-    // SOLAPI 설정 확인
-    const apiKey = process.env.SOLAPI_API_KEY;
-    const apiSecret = process.env.SOLAPI_API_SECRET;
-
-    if (!apiKey || !apiSecret) {
-      return res.status(500).json({ error: 'SMS 발송 설정이 되어있지 않습니다.' });
-    }
-
-    const solapiService = new SolapiService(apiKey, apiSecret);
-
-    // 벌크 메시지 배열 구성
-    const bulkMessages = selectedCustomers.map((selected) => ({
-      to: selected.phone,
-      text: formattedContent,
-    }));
-
-    // 그룹 메시지 벌크 발송 — index별로 올바른 groupId 매핑 (다중 청크 대응)
-    const batchResults = await solapiService.sendBulkSms(bulkMessages);
-    const { successGroupIds, failureMap, groupIdByIndex } = buildPhoneResultMap(batchResults);
-
-    console.log(`[SMS] Bulk send complete: ${successGroupIds.length} groups, ${failureMap.size} failed phones`);
-
-    // 결과를 기반으로 DB 레코드 생성
-    let pendingCount = 0;
-    let failedCount = 0;
-
-    for (let index = 0; index < selectedCustomers.length; index++) {
-      const selected = selectedCustomers[index];
-      const normalizedPhone = selected.phone.replace(/[^0-9]/g, '');
-      const phoneLookup = normalizedPhone.startsWith('82') ? '0' + normalizedPhone.slice(2) : (normalizedPhone.startsWith('0') ? normalizedPhone : '0' + normalizedPhone);
-      const groupId = groupIdByIndex[index] ?? null;
-      const isFailed = failureMap.has(phoneLookup) || !groupId;
-
-      await prisma.externalSmsMessage.create({
-        data: {
-          campaignId: campaign.id,
-          storeId,
-          externalCustomerId: selected.source === 'external' ? selected.id : null,
-          content: formattedContent,
-          status: isFailed ? 'FAILED' : 'PENDING',
-          solapiGroupId: isFailed ? undefined : groupId,
-          cost: isFailed ? 0 : EXTERNAL_SMS_COST,
-          failReason: isFailed ? (failureMap.get(phoneLookup) || '발송 실패') : undefined,
-        },
-      });
-
-      if (isFailed) failedCount++;
-      else pendingCount++;
-    }
-
-    // 캠페인 상태 업데이트
-    await prisma.externalSmsCampaign.update({
-      where: { id: campaign.id },
-      data: {
-        failedCount,
-        status: pendingCount > 0 ? 'SENDING' : 'COMPLETED',
-      },
-    });
-
-    res.json({
-      success: true,
-      campaignId: campaign.id,
-      pendingCount,
-      failedCount,
-      totalCost: pendingCount * EXTERNAL_SMS_COST,
-      message: '발송 요청이 완료되었습니다. 결과는 발송내역에서 확인하세요.',
-      breakdown: {
-        external: externalCustomers.length,
-        customer: customers.length,
-      },
-    });
+    const result = await sendCampaignSms(storeScope(req), req.body);
+    res.status(result.status).json(result.body);
   } catch (error) {
     console.error('Send error:', error);
     res.status(500).json({ error: '메시지 발송 중 오류가 발생했습니다.' });
@@ -616,40 +102,8 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
 // POST /api/local-customers/test - 테스트 발송
 router.post('/test', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const storeId = req.user!.storeId;
-    const { content, phone } = req.body;
-
-    if (!content || !phone) {
-      return res.status(400).json({ error: '메시지 내용과 전화번호를 입력해주세요.' });
-    }
-
-    // SOLAPI 설정 확인
-    const apiKey = process.env.SOLAPI_API_KEY;
-    const apiSecret = process.env.SOLAPI_API_SECRET;
-
-    if (!apiKey || !apiSecret) {
-      return res.status(500).json({ error: 'SMS 발송 설정이 되어있지 않습니다.' });
-    }
-
-    const messageService = new SolapiMessageService(apiKey, apiSecret);
-
-    // 전화번호 정규화
-    const normalizedPhone = phone.replace(/-/g, '');
-
-    // 테스트 발송
-    const result = await messageService.send({
-      to: normalizedPhone,
-      from: '07041380263',
-      text: content,
-    });
-
-    const groupInfo = result.groupInfo;
-
-    res.json({
-      success: true,
-      groupId: groupInfo?.groupId,
-      message: '테스트 발송이 완료되었습니다.',
-    });
+    const result = await sendTestSms(req.body);
+    res.status(result.status).json(result.body);
   } catch (error: any) {
     console.error('Test send error:', error);
     res.status(500).json({ error: error.message || '테스트 발송 중 오류가 발생했습니다.' });
@@ -659,14 +113,8 @@ router.post('/test', authMiddleware, async (req: AuthRequest, res) => {
 // GET /api/local-customers/kakao/send-available - 카카오톡 발송 가능 시간 확인
 router.get('/kakao/send-available', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const canSend = isSendableTime();
-    const nextAvailable = canSend ? null : getNextSendableTime();
-
-    res.json({
-      canSend,
-      nextAvailable,
-      currentTimeKST: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString(),
-    });
+    const result = getKakaoSendAvailable();
+    res.status(result.status).json(result.body);
   } catch (error) {
     console.error('Send available check error:', error);
     res.status(500).json({ error: '발송 가능 시간 확인 중 오류가 발생했습니다.' });
@@ -676,47 +124,8 @@ router.get('/kakao/send-available', authMiddleware, async (req: AuthRequest, res
 // GET /api/local-customers/kakao/estimate - 카카오톡 비용 예상
 router.get('/kakao/estimate', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const storeId = req.user!.storeId;
-    const { sendCount, messageType = 'TEXT' } = req.query;
-
-    if (!sendCount) {
-      return res.status(400).json({ error: '발송 수량을 입력해주세요.' });
-    }
-
-    const count = parseInt(sendCount as string);
-    const costPerMessage = messageType === 'IMAGE' ? EXTERNAL_KAKAO_IMAGE_COST : EXTERNAL_KAKAO_TEXT_COST;
-    const totalCost = count * costPerMessage;
-
-    // 지갑 잔액 조회
-    const wallet = await prisma.wallet.findUnique({
-      where: { storeId },
-    });
-
-    const walletBalance = wallet?.balance || 0;
-    const canSend = walletBalance >= totalCost;
-
-    // 매장 평균 객단가 조회
-    const avgOrderResult = await prisma.visitOrOrder.aggregate({
-      where: {
-        storeId,
-        totalAmount: { not: null },
-      },
-      _avg: { totalAmount: true },
-    });
-    const avgOrderValue = Math.round(avgOrderResult._avg.totalAmount || 25000);
-
-    res.json({
-      sendCount: count,
-      messageType: messageType || 'TEXT',
-      costPerMessage,
-      totalCost,
-      walletBalance,
-      canSend,
-      estimatedRevenue: {
-        avgOrderValue,
-        conversionRate: 0.076, // 카카오톡 방문율 7.6%
-      },
-    });
+    const result = await getKakaoEstimate(storeScope(req), req.query);
+    res.status(result.status).json(result.body);
   } catch (error) {
     console.error('Kakao estimate error:', error);
     res.status(500).json({ error: '비용 예상 중 오류가 발생했습니다.' });
@@ -726,215 +135,8 @@ router.get('/kakao/estimate', authMiddleware, async (req: AuthRequest, res) => {
 // POST /api/local-customers/kakao/send - 카카오톡 브랜드 메시지 발송 (외부 고객)
 router.post('/kakao/send', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const storeId = req.user!.storeId;
-    const {
-      content,
-      messageType = 'TEXT',
-      ageGroups,
-      gender,
-      regions,
-      regionSidos,
-      sendCount,
-      categories,
-      imageId,
-      buttons,
-    } = req.body;
-
-    // 새 형식 (regions) 또는 구 형식 (regionSidos) 지원
-    let regionFilters: Array<{ sido: string; sigungu?: string }> = [];
-
-    if (regions && Array.isArray(regions) && regions.length > 0) {
-      regionFilters = regions;
-    } else if (regionSidos && Array.isArray(regionSidos) && regionSidos.length > 0) {
-      regionFilters = regionSidos.map((sido: string) => ({ sido }));
-    }
-
-    // 유효성 검사
-    if (!content || regionFilters.length === 0 || !sendCount) {
-      return res.status(400).json({ error: '필수 항목을 모두 입력해주세요.' });
-    }
-
-    if (sendCount <= 0) {
-      return res.status(400).json({ error: '발송 수량은 1 이상이어야 합니다.' });
-    }
-
-    // 발송 가능 시간 체크 - 야간이면 다음날 08:00에 예약 발송
-    const sendableNow = isSendableTime();
-    const scheduledAt = sendableNow ? undefined : getNextSendableTime();
-
-    // SOLAPI 설정 확인
-    const pfId = process.env.SOLAPI_PF_ID;
-    if (!pfId) {
-      return res.status(400).json({ error: '카카오 비즈니스 채널 설정이 필요합니다.' });
-    }
-
-    const solapiService = getSolapiService();
-    if (!solapiService) {
-      return res.status(400).json({ error: 'SOLAPI 설정이 되어있지 않습니다.' });
-    }
-
-    // 비용 계산
-    const costPerMessage = messageType === 'IMAGE' ? EXTERNAL_KAKAO_IMAGE_COST : EXTERNAL_KAKAO_TEXT_COST;
-    const totalCost = sendCount * costPerMessage;
-
-    // 지갑 잔액 확인
-    const wallet = await prisma.wallet.findUnique({
-      where: { storeId },
-    });
-
-    if (!wallet || wallet.balance < totalCost) {
-      return res.status(400).json({
-        error: '잔액이 부족합니다.',
-        walletBalance: wallet?.balance || 0,
-        requiredAmount: totalCost,
-      });
-    }
-
-    // 필터 조건 구성 (다중 지역 지원 - 시/군/구 포함)
-    const regionOrConditions = regionFilters.map((r) => {
-      if (r.sigungu) {
-        return { regionSido: r.sido, regionSigungu: r.sigungu };
-      } else {
-        return { regionSido: r.sido };
-      }
-    });
-
-    const where: any = {
-      OR: regionOrConditions,
-      consentMarketing: true,
-    };
-
-    if (ageGroups && ageGroups.length > 0) {
-      where.ageGroup = { in: ageGroups };
-    }
-
-    if (gender && gender !== 'all') {
-      where.gender = gender;
-    }
-
-    // 선호 업종 필터
-    if (categories && categories.length > 0) {
-      where.OR = categories.map((cat: string) => ({
-        preferredCategories: { contains: cat },
-      }));
-    }
-
-    // 가용 고객 수 확인
-    const availableCount = await prisma.externalCustomer.count({
-      where,
-    });
-
-    if (sendCount > availableCount) {
-      return res.status(400).json({
-        error: `발송 가능한 고객이 ${availableCount}명입니다.`,
-        availableCount,
-      });
-    }
-
-    // 고객 선택
-    const customers = await prisma.externalCustomer.findMany({
-      where,
-      take: sendCount,
-      orderBy: {
-        id: 'asc',
-      },
-    });
-
-    // 매장 정보 조회
-    const store = await prisma.store.findUnique({
-      where: { id: storeId },
-      select: { name: true },
-    });
-
-    // 캠페인 생성 (SMS 캠페인 테이블 재사용, 제목으로 구분)
-    const regionSidoList = [...new Set(regionFilters.map((r) => r.sido))];
-    const regionSigunguList = regionFilters.filter((r) => r.sigungu).map((r) => r.sigungu);
-
-    const campaign = await prisma.externalSmsCampaign.create({
-      data: {
-        storeId,
-        title: `신규 고객 유치 (카카오톡) - ${new Date().toLocaleDateString('ko-KR')}`,
-        content,
-        filterAgeGroups: JSON.stringify(ageGroups || []),
-        filterGender: gender || null,
-        filterRegionSido: regionSidoList.join(','),
-        filterRegionSigungu: regionSigunguList.join(','),
-        filterCategories: categories && categories.length > 0 ? JSON.stringify(categories) : null,
-        targetCount: sendCount,
-        costPerMessage,
-        status: 'SENDING',
-      },
-    });
-
-    // 벌크 브랜드 메시지 발송
-    const bulkBrandMessages = customers.map((customer) => ({
-      to: customer.phone,
-      content,
-    }));
-
-    const batchResults = await solapiService.sendBulkBrandMessage({
-      messages: bulkBrandMessages,
-      pfId,
-      messageType: messageType as 'TEXT' | 'IMAGE',
-      imageId,
-      buttons: buttons as BrandMessageButton[],
-      scheduledAt,
-    });
-    const { successGroupIds, failureMap, groupIdByIndex } = buildPhoneResultMap(batchResults);
-
-    console.log(`[ExternalKakao] Bulk send complete: ${successGroupIds.length} groups, ${failureMap.size} failed phones`);
-
-    // 결과를 기반으로 DB 레코드 생성
-    let pendingCount = 0;
-    let failedCount = 0;
-
-    for (let index = 0; index < customers.length; index++) {
-      const customer = customers[index];
-      const normalizedPhone = customer.phone.replace(/[^0-9]/g, '');
-      const phoneLookup = normalizedPhone.startsWith('82') ? '0' + normalizedPhone.slice(2) : (normalizedPhone.startsWith('0') ? normalizedPhone : '0' + normalizedPhone);
-      const groupId = groupIdByIndex[index] ?? null;
-      const isFailed = failureMap.has(phoneLookup) || !groupId;
-
-      await prisma.externalSmsMessage.create({
-        data: {
-          campaignId: campaign.id,
-          storeId,
-          externalCustomerId: customer.id,
-          content,
-          status: isFailed ? 'FAILED' : 'PENDING',
-          solapiGroupId: isFailed ? undefined : groupId,
-          cost: isFailed ? 0 : costPerMessage,
-          failReason: isFailed ? (failureMap.get(phoneLookup) || '발송 실패') : undefined,
-        },
-      });
-
-      if (isFailed) failedCount++;
-      else pendingCount++;
-    }
-
-    // 캠페인 상태 업데이트
-    await prisma.externalSmsCampaign.update({
-      where: { id: campaign.id },
-      data: {
-        failedCount,
-        status: pendingCount > 0 ? 'SENDING' : 'COMPLETED',
-      },
-    });
-
-    // 예약 발송 여부에 따른 메시지
-    const responseMessage = scheduledAt
-      ? `다음날 08:00에 예약 발송됩니다. 결과는 발송내역에서 확인하세요.`
-      : '발송 요청이 완료되었습니다. 결과는 발송내역에서 확인하세요.';
-
-    res.json({
-      success: true,
-      campaignId: campaign.id,
-      pendingCount,
-      failedCount,
-      totalCost: pendingCount * costPerMessage,
-      message: responseMessage,
-      scheduledAt: scheduledAt?.toISOString(),
-    });
+    const result = await sendKakaoBrandMessage(storeScope(req), req.body);
+    res.status(result.status).json(result.body);
   } catch (error) {
     console.error('Kakao send error:', error);
     res.status(500).json({ error: '카카오톡 발송 중 오류가 발생했습니다.' });
@@ -1134,32 +336,8 @@ router.post('/coupon-alimtalk/send', authMiddleware, async (req: AuthRequest, re
 // GET /api/local-customers/campaigns - 캠페인 목록 조회
 router.get('/campaigns', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const storeId = req.user!.storeId;
-    const { page = '1', limit = '20' } = req.query;
-
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
-    const skip = (pageNum - 1) * limitNum;
-
-    const [campaigns, total] = await Promise.all([
-      prisma.externalSmsCampaign.findMany({
-        where: { storeId },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limitNum,
-      }),
-      prisma.externalSmsCampaign.count({ where: { storeId } }),
-    ]);
-
-    res.json({
-      campaigns,
-      pagination: {
-        page: pageNum,
-        limit: limitNum,
-        total,
-        totalPages: Math.ceil(total / limitNum),
-      },
-    });
+    const result = await getCampaigns(storeScope(req), req.query);
+    res.status(result.status).json(result.body);
   } catch (error) {
     console.error('Campaigns fetch error:', error);
     res.status(500).json({ error: '캠페인 목록 조회 중 오류가 발생했습니다.' });
