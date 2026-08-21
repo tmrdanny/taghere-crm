@@ -1,5 +1,7 @@
 import { prisma } from '../lib/prisma.js';
 import { SolapiService, BrandMessageButton } from './solapi.js';
+import { getSolapiService, clearSolapiInstance } from './solapi-instance.js';
+import { isSendableTime } from '../utils/send-window.js';
 import { refundFailedMessage, chargeSinglePending } from './message-billing.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 
@@ -16,37 +18,6 @@ let isRunning = false;
 let intervalId: NodeJS.Timeout | null = null;
 
 // 글로벌 SOLAPI 서비스 인스턴스
-let globalSolapiService: SolapiService | null = null;
-
-function getSolapiService(): SolapiService | null {
-  if (globalSolapiService) {
-    return globalSolapiService;
-  }
-
-  const apiKey = process.env.SOLAPI_API_KEY;
-  const apiSecret = process.env.SOLAPI_API_SECRET;
-
-  if (!apiKey || !apiSecret) {
-    console.log(`[BrandMessage Worker] No SOLAPI credentials configured`);
-    return null;
-  }
-
-  globalSolapiService = new SolapiService(apiKey, apiSecret);
-  return globalSolapiService;
-}
-
-// 전화번호 정규화
-// 발송 가능 시간 체크 (08:00 ~ 20:50 KST)
-function isSendableTime(): boolean {
-  const now = new Date();
-  const kstHour = (now.getUTCHours() + 9) % 24;
-  const kstMinute = now.getUTCMinutes();
-
-  if (kstHour < 8) return false;
-  if (kstHour > 20) return false;
-  if (kstHour === 20 && kstMinute > 50) return false;
-  return true;
-}
 
 // 단일 메시지 결과 확인 (그룹 조회 결과를 인자로 받음)
 async function processMessage(
@@ -75,7 +46,7 @@ async function processMessage(
     return;
   }
 
-  const solapiService = getSolapiService();
+  const solapiService = getSolapiService(`[BrandMessage Worker] No SOLAPI credentials configured`);
   if (!solapiService) {
     console.log(`[BrandMessage Worker] SOLAPI service not available`);
     return;
@@ -179,7 +150,7 @@ async function processPendingMessages(): Promise<number> {
   console.log(`[BrandMessage Worker] Processing ${messages.length} pending messages`);
 
   // groupId 단위로 묶어 SOLAPI를 1회만 호출
-  const solapiService = getSolapiService();
+  const solapiService = getSolapiService(`[BrandMessage Worker] No SOLAPI credentials configured`);
   const groupIdToStatuses = new Map<string, Map<string, { status: 'PENDING' | 'SENT' | 'FAILED'; failReason?: string }> | null>();
 
   if (solapiService) {
@@ -235,7 +206,7 @@ async function processScheduledCampaigns(): Promise<void> {
     return;
   }
 
-  const solapiService = getSolapiService();
+  const solapiService = getSolapiService(`[BrandMessage Worker] No SOLAPI credentials configured`);
   if (!solapiService) {
     return;
   }
@@ -595,5 +566,5 @@ export function stopBrandMessageWorker(): void {
 
 // 캐시 초기화
 export function clearBrandMessageWorkerCache(): void {
-  globalSolapiService = null;
+  clearSolapiInstance();
 }

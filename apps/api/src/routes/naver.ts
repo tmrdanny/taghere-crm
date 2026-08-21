@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { toPhoneLastDigits } from '../utils/phone.js';
 import { prisma } from '../lib/prisma.js';
 import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
 import { sidoToShort } from '../utils/address-parser.js';
@@ -163,7 +164,7 @@ router.get('/callback', async (req, res) => {
 
     // 전화번호 정규화 (네이버는 010-1234-5678 또는 01012345678 형식)
     const phoneLastDigits = naverUser.mobile
-      ? naverUser.mobile.replace(/[^0-9]/g, '').slice(-8)
+      ? toPhoneLastDigits(naverUser.mobile)
       : null;
 
     // 고객 찾기: 이 매장에서 naverId 또는 phoneLastDigits로 검색 (매장별 고객 관리)

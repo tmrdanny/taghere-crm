@@ -3,6 +3,8 @@ import { SolapiMessageService } from 'solapi';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { SolapiService, BrandMessageButton, enqueueAlimTalk, buildPhoneResultMap } from '../services/solapi.js';
+import { getSolapiService } from '../services/solapi-instance.js';
+import { isSendableTime, getNextSendableTime } from '../utils/send-window.js';
 import { customAlphabet } from 'nanoid';
 
 const router = Router();
@@ -21,48 +23,6 @@ const COUPON_ALIMTALK_COST = 150;
 const generateCouponCode = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 10);
 
 // SOLAPI 서비스 인스턴스 (카카오톡용)
-let solapiServiceInstance: SolapiService | null = null;
-function getSolapiService(): SolapiService | null {
-  if (solapiServiceInstance) return solapiServiceInstance;
-  const apiKey = process.env.SOLAPI_API_KEY;
-  const apiSecret = process.env.SOLAPI_API_SECRET;
-  if (!apiKey || !apiSecret) return null;
-  solapiServiceInstance = new SolapiService(apiKey, apiSecret);
-  return solapiServiceInstance;
-}
-
-// 발송 가능 시간 체크 (08:00 ~ 20:50 KST) - 카카오톡용
-function isSendableTime(): boolean {
-  const now = new Date();
-  const kstHour = (now.getUTCHours() + 9) % 24;
-  const kstMinute = now.getUTCMinutes();
-
-  if (kstHour < 8) return false;
-  if (kstHour > 20) return false;
-  if (kstHour === 20 && kstMinute > 50) return false;
-  return true;
-}
-
-// 다음 발송 가능 시간 계산
-function getNextSendableTime(): Date {
-  const now = new Date();
-  const kstOffset = 9 * 60 * 60 * 1000;
-  const kstNow = new Date(now.getTime() + kstOffset);
-
-  const kstHour = kstNow.getUTCHours();
-  const kstMinute = kstNow.getUTCMinutes();
-
-  const nextSendable = new Date(kstNow);
-  nextSendable.setUTCHours(8, 0, 0, 0);
-
-  if (kstHour >= 21 || (kstHour === 20 && kstMinute > 50) || kstHour < 8) {
-    if (kstHour >= 8) {
-      nextSendable.setUTCDate(nextSendable.getUTCDate() + 1);
-    }
-  }
-
-  return new Date(nextSendable.getTime() - kstOffset);
-}
 
 
 

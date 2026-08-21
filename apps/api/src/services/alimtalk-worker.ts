@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { SolapiService, sendLowBalanceAlimTalk } from './solapi.js';
+import { getSolapiService, clearSolapiInstance } from './solapi-instance.js';
 import { getRemainingCredits, useCredits } from './credit-service.js';
 import { sendAligoAlimtalk } from './aligo.js';
 import { resolveAlimtalkCost } from './pricing-service.js';
@@ -27,27 +28,6 @@ const DEFAULT_COST = 20; // 기본 비용
 
 let isRunning = false;
 let intervalId: NodeJS.Timeout | null = null;
-
-// 글로벌 SOLAPI 서비스 인스턴스 (환경변수 기반)
-let globalSolapiService: SolapiService | null = null;
-
-// SOLAPI 서비스 가져오기 (환경변수에서 설정 읽기)
-function getSolapiService(): SolapiService | null {
-  if (globalSolapiService) {
-    return globalSolapiService;
-  }
-
-  const apiKey = process.env.SOLAPI_API_KEY;
-  const apiSecret = process.env.SOLAPI_API_SECRET;
-
-  if (!apiKey || !apiSecret) {
-    console.log(`[Worker] No SOLAPI credentials configured in environment variables`);
-    return null;
-  }
-
-  globalSolapiService = new SolapiService(apiKey, apiSecret);
-  return globalSolapiService;
-}
 
 // 단일 메시지 처리
 async function processMessage(messageId: string): Promise<void> {
@@ -85,7 +65,7 @@ async function processMessage(messageId: string): Promise<void> {
   // 다시 발송하지 않고 상태만 조회
   if (msg.solapiMessageId) {
     console.log(`[Worker] Message ${messageId} already sent to SOLAPI, checking status only`);
-    const solapiService = getSolapiService();
+    const solapiService = getSolapiService(`[Worker] No SOLAPI credentials configured in environment variables`);
     if (solapiService) {
       const statusResult = await solapiService.getMessageStatus(msg.solapiMessageId);
       console.log(`[Worker] Existing message ${messageId} status:`, statusResult);
@@ -235,7 +215,7 @@ async function processMessage(messageId: string): Promise<void> {
     }
 
     // SOLAPI 서비스 가져오기
-    const solapiService = getSolapiService();
+    const solapiService = getSolapiService(`[Worker] No SOLAPI credentials configured in environment variables`);
     if (!solapiService) {
       throw new Error('SOLAPI service not available');
     }
@@ -533,5 +513,5 @@ export function stopAlimTalkWorker(): void {
 
 // 캐시 초기화 (설정 변경 시 호출)
 export function clearSolapiCache(): void {
-  globalSolapiService = null;
+  clearSolapiInstance();
 }

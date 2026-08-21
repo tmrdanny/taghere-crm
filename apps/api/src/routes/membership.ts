@@ -1,9 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma.js';
 import { enqueueCorporateAdAlimTalk } from '../services/solapi.js';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 /**
  * GET /api/membership/coupons

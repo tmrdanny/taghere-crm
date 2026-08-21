@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { toPhoneLastDigits } from '../utils/phone.js';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { enqueuePointsEarnedAlimTalk, enqueueNaverReviewAlimTalk, enqueuePointsUsedAlimTalk } from '../services/solapi.js';
@@ -52,7 +53,7 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
       });
     } else if (phone) {
       // Normalize phone to last 8 digits
-      const phoneLastDigits = phone.replace(/[^0-9]/g, '').slice(-8);
+      const phoneLastDigits = toPhoneLastDigits(phone);
 
       customer = await prisma.customer.findFirst({
         where: { storeId, phoneLastDigits },

@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { toPhoneLastDigits } from '../utils/phone.js';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk } from '../services/solapi.js';
@@ -643,7 +644,7 @@ router.post('/order-event', authMiddleware, async (req: AuthRequest, res) => {
         where: { storeId: targetStoreId, kakaoId: customerKakaoId }
       });
     } else if (phone) {
-      const phoneLastDigits = phone.replace(/[^0-9]/g, '').slice(-8);
+      const phoneLastDigits = toPhoneLastDigits(phone);
       customer = await prisma.customer.findFirst({
         where: { storeId: targetStoreId, phoneLastDigits },
       });

@@ -8,9 +8,7 @@
  * - PointInfo.asp: 포인트 적립/사용/취소/조회
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma.js';
 
 // ── 설정 ──
 const API_URL = process.env.METACITY_API_URL || 'http://webapi.metapos.co.kr/webapi/order/api';

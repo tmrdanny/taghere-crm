@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { webhookAuthMiddleware, WebhookRequest } from '../middleware/webhook-auth.js';
+import { normalizeCustomerKeyDigits, toPhoneLastDigits } from '../utils/phone.js';
 import { maskPhone } from '../utils/masking.js';
 import {
   MetacityCustomerInfo,
@@ -705,12 +706,8 @@ router.post('/standalone-member-snapshot', webhookAuthMiddleware, async (req: We
       });
     }
 
-    const phoneDigits = phone.replace(/[^0-9]/g, '');
-    let normalizedDigits = phoneDigits;
-    if (normalizedDigits.startsWith('82') && normalizedDigits.length >= 11) {
-      normalizedDigits = '0' + normalizedDigits.slice(2);
-    }
-    const phoneLastDigits = normalizedDigits.slice(-8);
+    const normalizedDigits = normalizeCustomerKeyDigits(phone);
+    const phoneLastDigits = toPhoneLastDigits(phone);
     const formattedPhone = normalizedDigits.length === 11
       ? `${normalizedDigits.slice(0, 3)}-${normalizedDigits.slice(3, 7)}-${normalizedDigits.slice(7)}`
       : normalizedDigits;
@@ -801,12 +798,8 @@ router.post('/standalone-visit', webhookAuthMiddleware, async (req: WebhookReque
       });
     }
 
-    const phoneDigits = phone.replace(/[^0-9]/g, '');
-    let normalizedDigits = phoneDigits;
-    if (normalizedDigits.startsWith('82') && normalizedDigits.length >= 11) {
-      normalizedDigits = '0' + normalizedDigits.slice(2);
-    }
-    const phoneLastDigits = normalizedDigits.slice(-8);
+    const normalizedDigits = normalizeCustomerKeyDigits(phone);
+    const phoneLastDigits = toPhoneLastDigits(phone);
     const formattedPhone = normalizedDigits.length === 11
       ? `${normalizedDigits.slice(0, 3)}-${normalizedDigits.slice(3, 7)}-${normalizedDigits.slice(7)}`
       : normalizedDigits;
@@ -1076,12 +1069,8 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
     }
 
     // 5. 전화번호 정규화
-    const phoneDigits = phone.replace(/[^0-9]/g, '');
-    let normalizedDigits = phoneDigits;
-    if (normalizedDigits.startsWith('82') && normalizedDigits.length >= 11) {
-      normalizedDigits = '0' + normalizedDigits.slice(2);
-    }
-    const phoneLastDigits = normalizedDigits.slice(-8);
+    const normalizedDigits = normalizeCustomerKeyDigits(phone);
+    const phoneLastDigits = toPhoneLastDigits(phone);
 
     // 4. 고객 find-or-create
     let customer = await prisma.customer.findFirst({

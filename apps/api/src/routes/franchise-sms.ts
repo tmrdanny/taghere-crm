@@ -7,6 +7,7 @@ import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
 import { SolapiService, buildPhoneResultMap } from '../services/solapi.js';
+import { getSolapiService } from '../services/solapi-instance.js';
 import { maskName, maskPhone } from '../utils/masking.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 import { getByteLength } from '../utils/byte-length.js';
@@ -15,15 +16,6 @@ import { getAgeGroupBirthYearRange } from '../lib/customer-filters.js';
 const router = Router();
 
 // SOLAPI 서비스 인스턴스
-let solapiServiceInstance: SolapiService | null = null;
-function getSolapiService(): SolapiService | null {
-  if (solapiServiceInstance) return solapiServiceInstance;
-  const apiKey = process.env.SOLAPI_API_KEY;
-  const apiSecret = process.env.SOLAPI_API_SECRET;
-  if (!apiKey || !apiSecret) return null;
-  solapiServiceInstance = new SolapiService(apiKey, apiSecret);
-  return solapiServiceInstance;
-}
 
 // SMS 비용 (건당)
 const SMS_COST_SHORT = 50;  // 단문 (90byte 이하)

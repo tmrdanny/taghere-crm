@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { toPhoneLastDigits } from '../utils/phone.js';
 import { prisma } from '../lib/prisma.js';
 import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk, enqueueCorporateAdAlimTalk } from '../services/solapi.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
@@ -168,7 +169,7 @@ router.get('/callback', async (req, res) => {
 
     // 전화번호 정규화
     const phoneLastDigits = kakaoAccount.phone_number
-      ? kakaoAccount.phone_number.replace(/[^0-9]/g, '').slice(-8)
+      ? toPhoneLastDigits(kakaoAccount.phone_number)
       : null;
 
     // 고객 찾기: 이 매장에서 kakaoId 또는 phoneLastDigits로 검색 (매장별 고객 관리)
@@ -619,7 +620,7 @@ async function handleMembershipCallback(
 
     // 전화번호 정규화
     const phoneLastDigits = kakaoAccount.phone_number
-      ? kakaoAccount.phone_number.replace(/[^0-9]/g, '').slice(-8)
+      ? toPhoneLastDigits(kakaoAccount.phone_number)
       : null;
 
     // 고객 찾기
@@ -938,7 +939,7 @@ async function handleStampCallback(
 
   // 전화번호 정규화
   const phoneLastDigits = kakaoAccount.phone_number
-    ? kakaoAccount.phone_number.replace(/[^0-9]/g, '').slice(-8)
+    ? toPhoneLastDigits(kakaoAccount.phone_number)
     : null;
 
   // 고객 찾기
@@ -1823,7 +1824,7 @@ router.get('/taghere-callback', async (req, res) => {
 
     // 전화번호 정규화
     const phoneLastDigits = kakaoAccount.phone_number
-      ? kakaoAccount.phone_number.replace(/[^0-9]/g, '').slice(-8)
+      ? toPhoneLastDigits(kakaoAccount.phone_number)
       : null;
 
     // 고객 찾기
