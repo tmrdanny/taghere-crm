@@ -17,7 +17,7 @@ const router = Router();
  * 매직포스 단독 회원(STANDALONE) 매장은 메타씨티 POS 가 포인트의 진실원천이므로
  * CRM 어드민/사장님 화면에서의 수동 포인트 조정은 허용하지 않는다.
  */
-async function isStandaloneMagicposStore(storeId: string): Promise<boolean> {
+export async function isStandaloneMagicposStore(storeId: string): Promise<boolean> {
   const store = await prisma.store.findUnique({
     where: { id: storeId },
     select: { metacityEnabled: true, metacityMembershipType: true },
@@ -25,7 +25,7 @@ async function isStandaloneMagicposStore(storeId: string): Promise<boolean> {
   return !!(store?.metacityEnabled && store.metacityMembershipType === 'STANDALONE');
 }
 
-const STANDALONE_BLOCK_MESSAGE =
+export const STANDALONE_BLOCK_MESSAGE =
   '매직포스 단독 회원 매장은 메타씨티 POS 가 포인트의 진실원천이라 어드민에서 수동 조정할 수 없습니다.';
 
 // POST /api/points/earn - 포인트 적립

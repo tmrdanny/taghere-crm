@@ -13,6 +13,16 @@ interface TableEntry {
 
 const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || 'https://taghere-crm-web-g96p.onrender.com';
 
+// 스킴 없는 입력은 https://로 보정 (고객 페이지가 window.location.href로 이동하므로 상대경로 해석 방지)
+function normalizeUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) || /^(mailto|tel|sms):/i.test(trimmed)) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
+
 // GET /api/admin/table-link-settings/:storeId
 router.get('/table-link-settings/:storeId', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
@@ -79,26 +89,22 @@ router.put('/table-link-settings/:storeId', adminAuthMiddleware, async (req: Adm
       return res.status(404).json({ error: '매장을 찾을 수 없습니다.' });
     }
 
+    let normalizedTables: TableEntry[] | undefined;
     if (tables && Array.isArray(tables)) {
       if (tables.length > 100) {
         return res.status(400).json({ error: '테이블은 최대 100개까지 등록할 수 있습니다.' });
       }
 
-      const numbers = tables.map((t: TableEntry) => t.tableNumber);
+      normalizedTables = (tables as TableEntry[]).map(t => ({
+        ...t,
+        tableNumber: (t.tableNumber || '').trim(),
+        url: normalizeUrl(t.url || ''),
+      }));
+
+      const numbers = normalizedTables.map(t => t.tableNumber).filter(Boolean);
       const unique = new Set(numbers);
       if (unique.size !== numbers.length) {
         return res.status(400).json({ error: '중복된 테이블 번호가 있습니다.' });
-      }
-
-      for (const t of tables as TableEntry[]) {
-        if (!t.tableNumber || !t.url) {
-          return res.status(400).json({ error: '테이블 번호와 URL은 필수입니다.' });
-        }
-        try {
-          new URL(t.url);
-        } catch {
-          return res.status(400).json({ error: `잘못된 URL 형식입니다: ${t.url}` });
-        }
       }
     }
 
@@ -108,14 +114,14 @@ router.put('/table-link-settings/:storeId', adminAuthMiddleware, async (req: Adm
         storeId,
         enabled: enabled ?? false,
         genderCollectEnabled: genderCollectEnabled ?? true,
-        tables: (tables ?? []) as any,
+        tables: (normalizedTables ?? tables ?? []) as any,
         customerTitle: customerTitle ?? null,
         customerSubtitle: customerSubtitle ?? null,
       },
       update: {
         ...(enabled !== undefined && { enabled }),
         ...(genderCollectEnabled !== undefined && { genderCollectEnabled }),
-        ...(tables !== undefined && { tables: tables as any }),
+        ...(tables !== undefined && { tables: (normalizedTables ?? tables) as any }),
         ...(customerTitle !== undefined && { customerTitle }),
         ...(customerSubtitle !== undefined && { customerSubtitle }),
       },
@@ -169,7 +175,7 @@ router.post('/table-link-settings/:storeId/bulk-add', adminAuthMiddleware, async
       if (!existingNumbers.has(num)) {
         newTables.push({
           tableNumber: num,
-          url: urlTemplate.replace(/\{number\}/g, num),
+          url: normalizeUrl(urlTemplate.replace(/\{number\}/g, num)),
         });
       }
     }

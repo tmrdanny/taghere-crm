@@ -128,20 +128,7 @@ export default function AdminTableLinkPage() {
   const handleSave = async () => {
     if (!selectedStore) return;
 
-    for (const t of tables) {
-      if (!t.tableNumber.trim() || !t.url.trim()) {
-        showToast('테이블 번호와 URL은 필수입니다.', 'error');
-        return;
-      }
-      try {
-        new URL(t.url);
-      } catch {
-        showToast(`잘못된 URL 형식입니다: ${t.url}`, 'error');
-        return;
-      }
-    }
-
-    const numbers = tables.map(t => t.tableNumber);
+    const numbers = tables.map(t => t.tableNumber.trim()).filter(Boolean);
     if (new Set(numbers).size !== numbers.length) {
       showToast('중복된 테이블 번호가 있습니다.', 'error');
       return;
