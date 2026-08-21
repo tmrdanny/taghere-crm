@@ -16,7 +16,7 @@ import settingsRoutes from './routes/settings.js';
 import cardsRoutes from './routes/cards.js';
 import kakaoRoutes from './routes/kakao.js';
 import naverRoutes from './routes/naver.js';
-import taghereRoutes from './routes/taghere.js';
+import taghereRoutes from './routes/taghere/index.js';
 import alimtalkRoutes from './routes/alimtalk.js';
 import naverReviewRoutes from './routes/naver-review.js';
 import paymentsRoutes from './routes/payments.js';
