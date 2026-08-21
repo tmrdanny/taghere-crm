@@ -24,20 +24,20 @@ import {
   Announcement,
   MessageHistoryEntry,
   BulkRow,
-} from './types';
-import { AddCustomerModal } from './AddCustomerModal';
-import { BulkUploadModal } from './BulkUploadModal';
-import { CustomerTable } from './CustomerTable';
-import { CustomerFilters } from './CustomerFilters';
-import { CustomerAnnouncements } from './CustomerAnnouncements';
-import { CustomerListHeader } from './CustomerListHeader';
-import { AutomationBanner } from './AutomationBanner';
-import { EditCustomerModal } from './EditCustomerModal';
-import { UsePointsModal } from './UsePointsModal';
-import { UsePointsConfirmModal } from './UsePointsConfirmModal';
-import { CancelOrderItemModal } from './CancelOrderItemModal';
-import { EarnPointsModal } from './EarnPointsModal';
-import { EarnStampsModal } from './EarnStampsModal';
+  AddCustomerModal,
+  BulkUploadModal,
+  CustomerTable,
+  CustomerFilters,
+  CustomerAnnouncements,
+  CustomerListHeader,
+  AutomationBanner,
+  EditCustomerModal,
+  UsePointsModal,
+  UsePointsConfirmModal,
+  CancelOrderItemModal,
+  EarnPointsModal,
+  EarnStampsModal,
+} from '@/features/customers';
 
 // 컬럼 정의 상수
 const COLUMN_DEFINITIONS = [

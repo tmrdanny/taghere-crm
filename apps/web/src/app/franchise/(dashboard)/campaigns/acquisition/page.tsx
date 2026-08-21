@@ -30,6 +30,8 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { KakaoButton } from '@/features/messages';
+import { CouponAlimtalkPreview } from '@/features/kakao-composer';
 
 
 // 대한민국 17개 시/도 목록
@@ -91,14 +93,6 @@ const KAKAO_TEXT_COST = 200;
 const KAKAO_IMAGE_COST = 230;
 
 // 인증 토큰 가져오기
-// 카카오톡 버튼 타입
-interface KakaoButton {
-  type: 'WL';
-  name: string;
-  linkMo: string;
-  linkPc?: string;
-}
-
 // 예상 매출 타입
 interface EstimatedRevenue {
   avgOrderValue: number;
@@ -1491,63 +1485,11 @@ export default function LocalCustomersPage() {
                 <div className="w-full h-full bg-[#B2C7D9] rounded-[1.75rem] overflow-hidden flex flex-col relative">
                   <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-neutral-900 rounded-full z-10" />
 
-                  {/* KakaoTalk header */}
-                  <div className="flex items-center justify-between px-4 pt-10 pb-2">
-                    <ChevronLeft className="w-4 h-4 text-neutral-700" />
-                    <span className="font-medium text-xs text-neutral-800">태그히어</span>
-                    <div className="w-4" />
-                  </div>
-
-                  {/* Date badge */}
-                  <div className="flex justify-center mb-3">
-                    <span className="text-[10px] bg-neutral-500/30 text-neutral-700 px-2 py-0.5 rounded-full">
-                      {new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
-                    </span>
-                  </div>
-
-                  {/* Message area */}
-                  <div className="flex-1 pl-2 pr-4 overflow-auto">
-                    <div className="flex gap-1.5">
-                      <div className="flex-shrink-0">
-                        <div className="w-7 h-7 rounded-full bg-neutral-300" />
-                      </div>
-                      <div className="flex-1 min-w-0 mr-4">
-                        <p className="text-[10px] text-neutral-600 mb-0.5">태그히어</p>
-                        <div className="relative">
-                          <div className="absolute -top-1 -right-1 z-10">
-                            <span className="bg-neutral-700 text-white text-[8px] px-1 py-0.5 rounded-full font-medium">kakao</span>
-                          </div>
-                          <div className="bg-[#FEE500] rounded-t-md px-2 py-1.5">
-                            <span className="text-xs font-medium text-neutral-800">알림톡 도착</span>
-                          </div>
-                          <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/images/coupon_kakao.png" alt="쿠폰 이미지" className="w-full h-auto" />
-                            <div className="px-4 py-4">
-                              <p className="text-xs font-semibold text-neutral-800 mb-4">태그히어 고객 대상 쿠폰</p>
-                              <div className="space-y-1 text-xs text-neutral-700">
-                                <p>
-                                  <span className="text-[#6BA3FF]">{(franchiseStores.find((s) => s.id === representativeStoreId)?.name) || '매장명'}</span>에서 쿠폰을 보냈어요!
-                                </p>
-                                <p className="text-neutral-500 mb-4">태그히어 이용 고객에게만 제공되는 쿠폰이에요.</p>
-                                <div className="space-y-1 mb-4">
-                                  <p>📌 {couponContent || '쿠폰 내용을 입력해주세요'}</p>
-                                  <p>📌 {couponExpiryDate || '유효기간을 입력해주세요'}</p>
-                                </div>
-                                <p className="text-neutral-500">결제 시 직원 확인을 통해 사용할 수 있어요.</p>
-                              </div>
-                            </div>
-                            <div className="px-4 pb-4 space-y-2">
-                              <button className="w-full py-2.5 bg-white text-neutral-800 text-xs font-medium rounded border border-neutral-300">네이버 길찾기</button>
-                              <button className="w-full py-2.5 bg-white text-neutral-800 text-xs font-medium rounded border border-neutral-300">직원 확인</button>
-                            </div>
-                          </div>
-                        </div>
-                        <p className="text-[8px] text-neutral-500 mt-0.5 text-right">오후 12:30</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="h-6" />
+                  <CouponAlimtalkPreview
+                    couponStoreName={(franchiseStores.find((s) => s.id === representativeStoreId)?.name) || ''}
+                    couponContent={couponContent}
+                    couponExpiryDate={couponExpiryDate}
+                  />
                 </div>
               </div>
             </div>
