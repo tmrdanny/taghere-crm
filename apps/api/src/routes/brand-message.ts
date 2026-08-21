@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import multer from 'multer';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
@@ -12,6 +11,10 @@ import { calculateCostWithCredits } from '../services/credit-service.js';
 import { chargeCampaignUpfront } from '../services/message-billing.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 import { getAgeGroupBirthYearRange, buildRegionConditions, buildFilterConditions } from '../lib/customer-filters.js';
+import {
+  brandMessageImageUpload as upload,
+  brandMessageUploadDir as uploadDir,
+} from './message-uploads.js';
 
 const router = Router();
 
@@ -19,35 +22,9 @@ const router = Router();
 const BRAND_MESSAGE_TEXT_COST = 200; // 텍스트형
 const BRAND_MESSAGE_IMAGE_COST = 230; // 이미지형
 
-// 이미지 제약 조건 (카카오 권장)
-const IMAGE_MAX_SIZE = 5 * 1024 * 1024; // 5MB
+// 이미지 제약 조건 (카카오 권장) — 최대 용량(5MB)은 message-uploads.ts 의 multer 설정에서 제한
 const IMAGE_RECOMMENDED_WIDTH = 800;
 const IMAGE_RECOMMENDED_HEIGHT = 400;
-
-// 업로드 디렉토리 설정
-const uploadDir = path.join(process.cwd(), 'uploads', 'brand-message');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Multer 설정
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage,
-  limits: { fileSize: IMAGE_MAX_SIZE },
-  fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (!['.jpg', '.jpeg', '.png'].includes(ext)) {
-      cb(new Error('JPG 또는 PNG 파일만 업로드 가능합니다.'));
-      return;
-    }
-    if (!file.mimetype.startsWith('image/')) {
-      cb(new Error('이미지 파일만 업로드 가능합니다.'));
-      return;
-    }
-    cb(null, true);
-  },
-});
 
 // SOLAPI 서비스 인스턴스
 

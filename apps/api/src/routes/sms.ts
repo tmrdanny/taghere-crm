@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { SolapiMessageService } from 'solapi';
-import multer from 'multer';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
@@ -14,6 +13,13 @@ import { resolvePrice } from '../services/pricing-service.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 import { getByteLength } from '../utils/byte-length.js';
 import { getAgeGroupBirthYearRange, buildRegionConditions, buildFilterConditions } from '../lib/customer-filters.js';
+import {
+  mmsImageUpload as upload,
+  mmsUploadDir as uploadDir,
+  MMS_IMAGE_MAX_SIZE as IMAGE_MAX_SIZE,
+  MMS_IMAGE_MAX_WIDTH as IMAGE_MAX_WIDTH,
+  MMS_IMAGE_MAX_HEIGHT as IMAGE_MAX_HEIGHT,
+} from './message-uploads.js';
 
 const router = Router();
 
@@ -23,37 +29,6 @@ const router = Router();
 const SMS_COST_SHORT = 50;  // 단문 (90byte 이하)
 const SMS_COST_LONG = 50;   // 장문 (90byte 초과) - 동일 비용
 const MMS_COST = 120;       // 이미지 첨부 시
-
-// 이미지 제약 조건
-const IMAGE_MAX_SIZE = 200 * 1024; // 200KB
-const IMAGE_MAX_WIDTH = 1500;      // 1500px
-const IMAGE_MAX_HEIGHT = 1440;     // 1440px
-
-// 업로드 디렉토리 설정
-const uploadDir = path.join(process.cwd(), 'uploads', 'mms');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Multer 설정 - 메모리 스토리지 사용 (검증 후 저장)
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage,
-  limits: { fileSize: IMAGE_MAX_SIZE },
-  fileFilter: (req, file, cb) => {
-    // JPG 확장자만 허용
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (ext !== '.jpg' && ext !== '.jpeg') {
-      cb(new Error('JPG 파일만 업로드 가능합니다.'));
-      return;
-    }
-    if (!file.mimetype.startsWith('image/jpeg')) {
-      cb(new Error('JPG 이미지 파일만 업로드 가능합니다.'));
-      return;
-    }
-    cb(null, true);
-  },
-});
 
 // GET /api/sms/target-counts - 발송 대상 수 조회 (필터 적용)
 router.get('/target-counts', authMiddleware, async (req: AuthRequest, res) => {

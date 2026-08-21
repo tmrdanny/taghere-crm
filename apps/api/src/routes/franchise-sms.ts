@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { SolapiMessageService } from 'solapi';
-import multer from 'multer';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
@@ -12,6 +11,13 @@ import { maskName, maskPhone } from '../utils/masking.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 import { getByteLength } from '../utils/byte-length.js';
 import { getAgeGroupBirthYearRange } from '../lib/customer-filters.js';
+import {
+  mmsImageUpload as upload,
+  franchiseMmsUploadDir as uploadDir,
+  MMS_IMAGE_MAX_SIZE as IMAGE_MAX_SIZE,
+  MMS_IMAGE_MAX_WIDTH as IMAGE_MAX_WIDTH,
+  MMS_IMAGE_MAX_HEIGHT as IMAGE_MAX_HEIGHT,
+} from './message-uploads.js';
 
 const router = Router();
 
@@ -21,36 +27,6 @@ const router = Router();
 const SMS_COST_SHORT = 50;  // 단문 (90byte 이하)
 const SMS_COST_LONG = 50;   // 장문 (90byte 초과)
 const MMS_COST = 120;       // 이미지 첨부 시
-
-// 이미지 제약 조건
-const IMAGE_MAX_SIZE = 200 * 1024; // 200KB
-const IMAGE_MAX_WIDTH = 1500;
-const IMAGE_MAX_HEIGHT = 1440;
-
-// 업로드 디렉토리
-const uploadDir = path.join(process.cwd(), 'uploads', 'franchise-mms');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Multer 설정
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage,
-  limits: { fileSize: IMAGE_MAX_SIZE },
-  fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (ext !== '.jpg' && ext !== '.jpeg') {
-      cb(new Error('JPG 파일만 업로드 가능합니다.'));
-      return;
-    }
-    if (!file.mimetype.startsWith('image/jpeg')) {
-      cb(new Error('JPG 이미지 파일만 업로드 가능합니다.'));
-      return;
-    }
-    cb(null, true);
-  },
-});
 
 // 필터 조건 생성
 // 주의: 프랜차이즈 프론트는 'ALL'(대문자) 센티넬을 사용하므로 매장용 buildFilterConditions와
