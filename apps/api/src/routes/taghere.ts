@@ -1617,6 +1617,10 @@ router.get('/table-link/:slug/redirect/:tableNumber', async (req, res) => {
       return res.status(404).json({ error: '해당 테이블 번호를 찾을 수 없습니다.' });
     }
 
+    if (!table.url) {
+      return res.status(404).json({ error: '해당 테이블에 링크가 설정되지 않았습니다.' });
+    }
+
     res.json({ url: table.url });
   } catch (error) {
     console.error('Table link redirect error:', error);
