@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma.js';
@@ -16,7 +17,7 @@ import { classifyWalletTx, describeWalletTx, WALLET_USAGE_LABELS } from '../util
 const router = Router();
 
 // 토스페이먼츠 시크릿 키
-const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || '';
+const TOSS_SECRET_KEY = env.TOSS_SECRET_KEY || '';
 
 // 금액에 따른 보너스율 계산
 const getBonusRate = (amount: number): number => {

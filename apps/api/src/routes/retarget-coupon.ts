@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
@@ -186,15 +187,15 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res: Response) => 
     }
 
     // 도메인 설정 (환경별)
-    const appUrl = process.env.PUBLIC_APP_URL || 'http://localhost:3999';
+    const appUrl = env.PUBLIC_APP_URL || 'http://localhost:3999';
     const domain = appUrl.replace(/^https?:\/\//, '');
 
     // 알림톡 템플릿 ID / pfId
-    const templateId = process.env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON;
+    const templateId = env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON;
     if (!templateId) {
       return res.status(500).json({ error: '알림톡 템플릿이 설정되지 않았습니다.' });
     }
-    const pfId = process.env.SOLAPI_PF_ID;
+    const pfId = env.SOLAPI_PF_ID;
     if (!pfId) {
       return res.status(500).json({ error: 'SOLAPI 채널이 설정되지 않았습니다.' });
     }

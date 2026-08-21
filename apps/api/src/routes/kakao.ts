@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Router, Request, Response } from 'express';
 import { toPhoneLastDigits } from '../utils/phone.js';
 import { prisma } from '../lib/prisma.js';
@@ -32,7 +33,7 @@ function isVisitSourceRecent(updatedAt: Date | null | undefined): boolean {
 const KAKAO_CLIENT_ID = process.env.KAKAO_CLIENT_ID || '';
 const KAKAO_CLIENT_SECRET = process.env.KAKAO_CLIENT_SECRET || '';
 const KAKAO_REDIRECT_URI = process.env.KAKAO_REDIRECT_URI || 'http://localhost:4000/auth/kakao/callback';
-const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || 'http://localhost:3000';
+const PUBLIC_APP_URL = env.PUBLIC_APP_URL || 'http://localhost:3000';
 
 // GET /auth/kakao/start - 카카오 로그인 시작
 router.get('/start', (req, res) => {

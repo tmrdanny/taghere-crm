@@ -3,6 +3,7 @@
 // 두 스코프의 의도적 동작 차이(카테고리 필터 결합 방식, '미지정' 지역 처리,
 // Wallet vs FranchiseWallet, 캠페인/메시지 행의 storeId vs franchiseId 등)는
 // 현행 동작 그대로 유지한다 — 통일하지 말 것 (특성화 테스트로 고정됨).
+import { env } from '../config/env.js';
 import { SolapiMessageService } from 'solapi';
 import { prisma } from '../lib/prisma.js';
 import { SolapiService, BrandMessageButton, buildPhoneResultMap } from './solapi.js';
@@ -640,8 +641,8 @@ export async function sendCampaignSms(
   });
 
   // SOLAPI 설정 확인
-  const apiKey = process.env.SOLAPI_API_KEY;
-  const apiSecret = process.env.SOLAPI_API_SECRET;
+  const apiKey = env.SOLAPI_API_KEY;
+  const apiSecret = env.SOLAPI_API_SECRET;
 
   if (!apiKey || !apiSecret) {
     return { status: 500, body: { error: 'SMS 발송 설정이 되어있지 않습니다.' } };
@@ -724,8 +725,8 @@ export async function sendTestSms(body: Record<string, any>): Promise<LocalCampa
   }
 
   // SOLAPI 설정 확인
-  const apiKey = process.env.SOLAPI_API_KEY;
-  const apiSecret = process.env.SOLAPI_API_SECRET;
+  const apiKey = env.SOLAPI_API_KEY;
+  const apiSecret = env.SOLAPI_API_SECRET;
 
   if (!apiKey || !apiSecret) {
     return { status: 500, body: { error: 'SMS 발송 설정이 되어있지 않습니다.' } };
@@ -878,7 +879,7 @@ export async function sendKakaoBrandMessage(
   const scheduledAt = sendableNow ? undefined : getNextSendableTime();
 
   // SOLAPI 설정 확인
-  const pfId = process.env.SOLAPI_PF_ID;
+  const pfId = env.SOLAPI_PF_ID;
   if (!pfId) {
     return { status: 400, body: { error: '카카오 비즈니스 채널 설정이 필요합니다.' } };
   }

@@ -12,6 +12,7 @@
  *   PUT    /api/coupon-form/:id        폼 수정
  *   DELETE /api/coupon-form/:id        폼 삭제
  */
+import { env } from '../config/env.js';
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
@@ -180,13 +181,13 @@ router.post('/public/:slug/submit', async (req, res) => {
     }
 
     // 알림톡 템플릿 설정 확인
-    const templateId = process.env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON;
+    const templateId = env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON;
     if (!templateId) {
       console.error('[CouponForm] SOLAPI_TEMPLATE_ID_RETARGET_COUPON not configured');
       return res.status(500).json({ error: '쿠폰 발송 설정이 완료되지 않았습니다. 매장에 문의해주세요.' });
     }
 
-    const appUrl = process.env.PUBLIC_APP_URL || '';
+    const appUrl = env.PUBLIC_APP_URL || '';
     const domain = appUrl.replace(/^https?:\/\//, '');
 
     // 같은 매장 기존 고객이면 연결 (best-effort)

@@ -1,6 +1,7 @@
 // 환경변수 로딩을 최우선으로 (라우트 등 다른 모듈 import보다 먼저 실행되어야 함)
 import './load-env.js';
 import http from 'http';
+import { warnMissingEnv } from './config/env.js';
 
 // 필수 환경변수 검증
 const requiredEnvVars = [
@@ -13,6 +14,9 @@ if (missingEnvVars.length > 0) {
   console.error(`❌ Missing required environment variables: ${missingEnvVars.join(', ')}`);
   process.exit(1);
 }
+
+// 선택 환경변수 그룹 누락 경고 (warn-only)
+warnMissingEnv();
 
 import { app } from './app.js';
 import { startAlimTalkWorker } from './services/alimtalk-worker.js';

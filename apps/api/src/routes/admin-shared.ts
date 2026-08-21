@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
@@ -24,7 +25,7 @@ export const adminAuthMiddleware = (req: AdminRequest, res: Response, next: Next
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { isSystemAdmin: boolean };
+    const decoded = jwt.verify(token, env.JWT_SECRET!) as { isSystemAdmin: boolean };
 
     if (!decoded.isSystemAdmin) {
       return res.status(403).json({ error: '어드민 권한이 필요합니다.' });

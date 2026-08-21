@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { SolapiService } from './solapi.js';
 
 // 프로세스 전역 SOLAPI 서비스 싱글턴.
@@ -6,8 +7,8 @@ let instance: SolapiService | null = null;
 
 export function getSolapiService(missingCredentialsLog?: string): SolapiService | null {
   if (instance) return instance;
-  const apiKey = process.env.SOLAPI_API_KEY;
-  const apiSecret = process.env.SOLAPI_API_SECRET;
+  const apiKey = env.SOLAPI_API_KEY;
+  const apiSecret = env.SOLAPI_API_SECRET;
   if (!apiKey || !apiSecret) {
     if (missingCredentialsLog) console.log(missingCredentialsLog);
     return null;

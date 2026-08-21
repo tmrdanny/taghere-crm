@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
@@ -195,10 +196,10 @@ router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // 실제 알림톡 발송 (SOLAPI)
-    const templateId = process.env.SOLAPI_TEMPLATE_ID_REVIEW_REQUEST;
-    const pfId = process.env.SOLAPI_PF_ID;
-    const apiKey = process.env.SOLAPI_API_KEY;
-    const apiSecret = process.env.SOLAPI_API_SECRET;
+    const templateId = env.SOLAPI_TEMPLATE_ID_REVIEW_REQUEST;
+    const pfId = env.SOLAPI_PF_ID;
+    const apiKey = env.SOLAPI_API_KEY;
+    const apiSecret = env.SOLAPI_API_SECRET;
 
     if (!templateId || !pfId || !apiKey || !apiSecret) {
       return res.status(400).json({ error: 'SOLAPI 설정이 되어있지 않습니다.' });

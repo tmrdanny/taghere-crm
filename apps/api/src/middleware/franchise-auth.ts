@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
@@ -25,7 +26,7 @@ export async function franchiseAuthMiddleware(
 
     const token = authHeader.split(' ')[1];
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+    const decoded = jwt.verify(token, env.JWT_SECRET!) as {
       id: string;
       email: string;
       franchiseId: string;

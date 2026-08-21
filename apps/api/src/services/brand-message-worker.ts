@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { SolapiService, BrandMessageButton } from './solapi.js';
 import { getSolapiService, clearSolapiInstance } from './solapi-instance.js';
@@ -200,7 +201,7 @@ async function processScheduledCampaigns(): Promise<void> {
     return;
   }
 
-  const pfId = process.env.SOLAPI_PF_ID;
+  const pfId = env.SOLAPI_PF_ID;
   if (!pfId) {
     console.log(`[BrandMessage Worker] No SOLAPI_PF_ID configured`);
     return;

@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
@@ -191,11 +192,11 @@ router.post('/kakao/coupon-send', franchiseAuthMiddleware, async (req: Franchise
     }
 
     // SOLAPI 설정
-    const templateId = process.env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON;
+    const templateId = env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON;
     if (!templateId) {
       return res.status(500).json({ error: '알림톡 템플릿이 설정되지 않았습니다.' });
     }
-    const pfId = process.env.SOLAPI_PF_ID;
+    const pfId = env.SOLAPI_PF_ID;
     if (!pfId) {
       return res.status(400).json({ error: '카카오 비즈니스 채널 설정이 필요합니다.' });
     }
@@ -238,7 +239,7 @@ router.post('/kakao/coupon-send', franchiseAuthMiddleware, async (req: Franchise
       select: { id: true, phone: true },
     });
 
-    const appUrl = process.env.PUBLIC_APP_URL || 'http://localhost:3999';
+    const appUrl = env.PUBLIC_APP_URL || 'http://localhost:3999';
     const domain = appUrl.replace(/^https?:\/\//, '');
     const naverForTemplate = (repStore.naverPlaceUrl || '').replace(/^https?:\/\//, '');
 

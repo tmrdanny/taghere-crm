@@ -5,6 +5,7 @@
  * 발송 자체는 기존 AlimTalkOutbox + alimtalk-worker에 위임 (worker가 enqueue).
  */
 
+import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import {
   parseNaverPlaceId,
@@ -26,9 +27,9 @@ export const BOOSTER_PRESETS = [
   { perBatchCount: 500, totalWeeks: 10 },
 ];
 
-const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || '';
+const TOSS_SECRET_KEY = env.TOSS_SECRET_KEY || '';
 const KST_OFFSET = 9 * 60 * 60 * 1000;
-const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || '';
+const PUBLIC_BASE_URL = env.PUBLIC_BASE_URL || '';
 // 알리고에 등록된 부스터 알림톡 템플릿 코드. env 미설정 시에도 실제 템플릿(UG_5628)으로 폴백.
 const BOOSTER_TPL_CODE = process.env.ALIGO_PLACE_BOOSTER_TPL_CODE || 'UG_5628';
 

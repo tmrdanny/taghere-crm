@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { SolapiService, sendLowBalanceAlimTalk } from './solapi.js';
 import { getSolapiService, clearSolapiInstance } from './solapi-instance.js';
@@ -208,7 +209,7 @@ async function processMessage(messageId: string): Promise<void> {
     }
 
     // 환경변수에서 pfId 읽기
-    const pfId = process.env.SOLAPI_PF_ID;
+    const pfId = env.SOLAPI_PF_ID;
 
     if (!pfId) {
       throw new Error('SOLAPI_PF_ID not configured in environment variables');

@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Router, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma.js';
@@ -23,7 +24,7 @@ interface Booth {
   tables: BoothTable[];
 }
 
-const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || 'https://taghere-crm-web-g96p.onrender.com';
+const PUBLIC_APP_URL = env.PUBLIC_APP_URL || 'https://taghere-crm-web-g96p.onrender.com';
 
 const MAX_BOOTHS = 50;
 const MAX_TABLES_PER_BOOTH = 200;

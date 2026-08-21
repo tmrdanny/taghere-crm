@@ -1,5 +1,6 @@
 // 환경변수 로딩을 최우선으로 (라우트 등 다른 모듈 import보다 먼저 실행되어야 함)
 import './load-env.js';
+import { env } from './config/env.js';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -68,7 +69,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 // CORS configuration
-const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || '';
+const PUBLIC_APP_URL = env.PUBLIC_APP_URL || '';
 
 // 정적 + 동적 origin 목록 (환경변수 로딩 실패에도 동작 보장)
 const allowedOrigins = [

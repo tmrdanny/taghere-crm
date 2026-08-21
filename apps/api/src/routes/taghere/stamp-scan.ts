@@ -1,3 +1,4 @@
+import { env } from '../../config/env.js';
 import { Router } from 'express';
 import { prisma } from '../../lib/prisma.js';
 import { buildRewardsFromLegacy, RewardEntry } from '../../utils/random-reward.js';
@@ -124,7 +125,7 @@ const STAMP_SCAN_TOKEN_TTL_MS = 10 * 60 * 1000;
 // secret 불일치·가드 미적용이면 토큰 없이 페이지로 보낸다(페이지에서 "QR 스캔" 안내).
 router.get('/stamp-scan-entry/:slug/:secret', async (req, res) => {
   const { slug, secret } = req.params;
-  const webUrl = process.env.PUBLIC_APP_URL || 'https://taghere-crm-web-g96p.onrender.com';
+  const webUrl = env.PUBLIC_APP_URL || 'https://taghere-crm-web-g96p.onrender.com';
   const pageUrl = `${webUrl}/taghere-enroll-stamp/${encodeURIComponent(slug)}`;
   try {
     const store = await prisma.store.findFirst({

@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Router } from 'express';
 import sharp from 'sharp';
 import path from 'path';
@@ -279,7 +280,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // SOLAPI 설정 확인
-    const pfId = process.env.SOLAPI_PF_ID;
+    const pfId = env.SOLAPI_PF_ID;
     if (!pfId) {
       return res.status(400).json({ error: '카카오 비즈니스 채널 설정이 필요합니다.' });
     }
@@ -626,7 +627,7 @@ router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
 
     // 테스트 발송은 시간 제한 없음 (발송 가능 시간 체크 제거)
 
-    const pfId = process.env.SOLAPI_PF_ID;
+    const pfId = env.SOLAPI_PF_ID;
     if (!pfId) {
       return res.status(400).json({ error: '카카오 비즈니스 채널 설정이 필요합니다.' });
     }

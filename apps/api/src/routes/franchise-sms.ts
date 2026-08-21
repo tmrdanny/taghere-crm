@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Router } from 'express';
 import { SolapiMessageService } from 'solapi';
 import sharp from 'sharp';
@@ -419,8 +420,8 @@ router.post('/upload-image', franchiseAuthMiddleware, upload.single('image'), as
     await fs.promises.writeFile(filepath, req.file.buffer);
 
     // SOLAPI에 이미지 업로드하여 imageId 획득
-    const apiKey = process.env.SOLAPI_API_KEY;
-    const apiSecret = process.env.SOLAPI_API_SECRET;
+    const apiKey = env.SOLAPI_API_KEY;
+    const apiSecret = env.SOLAPI_API_SECRET;
 
     if (!apiKey || !apiSecret) {
       // 로컬 파일 삭제
@@ -504,8 +505,8 @@ router.post('/test-send', franchiseAuthMiddleware, async (req: FranchiseAuthRequ
     }
 
     // SOLAPI 설정 확인
-    const apiKey = process.env.SOLAPI_API_KEY;
-    const apiSecret = process.env.SOLAPI_API_SECRET;
+    const apiKey = env.SOLAPI_API_KEY;
+    const apiSecret = env.SOLAPI_API_SECRET;
 
     if (!apiKey || !apiSecret) {
       return res.status(400).json({ error: 'SMS 발송 설정이 되어있지 않습니다.' });
@@ -730,8 +731,8 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       // 5. SOLAPI 벌크 발송 (비동기)
       setImmediate(async () => {
         try {
-          const apiKey = process.env.SOLAPI_API_KEY;
-          const apiSecret = process.env.SOLAPI_API_SECRET;
+          const apiKey = env.SOLAPI_API_KEY;
+          const apiSecret = env.SOLAPI_API_SECRET;
 
           if (!apiKey || !apiSecret) {
             console.error('SOLAPI service not configured');

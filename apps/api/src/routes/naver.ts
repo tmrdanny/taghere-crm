@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Router } from 'express';
 import { toPhoneLastDigits } from '../utils/phone.js';
 import { prisma } from '../lib/prisma.js';
@@ -14,7 +15,7 @@ const router = Router();
 const NAVER_CLIENT_ID = process.env.NAVER_CLIENT_ID || '';
 const NAVER_CLIENT_SECRET = process.env.NAVER_CLIENT_SECRET || '';
 const NAVER_REDIRECT_URI = process.env.NAVER_REDIRECT_URI || 'http://localhost:4000/auth/naver/callback';
-const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || 'http://localhost:3000';
+const PUBLIC_APP_URL = env.PUBLIC_APP_URL || 'http://localhost:3000';
 
 // GET /auth/naver/start - 네이버 로그인 시작
 router.get('/start', (req, res) => {

@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import type { AlimTalkType } from '@prisma/client';
 
@@ -133,7 +134,7 @@ export async function enqueuePointsEarnedAlimTalk(params: {
   }
 
   // 환경변수에서 설정 읽기
-  const templateId = process.env.SOLAPI_TEMPLATE_ID_POINTS_EARNED;
+  const templateId = env.SOLAPI_TEMPLATE_ID_POINTS_EARNED;
 
   console.log(`[AlimTalk] Template ID check:`, {
     templateId: templateId || 'NOT_SET',
@@ -194,7 +195,7 @@ export async function enqueueNaverReviewAlimTalk(params: {
   });
 
   // 환경변수에서 설정 읽기
-  const templateId = process.env.SOLAPI_TEMPLATE_ID_REVIEW_REQUEST;
+  const templateId = env.SOLAPI_TEMPLATE_ID_REVIEW_REQUEST;
   console.log(`[AlimTalk] Review template ID: ${templateId}`);
 
   if (!templateId) {
@@ -304,7 +305,7 @@ export async function enqueuePointsUsedAlimTalk(params: {
   }
 
   // 환경변수에서 설정 읽기
-  const templateId = process.env.SOLAPI_TEMPLATE_ID_POINTS_USED;
+  const templateId = env.SOLAPI_TEMPLATE_ID_POINTS_USED;
 
   if (!templateId) {
     console.log(`[AlimTalk] Points used notification disabled: no template ID configured`);
@@ -439,7 +440,7 @@ export async function enqueueHitejinroStampEarnedAlimTalk(params: {
     return { success: false, error: 'Insufficient wallet balance' };
   }
 
-  const templateId = process.env.SOLAPI_TEMPLATE_ID_STAMP_HITEJINRO;
+  const templateId = env.SOLAPI_TEMPLATE_ID_STAMP_HITEJINRO;
   if (!templateId) {
     console.log(`[AlimTalk] HiteJinro stamp template not configured (SOLAPI_TEMPLATE_ID_STAMP_HITEJINRO)`);
     return { success: false, error: 'AlimTalk template not configured' };
@@ -481,7 +482,7 @@ export async function sendLowBalanceAlimTalk(params: {
   reason: string; // 발송 실패 이유 (예: "포인트 적립 알림톡", "네이버 리뷰 요청 알림톡")
 }): Promise<{ success: boolean; error?: string }> {
   // 환경변수에서 템플릿 ID 읽기
-  const templateId = process.env.SOLAPI_TEMPLATE_ID_LOW_BALANCE;
+  const templateId = env.SOLAPI_TEMPLATE_ID_LOW_BALANCE;
 
   if (!templateId) {
     console.log(`[AlimTalk] Low balance notification disabled: no template ID configured`);
