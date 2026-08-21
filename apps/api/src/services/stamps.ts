@@ -11,6 +11,7 @@ import { enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk } from 
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 import { fetchOrder, TaghereOrderData } from './taghere-api.js';
 import { sidoToShort } from '../utils/address-parser.js';
+import { findCustomerProfileByKakaoId } from './customer-identity.js';
 import {
   buildPendingStampAccrualData,
   DEFERRED_STAMP_REASON_PREFIX,
@@ -189,39 +190,14 @@ export async function earnStamp(input: StampEarnInput): Promise<StampEarnResult>
   if (!customer) {
     isNewCustomer = true;
 
-    // 다른 매장에서 같은 kakaoId를 가진 고객 조회
-    const existingCustomer = await prisma.customer.findFirst({
-      where: {
+    const { existingCustomer, phone: phoneToUse, phoneLastDigits: phoneLastDigitsToUse } =
+      await findCustomerProfileByKakaoId({
+        storeId: store.id,
         kakaoId,
-        storeId: { not: store.id },
-      },
-      select: {
-        name: true,
-        phone: true,
-        phoneLastDigits: true,
-        gender: true,
-        birthday: true,
-        birthYear: true,
-      },
-    });
-
-    // phoneLastDigits 중복 체크
-    let phoneToUse = existingCustomer?.phone ?? null;
-    let phoneLastDigitsToUse = existingCustomer?.phoneLastDigits ?? null;
-
-    if (phoneLastDigitsToUse) {
-      const existingPhone = await prisma.customer.findFirst({
-        where: {
-          storeId: store.id,
-          phoneLastDigits: phoneLastDigitsToUse,
+        onPhoneConflict: () => {
+          console.log(`[TagHere Stamp-Earn] Phone already exists in store, skipping phone copy - storeId: ${store.id}`);
         },
       });
-      if (existingPhone) {
-        phoneToUse = null;
-        phoneLastDigitsToUse = null;
-        console.log(`[TagHere Stamp-Earn] Phone already exists in store, skipping phone copy - storeId: ${store.id}`);
-      }
-    }
 
     customer = await prisma.customer.create({
       data: {

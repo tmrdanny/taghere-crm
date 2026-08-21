@@ -19,6 +19,7 @@ import {
   hasTodayPendingStampAccrual,
   isPendingStampAccrualConflict,
 } from '../services/pending-stamp-accrual.js';
+import { findCustomerProfileByKakaoId } from '../services/customer-identity.js';
 
 const router = Router();
 
@@ -1071,38 +1072,13 @@ async function handleStampCallback(
   if (!customer) {
     isNewCustomer = true;
 
-    // 다른 매장에서 같은 kakaoId를 가진 고객 조회
-    const existingCustomer = await prisma.customer.findFirst({
-      where: {
+    const { existingCustomer, phone: phoneToUse, phoneLastDigits: phoneLastDigitsToUse } =
+      await findCustomerProfileByKakaoId({
+        storeId: store.id,
         kakaoId,
-        storeId: { not: store.id },
-      },
-      select: {
-        name: true,
-        phone: true,
-        phoneLastDigits: true,
-        gender: true,
-        birthday: true,
-        birthYear: true,
-      },
-    });
-
-    // phoneLastDigits 중복 체크
-    let phoneToUse = existingCustomer?.phone ?? kakaoAccount.phone_number ?? null;
-    let phoneLastDigitsToUse = existingCustomer?.phoneLastDigits ?? phoneLastDigits;
-
-    if (phoneLastDigitsToUse) {
-      const existingPhone = await prisma.customer.findFirst({
-        where: {
-          storeId: store.id,
-          phoneLastDigits: phoneLastDigitsToUse,
-        },
+        fallbackPhone: kakaoAccount.phone_number ?? null,
+        fallbackPhoneLastDigits: phoneLastDigits,
       });
-      if (existingPhone) {
-        phoneToUse = null;
-        phoneLastDigitsToUse = null;
-      }
-    }
 
     customer = await prisma.customer.create({
       data: {

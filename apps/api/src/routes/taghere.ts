@@ -22,6 +22,7 @@ import {
   finalizePendingStampAccrual,
 } from '../services/pending-stamp-accrual.js';
 import { StampEarnError, earnStamp, isVisitSourceRecent } from '../services/stamps.js';
+import { findCustomerProfileByKakaoId } from '../services/customer-identity.js';
 
 const router = Router();
 
@@ -267,39 +268,14 @@ router.post('/auto-earn', async (req, res) => {
     if (!customer) {
       isNewCustomer = true;
 
-      // 다른 매장에서 같은 kakaoId를 가진 고객 조회
-      const existingCustomer = await prisma.customer.findFirst({
-        where: {
+      const { existingCustomer, phone: phoneToUse, phoneLastDigits: phoneLastDigitsToUse } =
+        await findCustomerProfileByKakaoId({
+          storeId: store.id,
           kakaoId,
-          storeId: { not: store.id },
-        },
-        select: {
-          name: true,
-          phone: true,
-          phoneLastDigits: true,
-          gender: true,
-          birthday: true,
-          birthYear: true,
-        },
-      });
-
-      // phoneLastDigits 중복 체크 (이미 해당 매장에 같은 전화번호 고객이 있으면 전화번호는 복사하지 않음)
-      let phoneToUse = existingCustomer?.phone ?? null;
-      let phoneLastDigitsToUse = existingCustomer?.phoneLastDigits ?? null;
-
-      if (phoneLastDigitsToUse) {
-        const existingPhone = await prisma.customer.findFirst({
-          where: {
-            storeId: store.id,
-            phoneLastDigits: phoneLastDigitsToUse,
+          onPhoneConflict: () => {
+            console.log(`[TagHere Auto-Earn] Phone already exists in store, skipping phone copy - storeId: ${store.id}`);
           },
         });
-        if (existingPhone) {
-          phoneToUse = null;
-          phoneLastDigitsToUse = null;
-          console.log(`[TagHere Auto-Earn] Phone already exists in store, skipping phone copy - storeId: ${store.id}`);
-        }
-      }
 
       customer = await prisma.customer.create({
         data: {

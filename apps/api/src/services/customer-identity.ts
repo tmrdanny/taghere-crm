@@ -61,3 +61,73 @@ export async function findOrCreateCustomerByPhone(
     return { customer, isNewCustomer: false };
   }
 }
+
+/** 다른 매장에서 복사해 올 고객 프로필 필드 (kakaoId 기반 신규 고객 생성용) */
+export type CopiedCustomerProfile = Pick<
+  Customer,
+  'name' | 'phone' | 'phoneLastDigits' | 'gender' | 'birthday' | 'birthYear'
+>;
+
+/**
+ * kakaoId 기반 신규 고객 생성 전, 다른 매장의 같은 kakaoId 고객 프로필을 찾아
+ * 복사 가능한 형태로 돌려준다.
+ *
+ * routes/taghere.ts(auto-earn) · services/stamps.ts(stamp-earn) · routes/kakao.ts(콜백)에
+ * 동일하게 반복되던 블록을 추출한 것. 고객 생성(create) 자체는 사이트별로 필드 폴백과
+ * consent 기본값이 달라 각 호출부에 남긴다.
+ *
+ * - 다른 매장에서 같은 kakaoId를 가진 고객 조회 (name/phone/phoneLastDigits/gender/birthday/birthYear)
+ * - phoneLastDigits 중복 체크: 이미 해당 매장에 같은 전화번호 고객이 있으면 전화번호는 복사하지 않음
+ * - fallbackPhone/fallbackPhoneLastDigits: 복사할 프로필에 값이 없을 때 쓸 폴백
+ *   (kakao 콜백은 카카오 계정 전화번호를 폴백으로 쓴다). 폴백값도 중복 체크 대상.
+ */
+export async function findCustomerProfileByKakaoId(params: {
+  storeId: string;
+  kakaoId: string;
+  fallbackPhone?: string | null;
+  fallbackPhoneLastDigits?: string | null;
+  /** 전화번호 중복으로 복사를 건너뛸 때 호출 (사이트별 로그용) */
+  onPhoneConflict?: () => void;
+}): Promise<{
+  existingCustomer: CopiedCustomerProfile | null;
+  phone: string | null;
+  phoneLastDigits: string | null;
+}> {
+  const { storeId, kakaoId, fallbackPhone = null, fallbackPhoneLastDigits = null, onPhoneConflict } = params;
+
+  // 다른 매장에서 같은 kakaoId를 가진 고객 조회
+  const existingCustomer = await prisma.customer.findFirst({
+    where: {
+      kakaoId,
+      storeId: { not: storeId },
+    },
+    select: {
+      name: true,
+      phone: true,
+      phoneLastDigits: true,
+      gender: true,
+      birthday: true,
+      birthYear: true,
+    },
+  });
+
+  // phoneLastDigits 중복 체크 (이미 해당 매장에 같은 전화번호 고객이 있으면 전화번호는 복사하지 않음)
+  let phoneToUse = existingCustomer?.phone ?? fallbackPhone;
+  let phoneLastDigitsToUse = existingCustomer?.phoneLastDigits ?? fallbackPhoneLastDigits;
+
+  if (phoneLastDigitsToUse) {
+    const existingPhone = await prisma.customer.findFirst({
+      where: {
+        storeId,
+        phoneLastDigits: phoneLastDigitsToUse,
+      },
+    });
+    if (existingPhone) {
+      phoneToUse = null;
+      phoneLastDigitsToUse = null;
+      onPhoneConflict?.();
+    }
+  }
+
+  return { existingCustomer, phone: phoneToUse, phoneLastDigits: phoneLastDigitsToUse };
+}
