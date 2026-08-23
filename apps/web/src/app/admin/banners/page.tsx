@@ -22,8 +22,8 @@ function aspectRatioLabel(value: string) {
 
 interface StoreOption {
   id: string;
-  name: string;
-  slug: string;
+  name: string | null;
+  slug: string | null; // Store.slug 는 nullable — slug 없는 매장은 배너 타겟이 될 수 없다
   ownerName?: string | null;
 }
 
@@ -117,7 +117,9 @@ export default function AdminBannersPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setStores(Array.isArray(data) ? data : data.stores || []);
+        const list: StoreOption[] = Array.isArray(data) ? data : data.stores || [];
+        // slug 가 없는 매장은 targetSlugs 로 지정할 수 없으므로 목록에서 제외
+        setStores(list.filter((store) => !!store.slug));
       }
     } catch (error) {
       console.error('Failed to fetch stores:', error);
@@ -126,7 +128,9 @@ export default function AdminBannersPage() {
 
   const storeBySlug = useMemo(() => {
     const map = new Map<string, StoreOption>();
-    for (const store of stores) map.set(store.slug, store);
+    for (const store of stores) {
+      if (store.slug) map.set(store.slug, store);
+    }
     return map;
   }, [stores]);
 
@@ -135,8 +139,8 @@ export default function AdminBannersPage() {
     const keyword = storeSearch.trim().toLowerCase();
     const list = keyword
       ? stores.filter((store) =>
-          [store.name, store.slug, store.ownerName || ''].some((field) =>
-            field.toLowerCase().includes(keyword)
+          [store.name, store.slug, store.ownerName].some((field) =>
+            (field || '').toLowerCase().includes(keyword)
           )
         )
       : stores;
@@ -150,6 +154,9 @@ export default function AdminBannersPage() {
   };
 
   const storeLabel = (slug: string) => storeBySlug.get(slug)?.name || slug;
+
+  const storeSubLabel = (store: StoreOption) =>
+    `${store.slug}${store.ownerName ? ` · ${store.ownerName}` : ''}`;
 
   const openCreateModal = () => {
     setFormTitle('');
@@ -768,7 +775,8 @@ export default function AdminBannersPage() {
                     </div>
                   ) : (
                     filteredStores.map((store) => {
-                      const checked = formTargetSlugs.includes(store.slug);
+                      const slug = store.slug as string;
+                      const checked = formTargetSlugs.includes(slug);
                       return (
                         <label
                           key={store.id}
@@ -779,13 +787,13 @@ export default function AdminBannersPage() {
                           <input
                             type="checkbox"
                             checked={checked}
-                            onChange={() => toggleTargetSlug(store.slug)}
+                            onChange={() => toggleTargetSlug(slug)}
                             className="w-4 h-4 rounded border-neutral-600 bg-neutral-800 text-green-500 focus:ring-green-500 focus:ring-offset-0"
                           />
                           <span className="min-w-0 flex-1">
-                            <span className="block text-sm text-white truncate">{store.name}</span>
+                            <span className="block text-sm text-white truncate">{store.name || slug}</span>
                             <span className="block text-xs text-neutral-500 truncate">
-                              {store.slug}{store.ownerName ? ` · ${store.ownerName}` : ''}
+                              {storeSubLabel(store)}
                             </span>
                           </span>
                         </label>
