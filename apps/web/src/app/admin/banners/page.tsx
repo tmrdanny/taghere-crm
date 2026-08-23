@@ -1,7 +1,31 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+// 배너 비율 프리셋 (API의 ALLOWED_ASPECT_RATIOS 와 동일해야 함)
+const ASPECT_RATIO_OPTIONS = [
+  { value: '2/1', label: '가로형 2:1', hint: '630 × 315px (기본)' },
+  { value: '16/9', label: '가로형 16:9', hint: '640 × 360px' },
+  { value: '3/2', label: '가로형 3:2', hint: '630 × 420px' },
+  { value: '1/1', label: '정사각형 1:1', hint: '420 × 420px' },
+  { value: '4/5', label: '세로형 4:5', hint: '336 × 420px' },
+  { value: '3/4', label: '세로형 3:4', hint: '315 × 420px' },
+  { value: '9/16', label: '세로형 9:16', hint: '315 × 560px' },
+] as const;
+
+const DEFAULT_ASPECT_RATIO = '2/1';
+
+function aspectRatioLabel(value: string) {
+  return ASPECT_RATIO_OPTIONS.find((o) => o.value === value)?.label ?? value.replace('/', ':');
+}
+
+interface StoreOption {
+  id: string;
+  name: string;
+  slug: string;
+  ownerName?: string | null;
+}
 
 interface Banner {
   id: string;
@@ -13,6 +37,7 @@ interface Banner {
   order: number;
   autoSlide: boolean;
   slideInterval: number;
+  aspectRatio: string;
   targetSlugs: string[];
   createdAt: string;
 }
@@ -37,14 +62,20 @@ export default function AdminBannersPage() {
   const [formOrder, setFormOrder] = useState(0);
   const [formAutoSlide, setFormAutoSlide] = useState(true);
   const [formSlideInterval, setFormSlideInterval] = useState(3000);
-  const [formTargetSlugs, setFormTargetSlugs] = useState('');
+  const [formAspectRatio, setFormAspectRatio] = useState<string>(DEFAULT_ASPECT_RATIO);
+  const [formTargetSlugs, setFormTargetSlugs] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 매장 선택기
+  const [stores, setStores] = useState<StoreOption[]>([]);
+  const [storeSearch, setStoreSearch] = useState('');
+
   useEffect(() => {
     fetchBanners();
+    fetchStores();
   }, []);
 
   useEffect(() => {
@@ -74,6 +105,52 @@ export default function AdminBannersPage() {
     }
   };
 
+  const fetchStores = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    try {
+      // 전 매장 목록은 /stores/options 를 쓴다 — /stores 는 페이지네이션이라 일부만 내려온다
+      const res = await fetch(`${API_BASE}/api/admin/stores/options`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setStores(Array.isArray(data) ? data : data.stores || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch stores:', error);
+    }
+  };
+
+  const storeBySlug = useMemo(() => {
+    const map = new Map<string, StoreOption>();
+    for (const store of stores) map.set(store.slug, store);
+    return map;
+  }, [stores]);
+
+  // 검색어로 매장 필터링 (매장명 / slug / 점주명)
+  const filteredStores = useMemo(() => {
+    const keyword = storeSearch.trim().toLowerCase();
+    const list = keyword
+      ? stores.filter((store) =>
+          [store.name, store.slug, store.ownerName || ''].some((field) =>
+            field.toLowerCase().includes(keyword)
+          )
+        )
+      : stores;
+    return list.slice(0, 50);
+  }, [stores, storeSearch]);
+
+  const toggleTargetSlug = (slug: string) => {
+    setFormTargetSlugs((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
+    );
+  };
+
+  const storeLabel = (slug: string) => storeBySlug.get(slug)?.name || slug;
+
   const openCreateModal = () => {
     setFormTitle('');
     setFormImageUrl('');
@@ -83,7 +160,9 @@ export default function AdminBannersPage() {
     setFormOrder(0);
     setFormAutoSlide(true);
     setFormSlideInterval(3000);
-    setFormTargetSlugs('');
+    setFormAspectRatio(DEFAULT_ASPECT_RATIO);
+    setFormTargetSlugs([]);
+    setStoreSearch('');
     setModal({ mode: 'create' });
   };
 
@@ -96,7 +175,9 @@ export default function AdminBannersPage() {
     setFormOrder(banner.order);
     setFormAutoSlide(banner.autoSlide);
     setFormSlideInterval(banner.slideInterval);
-    setFormTargetSlugs(banner.targetSlugs.join(', '));
+    setFormAspectRatio(banner.aspectRatio || DEFAULT_ASPECT_RATIO);
+    setFormTargetSlugs(banner.targetSlugs || []);
+    setStoreSearch('');
     setModal({ mode: 'edit', banner });
   };
 
@@ -111,11 +192,6 @@ export default function AdminBannersPage() {
 
     setIsSubmitting(true);
 
-    const targetSlugsArray = formTargetSlugs
-      .split(',')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
-
     const body = {
       title: formTitle,
       imageUrl: formImageUrl,
@@ -125,7 +201,8 @@ export default function AdminBannersPage() {
       order: formOrder,
       autoSlide: formAutoSlide,
       slideInterval: formSlideInterval,
-      targetSlugs: targetSlugsArray,
+      aspectRatio: formAspectRatio,
+      targetSlugs: formTargetSlugs,
     };
 
     try {
@@ -345,7 +422,10 @@ export default function AdminBannersPage() {
             {banners.map((banner) => (
               <div key={banner.id} className="p-4 flex items-center gap-4">
                 {/* Preview */}
-                <div className="w-32 h-16 rounded-lg overflow-hidden bg-neutral-800 flex-shrink-0 relative">
+                <div
+                  className="w-32 rounded-lg overflow-hidden bg-neutral-800 flex-shrink-0 relative"
+                  style={{ aspectRatio: banner.aspectRatio || DEFAULT_ASPECT_RATIO }}
+                >
                   {banner.mediaType === 'VIDEO' ? (
                     <>
                       <video
@@ -398,7 +478,12 @@ export default function AdminBannersPage() {
                   <div className="flex items-center gap-3 mt-1 text-xs text-neutral-500">
                     <span>순서: {banner.order}</span>
                     <span>자동 슬라이드: {banner.autoSlide ? `${banner.slideInterval / 1000}초` : '꺼짐'}</span>
-                    <span>대상: {banner.targetSlugs.length > 0 ? banner.targetSlugs.join(', ') : '전체'}</span>
+                    <span>비율: {aspectRatioLabel(banner.aspectRatio || DEFAULT_ASPECT_RATIO)}</span>
+                    <span>
+                      대상: {banner.targetSlugs.length > 0
+                        ? `${banner.targetSlugs.slice(0, 3).map(storeLabel).join(', ')}${banner.targetSlugs.length > 3 ? ` 외 ${banner.targetSlugs.length - 3}곳` : ''}`
+                        : '전체'}
+                    </span>
                   </div>
                 </div>
 
@@ -457,6 +542,38 @@ export default function AdminBannersPage() {
 
               <div>
                 <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  배너 비율
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {ASPECT_RATIO_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setFormAspectRatio(option.value)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors ${
+                        formAspectRatio === option.value
+                          ? 'bg-white/10 border-white/40 text-white'
+                          : 'bg-neutral-800 border-neutral-700 text-neutral-400 hover:border-neutral-500'
+                      }`}
+                    >
+                      <span
+                        className="w-6 bg-neutral-600 rounded-sm flex-shrink-0"
+                        style={{ aspectRatio: option.value }}
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-xs font-medium truncate">{option.label}</span>
+                        <span className="block text-[11px] text-neutral-500 truncate">{option.hint}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-neutral-500 mt-1.5">
+                  업로드한 미디어는 선택한 비율에 맞춰 표시됩니다. (예: 315 × 420px 배너는 세로형 3:4)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
                   배너 미디어 <span className="text-red-400">*</span>
                 </label>
 
@@ -510,7 +627,8 @@ export default function AdminBannersPage() {
                     {formMediaType === 'VIDEO' ? (
                       <video
                         src={formImageUrl}
-                        className="w-full h-40 object-cover"
+                        className="w-full max-h-72 object-contain mx-auto"
+                        style={{ aspectRatio: formAspectRatio }}
                         muted
                         autoPlay
                         loop
@@ -520,7 +638,8 @@ export default function AdminBannersPage() {
                       <img
                         src={formImageUrl}
                         alt="Preview"
-                        className="w-full h-40 object-cover"
+                        className="w-full max-h-72 object-contain mx-auto"
+                        style={{ aspectRatio: formAspectRatio }}
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><rect fill="%23333" width="100" height="50"/><text fill="%23666" x="50" y="28" text-anchor="middle" font-size="8">이미지 로드 실패</text></svg>';
                         }}
@@ -594,16 +713,91 @@ export default function AdminBannersPage() {
 
               <div>
                 <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  대상 매장 Slug (쉼표로 구분)
+                  대상 매장 ({formTargetSlugs.length > 0 ? `${formTargetSlugs.length}곳 선택됨` : '전체'})
                 </label>
+
+                {/* 선택된 매장 칩 */}
+                {formTargetSlugs.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {formTargetSlugs.map((slug) => (
+                      <span
+                        key={slug}
+                        className="inline-flex items-center gap-1 pl-2 pr-1 py-1 bg-white/10 border border-white/20 rounded-md text-xs text-white"
+                      >
+                        <span className="max-w-[160px] truncate">{storeLabel(slug)}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleTargetSlug(slug)}
+                          className="w-4 h-4 rounded-full hover:bg-white/20 flex items-center justify-center text-neutral-300"
+                          aria-label={`${storeLabel(slug)} 선택 해제`}
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setFormTargetSlugs([])}
+                      className="px-2 py-1 text-xs text-neutral-400 hover:text-white transition-colors"
+                    >
+                      전체 해제
+                    </button>
+                  </div>
+                )}
+
+                {/* 매장 검색 */}
                 <input
                   type="text"
-                  value={formTargetSlugs}
-                  onChange={(e) => setFormTargetSlugs(e.target.value)}
-                  placeholder="taghere-test, store-slug (비워두면 전체)"
+                  value={storeSearch}
+                  onChange={(e) => setStoreSearch(e.target.value)}
+                  placeholder="매장명 · slug · 점주명으로 검색"
                   className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
                 />
-                <p className="text-xs text-neutral-500 mt-1">비워두면 모든 매장에 표시됩니다.</p>
+
+                {/* 검색 결과 목록 (다중 선택) */}
+                <div className="mt-2 max-h-52 overflow-y-auto border border-neutral-800 rounded-lg divide-y divide-neutral-800">
+                  {stores.length === 0 ? (
+                    <div className="px-3 py-4 text-xs text-neutral-500 text-center">
+                      매장 목록을 불러오는 중입니다.
+                    </div>
+                  ) : filteredStores.length === 0 ? (
+                    <div className="px-3 py-4 text-xs text-neutral-500 text-center">
+                      검색 결과가 없습니다.
+                    </div>
+                  ) : (
+                    filteredStores.map((store) => {
+                      const checked = formTargetSlugs.includes(store.slug);
+                      return (
+                        <label
+                          key={store.id}
+                          className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
+                            checked ? 'bg-white/5' : 'hover:bg-neutral-800/60'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleTargetSlug(store.slug)}
+                            className="w-4 h-4 rounded border-neutral-600 bg-neutral-800 text-green-500 focus:ring-green-500 focus:ring-offset-0"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm text-white truncate">{store.name}</span>
+                            <span className="block text-xs text-neutral-500 truncate">
+                              {store.slug}{store.ownerName ? ` · ${store.ownerName}` : ''}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+
+                <p className="text-xs text-neutral-500 mt-1">
+                  선택하지 않으면 모든 매장에 표시됩니다.
+                  {filteredStores.length >= 50 && ' 검색어를 입력하면 더 정확하게 찾을 수 있습니다.'}
+                </p>
               </div>
 
               <div className="flex items-center gap-6">
