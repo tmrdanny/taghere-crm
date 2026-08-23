@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
 import { maskName, maskPhone } from '../utils/masking.js';
@@ -12,6 +13,7 @@ import {
 } from '../utils/random-reward.js';
 import { DEFAULT_PRICES, alimtalkCategory } from '../services/pricing-service.js';
 import { classifyWalletTx, describeWalletTx, WALLET_USAGE_LABELS } from '../utils/wallet-usage.js';
+import { computeAnalytics } from '../services/analytics.js';
 
 const router = Router();
 
@@ -2705,6 +2707,69 @@ router.get('/wallet-usage', async (req: FranchiseAuthRequest, res) => {
   } catch (error) {
     console.error('Franchise wallet usage error:', error);
     res.status(500).json({ error: '사용내역 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/franchise/stores/:storeId/impersonate - 가맹점 CRM 대리 로그인 (본사용)
+router.post('/stores/:storeId/impersonate', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { storeId } = req.params;
+
+    // 본사 소속 가맹점인지 검증
+    const store = await prisma.store.findFirst({
+      where: { id: storeId, franchiseId },
+      include: { staffUsers: { where: { role: 'OWNER' }, take: 1 } },
+    });
+    if (!store) {
+      return res.status(404).json({ error: '소속 가맹점을 찾을 수 없습니다.' });
+    }
+    const owner = store.staffUsers[0];
+    if (!owner) {
+      return res.status(404).json({ error: '가맹점 점주 계정을 찾을 수 없습니다.' });
+    }
+
+    // Store Owner JWT 토큰 생성 (1시간 만료) — admin impersonate와 동일 형식
+    const token = jwt.sign(
+      {
+        id: owner.id,
+        email: owner.email,
+        storeId: store.id,
+        role: owner.role,
+        isAdmin: false,
+        isImpersonated: true,
+      },
+      process.env.JWT_SECRET!,
+      { expiresIn: '1h' }
+    );
+
+    res.json({ token, storeName: store.name });
+  } catch (error) {
+    console.error('Franchise impersonate error:', error);
+    res.status(500).json({ error: '가맹점 접속 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/franchise/insights/analytics?days=90&storeId= - 데이터 분석 (본사 전체 또는 특정 가맹점)
+router.get('/insights/analytics', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const daysParam = parseInt((req.query.days as string) || '90', 10);
+    const days = [30, 90, 180, 365].includes(daysParam) ? daysParam : daysParam === 0 ? null : 90;
+    const storeIdFilter = (req.query.storeId as string) || '';
+
+    const stores = await prisma.store.findMany({
+      where: { franchiseId, ...(storeIdFilter ? { id: storeIdFilter } : {}) },
+      select: { id: true },
+    });
+    if (stores.length === 0) {
+      return res.status(404).json({ error: '가맹점을 찾을 수 없습니다.' });
+    }
+    const result = await computeAnalytics(stores.map((s) => s.id), days);
+    res.json(result);
+  } catch (error) {
+    console.error('Franchise analytics error:', error);
+    res.status(500).json({ error: '데이터 분석 조회 중 오류가 발생했습니다.' });
   }
 });
 

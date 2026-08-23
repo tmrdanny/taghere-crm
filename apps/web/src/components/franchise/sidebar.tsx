@@ -75,7 +75,15 @@ const navItems: NavItem[] = [
   },
   { href: '/franchise/billing', label: '충전', icon: CreditCard },
   { href: '/franchise/wallet-history', label: '사용내역', icon: MessagesSquare },
-  { href: '/franchise/insights', label: '인사이트', icon: BarChart3 },
+  {
+    href: '/franchise/insights',
+    label: '인사이트',
+    icon: BarChart3,
+    children: [
+      { href: '/franchise/insights', label: '인사이트 홈', icon: BarChart3 },
+      { href: '/franchise/insights/analytics', label: '데이터 분석', icon: BarChart3 },
+    ],
+  },
   { href: '/franchise/settings', label: '설정', icon: Settings },
 ];
 

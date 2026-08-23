@@ -119,6 +119,7 @@ const navGroups: NavGroup[] = [
     icon: BarChart3,
     items: [
       { href: '/insights/customers', label: '고객 통계', icon: Users, isNew: true },
+      { href: '/insights/analytics', label: '데이터 분석', icon: BarChart3, isNew: true },
     ],
   },
 ];
