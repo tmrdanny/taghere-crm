@@ -450,7 +450,7 @@ async function processSlowDayRule(rule: any): Promise<number> {
 /**
  * 자동화 메시지 발송 (쿠폰 생성 + AlimTalkOutbox 큐잉)
  */
-async function sendAutomationMessages(
+export async function sendAutomationMessages(
   rule: any,
   targets: Array<{ id: string; name: string | null; phone: string | null }>,
   messageType: string
