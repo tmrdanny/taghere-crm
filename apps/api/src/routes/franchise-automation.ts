@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
+import { sendAutomationMessages } from '../services/automation-worker.js';
 import { VALID_TYPES, ensureRulesExist } from './automation.js';
 import type { AutomationRuleType } from '@prisma/client';
 
@@ -381,6 +382,55 @@ router.put('/bulk/rules/:type', franchiseAuthMiddleware, async (req: FranchiseAu
   } catch (error) {
     console.error('[FranchiseAutomation] Failed to bulk update rules:', error);
     res.status(500).json({ error: '일괄 설정에 실패했습니다.' });
+  }
+});
+
+// 자동화 타입 → 알림톡 messageType (worker와 동일)
+const TYPE_TO_MESSAGE: Record<string, string> = {
+  BIRTHDAY: 'AUTO_BIRTHDAY',
+  CHURN_PREVENTION: 'AUTO_CHURN',
+  ANNIVERSARY: 'AUTO_ANNIVERSARY',
+  FIRST_VISIT_FOLLOWUP: 'AUTO_FIRST_VISIT',
+  VIP_MILESTONE: 'AUTO_VIP_MILESTONE',
+  WINBACK: 'AUTO_WINBACK',
+  SLOW_DAY: 'AUTO_SLOW_DAY',
+};
+
+// POST /stores/:storeId/logs/:logId/resend - 가맹점 고객에게 현재 문구로 재발송 (본사)
+router.post('/stores/:storeId/logs/:logId/resend', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, res: Response) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { storeId, logId } = req.params;
+
+    const store = await verifyStoreOwnership(franchiseId, storeId);
+    if (!store) return res.status(404).json({ error: '가맹점을 찾을 수 없습니다.' });
+
+    const log = await prisma.automationLog.findFirst({
+      where: { id: logId, storeId },
+      include: { rule: true, customer: { select: { id: true, name: true, phone: true } } },
+    });
+    if (!log) return res.status(404).json({ error: '발송 이력을 찾을 수 없습니다.' });
+    if (!log.customer.phone) {
+      return res.status(400).json({ error: '고객 전화번호가 없어 재발송할 수 없습니다.' });
+    }
+    if (!log.rule.couponContent || !log.rule.couponContent.trim()) {
+      return res.status(400).json({ error: '쿠폰 내용이 비어 있습니다. 문구를 먼저 저장해주세요.' });
+    }
+
+    const messageType = TYPE_TO_MESSAGE[log.rule.type];
+    if (!messageType) return res.status(400).json({ error: '지원하지 않는 자동화 타입입니다.' });
+
+    const sent = await sendAutomationMessages(log.rule, [log.customer], messageType);
+    if (sent === 0) {
+      return res.status(400).json({
+        error: '재발송에 실패했습니다. 가맹점 충전금 잔액과 쿠폰 설정을 확인해주세요.',
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[FranchiseAutomation] Resend error:', error);
+    res.status(500).json({ error: '재발송 중 오류가 발생했습니다.' });
   }
 });
 
