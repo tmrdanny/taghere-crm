@@ -30,10 +30,10 @@ export default function StoreAnalyticsPage() {
   }, [days, fetchData]);
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-neutral-900">데이터 분석</h1>
-        <p className="text-sm text-neutral-500 mt-1">
+        <p className="text-neutral-500 mt-1">
           시간대별 메뉴 판매량, 세그먼트별 객단가, 재방문 주기 등 매장 데이터를 깊이 있게 분석합니다.
         </p>
       </div>
