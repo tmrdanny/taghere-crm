@@ -121,6 +121,21 @@ router.put('/stores/:storeId/rules/:type', franchiseAuthMiddleware, async (req: 
     } = req.body;
 
     // 활성화 시 네이버 플레이스 링크 필수
+    // ON 시 쿠폰 내용 필수 (요청에 없으면 기존 저장값 기준) — 빈 문구로 발송되는 것 방지
+    if (enabled === true) {
+      const existingRule = await prisma.automationRule.findUnique({
+        where: { storeId_type: { storeId, type } },
+        select: { couponContent: true },
+      });
+      const effective = couponContent !== undefined ? couponContent : existingRule?.couponContent;
+      if (!effective || !String(effective).trim()) {
+        return res.status(400).json({
+          error: '쿠폰 내용을 입력해야 자동 마케팅을 켤 수 있습니다.',
+          code: 'coupon_content_required',
+        });
+      }
+    }
+
     if (enabled === true && !store.naverPlaceUrl) {
       return res.status(400).json({ error: '네이버 플레이스 링크가 없으면 자동 마케팅을 활성화할 수 없습니다.' });
     }
@@ -365,6 +380,19 @@ router.put('/bulk/rules/:type', franchiseAuthMiddleware, async (req: FranchiseAu
       if (enabled === true && !store.naverPlaceUrl) {
         skippedStores.push(store.name);
         continue;
+      }
+
+      // 활성화 시 쿠폰 내용 없으면 스킵 — 빈 문구로 발송되는 것 방지
+      if (enabled === true) {
+        const existing = await prisma.automationRule.findUnique({
+          where: { storeId_type: { storeId: store.id, type } },
+          select: { couponContent: true },
+        });
+        const effective = couponContent !== undefined ? couponContent : existing?.couponContent;
+        if (!effective || !String(effective).trim()) {
+          skippedStores.push(store.name);
+          continue;
+        }
       }
 
       await prisma.automationRule.update({
