@@ -6,6 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import {
@@ -505,7 +506,7 @@ export default function AutomationSettingPage() {
                 <label className="block text-sm font-medium text-neutral-700 mb-1">
                   쿠폰 내용
                 </label>
-                <Input
+                <Textarea
                   value={couponContent}
                   onChange={(e) => setCouponContent(e.target.value)}
                   placeholder={
@@ -517,10 +518,12 @@ export default function AutomationSettingPage() {
                     type === 'SLOW_DAY' ? '⚡ 오늘만 전 메뉴 10% 할인' :
                     '😊 재방문 감사 3,000원 할인'
                   }
-                  maxLength={50}
+                  maxLength={100}
+                  rows={3}
+                  className="resize-y"
                 />
                 <p className="text-xs text-neutral-400 mt-1">
-                  고객에게 표시되는 쿠폰 혜택 내용입니다
+                  고객에게 표시되는 쿠폰 혜택 내용입니다 · 엔터로 줄바꿈할 수 있어요 (최대 100자)
                 </p>
               </div>
 
@@ -665,7 +668,7 @@ export default function AutomationSettingPage() {
                                     태그히어 이용 고객에게만 제공되는 쿠폰이에요.
                                   </p>
                                   <div className="space-y-0.5 mb-2">
-                                    <p>📌 {couponContent || (
+                                    <p className="whitespace-pre-line">📌 {couponContent || (
                                       type === 'BIRTHDAY' ? '생일 축하 10% 할인' :
                                       type === 'ANNIVERSARY' ? '가입 기념일 축하 10% 할인' :
                                       type === 'FIRST_VISIT_FOLLOWUP' ? '첫 방문 감사 10% 할인' :
