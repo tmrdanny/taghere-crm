@@ -528,6 +528,15 @@ router.post('/logs/:logId/resend', authMiddleware, async (req: AuthRequest, res:
     const messageType = TYPE_TO_MESSAGE[log.rule.type];
     if (!messageType) return res.status(400).json({ error: '지원하지 않는 자동화 타입입니다.' });
 
+    // 실패 원인을 구분해 안내 (0 반환 시 원인 파악이 어려워 사전 검증)
+    if (!log.rule.couponContent || !log.rule.couponContent.trim()) {
+      return res.status(400).json({ error: '쿠폰 내용이 비어 있습니다. 문구를 먼저 저장한 뒤 재발송해주세요.' });
+    }
+    if (!process.env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON || !process.env.SOLAPI_PF_ID) {
+      console.error('[Automation] Resend blocked: missing SOLAPI template/pfId');
+      return res.status(500).json({ error: '알림톡 설정이 누락되어 발송할 수 없습니다. 고객센터에 문의해주세요.' });
+    }
+
     // 현재 규칙 설정(couponContent 등)을 그대로 사용해 1건 발송 — 새 쿠폰 발급 + 이력 추가
     const sent = await sendAutomationMessages(log.rule, [log.customer], messageType);
     if (sent === 0) {
