@@ -12,6 +12,7 @@ interface Banner {
   autoSlide: boolean;
   slideInterval: number;
   mediaType?: 'IMAGE' | 'VIDEO';
+  aspectRatio?: string;
 }
 
 function getFullImageUrl(imageUrl: string): string {
@@ -21,6 +22,9 @@ function getFullImageUrl(imageUrl: string): string {
   return `${apiUrl}${imageUrl}`;
 }
 
+// 배너 비율 (어드민에서 설정, 미설정 시 기존 2:1 유지)
+const BANNER_DEFAULT_ASPECT_RATIO = '2/1';
+
 function BannerMedia({ banner, onClick }: { banner: Banner; onClick: () => void }) {
   const isVideo = banner.mediaType === 'VIDEO';
   const mediaUrl = getFullImageUrl(banner.imageUrl);
@@ -28,14 +32,16 @@ function BannerMedia({ banner, onClick }: { banner: Banner; onClick: () => void 
   if (isVideo) {
     return (
       <div className="w-full flex-shrink-0 cursor-pointer" onClick={onClick}>
-        <video src={mediaUrl} className="w-full aspect-[2/1] object-cover rounded-[12px]" autoPlay muted loop playsInline preload="auto" />
+        <video src={mediaUrl} className="w-full object-cover rounded-[12px]"
+        style={{ aspectRatio: banner.aspectRatio || BANNER_DEFAULT_ASPECT_RATIO }} autoPlay muted loop playsInline preload="auto" />
       </div>
     );
   }
 
   return (
     <div className="w-full flex-shrink-0 cursor-pointer" onClick={onClick}>
-      <img src={mediaUrl} alt={banner.title} className="w-full aspect-[2/1] object-cover rounded-[12px]" />
+      <img src={mediaUrl} alt={banner.title} className="w-full object-cover rounded-[12px]"
+        style={{ aspectRatio: banner.aspectRatio || BANNER_DEFAULT_ASPECT_RATIO }} />
     </div>
   );
 }
