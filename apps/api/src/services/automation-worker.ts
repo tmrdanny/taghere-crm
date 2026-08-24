@@ -463,6 +463,14 @@ export async function sendAutomationMessages(
 
   if (!store) return 0;
 
+  // 최종 방어선: 쿠폰 내용이 비어 있으면 발송하지 않는다.
+  // (설정 화면에서 막고 있지만, 과거 데이터·직접 DB 수정 등으로 빈 값이 남아 있을 수 있어
+  //  기본 문구로 대체 발송되던 동작을 제거)
+  if (!rule.couponContent || !String(rule.couponContent).trim()) {
+    console.warn(`[AutoWorker] Skipped ${messageType} for store ${rule.storeId}: couponContent is empty`);
+    return 0;
+  }
+
   // 환경변수
   const appUrl = process.env.PUBLIC_APP_URL || 'http://localhost:3999';
   const domain = appUrl.replace(/^https?:\/\//, '');
@@ -504,16 +512,7 @@ export async function sendAutomationMessages(
   for (const customer of targets) {
     try {
       const couponCode = rule.couponEnabled ? generateCouponCode() : null;
-      const defaultContents: Record<string, string> = {
-        AUTO_BIRTHDAY: '생일 축하 특별 할인',
-        AUTO_CHURN: '다시 만나서 반가워요! 특별 할인',
-        AUTO_ANNIVERSARY: '가입 기념일 축하 할인',
-        AUTO_FIRST_VISIT: '첫 방문 감사 재방문 할인',
-        AUTO_VIP_MILESTONE: 'VIP 감사 특별 할인',
-        AUTO_WINBACK: '오랜만에 뵙는 특별 할인',
-        AUTO_SLOW_DAY: '오늘만의 특별 할인',
-      };
-      const couponContent = rule.couponContent || defaultContents[messageType] || '특별 할인 쿠폰';
+      const couponContent = String(rule.couponContent).trim();
       let couponId: string | null = null;
 
       // 쿠폰 생성
