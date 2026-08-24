@@ -86,6 +86,7 @@ export default function AutomationSettingPage() {
   const [rule, setRule] = useState<AutomationRule | null>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [resendingLogId, setResendingLogId] = useState<string | null>(null);
 
   // 폼 상태
   const [enabled, setEnabled] = useState(false);
@@ -176,6 +177,31 @@ export default function AutomationSettingPage() {
       console.error('Failed to fetch automation setting:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // 현재 문구로 해당 고객에게 재발송 (잘못 발송한 쿠폰 문구 정정용)
+  const handleResend = async (logId: string) => {
+    if (!confirm('현재 저장된 쿠폰 문구로 이 고객에게 다시 발송합니다. (새 쿠폰 발급, 발송 비용 1건 차감)\n계속할까요?')) return;
+    setResendingLogId(logId);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/api/automation/logs/${logId}/resend`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '재발송에 실패했습니다.');
+      showToast('현재 문구로 재발송했습니다.', 'success');
+      // 이력 갱신
+      const logsRes = await fetch(`${apiUrl}/api/automation/rules/${type}/logs?limit=10`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (logsRes.ok) setLogs((await logsRes.json()).logs);
+    } catch (e: any) {
+      showToast(e.message || '재발송에 실패했습니다.', 'error');
+    } finally {
+      setResendingLogId(null);
     }
   };
 
@@ -779,6 +805,14 @@ export default function AutomationSettingPage() {
                     ) : (
                       <span className="text-neutral-400 flex-shrink-0">미사용</span>
                     )}
+                    <button
+                      onClick={() => handleResend(log.id)}
+                      disabled={resendingLogId === log.id}
+                      className="flex-shrink-0 px-2.5 py-1 text-xs font-medium text-neutral-600 border border-neutral-200 rounded-lg hover:bg-neutral-50 hover:border-neutral-400 transition-colors disabled:opacity-50"
+                      title="현재 저장된 쿠폰 문구로 이 고객에게 다시 발송합니다"
+                    >
+                      {resendingLogId === log.id ? '발송 중...' : '문구 재발송'}
+                    </button>
                   </div>
                 ))}
               </div>
