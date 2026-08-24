@@ -43,6 +43,15 @@ export interface AnalyticsData {
   segmentRevisit: { segment: string; base: number; rate30: number }[];
 }
 
+function EmptyChart({ message }: { message: string }) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center text-neutral-400 gap-1.5">
+      <span className="text-2xl">📊</span>
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
+
 const PERIODS = [
   { days: 30, label: '최근 30일' },
   { days: 90, label: '최근 90일' },
@@ -180,15 +189,19 @@ export function AnalyticsDashboard({
                 ))}
               </div>
               <div className="h-56">
+                {data.menuByHour.hourlyTotals.length === 0 ? (
+                  <EmptyChart message="아직 주문 메뉴 데이터가 없습니다. 주문 연동 후 자동으로 쌓입니다." />
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={menuChart} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#eee" vertical={false} />
                     <XAxis dataKey="hour" tick={{ fontSize: 11 }} interval={1} />
-                    <YAxis tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                     <Tooltip formatter={(v: any) => [`${v}개`, '판매량']} />
                     <Bar dataKey="qty" fill="#2F6BD8" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
+                )}
               </div>
               {/* 시간대 블록별 TOP3 */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
@@ -225,25 +238,29 @@ export function AnalyticsDashboard({
               </div>
               <p className="text-xs text-neutral-500 mb-3">결제 금액이 기록된 주문 기준 · 세그먼트 정보 보유 고객만</p>
               <div className="h-64">
+                {ticketChart.segments.length === 0 ? (
+                  <EmptyChart message="결제 금액과 고객 정보(연령/성별)가 함께 기록된 주문이 아직 없습니다." />
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={ticketChart.rows} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#eee" vertical={false} />
                     <XAxis dataKey="hour" tick={{ fontSize: 11 }} interval={1} />
-                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v / 1000)}천`} width={42} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v / 1000)}천`} width={42} />
                     <Tooltip formatter={(v: any, name: any) => [fmtWon(v), name]} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                     {ticketChart.segments.map((s, i) => (
                       <Line key={s} type="monotone" dataKey={s} stroke={SEG_COLORS[i % SEG_COLORS.length]}
-                        strokeWidth={2} dot={false} connectNulls />
+                        strokeWidth={2} dot={{ r: 2.5, strokeWidth: 0 }} connectNulls />
                     ))}
                   </LineChart>
                 </ResponsiveContainer>
+                )}
               </div>
             </CardContent>
           </Card>
 
           {/* ③ 재방문 주기 */}
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-2 gap-4 [&>*]:min-w-0">
             <Card>
               <CardContent className="p-5">
                 <h3 className="font-semibold text-neutral-900 mb-1">재방문 주기 (Weekly)</h3>
@@ -251,15 +268,19 @@ export function AnalyticsDashboard({
                   첫 방문 → 두 번째 방문까지 걸린 기간 · 첫 방문 고객 {data.revisitCycle.base.toLocaleString()}명 기준
                 </p>
                 <div className="h-48">
+                  {data.revisitCycle.base === 0 ? (
+                    <EmptyChart message="방문 데이터가 쌓이면 표시됩니다." />
+                  ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.revisitCycle.weekly} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#eee" vertical={false} />
                       <XAxis dataKey="bucket" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(v: any) => [`${v.toLocaleString()}명`, '재방문 고객']} />
                       <Bar dataKey="customers" fill="#2F6BD8" radius={[3, 3, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -270,15 +291,19 @@ export function AnalyticsDashboard({
                   30일 경과 후 미재방문 {data.revisitCycle.noRevisit.toLocaleString()}명
                 </p>
                 <div className="h-48">
+                  {data.revisitCycle.base === 0 ? (
+                    <EmptyChart message="방문 데이터가 쌓이면 표시됩니다." />
+                  ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.revisitCycle.monthly} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#eee" vertical={false} />
                       <XAxis dataKey="bucket" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(v: any) => [`${v.toLocaleString()}명`, '재방문 고객']} />
                       <Bar dataKey="customers" fill="#D8862F" radius={[3, 3, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -317,7 +342,7 @@ export function AnalyticsDashboard({
           </Card>
 
           {/* ⑤⑥⑦ 하단 3종 */}
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-3 gap-4 [&>*]:min-w-0">
             <Card>
               <CardContent className="p-5">
                 <h3 className="font-semibold text-neutral-900 mb-1">방문 횟수 분포</h3>
@@ -327,7 +352,7 @@ export function AnalyticsDashboard({
                     <BarChart data={data.visitFrequency} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#eee" vertical={false} />
                       <XAxis dataKey="bucket" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
                       <Tooltip formatter={(v: any) => [`${v.toLocaleString()}명`, '고객']} />
                       <Bar dataKey="customers" fill="#3A9A5C" radius={[3, 3, 0, 0]} />
                     </BarChart>
