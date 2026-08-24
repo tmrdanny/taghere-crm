@@ -6,6 +6,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import {
@@ -447,7 +448,7 @@ export default function FranchiseAutomationSettingPage() {
             <CardContent className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">쿠폰 내용</label>
-                <Input
+                <Textarea
                   value={couponContent}
                   onChange={(e) => setCouponContent(e.target.value)}
                   placeholder={
@@ -459,9 +460,11 @@ export default function FranchiseAutomationSettingPage() {
                     type === 'SLOW_DAY' ? '오늘만의 특별 할인 10%' :
                     '재방문 감사 10% 할인'
                   }
-                  maxLength={50}
+                  maxLength={100}
+                  rows={3}
+                  className="resize-y"
                 />
-                <p className="text-xs text-slate-400 mt-1">고객에게 표시되는 쿠폰 혜택 내용입니다</p>
+                <p className="text-xs text-slate-400 mt-1">고객에게 표시되는 쿠폰 혜택 내용입니다 · 엔터로 줄바꿈할 수 있어요 (최대 100자)</p>
               </div>
 
               <div>
@@ -561,7 +564,7 @@ export default function FranchiseAutomationSettingPage() {
                                   <p><span className="text-[#6BA3FF]">{storeName || '매장명'}</span>에서 쿠폰을 보냈어요!</p>
                                   <p className="text-slate-500 mb-2">태그히어 이용 고객에게만 제공되는 쿠폰이에요.</p>
                                   <div className="space-y-0.5 mb-2">
-                                    <p>📌 {couponContent || (
+                                    <p className="whitespace-pre-line">📌 {couponContent || (
                                       type === 'BIRTHDAY' ? '생일 축하 10% 할인' :
                                       type === 'ANNIVERSARY' ? '가입 기념일 축하 10% 할인' :
                                       type === 'FIRST_VISIT_FOLLOWUP' ? '첫 방문 감사 10% 할인' :
