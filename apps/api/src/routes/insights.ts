@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { computeAnalytics } from '../services/analytics.js';
 
 const router = Router();
 
@@ -724,6 +725,20 @@ router.get('/revenue', async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Revenue insights error:', error);
     res.status(500).json({ error: '매출 기여 분석 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/insights/analytics?days=90 - 데이터 분석 (시간대별 메뉴/객단가/재방문 주기 등)
+router.get('/analytics', async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const daysParam = parseInt((req.query.days as string) || '90', 10);
+    const days = [30, 90, 180, 365].includes(daysParam) ? daysParam : daysParam === 0 ? null : 90;
+    const result = await computeAnalytics([storeId], days);
+    res.json(result);
+  } catch (error) {
+    console.error('Insights analytics error:', error);
+    res.status(500).json({ error: '데이터 분석 조회 중 오류가 발생했습니다.' });
   }
 });
 

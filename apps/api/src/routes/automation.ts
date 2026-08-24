@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { sendAutomationMessages } from '../services/automation-worker.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import type { AutomationRuleType } from '@prisma/client';
 
@@ -494,6 +495,58 @@ router.get('/preview-all', authMiddleware, async (req: AuthRequest, res: Respons
   } catch (error) {
     console.error('[Automation] Failed to fetch preview-all:', error);
     res.status(500).json({ error: '미리보기를 불러오는데 실패했습니다.' });
+  }
+});
+
+// 자동화 타입 → 알림톡 messageType 매핑 (worker와 동일)
+const TYPE_TO_MESSAGE: Record<string, string> = {
+  BIRTHDAY: 'AUTO_BIRTHDAY',
+  CHURN_PREVENTION: 'AUTO_CHURN',
+  ANNIVERSARY: 'AUTO_ANNIVERSARY',
+  FIRST_VISIT_FOLLOWUP: 'AUTO_FIRST_VISIT',
+  VIP_MILESTONE: 'AUTO_VIP_MILESTONE',
+  WINBACK: 'AUTO_WINBACK',
+  SLOW_DAY: 'AUTO_SLOW_DAY',
+};
+
+// POST /api/automation/logs/:logId/resend - 현재 규칙 문구로 해당 고객에게 재발송
+// (쿠폰 문구를 잘못 적어 발송한 경우, 수정된 현재 문구로 다시 보내는 용도)
+router.post('/logs/:logId/resend', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const storeId = req.user?.storeId;
+    if (!storeId) return res.status(401).json({ error: '인증이 필요합니다.' });
+
+    const log = await prisma.automationLog.findFirst({
+      where: { id: req.params.logId, storeId },
+      include: { rule: true, customer: { select: { id: true, name: true, phone: true } } },
+    });
+    if (!log) return res.status(404).json({ error: '발송 이력을 찾을 수 없습니다.' });
+    if (!log.customer.phone) {
+      return res.status(400).json({ error: '고객 전화번호가 없어 재발송할 수 없습니다.' });
+    }
+
+    const messageType = TYPE_TO_MESSAGE[log.rule.type];
+    if (!messageType) return res.status(400).json({ error: '지원하지 않는 자동화 타입입니다.' });
+
+    // 실패 원인을 구분해 안내 (0 반환 시 원인 파악이 어려워 사전 검증)
+    if (!log.rule.couponContent || !log.rule.couponContent.trim()) {
+      return res.status(400).json({ error: '쿠폰 내용이 비어 있습니다. 문구를 먼저 저장한 뒤 재발송해주세요.' });
+    }
+    if (!process.env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON || !process.env.SOLAPI_PF_ID) {
+      console.error('[Automation] Resend blocked: missing SOLAPI template/pfId');
+      return res.status(500).json({ error: '알림톡 설정이 누락되어 발송할 수 없습니다. 고객센터에 문의해주세요.' });
+    }
+
+    // 현재 규칙 설정(couponContent 등)을 그대로 사용해 1건 발송 — 새 쿠폰 발급 + 이력 추가
+    const sent = await sendAutomationMessages(log.rule, [log.customer], messageType);
+    if (sent === 0) {
+      return res.status(400).json({ error: '재발송에 실패했습니다. 충전금 잔액을 확인해주세요.' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Automation] Resend error:', error);
+    res.status(500).json({ error: '재발송 중 오류가 발생했습니다.' });
   }
 });
 

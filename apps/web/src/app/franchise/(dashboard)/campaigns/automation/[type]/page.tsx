@@ -1,11 +1,12 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import {
@@ -86,6 +87,10 @@ export default function FranchiseAutomationSettingPage() {
   const [rule, setRule] = useState<AutomationRule | null>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [resendingLogId, setResendingLogId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const skipAutoSave = useRef(true);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 폼 상태
   const [enabled, setEnabled] = useState(false);
@@ -198,13 +203,46 @@ export default function FranchiseAutomationSettingPage() {
     }
   };
 
-  const handleSave = async () => {
+  // 현재 저장된 문구로 해당 고객에게 재발송 (쿠폰 문구 정정용)
+  const handleResend = async (logId: string) => {
+    if (!confirm('현재 저장된 쿠폰 문구로 이 고객에게 다시 발송합니다.\n(새 쿠폰 발급, 가맹점 발송 비용 1건 차감)\n계속할까요?')) return;
+    setResendingLogId(logId);
+    try {
+      const token = localStorage.getItem('franchiseToken');
+      const res = await fetch(`${API_BASE}/api/franchise/automation/stores/${storeId}/logs/${logId}/resend`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '재발송에 실패했습니다.');
+      showToast('현재 문구로 재발송했습니다.', 'success');
+      const logsRes = await fetch(`${API_BASE}/api/franchise/automation/stores/${storeId}/rules/${type}/logs?limit=10`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (logsRes.ok) setLogs((await logsRes.json()).logs);
+    } catch (e: any) {
+      showToast(e.message || '재발송에 실패했습니다.', 'error');
+    } finally {
+      setResendingLogId(null);
+    }
+  };
+
+  const handleSave = async (silent = false) => {
     if (enabled && !naverPlaceUrl && !isBulk) {
-      showToast('네이버 플레이스 링크가 없으면 자동 마케팅을 활성화할 수 없습니다.', 'error');
+      if (!silent) showToast('네이버 플레이스 링크가 없으면 자동 마케팅을 활성화할 수 없습니다.', 'error');
       return;
     }
 
+    // 쿠폰 내용 없이는 켜진 상태로 두지 않음 (서버 상태까지 동기화)
+    const effectiveEnabled = enabled && !!couponContent.trim();
+    if (enabled && !effectiveEnabled) {
+      skipAutoSave.current = true;
+      setEnabled(false);
+      showToast('쿠폰 내용이 없어 자동 마케팅을 껐습니다. 문구를 입력한 뒤 다시 켜주세요.', 'error');
+    }
+
     setIsSaving(true);
+    setSaveState('saving');
     try {
       const triggerConfigMap: Record<string, object> = {
         BIRTHDAY: { daysBefore },
@@ -218,7 +256,7 @@ export default function FranchiseAutomationSettingPage() {
       const triggerConfig = triggerConfigMap[type] || {};
 
       const body = {
-        enabled,
+        enabled: effectiveEnabled,
         triggerConfig,
         couponEnabled,
         couponContent: couponContent.trim() || null,
@@ -245,18 +283,58 @@ export default function FranchiseAutomationSettingPage() {
             showToast(`전체 ${data.updatedCount}개 가맹점에 설정이 저장되었습니다.`, 'success');
           }
         } else {
-          showToast('설정이 저장되었습니다.', 'success');
+          setSaveState('saved');
+          if (!silent) showToast('설정이 저장되었습니다.', 'success');
         }
       } else {
-        const error = await res.json();
+        const error = await res.json().catch(() => ({}));
+        setSaveState('error');
         showToast(error.error || '저장에 실패했습니다.', 'error');
+        if (error.code === 'coupon_content_required') {
+          skipAutoSave.current = true;
+          setEnabled(false);
+        }
       }
     } catch {
+      setSaveState('error');
       showToast('저장에 실패했습니다.', 'error');
     } finally {
       setIsSaving(false);
     }
   };
+
+  const saveRef = useRef(handleSave);
+  saveRef.current = handleSave;
+
+  // 자동 저장 — 단건(가맹점 지정) 모드에서만.
+  // 전체 가맹점 일괄 적용은 영향 범위가 커서 반드시 버튼으로 확인 후 저장한다.
+  useEffect(() => {
+    if (isLoading || isBulk) return;
+    if (skipAutoSave.current) {
+      skipAutoSave.current = false;
+      return;
+    }
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null;
+      saveRef.current(true);
+    }, 800);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, couponEnabled, couponContent, couponValidDays, sendTimeHour,
+      daysBefore, daysInactive, daysAfterFirstVisit, milestones, winbackDaysInactive, slowDays, isLoading, isBulk]);
+
+  // 이탈 시 대기 중 변경사항 즉시 저장
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveRef.current(true);
+      }
+    };
+  }, []);
 
   if (!meta) return null;
 
@@ -446,7 +524,7 @@ export default function FranchiseAutomationSettingPage() {
             <CardContent className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">쿠폰 내용</label>
-                <Input
+                <Textarea
                   value={couponContent}
                   onChange={(e) => setCouponContent(e.target.value)}
                   placeholder={
@@ -458,9 +536,11 @@ export default function FranchiseAutomationSettingPage() {
                     type === 'SLOW_DAY' ? '오늘만의 특별 할인 10%' :
                     '재방문 감사 10% 할인'
                   }
-                  maxLength={50}
+                  maxLength={100}
+                  rows={3}
+                  className="resize-y"
                 />
-                <p className="text-xs text-slate-400 mt-1">고객에게 표시되는 쿠폰 혜택 내용입니다</p>
+                <p className="text-xs text-slate-400 mt-1">고객에게 표시되는 쿠폰 혜택 내용입니다 · 엔터로 줄바꿈할 수 있어요 (최대 100자)</p>
               </div>
 
               <div>
@@ -560,7 +640,7 @@ export default function FranchiseAutomationSettingPage() {
                                   <p><span className="text-[#6BA3FF]">{storeName || '매장명'}</span>에서 쿠폰을 보냈어요!</p>
                                   <p className="text-slate-500 mb-2">태그히어 이용 고객에게만 제공되는 쿠폰이에요.</p>
                                   <div className="space-y-0.5 mb-2">
-                                    <p>📌 {couponContent || (
+                                    <p className="whitespace-pre-line">📌 {couponContent || (
                                       type === 'BIRTHDAY' ? '생일 축하 10% 할인' :
                                       type === 'ANNIVERSARY' ? '가입 기념일 축하 10% 할인' :
                                       type === 'FIRST_VISIT_FOLLOWUP' ? '첫 방문 감사 10% 할인' :
@@ -663,6 +743,14 @@ export default function FranchiseAutomationSettingPage() {
                     ) : (
                       <span className="text-slate-400 flex-shrink-0">미사용</span>
                     )}
+                    <button
+                      onClick={() => handleResend(log.id)}
+                      disabled={resendingLogId === log.id}
+                      className="flex-shrink-0 px-2.5 py-1 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-50"
+                      title="현재 저장된 쿠폰 문구로 이 고객에게 다시 발송합니다"
+                    >
+                      {resendingLogId === log.id ? '발송 중...' : '문구 재발송'}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -670,11 +758,34 @@ export default function FranchiseAutomationSettingPage() {
           </Card>
         )}
 
-        {/* 저장 버튼 */}
-        <div className="flex justify-end pt-2 pb-8">
-          <Button onClick={handleSave} disabled={isSaving} className="px-8">
-            {isSaving ? '저장 중...' : isBulk ? '전체 가맹점에 저장' : '저장'}
-          </Button>
+        {/* 저장 — 일괄 모드는 버튼 확인, 단건은 자동 저장 */}
+        <div className="flex justify-end items-center gap-3 pt-2 pb-8">
+          {isBulk ? (
+            <Button onClick={() => handleSave(false)} disabled={isSaving} className="px-8">
+              {isSaving ? '저장 중...' : '전체 가맹점에 저장'}
+            </Button>
+          ) : (
+            <>
+              {saveState === 'saving' && <span className="text-sm text-slate-500">저장 중...</span>}
+              {saveState === 'saved' && (
+                <span className="flex items-center gap-1.5 text-sm text-green-600">
+                  <Check className="w-4 h-4" />
+                  변경사항이 자동 저장되었습니다
+                </span>
+              )}
+              {saveState === 'error' && (
+                <>
+                  <span className="text-sm text-red-500">저장에 실패했습니다</span>
+                  <Button onClick={() => handleSave(false)} disabled={isSaving} variant="outline" className="px-5">
+                    다시 저장
+                  </Button>
+                </>
+              )}
+              {saveState === 'idle' && (
+                <span className="text-sm text-slate-400">변경하면 자동으로 저장됩니다</span>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

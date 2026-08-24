@@ -24,6 +24,7 @@ import {
   Settings,
   Check,
   Compass,
+  ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -173,6 +174,7 @@ export default function FranchiseStoresPage() {
   const [isApplyingRewards, setIsApplyingRewards] = useState(false);
   const [applyMessage, setApplyMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [togglingStoreId, setTogglingStoreId] = useState<string | null>(null);
+  const [impersonatingStoreId, setImpersonatingStoreId] = useState<string | null>(null);
   const [isTogglingAll, setIsTogglingAll] = useState(false);
 
   // Auth token helper
@@ -306,6 +308,28 @@ export default function FranchiseStoresPage() {
   };
 
   // Toggle individual store stamp
+  // 가맹점 CRM 대리 로그인 — 새 탭에서 해당 가맹점 대시보드 열기
+  const handleOpenStoreCrm = async (storeId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setImpersonatingStoreId(storeId);
+    try {
+      const token = localStorage.getItem('franchiseToken');
+      const res = await fetch(`${API_BASE}/api/franchise/stores/${storeId}/impersonate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'CRM 접속에 실패했습니다.');
+      // 가맹점 Owner 토큰 저장 후 새 탭에서 매장 대시보드 열기
+      localStorage.setItem('token', data.token);
+      window.open('/home', '_blank');
+    } catch (err: any) {
+      alert(err.message || 'CRM 접속에 실패했습니다.');
+    } finally {
+      setImpersonatingStoreId(null);
+    }
+  };
+
   const handleStampToggle = async (storeId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setTogglingStoreId(storeId);
@@ -1266,16 +1290,19 @@ export default function FranchiseStoresPage() {
                       </span>
                     </button>
                   </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                    CRM
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7}>{renderSkeleton()}</td>
+                    <td colSpan={8}>{renderSkeleton()}</td>
                   </tr>
                 ) : filteredStores.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>{renderEmptyState()}</td>
+                    <td colSpan={8}>{renderEmptyState()}</td>
                   </tr>
                 ) : (
                   sortedStores.map((store) => (
@@ -1354,6 +1381,17 @@ export default function FranchiseStoresPage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-amber-600 text-right font-medium whitespace-nowrap">
                         {(store.stampRewardCustomers || 0).toLocaleString()}명
+                      </td>
+                      <td className="px-6 py-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={(e) => handleOpenStoreCrm(store.id, e)}
+                          disabled={impersonatingStoreId === store.id}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-franchise-700 bg-franchise-50 border border-franchise-200 rounded-lg hover:bg-franchise-100 transition-colors disabled:opacity-50"
+                          title="이 가맹점의 CRM 대시보드를 새 탭에서 엽니다"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          {impersonatingStoreId === store.id ? '접속 중...' : 'CRM 접속'}
+                        </button>
                       </td>
                     </tr>
                   ))

@@ -12,7 +12,11 @@ export interface Banner {
   autoSlide: boolean;
   slideInterval: number;
   mediaType?: 'IMAGE' | 'VIDEO';
+  aspectRatio?: string;
 }
+
+// 배너 비율 (어드민에서 설정, 미설정 시 기존 2:1 유지)
+const BANNER_DEFAULT_ASPECT_RATIO = '2/1';
 
 // 이미지 URL을 전체 경로로 변환
 export function getFullImageUrl(imageUrl: string): string {
@@ -38,7 +42,8 @@ export function BannerMedia({ banner, onClick }: { banner: Banner; onClick: () =
       >
         <video
           src={mediaUrl}
-          className="w-full aspect-[2/1] object-cover rounded-[12px]"
+          className="w-full object-cover rounded-[12px]"
+          style={{ aspectRatio: banner.aspectRatio || BANNER_DEFAULT_ASPECT_RATIO }}
           autoPlay
           muted
           loop
@@ -57,7 +62,8 @@ export function BannerMedia({ banner, onClick }: { banner: Banner; onClick: () =
       <img
         src={mediaUrl}
         alt={banner.title}
-        className="w-full aspect-[2/1] object-cover rounded-[12px]"
+        className="w-full object-cover rounded-[12px]"
+        style={{ aspectRatio: banner.aspectRatio || BANNER_DEFAULT_ASPECT_RATIO }}
       />
     </div>
   );

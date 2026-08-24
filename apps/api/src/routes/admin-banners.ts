@@ -5,6 +5,16 @@ import { AdminRequest, adminAuthMiddleware } from './admin-shared.js';
 
 const router = Router();
 
+// 허용 배너 비율 (예: 2/1 = 가로형, 3/4 = 315x420 세로형)
+const ALLOWED_ASPECT_RATIOS = ['2/1', '16/9', '3/2', '1/1', '4/5', '3/4', '9/16'];
+const DEFAULT_ASPECT_RATIO = '2/1';
+
+function normalizeAspectRatio(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim().replace(/\s+/g, '').replace(':', '/');
+  return ALLOWED_ASPECT_RATIOS.includes(trimmed) ? trimmed : null;
+}
+
 // GET /api/admin/banners - 배너 목록 조회
 router.get('/banners', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
@@ -25,10 +35,15 @@ router.get('/banners', adminAuthMiddleware, async (req: AdminRequest, res: Respo
 // POST /api/admin/banners - 배너 생성
 router.post('/banners', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    const { title, imageUrl, linkUrl, isActive, order, autoSlide, slideInterval, targetSlugs, mediaType } = req.body;
+    const { title, imageUrl, linkUrl, isActive, order, autoSlide, slideInterval, targetSlugs, mediaType, aspectRatio } = req.body;
 
     if (!title || !imageUrl) {
       return res.status(400).json({ error: '제목과 미디어 URL을 입력해주세요.' });
+    }
+
+    const normalizedAspectRatio = aspectRatio === undefined ? DEFAULT_ASPECT_RATIO : normalizeAspectRatio(aspectRatio);
+    if (!normalizedAspectRatio) {
+      return res.status(400).json({ error: `지원하지 않는 배너 비율입니다. (${ALLOWED_ASPECT_RATIOS.join(', ')})` });
     }
 
     const banner = await prisma.orderCompleteBanner.create({
@@ -42,6 +57,7 @@ router.post('/banners', adminAuthMiddleware, async (req: AdminRequest, res: Resp
         slideInterval: slideInterval ?? 3000,
         targetSlugs: targetSlugs || [],
         mediaType: mediaType || 'IMAGE',
+        aspectRatio: normalizedAspectRatio,
       },
     });
 
@@ -56,7 +72,7 @@ router.post('/banners', adminAuthMiddleware, async (req: AdminRequest, res: Resp
 router.put('/banners/:id', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, imageUrl, linkUrl, isActive, order, autoSlide, slideInterval, targetSlugs, mediaType } = req.body;
+    const { title, imageUrl, linkUrl, isActive, order, autoSlide, slideInterval, targetSlugs, mediaType, aspectRatio } = req.body;
 
     const existing = await prisma.orderCompleteBanner.findUnique({
       where: { id },
@@ -64,6 +80,11 @@ router.put('/banners/:id', adminAuthMiddleware, async (req: AdminRequest, res: R
 
     if (!existing) {
       return res.status(404).json({ error: '배너를 찾을 수 없습니다.' });
+    }
+
+    const normalizedAspectRatio = aspectRatio === undefined ? existing.aspectRatio : normalizeAspectRatio(aspectRatio);
+    if (!normalizedAspectRatio) {
+      return res.status(400).json({ error: `지원하지 않는 배너 비율입니다. (${ALLOWED_ASPECT_RATIOS.join(', ')})` });
     }
 
     const banner = await prisma.orderCompleteBanner.update({
@@ -78,6 +99,7 @@ router.put('/banners/:id', adminAuthMiddleware, async (req: AdminRequest, res: R
         slideInterval: slideInterval ?? existing.slideInterval,
         targetSlugs: targetSlugs ?? existing.targetSlugs,
         mediaType: mediaType ?? existing.mediaType,
+        aspectRatio: normalizedAspectRatio,
       },
     });
 
