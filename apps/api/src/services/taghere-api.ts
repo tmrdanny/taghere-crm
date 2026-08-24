@@ -208,6 +208,12 @@ export async function notifyCrmOn(params: {
       console.log('[TagHere CRM V2] V2 config not set, skipping CRM ON');
       return;
     }
+    // V2의 crm_store_slug 컬럼/검증이 100자 제한 — 초과 slug를 보내면 활성화 요청 전체가 400으로 거절되므로 slug만 생략한다.
+    let slug: string | undefined = params.slug;
+    if (slug.length > 100) {
+      console.warn(`[TagHere CRM V2] slug exceeds 100 chars, omitting from CRM ON - storeName: ${params.storeName}, slug: ${slug}`);
+      slug = undefined;
+    }
     try {
       const response = await fetch(`${V2_API_URL}/api/webhooks/crm/on`, {
         method: 'POST',
@@ -215,7 +221,7 @@ export async function notifyCrmOn(params: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${V2_API_TOKEN}`,
         },
-        body: JSON.stringify({ storeName: params.storeName, redirectUrl }),
+        body: JSON.stringify({ storeName: params.storeName, redirectUrl, slug }),
       });
       if (!response.ok) {
         console.error('[TagHere CRM V2] on failed:', response.status, await response.text());
