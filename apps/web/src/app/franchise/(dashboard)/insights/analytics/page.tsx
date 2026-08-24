@@ -50,10 +50,11 @@ export default function FranchiseAnalyticsPage() {
   }, [days, storeId, fetchData]);
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-neutral-900">데이터 분석</h1>
-        <p className="text-sm text-neutral-500 mt-1">
+        <h1 className="text-2xl font-semibold text-slate-900">데이터 분석</h1>
+        <p className="text-sm text-slate-500 mt-1">
           전 가맹점 합산 또는 가맹점별로 시간대별 메뉴 판매량, 세그먼트별 객단가, 재방문 주기를 분석합니다.
         </p>
       </div>
@@ -75,6 +76,7 @@ export default function FranchiseAnalyticsPage() {
           </select>
         }
       />
+      </div>
     </div>
   );
 }
