@@ -28,7 +28,6 @@ interface TableLinkSettings {
 }
 
 export default function AdminTableLinkPage() {
-  const apiUrl = API_BASE;
 
   // Store list & search
   const [stores, setStores] = useState<Store[]>([]);
@@ -68,7 +67,7 @@ export default function AdminTableLinkPage() {
     const fetchStores = async () => {
       try {
         const token = localStorage.getItem('adminToken');
-        const res = await fetch(`${apiUrl}/api/admin/stores/options`, {
+        const res = await fetch(`${API_BASE}/api/admin/stores/options`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -80,7 +79,7 @@ export default function AdminTableLinkPage() {
       }
     };
     fetchStores();
-  }, [apiUrl]);
+  }, []);
 
   // Click outside to close dropdown
   useEffect(() => {
@@ -102,7 +101,7 @@ export default function AdminTableLinkPage() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${apiUrl}/api/admin/table-link-settings/${store.id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/table-link-settings/${store.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -137,7 +136,7 @@ export default function AdminTableLinkPage() {
     setIsSaving(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${apiUrl}/api/admin/table-link-settings/${selectedStore.id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/table-link-settings/${selectedStore.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -178,7 +177,7 @@ export default function AdminTableLinkPage() {
     setIsBulkAdding(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${apiUrl}/api/admin/table-link-settings/${selectedStore.id}/bulk-add`, {
+      const res = await fetch(`${API_BASE}/api/admin/table-link-settings/${selectedStore.id}/bulk-add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

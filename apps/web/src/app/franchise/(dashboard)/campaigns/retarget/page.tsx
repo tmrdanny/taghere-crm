@@ -40,6 +40,25 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  TargetCounts,
+  EstimatedRevenue,
+  Estimate,
+  UploadedImage,
+  SelectedCustomer,
+  KakaoButton,
+  KakaoEstimate,
+  KakaoUploadedImage,
+  CustomerListItem,
+  IMAGE_MAX_SIZE,
+  IMAGE_MAX_WIDTH,
+  IMAGE_MAX_HEIGHT,
+  SendConfirmModal,
+  TestSendModal,
+  KakaoConfirmModal,
+  KakaoTestModal,
+} from '@/features/messages';
+import { CouponAlimtalkPreview } from '@/features/kakao-composer';
 
 
 // 연령대 옵션 (local-customers와 동일)
@@ -70,44 +89,6 @@ const getCategoryLabel = (category: string): string => {
   return labels[category] || category;
 };
 
-interface TargetCounts {
-  all: number;
-  revisit: number;
-  new: number;
-}
-
-interface EstimatedRevenue {
-  avgOrderValue: number;
-  conversionRate: number;
-  expectedVisits: number;
-  expectedRevenue: number;
-}
-
-interface Estimate {
-  targetCount: number;
-  byteLength: number;
-  messageType: 'SMS' | 'LMS' | 'MMS';
-  costPerMessage: number;
-  totalCost: number;
-  walletBalance: number;
-  canSend: boolean;
-  estimatedRevenue?: EstimatedRevenue;
-}
-
-interface UploadedImage {
-  imageUrl: string;
-  filename: string;
-  imageId: string; // SOLAPI에서 받은 이미지 ID
-  width: number;
-  height: number;
-  size: number;
-}
-
-// 이미지 제약 조건 상수
-const IMAGE_MAX_SIZE = 200 * 1024; // 200KB
-const IMAGE_MAX_WIDTH = 1500;
-const IMAGE_MAX_HEIGHT = 1440;
-
 interface Campaign {
   id: string;
   title: string;
@@ -120,47 +101,6 @@ interface Campaign {
   status: string;
   createdAt: string;
   completedAt: string | null;
-}
-
-interface SelectedCustomer {
-  id: string;
-  name: string | null;
-  phone: string | null;
-}
-
-// 카카오톡 브랜드 메시지 관련 인터페이스
-interface KakaoButton {
-  type: 'WL';
-  name: string;
-  linkMo: string;
-  linkPc?: string;
-}
-
-interface KakaoEstimate {
-  targetCount: number;
-  messageType: 'TEXT' | 'IMAGE';
-  costPerMessage: number;
-  totalCost: number;
-  walletBalance: number;
-  canSend: boolean;
-  estimatedRevenue?: EstimatedRevenue;
-}
-
-interface KakaoUploadedImage {
-  imageUrl: string;
-  imageId: string;
-  filename: string;
-}
-
-interface CustomerListItem {
-  id: string;
-  name: string | null;
-  phone: string | null;
-  visitCount: number;
-  totalPoints: number;
-  gender: string | null;
-  createdAt: string;
-  messageCount?: number;
 }
 
 interface StoreInfo {
@@ -2039,105 +1979,11 @@ export default function MessagesPage() {
 
                   {/* Kakao Preview - 쿠폰 알림톡 (messages 페이지와 동일) */}
                   {activeTab === 'kakao' && (
-                    <>
-                      {/* KakaoTalk header */}
-                      <div className="flex items-center justify-between px-4 pt-10 pb-2">
-                        <ChevronLeft className="w-4 h-4 text-neutral-700" />
-                        <span className="font-medium text-xs text-neutral-800">태그히어</span>
-                        <div className="w-4" />
-                      </div>
-
-                      {/* Date badge */}
-                      <div className="flex justify-center mb-3">
-                        <span className="text-[10px] bg-neutral-500/30 text-neutral-700 px-2 py-0.5 rounded-full">
-                          {new Date().toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </span>
-                      </div>
-
-                      {/* Message area */}
-                      <div className="flex-1 pl-2 pr-4 overflow-auto">
-                        <div className="flex gap-1.5">
-                          {/* Profile icon */}
-                          <div className="flex-shrink-0">
-                            <div className="w-7 h-7 rounded-full bg-neutral-300" />
-                          </div>
-
-                          {/* Message content */}
-                          <div className="flex-1 min-w-0 mr-4">
-                            <p className="text-[10px] text-neutral-600 mb-0.5">태그히어</p>
-
-                            {/* Coupon Alimtalk bubble */}
-                            <div className="relative">
-                              {/* Kakao badge */}
-                              <div className="absolute -top-1 -right-1 z-10">
-                                <span className="bg-neutral-700 text-white text-[8px] px-1 py-0.5 rounded-full font-medium">
-                                  kakao
-                                </span>
-                              </div>
-
-                              {/* 알림톡 도착 배너 */}
-                              <div className="bg-[#FEE500] rounded-t-md px-2 py-1.5">
-                                <span className="text-xs font-medium text-neutral-800">알림톡 도착</span>
-                              </div>
-
-                              <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
-                                {/* 쿠폰 이미지 */}
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src="/images/coupon_kakao.png"
-                                  alt="쿠폰 이미지"
-                                  className="w-full h-auto"
-                                />
-
-                                {/* Message body */}
-                                <div className="px-4 py-4">
-                                  <p className="text-xs font-semibold text-neutral-800 mb-4">
-                                    태그히어 고객 대상 쿠폰
-                                  </p>
-                                  <div className="space-y-1 text-xs text-neutral-700">
-                                    <p>
-                                      <span className="text-[#6BA3FF]">{couponStoreName || '매장명'}</span>에서 쿠폰을 보냈어요!
-                                    </p>
-                                    <p className="text-neutral-500 mb-4">
-                                      태그히어 이용 고객에게만 제공되는 쿠폰이에요.
-                                    </p>
-                                    <div className="space-y-1 mb-4">
-                                      <p>📌 {couponContent || '쿠폰 내용을 입력해주세요'}</p>
-                                      <p>📌 {couponExpiryDate || '유효기간을 입력해주세요'}</p>
-                                    </div>
-                                    <p className="text-neutral-500">
-                                      결제 시 직원 확인을 통해 사용할 수 있어요.
-                                    </p>
-                                  </div>
-                                </div>
-
-                                {/* 버튼 */}
-                                <div className="px-4 pb-4 space-y-2">
-                                  <button className="w-full py-2.5 bg-white text-neutral-800 text-xs font-medium rounded border border-neutral-300">
-                                    네이버 길찾기
-                                  </button>
-                                  <button className="w-full py-2.5 bg-white text-neutral-800 text-xs font-medium rounded border border-neutral-300">
-                                    직원 확인
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Time */}
-                            <p className="text-[8px] text-neutral-500 mt-0.5 text-right">
-                              오후 12:30
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Bottom safe area */}
-                      <div className="h-6" />
-                    </>
+                    <CouponAlimtalkPreview
+                      couponStoreName={couponStoreName}
+                      couponContent={couponContent}
+                      couponExpiryDate={couponExpiryDate}
+                    />
                   )}
 
                   {/* (구) 브랜드 메시지 미리보기 — 비활성 */}
@@ -2242,57 +2088,15 @@ export default function MessagesPage() {
       </div>
 
       {/* Confirm Modal */}
-      <Modal open={showConfirmModal} onOpenChange={setShowConfirmModal}>
-        <ModalContent className="sm:max-w-md">
-          <ModalHeader>
-            <ModalTitle>메시지 발송 확인</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="p-4 bg-neutral-50 rounded-xl space-y-3">
-              <div className="flex justify-between">
-                <span className="text-neutral-600">발송 대상</span>
-                <span className="font-semibold">{formatNumber(estimate?.targetCount || getCurrentTargetCount())}명</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-600">메시지 유형</span>
-                <span className="font-semibold">
-                  {uploadedImage ? '멀티미디어 (MMS)' : isLongMessage ? '장문 (LMS)' : '단문 (SMS)'}
-                </span>
-              </div>
-              <div className="flex justify-between text-lg">
-                <span className="text-neutral-900 font-medium">총 비용</span>
-                <span className="font-bold text-brand-700">{formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원</span>
-              </div>
-            </div>
-
-            <div className="p-4 bg-brand-50 rounded-xl">
-              <p className="text-sm text-brand-800">
-                발송 후에는 취소할 수 없으며, 비용이 충전금에서 차감됩니다.
-              </p>
-            </div>
-          </div>
-
-          <ModalFooter>
-            <Button variant="outline" onClick={() => setShowConfirmModal(false)}>
-              취소
-            </Button>
-            <Button onClick={handleSend} disabled={isSending}>
-              {isSending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  발송 중...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  발송하기
-                </>
-              )}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <SendConfirmModal
+        open={showConfirmModal}
+        onOpenChange={setShowConfirmModal}
+        targetCount={estimate?.targetCount || getCurrentTargetCount()}
+        messageTypeLabel={uploadedImage ? '멀티미디어 (MMS)' : isLongMessage ? '장문 (LMS)' : '단문 (SMS)'}
+        totalCost={estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50))}
+        isSending={isSending}
+        onSend={handleSend}
+      />
 
       {/* Store Selection Modal */}
       <Modal open={showStoreModal} onOpenChange={setShowStoreModal}>
@@ -2518,206 +2322,43 @@ export default function MessagesPage() {
       </Modal>
 
       {/* Test Send Modal */}
-      <Modal open={showTestModal} onOpenChange={setShowTestModal}>
-        <ModalContent className="sm:max-w-md">
-          <ModalHeader>
-            <ModalTitle>테스트 발송</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-[#64748b]">
-              테스트용 전화번호를 입력해주세요.
-            </p>
-            <p className="text-sm text-[#3b82f6]">
-              테스트 발송은 금액이 차감되지 않아요.
-            </p>
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm text-amber-700">
-                오늘 테스트 발송: {testCount.count}/{testCount.limit}회 (남은 횟수: {testCount.remaining}회)
-              </p>
-            </div>
-
-            <input
-              type="tel"
-              value={testPhone}
-              onChange={(e) => setTestPhone(e.target.value)}
-              placeholder="01012345678"
-              className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-            />
-
-            <div className="p-4 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
-              <p className="text-sm text-[#64748b]">
-                메시지 유형: <span className="font-medium text-[#1e293b]">{uploadedImage ? 'MMS (이미지 포함)' : getByteLength(messageContent) > 90 ? 'LMS (장문)' : 'SMS (단문)'}</span>
-              </p>
-              <p className="text-sm text-[#64748b] mt-1">
-                바이트: <span className="font-medium text-[#1e293b]">{getByteLength(messageContent)} bytes</span>
-              </p>
-            </div>
-          </div>
-
-          <ModalFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowTestModal(false)}
-              disabled={isTestSending}
-            >
-              취소
-            </Button>
-            <Button
-              onClick={handleTestSend}
-              disabled={isTestSending || !testPhone.trim() || !messageContent.trim() || testCount.remaining <= 0}
-            >
-              {isTestSending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  발송 중...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  테스트 발송
-                </>
-              )}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <TestSendModal
+        open={showTestModal}
+        onOpenChange={setShowTestModal}
+        testCount={testCount}
+        testPhone={testPhone}
+        onPhoneChange={setTestPhone}
+        messageTypeLabel={uploadedImage ? 'MMS (이미지 포함)' : getByteLength(messageContent) > 90 ? 'LMS (장문)' : 'SMS (단문)'}
+        byteLength={getByteLength(messageContent)}
+        isTestSending={isTestSending}
+        sendDisabled={isTestSending || !testPhone.trim() || !messageContent.trim() || testCount.remaining <= 0}
+        onSend={handleTestSend}
+      />
 
       {/* Kakao Confirm Modal */}
-      <Modal open={showKakaoConfirmModal} onOpenChange={setShowKakaoConfirmModal}>
-        <ModalContent className="sm:max-w-md">
-          <ModalHeader>
-            <ModalTitle>카카오톡 발송 확인</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="p-4 bg-neutral-50 rounded-xl space-y-3">
-              <div className="flex justify-between">
-                <span className="text-neutral-600">발송 대상</span>
-                <span className="font-semibold">{formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-600">메시지 유형</span>
-                <span className="font-semibold">
-                  {kakaoMessageType === 'IMAGE' ? '이미지형 (230원)' : '텍스트형 (200원)'}
-                </span>
-              </div>
-              {!isSendableTime && (
-                <div className="flex justify-between">
-                  <span className="text-neutral-600">발송 예정</span>
-                  <span className="font-semibold text-amber-600">다음 날 08:00 예약</span>
-                </div>
-              )}
-              <div className="flex justify-between text-lg pt-2 border-t border-neutral-200">
-                <span className="text-neutral-900 font-medium">총 비용</span>
-                <span className="font-bold text-brand-700">{formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 230 : 200)))}원</span>
-              </div>
-            </div>
-
-            <div className="p-4 bg-brand-50 rounded-xl">
-              <p className="text-sm text-brand-800">
-                {isSendableTime
-                  ? '발송 후에는 취소할 수 없으며, 발송 성공 시에만 비용이 차감됩니다.'
-                  : '08:00에 자동 발송되며, 발송 성공 시에만 비용이 차감됩니다.'}
-              </p>
-            </div>
-
-            <div className="p-3 bg-neutral-50 rounded-lg text-xs text-neutral-600">
-              <p>카카오톡 미설치 또는 미가입 고객에게는 발송되지 않으며, SMS 대체 발송이 불가능합니다.</p>
-            </div>
-          </div>
-
-          <ModalFooter>
-            <Button variant="outline" onClick={() => setShowKakaoConfirmModal(false)}>
-              취소
-            </Button>
-            <Button
-              onClick={handleKakaoSend}
-              disabled={isKakaoSending}
-            >
-              {isKakaoSending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  발송 중...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  {isSendableTime ? '발송하기' : '예약 발송'}
-                </>
-              )}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <KakaoConfirmModal
+        open={showKakaoConfirmModal}
+        onOpenChange={setShowKakaoConfirmModal}
+        targetCount={kakaoEstimate?.targetCount || getCurrentTargetCount()}
+        messageTypeLabel={kakaoMessageType === 'IMAGE' ? '이미지형 (230원)' : '텍스트형 (200원)'}
+        isSendableTime={isSendableTime}
+        totalCost={kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 230 : 200))}
+        isKakaoSending={isKakaoSending}
+        onSend={handleKakaoSend}
+      />
 
       {/* Kakao Test Send Modal */}
-      <Modal open={showKakaoTestModal} onOpenChange={setShowKakaoTestModal}>
-        <ModalContent className="sm:max-w-md">
-          <ModalHeader>
-            <ModalTitle>카카오톡 테스트 발송</ModalTitle>
-          </ModalHeader>
-
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-[#64748b]">
-              테스트용 전화번호를 입력해주세요.
-            </p>
-            <p className="text-sm text-[#3b82f6]">
-              테스트 발송은 금액이 차감되지 않아요.
-            </p>
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm text-amber-700">
-                카카오톡이 설치되어 있고 해당 번호로 가입된 계정이어야 수신 가능합니다.
-              </p>
-            </div>
-
-            <input
-              type="tel"
-              value={kakaoTestPhone}
-              onChange={(e) => setKakaoTestPhone(e.target.value)}
-              placeholder="01012345678"
-              className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
-            />
-
-            <div className="p-4 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
-              <p className="text-sm text-[#64748b]">
-                메시지 유형: <span className="font-medium text-[#1e293b]">{kakaoMessageType === 'IMAGE' ? '이미지형' : '텍스트형'}</span>
-              </p>
-              {kakaoButtons.filter(b => b.name.trim()).length > 0 && (
-                <p className="text-sm text-[#64748b] mt-1">
-                  버튼: <span className="font-medium text-[#1e293b]">{kakaoButtons.filter(b => b.name.trim()).length}개</span>
-                </p>
-              )}
-            </div>
-          </div>
-
-          <ModalFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowKakaoTestModal(false)}
-              disabled={isKakaoTestSending}
-            >
-              취소
-            </Button>
-            <Button
-              onClick={handleKakaoTestSend}
-              disabled={isKakaoTestSending || !kakaoTestPhone.trim() || !kakaoContent.trim()}
-            >
-              {isKakaoTestSending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  발송 중...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  테스트 발송
-                </>
-              )}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <KakaoTestModal
+        open={showKakaoTestModal}
+        onOpenChange={setShowKakaoTestModal}
+        testPhone={kakaoTestPhone}
+        onPhoneChange={setKakaoTestPhone}
+        messageTypeLabel={kakaoMessageType === 'IMAGE' ? '이미지형' : '텍스트형'}
+        buttonCount={kakaoButtons.filter(b => b.name.trim()).length}
+        isKakaoTestSending={isKakaoTestSending}
+        sendDisabled={isKakaoTestSending || !kakaoTestPhone.trim() || !kakaoContent.trim()}
+        onSend={handleKakaoTestSend}
+      />
     </div>
   );
 }

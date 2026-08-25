@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Router } from 'express';
 import crypto from 'crypto';
 import { prisma } from '../lib/prisma.js';
@@ -6,7 +7,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 const router = Router();
 
 // 토스페이먼츠 시크릿 키
-const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || '';
+const TOSS_SECRET_KEY = env.TOSS_SECRET_KEY || '';
 const TOSS_WEBHOOK_SECRET = process.env.TOSS_WEBHOOK_SECRET || '';
 
 // 금액에 따른 보너스율 계산 (프론트엔드와 동일하게 유지)

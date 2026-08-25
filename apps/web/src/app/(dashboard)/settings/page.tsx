@@ -61,7 +61,6 @@ const SHOW_PASSWORD_CHANGE = false;
 
 export default function SettingsPage() {
   const router = useRouter();
-  const apiUrl = API_BASE;
   const { showToast, ToastComponent } = useToast();
 
   // Store info states
@@ -112,7 +111,7 @@ export default function SettingsPage() {
     const fetchStoreInfo = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/settings/store`, {
+        const res = await fetch(`${API_BASE}/api/settings/store`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -139,7 +138,7 @@ export default function SettingsPage() {
     const fetchUserInfo = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/auth/me`, {
+        const res = await fetch(`${API_BASE}/api/auth/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -157,7 +156,7 @@ export default function SettingsPage() {
     const fetchAlimtalkSettings = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/settings/alimtalk`, {
+        const res = await fetch(`${API_BASE}/api/settings/alimtalk`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -176,7 +175,7 @@ export default function SettingsPage() {
     const fetchPointRateSettings = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/settings/point-rate`, {
+        const res = await fetch(`${API_BASE}/api/settings/point-rate`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -194,7 +193,7 @@ export default function SettingsPage() {
     const fetchWalletBalance = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/wallet`, {
+        const res = await fetch(`${API_BASE}/api/wallet`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -216,7 +215,7 @@ export default function SettingsPage() {
     const fetchStampAlimtalkSettings = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${apiUrl}/api/stamp-settings`, {
+        const res = await fetch(`${API_BASE}/api/stamp-settings`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -234,7 +233,7 @@ export default function SettingsPage() {
     fetchPointRateSettings();
     fetchWalletBalance();
     fetchStampAlimtalkSettings();
-  }, [apiUrl]);
+  }, []);
 
   const handleSaveStore = async () => {
     if (!storeName.trim()) {
@@ -245,7 +244,7 @@ export default function SettingsPage() {
     setIsSavingStore(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/settings/store`, {
+      const res = await fetch(`${API_BASE}/api/settings/store`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -299,7 +298,7 @@ export default function SettingsPage() {
     setIsChangingPassword(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/auth/change-password`, {
+      const res = await fetch(`${API_BASE}/api/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -334,7 +333,7 @@ export default function SettingsPage() {
     setIsSavingAlimtalk(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/settings/alimtalk`, {
+      const res = await fetch(`${API_BASE}/api/settings/alimtalk`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -369,7 +368,7 @@ export default function SettingsPage() {
     setIsSavingStampAlimtalk(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/stamp-settings`, {
+      const res = await fetch(`${API_BASE}/api/stamp-settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -398,7 +397,7 @@ export default function SettingsPage() {
     setIsSavingFrequency(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/settings/alimtalk`, {
+      const res = await fetch(`${API_BASE}/api/settings/alimtalk`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -435,7 +434,7 @@ export default function SettingsPage() {
     setIsSavingPointRate(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/settings/point-rate`, {
+      const res = await fetch(`${API_BASE}/api/settings/point-rate`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -465,7 +464,7 @@ export default function SettingsPage() {
     setIsSavingPointUsageRule(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/settings/point-usage-rule`, {
+      const res = await fetch(`${API_BASE}/api/settings/point-usage-rule`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

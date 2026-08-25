@@ -57,7 +57,6 @@ const CATEGORY_BADGE_STYLES: Record<string, string> = {
 };
 
 export default function WalletHistoryPage() {
-  const apiUrl = API_BASE;
   const [data, setData] = useState<UsageHistory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [period, setPeriod] = useState('all');
@@ -69,7 +68,7 @@ export default function WalletHistoryPage() {
     try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams({ period, category, page: String(page), limit: '30' });
-      const res = await fetch(`${apiUrl}/api/wallet/usage-history?${params.toString()}`, {
+      const res = await fetch(`${API_BASE}/api/wallet/usage-history?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -80,7 +79,7 @@ export default function WalletHistoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [apiUrl, period, category, page]);
+  }, [period, category, page]);
 
   useEffect(() => {
     fetchHistory();

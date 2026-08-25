@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { SolapiService } from './solapi.js';
+import { getSolapiService, clearSolapiInstance } from './solapi-instance.js';
 
 const BATCH_SIZE = 20;
 const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
@@ -11,24 +12,6 @@ let isRunning = false;
 let intervalId: NodeJS.Timeout | null = null;
 
 // 글로벌 SOLAPI 서비스 인스턴스
-let globalSolapiService: SolapiService | null = null;
-
-function getSolapiService(): SolapiService | null {
-  if (globalSolapiService) {
-    return globalSolapiService;
-  }
-
-  const apiKey = process.env.SOLAPI_API_KEY;
-  const apiSecret = process.env.SOLAPI_API_SECRET;
-
-  if (!apiKey || !apiSecret) {
-    return null;
-  }
-
-  globalSolapiService = new SolapiService(apiKey, apiSecret);
-  return globalSolapiService;
-}
-
 
 // 단일 메시지 처리 (그룹 조회 결과를 인자로 받음)
 async function processMessage(
@@ -300,5 +283,5 @@ export function stopExternalSmsWorker(): void {
 
 // 캐시 초기화
 export function clearExternalSmsWorkerCache(): void {
-  globalSolapiService = null;
+  clearSolapiInstance();
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
+import { getStoreToken } from '@/lib/auth-token';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Users, RefreshCw, TrendingUp, MapPin, Calendar, Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -70,19 +71,12 @@ export default function CustomerInsightsPage() {
   }, []);
 
   // Auth token helper
-  const getAuthToken = () => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('token') || '';
-    }
-    return '';
-  };
-
   // Fetch insights
   const fetchInsights = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const token = getAuthToken();
+      const token = getStoreToken();
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);

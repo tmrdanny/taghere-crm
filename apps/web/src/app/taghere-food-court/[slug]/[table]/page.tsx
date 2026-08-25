@@ -51,7 +51,6 @@ function FoodCourtContent() {
   const params = useParams();
   const slug = params.slug as string;
   const table = params.table as string;
-  const apiUrl = API_BASE;
 
   const [info, setInfo] = useState<FoodCourtInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,7 +62,7 @@ function FoodCourtContent() {
   useEffect(() => {
     const fetchInfo = async () => {
       try {
-        const res = await fetch(`${apiUrl}/api/taghere/food-court/${slug}/${encodeURIComponent(table)}`);
+        const res = await fetch(`${API_BASE}/api/taghere/food-court/${slug}/${encodeURIComponent(table)}`);
         if (res.ok) {
           const data = await res.json();
           setInfo(data);
@@ -82,7 +81,7 @@ function FoodCourtContent() {
       }
     };
     fetchInfo();
-  }, [apiUrl, slug, table]);
+  }, [slug, table]);
 
   const handleSelectBooth = async (booth: Booth) => {
     if (!booth.available || redirectingId) return;
@@ -92,7 +91,7 @@ function FoodCourtContent() {
 
     try {
       const res = await fetch(
-        `${apiUrl}/api/taghere/food-court/${slug}/${encodeURIComponent(table)}/redirect/${booth.id}`
+        `${API_BASE}/api/taghere/food-court/${slug}/${encodeURIComponent(table)}/redirect/${booth.id}`
       );
       if (res.ok) {
         const data = await res.json();

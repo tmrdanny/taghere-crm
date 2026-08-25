@@ -6,7 +6,6 @@ import { Users, Star, Heart, TrendingUp, UserPlus, AlertTriangle, Moon, RefreshC
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
-const apiUrl = API_BASE;
 
 interface SegmentData {
   type: string;
@@ -56,7 +55,7 @@ export default function SegmentsPage() {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/insights/segments`, {
+      const res = await fetch(`${API_BASE}/api/insights/segments`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -75,7 +74,7 @@ export default function SegmentsPage() {
     setLoadingCustomers(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/insights/segments?segment=${segment}`, {
+      const res = await fetch(`${API_BASE}/api/insights/segments?segment=${segment}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

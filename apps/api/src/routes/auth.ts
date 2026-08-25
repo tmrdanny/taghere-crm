@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -210,7 +211,7 @@ router.post('/register', async (req, res) => {
         role: result.role,
         isAdmin: result.isAdmin,
       },
-      process.env.JWT_SECRET || 'secret',
+      env.JWT_SECRET || 'secret',
       { expiresIn: '7d' }
     );
 
@@ -278,7 +279,7 @@ router.post('/login', async (req, res) => {
         role: user.role,
         isAdmin: user.isAdmin,
       },
-      process.env.JWT_SECRET || 'secret',
+      env.JWT_SECRET || 'secret',
       { expiresIn: '7d' }
     );
 

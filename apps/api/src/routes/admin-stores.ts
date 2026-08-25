@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -861,7 +862,7 @@ router.post('/stores/:storeId/impersonate', adminAuthMiddleware, async (req: Adm
         isAdmin: false,
         isImpersonated: true,
       },
-      process.env.JWT_SECRET!,
+      env.JWT_SECRET!,
       { expiresIn: '1h' }
     );
 

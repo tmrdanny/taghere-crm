@@ -1,15 +1,21 @@
+import { env } from '../config/env.js';
 import { Router } from 'express';
-import multer from 'multer';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { SolapiService, BrandMessageButton, buildPhoneResultMap } from '../services/solapi.js';
+import { getSolapiService } from '../services/solapi-instance.js';
+import { isSendableTime, getNextSendableTime } from '../utils/send-window.js';
 import { calculateCostWithCredits } from '../services/credit-service.js';
 import { chargeCampaignUpfront } from '../services/message-billing.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 import { getAgeGroupBirthYearRange, buildRegionConditions, buildFilterConditions } from '../lib/customer-filters.js';
+import {
+  brandMessageImageUpload as upload,
+  brandMessageUploadDir as uploadDir,
+} from './message-uploads.js';
 
 const router = Router();
 
@@ -17,83 +23,12 @@ const router = Router();
 const BRAND_MESSAGE_TEXT_COST = 200; // 텍스트형
 const BRAND_MESSAGE_IMAGE_COST = 230; // 이미지형
 
-// 이미지 제약 조건 (카카오 권장)
-const IMAGE_MAX_SIZE = 5 * 1024 * 1024; // 5MB
+// 이미지 제약 조건 (카카오 권장) — 최대 용량(5MB)은 message-uploads.ts 의 multer 설정에서 제한
 const IMAGE_RECOMMENDED_WIDTH = 800;
 const IMAGE_RECOMMENDED_HEIGHT = 400;
 
-// 업로드 디렉토리 설정
-const uploadDir = path.join(process.cwd(), 'uploads', 'brand-message');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Multer 설정
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage,
-  limits: { fileSize: IMAGE_MAX_SIZE },
-  fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (!['.jpg', '.jpeg', '.png'].includes(ext)) {
-      cb(new Error('JPG 또는 PNG 파일만 업로드 가능합니다.'));
-      return;
-    }
-    if (!file.mimetype.startsWith('image/')) {
-      cb(new Error('이미지 파일만 업로드 가능합니다.'));
-      return;
-    }
-    cb(null, true);
-  },
-});
-
 // SOLAPI 서비스 인스턴스
-let solapiServiceInstance: SolapiService | null = null;
-function getSolapiService(): SolapiService | null {
-  if (solapiServiceInstance) return solapiServiceInstance;
-  const apiKey = process.env.SOLAPI_API_KEY;
-  const apiSecret = process.env.SOLAPI_API_SECRET;
-  if (!apiKey || !apiSecret) return null;
-  solapiServiceInstance = new SolapiService(apiKey, apiSecret);
-  return solapiServiceInstance;
-}
 
-// 발송 가능 시간 체크 (08:00 ~ 20:50 KST)
-function isSendableTime(): boolean {
-  const now = new Date();
-  // KST = UTC + 9
-  const kstHour = (now.getUTCHours() + 9) % 24;
-  const kstMinute = now.getUTCMinutes();
-
-  if (kstHour < 8) return false;
-  if (kstHour > 20) return false;
-  if (kstHour === 20 && kstMinute > 50) return false;
-  return true;
-}
-
-// 다음 발송 가능 시간 계산
-function getNextSendableTime(): Date {
-  const now = new Date();
-  const kstOffset = 9 * 60 * 60 * 1000;
-  const kstNow = new Date(now.getTime() + kstOffset);
-
-  const kstHour = kstNow.getUTCHours();
-  const kstMinute = kstNow.getUTCMinutes();
-
-  // 다음 08:00 계산
-  const nextSendable = new Date(kstNow);
-  nextSendable.setUTCHours(8, 0, 0, 0);
-
-  // 현재 시간이 20:50 이후이거나 08:00 이전이면 다음 날 08:00
-  if (kstHour >= 21 || (kstHour === 20 && kstMinute > 50) || kstHour < 8) {
-    if (kstHour >= 8) {
-      nextSendable.setUTCDate(nextSendable.getUTCDate() + 1);
-    }
-  }
-
-  // UTC로 변환하여 반환
-  return new Date(nextSendable.getTime() - kstOffset);
-}
 
 // 브랜드 메시지 포맷 (카카오톡은 광고 표기/수신거부 불필요)
 function formatBrandMessage(content: string, storeName: string): string {
@@ -345,7 +280,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // SOLAPI 설정 확인
-    const pfId = process.env.SOLAPI_PF_ID;
+    const pfId = env.SOLAPI_PF_ID;
     if (!pfId) {
       return res.status(400).json({ error: '카카오 비즈니스 채널 설정이 필요합니다.' });
     }
@@ -692,7 +627,7 @@ router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
 
     // 테스트 발송은 시간 제한 없음 (발송 가능 시간 체크 제거)
 
-    const pfId = process.env.SOLAPI_PF_ID;
+    const pfId = env.SOLAPI_PF_ID;
     if (!pfId) {
       return res.status(400).json({ error: '카카오 비즈니스 채널 설정이 필요합니다.' });
     }

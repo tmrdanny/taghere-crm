@@ -4,55 +4,9 @@ import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { BarcodeDetector } from 'barcode-detector/ponyfill';
-
-// ============================================
-// 로컬스토리지 헬퍼 함수 (kakaoId 저장용)
-// ============================================
-const KAKAO_STORAGE_KEY = 'taghere_kakao_id';
-const KAKAO_STORAGE_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000; // 90일
-
-interface StoredKakaoData {
-  kakaoId: string;
-  savedAt: number;
-}
-
-function getStoredKakaoId(): string | null {
-  if (typeof window === 'undefined') return null;
-
-  try {
-    const stored = localStorage.getItem(KAKAO_STORAGE_KEY);
-    if (!stored) return null;
-
-    const data: StoredKakaoData = JSON.parse(stored);
-    const now = Date.now();
-
-    // 만료 체크 (90일)
-    if (now - data.savedAt > KAKAO_STORAGE_EXPIRY_MS) {
-      localStorage.removeItem(KAKAO_STORAGE_KEY);
-      return null;
-    }
-
-    return data.kakaoId;
-  } catch {
-    localStorage.removeItem(KAKAO_STORAGE_KEY);
-    return null;
-  }
-}
-
-function saveKakaoId(kakaoId: string): void {
-  if (typeof window === 'undefined') return;
-
-  const data: StoredKakaoData = {
-    kakaoId,
-    savedAt: Date.now(),
-  };
-  localStorage.setItem(KAKAO_STORAGE_KEY, JSON.stringify(data));
-}
-
-function removeStoredKakaoId(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(KAKAO_STORAGE_KEY);
-}
+import { getStoredKakaoId, saveKakaoId, removeStoredKakaoId } from '@/features/enroll/kakao-storage';
+import { StampSuccessPopup } from '@/features/enroll/StampSuccessPopup';
+import type { VisitSourceOption, SurveyQuestion } from '@/features/enroll/types';
 
 // 하이트진로 바코드 프리픽스 (EAN-13)
 const HITEJINRO_BARCODE_PREFIX = '8801119';
@@ -64,11 +18,6 @@ interface StampInfo {
   enabled: boolean;
   franchiseStampEnabled?: boolean;
   franchiseName?: string;
-}
-
-interface VisitSourceOption {
-  id: string;
-  label: string;
 }
 
 interface RewardInfo {
@@ -87,398 +36,6 @@ interface SuccessData {
   drawnReward?: string | null;
   drawnRewardTier?: number | null;
   franchiseName?: string | null;
-}
-
-interface SurveyQuestion {
-  id: string;
-  type: 'DATE' | 'TEXT' | 'CHOICE';
-  label: string;
-  description: string | null;
-  required: boolean;
-  choiceOptions?: string[] | null;
-}
-
-// 9개 핵심 카테고리 + 세부 매핑
-const CATEGORY_OPTIONS = [
-  { value: 'KOREAN', label: '한식', icon: '🍚', mappedCategories: ['KOREAN', 'BUNSIK', 'KOREAN_PUB'] },
-  { value: 'CHINESE', label: '중식', icon: '🥟', mappedCategories: ['CHINESE'] },
-  { value: 'JAPANESE', label: '일식', icon: '🍣', mappedCategories: ['JAPANESE', 'IZAKAYA'] },
-  { value: 'WESTERN', label: '양식', icon: '🍝', mappedCategories: ['WESTERN', 'BRUNCH'] },
-  { value: 'CAFE', label: '카페', icon: '☕', mappedCategories: ['CAFE', 'BAKERY', 'ICECREAM'] },
-  { value: 'MEAT', label: '고기/구이', icon: '🥩', mappedCategories: ['MEAT', 'SEAFOOD', 'BUFFET'] },
-  { value: 'BEER', label: '주점', icon: '🍺', mappedCategories: ['BEER', 'POCHA', 'COOK_PUB'] },
-  { value: 'WINE_BAR', label: '와인', icon: '🍷', mappedCategories: ['WINE_BAR', 'COCKTAIL_BAR'] },
-  { value: 'DESSERT', label: '디저트', icon: '🍰', mappedCategories: ['DESSERT'] },
-] as const;
-
-const ALL_CATEGORIES_VALUE = 'ALL';
-
-function StarRating({ rating, onRatingChange }: { rating: number; onRatingChange: (rating: number) => void }) {
-  return (
-    <div className="flex gap-3 justify-center">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          key={star}
-          type="button"
-          onClick={() => onRatingChange(star)}
-          className="cursor-pointer hover:scale-110 transition-transform"
-        >
-          <svg
-            className={`w-10 h-10 ${star <= rating ? 'fill-[#FFD541] text-[#FFD541]' : 'fill-none text-neutral-300'}`}
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1.5}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-          </svg>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function SuccessPopup({
-  successData,
-  onClose,
-  visitSourceOptions,
-  visitSourceEnabled,
-  surveyQuestions,
-}: {
-  successData: SuccessData;
-  onClose: () => void;
-  visitSourceOptions: VisitSourceOption[];
-  visitSourceEnabled: boolean;
-  surveyQuestions: SurveyQuestion[];
-}) {
-  const [feedbackRating, setFeedbackRating] = useState(5);
-  const [feedbackText, setFeedbackText] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedVisitSource, setSelectedVisitSource] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showAllCategories, setShowAllCategories] = useState(false);
-  const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string>>({});
-  const [showSurveyModal, setShowSurveyModal] = useState(() => surveyQuestions.length > 0);
-  const [surveySubmitted, setSurveySubmitted] = useState(false);
-
-  useEffect(() => {
-    if (surveyQuestions.length > 0 && !surveySubmitted) {
-      setShowSurveyModal(true);
-    }
-  }, [surveyQuestions.length, surveySubmitted]);
-
-  const handleSurveySubmit = async () => {
-    const answersToSubmit = Object.entries(surveyAnswers)
-      .filter(([, value]) => value)
-      .map(([questionId, value]) => {
-        const q = surveyQuestions.find((sq) => sq.id === questionId);
-        if (q?.type === 'DATE') return { questionId, valueDate: value };
-        return { questionId, valueText: value };
-      });
-
-    if (answersToSubmit.length > 0 && successData?.customerId) {
-      try {
-        const apiUrl = API_BASE;
-        await fetch(`${apiUrl}/api/taghere/survey-answers`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ customerId: successData.customerId, answers: answersToSubmit }),
-        });
-      } catch (error) {
-        console.error('Survey submit error:', error);
-      }
-    }
-
-    setSurveySubmitted(true);
-    setShowSurveyModal(false);
-  };
-
-  const handleSurveySkip = () => {
-    setSurveySubmitted(true);
-    setShowSurveyModal(false);
-  };
-
-  const toggleCategory = (categoryValue: string) => {
-    setSelectedCategories((prev) => {
-      if (categoryValue === ALL_CATEGORIES_VALUE) {
-        if (prev.includes(ALL_CATEGORIES_VALUE)) {
-          return [];
-        } else {
-          return [ALL_CATEGORIES_VALUE, ...CATEGORY_OPTIONS.map((c) => c.value)];
-        }
-      }
-
-      if (prev.includes(categoryValue)) {
-        const newSelection = prev.filter((c) => c !== categoryValue && c !== ALL_CATEGORIES_VALUE);
-        return newSelection;
-      } else {
-        const newSelection = [...prev.filter((c) => c !== ALL_CATEGORIES_VALUE), categoryValue];
-        if (newSelection.length === CATEGORY_OPTIONS.length) {
-          return [ALL_CATEGORIES_VALUE, ...newSelection];
-        }
-        return newSelection;
-      }
-    });
-  };
-
-  const handleSubmit = async () => {
-    if (!successData.customerId) {
-      onClose();
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const apiUrl = API_BASE;
-
-      const expandedCategories = selectedCategories
-        .filter((c) => c !== ALL_CATEGORIES_VALUE)
-        .flatMap((categoryValue) => {
-          const option = CATEGORY_OPTIONS.find((opt) => opt.value === categoryValue);
-          return option ? option.mappedCategories : [];
-        });
-
-      await fetch(`${apiUrl}/api/customers/feedback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: successData.customerId,
-          feedbackRating: feedbackRating || null,
-          feedbackText: feedbackText.trim() || null,
-          preferredCategories: expandedCategories.length > 0 ? expandedCategories : null,
-        }),
-      });
-
-      if (selectedVisitSource) {
-        await fetch(`${apiUrl}/api/customers/visit-source`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ customerId: successData.customerId, visitSource: selectedVisitSource }),
-        });
-      }
-
-      onClose();
-    } catch (error) {
-      console.error('Feedback submission error:', error);
-      onClose();
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="h-[100dvh] bg-white font-pretendard flex justify-center overflow-hidden">
-      <div className="w-full max-w-[430px] h-full flex flex-col">
-        <div className="flex-1 flex flex-col px-5 py-6 overflow-y-auto">
-          <div className="text-center mb-4 mt-4">
-            <p className="text-[30px] font-bold text-[#61EB49] leading-none">스탬프 적립 완료</p>
-          </div>
-
-          <div className="text-center mb-5">
-            <h2 className="text-[18px] font-bold text-neutral-900 mb-1">알림톡으로 적립내역을 보내드렸어요!</h2>
-            <p className="text-[14px] text-neutral-400">소중한 의견은 큰 도움이 돼요</p>
-          </div>
-
-          <div className="mb-11">
-            <StarRating rating={feedbackRating} onRatingChange={setFeedbackRating} />
-          </div>
-
-          {visitSourceEnabled && visitSourceOptions.length > 0 && !successData.hasVisitSource && (
-            <div className="mb-4 mt-5">
-              <p className="text-[15px] font-semibold text-neutral-900 mb-1.5 text-center">어떻게 저희 매장을 알게 되셨나요?</p>
-              <p className="text-[13px] text-neutral-500 mb-3 text-center">더 나은 서비스를 위해 알려주세요</p>
-              <div className="grid grid-cols-3 gap-2">
-                {visitSourceOptions.map((option) => {
-                  const isSelected = selectedVisitSource === option.id;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setSelectedVisitSource(isSelected ? null : option.id)}
-                      className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
-                        isSelected ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]' : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {!successData.hasExistingPreferences && !visitSourceEnabled && (
-            <div className="mb-4 mt-5">
-              <p className="text-[15px] font-semibold text-neutral-900 mb-1.5 text-center">어떤 업종을 선호하세요?</p>
-              <p className="text-[13px] text-neutral-500 mb-3 text-center">선택한 업종의 쿠폰을 매 주 보내드릴게요</p>
-
-              <div className={showAllCategories ? 'grid grid-cols-4 gap-2 mb-2' : 'relative mb-2'}>
-                {showAllCategories ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => toggleCategory(ALL_CATEGORIES_VALUE)}
-                      className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
-                        selectedCategories.includes(ALL_CATEGORIES_VALUE)
-                          ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
-                          : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
-                      }`}
-                    >
-                      모든 업종
-                    </button>
-                    {CATEGORY_OPTIONS.map((category) => {
-                      const isSelected = selectedCategories.includes(category.value);
-                      return (
-                        <button
-                          key={category.value}
-                          type="button"
-                          onClick={() => toggleCategory(category.value)}
-                          className={`px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
-                            isSelected ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]' : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
-                          }`}
-                        >
-                          {category.label}
-                        </button>
-                      );
-                    })}
-                  </>
-                ) : (
-                  <div className="flex gap-2 overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => toggleCategory(ALL_CATEGORIES_VALUE)}
-                      className={`flex-shrink-0 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
-                        selectedCategories.includes(ALL_CATEGORIES_VALUE)
-                          ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]'
-                          : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
-                      }`}
-                    >
-                      모든 업종
-                    </button>
-                    {CATEGORY_OPTIONS.slice(0, 4).map((category) => {
-                      const isSelected = selectedCategories.includes(category.value);
-                      return (
-                        <button
-                          key={category.value}
-                          type="button"
-                          onClick={() => toggleCategory(category.value)}
-                          className={`flex-shrink-0 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-all ${
-                            isSelected ? 'bg-[#6BA3FF] text-white border border-[#6BA3FF]' : 'bg-neutral-50 text-neutral-600 border border-neutral-200 hover:border-neutral-300'
-                          }`}
-                        >
-                          {category.label}
-                        </button>
-                      );
-                    })}
-                    <div className="flex-shrink-0 px-3 py-2.5 rounded-lg text-[14px] font-medium bg-neutral-50 text-neutral-600 border border-neutral-200 opacity-50 blur-[1px] pointer-events-none">
-                      카페
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="text-center my-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAllCategories(!showAllCategories)}
-                  className="flex items-center justify-center gap-1 mx-auto text-[13px] text-neutral-400 hover:text-neutral-600 transition-colors"
-                >
-                  <span>{showAllCategories ? '접기' : '더보기'}</span>
-                  <svg className={`w-3.5 h-3.5 transition-transform ${showAllCategories ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="mb-4">
-            <textarea
-              value={feedbackText}
-              onChange={(e) => setFeedbackText(e.target.value)}
-              placeholder="매장 경험에 대한 솔직한 피드백을 남겨주시면 감사하겠습니다."
-              className="w-full h-[84px] px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg resize-none text-[14px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
-            />
-          </div>
-
-          <div className="flex-1 min-h-[12px]"></div>
-
-          {showSurveyModal && surveyQuestions.length > 0 && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-5">
-              <div className="bg-white rounded-2xl w-full max-w-[390px] shadow-xl overflow-hidden">
-                <div className="px-5 py-6">
-                  <p className="text-[18px] font-bold text-neutral-900 mb-1 text-center">추가 정보를 알려주세요</p>
-                  <p className="text-[13px] text-neutral-500 mb-5 text-center">특별한 날에 혜택을 보내드릴게요</p>
-                  <div className="space-y-3 mb-6">
-                    {surveyQuestions.map((q) => (
-                      <div key={q.id} className="flex flex-col gap-1.5 items-center">
-                        <label className="text-[14px] font-medium text-neutral-700 text-center whitespace-pre-line">{q.label}</label>
-                        {q.description && <p className="text-[12px] text-neutral-400 text-center whitespace-pre-line">{q.description}</p>}
-                        {q.type === 'DATE' && (
-                          <input
-                            type="date"
-                            value={surveyAnswers[q.id] || ''}
-                            onChange={(e) => setSurveyAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                            className="w-full max-w-[280px] px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[14px] text-neutral-900 text-center focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
-                          />
-                        )}
-                        {q.type === 'TEXT' && (
-                          <input
-                            type="text"
-                            value={surveyAnswers[q.id] || ''}
-                            onChange={(e) => setSurveyAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                            placeholder="답변을 입력해주세요"
-                            className="w-full max-w-[280px] px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[14px] text-neutral-900 text-center focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
-                          />
-                        )}
-                        {q.type === 'CHOICE' && q.choiceOptions && (
-                          <div className="w-full max-w-[280px] space-y-2">
-                            {q.choiceOptions.map((opt, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => setSurveyAnswers((prev) => ({ ...prev, [q.id]: opt }))}
-                                className={`w-full px-4 py-2.5 rounded-lg text-[14px] text-left transition-colors ${
-                                  surveyAnswers[q.id] === opt
-                                    ? 'bg-[#FFD541] text-neutral-900 font-medium'
-                                    : 'bg-neutral-50 border border-neutral-200 text-neutral-700'
-                                }`}
-                              >
-                                {opt}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex gap-3">
-                    <button onClick={handleSurveySkip} className="flex-1 py-3.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-semibold text-[15px] rounded-xl transition-colors">
-                      다음에 할래요
-                    </button>
-                    <button onClick={handleSurveySubmit} className="flex-1 py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-[15px] rounded-xl transition-colors">
-                      제출하기
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-3 pb-2">
-            <button onClick={onClose} disabled={isSubmitting} className="flex-1 py-3.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-semibold text-[15px] rounded-xl transition-colors">
-              다음에 쓸게요
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="flex-1 py-3.5 bg-[#FFD541] hover:bg-[#FFCA00] disabled:bg-[#FFE88A] text-neutral-900 font-semibold text-[15px] rounded-xl transition-colors"
-            >
-              {isSubmitting ? '제출 중...' : '제출할게요'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function HitejinroEnrollStampContent() {
@@ -761,8 +318,7 @@ function HitejinroEnrollStampContent() {
     const currentStampInfo = stampInfoRef.current;
     if (!currentStampInfo) return;
 
-    const apiUrl = API_BASE;
-    const redirectUri = `${apiUrl}/auth/kakao/taghere-callback`;
+    const redirectUri = `${API_BASE}/auth/kakao/taghere-callback`;
 
     const stateData = {
       storeId: currentStampInfo.storeId,
@@ -793,7 +349,7 @@ function HitejinroEnrollStampContent() {
       if (ordersheetId) params.set(orderParamName, ordersheetId);
       params.set('origin', window.location.origin);
       params.set('returnPath', `/taghere-enroll-stamp-hitejinro/${slug}`);
-      window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
+      window.location.href = `${API_BASE}/auth/kakao/taghere-start?${params.toString()}`;
     }
   };
 
@@ -801,8 +357,7 @@ function HitejinroEnrollStampContent() {
   const proceedToKakaoLogin = (barcode: string) => {
     if (!stampInfo) return;
 
-    const apiUrl = API_BASE;
-    const redirectUri = `${apiUrl}/auth/kakao/taghere-callback`;
+    const redirectUri = `${API_BASE}/auth/kakao/taghere-callback`;
 
     const stateData = {
       storeId: stampInfo.storeId,
@@ -833,7 +388,7 @@ function HitejinroEnrollStampContent() {
       if (ordersheetId) params.set(orderParamName, ordersheetId);
       params.set('origin', window.location.origin);
       params.set('returnPath', `/taghere-enroll-stamp-hitejinro/${slug}`);
-      window.location.href = `${apiUrl}/auth/kakao/taghere-start?${params.toString()}`;
+      window.location.href = `${API_BASE}/auth/kakao/taghere-start?${params.toString()}`;
     }
   };
 
@@ -842,8 +397,7 @@ function HitejinroEnrollStampContent() {
     setIsAutoEarning(true);
 
     try {
-      const apiUrl = API_BASE;
-      const res = await fetch(`${apiUrl}/api/taghere/stamp-earn`, {
+      const res = await fetch(`${API_BASE}/api/taghere/stamp-earn`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -915,8 +469,7 @@ function HitejinroEnrollStampContent() {
   useEffect(() => {
     const fetchVisitSourceOptions = async () => {
       try {
-        const apiUrl = API_BASE;
-        const res = await fetch(`${apiUrl}/api/taghere/visit-source-options/${slug}`);
+        const res = await fetch(`${API_BASE}/api/taghere/visit-source-options/${slug}`);
         if (res.ok) {
           const data = await res.json();
           setVisitSourceEnabled(data.enabled);
@@ -929,8 +482,7 @@ function HitejinroEnrollStampContent() {
 
     const fetchSurveyQuestions = async () => {
       try {
-        const apiUrl = API_BASE;
-        const res = await fetch(`${apiUrl}/api/taghere/survey-questions/${slug}`);
+        const res = await fetch(`${API_BASE}/api/taghere/survey-questions/${slug}`);
         if (res.ok) {
           const data = await res.json();
           setSurveyQuestions(data.questions || data);
@@ -1001,9 +553,8 @@ function HitejinroEnrollStampContent() {
 
     const fetchStampInfo = async () => {
       try {
-        const apiUrl = API_BASE;
 
-        const res = await fetch(`${apiUrl}/api/taghere/stamp-info/${slug}`);
+        const res = await fetch(`${API_BASE}/api/taghere/stamp-info/${slug}`);
         if (res.ok) {
           const data = await res.json();
 
@@ -1125,12 +676,24 @@ function HitejinroEnrollStampContent() {
   return (
     <>
       {successData ? (
-        <SuccessPopup
+        <StampSuccessPopup
           successData={successData}
           onClose={handleCloseSuccessPopup}
           visitSourceOptions={visitSourceOptions}
           visitSourceEnabled={visitSourceEnabled}
           surveyQuestions={surveyQuestions}
+          header={
+            <>
+              <div className="text-center mb-4 mt-4">
+                <p className="text-[30px] font-bold text-[#61EB49] leading-none">스탬프 적립 완료</p>
+              </div>
+
+              <div className="text-center mb-5">
+                <h2 className="text-[18px] font-bold text-neutral-900 mb-1">알림톡으로 적립내역을 보내드렸어요!</h2>
+                <p className="text-[14px] text-neutral-400">소중한 의견은 큰 도움이 돼요</p>
+              </div>
+            </>
+          }
         />
       ) : (
         <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">

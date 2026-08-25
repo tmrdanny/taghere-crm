@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Router, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { generateSlug, getUniqueSlug } from './auth.js';
@@ -11,7 +12,7 @@ interface TableEntry {
   label?: string;
 }
 
-const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || 'https://taghere-crm-web-g96p.onrender.com';
+const PUBLIC_APP_URL = env.PUBLIC_APP_URL || 'https://taghere-crm-web-g96p.onrender.com';
 
 // 스킴 없는 입력은 https://로 보정 (고객 페이지가 window.location.href로 이동하므로 상대경로 해석 방지)
 function normalizeUrl(url: string): string {

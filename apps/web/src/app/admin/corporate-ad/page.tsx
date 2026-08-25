@@ -2,6 +2,16 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useEffect, useRef, useState } from 'react';
+import {
+  AnalyticsData,
+  AnalyticsSummaryCards,
+  CHART_PALETTE,
+  CategoryBarChart,
+  DailyIssuedChart,
+  GenderPieChart,
+  HourlyBarChart,
+  RegionBarChart,
+} from '@/features/admin-charts';
 
 interface TemplateVariableRow {
   variable: string;
@@ -82,55 +92,7 @@ const DISPLAY_FIELDS = [
 // ============================================
 // 성과 분석 섹션 (일자별/브랜드별/시간대별/인구통계)
 // ============================================
-interface AnalyticsData {
-  summary: {
-    totalIssued: number;
-    totalFailed: number;
-    successRate: number;
-  };
-  dailyTrend: { date: string; issued: number }[];
-  dailyTrendByBrand: {
-    brandId: string;
-    brandName: string;
-    imageUrl: string;
-    series: number[];
-  }[];
-  byBrand: {
-    brandId: string;
-    brandName: string;
-    imageUrl: string;
-    issued: number;
-    remainingCodes: number;
-    usesCodePool: boolean;
-  }[];
-  byHour: { hour: number; count: number }[];
-  demographics: {
-    byGender: { gender: string; count: number }[];
-    byAgeGroup: { ageGroup: string; count: number }[];
-    byRegion: { region: string; count: number }[];
-  };
-}
-
 type AnalyticsPeriod = '7' | '30' | '90' | 'all';
-
-const CHART_PALETTE = [
-  '#3B82F6',
-  '#10B981',
-  '#F59E0B',
-  '#EF4444',
-  '#8B5CF6',
-  '#EC4899',
-  '#06B6D4',
-  '#84CC16',
-  '#F97316',
-  '#6366F1',
-];
-
-const GENDER_LABEL: Record<string, string> = {
-  MALE: '남성',
-  FEMALE: '여성',
-  UNKNOWN: '미상',
-};
 
 const AGE_GROUP_LABEL: Record<string, string> = {
   TEENS: '10대',
@@ -141,193 +103,6 @@ const AGE_GROUP_LABEL: Record<string, string> = {
   SIXTY_PLUS: '60대+',
   UNKNOWN: '미상',
 };
-
-function AnalyticsSummaryCards({ summary }: { summary: AnalyticsData['summary'] }) {
-  return (
-    <div className="grid grid-cols-3 gap-3">
-      <div className="bg-white border border-[#EAEAEA] rounded-xl p-4">
-        <p className="text-xs text-neutral-500">총 발행 쿠폰</p>
-        <p className="text-2xl font-bold text-neutral-900 mt-1">
-          {summary.totalIssued.toLocaleString()}
-        </p>
-        <p className="text-[11px] text-neutral-400 mt-0.5">알림톡 발송 성공 건수</p>
-      </div>
-      <div className="bg-white border border-[#EAEAEA] rounded-xl p-4">
-        <p className="text-xs text-neutral-500">발송 실패</p>
-        <p className="text-2xl font-bold text-red-600 mt-1">
-          {summary.totalFailed.toLocaleString()}
-        </p>
-      </div>
-      <div className="bg-white border border-[#EAEAEA] rounded-xl p-4">
-        <p className="text-xs text-neutral-500">발송 성공률</p>
-        <p className="text-2xl font-bold text-emerald-600 mt-1">
-          {summary.successRate}%
-        </p>
-        <p className="text-[11px] text-neutral-400 mt-0.5">성공 / (성공+실패)</p>
-      </div>
-    </div>
-  );
-}
-
-function DailyIssuedChart({
-  dates,
-  brands,
-}: {
-  dates: string[];
-  brands: AnalyticsData['dailyTrendByBrand'];
-}) {
-  const [hoveredX, setHoveredX] = useState<number | null>(null);
-  const chartRef = useRef<HTMLDivElement>(null);
-
-  if (dates.length === 0) {
-    return <p className="text-center text-sm text-neutral-400 py-8">데이터가 없습니다.</p>;
-  }
-
-  // 전체 최대값 (브랜드 중 가장 높은 일자 값)
-  const max = Math.max(
-    1,
-    ...brands.flatMap((b) => b.series),
-  );
-
-  const yLabels = [max, Math.round(max / 2), 0];
-  const xLabels =
-    dates.length > 2
-      ? [dates[0].slice(5), dates[Math.floor(dates.length / 2)].slice(5), dates[dates.length - 1].slice(5)]
-      : dates.map((d) => d.slice(5));
-
-  // 각 브랜드의 path 생성
-  const brandPaths = brands.map((brand, idx) => {
-    const points = brand.series.map((value, i) => {
-      const x = (i / (dates.length - 1 || 1)) * 100;
-      const y = 100 - (value / max) * 100;
-      return { x, y, value };
-    });
-    const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-    return {
-      ...brand,
-      path,
-      points,
-      color: CHART_PALETTE[idx % CHART_PALETTE.length],
-    };
-  });
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!chartRef.current) return;
-    const rect = chartRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    // 가장 가까운 날짜 인덱스
-    const idx = Math.round((x / 100) * (dates.length - 1));
-    setHoveredX(Math.max(0, Math.min(dates.length - 1, idx)));
-  };
-
-  const hoveredDate = hoveredX !== null ? dates[hoveredX] : null;
-  const hoveredXPercent = hoveredX !== null ? (hoveredX / (dates.length - 1 || 1)) * 100 : 0;
-
-  return (
-    <div className="w-full">
-      {/* 범례 */}
-      {brandPaths.length > 0 && (
-        <div className="flex flex-wrap gap-3 mb-2 text-xs">
-          {brandPaths.map((b) => (
-            <div key={b.brandId} className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: b.color }} />
-              <span className="text-neutral-700">{b.brandName}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="w-full h-[240px] relative">
-        <div className="absolute left-0 top-0 bottom-6 w-10 flex flex-col justify-between text-[11px] text-neutral-400">
-          {yLabels.map((l, i) => (
-            <span key={i}>{l.toLocaleString()}</span>
-          ))}
-        </div>
-        <div
-          ref={chartRef}
-          className="absolute left-12 right-0 top-0 bottom-6 cursor-crosshair"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={() => setHoveredX(null)}
-        >
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
-            {/* 가로 그리드 */}
-            <line x1="0" y1="0" x2="100" y2="0" stroke="#E5E5E5" strokeWidth="0.5" />
-            <line x1="0" y1="50" x2="100" y2="50" stroke="#E5E5E5" strokeWidth="0.5" />
-            <line x1="0" y1="100" x2="100" y2="100" stroke="#E5E5E5" strokeWidth="0.5" />
-
-            {/* 브랜드별 라인 */}
-            {brandPaths.map((b) => (
-              <path
-                key={b.brandId}
-                d={b.path}
-                fill="none"
-                stroke={b.color}
-                strokeWidth="2"
-                vectorEffect="non-scaling-stroke"
-              />
-            ))}
-
-            {/* 호버 라인 */}
-            {hoveredX !== null && (
-              <>
-                <line
-                  x1={hoveredXPercent}
-                  y1="0"
-                  x2={hoveredXPercent}
-                  y2="100"
-                  stroke="#9CA3AF"
-                  strokeWidth="1"
-                  vectorEffect="non-scaling-stroke"
-                  strokeDasharray="4 4"
-                />
-                {brandPaths.map((b) => {
-                  const p = b.points[hoveredX];
-                  if (!p) return null;
-                  return (
-                    <circle
-                      key={b.brandId}
-                      cx={p.x}
-                      cy={p.y}
-                      r="4"
-                      fill={b.color}
-                      stroke="white"
-                      strokeWidth="2"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  );
-                })}
-              </>
-            )}
-          </svg>
-
-          {/* 툴팁 */}
-          {hoveredX !== null && hoveredDate && brandPaths.length > 0 && (
-            <div
-              className="absolute bg-neutral-900 text-white text-[12px] px-3 py-2 rounded-lg shadow-lg pointer-events-none z-10"
-              style={{
-                left: `${Math.min(Math.max(hoveredXPercent, 15), 85)}%`,
-                top: '-8px',
-                transform: 'translate(-50%, -100%)',
-              }}
-            >
-              <p className="font-medium mb-1">{hoveredDate}</p>
-              {brandPaths.map((b) => (
-                <p key={b.brandId} style={{ color: b.color }}>
-                  {b.brandName}: {b.points[hoveredX]?.value.toLocaleString() || 0}건
-                </p>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="absolute left-12 right-0 bottom-0 flex justify-between text-[11px] text-neutral-400">
-          {xLabels.map((l, i) => (
-            <span key={i}>{l}</span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function BrandHorizontalBars({ data }: { data: AnalyticsData['byBrand'] }) {
   if (data.length === 0) {
@@ -389,214 +164,7 @@ function BrandHorizontalBars({ data }: { data: AnalyticsData['byBrand'] }) {
   );
 }
 
-function HourlyBarChart({ data }: { data: AnalyticsData['byHour'] }) {
-  const [hovered, setHovered] = useState<number | null>(null);
-  const max = Math.max(...data.map((d) => d.count), 1);
-
-  return (
-    <div className="w-full h-[180px] flex flex-col">
-      <div className="flex-1 flex items-end gap-[2px] pb-6">
-        {data.map((d, i) => {
-          const height = (d.count / max) * 100;
-          const isHovered = hovered === i;
-          return (
-            <div
-              key={i}
-              className="flex-1 relative flex flex-col items-center"
-              onMouseEnter={() => setHovered(i)}
-              onMouseLeave={() => setHovered(null)}
-            >
-              {isHovered && d.count > 0 && (
-                <div className="absolute bottom-full mb-1 bg-neutral-900 text-white text-[11px] px-2 py-1 rounded whitespace-nowrap z-10">
-                  {d.hour}시: {d.count}건
-                </div>
-              )}
-              <div
-                className="w-full rounded-t transition-all cursor-pointer"
-                style={{
-                  height: `${height}%`,
-                  minHeight: d.count > 0 ? '3px' : '0px',
-                  backgroundColor: '#6BA3FF',
-                  opacity: hovered === null || isHovered ? 1 : 0.5,
-                }}
-              />
-            </div>
-          );
-        })}
-      </div>
-      <div className="flex gap-[2px] text-[9px] text-neutral-400 pt-1 border-t border-neutral-200">
-        {data.map((d) => (
-          <div key={d.hour} className="flex-1 text-center">
-            {d.hour % 3 === 0 ? d.hour : ''}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function GenderPieChart({ data }: { data: AnalyticsData['demographics']['byGender'] }) {
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const total = data.reduce((s, d) => s + d.count, 0);
-  if (total === 0) {
-    return <p className="text-center text-sm text-neutral-400 py-8">데이터가 없습니다.</p>;
-  }
-
-  let currentAngle = -90;
-  const slices = data.map((d, i) => {
-    const angle = (d.count / total) * 360;
-    const start = currentAngle;
-    const end = start + angle;
-    currentAngle = end;
-    const startRad = (start * Math.PI) / 180;
-    const endRad = (end * Math.PI) / 180;
-    const largeArc = angle > 180 ? 1 : 0;
-    const x1 = 50 + 40 * Math.cos(startRad);
-    const y1 = 50 + 40 * Math.sin(startRad);
-    const x2 = 50 + 40 * Math.cos(endRad);
-    const y2 = 50 + 40 * Math.sin(endRad);
-    return {
-      d: `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`,
-      color: CHART_PALETTE[i % CHART_PALETTE.length],
-      label: GENDER_LABEL[d.gender] || d.gender,
-      count: d.count,
-      pct: total > 0 ? (d.count / total) * 100 : 0,
-    };
-  });
-
-  return (
-    <div className="w-full h-full flex">
-      <div className="w-1/2 h-full">
-        <svg viewBox="0 0 100 100" className="w-full h-full">
-          {slices.map((s, i) => (
-            <path
-              key={i}
-              d={s.d}
-              fill={s.color}
-              stroke="#fff"
-              strokeWidth="0.5"
-              opacity={hoveredIdx === null || hoveredIdx === i ? 1 : 0.5}
-              onMouseEnter={() => setHoveredIdx(i)}
-              onMouseLeave={() => setHoveredIdx(null)}
-              className="cursor-pointer transition-opacity"
-            />
-          ))}
-        </svg>
-      </div>
-      <div className="w-1/2 pl-3 flex flex-col justify-center gap-2">
-        {slices.map((s, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-2 text-xs"
-            onMouseEnter={() => setHoveredIdx(i)}
-            onMouseLeave={() => setHoveredIdx(null)}
-          >
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: s.color }} />
-            <span className="text-neutral-700 flex-1">{s.label}</span>
-            <span className="text-neutral-500">
-              {s.count}명 ({s.pct.toFixed(0)}%)
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function CategoryBarChart({
-  data,
-  labelMap,
-}: {
-  data: { key: string; count: number }[];
-  labelMap?: Record<string, string>;
-}) {
-  const [hovered, setHovered] = useState<number | null>(null);
-  if (data.length === 0) {
-    return <p className="text-center text-sm text-neutral-400 py-8">데이터가 없습니다.</p>;
-  }
-  const max = Math.max(...data.map((d) => d.count), 1);
-
-  return (
-    <div className="w-full h-full flex flex-col">
-      <div className="flex-1 flex items-end gap-2 pb-6">
-        {data.map((d, i) => {
-          const height = (d.count / max) * 100;
-          const isH = hovered === i;
-          const label = labelMap?.[d.key] || d.key;
-          return (
-            <div
-              key={i}
-              className="flex-1 relative flex flex-col items-center"
-              onMouseEnter={() => setHovered(i)}
-              onMouseLeave={() => setHovered(null)}
-            >
-              {isH && (
-                <div className="absolute bottom-full mb-1 bg-neutral-900 text-white text-[11px] px-2 py-1 rounded whitespace-nowrap z-10">
-                  {label}: {d.count}명
-                </div>
-              )}
-              <div
-                className="w-full rounded-t transition-all cursor-pointer"
-                style={{
-                  height: `${height}%`,
-                  minHeight: d.count > 0 ? '4px' : '0px',
-                  backgroundColor: CHART_PALETTE[i % CHART_PALETTE.length],
-                  opacity: hovered === null || isH ? 1 : 0.5,
-                }}
-              />
-              <span className="absolute bottom-[-18px] text-[10px] text-neutral-500">
-                {d.count}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      <div className="flex gap-2 pt-2 border-t border-neutral-200">
-        {data.map((d, i) => {
-          const label = labelMap?.[d.key] || d.key;
-          return (
-            <div key={i} className="flex-1 text-center text-[10px] text-neutral-600 truncate" title={label}>
-              {label.length > 8 ? label.slice(0, 7) + '…' : label}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function RegionBarChart({ data }: { data: AnalyticsData['demographics']['byRegion'] }) {
-  if (data.length === 0) {
-    return <p className="text-center text-sm text-neutral-400 py-8">데이터가 없습니다.</p>;
-  }
-  const max = Math.max(...data.map((d) => d.count), 1);
-  return (
-    <div className="space-y-1.5">
-      {data.map((d, i) => {
-        const width = (d.count / max) * 100;
-        return (
-          <div key={i} className="flex items-center gap-2 text-xs">
-            <span className="w-28 truncate text-neutral-700" title={d.region}>
-              {d.region}
-            </span>
-            <div className="flex-1 h-4 bg-neutral-100 rounded overflow-hidden">
-              <div
-                className="h-full rounded"
-                style={{
-                  width: `${width}%`,
-                  backgroundColor: CHART_PALETTE[i % CHART_PALETTE.length],
-                }}
-              />
-            </div>
-            <span className="w-10 text-right text-neutral-600 font-medium">{d.count}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function CorporateAdAnalyticsSection({ apiUrl }: { apiUrl: string }) {
+function CorporateAdAnalyticsSection() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [period, setPeriod] = useState<AnalyticsPeriod>('30');
   const [loading, setLoading] = useState(false);
@@ -607,7 +175,7 @@ function CorporateAdAnalyticsSection({ apiUrl }: { apiUrl: string }) {
       if (!token) return;
       setLoading(true);
       try {
-        const res = await fetch(`${apiUrl}/api/admin/corporate-ad-analytics?days=${period}`, {
+        const res = await fetch(`${API_BASE}/api/admin/corporate-ad-analytics?days=${period}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -620,7 +188,7 @@ function CorporateAdAnalyticsSection({ apiUrl }: { apiUrl: string }) {
       }
     };
     fetchData();
-  }, [period, apiUrl]);
+  }, [period]);
 
   return (
     <div className="mb-8 space-y-4">
@@ -707,11 +275,9 @@ function CorporateAdAnalyticsSection({ apiUrl }: { apiUrl: string }) {
 // ============================================
 function CouponCodePoolSection({
   couponId,
-  apiUrl,
   onToast,
 }: {
   couponId: string;
-  apiUrl: string;
   onToast: (msg: string, type: 'success' | 'error') => void;
 }) {
   const [stats, setStats] = useState<CodeStats | null>(null);
@@ -729,7 +295,7 @@ function CouponCodePoolSection({
     const token = localStorage.getItem('adminToken');
     if (!token) return;
     try {
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes/stats`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads/${couponId}/codes/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setStats(await res.json());
@@ -743,7 +309,7 @@ function CouponCodePoolSection({
     if (!token) return;
     try {
       const res = await fetch(
-        `${apiUrl}/api/admin/corporate-ads/${couponId}/codes?page=${page}&limit=${PAGE_SIZE}&filter=${filter}`,
+        `${API_BASE}/api/admin/corporate-ads/${couponId}/codes?page=${page}&limit=${PAGE_SIZE}&filter=${filter}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (res.ok) {
@@ -780,7 +346,7 @@ function CouponCodePoolSection({
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes/upload`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads/${couponId}/codes/upload`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -811,7 +377,7 @@ function CouponCodePoolSection({
     if (!token) return;
     if (!confirm('이 코드를 삭제하시겠습니까?')) return;
     try {
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes/${codeId}`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads/${couponId}/codes/${codeId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -834,7 +400,7 @@ function CouponCodePoolSection({
       return;
     }
     try {
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads/${couponId}/codes`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -857,7 +423,7 @@ function CouponCodePoolSection({
       return;
     }
     try {
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${couponId}/codes/shuffle`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads/${couponId}/codes/shuffle`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -1035,8 +601,6 @@ export default function CorporateAdPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  const apiUrl = API_BASE;
-
   useEffect(() => {
     fetchCoupons();
   }, []);
@@ -1052,7 +616,7 @@ export default function CorporateAdPage() {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
     try {
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -1080,7 +644,7 @@ export default function CorporateAdPage() {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
     try {
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -1097,7 +661,7 @@ export default function CorporateAdPage() {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
     try {
-      const res = await fetch(`${apiUrl}/api/admin/corporate-ads/${coupon.id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/corporate-ads/${coupon.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ enabled: !coupon.enabled }),
@@ -1121,7 +685,7 @@ export default function CorporateAdPage() {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
     try {
-      await fetch(`${apiUrl}/api/admin/corporate-ads/reorder`, {
+      await fetch(`${API_BASE}/api/admin/corporate-ads/reorder`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -1142,8 +706,8 @@ export default function CorporateAdPage() {
     try {
       const isNew = !('id' in editing) || !editing.id;
       const url = isNew
-        ? `${apiUrl}/api/admin/corporate-ads`
-        : `${apiUrl}/api/admin/corporate-ads/${editing.id}`;
+        ? `${API_BASE}/api/admin/corporate-ads`
+        : `${API_BASE}/api/admin/corporate-ads/${editing.id}`;
       const method = isNew ? 'POST' : 'PUT';
       const res = await fetch(url, {
         method,
@@ -1191,7 +755,7 @@ export default function CorporateAdPage() {
       </div>
 
       {/* 성과 분석 섹션 */}
-      <CorporateAdAnalyticsSection apiUrl={apiUrl} />
+      <CorporateAdAnalyticsSection />
 
       {/* Coupons List */}
       {coupons.length === 0 ? (
@@ -1485,7 +1049,6 @@ export default function CorporateAdPage() {
                 {'id' in editing && editing.id ? (
                   <CouponCodePoolSection
                     couponId={editing.id}
-                    apiUrl={apiUrl}
                     onToast={(message, type) => setToast({ message, type })}
                   />
                 ) : (

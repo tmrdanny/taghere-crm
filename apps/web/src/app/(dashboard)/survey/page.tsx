@@ -32,7 +32,6 @@ const TYPE_CONFIG: Record<QuestionType, { label: string; icon: typeof Calendar; 
 };
 
 export default function SurveyPage() {
-  const apiUrl = API_BASE;
   const { showToast, ToastComponent } = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -55,7 +54,7 @@ export default function SurveyPage() {
 
   const fetchQuestions = useCallback(async () => {
     try {
-      const res = await fetch(`${apiUrl}/api/survey-questions`, {
+      const res = await fetch(`${API_BASE}/api/survey-questions`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (res.ok) {
@@ -72,7 +71,7 @@ export default function SurveyPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [apiUrl, showToast]);
+  }, [showToast]);
 
   useEffect(() => {
     fetchQuestions();
@@ -107,7 +106,7 @@ export default function SurveyPage() {
         body.choiceOptions = newChoiceOptions.filter((o) => o.trim());
       }
 
-      const res = await fetch(`${apiUrl}/api/survey-questions`, {
+      const res = await fetch(`${API_BASE}/api/survey-questions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -139,7 +138,7 @@ export default function SurveyPage() {
     setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, ...updates } : q)));
 
     try {
-      const res = await fetch(`${apiUrl}/api/survey-questions/${id}`, {
+      const res = await fetch(`${API_BASE}/api/survey-questions/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -179,7 +178,7 @@ export default function SurveyPage() {
     setQuestions((qs) => qs.filter((q) => q.id !== id));
 
     try {
-      const res = await fetch(`${apiUrl}/api/survey-questions/${id}`, {
+      const res = await fetch(`${API_BASE}/api/survey-questions/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${getToken()}` },
       });
@@ -203,7 +202,7 @@ export default function SurveyPage() {
       prev.map((q) => (q.id === id ? { ...q, choiceOptions: options } : q))
     );
     try {
-      const res = await fetch(`${apiUrl}/api/survey-questions/${id}`, {
+      const res = await fetch(`${API_BASE}/api/survey-questions/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -255,7 +254,7 @@ export default function SurveyPage() {
     setDragOverId(null);
 
     try {
-      await fetch(`${apiUrl}/api/survey-questions/reorder`, {
+      await fetch(`${API_BASE}/api/survey-questions/reorder`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
