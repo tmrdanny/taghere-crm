@@ -1,6 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
+import { getStoreToken } from '@/lib/auth-token';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useEffect, useCallback } from 'react';
 import { trackEvent } from '@/lib/analytics';
@@ -45,13 +46,6 @@ const SMS_COST_PER_MESSAGE = 150;
 const COUPON_ALIMTALK_COST = 150;
 
 // 인증 토큰 가져오기
-const getAuthToken = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('token') || '';
-  }
-  return '';
-};
-
 // 예상 매출 타입
 interface EstimatedRevenue {
   avgOrderValue: number;
@@ -127,7 +121,7 @@ export default function LocalCustomersPage() {
   // 전체 고객 수 및 지역별 카운트 로드 (병렬 실행)
   useEffect(() => {
     const fetchInitialData = async () => {
-      const token = getAuthToken();
+      const token = getStoreToken();
       const headers = { Authorization: `Bearer ${token}` };
 
       try {
@@ -159,7 +153,7 @@ export default function LocalCustomersPage() {
     const fetchCouponSettings = async () => {
       try {
         const res = await fetch(`${API_BASE}/api/retarget-coupon/settings`, {
-          headers: { Authorization: `Bearer ${getAuthToken()}` },
+          headers: { Authorization: `Bearer ${getStoreToken()}` },
         });
         if (res.ok) {
           const data = await res.json();
@@ -185,7 +179,7 @@ export default function LocalCustomersPage() {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${getAuthToken()}`,
+              Authorization: `Bearer ${getStoreToken()}`,
             },
             body: JSON.stringify({
               paymentKey,
@@ -282,7 +276,7 @@ export default function LocalCustomersPage() {
       if (selectedPreferredCategories.length > 0) params.set('preferredCategories', selectedPreferredCategories.join(','));
 
       const res = await fetch(`${API_BASE}/api/local-customers/count?${params}`, {
-        headers: { Authorization: `Bearer ${getAuthToken()}` },
+        headers: { Authorization: `Bearer ${getStoreToken()}` },
       });
       const data = await res.json();
 
@@ -303,7 +297,7 @@ export default function LocalCustomersPage() {
     if (activeTab !== 'sms') return;
     try {
       const res = await fetch(`${API_BASE}/api/local-customers/estimate?sendCount=${sendCount}`, {
-        headers: { Authorization: `Bearer ${getAuthToken()}` },
+        headers: { Authorization: `Bearer ${getStoreToken()}` },
       });
       const data = await res.json();
       setWalletBalance(data.walletBalance || 0);
@@ -321,7 +315,7 @@ export default function LocalCustomersPage() {
     try {
       const res = await fetch(
         `${API_BASE}/api/local-customers/estimate?sendCount=${sendCount}`,
-        { headers: { Authorization: `Bearer ${getAuthToken()}` } }
+        { headers: { Authorization: `Bearer ${getStoreToken()}` } }
       );
       const data = await res.json();
       setKakaoEstimate({
@@ -414,7 +408,7 @@ export default function LocalCustomersPage() {
 
       const res = await fetch(`${API_BASE}/api/local-customers/send`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAuthToken()}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getStoreToken()}` },
         body: JSON.stringify({
           content,
           ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : null,
@@ -468,7 +462,7 @@ export default function LocalCustomersPage() {
 
       const res = await fetch(`${API_BASE}/api/local-customers/coupon-alimtalk/send`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAuthToken()}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getStoreToken()}` },
         body: JSON.stringify({
           regions,
           sendCount,
@@ -511,7 +505,7 @@ export default function LocalCustomersPage() {
     try {
       const res = await fetch(`${API_BASE}/api/local-customers/test`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAuthToken()}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getStoreToken()}` },
         body: JSON.stringify({ content, phone: testPhone }),
       });
       const data = await res.json();

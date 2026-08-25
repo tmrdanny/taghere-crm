@@ -2,6 +2,7 @@
 // 웹훅은 이벤트가 있을 때만 발송되므로, 이벤트 없이 상태가 바뀌는 케이스
 // (영업일 리셋으로 당일 웨이팅이 0이 되는 새벽, 유실된 웹훅)에서 야화 캐시가
 // 낡는다. 10분마다 yahwaEnabled 매장 전체의 현재 카운트를 밀어 자기치유한다.
+import { env } from '../config/env.js';
 import { prisma as prismaClient } from '../lib/prisma.js';
 import { notifyYahwaStoreCount } from './yahwa-webhook.js';
 
@@ -13,7 +14,7 @@ let intervalId: NodeJS.Timeout | null = null;
 
 async function runTick() {
   try {
-    if (!process.env.YAHWA_WEBHOOK_URL || !process.env.YAHWA_WEBHOOK_SECRET) return;
+    if (!env.YAHWA_WEBHOOK_URL || !env.YAHWA_WEBHOOK_SECRET) return;
 
     const stores = await prisma.store.findMany({
       where: { yahwaEnabled: true },

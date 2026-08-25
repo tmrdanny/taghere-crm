@@ -70,7 +70,6 @@ export default function StoreProductsPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const apiUrl = API_BASE;
 
   useEffect(() => {
     if (activeTab === 'products') {
@@ -93,7 +92,7 @@ export default function StoreProductsPage() {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${apiUrl}/api/admin/store-products`, {
+      const res = await fetch(`${API_BASE}/api/admin/store-products`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -115,7 +114,7 @@ export default function StoreProductsPage() {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${apiUrl}/api/admin/store-orders`, {
+      const res = await fetch(`${API_BASE}/api/admin/store-orders`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -173,7 +172,7 @@ export default function StoreProductsPage() {
       const uploadFormData = new FormData();
       uploadFormData.append('image', file);
 
-      const res = await fetch(`${apiUrl}/api/admin/store-products/upload`, {
+      const res = await fetch(`${API_BASE}/api/admin/store-products/upload`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -215,8 +214,8 @@ export default function StoreProductsPage() {
 
     try {
       const url = editingId
-        ? `${apiUrl}/api/admin/store-products/${editingId}`
-        : `${apiUrl}/api/admin/store-products`;
+        ? `${API_BASE}/api/admin/store-products/${editingId}`
+        : `${API_BASE}/api/admin/store-products`;
 
       const res = await fetch(url, {
         method: editingId ? 'PUT' : 'POST',
@@ -261,7 +260,7 @@ export default function StoreProductsPage() {
     setDeletingId(id);
 
     try {
-      const res = await fetch(`${apiUrl}/api/admin/store-products/${id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/store-products/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -289,7 +288,7 @@ export default function StoreProductsPage() {
     if (!token) return;
 
     try {
-      const res = await fetch(`${apiUrl}/api/admin/store-products/${product.id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/store-products/${product.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

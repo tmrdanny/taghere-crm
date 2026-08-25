@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import crypto from 'crypto';
 import { prisma as prismaClient } from '../lib/prisma.js';
 import {
@@ -49,8 +50,8 @@ async function postWithRetry(url: string, rawBody: string, signature: string): P
  */
 export async function notifyYahwaStatusChange(waitingId: string): Promise<void> {
   try {
-    const url = process.env.YAHWA_WEBHOOK_URL || '';
-    const secret = process.env.YAHWA_WEBHOOK_SECRET || '';
+    const url = env.YAHWA_WEBHOOK_URL || '';
+    const secret = env.YAHWA_WEBHOOK_SECRET || '';
     if (!url || !secret) return;
 
     const waiting = await prisma.waitingList.findUnique({
@@ -90,8 +91,8 @@ export async function notifyYahwaStatusChange(waitingId: string): Promise<void> 
  */
 export async function notifyYahwaWaitingChange(waitingId: string): Promise<void> {
   try {
-    const url = process.env.YAHWA_WEBHOOK_URL || '';
-    const secret = process.env.YAHWA_WEBHOOK_SECRET || '';
+    const url = env.YAHWA_WEBHOOK_URL || '';
+    const secret = env.YAHWA_WEBHOOK_SECRET || '';
     if (!url || !secret) return;
 
     const waiting = await prisma.waitingList.findUnique({ where: { id: waitingId } });
@@ -119,8 +120,8 @@ export async function notifyYahwaWaitingChange(waitingId: string): Promise<void>
  */
 export async function notifyYahwaStoreCount(storeId: string): Promise<void> {
   try {
-    const url = process.env.YAHWA_WEBHOOK_URL || '';
-    const secret = process.env.YAHWA_WEBHOOK_SECRET || '';
+    const url = env.YAHWA_WEBHOOK_URL || '';
+    const secret = env.YAHWA_WEBHOOK_SECRET || '';
     if (!url || !secret) return;
 
     const waitingCount = await getStoreWaitingCount(storeId);
@@ -150,8 +151,8 @@ export async function notifyYahwaStoreCount(storeId: string): Promise<void> {
  */
 export async function notifyYahwaPointsChange(customerId: string): Promise<void> {
   try {
-    const url = process.env.YAHWA_WEBHOOK_URL || '';
-    const secret = process.env.YAHWA_WEBHOOK_SECRET || '';
+    const url = env.YAHWA_WEBHOOK_URL || '';
+    const secret = env.YAHWA_WEBHOOK_SECRET || '';
     if (!url || !secret) return;
 
     const customer = await prisma.customer.findUnique({

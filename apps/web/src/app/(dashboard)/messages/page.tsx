@@ -43,14 +43,14 @@ import {
   IMAGE_MAX_SIZE,
   IMAGE_MAX_WIDTH,
   IMAGE_MAX_HEIGHT,
-} from './types';
-import { SendConfirmModal } from './SendConfirmModal';
-import { MessagePreview } from './MessagePreview';
-import { MessageHeader } from './MessageHeader';
-import { TestSendModal } from './TestSendModal';
-import { KakaoConfirmModal } from './KakaoConfirmModal';
-import { KakaoTestModal } from './KakaoTestModal';
-import { CustomerSelectModal } from './CustomerSelectModal';
+  SendConfirmModal,
+  MessagePreview,
+  MessageHeader,
+  TestSendModal,
+  KakaoConfirmModal,
+  KakaoTestModal,
+  CustomerSelectModal,
+} from '@/features/messages';
 
 // 문자(SMS/LMS/MMS) 발송 일시 중단 플래그. 재개 시 false 로 변경.
 // 카카오톡(쿠폰 알림톡)은 영향받지 않음.

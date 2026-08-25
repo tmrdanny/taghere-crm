@@ -34,7 +34,6 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
-const apiUrl = API_BASE;
 
 interface AutomationRule {
   id: string;
@@ -174,9 +173,9 @@ export default function AutomationPage() {
       const headers = { Authorization: `Bearer ${token}` };
 
       const [rulesRes, dashboardRes, previewAllRes] = await Promise.all([
-        fetch(`${apiUrl}/api/automation/rules`, { headers }),
-        fetch(`${apiUrl}/api/automation/dashboard`, { headers }),
-        fetch(`${apiUrl}/api/automation/preview-all`, { headers }),
+        fetch(`${API_BASE}/api/automation/rules`, { headers }),
+        fetch(`${API_BASE}/api/automation/dashboard`, { headers }),
+        fetch(`${API_BASE}/api/automation/preview-all`, { headers }),
       ]);
 
       if (rulesRes.ok) {
@@ -214,7 +213,7 @@ export default function AutomationPage() {
     setTogglingType(type);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/automation/rules/${type}`, {
+      const res = await fetch(`${API_BASE}/api/automation/rules/${type}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -270,7 +269,7 @@ export default function AutomationPage() {
       const token = localStorage.getItem('token');
       const results = await Promise.all(
         QUICK_START_TYPES.map((type) =>
-          fetch(`${apiUrl}/api/automation/rules/${type}`, {
+          fetch(`${API_BASE}/api/automation/rules/${type}`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',

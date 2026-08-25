@@ -26,7 +26,6 @@ interface VisitSourceSettings {
 const MAX_OPTIONS = 12;
 
 export default function VisitSourcePage() {
-  const apiUrl = API_BASE;
   const { showToast, ToastComponent } = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -47,7 +46,7 @@ export default function VisitSourcePage() {
   const fetchSettings = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/visit-source-settings`, {
+      const res = await fetch(`${API_BASE}/api/visit-source-settings`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -64,7 +63,7 @@ export default function VisitSourcePage() {
     } finally {
       setIsLoading(false);
     }
-  }, [apiUrl, showToast]);
+  }, [showToast]);
 
   useEffect(() => {
     fetchSettings();
@@ -74,7 +73,7 @@ export default function VisitSourcePage() {
     setEnabled(newEnabled);
     try {
       const token = localStorage.getItem('token');
-      await fetch(`${apiUrl}/api/visit-source-settings`, {
+      await fetch(`${API_BASE}/api/visit-source-settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -100,7 +99,7 @@ export default function VisitSourcePage() {
 
     try {
       const token = localStorage.getItem('token');
-      await fetch(`${apiUrl}/api/visit-source-settings`, {
+      await fetch(`${API_BASE}/api/visit-source-settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -142,7 +141,7 @@ export default function VisitSourcePage() {
 
     try {
       const token = localStorage.getItem('token');
-      await fetch(`${apiUrl}/api/visit-source-settings`, {
+      await fetch(`${API_BASE}/api/visit-source-settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -164,7 +163,7 @@ export default function VisitSourcePage() {
 
     try {
       const token = localStorage.getItem('token');
-      await fetch(`${apiUrl}/api/visit-source-settings`, {
+      await fetch(`${API_BASE}/api/visit-source-settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -191,7 +190,7 @@ export default function VisitSourcePage() {
     setIsSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/visit-source-settings`, {
+      const res = await fetch(`${API_BASE}/api/visit-source-settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -260,7 +259,7 @@ export default function VisitSourcePage() {
     // API에 저장
     try {
       const token = localStorage.getItem('token');
-      await fetch(`${apiUrl}/api/visit-source-settings`, {
+      await fetch(`${API_BASE}/api/visit-source-settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

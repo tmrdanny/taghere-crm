@@ -1,67 +1,35 @@
+import { env } from '../config/env.js';
 import { Router } from 'express';
 import { SolapiMessageService } from 'solapi';
-import multer from 'multer';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { SolapiService, buildPhoneResultMap } from '../services/solapi.js';
+import { getSolapiService } from '../services/solapi-instance.js';
 import { calculateCostWithCredits } from '../services/credit-service.js';
 import { chargeCampaignUpfront } from '../services/message-billing.js';
 import { resolvePrice } from '../services/pricing-service.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 import { getByteLength } from '../utils/byte-length.js';
 import { getAgeGroupBirthYearRange, buildRegionConditions, buildFilterConditions } from '../lib/customer-filters.js';
+import {
+  mmsImageUpload as upload,
+  mmsUploadDir as uploadDir,
+  MMS_IMAGE_MAX_SIZE as IMAGE_MAX_SIZE,
+  MMS_IMAGE_MAX_WIDTH as IMAGE_MAX_WIDTH,
+  MMS_IMAGE_MAX_HEIGHT as IMAGE_MAX_HEIGHT,
+} from './message-uploads.js';
 
 const router = Router();
 
 // SOLAPI 서비스 인스턴스 (발송 결과 조회용)
-let solapiServiceInstance: SolapiService | null = null;
-function getSolapiService(): SolapiService | null {
-  if (solapiServiceInstance) return solapiServiceInstance;
-  const apiKey = process.env.SOLAPI_API_KEY;
-  const apiSecret = process.env.SOLAPI_API_SECRET;
-  if (!apiKey || !apiSecret) return null;
-  solapiServiceInstance = new SolapiService(apiKey, apiSecret);
-  return solapiServiceInstance;
-}
 
 // SMS 비용 (건당)
 const SMS_COST_SHORT = 50;  // 단문 (90byte 이하)
 const SMS_COST_LONG = 50;   // 장문 (90byte 초과) - 동일 비용
 const MMS_COST = 120;       // 이미지 첨부 시
-
-// 이미지 제약 조건
-const IMAGE_MAX_SIZE = 200 * 1024; // 200KB
-const IMAGE_MAX_WIDTH = 1500;      // 1500px
-const IMAGE_MAX_HEIGHT = 1440;     // 1440px
-
-// 업로드 디렉토리 설정
-const uploadDir = path.join(process.cwd(), 'uploads', 'mms');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Multer 설정 - 메모리 스토리지 사용 (검증 후 저장)
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage,
-  limits: { fileSize: IMAGE_MAX_SIZE },
-  fileFilter: (req, file, cb) => {
-    // JPG 확장자만 허용
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (ext !== '.jpg' && ext !== '.jpeg') {
-      cb(new Error('JPG 파일만 업로드 가능합니다.'));
-      return;
-    }
-    if (!file.mimetype.startsWith('image/jpeg')) {
-      cb(new Error('JPG 이미지 파일만 업로드 가능합니다.'));
-      return;
-    }
-    cb(null, true);
-  },
-});
 
 // GET /api/sms/target-counts - 발송 대상 수 조회 (필터 적용)
 router.get('/target-counts', authMiddleware, async (req: AuthRequest, res) => {
@@ -273,8 +241,8 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // SOLAPI 설정 확인
-    const apiKey = process.env.SOLAPI_API_KEY;
-    const apiSecret = process.env.SOLAPI_API_SECRET;
+    const apiKey = env.SOLAPI_API_KEY;
+    const apiSecret = env.SOLAPI_API_SECRET;
 
     if (!apiKey || !apiSecret) {
       return res.status(400).json({ error: 'SMS 발송 설정이 되어있지 않습니다.' });
@@ -598,8 +566,8 @@ router.post('/upload-image', authMiddleware, upload.single('image'), async (req:
     await fs.promises.writeFile(filepath, req.file.buffer);
 
     // SOLAPI에 이미지 업로드하여 imageId 획득
-    const apiKey = process.env.SOLAPI_API_KEY;
-    const apiSecret = process.env.SOLAPI_API_SECRET;
+    const apiKey = env.SOLAPI_API_KEY;
+    const apiSecret = env.SOLAPI_API_SECRET;
 
     if (!apiKey || !apiSecret) {
       // 로컬 파일 삭제
@@ -718,8 +686,8 @@ router.post('/test-send', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // SOLAPI 설정 확인
-    const apiKey = process.env.SOLAPI_API_KEY;
-    const apiSecret = process.env.SOLAPI_API_SECRET;
+    const apiKey = env.SOLAPI_API_KEY;
+    const apiSecret = env.SOLAPI_API_SECRET;
 
     if (!apiKey || !apiSecret) {
       return res.status(400).json({ error: 'SMS 발송 설정이 되어있지 않습니다.' });

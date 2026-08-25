@@ -1,6 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
+import { getStoreToken } from '@/lib/auth-token';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -50,14 +51,9 @@ export default function StampTabletPage() {
 
   const hiddenInputRef = useRef<HTMLInputElement>(null);
 
-  const getAuthToken = () => {
-    if (typeof window === 'undefined') return '';
-    return localStorage.getItem('token') || '';
-  };
-
   const fetchStoreInfo = useCallback(async () => {
     try {
-      const token = getAuthToken();
+      const token = getStoreToken();
       if (!token) {
         router.replace('/login');
         return;
@@ -86,7 +82,7 @@ export default function StampTabletPage() {
 
   const fetchStampSetting = useCallback(async () => {
     try {
-      const token = getAuthToken();
+      const token = getStoreToken();
       if (!token) return;
       const res = await fetch(`${API_BASE}/api/stamp-settings`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -179,7 +175,7 @@ export default function StampTabletPage() {
     setError(null);
 
     try {
-      const token = getAuthToken();
+      const token = getStoreToken();
       if (!token) {
         setError('로그인이 필요합니다.');
         return;

@@ -1,0 +1,1 @@
+export { CouponAlimtalkPreview } from './CouponAlimtalkPreview';

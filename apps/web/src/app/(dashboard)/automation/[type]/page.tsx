@@ -28,7 +28,6 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
-const apiUrl = API_BASE;
 
 interface AutomationRule {
   id: string;
@@ -123,10 +122,10 @@ export default function AutomationSettingPage() {
       const headers = { Authorization: `Bearer ${token}` };
 
       const [rulesRes, previewRes, logsRes, storeRes] = await Promise.all([
-        fetch(`${apiUrl}/api/automation/rules`, { headers }),
-        fetch(`${apiUrl}/api/automation/preview/${type}`, { headers }),
-        fetch(`${apiUrl}/api/automation/rules/${type}/logs?limit=10`, { headers }),
-        fetch(`${apiUrl}/api/retarget-coupon/settings`, { headers }),
+        fetch(`${API_BASE}/api/automation/rules`, { headers }),
+        fetch(`${API_BASE}/api/automation/preview/${type}`, { headers }),
+        fetch(`${API_BASE}/api/automation/rules/${type}/logs?limit=10`, { headers }),
+        fetch(`${API_BASE}/api/retarget-coupon/settings`, { headers }),
       ]);
 
       if (rulesRes.ok) {
@@ -190,7 +189,7 @@ export default function AutomationSettingPage() {
     setResendingLogId(logId);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/automation/logs/${logId}/resend`, {
+      const res = await fetch(`${API_BASE}/api/automation/logs/${logId}/resend`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -198,7 +197,7 @@ export default function AutomationSettingPage() {
       if (!res.ok) throw new Error(data.error || '재발송에 실패했습니다.');
       showToast('현재 문구로 재발송했습니다.', 'success');
       // 이력 갱신
-      const logsRes = await fetch(`${apiUrl}/api/automation/rules/${type}/logs?limit=10`, {
+      const logsRes = await fetch(`${API_BASE}/api/automation/rules/${type}/logs?limit=10`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (logsRes.ok) setLogs((await logsRes.json()).logs);
@@ -242,7 +241,7 @@ export default function AutomationSettingPage() {
       };
       const triggerConfig = triggerConfigMap[type] || {};
 
-      const res = await fetch(`${apiUrl}/api/automation/rules/${type}`, {
+      const res = await fetch(`${API_BASE}/api/automation/rules/${type}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

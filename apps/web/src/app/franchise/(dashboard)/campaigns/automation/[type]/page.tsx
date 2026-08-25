@@ -29,7 +29,6 @@ import {
   Store,
 } from 'lucide-react';
 
-const apiUrl = API_BASE;
 
 interface AutomationRule {
   id: string;
@@ -137,9 +136,9 @@ export default function FranchiseAutomationSettingPage() {
     try {
       const headers = getHeaders();
       const [rulesRes, previewRes, logsRes] = await Promise.all([
-        fetch(`${apiUrl}/api/franchise/automation/stores/${storeId}/rules`, { headers }),
-        fetch(`${apiUrl}/api/franchise/automation/stores/${storeId}/preview/${type}`, { headers }),
-        fetch(`${apiUrl}/api/franchise/automation/stores/${storeId}/rules/${type}/logs?limit=10`, { headers }),
+        fetch(`${API_BASE}/api/franchise/automation/stores/${storeId}/rules`, { headers }),
+        fetch(`${API_BASE}/api/franchise/automation/stores/${storeId}/preview/${type}`, { headers }),
+        fetch(`${API_BASE}/api/franchise/automation/stores/${storeId}/rules/${type}/logs?limit=10`, { headers }),
       ]);
 
       if (rulesRes.ok) {
@@ -185,7 +184,7 @@ export default function FranchiseAutomationSettingPage() {
     }
     setIsSavingNaverUrl(true);
     try {
-      const res = await fetch(`${apiUrl}/api/franchise/automation/stores/${storeId}/naver-place-url`, {
+      const res = await fetch(`${API_BASE}/api/franchise/automation/stores/${storeId}/naver-place-url`, {
         method: 'PUT',
         headers: { ...getHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ naverPlaceUrl: naverPlaceUrlInput.trim() }),
@@ -210,14 +209,14 @@ export default function FranchiseAutomationSettingPage() {
     setResendingLogId(logId);
     try {
       const token = localStorage.getItem('franchiseToken');
-      const res = await fetch(`${apiUrl}/api/franchise/automation/stores/${storeId}/logs/${logId}/resend`, {
+      const res = await fetch(`${API_BASE}/api/franchise/automation/stores/${storeId}/logs/${logId}/resend`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || '재발송에 실패했습니다.');
       showToast('현재 문구로 재발송했습니다.', 'success');
-      const logsRes = await fetch(`${apiUrl}/api/franchise/automation/stores/${storeId}/rules/${type}/logs?limit=10`, {
+      const logsRes = await fetch(`${API_BASE}/api/franchise/automation/stores/${storeId}/rules/${type}/logs?limit=10`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (logsRes.ok) setLogs((await logsRes.json()).logs);
@@ -266,8 +265,8 @@ export default function FranchiseAutomationSettingPage() {
       };
 
       const url = isBulk
-        ? `${apiUrl}/api/franchise/automation/bulk/rules/${type}`
-        : `${apiUrl}/api/franchise/automation/stores/${storeId}/rules/${type}`;
+        ? `${API_BASE}/api/franchise/automation/bulk/rules/${type}`
+        : `${API_BASE}/api/franchise/automation/stores/${storeId}/rules/${type}`;
 
       const res = await fetch(url, {
         method: 'PUT',

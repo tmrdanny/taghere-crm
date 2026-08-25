@@ -8,6 +8,7 @@
  * 실제 발송은 AlimTalkOutbox 큐에 위임 (기존 alimtalk-worker가 처리)
  */
 
+import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { customAlphabet } from 'nanoid';
 import type { AlimTalkType } from '@prisma/client';
@@ -472,10 +473,10 @@ export async function sendAutomationMessages(
   }
 
   // 환경변수
-  const appUrl = process.env.PUBLIC_APP_URL || 'http://localhost:3999';
+  const appUrl = env.PUBLIC_APP_URL || 'http://localhost:3999';
   const domain = appUrl.replace(/^https?:\/\//, '');
-  const templateId = process.env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON || '';
-  const pfId = process.env.SOLAPI_PF_ID;
+  const templateId = env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON || '';
+  const pfId = env.SOLAPI_PF_ID;
 
   if (!templateId || !pfId) {
     console.error(`[AutoWorker] Missing template or pfId for ${messageType}`);

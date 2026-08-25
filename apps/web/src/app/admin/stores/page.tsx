@@ -2409,7 +2409,6 @@ function BulkAddressModal({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const apiUrl = API_BASE;
   const [filter, setFilter] = useState<'missing' | 'all'>('missing');
   const [parsedRows, setParsedRows] = useState<BulkAddressRow[] | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -2473,7 +2472,7 @@ function BulkAddressModal({
     if (!token) return;
     setIsUploading(true);
     try {
-      const res = await fetch(`${apiUrl}/api/admin/stores/bulk-address`, {
+      const res = await fetch(`${API_BASE}/api/admin/stores/bulk-address`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -2497,7 +2496,7 @@ function BulkAddressModal({
     if (!confirm('과거 가입 고객의 지역 정보를 매장 주소 기준으로 채웁니다. 진행할까요?')) return;
     setIsPopulating(true);
     try {
-      const res = await fetch(`${apiUrl}/api/admin/customers/populate-regions`, {
+      const res = await fetch(`${API_BASE}/api/admin/customers/populate-regions`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });

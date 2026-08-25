@@ -43,7 +43,6 @@ export default function FeedbackPage() {
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [hasTextFilter, setHasTextFilter] = useState(false);
 
-  const apiUrl = API_BASE;
 
   // showToast를 ref로 저장하여 의존성 문제 해결
   const showToastRef = useRef(showToast);
@@ -58,7 +57,7 @@ export default function FeedbackPage() {
       }
 
       const offset = (page - 1) * pageSize;
-      let url = `${apiUrl}/api/dashboard/feedbacks?limit=${pageSize}&offset=${offset}`;
+      let url = `${API_BASE}/api/dashboard/feedbacks?limit=${pageSize}&offset=${offset}`;
       if (ratingFilter !== null) {
         url += `&rating=${ratingFilter}`;
       }
@@ -85,7 +84,7 @@ export default function FeedbackPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [apiUrl, page, pageSize, ratingFilter, hasTextFilter]);
+  }, [page, pageSize, ratingFilter, hasTextFilter]);
 
   useEffect(() => {
     fetchFeedbacks();

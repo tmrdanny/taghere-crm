@@ -1,9 +1,8 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
-import { syncToMetacity } from '../services/metacity.js';
 import { sidoToShort } from '../utils/address-parser.js';
+import { PointsError, reverseOrderItemAccrual } from '../services/points.js';
 
 const router = Router();
 
@@ -913,229 +912,25 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
     const storeId = req.user!.storeId;
     const { visitOrOrderId, itemIndex, cancelQuantity } = req.body;
 
-    if (!visitOrOrderId || itemIndex === undefined) {
-      return res.status(400).json({ error: '주문 ID와 아이템 인덱스가 필요합니다.' });
-    }
-
-    // Verify customer exists and belongs to the store (with store name and point rate for AlimTalk)
-    const customer = await prisma.customer.findFirst({
-      where: { id, storeId },
-      include: {
-        store: {
-          select: { name: true, pointRatePercent: true },
-        },
-      },
+    const result = await reverseOrderItemAccrual({
+      customerId: id,
+      storeId,
+      visitOrOrderId,
+      itemIndex,
+      cancelQuantity,
     });
 
-    if (!customer) {
-      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
-    }
-
-    // Find the visit/order
-    const visitOrOrder = await prisma.visitOrOrder.findFirst({
-      where: { id: visitOrOrderId, storeId, customerId: id },
-    });
-
-    if (!visitOrOrder) {
-      return res.status(404).json({ error: '주문을 찾을 수 없습니다.' });
-    }
-
-    // Parse items
-    let items: any[] = [];
-    const itemsData = visitOrOrder.items as any;
-    if (itemsData) {
-      if (Array.isArray(itemsData)) {
-        items = itemsData;
-      } else if (typeof itemsData === 'object' && itemsData.items) {
-        items = itemsData.items;
-      }
-    }
-
-    if (itemIndex < 0 || itemIndex >= items.length) {
-      return res.status(400).json({ error: '유효하지 않은 아이템 인덱스입니다.' });
-    }
-
-    const targetItem = items[itemIndex];
-
-    // Get item quantity
-    const itemTotalQty = targetItem.count || targetItem.quantity || targetItem.qty || 1;
-    const alreadyCancelledQty = targetItem.cancelledQuantity || 0;
-    const remainingQty = itemTotalQty - alreadyCancelledQty;
-
-    // Check if already fully cancelled
-    if (targetItem.cancelled || remainingQty <= 0) {
-      return res.status(400).json({ error: '이미 취소된 아이템입니다.' });
-    }
-
-    // Determine cancel quantity (default: cancel all remaining)
-    const cancelQty = cancelQuantity !== undefined ? Math.min(cancelQuantity, remainingQty) : remainingQty;
-
-    if (cancelQty <= 0) {
-      return res.status(400).json({ error: '취소할 수량은 1 이상이어야 합니다.' });
-    }
-
-    // Calculate points to deduct using store's pointRatePercent (same as earn logic)
-    const pointRatePercent = customer.store.pointRatePercent ?? 5; // 기본값 5%
-
-    // Debug: log the target item structure
-    console.log('[Cancel Order Item] targetItem:', JSON.stringify(targetItem, null, 2));
-
-    const itemPrice = typeof targetItem.price === 'string'
-      ? parseInt(targetItem.price, 10)
-      : (targetItem.price || 0);
-
-    // Calculate price for cancelled quantity only (not total)
-    const cancelledPrice = itemPrice * cancelQty;
-
-    // Debug: log calculated values
-    console.log('[Cancel Order Item] itemPrice:', itemPrice, 'cancelQty:', cancelQty, 'cancelledPrice:', cancelledPrice);
-    console.log('[Cancel Order Item] pointRatePercent:', pointRatePercent);
-
-    // 적립과 동일한 방식으로 포인트 계산 (취소된 수량 기준)
-    const pointsToDeduct = Math.round(cancelledPrice * (pointRatePercent / 100));
-    console.log('[Cancel Order Item] pointsToDeduct:', cancelledPrice, '*', pointRatePercent / 100, '=', pointsToDeduct);
-
-    // Update cancelled quantity
-    const newCancelledQty = alreadyCancelledQty + cancelQty;
-    const isFullyCancelled = newCancelledQty >= itemTotalQty;
-
-    // Mark item as cancelled (partial or full)
-    items[itemIndex] = {
-      ...targetItem,
-      cancelledQuantity: newCancelledQty,
-      cancelled: isFullyCancelled,
-      cancelledAt: new Date().toISOString(),
-    };
-
-    // Update the visit/order with cancelled item
-    const updatedItemsData = Array.isArray(itemsData)
-      ? items
-      : { ...itemsData, items };
-
-    await prisma.visitOrOrder.update({
-      where: { id: visitOrOrderId },
-      data: { items: updatedItemsData },
-    });
-
-    // 지연 적립 예약만 있고 아직 적립되지 않은 주문이면, 고객의 다른 잔액에서 빼면 안 된다.
-    // 대신 아직 지급 전인 예약 금액을 줄여 결제완료 시 감액된 금액만 적립되게 한다.
-    const pendingAccrual = visitOrOrder.orderId
-      ? await prisma.pendingPointAccrual.findUnique({
-          where: { storeId_orderId: { storeId, orderId: visitOrOrder.orderId } },
-          select: { id: true, status: true, earnPoints: true },
-        })
-      : null;
-
-    if (pendingAccrual?.status === 'PENDING' && pointsToDeduct > 0) {
-      const reducedEarnPoints = Math.max(0, pendingAccrual.earnPoints - pointsToDeduct);
-      await prisma.pendingPointAccrual.update({
-        where: { id: pendingAccrual.id },
-        data: { earnPoints: reducedEarnPoints },
-      });
-      console.log(
-        `[Cancel Order Item] 적립 예약 감액 - orderId: ${visitOrOrder.orderId}, ${pendingAccrual.earnPoints} → ${reducedEarnPoints}`,
-      );
-
+    if (result.kind === 'PENDING_ACCRUAL_REDUCED') {
       return res.json({
         success: true,
-        cancelledQuantity: newCancelledQty,
-        isFullyCancelled,
+        cancelledQuantity: result.cancelledQuantity,
+        isFullyCancelled: result.isFullyCancelled,
         pointsDeducted: 0,
-        pendingAccrualReduced: pendingAccrual.earnPoints - reducedEarnPoints,
+        pendingAccrualReduced: result.pendingAccrualReduced,
       });
     }
 
-    // Deduct points if applicable
-    if (pointsToDeduct > 0) {
-      // Get current customer points
-      const currentCustomer = await prisma.customer.findUnique({
-        where: { id },
-        select: { totalPoints: true },
-      });
-
-      const currentPoints = currentCustomer?.totalPoints || 0;
-      const newBalance = Math.max(0, currentPoints - pointsToDeduct);
-      const actualDeduction = currentPoints - newBalance;
-
-      if (actualDeduction > 0) {
-        // Create point ledger entry for deduction
-        const itemName = targetItem.label || targetItem.name || targetItem.menuName || '메뉴';
-        const cancelReason = isFullyCancelled
-          ? `주문 취소 차감 (${itemName})`
-          : `주문 취소 차감 (${itemName} ${cancelQty}개)`;
-
-        await prisma.pointLedger.create({
-          data: {
-            storeId,
-            customerId: id,
-            delta: -actualDeduction,
-            balance: newBalance,
-            type: 'ADJUST',
-            reason: cancelReason,
-            orderId: visitOrOrder.orderId,
-          },
-        });
-
-        // Update customer's total points
-        const updatedCustomerForCancel = await prisma.customer.update({
-          where: { id },
-          data: { totalPoints: newBalance },
-        });
-
-        // 메타씨티 포인트 취소 동기화 (비동기)
-        {
-          const storeForMetacity = await prisma.store.findUnique({
-            where: { id: storeId },
-            select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
-          });
-          if (storeForMetacity?.metacityEnabled) {
-            // 원래 적립 ledger를 찾아서 동일한 ORDER_NO로 취소 요청
-            const originalEarnLedger = await prisma.pointLedger.findFirst({
-              where: { storeId, customerId: id, orderId: visitOrOrder.orderId, type: 'EARN' },
-              select: { id: true },
-            });
-            const cancelOrderNo = originalEarnLedger?.id || visitOrOrder.orderId || visitOrOrderId;
-            syncToMetacity({
-              store: storeForMetacity,
-              customer: updatedCustomerForCancel,
-              operationType: 'POINT_SAVE_CANCEL',
-              orderNo: cancelOrderNo,
-              purAmt: cancelledPrice,
-              savePoint: actualDeduction,
-            }).catch(err => console.error('[Metacity] POINT_SAVE_CANCEL sync failed:', err.message));
-          }
-        }
-
-        // Send AlimTalk notification for point deduction (with negative points)
-        const phoneNumber = customer.phone?.replace(/[^0-9]/g, '');
-        if (phoneNumber) {
-          // Get the newly created point ledger entry
-          const pointLedger = await prisma.pointLedger.findFirst({
-            where: { customerId: id, type: 'ADJUST' },
-            orderBy: { createdAt: 'desc' },
-          });
-
-          if (pointLedger) {
-            enqueuePointsEarnedAlimTalk({
-              storeId,
-              customerId: id,
-              pointLedgerId: pointLedger.id,
-              phone: phoneNumber,
-              variables: {
-                storeName: customer.store.name,
-                points: -actualDeduction, // 음수로 전달 (예: -550)
-                totalPoints: newBalance,
-              },
-            }).catch((err) => {
-              console.error('[Cancel Order Item] AlimTalk enqueue failed:', err);
-            });
-          }
-        }
-      }
-    }
-
-    // Get menu name for response
-    const menuName = targetItem.label || targetItem.name || targetItem.menuName || targetItem.productName || '메뉴';
+    const { menuName, cancelQty, itemTotalQty, newCancelledQty, isFullyCancelled } = result;
 
     // Build response message
     const cancelMessage = isFullyCancelled
@@ -1145,10 +940,10 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
     res.json({
       success: true,
       message: cancelMessage,
-      pointsDeducted: pointsToDeduct,
+      pointsDeducted: result.pointsDeducted,
       cancelledItem: {
         name: menuName,
-        price: cancelledPrice,
+        price: result.cancelledPrice,
         cancelledQuantity: cancelQty,
         totalQuantity: itemTotalQty,
         remainingQuantity: itemTotalQty - newCancelledQty,
@@ -1156,6 +951,9 @@ router.post('/:id/cancel-order-item', authMiddleware, async (req: AuthRequest, r
       },
     });
   } catch (error) {
+    if (error instanceof PointsError) {
+      return res.status(error.status).json({ error: error.message });
+    }
     console.error('Cancel order item error:', error);
     res.status(500).json({ error: '주문 취소 중 오류가 발생했습니다.' });
   }
