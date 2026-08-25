@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { SolapiService } from './solapi.js';
+import { getSolapiService, clearSolapiInstance } from './solapi-instance.js';
 import { refundFailedMessage } from './message-billing.js';
 
 const BATCH_SIZE = 20;
@@ -11,24 +12,6 @@ let isRunning = false;
 let intervalId: NodeJS.Timeout | null = null;
 
 // 글로벌 SOLAPI 서비스 인스턴스
-let globalSolapiService: SolapiService | null = null;
-
-function getSolapiService(): SolapiService | null {
-  if (globalSolapiService) {
-    return globalSolapiService;
-  }
-
-  const apiKey = process.env.SOLAPI_API_KEY;
-  const apiSecret = process.env.SOLAPI_API_SECRET;
-
-  if (!apiKey || !apiSecret) {
-    console.log(`[SMS Worker] No SOLAPI credentials configured in environment variables`);
-    return null;
-  }
-
-  globalSolapiService = new SolapiService(apiKey, apiSecret);
-  return globalSolapiService;
-}
 
 // 단일 메시지 처리 (이미 조회된 SOLAPI 상태를 인자로 받음)
 async function processMessage(
@@ -58,7 +41,7 @@ async function processMessage(
     return;
   }
 
-  const solapiService = getSolapiService();
+  const solapiService = getSolapiService(`[SMS Worker] No SOLAPI credentials configured in environment variables`);
   if (!solapiService) {
     console.log(`[SMS Worker] SOLAPI service not available`);
     return;
@@ -166,7 +149,7 @@ async function processBatch(): Promise<number> {
   console.log(`[SMS Worker] Processing ${messages.length} messages`);
 
   // groupId 단위로 묶어 SOLAPI를 1회만 호출 (N건 메시지 = 1회 API call)
-  const solapiService = getSolapiService();
+  const solapiService = getSolapiService(`[SMS Worker] No SOLAPI credentials configured in environment variables`);
   const groupIdToStatuses = new Map<string, Map<string, { status: 'PENDING' | 'SENT' | 'FAILED'; failReason?: string }> | null>();
 
   if (solapiService) {
@@ -334,5 +317,5 @@ export function stopSmsWorker(): void {
 
 // 캐시 초기화
 export function clearSmsWorkerCache(): void {
-  globalSolapiService = null;
+  clearSolapiInstance();
 }

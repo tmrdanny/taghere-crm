@@ -7,7 +7,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
-const apiUrl = API_BASE;
 
 interface Distribution {
   label: string;
@@ -41,7 +40,7 @@ export default function VisitCyclePage() {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/insights/visit-cycle`, {
+      const res = await fetch(`${API_BASE}/api/insights/visit-cycle`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

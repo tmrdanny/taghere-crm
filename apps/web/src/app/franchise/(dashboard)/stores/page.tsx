@@ -1,6 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
+import { getFranchiseToken } from '@/lib/auth-token';
 import { useState, useEffect, useCallback } from 'react';
 import {
   Search,
@@ -177,18 +178,11 @@ export default function FranchiseStoresPage() {
   const [isTogglingAll, setIsTogglingAll] = useState(false);
 
   // Auth token helper
-  const getAuthToken = () => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('franchiseToken') || '';
-    }
-    return '';
-  };
-
   // Fetch stores
   const fetchStores = useCallback(async () => {
     setIsLoading(true);
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       const res = await fetch(`${API_BASE}/api/franchise/stores`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -212,7 +206,7 @@ export default function FranchiseStoresPage() {
   // Fetch franchise wallet balance
   const fetchFranchiseWallet = useCallback(async () => {
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       const res = await fetch(`${API_BASE}/api/franchise/wallet`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -231,7 +225,7 @@ export default function FranchiseStoresPage() {
   // Fetch franchise stamp setting
   const fetchStampSetting = useCallback(async () => {
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       const res = await fetch(`${API_BASE}/api/franchise/stamp-setting`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -254,7 +248,7 @@ export default function FranchiseStoresPage() {
   // 방문 경로 설정 조회 (전 가맹점 일괄 편집 기준값)
   const fetchVisitSource = useCallback(async () => {
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       const res = await fetch(`${API_BASE}/api/franchise/visit-source`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -279,7 +273,7 @@ export default function FranchiseStoresPage() {
     setIsSavingVisitSource(true);
     setVisitSourceMsg(null);
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       const res = await fetch(`${API_BASE}/api/franchise/visit-source`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -340,7 +334,7 @@ export default function FranchiseStoresPage() {
     e.stopPropagation();
     setTogglingStoreId(storeId);
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       const res = await fetch(`${API_BASE}/api/franchise/stores/${storeId}/stamp-toggle`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -367,7 +361,7 @@ export default function FranchiseStoresPage() {
   const handleStampToggleAll = async (enabled: boolean) => {
     setIsTogglingAll(true);
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       const res = await fetch(`${API_BASE}/api/franchise/stores/stamp-toggle-all`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -393,7 +387,7 @@ export default function FranchiseStoresPage() {
   const handleSaveStampSetting = async () => {
     setIsSavingStampSetting(true);
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       const validRewards = stampSettingForm.filter((r) => r.description.trim());
       const res = await fetch(`${API_BASE}/api/franchise/stamp-setting`, {
         method: 'PUT',
@@ -429,7 +423,7 @@ export default function FranchiseStoresPage() {
     setIsApplyingRewards(true);
     setApplyMessage(null);
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
 
       // 1. 현재 폼의 공통 보상을 먼저 저장
       const saveRes = await fetch(`${API_BASE}/api/franchise/stamp-setting`, {
@@ -515,7 +509,7 @@ export default function FranchiseStoresPage() {
   // Fetch store detail
   const fetchStoreDetail = useCallback(async (storeId: string) => {
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       const res = await fetch(`${API_BASE}/api/franchise/stores/${storeId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -551,7 +545,7 @@ export default function FranchiseStoresPage() {
     setTransferSuccess(null);
 
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       const res = await fetch(`${API_BASE}/api/franchise/stores/${selectedStore.id}/transfer`, {
         method: 'POST',
         headers: {

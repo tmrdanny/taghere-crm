@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { prisma as prismaClient } from '../lib/prisma.js';
 import { enqueueAlimTalk } from './solapi.js';
 import { sidoToShort } from '../utils/address-parser.js';
@@ -739,11 +740,11 @@ async function sendWaitingRegisteredAlimTalk(params: {
   waitingNote: string;
   estimatedMinutes: number;
 }): Promise<void> {
-  const templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_REGISTERED;
+  const templateId = env.SOLAPI_TEMPLATE_ID_WAITING_REGISTERED;
   if (!templateId) return;
 
   // 솔라피에서 https://를 자동 추가하므로 프로토콜 제거
-  const publicUrl = (process.env.PUBLIC_URL || 'https://taghere-crm-web-dev.onrender.com').replace(/^https?:\/\//, '');
+  const publicUrl = (env.PUBLIC_URL || 'https://taghere-crm-web-dev.onrender.com').replace(/^https?:\/\//, '');
   const statusPageUrl = `${publicUrl}/w/${params.storeSlug}/status/${params.phone}`;
   const cancelPageUrl = `${publicUrl}/w/${params.storeSlug}/cancel?phone=${params.phone}`;
 
@@ -779,11 +780,11 @@ async function sendWaitingCalledAlimTalk(params: {
   timeoutMinutes: number;
   waitingCallNote: string;
 }): Promise<void> {
-  const templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_CALLED;
+  const templateId = env.SOLAPI_TEMPLATE_ID_WAITING_CALLED;
   if (!templateId) return;
 
   // 솔라피에서 https://를 자동 추가하므로 프로토콜 제거
-  const publicUrl = (process.env.PUBLIC_URL || 'https://taghere-crm-web-dev.onrender.com').replace(/^https?:\/\//, '');
+  const publicUrl = (env.PUBLIC_URL || 'https://taghere-crm-web-dev.onrender.com').replace(/^https?:\/\//, '');
   const cancelPageUrl = `${publicUrl}/w/${params.storeSlug}/cancel?phone=${params.phone}`;
 
   try {
@@ -812,7 +813,7 @@ async function sendWaitingRecalledAlimTalk(params: {
   storeName: string;
   waitingNumber: number;
 }): Promise<void> {
-  const templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_RECALLED;
+  const templateId = env.SOLAPI_TEMPLATE_ID_WAITING_RECALLED;
   if (!templateId) return;
 
   try {
@@ -847,7 +848,7 @@ async function sendWaitingCancelledAlimTalk(params: {
   switch (params.reason) {
     case 'CUSTOMER_REQUEST':
       // 고객님 사정으로 웨이팅 취소
-      templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_CANCELLED_CUSTOMER;
+      templateId = env.SOLAPI_TEMPLATE_ID_WAITING_CANCELLED_CUSTOMER;
       variables = {
         '#{매장명}': params.storeName,
       };
@@ -856,7 +857,7 @@ async function sendWaitingCancelledAlimTalk(params: {
     case 'NO_SHOW':
     case 'AUTO_CANCELLED':
       // 웨이팅 지각으로 인한 취소 알림
-      templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_CANCELLED_TIMEOUT;
+      templateId = env.SOLAPI_TEMPLATE_ID_WAITING_CANCELLED_TIMEOUT;
       variables = {
         '#{제한시간}': String(params.callTimeoutMinutes),
         '#{매장명}': params.storeName,
@@ -866,7 +867,7 @@ async function sendWaitingCancelledAlimTalk(params: {
     case 'STORE_REASON':
     case 'OUT_OF_STOCK':
       // 매장 사정으로 인한 웨이팅 취소 알림
-      templateId = process.env.SOLAPI_TEMPLATE_ID_WAITING_CANCELLED_STORE;
+      templateId = env.SOLAPI_TEMPLATE_ID_WAITING_CANCELLED_STORE;
       variables = {
         '#{매장명}': params.storeName,
       };

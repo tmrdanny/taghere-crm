@@ -51,7 +51,6 @@ function getFullImageUrl(imageUrl?: string): string {
 }
 
 export default function AdminFoodCourtPage() {
-  const apiUrl = API_BASE;
 
   // Store list & search
   const [stores, setStores] = useState<Store[]>([]);
@@ -92,7 +91,7 @@ export default function AdminFoodCourtPage() {
         const token = localStorage.getItem('adminToken');
         // 전 매장 목록은 /stores/options 를 쓴다 — /stores 는 pageSize 기반 페이지네이션이라
         // limit 을 넘겨도 무시되고 기본 30개(최근 생성순)만 돌아온다.
-        const res = await fetch(`${apiUrl}/api/admin/stores/options`, {
+        const res = await fetch(`${API_BASE}/api/admin/stores/options`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -104,7 +103,7 @@ export default function AdminFoodCourtPage() {
       }
     };
     fetchStores();
-  }, [apiUrl]);
+  }, []);
 
   // Click outside to close dropdown
   useEffect(() => {
@@ -125,7 +124,7 @@ export default function AdminFoodCourtPage() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${apiUrl}/api/admin/food-court-settings/${store.id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/food-court-settings/${store.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -190,7 +189,7 @@ export default function AdminFoodCourtPage() {
     setIsSaving(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${apiUrl}/api/admin/food-court-settings/${selectedStore.id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/food-court-settings/${selectedStore.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -247,7 +246,7 @@ export default function AdminFoodCourtPage() {
     const token = localStorage.getItem('adminToken');
     const formData = new FormData();
     formData.append('image', file);
-    const res = await fetch(`${apiUrl}/api/admin/food-court-settings/upload`, {
+    const res = await fetch(`${API_BASE}/api/admin/food-court-settings/upload`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: formData,

@@ -33,7 +33,6 @@ interface StoreInfo {
 function TableLinkContent() {
   const params = useParams();
   const slug = params.slug as string;
-  const apiUrl = API_BASE;
 
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,7 +49,7 @@ function TableLinkContent() {
   useEffect(() => {
     const fetchStoreInfo = async () => {
       try {
-        const res = await fetch(`${apiUrl}/api/taghere/table-link/${slug}`);
+        const res = await fetch(`${API_BASE}/api/taghere/table-link/${slug}`);
         if (res.ok) {
           const data = await res.json();
           setStoreInfo(data);
@@ -68,7 +67,7 @@ function TableLinkContent() {
       }
     };
     fetchStoreInfo();
-  }, [apiUrl, slug]);
+  }, [slug]);
 
   const handleKeyPress = (key: string) => {
     setRedirectError(null);
@@ -90,7 +89,7 @@ function TableLinkContent() {
     setRedirectError(null);
 
     try {
-      const res = await fetch(`${apiUrl}/api/taghere/table-link/${slug}/redirect/${tableNumber}`);
+      const res = await fetch(`${API_BASE}/api/taghere/table-link/${slug}/redirect/${tableNumber}`);
       if (res.ok) {
         const data = await res.json();
         trackEvent('table_link_confirm', { store_slug: slug, table_number: tableNumber });
@@ -123,7 +122,7 @@ function TableLinkContent() {
     try {
       // 기록 실패해도 고객 흐름은 막지 않음 (짧은 타임아웃)
       await Promise.race([
-        fetch(`${apiUrl}/api/taghere/table-link/${slug}/gender-log`, {
+        fetch(`${API_BASE}/api/taghere/table-link/${slug}/gender-log`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tableNumber, gender }),

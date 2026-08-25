@@ -1,6 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
+import { getStoreToken } from '@/lib/auth-token';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -70,17 +71,12 @@ export default function StorePage() {
   const agreementWidgetRef = useRef<any>(null);
   const isInitializingRef = useRef<boolean>(false);
 
-  const getAuthToken = () => {
-    if (typeof window === 'undefined') return '';
-    return localStorage.getItem('token') || '';
-  };
-
   const totalAmount = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   // Fetch products
   const fetchProducts = useCallback(async () => {
     try {
-      const token = getAuthToken();
+      const token = getStoreToken();
       const res = await fetch(`${API_BASE}/api/store-products`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -111,7 +107,7 @@ export default function StorePage() {
       const confirmPayment = async () => {
         setIsConfirmingPayment(true);
         try {
-          const token = getAuthToken();
+          const token = getStoreToken();
           const res = await fetch(`${API_BASE}/api/store-orders/confirm`, {
             method: 'POST',
             headers: {
@@ -288,7 +284,7 @@ export default function StorePage() {
 
     // Create order
     try {
-      const token = getAuthToken();
+      const token = getStoreToken();
       const res = await fetch(`${API_BASE}/api/store-orders`, {
         method: 'POST',
         headers: {

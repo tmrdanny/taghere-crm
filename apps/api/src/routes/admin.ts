@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -68,7 +69,7 @@ router.post('/login', async (req: Request, res: Response) => {
         isSystemAdmin: true,
         username: ADMIN_USERNAME,
       },
-      process.env.JWT_SECRET!,
+      env.JWT_SECRET!,
       { expiresIn: '24h' }
     );
 

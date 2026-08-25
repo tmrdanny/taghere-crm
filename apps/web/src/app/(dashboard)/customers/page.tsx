@@ -24,20 +24,20 @@ import {
   Announcement,
   MessageHistoryEntry,
   BulkRow,
-} from './types';
-import { AddCustomerModal } from './AddCustomerModal';
-import { BulkUploadModal } from './BulkUploadModal';
-import { CustomerTable } from './CustomerTable';
-import { CustomerFilters } from './CustomerFilters';
-import { CustomerAnnouncements } from './CustomerAnnouncements';
-import { CustomerListHeader } from './CustomerListHeader';
-import { AutomationBanner } from './AutomationBanner';
-import { EditCustomerModal } from './EditCustomerModal';
-import { UsePointsModal } from './UsePointsModal';
-import { UsePointsConfirmModal } from './UsePointsConfirmModal';
-import { CancelOrderItemModal } from './CancelOrderItemModal';
-import { EarnPointsModal } from './EarnPointsModal';
-import { EarnStampsModal } from './EarnStampsModal';
+  AddCustomerModal,
+  BulkUploadModal,
+  CustomerTable,
+  CustomerFilters,
+  CustomerAnnouncements,
+  CustomerListHeader,
+  AutomationBanner,
+  EditCustomerModal,
+  UsePointsModal,
+  UsePointsConfirmModal,
+  CancelOrderItemModal,
+  EarnPointsModal,
+  EarnStampsModal,
+} from '@/features/customers';
 
 // 컬럼 정의 상수
 const COLUMN_DEFINITIONS = [
@@ -189,7 +189,6 @@ export default function CustomersPage() {
   // 설문 질문 목록 (컬럼 헤더용)
   const [surveyQuestionLabels, setSurveyQuestionLabels] = useState<Array<{ id: string; label: string }>>([]);
 
-  const apiUrl = useMemo(() => API_BASE, []);
   const userRole = 'OWNER';
 
   // Get auth token from localStorage (fallback to dev-token for MVP)
@@ -213,7 +212,7 @@ export default function CustomersPage() {
     const fetchAnnouncements = async () => {
       try {
         const token = getAuthToken();
-        const res = await fetch(`${apiUrl}/api/dashboard/announcements`, {
+        const res = await fetch(`${API_BASE}/api/dashboard/announcements`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -229,7 +228,7 @@ export default function CustomersPage() {
     };
 
     fetchAnnouncements();
-  }, [apiUrl]);
+  }, []);
 
   // Fetch automation marketing status
   useEffect(() => {
@@ -239,8 +238,8 @@ export default function CustomersPage() {
         const headers = { Authorization: `Bearer ${token}` };
 
         const [rulesRes, previewRes] = await Promise.all([
-          fetch(`${apiUrl}/api/automation/rules`, { headers }),
-          fetch(`${apiUrl}/api/automation/preview-all`, { headers }),
+          fetch(`${API_BASE}/api/automation/rules`, { headers }),
+          fetch(`${API_BASE}/api/automation/preview-all`, { headers }),
         ]);
 
         let hasActiveRules = false;
@@ -262,14 +261,14 @@ export default function CustomersPage() {
     };
 
     fetchAutomationStatus();
-  }, [apiUrl]);
+  }, []);
 
   // Fetch stamp reward tiers from stamp settings
   useEffect(() => {
     const fetchStampRewardTiers = async () => {
       try {
         const token = getAuthToken();
-        const res = await fetch(`${apiUrl}/api/stamp-settings`, {
+        const res = await fetch(`${API_BASE}/api/stamp-settings`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -285,14 +284,14 @@ export default function CustomersPage() {
       }
     };
     fetchStampRewardTiers();
-  }, [apiUrl]);
+  }, []);
 
   // Fetch visit source settings for label mapping
   useEffect(() => {
     const fetchVisitSourceSettings = async () => {
       try {
         const token = getAuthToken();
-        const res = await fetch(`${apiUrl}/api/visit-source-settings`, {
+        const res = await fetch(`${API_BASE}/api/visit-source-settings`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -318,7 +317,7 @@ export default function CustomersPage() {
     const fetchSurveyQuestions = async () => {
       try {
         const token = getAuthToken();
-        const res = await fetch(`${apiUrl}/api/survey-questions`, {
+        const res = await fetch(`${API_BASE}/api/survey-questions`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -330,7 +329,7 @@ export default function CustomersPage() {
       }
     };
     fetchSurveyQuestions();
-  }, [apiUrl]);
+  }, []);
 
   // Ref to track if component is mounted
   const isMountedRef = useRef(true);
@@ -420,7 +419,7 @@ export default function CustomersPage() {
       if (endDate) params.set('endDate', endDate);
       if (startDate || endDate) params.set('dateType', dateFilterType);
 
-      const res = await fetch(`${apiUrl}/api/customers?${params.toString()}`, {
+      const res = await fetch(`${API_BASE}/api/customers?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${getAuthToken()}`,
         },
@@ -451,7 +450,7 @@ export default function CustomersPage() {
         setIsLoading(false);
       }
     }
-  }, [apiUrl, searchQuery, genderFilter, visitFilter, lastVisitFilter, startDate, endDate, dateFilterType, page, pageSize]);
+  }, [searchQuery, genderFilter, visitFilter, lastVisitFilter, startDate, endDate, dateFilterType, page, pageSize]);
 
   // Initial fetch and when filters change
   useEffect(() => {
@@ -501,7 +500,7 @@ export default function CustomersPage() {
     if (!selectedCustomer || !useAmount) return;
     setSubmittingUse(true);
     try {
-      const res = await fetch(`${apiUrl}/api/points/use`, {
+      const res = await fetch(`${API_BASE}/api/points/use`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -538,7 +537,7 @@ export default function CustomersPage() {
     if (!selectedCustomer || !earnAmount) return;
     setSubmittingEarn(true);
     try {
-      const res = await fetch(`${apiUrl}/api/points/earn`, {
+      const res = await fetch(`${API_BASE}/api/points/earn`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -577,7 +576,7 @@ export default function CustomersPage() {
     const amount = parseInt(earnStampAmount, 10);
     setSubmittingEarnStamp(true);
     try {
-      const res = await fetch(`${apiUrl}/api/stamps/adjust`, {
+      const res = await fetch(`${API_BASE}/api/stamps/adjust`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -638,7 +637,7 @@ export default function CustomersPage() {
     // Fetch customer details including point history, feedback history, and order history
     setLoadingHistory(true);
     try {
-      const res = await fetch(`${apiUrl}/api/customers/${customer.id}`, {
+      const res = await fetch(`${API_BASE}/api/customers/${customer.id}`, {
         headers: {
           Authorization: `Bearer ${getAuthToken()}`,
         },
@@ -661,7 +660,7 @@ export default function CustomersPage() {
   const fetchCustomerMessages = async (customerId: string) => {
     setLoadingMessages(true);
     try {
-      const res = await fetch(`${apiUrl}/api/customers/${customerId}/messages?limit=50`, {
+      const res = await fetch(`${API_BASE}/api/customers/${customerId}/messages?limit=50`, {
         headers: {
           Authorization: `Bearer ${getAuthToken()}`,
         },
@@ -687,7 +686,7 @@ export default function CustomersPage() {
       if (endDate) params.set('endDate', endDate);
       params.set('limit', '50');
 
-      const res = await fetch(`${apiUrl}/api/customers/${customerId}/orders?${params.toString()}`, {
+      const res = await fetch(`${API_BASE}/api/customers/${customerId}/orders?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${getAuthToken()}`,
         },
@@ -708,7 +707,7 @@ export default function CustomersPage() {
     if (!editingCustomer || !cancellingItem || !cancellingItemInfo) return;
 
     try {
-      const res = await fetch(`${apiUrl}/api/customers/${editingCustomer.id}/cancel-order-item`, {
+      const res = await fetch(`${API_BASE}/api/customers/${editingCustomer.id}/cancel-order-item`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -733,7 +732,7 @@ export default function CustomersPage() {
         await fetchFilteredOrders(editingCustomer.id, orderStartDate, orderEndDate);
       } else {
         // Fetch fresh customer data
-        const customerRes = await fetch(`${apiUrl}/api/customers/${editingCustomer.id}`, {
+        const customerRes = await fetch(`${API_BASE}/api/customers/${editingCustomer.id}`, {
           headers: {
             Authorization: `Bearer ${getAuthToken()}`,
           },
@@ -789,7 +788,7 @@ export default function CustomersPage() {
     if (!editingCustomer) return;
     setSubmittingEdit(true);
     try {
-      const res = await fetch(`${apiUrl}/api/customers/${editingCustomer.id}`, {
+      const res = await fetch(`${API_BASE}/api/customers/${editingCustomer.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -829,7 +828,7 @@ export default function CustomersPage() {
 
     setSubmittingEdit(true);
     try {
-      const res = await fetch(`${apiUrl}/api/customers/${editingCustomer.id}`, {
+      const res = await fetch(`${API_BASE}/api/customers/${editingCustomer.id}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${getAuthToken()}`,
@@ -863,7 +862,7 @@ export default function CustomersPage() {
 
     setSubmittingAdd(true);
     try {
-      const res = await fetch(`${apiUrl}/api/customers`, {
+      const res = await fetch(`${API_BASE}/api/customers`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -999,7 +998,7 @@ export default function CustomersPage() {
     if (bulkParsedData.length === 0) return;
     setBulkUploading(true);
     try {
-      const res = await fetch(`${apiUrl}/api/customers/bulk`, {
+      const res = await fetch(`${API_BASE}/api/customers/bulk`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1341,7 +1340,7 @@ export default function CustomersPage() {
           setSubmittingEdit(true);
           try {
             const token = getAuthToken();
-            const res = await fetch(`${apiUrl}/api/stamps/use`, {
+            const res = await fetch(`${API_BASE}/api/stamps/use`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

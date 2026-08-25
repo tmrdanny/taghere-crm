@@ -6,6 +6,8 @@
  * - V2: orderId 기반, storeName으로 매장 식별
  */
 
+import { env } from '../config/env.js';
+
 // ── V1 설정 ──
 const V1_API_URL = process.env.TAGHERE_API_URL || 'https://api.tag-here.com';
 const V1_API_TOKEN = process.env.TAGHERE_API_TOKEN_FOR_CRM || '';
@@ -15,7 +17,7 @@ const V2_API_URL = process.env.TAGHERE_V2_API_URL || '';
 const V2_API_TOKEN = process.env.TAGHERE_V2_API_TOKEN || '';
 
 // ── 공통 ──
-const CRM_BASE_URL = process.env.TAGHERE_CRM_BASE_URL || 'https://taghere-crm-web-dev.onrender.com';
+const CRM_BASE_URL = env.TAGHERE_CRM_BASE_URL || 'https://taghere-crm-web-dev.onrender.com';
 
 // ── 인바운드 웹훅 토큰 (V1/V2 모두 수용) ──
 const WEBHOOK_TOKENS = [

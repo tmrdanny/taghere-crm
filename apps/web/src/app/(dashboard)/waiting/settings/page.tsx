@@ -18,7 +18,6 @@ import Link from 'next/link';
 export default function WaitingSettingsPage() {
   const router = useRouter();
   const { showToast, ToastComponent } = useToast();
-  const apiUrl = API_BASE;
 
   // Data states
   const [settings, setSettings] = useState<Partial<WaitingSetting>>({});
@@ -47,8 +46,8 @@ export default function WaitingSettingsPage() {
       };
 
       const [settingsRes, typesRes] = await Promise.all([
-        fetch(`${apiUrl}/api/waiting/settings`, { headers }),
-        fetch(`${apiUrl}/api/waiting/types`, { headers }),
+        fetch(`${API_BASE}/api/waiting/settings`, { headers }),
+        fetch(`${API_BASE}/api/waiting/types`, { headers }),
       ]);
 
       if (settingsRes.ok) {
@@ -67,7 +66,7 @@ export default function WaitingSettingsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [apiUrl, showToast]);
+  }, [showToast]);
 
   useEffect(() => {
     fetchData();
@@ -83,7 +82,7 @@ export default function WaitingSettingsPage() {
     setIsSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/waiting/settings`, {
+      const res = await fetch(`${API_BASE}/api/waiting/settings`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -144,8 +143,8 @@ export default function WaitingSettingsPage() {
       const token = localStorage.getItem('token');
       const isNew = !data.id;
       const url = isNew
-        ? `${apiUrl}/api/waiting/types`
-        : `${apiUrl}/api/waiting/types/${data.id}`;
+        ? `${API_BASE}/api/waiting/types`
+        : `${API_BASE}/api/waiting/types/${data.id}`;
       const method = isNew ? 'POST' : 'PUT';
 
       const res = await fetch(url, {
@@ -186,7 +185,7 @@ export default function WaitingSettingsPage() {
     setIsTypeDeleting(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/waiting/types/${id}`, {
+      const res = await fetch(`${API_BASE}/api/waiting/types/${id}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -216,7 +215,7 @@ export default function WaitingSettingsPage() {
     setIsReordering(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/api/waiting/types/reorder`, {
+      const res = await fetch(`${API_BASE}/api/waiting/types/reorder`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,

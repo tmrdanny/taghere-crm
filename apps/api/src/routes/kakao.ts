@@ -1,4 +1,6 @@
+import { env } from '../config/env.js';
 import { Router, Request, Response } from 'express';
+import { toPhoneLastDigits } from '../utils/phone.js';
 import { prisma } from '../lib/prisma.js';
 import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk, enqueueCorporateAdAlimTalk } from '../services/solapi.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
@@ -18,6 +20,7 @@ import {
   hasTodayPendingStampAccrual,
   isPendingStampAccrualConflict,
 } from '../services/pending-stamp-accrual.js';
+import { findCustomerProfileByKakaoId } from '../services/customer-identity.js';
 
 const router = Router();
 
@@ -30,7 +33,7 @@ function isVisitSourceRecent(updatedAt: Date | null | undefined): boolean {
 const KAKAO_CLIENT_ID = process.env.KAKAO_CLIENT_ID || '';
 const KAKAO_CLIENT_SECRET = process.env.KAKAO_CLIENT_SECRET || '';
 const KAKAO_REDIRECT_URI = process.env.KAKAO_REDIRECT_URI || 'http://localhost:4000/auth/kakao/callback';
-const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || 'http://localhost:3000';
+const PUBLIC_APP_URL = env.PUBLIC_APP_URL || 'http://localhost:3000';
 
 // GET /auth/kakao/start - 카카오 로그인 시작
 router.get('/start', (req, res) => {
@@ -168,7 +171,7 @@ router.get('/callback', async (req, res) => {
 
     // 전화번호 정규화
     const phoneLastDigits = kakaoAccount.phone_number
-      ? kakaoAccount.phone_number.replace(/[^0-9]/g, '').slice(-8)
+      ? toPhoneLastDigits(kakaoAccount.phone_number)
       : null;
 
     // 고객 찾기: 이 매장에서 kakaoId 또는 phoneLastDigits로 검색 (매장별 고객 관리)
@@ -619,7 +622,7 @@ async function handleMembershipCallback(
 
     // 전화번호 정규화
     const phoneLastDigits = kakaoAccount.phone_number
-      ? kakaoAccount.phone_number.replace(/[^0-9]/g, '').slice(-8)
+      ? toPhoneLastDigits(kakaoAccount.phone_number)
       : null;
 
     // 고객 찾기
@@ -938,7 +941,7 @@ async function handleStampCallback(
 
   // 전화번호 정규화
   const phoneLastDigits = kakaoAccount.phone_number
-    ? kakaoAccount.phone_number.replace(/[^0-9]/g, '').slice(-8)
+    ? toPhoneLastDigits(kakaoAccount.phone_number)
     : null;
 
   // 고객 찾기
@@ -1070,38 +1073,13 @@ async function handleStampCallback(
   if (!customer) {
     isNewCustomer = true;
 
-    // 다른 매장에서 같은 kakaoId를 가진 고객 조회
-    const existingCustomer = await prisma.customer.findFirst({
-      where: {
+    const { existingCustomer, phone: phoneToUse, phoneLastDigits: phoneLastDigitsToUse } =
+      await findCustomerProfileByKakaoId({
+        storeId: store.id,
         kakaoId,
-        storeId: { not: store.id },
-      },
-      select: {
-        name: true,
-        phone: true,
-        phoneLastDigits: true,
-        gender: true,
-        birthday: true,
-        birthYear: true,
-      },
-    });
-
-    // phoneLastDigits 중복 체크
-    let phoneToUse = existingCustomer?.phone ?? kakaoAccount.phone_number ?? null;
-    let phoneLastDigitsToUse = existingCustomer?.phoneLastDigits ?? phoneLastDigits;
-
-    if (phoneLastDigitsToUse) {
-      const existingPhone = await prisma.customer.findFirst({
-        where: {
-          storeId: store.id,
-          phoneLastDigits: phoneLastDigitsToUse,
-        },
+        fallbackPhone: kakaoAccount.phone_number ?? null,
+        fallbackPhoneLastDigits: phoneLastDigits,
       });
-      if (existingPhone) {
-        phoneToUse = null;
-        phoneLastDigitsToUse = null;
-      }
-    }
 
     customer = await prisma.customer.create({
       data: {
@@ -1823,7 +1801,7 @@ router.get('/taghere-callback', async (req, res) => {
 
     // 전화번호 정규화
     const phoneLastDigits = kakaoAccount.phone_number
-      ? kakaoAccount.phone_number.replace(/[^0-9]/g, '').slice(-8)
+      ? toPhoneLastDigits(kakaoAccount.phone_number)
       : null;
 
     // 고객 찾기

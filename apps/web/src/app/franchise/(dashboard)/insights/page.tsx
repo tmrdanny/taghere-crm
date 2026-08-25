@@ -1,6 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
+import { getFranchiseToken } from '@/lib/auth-token';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Users,
@@ -142,18 +143,11 @@ export default function FranchiseInsightsPage() {
   }, []);
 
   // Auth token helper
-  const getAuthToken = () => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('franchiseToken') || '';
-    }
-    return '';
-  };
-
   // Fetch insights
   const fetchInsights = useCallback(async () => {
     setIsLoading(true);
     try {
-      const token = getAuthToken();
+      const token = getFranchiseToken();
       const params = new URLSearchParams();
 
       if (dateFilterMode === 'range' && (startDate || endDate)) {

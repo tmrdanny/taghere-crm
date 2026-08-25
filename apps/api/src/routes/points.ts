@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { enqueuePointsEarnedAlimTalk, enqueueNaverReviewAlimTalk, enqueuePointsUsedAlimTalk } from '../services/solapi.js';
+import { enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
 import { sidoToShort } from '../utils/address-parser.js';
 import { syncToMetacity } from '../services/metacity.js';
 import { notifyYahwaPointsChange } from '../services/yahwa-webhook.js';
@@ -10,23 +10,18 @@ import {
   hasTodayEarnLedger,
   hasTodayPendingAccrual,
 } from '../services/pending-point-accrual.js';
+import {
+  PointsError,
+  earnPoints,
+  usePoints,
+  isStandaloneMagicposStore,
+  STANDALONE_BLOCK_MESSAGE,
+} from '../services/points.js';
+
+// 기존 import 경로 유지용 재수출 (admin-store-ledger.ts 등이 사용)
+export { isStandaloneMagicposStore, STANDALONE_BLOCK_MESSAGE };
 
 const router = Router();
-
-/**
- * 매직포스 단독 회원(STANDALONE) 매장은 메타씨티 POS 가 포인트의 진실원천이므로
- * CRM 어드민/사장님 화면에서의 수동 포인트 조정은 허용하지 않는다.
- */
-export async function isStandaloneMagicposStore(storeId: string): Promise<boolean> {
-  const store = await prisma.store.findUnique({
-    where: { id: storeId },
-    select: { metacityEnabled: true, metacityMembershipType: true },
-  });
-  return !!(store?.metacityEnabled && store.metacityMembershipType === 'STANDALONE');
-}
-
-export const STANDALONE_BLOCK_MESSAGE =
-  '매직포스 단독 회원 매장은 메타씨티 POS 가 포인트의 진실원천이라 어드민에서 수동 조정할 수 없습니다.';
 
 // POST /api/points/earn - 포인트 적립
 router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
@@ -35,212 +30,14 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
     const storeId = req.user!.storeId;
     const staffUserId = req.user!.id;
 
-    if (!points || points <= 0) {
-      return res.status(400).json({ error: '적립할 포인트를 입력해주세요.' });
-    }
-
-    if (await isStandaloneMagicposStore(storeId)) {
-      return res.status(400).json({ error: STANDALONE_BLOCK_MESSAGE });
-    }
-
-    let customer;
-
-    // Find or create customer
-    if (customerId) {
-      customer = await prisma.customer.findFirst({
-        where: { id: customerId, storeId },
-      });
-    } else if (phone) {
-      // Normalize phone to last 8 digits
-      const phoneLastDigits = phone.replace(/[^0-9]/g, '').slice(-8);
-
-      customer = await prisma.customer.findFirst({
-        where: { storeId, phoneLastDigits },
-      });
-
-      // Create new customer if not found
-      if (!customer) {
-        // 매장 정보 조회 (지역 정보)
-        const store = await prisma.store.findUnique({
-          where: { id: storeId },
-          select: { addressSido: true, addressSigungu: true },
-        });
-
-        customer = await prisma.customer.create({
-          data: {
-            storeId,
-            phoneLastDigits,
-            phone: `010-${phoneLastDigits.slice(0, 4)}-${phoneLastDigits.slice(4)}`,
-            totalPoints: 0,
-            visitCount: 0,
-            regionSido: sidoToShort(store?.addressSido ?? null),
-            regionSigungu: store?.addressSigungu || null,
-            consentMarketing: true,
-            consentAt: new Date(),
-          },
-        });
-      }
-    } else {
-      return res.status(400).json({ error: '전화번호 또는 고객 ID가 필요합니다.' });
-    }
-
-    if (!customer) {
-      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
-    }
-
-    // Update customer points and visit count
-    const newBalance = customer.totalPoints + points;
-
-    // 오늘 날짜의 시작/끝 계산
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    // 오늘 이미 방문(포인트 적립)한 적이 있는지 확인
-    const todayVisit = await prisma.pointLedger.findFirst({
-      where: {
-        customerId: customer.id,
-        storeId,
-        type: 'EARN',
-        createdAt: {
-          gte: todayStart,
-          lte: todayEnd,
-        },
-        // 지연 적립 전환분은 createdAt 이 결제완료 시각이라 방문 판정 근거가 될 수 없다.
-        // reason 은 nullable 이라 NOT startsWith 만 쓰면 NULL 행이 통째로 빠진다(NULL LIKE → NULL).
-        OR: [{ reason: null }, { reason: { not: { startsWith: DEFERRED_ACCRUAL_REASON_PREFIX } } }],
-      },
+    const { customer: updatedCustomer, newBalance } = await earnPoints({
+      phone,
+      customerId,
+      points,
+      orderId,
+      storeId,
+      staffUserId,
     });
-
-    // 방문 카운트용: 지연 적립은 EARN 원장을 만들지 않으므로 예약도 함께 봐야 이중 증가하지 않는다.
-    const isFirstVisitToday =
-      !todayVisit && !(await hasTodayPendingAccrual(storeId, customer.id));
-    // 알림톡 FIRST_ONLY 빈도용: "오늘 첫 적립" 기준이므로 EARN 원장만 본다.
-    // 알림톡 FIRST_ONLY 는 "오늘 이미 적립 알림톡이 나갔는가" 기준이라 지연 전환분도 포함해서 본다.
-    const isFirstEarnToday = !(await hasTodayEarnLedger(storeId, customer.id));
-
-    const [updatedCustomer, ledger] = await prisma.$transaction([
-      prisma.customer.update({
-        where: { id: customer.id },
-        data: {
-          totalPoints: newBalance,
-          // 오늘 첫 방문인 경우에만 visitCount 증가
-          ...(isFirstVisitToday && { visitCount: { increment: 1 } }),
-          lastVisitAt: new Date(),
-        },
-      }),
-      prisma.pointLedger.create({
-        data: {
-          storeId,
-          customerId: customer.id,
-          staffUserId,
-          delta: points,
-          balance: newBalance,
-          type: 'EARN',
-          reason: '방문 적립',
-          orderId,
-        },
-      }),
-    ]);
-    notifyYahwaPointsChange(updatedCustomer.id).catch(() => {});
-
-    // Create visit record if orderId provided
-    if (orderId) {
-      await prisma.visitOrOrder.upsert({
-        where: {
-          storeId_orderId: { storeId, orderId },
-        },
-        create: {
-          storeId,
-          customerId: customer.id,
-          orderId,
-          visitedAt: new Date(),
-        },
-        update: {},
-      });
-    }
-
-    // 메타씨티 포인트 동기화 (비동기)
-    {
-      const storeForMetacity = await prisma.store.findUnique({
-        where: { id: storeId },
-        select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
-      });
-      if (storeForMetacity?.metacityEnabled) {
-        syncToMetacity({
-          store: storeForMetacity,
-          customer: updatedCustomer,
-          operationType: 'POINT_SAVE',
-          orderNo: ledger.id,
-          purAmt: 0,
-          savePoint: points,
-        }).catch(err => console.error('[Metacity] POINT_SAVE sync failed:', err.message));
-      }
-    }
-
-    // 알림톡 발송 (비동기 - 실패해도 응답에 영향 없음)
-    if (updatedCustomer.phone) {
-      const store = await prisma.store.findUnique({
-        where: { id: storeId },
-        select: { name: true, pointsAlimtalkFrequency: true },
-      });
-
-      const phoneNumber = updatedCustomer.phone.replace(/[^0-9]/g, '');
-
-      // 발송 빈도 확인: EVERY_ORDER(매 주문) 또는 FIRST_ONLY(오늘 첫 주문만)
-      const frequency = store?.pointsAlimtalkFrequency || 'EVERY_ORDER';
-      const shouldSendAlimtalk = frequency === 'EVERY_ORDER' || (frequency === 'FIRST_ONLY' && isFirstEarnToday);
-
-      // 1. 포인트 적립 알림톡
-      if (shouldSendAlimtalk) {
-        enqueuePointsEarnedAlimTalk({
-          storeId,
-          customerId: customer.id,
-          pointLedgerId: ledger.id,
-          phone: phoneNumber,
-          variables: {
-            storeName: store?.name || '매장',
-            points,
-            totalPoints: newBalance,
-          },
-        }).catch((err) => {
-          console.error('[Points] AlimTalk enqueue failed:', err);
-        });
-      }
-
-      // 2. 네이버 리뷰 요청 알림톡 (자동 발송 설정이 활성화된 경우)
-      // 포인트 적립 알림톡 이후에 발송되도록 5초 지연
-      const reviewSetting = await prisma.reviewAutomationSetting.findUnique({
-        where: { storeId },
-      });
-
-      console.log('[Points] Review setting:', {
-        enabled: reviewSetting?.enabled,
-        naverReviewUrl: reviewSetting?.naverReviewUrl,
-        benefitText: reviewSetting?.benefitText,
-      });
-
-      if (reviewSetting?.enabled && reviewSetting?.naverReviewUrl) {
-        console.log('[Points] Sending Naver review alimtalk with 5s delay...');
-        const delayedScheduleAt = new Date(Date.now() + 5000); // 5초 후 발송
-        enqueueNaverReviewAlimTalk({
-          storeId,
-          customerId: customer.id,
-          phone: phoneNumber,
-          variables: {
-            storeName: store?.name || '매장',
-            benefitText: reviewSetting.benefitText || '',
-          },
-          scheduledAt: delayedScheduleAt,
-        }).catch((err) => {
-          console.error('[Points] Review AlimTalk enqueue failed:', err);
-        });
-      } else {
-        console.log('[Points] Skipping Naver review alimtalk - not enabled or no URL');
-      }
-    }
 
     res.json({
       success: true,
@@ -254,6 +51,9 @@ router.post('/earn', authMiddleware, async (req: AuthRequest, res) => {
       newBalance,
     });
   } catch (error) {
+    if (error instanceof PointsError) {
+      return res.status(error.status).json({ error: error.message });
+    }
     console.error('Points earn error:', error);
     res.status(500).json({ error: '포인트 적립 중 오류가 발생했습니다.' });
   }
@@ -266,93 +66,13 @@ router.post('/use', authMiddleware, async (req: AuthRequest, res) => {
     const storeId = req.user!.storeId;
     const staffUserId = req.user!.id;
 
-    if (!customerId) {
-      return res.status(400).json({ error: '고객 ID가 필요합니다.' });
-    }
-
-    if (!points || points <= 0) {
-      return res.status(400).json({ error: '사용할 포인트를 입력해주세요.' });
-    }
-
-    if (await isStandaloneMagicposStore(storeId)) {
-      return res.status(400).json({ error: STANDALONE_BLOCK_MESSAGE });
-    }
-
-    const customer = await prisma.customer.findFirst({
-      where: { id: customerId, storeId },
+    const { customer: updatedCustomer, newBalance } = await usePoints({
+      customerId,
+      points,
+      reason,
+      storeId,
+      staffUserId,
     });
-
-    if (!customer) {
-      return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
-    }
-
-    if (customer.totalPoints < points) {
-      return res.status(400).json({ error: '보유 포인트가 부족합니다.' });
-    }
-
-    const newBalance = customer.totalPoints - points;
-
-    const [updatedCustomer, ledger] = await prisma.$transaction([
-      prisma.customer.update({
-        where: { id: customer.id },
-        data: {
-          totalPoints: newBalance,
-        },
-      }),
-      prisma.pointLedger.create({
-        data: {
-          storeId,
-          customerId: customer.id,
-          staffUserId,
-          delta: -points,
-          balance: newBalance,
-          type: 'USE',
-          reason: reason || '포인트 사용',
-        },
-      }),
-    ]);
-    notifyYahwaPointsChange(updatedCustomer.id).catch(() => {});
-
-    // 메타씨티 포인트 사용 동기화 (비동기)
-    {
-      const storeForMetacity = await prisma.store.findUnique({
-        where: { id: storeId },
-        select: { id: true, metacityEnabled: true, metacityStoreIdx: true },
-      });
-      if (storeForMetacity?.metacityEnabled) {
-        syncToMetacity({
-          store: storeForMetacity,
-          customer: updatedCustomer,
-          operationType: 'POINT_USE',
-          orderNo: ledger.id,
-          usedPoint: points,
-        }).catch(err => console.error('[Metacity] POINT_USE sync failed:', err.message));
-      }
-    }
-
-    // 포인트 사용 알림톡 발송 (비동기 - 실패해도 응답에 영향 없음)
-    if (updatedCustomer.phone) {
-      const store = await prisma.store.findUnique({
-        where: { id: storeId },
-        select: { name: true },
-      });
-
-      const phoneNumber = updatedCustomer.phone.replace(/[^0-9]/g, '');
-
-      enqueuePointsUsedAlimTalk({
-        storeId,
-        customerId: customer.id,
-        pointLedgerId: ledger.id,
-        phone: phoneNumber,
-        variables: {
-          storeName: store?.name || '매장',
-          usedPoints: points,
-          remainingPoints: newBalance,
-        },
-      }).catch((err) => {
-        console.error('[Points] Points used AlimTalk enqueue failed:', err);
-      });
-    }
 
     res.json({
       success: true,
@@ -365,6 +85,9 @@ router.post('/use', authMiddleware, async (req: AuthRequest, res) => {
       newBalance,
     });
   } catch (error) {
+    if (error instanceof PointsError) {
+      return res.status(error.status).json({ error: error.message });
+    }
     console.error('Points use error:', error);
     res.status(500).json({ error: '포인트 사용 중 오류가 발생했습니다.' });
   }

@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma.js';
 import { maskName, maskPhone } from '../utils/masking.js';
 import { buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET /api/my-page?kakaoId=xxx
 router.get('/', async (req, res) => {

@@ -55,7 +55,6 @@ export default function AdminAutomationPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
 
-  const apiUrl = API_BASE;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,9 +64,9 @@ export default function AdminAutomationPage() {
 
       try {
         const [statsRes, storesRes, trendRes] = await Promise.all([
-          fetch(`${apiUrl}/api/admin/automation-stats`, { headers }),
-          fetch(`${apiUrl}/api/admin/automation-stores`, { headers }),
-          fetch(`${apiUrl}/api/admin/automation-trend?days=${trendDays}`, { headers }),
+          fetch(`${API_BASE}/api/admin/automation-stats`, { headers }),
+          fetch(`${API_BASE}/api/admin/automation-stores`, { headers }),
+          fetch(`${API_BASE}/api/admin/automation-trend?days=${trendDays}`, { headers }),
         ]);
 
         if (statsRes.ok) setStats(await statsRes.json());
@@ -87,7 +86,7 @@ export default function AdminAutomationPage() {
     };
 
     fetchData();
-  }, [apiUrl, trendDays]);
+  }, [trendDays]);
 
   if (isLoading) {
     return (

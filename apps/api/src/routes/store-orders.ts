@@ -6,6 +6,7 @@
  * - GET /api/store-orders - 내 주문 내역 조회
  */
 
+import { env } from '../config/env.js';
 import { Router, Response } from 'express';
 import { AuthRequest, authMiddleware } from '../middleware/auth.js';
 import { prisma } from '../lib/prisma.js';
@@ -33,8 +34,8 @@ async function sendOrderNotificationSms(
   totalAmount: number,
   paidAt: Date
 ): Promise<void> {
-  const SOLAPI_API_KEY = process.env.SOLAPI_API_KEY;
-  const SOLAPI_API_SECRET = process.env.SOLAPI_API_SECRET;
+  const SOLAPI_API_KEY = env.SOLAPI_API_KEY;
+  const SOLAPI_API_SECRET = env.SOLAPI_API_SECRET;
   const ADMIN_PHONE = '01027636023';
 
   if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
@@ -220,7 +221,7 @@ router.post('/confirm', async (req: AuthRequest, res: Response) => {
     }
 
     // TossPayments 결제 확인
-    const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY;
+    const TOSS_SECRET_KEY = env.TOSS_SECRET_KEY;
     if (!TOSS_SECRET_KEY) {
       return res.status(500).json({
         success: false,

@@ -1,64 +1,33 @@
+import { env } from '../config/env.js';
 import { Router } from 'express';
 import { SolapiMessageService } from 'solapi';
-import multer from 'multer';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
 import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
 import { SolapiService, buildPhoneResultMap } from '../services/solapi.js';
+import { getSolapiService } from '../services/solapi-instance.js';
 import { maskName, maskPhone } from '../utils/masking.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 import { getByteLength } from '../utils/byte-length.js';
 import { getAgeGroupBirthYearRange } from '../lib/customer-filters.js';
+import {
+  mmsImageUpload as upload,
+  franchiseMmsUploadDir as uploadDir,
+  MMS_IMAGE_MAX_SIZE as IMAGE_MAX_SIZE,
+  MMS_IMAGE_MAX_WIDTH as IMAGE_MAX_WIDTH,
+  MMS_IMAGE_MAX_HEIGHT as IMAGE_MAX_HEIGHT,
+} from './message-uploads.js';
 
 const router = Router();
 
 // SOLAPI 서비스 인스턴스
-let solapiServiceInstance: SolapiService | null = null;
-function getSolapiService(): SolapiService | null {
-  if (solapiServiceInstance) return solapiServiceInstance;
-  const apiKey = process.env.SOLAPI_API_KEY;
-  const apiSecret = process.env.SOLAPI_API_SECRET;
-  if (!apiKey || !apiSecret) return null;
-  solapiServiceInstance = new SolapiService(apiKey, apiSecret);
-  return solapiServiceInstance;
-}
 
 // SMS 비용 (건당)
 const SMS_COST_SHORT = 50;  // 단문 (90byte 이하)
 const SMS_COST_LONG = 50;   // 장문 (90byte 초과)
 const MMS_COST = 120;       // 이미지 첨부 시
-
-// 이미지 제약 조건
-const IMAGE_MAX_SIZE = 200 * 1024; // 200KB
-const IMAGE_MAX_WIDTH = 1500;
-const IMAGE_MAX_HEIGHT = 1440;
-
-// 업로드 디렉토리
-const uploadDir = path.join(process.cwd(), 'uploads', 'franchise-mms');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Multer 설정
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage,
-  limits: { fileSize: IMAGE_MAX_SIZE },
-  fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (ext !== '.jpg' && ext !== '.jpeg') {
-      cb(new Error('JPG 파일만 업로드 가능합니다.'));
-      return;
-    }
-    if (!file.mimetype.startsWith('image/jpeg')) {
-      cb(new Error('JPG 이미지 파일만 업로드 가능합니다.'));
-      return;
-    }
-    cb(null, true);
-  },
-});
 
 // 필터 조건 생성
 // 주의: 프랜차이즈 프론트는 'ALL'(대문자) 센티넬을 사용하므로 매장용 buildFilterConditions와
@@ -451,8 +420,8 @@ router.post('/upload-image', franchiseAuthMiddleware, upload.single('image'), as
     await fs.promises.writeFile(filepath, req.file.buffer);
 
     // SOLAPI에 이미지 업로드하여 imageId 획득
-    const apiKey = process.env.SOLAPI_API_KEY;
-    const apiSecret = process.env.SOLAPI_API_SECRET;
+    const apiKey = env.SOLAPI_API_KEY;
+    const apiSecret = env.SOLAPI_API_SECRET;
 
     if (!apiKey || !apiSecret) {
       // 로컬 파일 삭제
@@ -536,8 +505,8 @@ router.post('/test-send', franchiseAuthMiddleware, async (req: FranchiseAuthRequ
     }
 
     // SOLAPI 설정 확인
-    const apiKey = process.env.SOLAPI_API_KEY;
-    const apiSecret = process.env.SOLAPI_API_SECRET;
+    const apiKey = env.SOLAPI_API_KEY;
+    const apiSecret = env.SOLAPI_API_SECRET;
 
     if (!apiKey || !apiSecret) {
       return res.status(400).json({ error: 'SMS 발송 설정이 되어있지 않습니다.' });
@@ -762,8 +731,8 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       // 5. SOLAPI 벌크 발송 (비동기)
       setImmediate(async () => {
         try {
-          const apiKey = process.env.SOLAPI_API_KEY;
-          const apiSecret = process.env.SOLAPI_API_SECRET;
+          const apiKey = env.SOLAPI_API_KEY;
+          const apiSecret = env.SOLAPI_API_SECRET;
 
           if (!apiKey || !apiSecret) {
             console.error('SOLAPI service not configured');

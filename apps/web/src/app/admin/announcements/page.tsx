@@ -44,7 +44,6 @@ export default function AnnouncementsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const apiUrl = API_BASE;
 
   useEffect(() => {
     fetchAnnouncements();
@@ -62,7 +61,7 @@ export default function AnnouncementsPage() {
     if (!token) return;
 
     try {
-      const res = await fetch(`${apiUrl}/api/admin/announcements`, {
+      const res = await fetch(`${API_BASE}/api/admin/announcements`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -110,8 +109,8 @@ export default function AnnouncementsPage() {
 
     try {
       const url = editingId
-        ? `${apiUrl}/api/admin/announcements/${editingId}`
-        : `${apiUrl}/api/admin/announcements`;
+        ? `${API_BASE}/api/admin/announcements/${editingId}`
+        : `${API_BASE}/api/admin/announcements`;
 
       const res = await fetch(url, {
         method: editingId ? 'PUT' : 'POST',
@@ -156,7 +155,7 @@ export default function AnnouncementsPage() {
     setDeletingId(id);
 
     try {
-      const res = await fetch(`${apiUrl}/api/admin/announcements/${id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/announcements/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -180,7 +179,7 @@ export default function AnnouncementsPage() {
     if (!token) return;
 
     try {
-      const res = await fetch(`${apiUrl}/api/admin/announcements/${announcement.id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/announcements/${announcement.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
