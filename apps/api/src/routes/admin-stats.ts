@@ -110,9 +110,15 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
       status: 'SUCCESS' as const,
       meta: { path: ['source'], equals: 'tosspayments' },
     };
-    const tossFranchiseTopupWhere = {
+    // 프랜차이즈 충전 매출: 카드결제 + 관리자 수동충전(실입금분)
+    // DEDUCT(가맹점 이체)는 매출이 아니므로 제외
+    const franchiseTossTopupWhere = {
       type: 'TOPUP' as const,
       meta: { path: ['source'], equals: 'tosspayments' },
+    };
+    const franchiseAdminTopupWhere = {
+      type: 'TOPUP' as const,
+      meta: { path: ['source'], equals: 'admin' },
     };
 
     // 전체 row를 가져오지 않고 DB에서 합산
@@ -123,6 +129,8 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
       storeRefundMonthAgg,
       franchiseAgg,
       franchiseMonthAgg,
+      franchiseAdminAgg,
+      franchiseAdminMonthAgg,
       externalAgg,
       externalMonthAgg,
     ] = await Promise.all([
@@ -130,24 +138,26 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
       prisma.paymentTransaction.aggregate({ where: { ...tossStoreTopupWhere, createdAt: { gte: startOfMonth } }, _sum: { amount: true } }),
       prisma.paymentTransaction.aggregate({ where: tossStoreRefundWhere, _sum: { amount: true } }),
       prisma.paymentTransaction.aggregate({ where: { ...tossStoreRefundWhere, createdAt: { gte: startOfMonth } }, _sum: { amount: true } }),
-      prisma.franchiseTransaction.aggregate({ where: tossFranchiseTopupWhere, _sum: { amount: true }, _count: true }),
-      prisma.franchiseTransaction.aggregate({ where: { ...tossFranchiseTopupWhere, createdAt: { gte: startOfMonth } }, _sum: { amount: true } }),
+      prisma.franchiseTransaction.aggregate({ where: franchiseTossTopupWhere, _sum: { amount: true }, _count: true }),
+      prisma.franchiseTransaction.aggregate({ where: { ...franchiseTossTopupWhere, createdAt: { gte: startOfMonth } }, _sum: { amount: true } }),
+      prisma.franchiseTransaction.aggregate({ where: franchiseAdminTopupWhere, _sum: { amount: true }, _count: true }),
+      prisma.franchiseTransaction.aggregate({ where: { ...franchiseAdminTopupWhere, createdAt: { gte: startOfMonth } }, _sum: { amount: true } }),
       prisma.externalRevenue.aggregate({ _sum: { amount: true } }),
       prisma.externalRevenue.aggregate({ where: { revenueDate: { gte: startOfMonth } }, _sum: { amount: true } }),
     ]);
 
     // Store 매출 합산 (TOPUP - REFUND)
     const storeTotal = (storeTopupAgg._sum.amount || 0) - (storeRefundAgg._sum.amount || 0);
-    const franchiseTotal = franchiseAgg._sum.amount || 0;
+    const franchiseTotal = (franchiseAgg._sum.amount || 0) + (franchiseAdminAgg._sum.amount || 0);
     const totalRealPayments = storeTotal + franchiseTotal;
 
     // 이번 달 매출
     const monthlyStorePayments = (storeTopupMonthAgg._sum.amount || 0) - (storeRefundMonthAgg._sum.amount || 0);
-    const monthlyFranchisePayments = franchiseMonthAgg._sum.amount || 0;
+    const monthlyFranchisePayments = (franchiseMonthAgg._sum.amount || 0) + (franchiseAdminMonthAgg._sum.amount || 0);
     const monthlyRealPayments = monthlyStorePayments + monthlyFranchisePayments;
 
     // 총 결제 건수 (토스페이먼츠만)
-    const totalTransactions = storeTopupAgg._count + franchiseAgg._count;
+    const totalTransactions = storeTopupAgg._count + franchiseAgg._count + franchiseAdminAgg._count;
 
     // 외부 매출 (계좌이체 등)
     const totalExternalRevenue = externalAgg._sum.amount || 0;
@@ -160,6 +170,15 @@ router.get('/payment-stats', adminAuthMiddleware, async (req: AdminRequest, res:
       // 분리된 값도 제공
       tossPayments: totalRealPayments,
       externalRevenue: totalExternalRevenue,
+      // 매출 구성 내역 (admin 홈 카드에서 분리 표시)
+      breakdown: {
+        store: storeTotal,
+        franchise: franchiseTotal,
+        external: totalExternalRevenue,
+        monthlyStore: monthlyStorePayments,
+        monthlyFranchise: monthlyFranchisePayments,
+        monthlyExternal: monthlyExternalRevenue,
+      },
     });
   } catch (error) {
     console.error('Admin payment stats error:', error);

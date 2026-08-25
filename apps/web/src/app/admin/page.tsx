@@ -16,6 +16,14 @@ interface PaymentStats {
   totalRealPayments: number;
   monthlyRealPayments: number;
   totalTransactions: number;
+  breakdown?: {
+    store: number;
+    franchise: number;
+    external: number;
+    monthlyStore: number;
+    monthlyFranchise: number;
+    monthlyExternal: number;
+  };
 }
 
 interface PointStats {
@@ -408,7 +416,7 @@ export default function AdminHomePage() {
             <div className="flex items-center justify-between mb-4">
               <p className="text-[14px] text-neutral-500">누적 CRM 매출액</p>
               <div className="flex items-center gap-2">
-                <span className="text-[12px] text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded">Toss + 외부</span>
+                <span className="text-[12px] text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded">매장 + 프랜차이즈 + 외부</span>
                 <button
                   onClick={() => setShowRevenueModal(true)}
                   className="w-6 h-6 flex items-center justify-center rounded-full bg-[#FCD535] hover:bg-[#e5c130] text-neutral-900 transition-colors"
@@ -422,6 +430,22 @@ export default function AdminHomePage() {
               {formatNumber(paymentStats?.totalRealPayments || 0)}
               <span className="text-[16px] font-normal text-neutral-500 ml-1">원</span>
             </p>
+            {paymentStats?.breakdown && (
+              <div className="mt-3 pt-3 border-t border-neutral-100 space-y-1">
+                <div className="flex justify-between text-[13px]">
+                  <span className="text-neutral-500">매장 충전</span>
+                  <span className="text-neutral-700 tabular-nums">{formatNumber(paymentStats.breakdown.store)}원</span>
+                </div>
+                <div className="flex justify-between text-[13px]">
+                  <span className="text-neutral-500">프랜차이즈 충전</span>
+                  <span className="text-neutral-700 tabular-nums">{formatNumber(paymentStats.breakdown.franchise)}원</span>
+                </div>
+                <div className="flex justify-between text-[13px]">
+                  <span className="text-neutral-500">외부 매출</span>
+                  <span className="text-neutral-700 tabular-nums">{formatNumber(paymentStats.breakdown.external)}원</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Monthly Payments */}
@@ -433,6 +457,22 @@ export default function AdminHomePage() {
               {formatNumber(paymentStats?.monthlyRealPayments || 0)}
               <span className="text-[16px] font-normal text-neutral-500 ml-1">원</span>
             </p>
+            {paymentStats?.breakdown && (
+              <div className="mt-3 pt-3 border-t border-neutral-100 space-y-1">
+                <div className="flex justify-between text-[13px]">
+                  <span className="text-neutral-500">매장 충전</span>
+                  <span className="text-neutral-700 tabular-nums">{formatNumber(paymentStats.breakdown.monthlyStore)}원</span>
+                </div>
+                <div className="flex justify-between text-[13px]">
+                  <span className="text-neutral-500">프랜차이즈 충전</span>
+                  <span className="text-neutral-700 tabular-nums">{formatNumber(paymentStats.breakdown.monthlyFranchise)}원</span>
+                </div>
+                <div className="flex justify-between text-[13px]">
+                  <span className="text-neutral-500">외부 매출</span>
+                  <span className="text-neutral-700 tabular-nums">{formatNumber(paymentStats.breakdown.monthlyExternal)}원</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Total Earned Points */}
