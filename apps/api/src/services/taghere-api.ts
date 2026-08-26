@@ -415,3 +415,136 @@ export async function discoverMetacityStoreIdxFromV2(crmStoreSlug: string): Prom
     storeName: data.storeName ? String(data.storeName) : null,
   };
 }
+
+export interface OrderLanguageBreakdown {
+  totalOrders: number;
+  identifiedOrders: number;
+  unknownCount: number;
+  languages: { language: string; count: number; percentage: number }[];
+}
+
+export interface OrderLanguageStatsResult {
+  stores: { crmStoreSlug: string; storeId: string; storeName: string; breakdown: OrderLanguageBreakdown }[];
+  total: OrderLanguageBreakdown;
+  unmatchedCrmStoreSlugs: string[];
+}
+
+const ORDER_LANGUAGE_STATS_TIMEOUT_MS = 5000;
+// V2 요청 DTO 의 slug 상한과 맞춘다. 초과분은 나눠 호출 후 합산한다
+const ORDER_LANGUAGE_STATS_MAX_SLUGS = 200;
+
+// 여러 번 나눠 호출한 집계를 하나로 합친다 (비율은 합산 후 다시 계산)
+function mergeOrderLanguageBreakdowns(breakdowns: OrderLanguageBreakdown[]): OrderLanguageBreakdown {
+  const merged: OrderLanguageBreakdown = {
+    totalOrders: 0,
+    identifiedOrders: 0,
+    unknownCount: 0,
+    languages: [],
+  };
+  const countByLanguage = new Map<string, number>();
+
+  for (const breakdown of breakdowns) {
+    merged.totalOrders += breakdown.totalOrders;
+    merged.identifiedOrders += breakdown.identifiedOrders;
+    merged.unknownCount += breakdown.unknownCount;
+    for (const item of breakdown.languages) {
+      countByLanguage.set(item.language, (countByLanguage.get(item.language) ?? 0) + item.count);
+    }
+  }
+
+  merged.languages = [...countByLanguage.entries()]
+    .map(([language, count]) => ({
+      language,
+      count,
+      percentage:
+        merged.identifiedOrders > 0 ? Math.round((count / merged.identifiedOrders) * 1000) / 10 : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  return merged;
+}
+
+async function requestOrderLanguageStats(body: {
+  crmStoreSlugs: string[];
+  from?: string;
+  to?: string;
+}): Promise<OrderLanguageStatsResult | null> {
+  try {
+    const response = await fetch(`${V2_API_URL}/api/v2/internal/crm/order-language-stats`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${V2_API_TOKEN}`,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(ORDER_LANGUAGE_STATS_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      console.error('[TagHere V2] order language stats failed:', response.status, text);
+      return null;
+    }
+
+    const json: any = await response.json().catch(() => ({}));
+    const data = json?.result ?? json;
+    // 이후 병합에서 flatMap/순회를 하므로 형태를 여기서 확정해 둔다
+    if (
+      !data?.total ||
+      !Array.isArray(data.total.languages) ||
+      !Array.isArray(data.stores) ||
+      !Array.isArray(data.unmatchedCrmStoreSlugs)
+    ) {
+      console.error('[TagHere V2] order language stats: 예상과 다른 응답 형태');
+      return null;
+    }
+    return data as OrderLanguageStatsResult;
+  } catch (error) {
+    console.error('[TagHere V2] order language stats error:', error);
+    return null;
+  }
+}
+
+/**
+ * V2에서 주문 언어별 집계를 가져온다 (외국인 주문 비율).
+ * 인사이트 화면이 V2 장애에 묶이지 않도록 throw 하지 않고, 실패는 전부 null 로 반환한다.
+ * 가맹점이 많은 프랜차이즈는 V2 slug 상한에 맞춰 나눠 호출한 뒤 합산한다.
+ */
+export async function fetchOrderLanguageStatsFromV2(params: {
+  crmStoreSlugs: string[];
+  from?: string;
+  to?: string;
+}): Promise<OrderLanguageStatsResult | null> {
+  if (!V2_API_URL || !V2_API_TOKEN) return null;
+  if (params.crmStoreSlugs.length === 0) return null;
+
+  const chunks: string[][] = [];
+  for (let i = 0; i < params.crmStoreSlugs.length; i += ORDER_LANGUAGE_STATS_MAX_SLUGS) {
+    chunks.push(params.crmStoreSlugs.slice(i, i + ORDER_LANGUAGE_STATS_MAX_SLUGS));
+  }
+
+  // 상한 이내면 V2 응답을 그대로 쓴다 (재계산으로 비율이 0.1%p 어긋나지 않도록)
+  if (chunks.length === 1) {
+    return requestOrderLanguageStats({
+      crmStoreSlugs: chunks[0],
+      from: params.from,
+      to: params.to,
+    });
+  }
+
+  const results = await Promise.all(
+    chunks.map((crmStoreSlugs) =>
+      requestOrderLanguageStats({ crmStoreSlugs, from: params.from, to: params.to })
+    )
+  );
+
+  // 한 조각이라도 실패하면 부분 집계를 지표로 내보내지 않는다
+  if (results.some((result) => result === null)) return null;
+  const succeeded = results as OrderLanguageStatsResult[];
+
+  return {
+    stores: succeeded.flatMap((result) => result.stores),
+    total: mergeOrderLanguageBreakdowns(succeeded.map((result) => result.total)),
+    unmatchedCrmStoreSlugs: succeeded.flatMap((result) => result.unmatchedCrmStoreSlugs),
+  };
+}

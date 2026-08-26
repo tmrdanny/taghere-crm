@@ -3,7 +3,7 @@
 import { API_BASE } from '@/lib/api-config';
 import { getStoreToken } from '@/lib/auth-token';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Users, RefreshCw, TrendingUp, MapPin, Calendar, Gift } from 'lucide-react';
+import { Users, RefreshCw, TrendingUp, MapPin, Calendar, Gift, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 
@@ -13,6 +13,28 @@ interface GenderDistribution {
   unknown: number;
   total: number;
 }
+
+interface OrderLanguageStats {
+  supported: boolean;
+  available: boolean;
+  /** 태그히어 쪽에 이 매장이 연결돼 있는지. false 면 집계가 아니라 연동 설정 문제다 */
+  linked?: boolean;
+  breakdown: {
+    totalOrders: number;
+    identifiedOrders: number;
+    unknownCount: number;
+    languages: { language: string; count: number; percentage: number }[];
+  } | null;
+}
+
+const ORDER_LANGUAGE_LABELS: Record<string, string> = {
+  ko: '한국어',
+  en: '영어',
+  zh: '중국어',
+  ja: '일본어',
+  vi: '베트남어',
+  mn: '몽골어',
+};
 
 interface AgeDistribution {
   ageGroup: string;
@@ -59,6 +81,11 @@ export default function CustomerInsightsPage() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const datePickerRef = useRef<HTMLDivElement>(null);
 
+  // 주문 언어 분포 (태그히어 V2에서 조회 — 메인 통계와 독립적으로 로드)
+  const [orderLanguages, setOrderLanguages] = useState<OrderLanguageStats | null>(null);
+  const [isLanguageLoading, setIsLanguageLoading] = useState(true);
+  const [languageRefreshKey, setLanguageRefreshKey] = useState(0);
+
   // 외부 클릭 감지
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -100,6 +127,43 @@ export default function CustomerInsightsPage() {
       setIsLoading(false);
     }
   }, [startDate, endDate]);
+
+  // 주문 언어 분포 조회 (V2 장애 시에도 나머지 통계는 그대로 보이도록 분리)
+  useEffect(() => {
+    let ignore = false;
+    const fetchOrderLanguages = async () => {
+      setIsLanguageLoading(true);
+      try {
+        const token = getStoreToken();
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+
+        const res = await fetch(`${API_BASE}/api/insights/order-languages?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (ignore) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (ignore) return;
+          setOrderLanguages(data);
+        } else {
+          setOrderLanguages(null);
+        }
+      } catch (err) {
+        if (!ignore) {
+          console.error('Failed to fetch order languages:', err);
+          setOrderLanguages(null);
+        }
+      } finally {
+        if (!ignore) setIsLanguageLoading(false);
+      }
+    };
+    fetchOrderLanguages();
+    return () => {
+      ignore = true;
+    };
+  }, [startDate, endDate, languageRefreshKey]);
 
   useEffect(() => {
     fetchInsights();
@@ -320,6 +384,99 @@ export default function CustomerInsightsPage() {
     );
   };
 
+  // 주문 언어 분포 (언어가 기록된 주문만 분모로 사용)
+  const renderOrderLanguagePie = () => {
+    if (isLanguageLoading) {
+      return <div className="h-32 bg-neutral-100 rounded animate-pulse" />;
+    }
+    // 조회 실패 / 매장 미지원 / 연동 누락 / 실제 0건을 각각 다르게 안내한다
+    // 미지원 매장은 available 도 false 로 내려오므로 supported 를 먼저 본다
+    if (!orderLanguages) {
+      return <p className="text-sm text-neutral-500">일시적으로 데이터를 불러오지 못했습니다.</p>;
+    }
+    if (!orderLanguages.supported) {
+      return <p className="text-sm text-neutral-500">태그히어 신형 메뉴판 연동 매장에서만 제공됩니다.</p>;
+    }
+    if (!orderLanguages.available) {
+      return <p className="text-sm text-neutral-500">일시적으로 데이터를 불러오지 못했습니다.</p>;
+    }
+    if (orderLanguages.linked === false) {
+      return (
+        <p className="text-sm text-neutral-500">
+          태그히어와 매장 연결이 확인되지 않아 집계할 수 없습니다. 고객센터로 문의해 주세요.
+        </p>
+      );
+    }
+
+    const breakdown = orderLanguages.breakdown;
+    if (!breakdown || breakdown.identifiedOrders === 0) {
+      return <p className="text-sm text-neutral-500">아직 집계된 주문 언어가 없습니다.</p>;
+    }
+
+    const colors = [
+      '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6',
+    ];
+
+    let cumulative = 0;
+    const gradientParts = breakdown.languages.map((item, idx) => {
+      const start = cumulative;
+      cumulative += item.percentage;
+      return `${colors[idx % colors.length]} ${start}% ${cumulative}%`;
+    });
+    // 반올림으로 합이 100에 못 미치면 마지막 언어가 나머지를 흡수하지 않도록 채운다
+    if (cumulative < 100) {
+      gradientParts.push(`#e2e8f0 ${cumulative}% 100%`);
+    }
+
+    const foreignCount = breakdown.languages
+      .filter((item) => item.language !== 'ko')
+      .reduce((sum, item) => sum + item.count, 0);
+    const foreignPercentage = Math.round((foreignCount / breakdown.identifiedOrders) * 100);
+
+    return (
+      <div>
+        <div className="mb-5">
+          <p className="text-2xl font-semibold text-neutral-900">외국어 주문 {foreignPercentage}%</p>
+          <p className="text-sm text-neutral-500">
+            {breakdown.identifiedOrders.toLocaleString()}건 중 {foreignCount.toLocaleString()}건
+          </p>
+        </div>
+        <div className="flex items-center gap-8">
+          <div
+            className="relative w-32 h-32 rounded-full"
+            style={{
+              background: `conic-gradient(${gradientParts.join(', ')})`,
+            }}
+          >
+            <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center">
+              <span className="text-xs font-medium text-neutral-600 text-center">주문<br />언어</span>
+            </div>
+          </div>
+          <div className="space-y-1.5 max-h-32 overflow-y-auto">
+            {breakdown.languages.map((item, idx) => (
+              <div key={item.language} className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: colors[idx % colors.length] }}
+                />
+                <span className="text-sm text-neutral-600">
+                  {ORDER_LANGUAGE_LABELS[item.language] || item.language}
+                </span>
+                <span className="text-sm text-neutral-900">{item.count.toLocaleString()}건</span>
+                <span className="text-xs text-neutral-400">({item.percentage}%)</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {breakdown.unknownCount > 0 && (
+          <p className="mt-4 text-xs text-neutral-400">
+            언어 미기록 {breakdown.unknownCount.toLocaleString()}건 제외
+          </p>
+        )}
+      </div>
+    );
+  };
+
   // 방문경로 막대차트 (미설정 제외)
   const renderVisitSourceBarChart = () => {
     if (!insights) return <p className="text-sm text-neutral-500">데이터가 없습니다.</p>;
@@ -391,6 +548,7 @@ export default function CustomerInsightsPage() {
                     <input
                       type="date"
                       value={tempStartDate}
+                      max={tempEndDate || undefined}
                       onChange={(e) => setTempStartDate(e.target.value)}
                       className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                     />
@@ -400,6 +558,7 @@ export default function CustomerInsightsPage() {
                     <input
                       type="date"
                       value={tempEndDate}
+                      min={tempStartDate || undefined}
                       onChange={(e) => setTempEndDate(e.target.value)}
                       className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                     />
@@ -425,7 +584,10 @@ export default function CustomerInsightsPage() {
 
           {/* 새로고침 버튼 */}
           <button
-            onClick={fetchInsights}
+            onClick={() => {
+              fetchInsights();
+              setLanguageRefreshKey((key) => key + 1);
+            }}
             disabled={isLoading}
             className={cn(
               'p-2 rounded-lg border transition-colors',
@@ -469,6 +631,15 @@ export default function CustomerInsightsPage() {
               </div>
               {renderVisitSourceBarChart()}
             </div>
+          </div>
+
+          {/* 주문 언어 분포 */}
+          <div className="bg-white rounded-xl border border-neutral-200 p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <Globe className="w-5 h-5 text-neutral-400" />
+              <h3 className="font-semibold text-neutral-900">주문 언어 분포</h3>
+            </div>
+            {renderOrderLanguagePie()}
           </div>
 
           {/* 재방문율 + 스탬프 보상 카드 */}

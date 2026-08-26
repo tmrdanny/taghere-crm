@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { computeAnalytics } from '../services/analytics.js';
+import { fetchOrderLanguageStatsFromV2 } from '../services/taghere-api.js';
 
 const router = Router();
 
@@ -268,6 +269,49 @@ router.get('/customers', async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Customer insights error:', error);
     res.status(500).json({ error: '고객 통계 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/insights/order-languages - 주문 언어별 집계 (태그히어 V2에서 조회)
+// V2 장애가 고객 통계 페이지 전체를 막지 않도록, 실패해도 200 + available:false 로 응답한다
+router.get('/order-languages', async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { slug: true, taghereVersion: true },
+    });
+
+    // V1 매장과 슬러그 미설정 매장은 주문 언어 데이터가 존재하지 않는다
+    if (!store?.slug || store.taghereVersion !== 'v2') {
+      return res.json({ supported: false, available: false, breakdown: null });
+    }
+
+    const stats = await fetchOrderLanguageStatsFromV2({
+      crmStoreSlugs: [store.slug],
+      from: typeof req.query.startDate === 'string' ? req.query.startDate : undefined,
+      to: typeof req.query.endDate === 'string' ? req.query.endDate : undefined,
+    });
+
+    if (!stats) {
+      return res.json({ supported: true, available: false, breakdown: null });
+    }
+
+    // 태그히어 쪽에 slug 가 연결돼 있지 않으면 집계가 0건으로 내려와 실제 0건과 구분되지 않는다
+    if (stats.stores.length === 0) {
+      console.warn('[Order languages] 태그히어에 연결되지 않은 slug:', storeId, stats.unmatchedCrmStoreSlugs);
+      return res.json({ supported: true, available: true, linked: false, breakdown: null });
+    }
+
+    res.json({
+      supported: true,
+      available: true,
+      linked: true,
+      breakdown: stats.stores[0].breakdown,
+    });
+  } catch (error) {
+    console.error('Order language insights error:', error);
+    res.json({ supported: true, available: false, breakdown: null });
   }
 });
 

@@ -21,6 +21,7 @@ import {
   Send,
   Building2,
   Check,
+  Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -87,6 +88,31 @@ interface MonthlyTrend {
   customers: number;
 }
 
+interface OrderLanguageStats {
+  available: boolean;
+  breakdown: {
+    totalOrders: number;
+    identifiedOrders: number;
+    unknownCount: number;
+    languages: { language: string; count: number; percentage: number }[];
+  } | null;
+  storeCount: number;
+  excludedV1Count: number;
+  /** 태그히어에 연결되지 않은 가맹점 수 (연동 설정 누락 = 조치 대상) */
+  unlinkedCount: number;
+}
+
+const ORDER_LANGUAGE_LABELS: Record<string, string> = {
+  ko: '한국어',
+  en: '영어',
+  zh: '중국어',
+  ja: '일본어',
+  vi: '베트남어',
+  mn: '몽골어',
+};
+
+const ORDER_LANGUAGE_COLORS = ['#4A90FF', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6', '#14b8a6'];
+
 interface TopStore {
   name: string;
   customers: number;
@@ -146,6 +172,14 @@ export default function FranchiseInsightsPage() {
   const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
   const storeDropdownRef = useRef<HTMLDivElement>(null);
 
+  // 주문 언어 분포 (태그히어 V2에서 조회, 가맹점별 조회 가능)
+  const [langDays, setLangDays] = useState<7 | 30 | 90>(30);
+  const [langStoreFilter, setLangStoreFilter] = useState<string>('all');
+  const [langStats, setLangStats] = useState<OrderLanguageStats | null>(null);
+  const [isLangLoading, setIsLangLoading] = useState(true);
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const langDropdownRef = useRef<HTMLDivElement>(null);
+
   // 월별 고객 추이 (페이지 공통 기간 필터와 독립, 가맹점별 조회 가능)
   const [monthlyStoreFilter, setMonthlyStoreFilter] = useState<string>('all');
   const [monthlyTrend, setMonthlyTrend] = useState<MonthlyTrend[]>([]);
@@ -171,6 +205,9 @@ export default function FranchiseInsightsPage() {
       }
       if (monthlyDropdownRef.current && !monthlyDropdownRef.current.contains(event.target as Node)) {
         setMonthlyDropdownOpen(false);
+      }
+      if (langDropdownRef.current && !langDropdownRef.current.contains(event.target as Node)) {
+        setLangDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -239,6 +276,42 @@ export default function FranchiseInsightsPage() {
       ignore = true;
     };
   }, [dailyDays, dailyStoreFilter]);
+
+  // 주문 언어 분포 조회
+  useEffect(() => {
+    let ignore = false;
+    const fetchOrderLanguages = async () => {
+      setIsLangLoading(true);
+      try {
+        const token = getFranchiseToken();
+        if (!token) return;
+        const params = new URLSearchParams({ days: String(langDays) });
+        if (langStoreFilter !== 'all') params.append('storeId', langStoreFilter);
+        const res = await fetch(`${API_BASE}/api/franchise/insights/order-languages?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (ignore) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (ignore) return;
+          setLangStats(data);
+        } else {
+          setLangStats(null);
+        }
+      } catch (err) {
+        if (!ignore) {
+          console.error('Failed to fetch order languages:', err);
+          setLangStats(null);
+        }
+      } finally {
+        if (!ignore) setIsLangLoading(false);
+      }
+    };
+    fetchOrderLanguages();
+    return () => {
+      ignore = true;
+    };
+  }, [langDays, langStoreFilter]);
 
   // 월별 고객 추이 조회
   useEffect(() => {
@@ -512,6 +585,112 @@ export default function FranchiseInsightsPage() {
             <span className="text-xs text-slate-500 w-12 text-right">{item.percentage}%</span>
           </div>
         ))}
+      </div>
+    );
+  };
+
+  // 주문 언어 분포 렌더링 (언어가 기록된 주문만 분모)
+  const renderOrderLanguageChart = () => {
+    if (isLangLoading) {
+      return (
+        <div className="h-40 flex items-center justify-center">
+          <RefreshCw className="w-5 h-5 text-slate-400 animate-spin" />
+        </div>
+      );
+    }
+    if (!langStats?.available) {
+      return (
+        <div className="h-40 flex items-center justify-center">
+          <p className="text-sm text-slate-500">일시적으로 데이터를 불러오지 못했습니다</p>
+        </div>
+      );
+    }
+
+    const breakdown = langStats.breakdown;
+    if (!breakdown || breakdown.identifiedOrders === 0) {
+      return (
+        <div className="h-40 flex flex-col items-center justify-center text-center">
+          <Globe className="w-12 h-12 text-slate-300 mb-3" />
+          <p className="text-sm text-slate-500">아직 집계된 주문 언어가 없습니다</p>
+          {(langStats.excludedV1Count > 0 || langStats.unlinkedCount > 0) && (
+            <p className="mt-2 text-xs text-slate-400">
+              {langStats.excludedV1Count > 0 && `언어 데이터가 없는 가맹점 ${langStats.excludedV1Count}곳`}
+              {langStats.excludedV1Count > 0 && langStats.unlinkedCount > 0 && ', '}
+              {langStats.unlinkedCount > 0 && `태그히어 연동 확인이 필요한 가맹점 ${langStats.unlinkedCount}곳`}
+              은 집계에서 제외됩니다
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    let cumulative = 0;
+    const gradientParts = breakdown.languages.map((item, idx) => {
+      const start = cumulative;
+      cumulative += item.percentage;
+      return `${ORDER_LANGUAGE_COLORS[idx % ORDER_LANGUAGE_COLORS.length]} ${start}% ${cumulative}%`;
+    });
+    if (cumulative < 100) {
+      gradientParts.push(`#e2e8f0 ${cumulative}% 100%`);
+    }
+
+    const foreignCount = breakdown.languages
+      .filter((item) => item.language !== 'ko')
+      .reduce((sum, item) => sum + item.count, 0);
+    const foreignPercentage = Math.round((foreignCount / breakdown.identifiedOrders) * 100);
+
+    return (
+      <div>
+        <div className="mb-5">
+          <p className="text-3xl font-bold text-slate-900">외국어 주문 {foreignPercentage}%</p>
+          <p className="text-sm text-slate-500 mt-1">
+            {breakdown.identifiedOrders.toLocaleString()}건 중 {foreignCount.toLocaleString()}건
+            {langStats.storeCount > 0 && ` · 가맹점 ${langStats.storeCount}곳`}
+          </p>
+        </div>
+        <div className="flex items-center gap-6">
+          <div
+            className="relative w-36 h-36 rounded-full shrink-0"
+            style={{
+              background: `conic-gradient(${gradientParts.join(', ')})`,
+            }}
+          >
+            <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center">
+              <div className="text-center">
+                <span className="text-lg font-bold text-slate-900">
+                  {breakdown.identifiedOrders.toLocaleString()}
+                </span>
+                <p className="text-[10px] text-slate-500">언어 확인</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex-1 space-y-2">
+            {breakdown.languages.map((item, idx) => (
+              <div key={item.language} className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded-full shrink-0"
+                  style={{ backgroundColor: ORDER_LANGUAGE_COLORS[idx % ORDER_LANGUAGE_COLORS.length] }}
+                />
+                <span className="text-sm text-slate-600 w-20">
+                  {ORDER_LANGUAGE_LABELS[item.language] || item.language}
+                </span>
+                <span className="text-sm font-medium text-slate-900">{item.count.toLocaleString()}건</span>
+                <span className="text-xs text-slate-400">({item.percentage}%)</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {(breakdown.unknownCount > 0 || langStats.excludedV1Count > 0 || langStats.unlinkedCount > 0) && (
+          <p className="mt-4 text-xs text-slate-400">
+            {[
+              breakdown.unknownCount > 0 && `언어 미기록 ${breakdown.unknownCount.toLocaleString()}건 제외`,
+              langStats.excludedV1Count > 0 && `언어 데이터 없는 가맹점 ${langStats.excludedV1Count}곳 제외`,
+              langStats.unlinkedCount > 0 && `태그히어 연동 확인 필요 ${langStats.unlinkedCount}곳`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        )}
       </div>
     );
   };
@@ -1004,6 +1183,90 @@ export default function FranchiseInsightsPage() {
                   </ResponsiveContainer>
                 </div>
               )}
+            </div>
+
+            {/* Order Languages - Full Width */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-franchise-600" />
+                  <h3 className="text-lg font-semibold text-slate-900">주문 언어 분포</h3>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Store Filter */}
+                  <div className="relative" ref={langDropdownRef}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLangDropdownOpen(!langDropdownOpen);
+                      }}
+                      className={cn(
+                        'flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border transition-colors',
+                        langStoreFilter === 'all'
+                          ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                          : 'bg-franchise-50 border-franchise-200 text-franchise-700'
+                      )}
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      {langStoreFilter === 'all'
+                        ? '전체 가맹점'
+                        : storeOptions.find((s) => s.id === langStoreFilter)?.name || '가맹점'}
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+                    {langDropdownOpen && (
+                      <div
+                        className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[180px] max-h-[300px] overflow-y-auto z-50"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between"
+                          onClick={() => {
+                            setLangStoreFilter('all');
+                            setLangDropdownOpen(false);
+                          }}
+                        >
+                          전체 가맹점
+                          {langStoreFilter === 'all' && <Check className="w-4 h-4 text-franchise-600" />}
+                        </button>
+                        {storeOptions.map((store) => (
+                          <button
+                            key={store.id}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between"
+                            onClick={() => {
+                              setLangStoreFilter(store.id);
+                              setLangDropdownOpen(false);
+                            }}
+                          >
+                            {store.name}
+                            {langStoreFilter === store.id && <Check className="w-4 h-4 text-franchise-600" />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Days Toggle */}
+                  <div className="flex gap-1 p-1 bg-slate-100 rounded-lg">
+                    {([7, 30, 90] as const).map((d) => (
+                      <button
+                        key={d}
+                        onClick={() => setLangDays(d)}
+                        className={cn(
+                          'px-3 py-1 text-sm font-medium rounded-md transition-colors',
+                          langDays === d
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                        )}
+                      >
+                        {d}일
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-slate-500 mb-4">
+                고객이 메뉴판에서 선택한 언어 기준입니다 (한국어 외 = 외국어 주문)
+              </p>
+              {renderOrderLanguageChart()}
             </div>
 
             {/* Monthly Trend - Full Width */}
