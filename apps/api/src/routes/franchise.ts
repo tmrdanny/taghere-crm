@@ -15,6 +15,7 @@ import {
 import { DEFAULT_PRICES, alimtalkCategory } from '../services/pricing-service.js';
 import { classifyWalletTx, describeWalletTx, WALLET_USAGE_LABELS } from '../utils/wallet-usage.js';
 import { computeAnalytics } from '../services/analytics.js';
+import { computeDailyVisitorSeries } from '../services/visitor-stats.js';
 
 const router = Router();
 
@@ -34,6 +35,33 @@ const getBonusRate = (amount: number): number => {
 const getChargeAmountWithBonus = (amount: number): number => {
   const bonusRate = getBonusRate(amount);
   return Math.floor(amount * (1 + bonusRate / 100));
+};
+
+// 월별 고객 추이 (최근 6개월) — 단일 쿼리로 조회 후 JS에서 월별 버킷팅
+const computeMonthlyTrend = async (storeIds: string[], now: Date) => {
+  const sixMonthsStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  const monthlyCustomers = await prisma.customer.findMany({
+    where: {
+      storeId: { in: storeIds },
+      createdAt: { gte: sixMonthsStart }
+    },
+    select: { createdAt: true }
+  });
+
+  const monthlyTrend = [];
+  for (let i = 5; i >= 0; i--) {
+    const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+    const customerCount = monthlyCustomers.filter(
+      (c) => c.createdAt >= monthStart && c.createdAt < nextMonthStart
+    ).length;
+
+    monthlyTrend.push({
+      month: `${monthStart.getMonth() + 1}월`,
+      customers: customerCount
+    });
+  }
+  return monthlyTrend;
 };
 
 // 모든 라우트에 인증 미들웨어 적용
@@ -1285,30 +1313,8 @@ router.get('/insights', async (req: FranchiseAuthRequest, res) => {
 
     console.log('[Franchise Insights] Retention - 7days:', retention7Days, '% (', revisitCustomers7Days, '/', totalCustomers7Days, '), 30days:', retention30Days, '% (', revisitCustomers30Days, '/', totalCustomers30Days, ')');
 
-    // 6. 월별 고객 추이 (최근 6개월) — 단일 쿼리로 조회 후 JS에서 월별 버킷팅 (기존: 6회 순차 count)
-    const sixMonthsStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    const monthlyCustomers = await prisma.customer.findMany({
-      where: {
-        storeId: { in: storeIds },
-        createdAt: { gte: sixMonthsStart }
-      },
-      select: { createdAt: true }
-    });
-
-    const monthlyTrend = [];
-    for (let i = 5; i >= 0; i--) {
-      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const nextMonthStart = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-      const customerCount = monthlyCustomers.filter(
-        (c) => c.createdAt >= monthStart && c.createdAt < nextMonthStart
-      ).length;
-
-      const monthName = `${monthStart.getMonth() + 1}월`;
-      monthlyTrend.push({
-        month: monthName,
-        customers: customerCount
-      });
-    }
+    // 6. 월별 고객 추이 (최근 6개월)
+    const monthlyTrend = await computeMonthlyTrend(storeIds, now);
 
     // 7. 가맹점별 고객 수 — 단일 groupBy (기존: 가맹점 수만큼 count 쿼리)
     // 전체 가맹점을 고객 수 내림차순으로 반환 (프론트에서 페이지네이션 처리)
@@ -2771,6 +2777,52 @@ router.get('/insights/analytics', async (req: FranchiseAuthRequest, res) => {
   } catch (error) {
     console.error('Franchise analytics error:', error);
     res.status(500).json({ error: '데이터 분석 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/franchise/insights/daily-visitors?days=30&storeId= - 일별 방문객 추이 (전체 합산 또는 특정 가맹점)
+router.get('/insights/daily-visitors', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const daysParam = parseInt((req.query.days as string) || '30', 10);
+    const days = [7, 30, 90].includes(daysParam) ? daysParam : 30;
+    const storeIdFilter = (req.query.storeId as string) || '';
+
+    const stores = await prisma.store.findMany({
+      where: { franchiseId, ...(storeIdFilter ? { id: storeIdFilter } : {}) },
+      select: { id: true },
+    });
+    if (stores.length === 0) {
+      return res.status(404).json({ error: '가맹점을 찾을 수 없습니다.' });
+    }
+
+    const chartData = await computeDailyVisitorSeries(stores.map((s) => s.id), days);
+    res.json({ chartData });
+  } catch (error) {
+    console.error('Franchise daily visitors error:', error);
+    res.status(500).json({ error: '일별 방문객 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/franchise/insights/monthly-trend?storeId= - 월별 고객 추이 (전체 합산 또는 특정 가맹점)
+router.get('/insights/monthly-trend', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const storeIdFilter = (req.query.storeId as string) || '';
+
+    const stores = await prisma.store.findMany({
+      where: { franchiseId, ...(storeIdFilter ? { id: storeIdFilter } : {}) },
+      select: { id: true },
+    });
+    if (stores.length === 0) {
+      return res.status(404).json({ error: '가맹점을 찾을 수 없습니다.' });
+    }
+
+    const monthlyTrend = await computeMonthlyTrend(stores.map((s) => s.id), new Date());
+    res.json({ monthlyTrend });
+  } catch (error) {
+    console.error('Franchise monthly trend error:', error);
+    res.status(500).json({ error: '월별 고객 추이 조회 중 오류가 발생했습니다.' });
   }
 });
 

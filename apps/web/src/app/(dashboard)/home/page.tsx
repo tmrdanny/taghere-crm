@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Modal, ModalContent } from '@/components/ui/modal';
 import { formatNumber, formatCurrency } from '@/lib/utils';
-import { fetchJsonCached, readCache, writeCache } from '@/lib/swr-cache';
-import { Users, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin, Mail, Zap, Bell, Cake, UserPlus, ArrowRight } from 'lucide-react';
+import { fetchJsonCached, readCache, writeCache, cacheKeyFor, invalidateCacheByUrlPart } from '@/lib/swr-cache';
+import { Users, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin, Mail, Zap, Bell, Cake, UserPlus, ArrowRight, Pencil, X } from 'lucide-react';
 import {
   XAxis,
   YAxis,
@@ -31,7 +31,9 @@ interface DashboardStats {
 
 interface VisitorChartData {
   date: string;
-  visitors: number;
+  visitors: number; // 최종값 (직접입력 반영)
+  autoVisitors: number;
+  manualVisitors: number | null; // 직접입력값 (없으면 null)
 }
 
 interface VisitorStats {
@@ -77,10 +79,14 @@ export default function HomePage() {
   const [storeName, setStoreName] = useState('');
   const [chartPeriod, setChartPeriod] = useState<PeriodKey>('7일');
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [visitorChartData, setVisitorChartData] = useState<{ day: string; visitors: number }[]>([]);
+  const [visitorChartData, setVisitorChartData] = useState<{ day: string; visitors: number; overridden: boolean }[]>([]);
   const [visitorStats, setVisitorStats] = useState<VisitorStats | null>(null);
   const [isRefreshingChart, setIsRefreshingChart] = useState(false);
   const [isRefreshingStats, setIsRefreshingStats] = useState(false);
+  const [showVisitorEdit, setShowVisitorEdit] = useState(false);
+  const [draftOverrides, setDraftOverrides] = useState<Record<string, string>>({});
+  const [savingDate, setSavingDate] = useState<string | null>(null);
+  const [overrideError, setOverrideError] = useState<string | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [feedbackSummary, setFeedbackSummary] = useState<FeedbackSummary | null>(null);
   const [isRefreshingFeedback, setIsRefreshingFeedback] = useState(false);
@@ -248,66 +254,126 @@ export default function HomePage() {
     }
   };
 
+  // Apply visitor chart response to state
+  const applyVisitorData = (data: VisitorStats) => {
+    setVisitorStats(data);
+    const formattedData = data.chartData.map((item: VisitorChartData) => ({
+      // date는 KST 기준 'YYYY-MM-DD' 문자열 — TZ 비의존을 위해 문자열 슬라이스로 라벨 생성
+      day: `${item.date.slice(5, 7)}/${item.date.slice(8, 10)}`,
+      visitors: item.visitors,
+      overridden: item.manualVisitors !== null,
+    }));
+    setVisitorChartData(formattedData);
+  };
+
+  const visitorChartDays = chartPeriod === '7일' ? 7 : chartPeriod === '30일' ? 30 : chartPeriod === '90일' ? 90 : 365;
+
   // Fetch visitor chart data based on period
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    const days = chartPeriod === '7일' ? 7 : chartPeriod === '30일' ? 30 : chartPeriod === '90일' ? 90 : 365;
-
     fetchJsonCached<VisitorStats>(
-      `${API_BASE}/api/dashboard/visitor-chart?days=${days}`,
+      `${API_BASE}/api/dashboard/visitor-chart?days=${visitorChartDays}`,
       token,
-      (data) => {
-        setVisitorStats(data);
-        // Format the chart data
-        const formattedData = data.chartData.map((item: VisitorChartData) => {
-          const date = new Date(item.date);
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          return {
-            day: `${month}/${day}`,
-            visitors: item.visitors,
-          };
-        });
-        setVisitorChartData(formattedData);
-      }
+      applyVisitorData
     ).catch((error) => console.error('Failed to fetch visitor chart data:', error));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartPeriod]);
+
+  // Refetch visitor chart data (bypass cache) and refresh the stored cache entry
+  const refetchVisitorChart = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const url = `${API_BASE}/api/dashboard/visitor-chart?days=${visitorChartDays}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      applyVisitorData(data);
+      writeCache(cacheKeyFor(token, url), data);
+    }
+  };
 
   // Refresh visitor chart data
   const handleRefreshVisitorChart = async () => {
     setIsRefreshingChart(true);
     setIsRefreshingStats(true);
     try {
-      const token = localStorage.getItem('token');
-      const days = chartPeriod === '7일' ? 7 : chartPeriod === '30일' ? 30 : chartPeriod === '90일' ? 90 : 365;
-
-      // Refetch visitor chart data
-      const res = await fetch(`${API_BASE}/api/dashboard/visitor-chart?days=${days}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setVisitorStats(data);
-        const formattedData = data.chartData.map((item: VisitorChartData) => {
-          const date = new Date(item.date);
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          return {
-            day: `${month}/${day}`,
-            visitors: item.visitors,
-          };
-        });
-        setVisitorChartData(formattedData);
-      }
+      await refetchVisitorChart();
     } catch (error) {
       console.error('Failed to refresh visitor chart:', error);
     } finally {
       setIsRefreshingChart(false);
       setIsRefreshingStats(false);
+    }
+  };
+
+  // 일별 방문객 직접입력 저장 (해당 날짜 최종값 덮어쓰기)
+  const handleSaveOverride = async (date: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const visitors = Number((draftOverrides[date] ?? '').trim());
+    if (!Number.isInteger(visitors) || visitors < 0) {
+      setOverrideError('방문객 수는 0 이상의 정수여야 합니다.');
+      return;
+    }
+    setSavingDate(date);
+    setOverrideError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/dashboard/visitor-overrides/${date}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ visitors }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        setOverrideError(err?.error || '방문객 수 저장에 실패했습니다.');
+        return;
+      }
+      invalidateCacheByUrlPart('/api/dashboard/visitor-chart');
+      await refetchVisitorChart();
+      setDraftOverrides((prev) => {
+        const next = { ...prev };
+        delete next[date];
+        return next;
+      });
+    } catch (error) {
+      console.error('Failed to save visitor override:', error);
+      setOverrideError('방문객 수 저장에 실패했습니다.');
+    } finally {
+      setSavingDate(null);
+    }
+  };
+
+  // 직접입력 삭제 (자동 집계값으로 복귀)
+  const handleDeleteOverride = async (date: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    setSavingDate(date);
+    setOverrideError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/dashboard/visitor-overrides/${date}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        setOverrideError(err?.error || '방문객 수 삭제에 실패했습니다.');
+        return;
+      }
+      invalidateCacheByUrlPart('/api/dashboard/visitor-chart');
+      await refetchVisitorChart();
+      setDraftOverrides((prev) => {
+        const next = { ...prev };
+        delete next[date];
+        return next;
+      });
+    } catch (error) {
+      console.error('Failed to delete visitor override:', error);
+      setOverrideError('방문객 수 삭제에 실패했습니다.');
+    } finally {
+      setSavingDate(null);
     }
   };
 
@@ -710,6 +776,17 @@ export default function HomePage() {
               >
                 <RefreshCw className={`w-4 h-4 text-neutral-500 ${isRefreshingChart ? 'animate-spin' : ''}`} />
               </button>
+              <button
+                onClick={() => {
+                  setOverrideError(null);
+                  setShowVisitorEdit(true);
+                }}
+                className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-neutral-500 rounded-md hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
+                title="방문객 수 직접 수정"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                방문객 수정
+              </button>
             </div>
             <div className="flex gap-1 p-1 bg-neutral-100 rounded-lg">
               {(['7일', '30일', '90일', '전체'] as PeriodKey[]).map((period) => (
@@ -757,7 +834,10 @@ export default function HomePage() {
                       borderRadius: '8px',
                       padding: '8px 12px',
                     }}
-                    formatter={(value: number) => [formatNumber(value), '방문자 수']}
+                    formatter={(value: number, _name, item) => [
+                      formatNumber(value),
+                      item?.payload?.overridden ? '방문자 수 (직접입력)' : '방문자 수',
+                    ]}
                   />
                   <Area
                     type="monotone"
@@ -765,6 +845,13 @@ export default function HomePage() {
                     stroke="#1E3A5F"
                     strokeWidth={2}
                     fill="url(#colorVisitors)"
+                    dot={(props: { cx?: number; cy?: number; payload?: { overridden?: boolean }; index?: number }) =>
+                      props.payload?.overridden && props.cx !== undefined && props.cy !== undefined ? (
+                        <circle key={props.index} cx={props.cx} cy={props.cy} r={3.5} fill="#1E3A5F" />
+                      ) : (
+                        <g key={props.index} />
+                      )
+                    }
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -904,6 +991,81 @@ export default function HomePage() {
                 </button>
               </div>
             </div>
+          </div>
+        </ModalContent>
+      </Modal>
+
+      {/* Visitor Override Edit Modal */}
+      <Modal open={showVisitorEdit} onOpenChange={setShowVisitorEdit}>
+        <ModalContent className="max-w-[480px]">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-neutral-900">방문객 수 직접 수정</h2>
+            <p className="text-sm text-neutral-500 mt-1">
+              태그히어로 집계되지 않은 손님까지 포함한 총 방문객 수를 입력하세요. 입력한 날짜는 입력값이 최종 방문객 수로 표시됩니다.
+            </p>
+          </div>
+          {overrideError && (
+            <div className="mb-3 px-3 py-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+              {overrideError}
+            </div>
+          )}
+          <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3 gap-y-1 text-sm">
+            <div className="text-xs font-medium text-neutral-500 py-1">날짜</div>
+            <div className="text-xs font-medium text-neutral-500 py-1 text-right">자동 집계</div>
+            <div className="text-xs font-medium text-neutral-500 py-1 text-center">직접 입력</div>
+            <div />
+            {visitorStats &&
+              [...visitorStats.chartData].reverse().map((item) => {
+                const draft = draftOverrides[item.date];
+                const currentValue = draft ?? (item.manualVisitors !== null ? String(item.manualVisitors) : '');
+                const original = item.manualVisitors !== null ? String(item.manualVisitors) : '';
+                const isChanged = draft !== undefined && draft.trim() !== '' && draft !== original;
+                const dateObj = new Date(`${item.date}T00:00:00`);
+                const weekday = ['일', '월', '화', '수', '목', '금', '토'][dateObj.getDay()];
+                return (
+                  <div key={item.date} className="contents">
+                    <div className="py-1.5 text-neutral-700">
+                      {item.date.slice(5).replace('-', '/')} ({weekday})
+                    </div>
+                    <div className="py-1.5 text-right text-neutral-400 tabular-nums">
+                      {formatNumber(item.autoVisitors)}
+                    </div>
+                    <div className="py-1.5">
+                      <input
+                        type="number"
+                        min={0}
+                        value={currentValue}
+                        placeholder={String(item.autoVisitors)}
+                        onChange={(e) =>
+                          setDraftOverrides((prev) => ({ ...prev, [item.date]: e.target.value }))
+                        }
+                        className="w-20 px-2 py-1 text-right text-sm border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-brand-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                    <div className="py-1.5 flex items-center gap-1 min-w-[52px]">
+                      {isChanged && (
+                        <button
+                          onClick={() => handleSaveOverride(item.date)}
+                          disabled={savingDate !== null}
+                          className="px-2 py-1 text-xs font-medium text-white bg-brand-800 rounded-md hover:bg-brand-700 disabled:opacity-50"
+                        >
+                          저장
+                        </button>
+                      )}
+                      {!isChanged && item.manualVisitors !== null && (
+                        <button
+                          onClick={() => handleDeleteOverride(item.date)}
+                          disabled={savingDate !== null}
+                          className="p-1 text-neutral-400 hover:text-red-500 rounded-md hover:bg-neutral-100 disabled:opacity-50"
+                          title="직접입력 삭제 (자동 집계로 복귀)"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         </ModalContent>
       </Modal>
