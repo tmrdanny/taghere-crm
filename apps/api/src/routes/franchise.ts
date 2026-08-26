@@ -15,7 +15,12 @@ import {
 import { DEFAULT_PRICES, alimtalkCategory } from '../services/pricing-service.js';
 import { classifyWalletTx, describeWalletTx, WALLET_USAGE_LABELS } from '../utils/wallet-usage.js';
 import { computeAnalytics } from '../services/analytics.js';
-import { computeDailyVisitorSeries } from '../services/visitor-stats.js';
+import {
+  computeDailyVisitorSeries,
+  kstDateStringToDbDate,
+  todayKstString,
+} from '../services/visitor-stats.js';
+import { fetchOrderLanguageStatsFromV2 } from '../services/taghere-api.js';
 
 const router = Router();
 
@@ -2823,6 +2828,68 @@ router.get('/insights/monthly-trend', async (req: FranchiseAuthRequest, res) => 
   } catch (error) {
     console.error('Franchise monthly trend error:', error);
     res.status(500).json({ error: '월별 고객 추이 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/franchise/insights/order-languages?days=30&storeId= - 주문 언어별 집계 (태그히어 V2에서 조회)
+router.get('/insights/order-languages', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const daysParam = parseInt((req.query.days as string) || '30', 10);
+    const days = [7, 30, 90].includes(daysParam) ? daysParam : 30;
+    const storeIdFilter = (req.query.storeId as string) || '';
+
+    const stores = await prisma.store.findMany({
+      where: { franchiseId, ...(storeIdFilter ? { id: storeIdFilter } : {}) },
+      select: { id: true, slug: true, taghereVersion: true },
+    });
+    if (stores.length === 0) {
+      return res.status(404).json({ error: '가맹점을 찾을 수 없습니다.' });
+    }
+
+    // V1 가맹점은 주문 언어 데이터가 없어 집계에서 제외한다 (본사에 제외 건수를 알린다)
+    const v2Stores = stores.filter((s) => s.slug && s.taghereVersion === 'v2');
+    const excludedV1Count = stores.length - v2Stores.length;
+    if (v2Stores.length === 0) {
+      return res.json({ available: true, breakdown: null, storeCount: 0, excludedV1Count });
+    }
+
+    const toDate = todayKstString();
+    const fromDate = new Date(kstDateStringToDbDate(toDate).getTime() - (days - 1) * 86400000)
+      .toISOString()
+      .slice(0, 10);
+
+    const stats = await fetchOrderLanguageStatsFromV2({
+      crmStoreSlugs: v2Stores.map((s) => s.slug!),
+      from: fromDate,
+      to: toDate,
+    });
+
+    if (!stats) {
+      return res.json({ available: false, breakdown: null, storeCount: 0, excludedV1Count, unlinkedCount: 0 });
+    }
+
+    // 태그히어 쪽에 slug 가 연결되지 않은 가맹점은 집계에서 빠진다 (연동 설정 누락 = 조치 대상)
+    if (stats.unmatchedCrmStoreSlugs.length > 0) {
+      console.warn(
+        '[Order languages] 태그히어에 연결되지 않은 가맹점 slug:',
+        franchiseId,
+        stats.unmatchedCrmStoreSlugs
+      );
+    }
+
+    res.json({
+      available: true,
+      breakdown: stats.total,
+      // 실제로 집계된 가맹점 수 (요청한 수가 아니라 태그히어에 연결된 수)
+      storeCount: stats.stores.length,
+      // 구조적으로 언어 데이터가 없는 가맹점과, 연동 설정이 빠진 가맹점을 구분해서 내려준다
+      excludedV1Count,
+      unlinkedCount: stats.unmatchedCrmStoreSlugs.length,
+    });
+  } catch (error) {
+    console.error('Franchise order language insights error:', error);
+    res.json({ available: false, breakdown: null, storeCount: 0, excludedV1Count: 0 });
   }
 });
 
