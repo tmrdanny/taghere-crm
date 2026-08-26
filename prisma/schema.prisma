@@ -679,6 +679,20 @@ model NaverReviewStats {
   @@map("naver_review_stats")
 }
 
+// 일별 방문객 수 수동 보정 (매장 관리자가 입력한 값이 해당 날짜의 최종 방문객 수가 됨)
+model DailyVisitorOverride {
+  id        String   @id @default(cuid())
+  storeId   String
+  date      DateTime @db.Date // KST 기준 날짜 (UTC 자정으로 저장)
+  visitors  Int      // 직접 입력한 최종 방문객 수
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, date])
+  @@index([storeId])
+  @@map("daily_visitor_overrides")
+}
+
 // 공지사항 (전체 매장 대상, 어드민 전용)
 model Announcement {
   id        String   @id @default(cuid())
