@@ -1,6 +1,11 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import {
+  computeDailyVisitorSeries,
+  kstDateStringToDbDate,
+  todayKstString,
+} from '../services/visitor-stats.js';
 
 const router = Router();
 
@@ -163,91 +168,29 @@ router.get('/review-chart', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// GET /api/dashboard/visitor-chart - 일자별 방문자 수 차트
+// GET /api/dashboard/visitor-chart - 일자별 방문자 수 차트 (KST 기준, 직접입력 덮어쓰기 반영)
 router.get('/visitor-chart', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { days = '7' } = req.query;
+    const daysParam = parseInt((req.query.days as string) || '7', 10);
+    const daysNum = [7, 30, 90, 365].includes(daysParam) ? daysParam : 7;
 
-    const daysNum = parseInt(days as string);
-    const startDate = new Date();
-    startDate.setHours(0, 0, 0, 0);
-    startDate.setDate(startDate.getDate() - daysNum + 1);
+    const series = await computeDailyVisitorSeries([storeId], daysNum);
 
-    // 날짜별 데이터 초기화
-    const dailyData: { [key: string]: number } = {};
-    for (let i = 0; i < daysNum; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
-      const key = date.toISOString().split('T')[0];
-      dailyData[key] = 0;
-    }
-
-    // 포인트 적립 (EARN) 기록으로 방문 수 계산
-    // visitCount가 증가하거나, 포인트가 적립된 날짜 기준
-    const pointLedgers = await prisma.pointLedger.findMany({
-      where: {
-        storeId,
-        type: 'EARN',
-        createdAt: { gte: startDate },
-      },
-      select: {
-        createdAt: true,
-        customerId: true,
-      },
-    });
-
-    // 날짜별로 유니크한 고객 수 계산 (같은 날 같은 고객은 1회로)
-    const dailyVisitors: { [key: string]: Set<string> } = {};
-    for (const key of Object.keys(dailyData)) {
-      dailyVisitors[key] = new Set();
-    }
-
-    pointLedgers.forEach((ledger) => {
-      const key = ledger.createdAt.toISOString().split('T')[0];
-      if (dailyVisitors[key]) {
-        dailyVisitors[key].add(ledger.customerId);
-      }
-    });
-
-    // 신규 고객 등록도 방문으로 카운트 (포인트 적립과 별개로)
-    const newCustomers = await prisma.customer.findMany({
-      where: {
-        storeId,
-        createdAt: { gte: startDate },
-      },
-      select: {
-        id: true,
-        createdAt: true,
-      },
-    });
-
-    newCustomers.forEach((customer) => {
-      const key = customer.createdAt.toISOString().split('T')[0];
-      if (dailyVisitors[key]) {
-        dailyVisitors[key].add(customer.id);
-      }
-    });
-
-    // Set을 숫자로 변환
-    for (const key of Object.keys(dailyData)) {
-      dailyData[key] = dailyVisitors[key].size;
-    }
-
-    const chartData = Object.entries(dailyData).map(([date, visitors]) => ({
-      date,
-      visitors,
+    const chartData = series.map((p) => ({
+      date: p.date,
+      visitors: p.visitors, // 최종값 (직접입력 반영)
+      autoVisitors: p.autoVisitors,
+      manualVisitors: p.overridden ? p.visitors : null, // 단일 매장이므로 최종값 == 입력값
     }));
 
-    // 오늘 방문자 수
-    const todayKey = new Date().toISOString().split('T')[0];
-    const todayVisitors = dailyData[todayKey] || 0;
-
-    // 어제 방문자 수
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayKey = yesterday.toISOString().split('T')[0];
-    const yesterdayVisitors = dailyData[yesterdayKey] || 0;
+    // 오늘/어제 방문자 수 (KST, 직접입력 반영된 최종값 기준)
+    const todayKey = todayKstString();
+    const yesterdayKey = new Date(kstDateStringToDbDate(todayKey).getTime() - 86400000)
+      .toISOString()
+      .slice(0, 10);
+    const todayVisitors = series.find((p) => p.date === todayKey)?.visitors || 0;
+    const yesterdayVisitors = series.find((p) => p.date === yesterdayKey)?.visitors || 0;
 
     res.json({
       chartData,
@@ -260,6 +203,65 @@ router.get('/visitor-chart', authMiddleware, async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Visitor chart error:', error);
     res.status(500).json({ error: '방문자 차트 데이터 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// YYYY-MM-DD 형식 + 실존 날짜 검증 (2026-02-30 같은 롤오버 날짜 차단)
+function isValidKstDateString(dateStr: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const parsed = kstDateStringToDbDate(dateStr);
+  return !isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === dateStr;
+}
+
+// PUT /api/dashboard/visitor-overrides/:date - 일별 방문객 수 직접입력 (해당 날짜 최종값 덮어쓰기)
+router.put('/visitor-overrides/:date', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const dateStr = req.params.date;
+    const { visitors } = req.body;
+
+    if (!isValidKstDateString(dateStr)) {
+      return res.status(400).json({ error: '올바른 날짜 형식(YYYY-MM-DD)이 아닙니다.' });
+    }
+    if (dateStr > todayKstString()) {
+      return res.status(400).json({ error: '미래 날짜는 입력할 수 없습니다.' });
+    }
+    if (!Number.isInteger(visitors) || visitors < 0 || visitors > 1_000_000) {
+      return res.status(400).json({ error: '방문객 수는 0 이상의 정수여야 합니다.' });
+    }
+
+    const date = kstDateStringToDbDate(dateStr);
+    const override = await prisma.dailyVisitorOverride.upsert({
+      where: { storeId_date: { storeId, date } },
+      update: { visitors },
+      create: { storeId, date, visitors },
+    });
+
+    res.json({ date: dateStr, visitors: override.visitors });
+  } catch (error) {
+    console.error('Visitor override upsert error:', error);
+    res.status(500).json({ error: '방문객 수 저장 중 오류가 발생했습니다.' });
+  }
+});
+
+// DELETE /api/dashboard/visitor-overrides/:date - 직접입력 삭제 (자동 집계값으로 복귀)
+router.delete('/visitor-overrides/:date', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const dateStr = req.params.date;
+
+    if (!isValidKstDateString(dateStr)) {
+      return res.status(400).json({ error: '올바른 날짜 형식(YYYY-MM-DD)이 아닙니다.' });
+    }
+
+    await prisma.dailyVisitorOverride.deleteMany({
+      where: { storeId, date: kstDateStringToDbDate(dateStr) },
+    });
+
+    res.json({ date: dateStr, deleted: true });
+  } catch (error) {
+    console.error('Visitor override delete error:', error);
+    res.status(500).json({ error: '방문객 수 삭제 중 오류가 발생했습니다.' });
   }
 });
 
