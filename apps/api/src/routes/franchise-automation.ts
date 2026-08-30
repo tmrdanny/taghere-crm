@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
 import { sendAutomationMessages } from '../services/automation-worker.js';
-import { VALID_TYPES, ensureRulesExist } from './automation.js';
+import { VALID_TYPES, ensureRulesExist, updateRuleWithToggleLog } from './automation.js';
 import type { AutomationRuleType } from '@prisma/client';
 
 const router = Router();
@@ -153,10 +153,7 @@ router.put('/stores/:storeId/rules/:type', franchiseAuthMiddleware, async (req: 
       updateData.sendTimeHour = sendTimeHour;
     }
 
-    const rule = await prisma.automationRule.update({
-      where: { storeId_type: { storeId, type } },
-      data: updateData,
-    });
+    const rule = await updateRuleWithToggleLog(storeId, type, updateData, 'FRANCHISE');
 
     res.json({ rule });
   } catch (error) {
@@ -395,10 +392,7 @@ router.put('/bulk/rules/:type', franchiseAuthMiddleware, async (req: FranchiseAu
         }
       }
 
-      await prisma.automationRule.update({
-        where: { storeId_type: { storeId: store.id, type } },
-        data: updateData,
-      });
+      await updateRuleWithToggleLog(store.id, type, updateData, 'FRANCHISE_BULK');
       updatedCount++;
     }
 

@@ -12,12 +12,12 @@ import { env } from '../config/env.js';
 const V1_API_URL = process.env.TAGHERE_API_URL || 'https://api.tag-here.com';
 const V1_API_TOKEN = process.env.TAGHERE_API_TOKEN_FOR_CRM || '';
 
-// ── V2 설정 ──
-const V2_API_URL = process.env.TAGHERE_V2_API_URL || '';
-const V2_API_TOKEN = process.env.TAGHERE_V2_API_TOKEN || '';
+// ── V2 설정 ── (crm-state-push 등 형제 서비스에서도 사용)
+export const V2_API_URL = process.env.TAGHERE_V2_API_URL || '';
+export const V2_API_TOKEN = process.env.TAGHERE_V2_API_TOKEN || '';
 
 // ── 공통 ──
-const CRM_BASE_URL = env.TAGHERE_CRM_BASE_URL || 'https://taghere-crm-web-dev.onrender.com';
+export const CRM_BASE_URL = env.TAGHERE_CRM_BASE_URL || 'https://taghere-crm-web-dev.onrender.com';
 
 // ── 인바운드 웹훅 토큰 (V1/V2 모두 수용) ──
 const WEBHOOK_TOKENS = [
@@ -189,7 +189,8 @@ export function resolveCrmPageMode(params: {
 export async function notifyCrmOn(params: {
   version: string;
   userId?: string;     // V1: 오너 이메일
-  storeName?: string;  // V2: 매장명
+  storeName?: string;  // V2: 매장명 (레거시 키 — v2StoreId 로 대체 중)
+  v2StoreId?: string | null; // V2 매장 ID (stores.v2StoreId) — 있으면 V2 가 이 값으로 매장을 찾는다
   slug: string;
   isStampMode: boolean;
   isHitejinro?: boolean;
@@ -223,12 +224,12 @@ export async function notifyCrmOn(params: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${V2_API_TOKEN}`,
         },
-        body: JSON.stringify({ storeName: params.storeName, redirectUrl, slug }),
+        body: JSON.stringify({ storeId: params.v2StoreId || undefined, storeName: params.storeName, redirectUrl, slug }),
       });
       if (!response.ok) {
         console.error('[TagHere CRM V2] on failed:', response.status, await response.text());
       } else {
-        console.log(`[TagHere CRM V2] on success - storeName: ${params.storeName}, redirectUrl: ${redirectUrl}`);
+        console.log(`[TagHere CRM V2] on success - storeId: ${params.v2StoreId ?? '-'}, storeName: ${params.storeName}, redirectUrl: ${redirectUrl}`);
       }
     } catch (error) {
       console.error('[TagHere CRM V2] on error:', error);
@@ -267,6 +268,7 @@ export async function notifyCrmOff(params: {
   version: string;
   userId?: string;
   storeName?: string;
+  v2StoreId?: string | null; // V2 매장 ID — 있으면 V2 가 redirectUrl 대신 이 값으로 매장을 찾는다
   slug: string;
   isStampMode: boolean;
   isHitejinro?: boolean;
@@ -293,12 +295,12 @@ export async function notifyCrmOff(params: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${V2_API_TOKEN}`,
         },
-        body: JSON.stringify({ redirectUrl }),
+        body: JSON.stringify({ storeId: params.v2StoreId || undefined, redirectUrl }),
       });
       if (!response.ok) {
         console.error('[TagHere CRM V2] off failed:', response.status, await response.text());
       } else {
-        console.log(`[TagHere CRM V2] off success - redirectUrl: ${redirectUrl}`);
+        console.log(`[TagHere CRM V2] off success - storeId: ${params.v2StoreId ?? '-'}, redirectUrl: ${redirectUrl}`);
       }
     } catch (error) {
       console.error('[TagHere CRM V2] off error:', error);
@@ -337,6 +339,7 @@ export async function notifyCrmOff(params: {
  */
 export async function notifyStoreMetacitySettingsToV2(params: {
   crmStoreSlug: string;
+  v2StoreId?: string | null; // 있으면 V2 가 slug 대신 이 값으로 매장을 찾는다
   metacityEnabled: boolean;
   metacityMembershipType: 'INTEGRATED' | 'STANDALONE';
 }): Promise<void> {
@@ -352,6 +355,7 @@ export async function notifyStoreMetacitySettingsToV2(params: {
         Authorization: `Bearer ${V2_API_TOKEN}`,
       },
       body: JSON.stringify({
+        storeId: params.v2StoreId || undefined,
         crmStoreSlug: params.crmStoreSlug,
         metacityEnabled: params.metacityEnabled,
         metacityMembershipType: params.metacityMembershipType,
@@ -378,7 +382,10 @@ export async function notifyStoreMetacitySettingsToV2(params: {
  * 성공: { storeIdx, storeName } 반환
  * 실패: throw (호출자가 status 별로 에러 응답 분기)
  */
-export async function discoverMetacityStoreIdxFromV2(crmStoreSlug: string): Promise<{ storeIdx: string; storeName: string | null }> {
+export async function discoverMetacityStoreIdxFromV2(
+  crmStoreSlug: string,
+  v2StoreId?: string | null,
+): Promise<{ storeIdx: string; storeName: string | null }> {
   if (!V2_API_URL || !V2_API_TOKEN) {
     const err: any = new Error('V2 API 설정이 없습니다.');
     err.status = 500;
@@ -391,7 +398,7 @@ export async function discoverMetacityStoreIdxFromV2(crmStoreSlug: string): Prom
       'Content-Type': 'application/json',
       Authorization: `Bearer ${V2_API_TOKEN}`,
     },
-    body: JSON.stringify({ crmStoreSlug }),
+    body: JSON.stringify({ storeId: v2StoreId || undefined, crmStoreSlug }),
   });
 
   if (!response.ok) {
