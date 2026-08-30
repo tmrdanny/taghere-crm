@@ -13,6 +13,8 @@ import {
   notifyStoreMetacitySettingsToV2,
   discoverMetacityStoreIdxFromV2,
 } from '../services/taghere-api.js';
+import { pushCrmStateToV2 } from '../services/crm-state-push.js';
+import { V1_STORE_ID_RE, V2_STORE_ID_RE } from '../services/store-ref.js';
 import { AdminRequest, adminAuthMiddleware } from './admin-shared.js';
 
 const router = Router();
@@ -90,6 +92,9 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
           crmEnabled: true,
           enrollmentMode: true,
           taghereVersion: true,
+          v1StoreId: true,
+          v2StoreId: true,
+          isHitejinro: true,
           metacityEnabled: true,
           metacityBrandCode: true,
           metacityStoreIdx: true,
@@ -151,6 +156,10 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         crmEnabled: (store as any).crmEnabled ?? true,
         enrollmentMode: (store as any).enrollmentMode ?? 'POINTS',
         taghereVersion: (store as any).taghereVersion ?? 'v1',
+        // 주문 서비스 매장 ID 매핑 (연결의 유일한 식별자 — taghereVersion 은 이 두 값의 파생)
+        v1StoreId: (store as any).v1StoreId ?? null,
+        v2StoreId: (store as any).v2StoreId ?? null,
+        isHitejinro: (store as any).isHitejinro ?? false,
         // 메타씨티 POS 연동 설정 (UI 토글 상태 유지에 필수)
         metacityEnabled: (store as any).metacityEnabled ?? false,
         metacityBrandCode: (store as any).metacityBrandCode ?? null,
@@ -260,13 +269,16 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       pointsAlimtalkEnabled,
       crmEnabled,
       enrollmentMode,
-      taghereVersion,
+      // taghereVersion 은 더 이상 편집 필드가 아니다 — v1StoreId/v2StoreId 의 파생값 (아래 재계산)
+      v1StoreId,
+      v2StoreId,
       metacityEnabled,
       metacityBrandCode,
       metacityStoreIdx,
       metacityAccessCode,
       metacityMembershipType,
       yahwaEnabled,
+      isHitejinro,
       locationGuardEnabled,
       locationGuardRadiusM,
       ownerEmail,
@@ -341,6 +353,32 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       }
     }
 
+    // 링크 ID 형식 검증 + 정규화 — 이 값은 V2 호출 URL 경로와 버전 파생에 그대로 쓰이므로
+    // 공백/오타가 저장되면 안 된다 (trim 후 빈 값 = 링크 해제)
+    const normalizedV1StoreId = v1StoreId !== undefined ? String(v1StoreId).trim() || null : undefined;
+    const normalizedV2StoreId = v2StoreId !== undefined ? String(v2StoreId).trim() || null : undefined;
+    if (normalizedV1StoreId && !V1_STORE_ID_RE.test(normalizedV1StoreId)) {
+      return res.status(400).json({ error: 'v1StoreId 형식이 아닙니다 (24자리 hex).' });
+    }
+    if (normalizedV2StoreId && !V2_STORE_ID_RE.test(normalizedV2StoreId)) {
+      return res.status(400).json({ error: 'v2StoreId 형식이 아닙니다 (SR + 26자).' });
+    }
+
+    // 링크 ID unique 충돌 체크 — 같은 주문 서비스 매장을 두 CRM 매장이 가리키면 안 된다
+    for (const [column, value] of [['v1StoreId', normalizedV1StoreId], ['v2StoreId', normalizedV2StoreId]] as const) {
+      if (typeof value === 'string' && value.length > 0) {
+        const holder = await prisma.store.findFirst({
+          where: { [column]: value, id: { not: storeId } },
+          select: { id: true, name: true },
+        });
+        if (holder) {
+          return res.status(409).json({
+            error: `${column}=${value} 는 이미 다른 매장(${holder.name})에 연결되어 있습니다.`,
+          });
+        }
+      }
+    }
+
     // 주소 변경 시 자동 파싱하여 addressSido/Sigungu/Detail도 함께 업데이트
     const addressUpdateFields: Record<string, any> = {};
     if (address !== undefined) {
@@ -374,13 +412,15 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
         ...(pointsAlimtalkEnabled !== undefined && { pointsAlimtalkEnabled }),
         ...(crmEnabled !== undefined && { crmEnabled }),
         ...(enrollmentMode !== undefined && ['POINTS', 'STAMP', 'MEMBERSHIP'].includes(enrollmentMode) && { enrollmentMode }),
-        ...(taghereVersion !== undefined && ['v1', 'v2'].includes(taghereVersion) && { taghereVersion }),
+        ...(normalizedV1StoreId !== undefined && { v1StoreId: normalizedV1StoreId }),
+        ...(normalizedV2StoreId !== undefined && { v2StoreId: normalizedV2StoreId }),
         ...(metacityEnabled !== undefined && { metacityEnabled }),
         ...(metacityBrandCode !== undefined && { metacityBrandCode: metacityBrandCode || null }),
         ...(metacityStoreIdx !== undefined && { metacityStoreIdx: metacityStoreIdx || null }),
         ...(metacityAccessCode !== undefined && { metacityAccessCode: metacityAccessCode || null }),
         ...(normalizedMembershipType !== undefined && { metacityMembershipType: normalizedMembershipType }),
         ...(yahwaEnabled !== undefined && { yahwaEnabled: !!yahwaEnabled }),
+        ...(isHitejinro !== undefined && { isHitejinro: !!isHitejinro }),
       } as any,
     });
 
@@ -442,13 +482,25 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       });
     }
 
-    // CRM 활성화 상태 변경, taghereVersion 변경, 또는 enrollmentMode 변경 시 태그히어 서버에 알림
+    // CRM 활성화 상태 변경, 링크 ID 변경, 또는 enrollmentMode 변경 시 태그히어 서버에 알림
     const wasCrmEnabled = (existingStore as any).crmEnabled ?? true;
-    const wasVersion = existingStore.taghereVersion;
     const wasEnrollmentMode = existingStore.enrollmentMode;
-    const versionChanged = taghereVersion !== undefined && taghereVersion !== wasVersion;
     const crmToggled = crmEnabled !== undefined && crmEnabled !== wasCrmEnabled;
     const enrollmentModeChanged = enrollmentMode !== undefined && enrollmentMode !== wasEnrollmentMode;
+    // 하이트진로 플래그는 스탬프 리다이렉트 경로를 가르므로 변경 시 상태 push 가 필요하다
+    const hitejinroChanged = isHitejinro !== undefined && !!isHitejinro !== !!(existingStore as any).isHitejinro;
+    // 주문 서비스 링크 ID 편집 — taghereVersion 은 이 두 컬럼의 파생값이라 함께 재계산한다
+    const linkIdsChanged =
+      (normalizedV1StoreId !== undefined && normalizedV1StoreId !== existingStore.v1StoreId) ||
+      (normalizedV2StoreId !== undefined && normalizedV2StoreId !== existingStore.v2StoreId);
+    if (linkIdsChanged) {
+      const newV1 = normalizedV1StoreId !== undefined ? normalizedV1StoreId : existingStore.v1StoreId;
+      const newV2 = normalizedV2StoreId !== undefined ? normalizedV2StoreId : existingStore.v2StoreId;
+      // 둘 다 비면 파생 근거가 없다 — 기존 컬럼을 유지해 폴백 경로 오염을 막는다
+      const derivedVersion = newV2 ? 'v2' : newV1 ? 'v1' : existingStore.taghereVersion;
+      await prisma.store.update({ where: { id: storeId }, data: { taghereVersion: derivedVersion } });
+      console.log(`[Admin] link-id 변경 - storeId=${storeId}, v1=${newV1 ?? '-'}, v2=${newV2 ?? '-'}, taghereVersion=${derivedVersion}(파생)`);
+    }
 
     // 메타씨티 설정(활성화 / 회원 유형)이 요청에 포함되면 V2 StoreSetting 으로 항상 현재값 동기화.
     // (값 변경 여부와 무관하게 전송 — 마이그레이션 기본값 리셋 등으로 V2 가 조용히 stale 되는 것을 방지)
@@ -461,38 +513,48 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       const effectiveMembershipType = (normalizedMembershipType ?? wasMembershipType) as 'INTEGRATED' | 'STANDALONE';
       notifyStoreMetacitySettingsToV2({
         crmStoreSlug: effectiveStoreSlug,
+        v2StoreId: existingStore.v2StoreId,
         metacityEnabled: effectiveMetacityEnabled,
         metacityMembershipType: effectiveMembershipType,
       }).catch(err => console.error('[Admin] V2 metacity settings sync failed:', err));
     }
 
-    if (crmToggled || versionChanged || enrollmentModeChanged) {
+    if (crmToggled || linkIdsChanged || enrollmentModeChanged || hitejinroChanged) {
       const ownerEmail = existingStore.staffUsers?.[0]?.email;
       const storeSlug = slug || existingStore.slug;
+      const effectiveV2StoreId = normalizedV2StoreId !== undefined ? normalizedV2StoreId : existingStore.v2StoreId;
 
-      if (storeSlug) {
+      // 새 경로: V2 연결 매장은 전체 상태 push 하나로 통보 (성공 시 레거시 on/off 생략).
+      // 컬럼 버전이 v1 인 매장(병행 운영·미정리 불일치)은 기존 V1 통보 시맨틱을 보존해야 하므로
+      // push 대상에서 제외하고 레거시 경로를 그대로 태운다 — 기존 동작 무변경.
+      let statePushed = false;
+      if (effectiveV2StoreId && existingStore.taghereVersion === 'v2') {
+        statePushed = (await pushCrmStateToV2(storeId)).pushed;
+      }
+
+      if (statePushed) {
+        console.log(`[Admin] CRM state pushed for store ${storeId}`);
+      } else if (storeSlug) {
+        // 레거시 폴백 (V2 state 엔드포인트 미배포·v1 매장·push 실패)
         // POINTS 로 변경한 요청은 위에서 스탬프를 방금 껐으므로 변경 전(existingStore) 스탬프 상태를 참조하면 안 됨
         const isStampMode =
           enrollmentMode === 'STAMP' ||
           (enrollmentMode !== 'POINTS' && (existingStore.stampSetting?.enabled ?? false));
-        const effectiveVersion = taghereVersion || existingStore.taghereVersion;
+        // 발송처는 기존과 동일하게 컬럼 버전 기준 — v2StoreId 존재만으로 V1→V2 로 옮기지 않는다
+        const effectiveVersion = existingStore.taghereVersion;
         const effectiveCrmEnabled = crmEnabled ?? wasCrmEnabled;
         const effectiveEnrollmentMode = enrollmentMode || existingStore.enrollmentMode;
         const baseParams = {
           userId: ownerEmail,
           storeName: existingStore.name,
+          v2StoreId: effectiveV2StoreId,
           slug: storeSlug,
           isStampMode,
+          isHitejinro: isHitejinro !== undefined ? !!isHitejinro : !!(existingStore as any).isHitejinro,
           enrollmentMode: effectiveEnrollmentMode,
         };
 
-        if (versionChanged && effectiveCrmEnabled) {
-          // 버전 변경 시: 구 버전 OFF → 신 버전 ON (redirect URL 파라미터명 변경)
-          await notifyCrmOff({ ...baseParams, version: wasVersion });
-          console.log(`[Admin] CRM off (old version ${wasVersion}) for store ${storeId}`);
-          await notifyCrmOn({ ...baseParams, version: effectiveVersion });
-          console.log(`[Admin] CRM on (new version ${effectiveVersion}) for store ${storeId}, isStampMode: ${isStampMode}`);
-        } else if (effectiveCrmEnabled) {
+        if (effectiveCrmEnabled) {
           await notifyCrmOn({ ...baseParams, version: effectiveVersion });
           console.log(`[Admin] CRM on for store ${storeId}, version: ${effectiveVersion}, isStampMode: ${isStampMode}`);
         } else {
@@ -510,7 +572,11 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       store: updatedStore,
       ...(locationGuardWarning ? { locationGuardWarning } : {}),
     });
-  } catch (error) {
+  } catch (error: any) {
+    // 사전 가드와 UNIQUE 인덱스 사이의 race — 충돌은 500 이 아니라 409 로
+    if (error?.code === 'P2002') {
+      return res.status(409).json({ error: '링크 ID 또는 slug 가 다른 매장과 충돌합니다. 다시 시도해주세요.' });
+    }
     console.error('Admin update store error:', error);
     res.status(500).json({ error: '매장 정보 수정 중 오류가 발생했습니다.' });
   }
@@ -525,6 +591,7 @@ router.post('/stores/:storeId/resync-metacity-to-v2', adminAuthMiddleware, async
       where: { id: storeId },
       select: {
         slug: true,
+        v2StoreId: true,
         metacityEnabled: true,
         metacityMembershipType: true,
       },
@@ -536,6 +603,7 @@ router.post('/stores/:storeId/resync-metacity-to-v2', adminAuthMiddleware, async
 
     await notifyStoreMetacitySettingsToV2({
       crmStoreSlug: store.slug,
+      v2StoreId: store.v2StoreId,
       metacityEnabled: !!store.metacityEnabled,
       metacityMembershipType: store.metacityMembershipType === 'STANDALONE' ? 'STANDALONE' : 'INTEGRATED',
     });
@@ -557,14 +625,14 @@ router.post('/stores/:storeId/discover-metacity-store-idx', adminAuthMiddleware,
     const { storeId } = req.params;
     const store = await prisma.store.findUnique({
       where: { id: storeId },
-      select: { slug: true },
+      select: { slug: true, v2StoreId: true },
     });
 
     if (!store || !store.slug) {
       return res.status(404).json({ error: '매장을 찾을 수 없거나 slug 가 없습니다.' });
     }
 
-    const result = await discoverMetacityStoreIdxFromV2(store.slug);
+    const result = await discoverMetacityStoreIdxFromV2(store.slug, store.v2StoreId);
     return res.json({ success: true, storeIdx: result.storeIdx, storeName: result.storeName });
   } catch (error: any) {
     const status = typeof error?.status === 'number' ? error.status : 500;
@@ -1200,7 +1268,13 @@ router.put('/stores/:storeId/enrollment-mode', adminAuthMiddleware, async (req, 
       await ensureStampDisabled(prisma, storeId);
     }
 
-    res.json({ success: true, storeId, mode, slug });
+    // V2 에 상태 통보 — 기존엔 통보가 없어 CRM 만 켜지고 V2 는 꺼진 채 남는 비대칭이 있었다
+    const push = await pushCrmStateToV2(storeId);
+    if (!push.pushed) {
+      console.warn(`[Admin] enrollment-mode 변경 후 V2 상태 push 실패 - storeId=${storeId}, reason=${push.reason}`);
+    }
+
+    res.json({ success: true, storeId, mode, slug, v2StatePushed: push.pushed });
   } catch (error) {
     console.error('Admin enrollment mode update error:', error);
     res.status(500).json({ error: '등록 모드 변경 중 오류가 발생했습니다.' });
@@ -1243,6 +1317,7 @@ router.post('/stores/batch-membership-enable', adminAuthMiddleware, async (req, 
     let skipped = 0;
     const errors: string[] = [];
 
+    let v2Pushed = 0;
     for (const store of targetStores) {
       try {
         let slug = store.slug;
@@ -1260,6 +1335,14 @@ router.post('/stores/batch-membership-enable', adminAuthMiddleware, async (req, 
           },
         });
         enabled++;
+
+        // V2 에 상태 통보 — 기존엔 통보가 없어 CRM 만 켜지고 V2 는 꺼진 채 남는 비대칭이 있었다
+        const push = await pushCrmStateToV2(store.id);
+        if (push.pushed) {
+          v2Pushed++;
+        } else {
+          console.warn(`[Admin] batch-membership-enable V2 push 실패 - storeId=${store.id}, reason=${push.reason}`);
+        }
       } catch (err: any) {
         errors.push(`${store.name} (${store.id}): ${err.message}`);
         skipped++;
@@ -1271,6 +1354,7 @@ router.post('/stores/batch-membership-enable', adminAuthMiddleware, async (req, 
       total: targetStores.length,
       enabled,
       skipped,
+      v2Pushed,
       errors,
     });
   } catch (error) {

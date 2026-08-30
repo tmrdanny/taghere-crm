@@ -78,6 +78,60 @@ export async function ensureRulesExist(storeId: string) {
   }
 }
 
+/**
+ * 룰 업데이트 + enabled 전환 시 토글 이력 기록 (활성화율 KPI 시계열 원천)
+ * enabled 가 실제로 바뀐 경우에만 automation_rule_toggle_logs 에 기록하고,
+ * false→true 전환이면 enabledAt 을 갱신한다.
+ */
+export async function updateRuleWithToggleLog(
+  storeId: string,
+  type: AutomationRuleType,
+  updateData: Record<string, any>,
+  actor: 'OWNER' | 'FRANCHISE' | 'FRANCHISE_BULK'
+) {
+  return prisma.$transaction(async (tx) => {
+    // FOR UPDATE 잠금 — 동시 토글 시 이력과 실제 상태가 어긋나는 것 방지
+    const locked = await tx.$queryRaw<{ id: string; enabled: boolean }[]>`
+      SELECT id, enabled FROM automation_rules
+      WHERE "storeId" = ${storeId} AND type = ${type}::"AutomationRuleType"
+      FOR UPDATE
+    `;
+    if (locked.length === 0) {
+      throw new Error(`AutomationRule not found: ${storeId}/${type}`);
+    }
+    const existing = locked[0];
+
+    const enabledChanged =
+      updateData.enabled !== undefined && updateData.enabled !== existing.enabled;
+
+    const data =
+      enabledChanged && updateData.enabled === true
+        ? { ...updateData, enabledAt: new Date() }
+        : updateData;
+
+    const rule = await tx.automationRule.update({
+      where: { storeId_type: { storeId, type } },
+      data,
+    });
+
+    if (enabledChanged) {
+      await tx.automationRuleToggleLog.create({
+        data: {
+          ruleId: existing.id,
+          storeId,
+          type,
+          enabled: updateData.enabled,
+          actor,
+          // DB 기본값(트랜잭션 시작 시각) 대신 잠금 획득 후 시각 — 이력 정렬이 실제 전이 순서와 일치
+          changedAt: new Date(),
+        },
+      });
+    }
+
+    return rule;
+  });
+}
+
 // GET /api/automation/rules - 전체 규칙 목록 (매장별)
 router.get('/rules', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
@@ -202,12 +256,7 @@ router.put('/rules/:type', authMiddleware, async (req: AuthRequest, res: Respons
       updateData.sendTimeHour = sendTimeHour;
     }
 
-    const rule = await prisma.automationRule.update({
-      where: {
-        storeId_type: { storeId, type },
-      },
-      data: updateData,
-    });
+    const rule = await updateRuleWithToggleLog(storeId, type, updateData, 'OWNER');
 
     res.json({ rule });
   } catch (error) {

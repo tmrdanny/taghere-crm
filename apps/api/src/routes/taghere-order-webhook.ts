@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { webhookAuthMiddleware, WebhookRequest } from '../middleware/webhook-auth.js';
 import { fetchOrder, resolveCrmPageMode, TaghereOrderData } from '../services/taghere-api.js';
+import { findStoreByV2Ref } from '../services/store-ref.js';
+import { resolveVersionForOrder } from '../services/taghere-version.js';
 import { findOrCreateCustomerByPhone } from '../services/customer-identity.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
 import { enqueueStampEarnedAlimTalk } from '../services/solapi.js';
@@ -71,29 +73,29 @@ async function extractOrderContext(
  */
 router.post('/membership/register', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
   try {
-    const { storeSlug, phone, orderId } = req.body as {
+    const { storeId, storeSlug, phone, orderId } = req.body as {
+      storeId?: string;
       storeSlug?: string;
       phone?: string;
       orderId?: string;
     };
 
-    if (!storeSlug || !phone || !orderId) {
+    if ((!storeId && !storeSlug) || !phone || !orderId) {
       return res.status(400).json({
         success: false,
         error: 'missing_params',
-        message: 'storeSlug, phone, orderId는 필수입니다.',
+        message: 'storeId 또는 storeSlug, 그리고 phone, orderId는 필수입니다.',
       });
     }
 
-    const store = await prisma.store.findFirst({
-      where: { slug: storeSlug },
-      select: {
+    const store = await findStoreByV2Ref('membership/register', { storeId, storeSlug }, {
         id: true,
         name: true,
         taghereVersion: true,
+        v1StoreId: true,
+        v2StoreId: true,
         addressSido: true,
         addressSigungu: true,
-      },
     });
 
     if (!store) {
@@ -124,7 +126,7 @@ router.post('/membership/register', webhookAuthMiddleware, async (req: WebhookRe
       store.addressSigungu ?? null,
     );
 
-    const { orderItems, tableLabel, totalAmount } = await extractOrderContext(orderId, store.taghereVersion);
+    const { orderItems, tableLabel, totalAmount } = await extractOrderContext(orderId, resolveVersionForOrder(store, orderId));
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -190,7 +192,8 @@ router.post('/membership/register', webhookAuthMiddleware, async (req: WebhookRe
 router.post('/stamp/earn', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
   try {
     // deferUntilPaid: 후불 + 결제완료 감지 가능 POS 주문. 실제 적립을 결제완료까지 미룬다.
-    const { storeSlug, phone, earnMethod = 'NFC_TAG', count, deferUntilPaid } = req.body as {
+    const { storeId, storeSlug, phone, earnMethod = 'NFC_TAG', count, deferUntilPaid } = req.body as {
+      storeId?: string;
       storeSlug?: string;
       phone?: string;
       earnMethod?: string;
@@ -199,23 +202,23 @@ router.post('/stamp/earn', webhookAuthMiddleware, async (req: WebhookRequest, re
     };
     const ordersheetId: string | undefined = req.body.orderId || req.body.ordersheetId;
 
-    if (!storeSlug || !phone) {
+    if ((!storeId && !storeSlug) || !phone) {
       return res.status(400).json({
         success: false,
         error: 'missing_params',
-        message: 'storeSlug, phone은 필수입니다.',
+        message: 'storeId 또는 storeSlug, 그리고 phone은 필수입니다.',
       });
     }
 
-    const store = await prisma.store.findFirst({
-      where: { slug: storeSlug },
-      select: {
+    const store = await findStoreByV2Ref('stamp/earn', { storeId, storeSlug }, {
         id: true,
         name: true,
         stampSetting: true,
         franchiseStampEnabled: true,
         franchiseId: true,
         taghereVersion: true,
+        v1StoreId: true,
+        v2StoreId: true,
         addressSido: true,
         addressSigungu: true,
         franchise: {
@@ -228,7 +231,6 @@ router.post('/stamp/earn', webhookAuthMiddleware, async (req: WebhookRequest, re
         reviewAutomationSetting: {
           select: { benefitText: true },
         },
-      },
     });
 
     if (!store) {
@@ -374,7 +376,7 @@ router.post('/stamp/earn', webhookAuthMiddleware, async (req: WebhookRequest, re
     let tableLabel: string | null = null;
     let totalAmount: number | null = null;
     if (ordersheetId) {
-      const ctx = await extractOrderContext(ordersheetId, store.taghereVersion);
+      const ctx = await extractOrderContext(ordersheetId, resolveVersionForOrder(store, ordersheetId));
       orderItems = ctx.orderItems;
       tableLabel = ctx.tableLabel;
       totalAmount = ctx.totalAmount;
@@ -577,26 +579,23 @@ router.post('/stamp/earn', webhookAuthMiddleware, async (req: WebhookRequest, re
  */
 router.post('/store-crm-info', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
   try {
-    const { storeSlug } = req.body as { storeSlug?: string };
+    const { storeId, storeSlug } = req.body as { storeId?: string; storeSlug?: string };
 
-    if (!storeSlug) {
+    if (!storeId && !storeSlug) {
       return res.status(400).json({
         success: false,
         error: 'missing_params',
-        message: 'storeSlug은 필수입니다.',
+        message: 'storeId 또는 storeSlug은 필수입니다.',
       });
     }
 
-    const store = await prisma.store.findFirst({
-      where: { slug: storeSlug },
-      select: {
+    const store = await findStoreByV2Ref('store-crm-info', { storeId, storeSlug }, {
         name: true,
         crmEnabled: true,
         enrollmentMode: true,
         pointRatePercent: true,
         metacityEnabled: true,
         stampSetting: { select: { enabled: true } },
-      },
     });
 
     if (!store) {
@@ -646,25 +645,22 @@ router.post('/store-crm-info', webhookAuthMiddleware, async (req: WebhookRequest
  */
 router.post('/stamp/balance', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
   try {
-    const { storeSlug, phone } = req.body;
+    const { storeId, storeSlug, phone } = req.body;
 
-    if (!storeSlug || !phone) {
+    if ((!storeId && !storeSlug) || !phone) {
       return res.status(400).json({
         success: false,
         error: 'missing_params',
-        message: 'storeSlug, phone은 필수입니다.',
+        message: 'storeId 또는 storeSlug, 그리고 phone은 필수입니다.',
       });
     }
 
-    const store = await prisma.store.findFirst({
-      where: { slug: storeSlug },
-      select: {
+    const store = await findStoreByV2Ref('stamp/balance', { storeId, storeSlug }, {
         id: true,
         franchiseStampEnabled: true,
         franchiseId: true,
         franchise: { select: { franchiseStampSetting: true } },
         stampSetting: { select: { enabled: true, manualStampCountEnabled: true } },
-      },
     });
 
     if (!store) {
