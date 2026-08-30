@@ -36,7 +36,10 @@ interface Store {
   // CRM settings
   crmEnabled?: boolean;
   enrollmentMode?: string;
-  taghereVersion?: string;
+  taghereVersion?: string; // 파생값(v1StoreId/v2StoreId 기준) — 편집 불가
+  v1StoreId?: string | null;
+  v2StoreId?: string | null;
+  isHitejinro?: boolean;
   // Metacity POS 연동
   metacityEnabled?: boolean;
   metacityBrandCode?: string | null;
@@ -263,7 +266,9 @@ export default function AdminStoresPage() {
       pointsAlimtalkEnabled: store.pointsAlimtalkEnabled ?? true,
       crmEnabled: store.crmEnabled ?? true,
       enrollmentMode: store.enrollmentMode ?? 'POINTS',
-      taghereVersion: store.taghereVersion ?? 'v1',
+      v1StoreId: store.v1StoreId ?? '',
+      v2StoreId: store.v2StoreId ?? '',
+      isHitejinro: store.isHitejinro ?? false,
       metacityEnabled: store.metacityEnabled ?? false,
       metacityBrandCode: store.metacityBrandCode ?? '',
       metacityStoreIdx: store.metacityStoreIdx ?? '',
@@ -316,7 +321,12 @@ export default function AdminStoresPage() {
         setStores((prevStores) =>
           prevStores.map((store) =>
             store.id === selectedStore.id
-              ? { ...store, ...formData }
+              ? {
+                  ...store,
+                  ...formData,
+                  // 버전은 링크 ID 의 파생값 — 서버 재계산과 동일 규칙으로 로컬 표시 갱신
+                  taghereVersion: formData.v2StoreId ? 'v2' : formData.v1StoreId ? 'v1' : store.taghereVersion,
+                }
               : store
           )
         );
@@ -1451,35 +1461,10 @@ export default function AdminStoresPage() {
                   )}
                 </div>
 
-                {/* 태그히어 버전 */}
+                {/* 태그히어 연동 — 버전은 매장 ID 매핑의 파생값 (직접 편집 불가) */}
                 <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                  <label className="block text-[12px] text-neutral-500 mb-2">태그히어 버전</label>
-                  {isEditMode ? (
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditForm({ ...editForm, taghereVersion: 'v1' })}
-                        className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-lg border transition-all ${
-                          editForm.taghereVersion !== 'v2'
-                            ? 'bg-blue-500 text-white border-blue-500'
-                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
-                        }`}
-                      >
-                        V1
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditForm({ ...editForm, taghereVersion: 'v2' })}
-                        className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-lg border transition-all ${
-                          editForm.taghereVersion === 'v2'
-                            ? 'bg-green-500 text-white border-green-500'
-                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
-                        }`}
-                      >
-                        V2
-                      </button>
-                    </div>
-                  ) : (
+                  <label className="block text-[12px] text-neutral-500 mb-2">태그히어 연동 (버전은 매장 ID로 결정)</label>
+                  <div className="mb-2">
                     <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-lg ${
                       selectedStore.taghereVersion === 'v2'
                         ? 'bg-green-100 text-green-700'
@@ -1487,6 +1472,29 @@ export default function AdminStoresPage() {
                     }`}>
                       {selectedStore.taghereVersion === 'v2' ? 'V2' : 'V1'}
                     </span>
+                  </div>
+                  {isEditMode ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={editForm.v2StoreId ?? ''}
+                        onChange={(e) => setEditForm({ ...editForm, v2StoreId: e.target.value.trim() })}
+                        placeholder="V2 매장 ID (SR...)"
+                        className="w-full px-3 py-2 text-[13px] font-mono border border-neutral-200 rounded-lg"
+                      />
+                      <input
+                        type="text"
+                        value={editForm.v1StoreId ?? ''}
+                        onChange={(e) => setEditForm({ ...editForm, v1StoreId: e.target.value.trim() })}
+                        placeholder="V1 매장 ID (24자리 hex)"
+                        className="w-full px-3 py-2 text-[13px] font-mono border border-neutral-200 rounded-lg"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-1 text-[12px] font-mono text-neutral-600">
+                      <div>V2: {selectedStore.v2StoreId ?? '-'}</div>
+                      <div>V1: {selectedStore.v1StoreId ?? '-'}</div>
+                    </div>
                   )}
                 </div>
               </div>

@@ -21,6 +21,7 @@ import {
   todayKstString,
 } from '../services/visitor-stats.js';
 import { fetchOrderLanguageStatsFromV2 } from '../services/taghere-api.js';
+import { resolveVersion } from '../services/taghere-version.js';
 
 const router = Router();
 
@@ -2841,14 +2842,14 @@ router.get('/insights/order-languages', async (req: FranchiseAuthRequest, res) =
 
     const stores = await prisma.store.findMany({
       where: { franchiseId, ...(storeIdFilter ? { id: storeIdFilter } : {}) },
-      select: { id: true, slug: true, taghereVersion: true },
+      select: { id: true, slug: true, taghereVersion: true, v1StoreId: true, v2StoreId: true },
     });
     if (stores.length === 0) {
       return res.status(404).json({ error: '가맹점을 찾을 수 없습니다.' });
     }
 
     // V1 가맹점은 주문 언어 데이터가 없어 집계에서 제외한다 (본사에 제외 건수를 알린다)
-    const v2Stores = stores.filter((s) => s.slug && s.taghereVersion === 'v2');
+    const v2Stores = stores.filter((s) => s.slug && resolveVersion(s) === 'v2');
     const excludedV1Count = stores.length - v2Stores.length;
     if (v2Stores.length === 0) {
       return res.json({ available: true, breakdown: null, storeCount: 0, excludedV1Count });

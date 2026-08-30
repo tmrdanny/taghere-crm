@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { validateRewards, buildRewardsFromLegacy, buildLegacyFromRewards, RewardEntry } from '../utils/random-reward.js';
 import { notifyCrmOn } from '../services/taghere-api.js';
+import { pushCrmStateToV2 } from '../services/crm-state-push.js';
 
 const router = Router();
 
@@ -315,6 +316,8 @@ async function handleEnabledChange(storeId: string, enabled: boolean) {
     select: {
       slug: true,
       name: true,
+      v2StoreId: true,
+      isHitejinro: true,
       taghereVersion: true,
       enrollmentMode: true,
       staffUsers: {
@@ -326,15 +329,22 @@ async function handleEnabledChange(storeId: string, enabled: boolean) {
   });
 
   if (store?.slug) {
-    await notifyCrmOn({
-      version: store.taghereVersion,
-      userId: store.staffUsers?.[0]?.email,
-      storeName: store.name,
-      slug: store.slug,
-      isStampMode: enabled,
-      enrollmentMode: store.enrollmentMode,
-    });
-    console.log(`[Stamp Settings] Stamp ${enabled ? 'enabled' : 'disabled'} for store ${storeId}, version: ${store.taghereVersion}`);
+    // V2 연결 매장은 전체 상태 push (redirectUrl 경로가 스탬프 on/off 를 반영해 재조립됨).
+    // 컬럼 버전 v1 매장(병행·불일치)은 기존 V1 통보 시맨틱 보존을 위해 push 제외 — 레거시 경로 그대로.
+    const push = store.v2StoreId && store.taghereVersion === 'v2' ? await pushCrmStateToV2(storeId) : { pushed: false };
+    if (!push.pushed) {
+      await notifyCrmOn({
+        version: store.taghereVersion,
+        userId: store.staffUsers?.[0]?.email,
+        storeName: store.name,
+        v2StoreId: store.v2StoreId,
+        slug: store.slug,
+        isStampMode: enabled,
+        isHitejinro: store.isHitejinro,
+        enrollmentMode: store.enrollmentMode,
+      });
+    }
+    console.log(`[Stamp Settings] Stamp ${enabled ? 'enabled' : 'disabled'} for store ${storeId}, version: ${store.taghereVersion}, via=${push.pushed ? 'state-push' : 'legacy-crm-on'}`);
   }
 }
 

@@ -15,6 +15,7 @@ import {
 } from '../../services/pending-point-accrual.js';
 import { isVisitSourceRecent } from '../../services/stamps.js';
 import { findCustomerProfileByKakaoId } from '../../services/customer-identity.js';
+import { resolveVersionForOrder } from '../../services/taghere-version.js';
 
 const router = Router();
 
@@ -40,6 +41,8 @@ router.get('/ordersheet', async (req, res) => {
         name: true,
         pointRatePercent: true,
         taghereVersion: true,
+        v1StoreId: true,
+        v2StoreId: true,
         addressSido: true,
         addressSigungu: true,
         metacityEnabled: true,
@@ -51,7 +54,7 @@ router.get('/ordersheet', async (req, res) => {
     }
 
     // TagHere API 호출 (V1/V2 자동 분기)
-    const orderData = await fetchOrder(ordersheetId, store.taghereVersion);
+    const orderData = await fetchOrder(ordersheetId, resolveVersionForOrder(store, ordersheetId));
 
     // 주문서를 찾을 수 없는 경우
     if (!orderData) {
@@ -152,6 +155,8 @@ router.post('/auto-earn', async (req, res) => {
         name: true,
         pointRatePercent: true,
         taghereVersion: true,
+        v1StoreId: true,
+        v2StoreId: true,
         addressSido: true,
         addressSigungu: true,
         pointsAlimtalkEnabled: true,
@@ -269,7 +274,7 @@ router.post('/auto-earn', async (req, res) => {
     }
 
     // 6. TagHere API에서 주문 금액 조회 (V1/V2 자동 분기)
-    const orderData = await fetchOrder(ordersheetId, store.taghereVersion);
+    const orderData = await fetchOrder(ordersheetId, resolveVersionForOrder(store, ordersheetId));
 
     // 주문서를 찾을 수 없는 경우 기본값 사용 (적립은 진행)
     if (!orderData) {
@@ -732,16 +737,18 @@ orderDetailsRouter.get('/order-details', async (req, res) => {
     if (slug) {
       store = await prisma.store.findFirst({
         where: { slug },
-        select: { id: true, name: true, taghereVersion: true },
+        select: { id: true, name: true, taghereVersion: true, v1StoreId: true, v2StoreId: true },
       });
     } else if (storeId) {
       store = await prisma.store.findUnique({
         where: { id: storeId },
-        select: { id: true, name: true, taghereVersion: true },
+        select: { id: true, name: true, taghereVersion: true, v1StoreId: true, v2StoreId: true },
       });
     }
 
-    const version = store?.taghereVersion || 'v1';
+    const version = store
+      ? resolveVersionForOrder(store, ordersheetId)
+      : resolveVersionForOrder({ taghereVersion: 'v1' }, ordersheetId);
 
     console.log(`[TagHere] Fetching order details - storeId: ${storeId}, ordersheetId: ${ordersheetId}, version: ${version}`);
 

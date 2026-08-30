@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { computeAnalytics } from '../services/analytics.js';
 import { fetchOrderLanguageStatsFromV2 } from '../services/taghere-api.js';
+import { resolveVersion } from '../services/taghere-version.js';
 
 const router = Router();
 
@@ -279,11 +280,11 @@ router.get('/order-languages', async (req: AuthRequest, res) => {
     const storeId = req.user!.storeId;
     const store = await prisma.store.findUnique({
       where: { id: storeId },
-      select: { slug: true, taghereVersion: true },
+      select: { slug: true, taghereVersion: true, v1StoreId: true, v2StoreId: true },
     });
 
     // V1 매장과 슬러그 미설정 매장은 주문 언어 데이터가 존재하지 않는다
-    if (!store?.slug || store.taghereVersion !== 'v2') {
+    if (!store?.slug || resolveVersion(store) !== 'v2') {
       return res.json({ supported: false, available: false, breakdown: null });
     }
 
