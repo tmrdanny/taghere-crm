@@ -1,7 +1,7 @@
 import { Prisma, StampEarnMethod } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { enqueueStampEarnedAlimTalk } from './solapi.js';
-import { buildRewardsFromLegacy, checkMilestoneAndDraw, MilestoneResult, RewardEntry } from '../utils/random-reward.js';
+import { buildRewardsFromLegacy, checkMilestoneAndDraw, MilestoneResult, RewardEntry, buildStampUsageRule } from '../utils/random-reward.js';
 import { PENDING_ACCRUAL_TTL_HOURS } from './pending-point-accrual.js';
 
 /**
@@ -300,19 +300,7 @@ async function sendStampAccrualAlimtalk(
     const rewardsForAlimtalk: RewardEntry[] = store.stampSetting.rewards
       ? (store.stampSetting.rewards as unknown as RewardEntry[])
       : buildRewardsFromLegacy(store.stampSetting as any);
-    const rules = rewardsForAlimtalk
-      .sort((a, b) => a.tier - b.tier)
-      .map(r => {
-        const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
-        return `- ${r.tier}개 모을 시: ${isRandom ? '랜덤 박스!' : r.description}`;
-      });
-    const baseUsageRule = rules.length > 0
-      ? '\n' + rules.join('\n')
-      : '\n- 10개 모을시 매장 선물 증정!';
-    // 당첨 안내는 별도 변수가 없어 사용 규칙 변수 앞에 붙여 보낸다(알림톡 변수에 줄바꿈/이모지 허용).
-    const stampUsageRule = milestoneResult
-      ? `🎁 이번 적립으로 ${milestoneResult.tier}개 달성! 보상: ${milestoneResult.reward}${baseUsageRule}`
-      : baseUsageRule;
+    const stampUsageRule = buildStampUsageRule(rewardsForAlimtalk, milestoneResult);
     const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
 
     await enqueueStampEarnedAlimTalk({

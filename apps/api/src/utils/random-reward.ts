@@ -179,3 +179,26 @@ export function validateRewards(
 
   return { valid: true };
 }
+
+/**
+ * 스탬프 알림톡의 #{스탬프사용규칙} 변수 문구 생성.
+ *
+ * 카카오 알림톡 템플릿은 사전 승인 방식이라 변수를 새로 추가할 수 없다.
+ * 그래서 당첨 보상 안내를 사용 규칙 변수 앞에 붙여 함께 발송한다
+ * (알림톡 치환변수는 줄바꿈/이모지 허용).
+ */
+export function buildStampUsageRule(
+  rewards: RewardEntry[],
+  milestoneResult?: { tier: number; reward: string } | null,
+): string {
+  const rules = [...rewards]
+    .sort((a, b) => a.tier - b.tier)
+    .map((r) => {
+      const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
+      return `- ${r.tier}개 모을 시: ${isRandom ? '랜덤 박스!' : r.description}`;
+    });
+  const base = rules.length > 0 ? '\n' + rules.join('\n') : '\n- 10개 모을시 매장 선물 증정!';
+  return milestoneResult
+    ? `🎁 이번 적립으로 ${milestoneResult.tier}개 달성! 보상: ${milestoneResult.reward}${base}`
+    : base;
+}
