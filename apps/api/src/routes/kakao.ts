@@ -3,7 +3,7 @@ import { Router, Request, Response } from 'express';
 import { toPhoneLastDigits } from '../utils/phone.js';
 import { prisma } from '../lib/prisma.js';
 import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk, enqueueCorporateAdAlimTalk } from '../services/solapi.js';
-import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
+import { checkMilestoneAndDraw, buildRewardsFromLegacy, buildStampUsageRule, RewardEntry } from '../utils/random-reward.js';
 import { fetchOrder, TaghereOrderData } from '../services/taghere-api.js';
 import { sidoToShort } from '../utils/address-parser.js';
 import {
@@ -1315,15 +1315,7 @@ async function handleStampCallback(
       const rewardsForAlimtalk: RewardEntry[] = franchiseStampSetting.rewards
         ? (franchiseStampSetting.rewards as unknown as RewardEntry[])
         : buildRewardsFromLegacy(franchiseStampSetting as any);
-      const rules = rewardsForAlimtalk
-        .sort((a, b) => a.tier - b.tier)
-        .map(r => {
-          const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
-          return `- ${r.tier}개 모을 시: ${isRandom ? '랜덤 박스!' : r.description}`;
-        });
-      const stampUsageRule = rules.length > 0
-        ? '\n' + rules.join('\n')
-        : '\n- 10개 모을시 매장 선물 증정!';
+      const stampUsageRule = buildStampUsageRule(rewardsForAlimtalk, franchiseResult.milestoneResult);
 
       const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
 
@@ -1582,15 +1574,7 @@ async function handleStampCallback(
         ? (store.stampSetting.rewards as unknown as RewardEntry[])
         : store.stampSetting ? buildRewardsFromLegacy(store.stampSetting as any) : [];
     }
-    const rules = rewardsForAlimtalk
-      .sort((a, b) => a.tier - b.tier)
-      .map(r => {
-        const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
-        return `- ${r.tier}개 모을 시: ${isRandom ? '랜덤 박스!' : r.description}`;
-      });
-    const stampUsageRule = rules.length > 0
-      ? '\n' + rules.join('\n')
-      : '\n- 10개 모을시 매장 선물 증정!';
+    const stampUsageRule = buildStampUsageRule(rewardsForAlimtalk, result.milestoneResult);
 
     // 리뷰 작성 안내 문구
     const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
