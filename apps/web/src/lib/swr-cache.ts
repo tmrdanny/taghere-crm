@@ -28,6 +28,21 @@ export function cacheKeyFor(token: string, url: string) {
   return `${token.slice(-12)}:${url}`;
 }
 
+// URL 일부가 일치하는 캐시 엔트리를 전부 제거한다 (기간별 쿼리 등 변형 키 일괄 무효화용).
+export function invalidateCacheByUrlPart(urlPart: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith(PREFIX) && key.includes(urlPart)) keys.push(key);
+    }
+    keys.forEach((key) => sessionStorage.removeItem(key));
+  } catch {
+    // 캐시는 best-effort
+  }
+}
+
 /**
  * 캐시가 있으면 즉시 apply 호출 → fetch 완료 후 최신 데이터로 다시 apply.
  * apply는 같은 데이터 형태로 최대 2번 호출된다.

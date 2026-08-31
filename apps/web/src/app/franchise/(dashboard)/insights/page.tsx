@@ -19,8 +19,20 @@ import {
   Compass,
   Gift,
   Send,
+  Building2,
+  Check,
+  Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Area,
+  AreaChart,
+} from 'recharts';
 
 
 // Demo insights data
@@ -76,6 +88,31 @@ interface MonthlyTrend {
   customers: number;
 }
 
+interface OrderLanguageStats {
+  available: boolean;
+  breakdown: {
+    totalOrders: number;
+    identifiedOrders: number;
+    unknownCount: number;
+    languages: { language: string; count: number; percentage: number }[];
+  } | null;
+  storeCount: number;
+  excludedV1Count: number;
+  /** 태그히어에 연결되지 않은 가맹점 수 (연동 설정 누락 = 조치 대상) */
+  unlinkedCount: number;
+}
+
+const ORDER_LANGUAGE_LABELS: Record<string, string> = {
+  ko: '한국어',
+  en: '영어',
+  zh: '중국어',
+  ja: '일본어',
+  vi: '베트남어',
+  mn: '몽골어',
+};
+
+const ORDER_LANGUAGE_COLORS = ['#4A90FF', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6', '#14b8a6'];
+
 interface TopStore {
   name: string;
   customers: number;
@@ -124,6 +161,32 @@ export default function FranchiseInsightsPage() {
   const [dateFilterMode, setDateFilterMode] = useState<'period' | 'range'>('period');
   const datePickerRef = useRef<HTMLDivElement>(null);
 
+  // 일별 방문객 추이 (페이지 공통 기간 필터와 독립)
+  const [dailyDays, setDailyDays] = useState<7 | 30 | 90>(30);
+  const [dailyStoreFilter, setDailyStoreFilter] = useState<string>('all');
+  const [dailyChart, setDailyChart] = useState<
+    { date: string; day: string; visitors: number; autoVisitors: number; overridden: boolean }[]
+  >([]);
+  const [storeOptions, setStoreOptions] = useState<{ id: string; name: string }[]>([]);
+  const [isDailyLoading, setIsDailyLoading] = useState(false);
+  const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
+  const storeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // 주문 언어 분포 (태그히어 V2에서 조회, 가맹점별 조회 가능)
+  const [langDays, setLangDays] = useState<7 | 30 | 90>(30);
+  const [langStoreFilter, setLangStoreFilter] = useState<string>('all');
+  const [langStats, setLangStats] = useState<OrderLanguageStats | null>(null);
+  const [isLangLoading, setIsLangLoading] = useState(true);
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const langDropdownRef = useRef<HTMLDivElement>(null);
+
+  // 월별 고객 추이 (페이지 공통 기간 필터와 독립, 가맹점별 조회 가능)
+  const [monthlyStoreFilter, setMonthlyStoreFilter] = useState<string>('all');
+  const [monthlyTrend, setMonthlyTrend] = useState<MonthlyTrend[]>([]);
+  const [isMonthlyLoading, setIsMonthlyLoading] = useState(false);
+  const [monthlyDropdownOpen, setMonthlyDropdownOpen] = useState(false);
+  const monthlyDropdownRef = useRef<HTMLDivElement>(null);
+
   const periodOptions = [
     { value: '7days', label: '최근 7일' },
     { value: '30days', label: '최근 30일' },
@@ -137,10 +200,154 @@ export default function FranchiseInsightsPage() {
       if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
         setShowDatePicker(false);
       }
+      if (storeDropdownRef.current && !storeDropdownRef.current.contains(event.target as Node)) {
+        setStoreDropdownOpen(false);
+      }
+      if (monthlyDropdownRef.current && !monthlyDropdownRef.current.contains(event.target as Node)) {
+        setMonthlyDropdownOpen(false);
+      }
+      if (langDropdownRef.current && !langDropdownRef.current.contains(event.target as Node)) {
+        setLangDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // 가맹점 목록 (일별 방문객 필터용)
+  useEffect(() => {
+    const fetchStores = async () => {
+      try {
+        const token = getFranchiseToken();
+        if (!token) return;
+        const res = await fetch(`${API_BASE}/api/franchise/stores`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setStoreOptions(data.stores || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch stores:', err);
+      }
+    };
+    fetchStores();
+  }, []);
+
+  // 일별 방문객 추이 조회
+  useEffect(() => {
+    let ignore = false; // 필터 빠른 전환 시 이전 조건의 늦은 응답이 최신 상태를 덮지 않도록
+    const fetchDailyVisitors = async () => {
+      setIsDailyLoading(true);
+      try {
+        const token = getFranchiseToken();
+        if (!token) return;
+        const params = new URLSearchParams({ days: String(dailyDays) });
+        if (dailyStoreFilter !== 'all') params.append('storeId', dailyStoreFilter);
+        const res = await fetch(`${API_BASE}/api/franchise/insights/daily-visitors?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (ignore) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (ignore) return;
+          const chartData = (data.chartData || []).map(
+            (item: { date: string; visitors: number; autoVisitors: number; overridden: boolean }) => ({
+              ...item,
+              // date는 KST 기준 'YYYY-MM-DD' 문자열 — TZ 비의존을 위해 문자열 슬라이스로 라벨 생성
+              day: `${item.date.slice(5, 7)}/${item.date.slice(8, 10)}`,
+            })
+          );
+          setDailyChart(chartData);
+        } else {
+          setDailyChart([]);
+        }
+      } catch (err) {
+        if (!ignore) {
+          console.error('Failed to fetch daily visitors:', err);
+          setDailyChart([]);
+        }
+      } finally {
+        if (!ignore) setIsDailyLoading(false);
+      }
+    };
+    fetchDailyVisitors();
+    return () => {
+      ignore = true;
+    };
+  }, [dailyDays, dailyStoreFilter]);
+
+  // 주문 언어 분포 조회
+  useEffect(() => {
+    let ignore = false;
+    const fetchOrderLanguages = async () => {
+      setIsLangLoading(true);
+      try {
+        const token = getFranchiseToken();
+        if (!token) return;
+        const params = new URLSearchParams({ days: String(langDays) });
+        if (langStoreFilter !== 'all') params.append('storeId', langStoreFilter);
+        const res = await fetch(`${API_BASE}/api/franchise/insights/order-languages?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (ignore) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (ignore) return;
+          setLangStats(data);
+        } else {
+          setLangStats(null);
+        }
+      } catch (err) {
+        if (!ignore) {
+          console.error('Failed to fetch order languages:', err);
+          setLangStats(null);
+        }
+      } finally {
+        if (!ignore) setIsLangLoading(false);
+      }
+    };
+    fetchOrderLanguages();
+    return () => {
+      ignore = true;
+    };
+  }, [langDays, langStoreFilter]);
+
+  // 월별 고객 추이 조회
+  useEffect(() => {
+    let ignore = false; // 가맹점 빠른 전환 시 이전 조건의 늦은 응답이 최신 상태를 덮지 않도록
+    const fetchMonthlyTrend = async () => {
+      setIsMonthlyLoading(true);
+      try {
+        const token = getFranchiseToken();
+        if (!token) return;
+        const params = new URLSearchParams();
+        if (monthlyStoreFilter !== 'all') params.append('storeId', monthlyStoreFilter);
+        const res = await fetch(`${API_BASE}/api/franchise/insights/monthly-trend?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (ignore) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (ignore) return;
+          setMonthlyTrend(data.monthlyTrend || []);
+        } else {
+          setMonthlyTrend([]);
+        }
+      } catch (err) {
+        if (!ignore) {
+          console.error('Failed to fetch monthly trend:', err);
+          setMonthlyTrend([]);
+        }
+      } finally {
+        if (!ignore) setIsMonthlyLoading(false);
+      }
+    };
+    fetchMonthlyTrend();
+    return () => {
+      ignore = true;
+    };
+  }, [monthlyStoreFilter]);
 
   // Auth token helper
   // Fetch insights
@@ -287,7 +494,15 @@ export default function FranchiseInsightsPage() {
 
   // Render mini trend chart
   const renderTrendChart = () => {
-    if (!insights.monthlyTrend || insights.monthlyTrend.length === 0) {
+    if (isMonthlyLoading) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <RefreshCw className="w-5 h-5 text-slate-400 animate-spin" />
+        </div>
+      );
+    }
+
+    if (monthlyTrend.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <p className="text-sm text-slate-500">월별 추이 데이터가 없습니다</p>
@@ -295,11 +510,11 @@ export default function FranchiseInsightsPage() {
       );
     }
 
-    const maxCustomers = Math.max(...insights.monthlyTrend.map((d) => d.customers), 1); // 최소값 1로 설정
+    const maxCustomers = Math.max(...monthlyTrend.map((d) => d.customers), 1); // 최소값 1로 설정
 
     return (
       <div className="flex items-end gap-2 h-32">
-        {insights.monthlyTrend.map((item) => {
+        {monthlyTrend.map((item) => {
           const heightPercentage = maxCustomers > 0 ? (item.customers / maxCustomers) * 100 : 0;
           const minVisibleHeight = item.customers > 0 ? 8 : 0; // 값이 있으면 최소 8px
           const barHeight = item.customers > 0 ? Math.max(heightPercentage, minVisibleHeight) : 0;
@@ -370,6 +585,112 @@ export default function FranchiseInsightsPage() {
             <span className="text-xs text-slate-500 w-12 text-right">{item.percentage}%</span>
           </div>
         ))}
+      </div>
+    );
+  };
+
+  // 주문 언어 분포 렌더링 (언어가 기록된 주문만 분모)
+  const renderOrderLanguageChart = () => {
+    if (isLangLoading) {
+      return (
+        <div className="h-40 flex items-center justify-center">
+          <RefreshCw className="w-5 h-5 text-slate-400 animate-spin" />
+        </div>
+      );
+    }
+    if (!langStats?.available) {
+      return (
+        <div className="h-40 flex items-center justify-center">
+          <p className="text-sm text-slate-500">일시적으로 데이터를 불러오지 못했습니다</p>
+        </div>
+      );
+    }
+
+    const breakdown = langStats.breakdown;
+    if (!breakdown || breakdown.identifiedOrders === 0) {
+      return (
+        <div className="h-40 flex flex-col items-center justify-center text-center">
+          <Globe className="w-12 h-12 text-slate-300 mb-3" />
+          <p className="text-sm text-slate-500">아직 집계된 주문 언어가 없습니다</p>
+          {(langStats.excludedV1Count > 0 || langStats.unlinkedCount > 0) && (
+            <p className="mt-2 text-xs text-slate-400">
+              {langStats.excludedV1Count > 0 && `언어 데이터가 없는 가맹점 ${langStats.excludedV1Count}곳`}
+              {langStats.excludedV1Count > 0 && langStats.unlinkedCount > 0 && ', '}
+              {langStats.unlinkedCount > 0 && `태그히어 연동 확인이 필요한 가맹점 ${langStats.unlinkedCount}곳`}
+              은 집계에서 제외됩니다
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    let cumulative = 0;
+    const gradientParts = breakdown.languages.map((item, idx) => {
+      const start = cumulative;
+      cumulative += item.percentage;
+      return `${ORDER_LANGUAGE_COLORS[idx % ORDER_LANGUAGE_COLORS.length]} ${start}% ${cumulative}%`;
+    });
+    if (cumulative < 100) {
+      gradientParts.push(`#e2e8f0 ${cumulative}% 100%`);
+    }
+
+    const foreignCount = breakdown.languages
+      .filter((item) => item.language !== 'ko')
+      .reduce((sum, item) => sum + item.count, 0);
+    const foreignPercentage = Math.round((foreignCount / breakdown.identifiedOrders) * 100);
+
+    return (
+      <div>
+        <div className="mb-5">
+          <p className="text-3xl font-bold text-slate-900">외국어 주문 {foreignPercentage}%</p>
+          <p className="text-sm text-slate-500 mt-1">
+            {breakdown.identifiedOrders.toLocaleString()}건 중 {foreignCount.toLocaleString()}건
+            {langStats.storeCount > 0 && ` · 가맹점 ${langStats.storeCount}곳`}
+          </p>
+        </div>
+        <div className="flex items-center gap-6">
+          <div
+            className="relative w-36 h-36 rounded-full shrink-0"
+            style={{
+              background: `conic-gradient(${gradientParts.join(', ')})`,
+            }}
+          >
+            <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center">
+              <div className="text-center">
+                <span className="text-lg font-bold text-slate-900">
+                  {breakdown.identifiedOrders.toLocaleString()}
+                </span>
+                <p className="text-[10px] text-slate-500">언어 확인</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex-1 space-y-2">
+            {breakdown.languages.map((item, idx) => (
+              <div key={item.language} className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded-full shrink-0"
+                  style={{ backgroundColor: ORDER_LANGUAGE_COLORS[idx % ORDER_LANGUAGE_COLORS.length] }}
+                />
+                <span className="text-sm text-slate-600 w-20">
+                  {ORDER_LANGUAGE_LABELS[item.language] || item.language}
+                </span>
+                <span className="text-sm font-medium text-slate-900">{item.count.toLocaleString()}건</span>
+                <span className="text-xs text-slate-400">({item.percentage}%)</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {(breakdown.unknownCount > 0 || langStats.excludedV1Count > 0 || langStats.unlinkedCount > 0) && (
+          <p className="mt-4 text-xs text-slate-400">
+            {[
+              breakdown.unknownCount > 0 && `언어 미기록 ${breakdown.unknownCount.toLocaleString()}건 제외`,
+              langStats.excludedV1Count > 0 && `언어 데이터 없는 가맹점 ${langStats.excludedV1Count}곳 제외`,
+              langStats.unlinkedCount > 0 && `태그히어 연동 확인 필요 ${langStats.unlinkedCount}곳`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        )}
       </div>
     );
   };
@@ -718,16 +1039,303 @@ export default function FranchiseInsightsPage() {
               </div>
             </div>
 
+            {/* Daily Visitors - Full Width */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-franchise-600" />
+                  <h3 className="text-lg font-semibold text-slate-900">일별 방문객 추이</h3>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Store Filter */}
+                  <div className="relative" ref={storeDropdownRef}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setStoreDropdownOpen(!storeDropdownOpen);
+                      }}
+                      className={cn(
+                        'flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border transition-colors',
+                        dailyStoreFilter === 'all'
+                          ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                          : 'bg-franchise-50 border-franchise-200 text-franchise-700'
+                      )}
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      {dailyStoreFilter === 'all'
+                        ? '전체 가맹점'
+                        : storeOptions.find((s) => s.id === dailyStoreFilter)?.name || '가맹점'}
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+                    {storeDropdownOpen && (
+                      <div
+                        className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[180px] max-h-[300px] overflow-y-auto z-50"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between"
+                          onClick={() => {
+                            setDailyStoreFilter('all');
+                            setStoreDropdownOpen(false);
+                          }}
+                        >
+                          전체 가맹점
+                          {dailyStoreFilter === 'all' && <Check className="w-4 h-4 text-franchise-600" />}
+                        </button>
+                        {storeOptions.map((store) => (
+                          <button
+                            key={store.id}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between"
+                            onClick={() => {
+                              setDailyStoreFilter(store.id);
+                              setStoreDropdownOpen(false);
+                            }}
+                          >
+                            {store.name}
+                            {dailyStoreFilter === store.id && <Check className="w-4 h-4 text-franchise-600" />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Days Toggle */}
+                  <div className="flex gap-1 p-1 bg-slate-100 rounded-lg">
+                    {([7, 30, 90] as const).map((d) => (
+                      <button
+                        key={d}
+                        onClick={() => setDailyDays(d)}
+                        className={cn(
+                          'px-3 py-1 text-sm font-medium rounded-md transition-colors',
+                          dailyDays === d
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                        )}
+                      >
+                        {d}일
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-slate-500 mb-4">
+                {dailyStoreFilter === 'all'
+                  ? '전체 가맹점 합산 일별 방문객 수입니다 (가맹점이 직접 입력한 값 반영)'
+                  : '선택한 가맹점의 일별 방문객 수입니다 (가맹점이 직접 입력한 값 반영)'}
+              </p>
+              {isDailyLoading ? (
+                <div className="h-64 flex items-center justify-center">
+                  <RefreshCw className="w-5 h-5 text-slate-400 animate-spin" />
+                </div>
+              ) : dailyChart.length === 0 ? (
+                <div className="h-64 flex items-center justify-center">
+                  <p className="text-sm text-slate-500">일별 방문객 데이터가 없습니다</p>
+                </div>
+              ) : (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={dailyChart}>
+                      <defs>
+                        <linearGradient id="colorDailyVisitors" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#4A90FF" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#4A90FF" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                      <XAxis
+                        dataKey="day"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: '#64748B', fontSize: 12 }}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: '#64748B', fontSize: 12 }}
+                        tickFormatter={(value) => value.toLocaleString()}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'white',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: '8px',
+                          padding: '8px 12px',
+                        }}
+                        formatter={(value: number, _name, item) => [
+                          value.toLocaleString(),
+                          item?.payload?.overridden ? '방문객 수 (직접입력 포함)' : '방문객 수',
+                        ]}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="visitors"
+                        stroke="#4A90FF"
+                        strokeWidth={2}
+                        fill="url(#colorDailyVisitors)"
+                        dot={(props: { cx?: number; cy?: number; payload?: { overridden?: boolean }; index?: number }) =>
+                          props.payload?.overridden && props.cx !== undefined && props.cy !== undefined ? (
+                            <circle key={props.index} cx={props.cx} cy={props.cy} r={3.5} fill="#4A90FF" />
+                          ) : (
+                            <g key={props.index} />
+                          )
+                        }
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+
+            {/* Order Languages - Full Width */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-franchise-600" />
+                  <h3 className="text-lg font-semibold text-slate-900">주문 언어 분포</h3>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Store Filter */}
+                  <div className="relative" ref={langDropdownRef}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLangDropdownOpen(!langDropdownOpen);
+                      }}
+                      className={cn(
+                        'flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border transition-colors',
+                        langStoreFilter === 'all'
+                          ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                          : 'bg-franchise-50 border-franchise-200 text-franchise-700'
+                      )}
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      {langStoreFilter === 'all'
+                        ? '전체 가맹점'
+                        : storeOptions.find((s) => s.id === langStoreFilter)?.name || '가맹점'}
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+                    {langDropdownOpen && (
+                      <div
+                        className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[180px] max-h-[300px] overflow-y-auto z-50"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between"
+                          onClick={() => {
+                            setLangStoreFilter('all');
+                            setLangDropdownOpen(false);
+                          }}
+                        >
+                          전체 가맹점
+                          {langStoreFilter === 'all' && <Check className="w-4 h-4 text-franchise-600" />}
+                        </button>
+                        {storeOptions.map((store) => (
+                          <button
+                            key={store.id}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between"
+                            onClick={() => {
+                              setLangStoreFilter(store.id);
+                              setLangDropdownOpen(false);
+                            }}
+                          >
+                            {store.name}
+                            {langStoreFilter === store.id && <Check className="w-4 h-4 text-franchise-600" />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Days Toggle */}
+                  <div className="flex gap-1 p-1 bg-slate-100 rounded-lg">
+                    {([7, 30, 90] as const).map((d) => (
+                      <button
+                        key={d}
+                        onClick={() => setLangDays(d)}
+                        className={cn(
+                          'px-3 py-1 text-sm font-medium rounded-md transition-colors',
+                          langDays === d
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                        )}
+                      >
+                        {d}일
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-slate-500 mb-4">
+                고객이 메뉴판에서 선택한 언어 기준입니다 (한국어 외 = 외국어 주문)
+              </p>
+              {renderOrderLanguageChart()}
+            </div>
+
             {/* Monthly Trend - Full Width */}
             <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-slate-900">월별 고객 추이</h3>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-slate-900">월별 고객 추이</h3>
+                </div>
+                {/* Store Filter */}
+                <div className="relative" ref={monthlyDropdownRef}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMonthlyDropdownOpen(!monthlyDropdownOpen);
+                    }}
+                    className={cn(
+                      'flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border transition-colors',
+                      monthlyStoreFilter === 'all'
+                        ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        : 'bg-franchise-50 border-franchise-200 text-franchise-700'
+                    )}
+                  >
+                    <Building2 className="w-3.5 h-3.5" />
+                    {monthlyStoreFilter === 'all'
+                      ? '전체 가맹점'
+                      : storeOptions.find((s) => s.id === monthlyStoreFilter)?.name || '가맹점'}
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                  {monthlyDropdownOpen && (
+                    <div
+                      className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[180px] max-h-[300px] overflow-y-auto z-50"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between"
+                        onClick={() => {
+                          setMonthlyStoreFilter('all');
+                          setMonthlyDropdownOpen(false);
+                        }}
+                      >
+                        전체 가맹점
+                        {monthlyStoreFilter === 'all' && <Check className="w-4 h-4 text-franchise-600" />}
+                      </button>
+                      {storeOptions.map((store) => (
+                        <button
+                          key={store.id}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between"
+                          onClick={() => {
+                            setMonthlyStoreFilter(store.id);
+                            setMonthlyDropdownOpen(false);
+                          }}
+                        >
+                          {store.name}
+                          {monthlyStoreFilter === store.id && <Check className="w-4 h-4 text-franchise-600" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <p className="text-sm text-slate-500 mb-4">최근 6개월간 누적 고객 수 변화입니다</p>
+              <p className="text-sm text-slate-500 mb-4">
+                {monthlyStoreFilter === 'all'
+                  ? '전체 가맹점 합산 최근 6개월간 신규 고객 수 변화입니다'
+                  : '선택한 가맹점의 최근 6개월간 신규 고객 수 변화입니다'}
+              </p>
               {renderTrendChart()}
               <div className="mt-4 grid grid-cols-3 gap-4">
-                {insights.monthlyTrend.slice(-3).map((item) => (
+                {monthlyTrend.slice(-3).map((item) => (
                   <div key={item.month} className="text-center">
                     <p className="text-xs text-slate-500">{item.month}</p>
                     <p className="text-sm font-medium text-slate-900">{item.customers.toLocaleString()}</p>

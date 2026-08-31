@@ -54,8 +54,17 @@ model Store {
   // 태그히어 모바일오더 연동 버전 ("v1" | "v2")
   taghereVersion        String     @default("v1")
 
+  // 주문 서비스 매장 ID 매핑 — 시스템 간 연결의 유일한 식별자.
+  // 둘 다 채워진 매장 = V1·V2 병행 운영. taghereVersion 은 이 두 컬럼의 파생값으로 격하 예정.
+  v1StoreId             String?    @unique // V1 MongoDB stores._id (24-hex)
+  v2StoreId             String?    @unique // V2 internal.stores.id (SR + 26자)
+
   // 고객 등록 모드: "POINTS" = 포인트 적립, "STAMP" = 스탬프, "MEMBERSHIP" = 태그히어 멤버십
   enrollmentMode        String     @default("POINTS")
+
+  // 하이트진로 제휴 매장 — 스탬프 등록 페이지가 전용 경로(taghere-enroll-stamp-hitejinro)로 갈린다.
+  // 리다이렉트 URL 조립(crm-state-push)이 이 값으로 판정한다. 2026-08 기준 실사용 0건이라 백필 없음.
+  isHitejinro           Boolean    @default(false)
 
   // 야화(외부 파트너) 연동 노출 여부 — true인 매장만 /api/v1 외부 API에서 조회/등록 가능
   yahwaEnabled          Boolean    @default(false)
@@ -104,6 +113,7 @@ model Store {
   // 자동 마케팅
   automationRules       AutomationRule[]
   automationLogs        AutomationLog[]
+  automationRuleToggleLogs AutomationRuleToggleLog[]
 
   // 스토어 주문
   storeOrders           StoreOrder[]
@@ -677,6 +687,20 @@ model NaverReviewStats {
   @@index([storeId])
   @@index([date])
   @@map("naver_review_stats")
+}
+
+// 일별 방문객 수 수동 보정 (매장 관리자가 입력한 값이 해당 날짜의 최종 방문객 수가 됨)
+model DailyVisitorOverride {
+  id        String   @id @default(cuid())
+  storeId   String
+  date      DateTime @db.Date // KST 기준 날짜 (UTC 자정으로 저장)
+  visitors  Int      // 직접 입력한 최종 방문객 수
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, date])
+  @@index([storeId])
+  @@map("daily_visitor_overrides")
 }
 
 // 공지사항 (전체 매장 대상, 어드민 전용)
@@ -2043,6 +2067,7 @@ model AutomationRule {
 
   type      AutomationRuleType
   enabled   Boolean  @default(false)
+  enabledAt DateTime? // 마지막 false→true 전환 시점 (백필 분은 근사치)
 
   // 트리거 설정 (JSON)
   // BIRTHDAY: { daysBefore: 3 }
@@ -2072,6 +2097,22 @@ model AutomationRule {
   @@unique([storeId, type])
   @@index([enabled])
   @@map("automation_rules")
+}
+
+// 자동화 룰 ON/OFF 전환 이력 (활성화율 KPI 시계열 산출용)
+model AutomationRuleToggleLog {
+  id        String   @id @default(cuid())
+  ruleId    String   // FK 없음 — 룰 삭제와 무관하게 이력 보존
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  type      AutomationRuleType
+  enabled   Boolean  // 전환 후 상태
+  actor     String   // 'OWNER' | 'FRANCHISE' | 'FRANCHISE_BULK' | 'BACKFILL'
+  changedAt DateTime @default(now())
+
+  @@index([changedAt])
+  @@index([storeId, changedAt])
+  @@map("automation_rule_toggle_logs")
 }
 
 // 자동화 실행 로그 (발송 이력 + ROI 추적)

@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma.js';
 import { isValidWebhookToken } from '../../services/taghere-api.js';
+import { findStoreByV2Ref } from '../../services/store-ref.js';
 import { syncToMetacity } from '../../services/metacity.js';
 import {
   cancelPendingAccrualByOrderId,
@@ -368,7 +369,7 @@ const ORDER_PAID_MAX_BATCH = 200;
  */
 router.post('/webhook/order-paid', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
   try {
-    const { storeSlug, paidAt } = req.body;
+    const { storeId, storeSlug, paidAt } = req.body;
     const rawOrderIds: unknown[] = Array.isArray(req.body.orderIds)
       ? req.body.orderIds
       : req.body.orderId
@@ -377,11 +378,14 @@ router.post('/webhook/order-paid', webhookAuthMiddleware, async (req: WebhookReq
     // 문자열이 아닌 값이 섞이면 Prisma `in` 에서 던지고, 중복은 집계만 부풀린다.
     const orderIds = [...new Set(rawOrderIds.filter((v): v is string => typeof v === 'string' && v.length > 0))];
 
-    if (typeof storeSlug !== 'string' || !storeSlug || orderIds.length === 0) {
+    const hasStoreRef =
+      (typeof storeId === 'string' && storeId.length > 0) ||
+      (typeof storeSlug === 'string' && storeSlug.length > 0);
+    if (!hasStoreRef || orderIds.length === 0) {
       return res.status(400).json({
         success: false,
         error: 'missing_params',
-        message: 'storeSlug 와 orderIds(또는 orderId)는 필수입니다.',
+        message: 'storeId 또는 storeSlug, 그리고 orderIds(또는 orderId)는 필수입니다.',
       });
     }
 
@@ -394,10 +398,7 @@ router.post('/webhook/order-paid', webhookAuthMiddleware, async (req: WebhookReq
       });
     }
 
-    const store = await prisma.store.findFirst({
-      where: { slug: storeSlug },
-      select: { id: true },
-    });
+    const store = await findStoreByV2Ref('webhook/order-paid', { storeId, storeSlug }, { id: true });
 
     if (!store) {
       return res.status(404).json({

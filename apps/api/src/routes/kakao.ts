@@ -21,6 +21,7 @@ import {
   isPendingStampAccrualConflict,
 } from '../services/pending-stamp-accrual.js';
 import { findCustomerProfileByKakaoId } from '../services/customer-identity.js';
+import { resolveVersionForOrder } from '../services/taghere-version.js';
 
 const router = Router();
 
@@ -607,7 +608,9 @@ async function handleMembershipCallback(
 
     // Get store
     const storeId = stateData.storeId;
-    const storeSelect = { id: true, name: true, taghereVersion: true, addressSido: true, addressSigungu: true };
+    const storeSelect = { id: true, name: true, taghereVersion: true,
+    v1StoreId: true,
+    v2StoreId: true, addressSido: true, addressSigungu: true };
     let store = storeId
       ? await prisma.store.findUnique({ where: { id: storeId }, select: storeSelect })
       : null;
@@ -659,7 +662,7 @@ async function handleMembershipCallback(
     let orderItems: any[] = [];
     let tableLabel: string | null = null;
     if (stateData.ordersheetId) {
-      const orderData = await fetchOrder(stateData.ordersheetId, store.taghereVersion);
+      const orderData = await fetchOrder(stateData.ordersheetId, resolveVersionForOrder(store, stateData.ordersheetId));
       if (orderData) {
         const rawPrice = orderData.content?.resultPrice || orderData.resultPrice || orderData.content?.totalPrice || orderData.totalPrice || 0;
         resultPrice = typeof rawPrice === 'string' ? parseInt(rawPrice, 10) : rawPrice;
@@ -864,6 +867,8 @@ async function handleStampCallback(
     franchiseStampEnabled: true,
     franchiseId: true,
     taghereVersion: true,
+    v1StoreId: true,
+    v2StoreId: true,
     franchise: {
       select: {
         id: true,
@@ -1132,7 +1137,7 @@ async function handleStampCallback(
 
   if (stateData.ordersheetId) {
     try {
-      const orderData = await fetchOrder(stateData.ordersheetId, store!.taghereVersion);
+      const orderData = await fetchOrder(stateData.ordersheetId, resolveVersionForOrder(store!, stateData.ordersheetId));
       if (orderData) {
         orderPointAccrualDeferred = orderData.pointAccrualDeferred === true;
         const rawPrice = orderData.content?.resultPrice || orderData.resultPrice || orderData.content?.totalPrice || orderData.totalPrice || 0;
@@ -1760,6 +1765,8 @@ router.get('/taghere-callback', async (req, res) => {
       pointsAlimtalkFrequency: true,
       naverPlaceUrl: true,
       taghereVersion: true,
+    v1StoreId: true,
+    v2StoreId: true,
       addressSido: true,
       addressSigungu: true,
       metacityEnabled: true,
@@ -1839,7 +1846,7 @@ router.get('/taghere-callback', async (req, res) => {
     // 후불 + 결제완료 감지 가능 POS 주문 여부 (주문 서비스가 계산해 내려준다)
     let orderPointAccrualDeferred = false;
     if (stateData.ordersheetId) {
-      const orderData = await fetchOrder(stateData.ordersheetId, store.taghereVersion);
+      const orderData = await fetchOrder(stateData.ordersheetId, resolveVersionForOrder(store, stateData.ordersheetId));
       if (orderData) {
         orderPointAccrualDeferred = orderData.pointAccrualDeferred === true;
         // resultPrice는 content.resultPrice에 있고, 문자열일 수 있음

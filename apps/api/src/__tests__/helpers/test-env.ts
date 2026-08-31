@@ -7,3 +7,9 @@ export const TEST_DATABASE_URL =
   'postgresql://taghere:taghere123@localhost:5433/taghere_crm_test';
 
 process.env.DATABASE_URL = TEST_DATABASE_URL;
+
+// 웹훅 인바운드 토큰 — services/taghere-api.ts 가 모듈 로드 시점에 읽으므로 여기서 세팅해야 한다.
+// (external register 등 webhookAuthMiddleware 경로 특성화 테스트용)
+export const TEST_WEBHOOK_TOKEN = 'test-webhook-token';
+// 무조건 대입 — 실 .env 토큰이 로드된 환경(루트 cwd 실행 등)에서도 테스트가 흔들리지 않게
+process.env.TAGHERE_V2_WEBHOOK_TOKEN = TEST_WEBHOOK_TOKEN;

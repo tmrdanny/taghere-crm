@@ -12,6 +12,7 @@ import { checkMilestoneAndDraw, buildRewardsFromLegacy, buildStampUsageRule, Rew
 import { fetchOrder, TaghereOrderData } from './taghere-api.js';
 import { sidoToShort } from '../utils/address-parser.js';
 import { findCustomerProfileByKakaoId } from './customer-identity.js';
+import { resolveVersionForOrder } from './taghere-version.js';
 import {
   buildPendingStampAccrualData,
   DEFERRED_STAMP_REASON_PREFIX,
@@ -111,6 +112,8 @@ export async function earnStamp(input: StampEarnInput): Promise<StampEarnResult>
       franchiseStampEnabled: true,
       franchiseId: true,
       taghereVersion: true,
+      v1StoreId: true,
+      v2StoreId: true,
       addressSido: true,
       addressSigungu: true,
       franchise: {
@@ -301,7 +304,7 @@ export async function earnStamp(input: StampEarnInput): Promise<StampEarnResult>
 
   if (ordersheetId) {
     try {
-      orderData = await fetchOrder(ordersheetId, store.taghereVersion);
+      orderData = await fetchOrder(ordersheetId, resolveVersionForOrder(store, ordersheetId));
       if (orderData) {
         const rawPrice = orderData.content?.resultPrice || orderData.resultPrice ||
                          orderData.content?.totalPrice || orderData.totalPrice || 0;

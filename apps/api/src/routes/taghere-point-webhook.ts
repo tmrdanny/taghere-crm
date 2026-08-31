@@ -12,6 +12,8 @@ import {
 } from '../services/metacity.js';
 import { sidoToShort } from '../utils/address-parser.js';
 import { fetchOrder } from '../services/taghere-api.js';
+import { findStoreByV2Ref } from '../services/store-ref.js';
+import { resolveVersionForOrder } from '../services/taghere-version.js';
 import { findOrCreateCustomerByPhone } from '../services/customer-identity.js';
 import { enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
 import {
@@ -81,21 +83,19 @@ async function lookupMetacityCustomer(
  */
 router.post('/customer-search', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
   try {
-    const { storeSlug, phone } = req.body;
+    const { storeId, storeSlug, phone } = req.body;
 
     // 1. 파라미터 검증
-    if (!storeSlug || !phone) {
+    if ((!storeId && !storeSlug) || !phone) {
       return res.status(400).json({
         success: false,
         error: 'missing_params',
-        message: 'storeSlug, phone은 필수입니다.',
+        message: 'storeId 또는 storeSlug, 그리고 phone은 필수입니다.',
       });
     }
 
-    // 2. 매장 조회
-    const store = await prisma.store.findFirst({
-      where: { slug: storeSlug },
-      select: {
+    // 2. 매장 조회 (V2 storeId 우선, slug 폴백)
+    const store = await findStoreByV2Ref('point/customer-search', { storeId, storeSlug }, {
         id: true,
         name: true,
         pointRatePercent: true,
@@ -103,7 +103,6 @@ router.post('/customer-search', webhookAuthMiddleware, async (req: WebhookReques
         metacityStoreIdx: true,
         addressSido: true,
         addressSigungu: true,
-      },
     });
 
     if (!store) {
@@ -204,14 +203,14 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
     // sendAlimtalk: 인앱(주문 서비스 내) 적립처럼 알림톡 안내가 필요한 호출만 true 로 opt-in.
     // 기존 POS 결제완료 자동적립 경로는 미전달(false) → 발송 동작 변화 없음.
     // deferUntilPaid: 후불 + 결제완료 감지 가능 POS 주문. 실제 적립을 결제완료까지 미룬다.
-    const { storeSlug, crmCustomerId, orderId, purAmt, usedPoint, sendAlimtalk, deferUntilPaid } = req.body;
+    const { storeId, storeSlug, crmCustomerId, orderId, purAmt, usedPoint, sendAlimtalk, deferUntilPaid } = req.body;
 
     // 1. 파라미터 검증
-    if (!storeSlug || !crmCustomerId || !orderId || purAmt === undefined) {
+    if ((!storeId && !storeSlug) || !crmCustomerId || !orderId || purAmt === undefined) {
       return res.status(400).json({
         success: false,
         error: 'missing_params',
-        message: 'storeSlug, crmCustomerId, orderId, purAmt는 필수입니다.',
+        message: 'storeId 또는 storeSlug, 그리고 crmCustomerId, orderId, purAmt는 필수입니다.',
       });
     }
 
@@ -226,19 +225,18 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
       });
     }
 
-    // 2. 매장 조회
-    const store = await prisma.store.findFirst({
-      where: { slug: storeSlug },
-      select: {
+    // 2. 매장 조회 (V2 storeId 우선, slug 폴백)
+    const store = await findStoreByV2Ref('point/transaction', { storeId, storeSlug }, {
         id: true,
         name: true,
         pointRatePercent: true,
         metacityEnabled: true,
         metacityStoreIdx: true,
         taghereVersion: true,
+        v1StoreId: true,
+        v2StoreId: true,
         pointsAlimtalkEnabled: true,
         pointsAlimtalkFrequency: true,
-      },
     });
 
     if (!store) {
@@ -355,7 +353,7 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
 
       // 메타씨티에는 이미 반영됨 → CRM 로컬 방문 통계만 갱신
       // (PointLedger / Customer.totalPoints 에는 write 하지 않음)
-      const magicposOrderItems = await buildVisitOrderItems(orderId, store.taghereVersion);
+      const magicposOrderItems = await buildVisitOrderItems(orderId, resolveVersionForOrder(store, orderId));
       await prisma.$transaction([
         prisma.visitOrOrder.upsert({
           where: { storeId_orderId: { storeId: store.id, orderId } },
@@ -579,7 +577,7 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
     );
 
     // 8-4. 주문 내역 기록 (upsert: 동일 orderId 재요청 시 중복 방지). 메뉴/테이블도 함께 보강.
-    const orderItemsData = await buildVisitOrderItems(orderId, store.taghereVersion);
+    const orderItemsData = await buildVisitOrderItems(orderId, resolveVersionForOrder(store, orderId));
     transactionOps.push(
       prisma.visitOrOrder.upsert({
         where: {
@@ -678,25 +676,24 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
  */
 router.post('/standalone-member-snapshot', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
   try {
-    const { storeSlug, phone, custCd, custName } = req.body as {
+    const { storeId, storeSlug, phone, custCd, custName } = req.body as {
+      storeId?: string;
       storeSlug?: string;
       phone?: string;
       custCd?: string | null;
       custName?: string | null;
     };
 
-    if (!storeSlug || !phone) {
+    if ((!storeId && !storeSlug) || !phone) {
       return res.status(400).json({
         success: false,
         error: 'missing_params',
-        message: 'storeSlug, phone은 필수입니다.',
+        message: 'storeId 또는 storeSlug, 그리고 phone은 필수입니다.',
       });
     }
 
-    const store = await prisma.store.findFirst({
-      where: { slug: storeSlug },
-      select: { id: true, addressSido: true, addressSigungu: true },
-    });
+    const store = await findStoreByV2Ref('point/standalone-member-snapshot', { storeId, storeSlug },
+      { id: true, addressSido: true, addressSigungu: true });
 
     if (!store) {
       return res.status(404).json({
@@ -766,7 +763,8 @@ router.post('/standalone-member-snapshot', webhookAuthMiddleware, async (req: We
  */
 router.post('/standalone-visit', webhookAuthMiddleware, async (req: WebhookRequest, res) => {
   try {
-    const { storeSlug, phone, custCd, orderId, totalAmount, balance, usedAmount } = req.body as {
+    const { storeId, storeSlug, phone, custCd, orderId, totalAmount, balance, usedAmount } = req.body as {
+      storeId?: string;
       storeSlug?: string;
       phone?: string;
       custCd?: string | null;
@@ -777,18 +775,16 @@ router.post('/standalone-visit', webhookAuthMiddleware, async (req: WebhookReque
       usedAmount?: number | null;
     };
 
-    if (!storeSlug || !phone || !orderId) {
+    if ((!storeId && !storeSlug) || !phone || !orderId) {
       return res.status(400).json({
         success: false,
         error: 'missing_params',
-        message: 'storeSlug, phone, orderId는 필수입니다.',
+        message: 'storeId 또는 storeSlug, 그리고 phone, orderId는 필수입니다.',
       });
     }
 
-    const store = await prisma.store.findFirst({
-      where: { slug: storeSlug },
-      select: { id: true, addressSido: true, addressSigungu: true, taghereVersion: true },
-    });
+    const store = await findStoreByV2Ref('point/standalone-visit', { storeId, storeSlug },
+      { id: true, addressSido: true, addressSigungu: true, taghereVersion: true, v1StoreId: true, v2StoreId: true });
 
     if (!store) {
       return res.status(404).json({
@@ -859,7 +855,7 @@ router.post('/standalone-visit', webhookAuthMiddleware, async (req: WebhookReque
     const isFirstVisitToday = !todayVisit;
 
     // 주문 메뉴 정보 보강 — 통합 /transaction 과 동일하게 VisitOrOrder.items 에 메뉴/테이블을 기록한다.
-    const orderItemsData = await buildVisitOrderItems(orderId, store.taghereVersion);
+    const orderItemsData = await buildVisitOrderItems(orderId, resolveVersionForOrder(store, orderId));
 
     // 단독 회원 포인트: 메타시티 잔액(balance)이 오면 totalPoints 를 authoritative set 하고 net 동기화 원장 1건 기록.
     // (정확한 EARN/USE 분리는 메타시티 /metacity-point-event 가동 시로 위임 — V2 는 잔액만 신뢰.)

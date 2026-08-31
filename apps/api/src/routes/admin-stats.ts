@@ -479,49 +479,88 @@ router.get('/external-customer-stats', adminAuthMiddleware, async (req: AdminReq
 // 프랜차이즈 충전금 관리
 // ============================================
 
-// GET /api/admin/automation-stats — 전체 요약 통계
+// "유효 활성" = enabled + 쿠폰 내용 존재 (automation-worker 의 발송 스킵 조건과 동일식)
+// KPI 활성화율의 분자. 단순 enabled 는 보조 지표로 병기한다.
+
+// GET /api/admin/automation-stats — 전체 요약 통계 + 퍼널
 router.get('/automation-stats', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const [totalStores, activeStoreIds, totalRulesEnabled, logsThisMonth, ruleTypeCounts] = await Promise.all([
-      prisma.store.count(),
-      prisma.automationRule.findMany({
-        where: { enabled: true },
-        select: { storeId: true },
-        distinct: ['storeId'],
-      }),
-      prisma.automationRule.count({ where: { enabled: true } }),
-      prisma.automationLog.findMany({
-        where: { sentAt: { gte: startOfMonth } },
-        select: { couponUsed: true },
-      }),
-      prisma.automationRule.groupBy({
-        by: ['type'],
-        where: { enabled: true },
-        _count: { _all: true },
-      }),
+    const last30d = new Date();
+    last30d.setDate(last30d.getDate() - 30);
+
+    const [storeCounts, ruleCounts, ruleTypeRows, totalSentThisMonth, totalCouponUsed, sendingStoreRows] = await Promise.all([
+      // 매장 단위 distinct 카운트 일괄 (퍼널 1~4단계)
+      // visited_stores 는 룰 행 존재 = "자동화 접점" 프록시 — 점주 페이지 방문 외에
+      // 프랜차이즈 경로(단건/벌크 ensureRulesExist)로도 생성되므로 순수 방문보다 과대할 수 있음
+      prisma.$queryRaw<{ total_stores: number; crm_enabled_stores: number; visited_stores: number; enabled_stores: number; effective_stores: number }[]>`
+        SELECT
+          (SELECT COUNT(*)::int FROM stores) AS total_stores,
+          (SELECT COUNT(*)::int FROM stores WHERE "crmEnabled" = true) AS crm_enabled_stores,
+          (SELECT COUNT(DISTINCT "storeId")::int FROM automation_rules) AS visited_stores,
+          (SELECT COUNT(DISTINCT "storeId")::int FROM automation_rules WHERE enabled) AS enabled_stores,
+          (SELECT COUNT(DISTINCT "storeId")::int FROM automation_rules
+            WHERE enabled AND btrim(coalesce("couponContent", ''), ' \t\r\n') <> '') AS effective_stores
+      `,
+      prisma.$queryRaw<{ enabled_rules: number; effective_rules: number }[]>`
+        SELECT
+          COUNT(*) FILTER (WHERE enabled)::int AS enabled_rules,
+          COUNT(*) FILTER (WHERE enabled AND btrim(coalesce("couponContent", ''), ' \t\r\n') <> '')::int AS effective_rules
+        FROM automation_rules
+      `,
+      prisma.$queryRaw<{ type: string; enabled: number; effective: number }[]>`
+        SELECT type::text,
+          COUNT(*) FILTER (WHERE enabled)::int AS enabled,
+          COUNT(*) FILTER (WHERE enabled AND btrim(coalesce("couponContent", ''), ' \t\r\n') <> '')::int AS effective
+        FROM automation_rules
+        GROUP BY type
+      `,
+      prisma.automationLog.count({ where: { sentAt: { gte: startOfMonth } } }),
+      prisma.automationLog.count({ where: { sentAt: { gte: startOfMonth }, couponUsed: true } }),
+      // 퍼널 5단계: 유효 활성 매장 중 최근 30일 실제 발송 발생
+      // (발송 후 룰을 끈 매장을 빼야 이전 단계보다 커지지 않는 단조성이 보장됨)
+      prisma.$queryRaw<{ sending_stores: number }[]>`
+        SELECT COUNT(DISTINCT l."storeId")::int AS sending_stores
+        FROM automation_logs l
+        WHERE l."sentAt" >= ${last30d}
+          AND EXISTS (
+            SELECT 1 FROM automation_rules r
+            WHERE r."storeId" = l."storeId" AND r.enabled
+              AND btrim(coalesce(r."couponContent", ''), ' \t\r\n') <> ''
+          )
+      `,
     ]);
 
-    const totalSentThisMonth = logsThisMonth.length;
-    const totalCouponUsed = logsThisMonth.filter(l => l.couponUsed).length;
+    const counts = storeCounts[0];
+    const rules = ruleCounts[0];
     const usageRate = totalSentThisMonth > 0 ? Math.round((totalCouponUsed / totalSentThisMonth) * 100) : 0;
 
-    const ruleTypeBreakdown: Record<string, number> = {};
-    ruleTypeCounts.forEach(r => {
-      ruleTypeBreakdown[r.type] = r._count._all;
+    const ruleTypeBreakdown: Record<string, { enabled: number; effective: number }> = {};
+    ruleTypeRows.forEach(r => {
+      ruleTypeBreakdown[r.type] = { enabled: r.enabled, effective: r.effective };
     });
 
     res.json({
-      totalStores,
-      activeStores: activeStoreIds.length,
-      totalRulesEnabled,
+      totalStores: counts.total_stores,
+      crmEnabledStores: counts.crm_enabled_stores,
+      activeStores: counts.enabled_stores,
+      effectiveActiveStores: counts.effective_stores,
+      totalRulesEnabled: rules.enabled_rules,
+      effectiveRulesEnabled: rules.effective_rules,
       totalSentThisMonth,
       totalCouponUsed,
       usageRate,
       ruleTypeBreakdown,
+      funnel: {
+        totalStores: counts.total_stores,
+        visitedStores: counts.visited_stores,
+        enabledStores: counts.enabled_stores,
+        effectiveStores: counts.effective_stores,
+        sendingStores30d: sendingStoreRows[0].sending_stores,
+      },
     });
   } catch (error) {
     console.error('Admin automation stats error:', error);
@@ -541,8 +580,9 @@ router.get('/automation-stores', adminAuthMiddleware, async (req: AdminRequest, 
         id: true,
         name: true,
         ownerName: true,
+        crmEnabled: true,
         automationRules: {
-          select: { type: true, enabled: true },
+          select: { type: true, enabled: true, couponContent: true },
         },
       },
       orderBy: { name: 'asc' },
@@ -580,13 +620,27 @@ router.get('/automation-stores', adminAuthMiddleware, async (req: AdminRequest, 
 
     const result = stores.map(store => {
       const enabledRules = store.automationRules.filter(r => r.enabled).map(r => r.type);
+      // 유효 활성 = enabled + 쿠폰 내용 존재 (worker 발송 스킵 조건과 동일)
+      const effectiveRules = store.automationRules
+        .filter(r => r.enabled && String(r.couponContent ?? '').trim() !== '')
+        .map(r => r.type);
+      const hasVisited = store.automationRules.length > 0;
+      const status =
+        effectiveRules.length > 0 ? 'EFFECTIVE'
+        : enabledRules.length > 0 ? 'ENABLED_BLOCKED'
+        : hasVisited ? 'VISITED'
+        : 'NOT_VISITED';
       const totalSent = logMap[store.id] || 0;
       const couponUsed = couponMap[store.id] || 0;
       return {
         storeId: store.id,
         storeName: store.name,
         ownerName: store.ownerName,
+        crmEnabled: store.crmEnabled,
+        hasVisited,
         enabledRules,
+        effectiveRules,
+        status,
         totalSent,
         couponUsed,
         usageRate: totalSent > 0 ? Math.round((couponUsed / totalSent) * 100) : 0,
@@ -607,56 +661,126 @@ router.get('/automation-stores', adminAuthMiddleware, async (req: AdminRequest, 
   }
 });
 
-// GET /api/admin/automation-trend — 일별 추세 데이터
+// GET /api/admin/automation-trend — 일별 추세 (발송 + 활성화 시계열)
+// "활성"은 enabled 기준 — couponContent 변경 이력이 없어 과거의 "유효 활성"은 재구성 불가
+// (유효 활성은 automation-stats 의 스냅샷 KPI/퍼널 전용).
+// 활성화 시계열은 automation_rule_toggle_logs 리플레이로 산출하며,
+// 이력 시작(historySince) 이전 구간의 activeStores 는 null (추정 백필 안 함).
 router.get('/automation-trend', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
   try {
-    const days = parseInt(req.query.days as string) || 30;
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-    startDate.setHours(0, 0, 0, 0);
+    const days = Math.min(Math.max(parseInt(req.query.days as string) || 30, 1), 365);
+    // 오늘 포함 최근 N일, UTC 자정 버킷 — 발송 집계(to_char, UTC)와 동일 기준.
+    // 로컬 자정 기준으로 잡으면 키가 하루 밀려 당일 데이터가 어디에도 안 잡힌다.
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const now = new Date();
+    const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const startDate = new Date(todayUtc - (days - 1) * DAY_MS);
 
-    const [logs, activations] = await Promise.all([
-      prisma.automationLog.findMany({
-        where: { sentAt: { gte: startDate } },
-        select: { sentAt: true, couponUsed: true },
+    const [sentRows, toggleLogs, baseStoreCount, dailyStoreRows, crmEnabledStores] = await Promise.all([
+      // 발송/쿠폰사용 일별 집계 (DB에서 일 단위 집계 - 전체 row 로드 방지)
+      prisma.$queryRaw<{ date: string; sent: number; coupon_used: number }[]>`
+        SELECT to_char("sentAt", 'YYYY-MM-DD') AS date,
+          COUNT(*)::int AS sent,
+          COUNT(*) FILTER (WHERE "couponUsed")::int AS coupon_used
+        FROM automation_logs
+        WHERE "sentAt" >= ${startDate}
+        GROUP BY 1
+      `,
+      // 토글 이력 전량 (소규모) — 구간 이전 이력도 시작 상태 구성에 필요
+      prisma.automationRuleToggleLog.findMany({
+        orderBy: { changedAt: 'asc' },
+        select: { storeId: true, type: true, enabled: true, changedAt: true, actor: true },
       }),
-      prisma.automationRule.findMany({
-        where: { enabled: true, updatedAt: { gte: startDate } },
-        select: { updatedAt: true },
-      }),
+      prisma.store.count({ where: { createdAt: { lt: startDate } } }),
+      prisma.$queryRaw<{ date: string; count: number }[]>`
+        SELECT to_char("createdAt", 'YYYY-MM-DD') AS date, COUNT(*)::int AS count
+        FROM stores
+        WHERE "createdAt" >= ${startDate}
+        GROUP BY 1
+      `,
+      // crmEnabled 는 변경 이력이 없어 현재값 상수로 근사
+      prisma.store.count({ where: { crmEnabled: true } }),
     ]);
 
-    // 일별 집계
-    const dayMap: Record<string, { sent: number; couponUsed: number; newActivations: number }> = {};
+    const sentMap = new Map(sentRows.map(r => [r.date, r]));
+    const newStoreMap = new Map(dailyStoreRows.map(r => [r.date, r.count]));
 
-    // 날짜 배열 초기화
-    for (let i = 0; i < days; i++) {
-      const d = new Date(startDate);
-      d.setDate(d.getDate() + i);
-      const key = d.toISOString().slice(0, 10);
-      dayMap[key] = { sent: 0, couponUsed: 0, newActivations: 0 };
+    const historySince = toggleLogs.length > 0 ? toggleLogs[0].changedAt : null;
+    const historySinceKey = historySince ? historySince.toISOString().slice(0, 10) : null;
+
+    // 이력 리플레이: (storeId,type) 별 enabled 상태 → 매장별 활성 룰 수
+    const ruleState = new Map<string, boolean>();
+    const storeEnabledCount = new Map<string, number>();
+    const applyLog = (log: { storeId: string; type: string; enabled: boolean }) => {
+      const key = `${log.storeId}:${log.type}`;
+      const prev = ruleState.get(key) ?? false;
+      if (prev === log.enabled) return 0; // 상태 변화 없음 (중복 이력 방어)
+      ruleState.set(key, log.enabled);
+      const before = storeEnabledCount.get(log.storeId) ?? 0;
+      const after = before + (log.enabled ? 1 : -1);
+      storeEnabledCount.set(log.storeId, after);
+      if (before === 0 && after > 0) return 1;   // 매장 신규 활성화
+      if (before > 0 && after === 0) return -1;  // 매장 이탈
+      return 0;
+    };
+
+    // 구간 이전 이력으로 시작 상태 구성
+    let logIdx = 0;
+    while (logIdx < toggleLogs.length && toggleLogs[logIdx].changedAt < startDate) {
+      applyLog(toggleLogs[logIdx]);
+      logIdx++;
     }
 
-    logs.forEach(log => {
-      const key = log.sentAt.toISOString().slice(0, 10);
-      if (dayMap[key]) {
-        dayMap[key].sent++;
-        if (log.couponUsed) dayMap[key].couponUsed++;
+    const countActiveStores = () => {
+      let n = 0;
+      storeEnabledCount.forEach(c => { if (c > 0) n++; });
+      return n;
+    };
+
+    let totalStoresAtDate = baseStoreCount;
+    const trend: {
+      date: string;
+      sent: number;
+      couponUsed: number;
+      newActivations: number;
+      deactivations: number;
+      activeStores: number | null;
+      totalStoresAtDate: number;
+      crmEnabledStores: number;
+    }[] = [];
+
+    for (let i = 0; i < days; i++) {
+      const key = new Date(startDate.getTime() + i * DAY_MS).toISOString().slice(0, 10);
+
+      let newActivations = 0;
+      let deactivations = 0;
+      while (logIdx < toggleLogs.length && toggleLogs[logIdx].changedAt.toISOString().slice(0, 10) <= key) {
+        const log = toggleLogs[logIdx];
+        const delta = applyLog(log);
+        // 백필 스냅샷은 상태 리플레이에만 반영 — 실제 전환이 아니므로 신규/이탈 카운트에서 제외
+        if (log.actor !== 'BACKFILL') {
+          if (delta === 1) newActivations++;
+          if (delta === -1) deactivations++;
+        }
+        logIdx++;
       }
-    });
 
-    activations.forEach(rule => {
-      const key = rule.updatedAt.toISOString().slice(0, 10);
-      if (dayMap[key]) {
-        dayMap[key].newActivations++;
-      }
-    });
+      totalStoresAtDate += newStoreMap.get(key) ?? 0;
+      const sentRow = sentMap.get(key);
 
-    const trend = Object.entries(dayMap)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, data]) => ({ date, ...data }));
+      trend.push({
+        date: key,
+        sent: sentRow?.sent ?? 0,
+        couponUsed: sentRow?.coupon_used ?? 0,
+        newActivations,
+        deactivations,
+        activeStores: historySinceKey !== null && key >= historySinceKey ? countActiveStores() : null,
+        totalStoresAtDate,
+        crmEnabledStores,
+      });
+    }
 
-    res.json({ trend });
+    res.json({ historySince, trend });
   } catch (error) {
     console.error('Admin automation trend error:', error);
     res.status(500).json({ error: '자동 마케팅 추세 조회 중 오류가 발생했습니다.' });
