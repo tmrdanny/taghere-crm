@@ -8,7 +8,7 @@
 
 import { prisma } from '../lib/prisma.js';
 import { enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk } from './solapi.js';
-import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
+import { checkMilestoneAndDraw, buildRewardsFromLegacy, buildStampUsageRule, RewardEntry } from '../utils/random-reward.js';
 import { fetchOrder, TaghereOrderData } from './taghere-api.js';
 import { sidoToShort } from '../utils/address-parser.js';
 import { findCustomerProfileByKakaoId } from './customer-identity.js';
@@ -575,15 +575,7 @@ export async function earnStamp(input: StampEarnInput): Promise<StampEarnResult>
       const rewardsForAlimtalk: RewardEntry[] = franchiseStampSetting.rewards
         ? (franchiseStampSetting.rewards as unknown as RewardEntry[])
         : buildRewardsFromLegacy(franchiseStampSetting as any);
-      const rules = rewardsForAlimtalk
-        .sort((a, b) => a.tier - b.tier)
-        .map(r => {
-          const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
-          return `- ${r.tier}개 모을 시: ${isRandom ? '랜덤 박스!' : r.description}`;
-        });
-      const stampUsageRule = rules.length > 0
-        ? '\n' + rules.join('\n')
-        : '\n- 10개 모을시 매장 선물 증정!';
+      const stampUsageRule = buildStampUsageRule(rewardsForAlimtalk, franchiseResult.milestoneResult);
 
       if (isHitejinro) {
         // 하이트진로 전용 템플릿
@@ -818,15 +810,7 @@ export async function earnStamp(input: StampEarnInput): Promise<StampEarnResult>
         ? (store.stampSetting.rewards as unknown as RewardEntry[])
         : store.stampSetting ? buildRewardsFromLegacy(store.stampSetting as any) : [];
     }
-    const rules = rewardsForAlimtalk
-      .sort((a, b) => a.tier - b.tier)
-      .map(r => {
-        const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
-        return `- ${r.tier}개 모을 시: ${isRandom ? '랜덤 박스!' : r.description}`;
-      });
-    const stampUsageRule = rules.length > 0
-      ? '\n' + rules.join('\n')
-      : '\n- 10개 모을시 매장 선물 증정!';
+    const stampUsageRule = buildStampUsageRule(rewardsForAlimtalk, result.milestoneResult);
 
     if (isHitejinro) {
       // 하이트진로 전용 템플릿

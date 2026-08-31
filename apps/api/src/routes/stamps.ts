@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { buildRewardsFromLegacy, checkMilestoneAndDraw, RewardEntry } from '../utils/random-reward.js';
+import { buildRewardsFromLegacy, buildStampUsageRule, checkMilestoneAndDraw, RewardEntry } from '../utils/random-reward.js';
 import { enqueueStampEarnedAlimTalk } from '../services/solapi.js';
 import { sidoToShort } from '../utils/address-parser.js';
 import {
@@ -666,13 +666,7 @@ router.post('/approval-requests/:id/approve', async (req: AuthRequest, res) => {
     if (setting?.alimtalkEnabled && phoneNumber) {
       const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
       const rewards = (setting.rewards as unknown as RewardEntry[] | null) ?? buildRewardsFromLegacy(setting as any);
-      const rules = rewards
-        .sort((a, b) => a.tier - b.tier)
-        .map((r) => {
-          const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
-          return `- ${r.tier}개 모을 시: ${isRandom ? '랜덤 박스!' : r.description}`;
-        });
-      const stampUsageRule = rules.length > 0 ? '\n' + rules.join('\n') : '\n- 10개 모을시 매장 선물 증정!';
+      const stampUsageRule = buildStampUsageRule(rewards, result.milestoneResult);
       enqueueStampEarnedAlimTalk({
         storeId,
         customerId: request.customerId,

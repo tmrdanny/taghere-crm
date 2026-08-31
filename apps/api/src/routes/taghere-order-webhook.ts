@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { webhookAuthMiddleware, WebhookRequest } from '../middleware/webhook-auth.js';
 import { fetchOrder, resolveCrmPageMode, TaghereOrderData } from '../services/taghere-api.js';
 import { findOrCreateCustomerByPhone } from '../services/customer-identity.js';
-import { checkMilestoneAndDraw, buildRewardsFromLegacy, RewardEntry } from '../utils/random-reward.js';
+import { checkMilestoneAndDraw, buildRewardsFromLegacy, buildStampUsageRule, RewardEntry } from '../utils/random-reward.js';
 import { enqueueStampEarnedAlimTalk } from '../services/solapi.js';
 import { toPhoneLastDigits } from '../utils/phone.js';
 import {
@@ -517,15 +517,7 @@ router.post('/stamp/earn', webhookAuthMiddleware, async (req: WebhookRequest, re
       const rewardsForAlimtalk: RewardEntry[] = store.stampSetting.rewards
         ? (store.stampSetting.rewards as unknown as RewardEntry[])
         : buildRewardsFromLegacy(store.stampSetting as any);
-      const rules = rewardsForAlimtalk
-        .sort((a, b) => a.tier - b.tier)
-        .map(r => {
-          const isRandom = r.options && Array.isArray(r.options) && r.options.length > 1;
-          return `- ${r.tier}개 모을 시: ${isRandom ? '랜덤 박스!' : r.description}`;
-        });
-      const stampUsageRule = rules.length > 0
-        ? '\n' + rules.join('\n')
-        : '\n- 10개 모을시 매장 선물 증정!';
+      const stampUsageRule = buildStampUsageRule(rewardsForAlimtalk, result.milestoneResult);
       const reviewGuide = store.reviewAutomationSetting?.benefitText || '진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)';
 
       enqueueStampEarnedAlimTalk({
