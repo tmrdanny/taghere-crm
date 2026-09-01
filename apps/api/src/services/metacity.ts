@@ -9,6 +9,7 @@
  */
 
 import { prisma } from '../lib/prisma.js';
+import { maskPhone } from '../utils/masking.js';
 
 // ── 설정 ──
 const API_URL = process.env.METACITY_API_URL || 'http://webapi.metapos.co.kr/webapi/order/api';
@@ -123,6 +124,40 @@ function estimateBirthYearFromAgeGroup(ageGroup: string | null | undefined): num
 }
 
 /**
+ * CUST_SEARCH 응답 리스트에서 CP_NO 가 기대 전화번호와 정확히 일치하는 행 선택.
+ *
+ * LAST_4_CP_NO 검색은 뒷 4자리가 같은 "모든" 회원을 반환하므로(스펙 1.4.15:
+ * 각 조건은 결과 내 검색 조건) 첫 행을 그대로 쓰면 남의 회원에 연결된다.
+ * CP_NO 는 응답 필수 필드(스펙 1.4.16) — 숫자만 비교해 대시/포맷 차이를 흡수한다.
+ * 일치 행이 없으면 null (첫 행 폴백 금지).
+ */
+export function selectVerifiedCustRow(
+  resp: MetacityResponse | null | undefined,
+  expectedPhone: string,
+): Record<string, any> | null {
+  if (!resp) return null;
+  const list = Array.isArray(resp.CUST_INFO_LIST) ? resp.CUST_INFO_LIST : null;
+  if (!list || list.length === 0) return null;
+  const expected = normalizePhone(expectedPhone);
+  if (!expected) return null;
+  const matches = list.filter(
+    (row: any) => normalizePhone(String(row?.CP_NO ?? '')) === expected,
+  );
+  if (matches.length === 0) {
+    // 응답 CP_NO 포맷 변형(마스킹·선행 0 소실 등) 진단용으로 첫 행 CP_NO 를 마스킹해 남긴다
+    const sample = maskPhone(String(list[0]?.CP_NO ?? ''));
+    console.warn(
+      `[Metacity] CUST_SEARCH ${list.length}행 중 CP_NO 일치 없음 — 오연결 방지 위해 미채택 (기대=${maskPhone(expectedPhone)}, 응답샘플=${sample})`,
+    );
+    return null;
+  }
+  if (matches.length > 1) {
+    console.warn(`[Metacity] CUST_SEARCH CP_NO 일치 행 ${matches.length}개 — 첫 행 사용`);
+  }
+  return matches[0];
+}
+
+/**
  * 메타씨티 응답에서 실제 CUST_ID 추출.
  *
  * 매직포스 내부 CUST_CD(예: 20001267)는 전화번호 11자리와 다를 수 있다.
@@ -135,10 +170,23 @@ function estimateBirthYearFromAgeGroup(ageGroup: string | null | undefined): num
  *   3. response.CUST_INFO_LIST[0].CUST_ID
  *   4. response.CUST_INFO_LIST[0].CUST_CD
  *
+ * `expectedPhone` 이 주어지면(CUST_SEARCH 결과) CP_NO 일치 행만 채택하고
+ * top-level 후보는 보지 않는다. JOIN 응답은 우리가 등록한 번호이므로 검증 생략.
+ *
  * 발견되지 않으면 null. 호출자가 phoneDigits 폴백 여부 결정.
  */
-function extractCustId(resp: MetacityResponse | null | undefined): string | null {
+function extractCustId(
+  resp: MetacityResponse | null | undefined,
+  expectedPhone?: string,
+): string | null {
   if (!resp) return null;
+  if (expectedPhone) {
+    const row = selectVerifiedCustRow(resp, expectedPhone);
+    if (!row) return null;
+    if (row.CUST_ID != null && String(row.CUST_ID).trim()) return String(row.CUST_ID).trim();
+    if (row.CUST_CD != null && String(row.CUST_CD).trim()) return String(row.CUST_CD).trim();
+    return null;
+  }
   if (typeof resp.CUST_ID === 'string' && resp.CUST_ID.trim()) return resp.CUST_ID.trim();
   if (typeof resp.CUST_CD === 'string' && resp.CUST_CD.trim()) return resp.CUST_CD.trim();
   if (Array.isArray(resp.CUST_INFO_LIST) && resp.CUST_INFO_LIST.length > 0) {
@@ -169,14 +217,19 @@ function parseMetacityNumber(value: unknown): number {
 }
 
 /**
- * CUST_SEARCH 응답(`CUST_INFO_LIST[0]`) 에서 CUST_ID + 포인트 잔액 추출.
+ * CUST_SEARCH 응답(`CUST_INFO_LIST`) 에서 CUST_ID + 포인트 잔액 추출.
+ * `expectedPhone` 이 주어지면 CP_NO 일치 행만 채택 (미일치 시 null).
  * 매직포스 회원이 없거나 응답이 비면 null.
  */
-function extractCustInfo(resp: MetacityResponse | null | undefined): MetacityCustomerInfo | null {
+function extractCustInfo(
+  resp: MetacityResponse | null | undefined,
+  expectedPhone?: string,
+): MetacityCustomerInfo | null {
   if (!resp) return null;
   const list = Array.isArray(resp.CUST_INFO_LIST) ? resp.CUST_INFO_LIST : null;
   if (!list || list.length === 0) return null;
-  const first = list[0];
+  const first = expectedPhone ? selectVerifiedCustRow(resp, expectedPhone) : list[0];
+  if (!first) return null;
   const rawCustId =
     (typeof first?.CUST_ID === 'string' && first.CUST_ID.trim()) ||
     (typeof first?.CUST_CD === 'string' && first.CUST_CD.trim()) ||
@@ -419,6 +472,28 @@ interface SyncToMetacityParams {
 }
 
 /**
+ * Customer.metacityCustId 캐시 저장.
+ * (storeId, metacityCustId) 유니크 위반(P2002) = 이미 다른 고객이 같은 메타씨티 회원에
+ * 연결된 상태 — 오연결 확산 방지를 위해 캐시 저장만 건너뛰고 호출 흐름은 계속 진행한다.
+ */
+export async function cacheMetacityCustId(customerId: string, custId: string): Promise<void> {
+  try {
+    await prisma.customer.update({
+      where: { id: customerId },
+      data: { metacityCustId: custId, metacitySyncedAt: new Date() },
+    });
+  } catch (err: any) {
+    if (err?.code === 'P2002') {
+      console.warn(
+        `[Metacity] metacityCustId 캐시 충돌(P2002), 저장 건너뜀: customer=${customerId}, custId=${custId}`,
+      );
+      return;
+    }
+    throw err;
+  }
+}
+
+/**
  * 메타씨티에 포인트 동기화
  *
  * 1. 고객의 metacityCustId가 없으면 → 회원 등록/조회 후 ID 저장
@@ -457,13 +532,7 @@ export async function syncToMetacity(params: SyncToMetacityParams): Promise<Meta
 
     // DB에 metacityCustId 저장
     if (custId) {
-      await prisma.customer.update({
-        where: { id: customer.id },
-        data: {
-          metacityCustId: custId,
-          metacitySyncedAt: new Date(),
-        },
-      });
+      await cacheMetacityCustId(customer.id, custId);
     } else {
       console.error('[Metacity] 회원 등록/조회 실패, 동기화 중단:', customer.id);
       return null;
@@ -504,10 +573,7 @@ export async function syncToMetacity(params: SyncToMetacityParams): Promise<Meta
         console.error('[Metacity] E4001 후 재식별 결과 동일 ID. 메타씨티 측 확인 필요:', customer.id, newCustId);
         throw err;
       }
-      await prisma.customer.update({
-        where: { id: customer.id },
-        data: { metacityCustId: newCustId, metacitySyncedAt: new Date() },
-      });
+      await cacheMetacityCustId(customer.id, newCustId);
       custId = newCustId;
 
       // 새 ID로 1회 재시도
@@ -553,12 +619,13 @@ export async function resolveMetacityCustomer(
   customer: SyncToMetacityParams['customer'],
 ): Promise<MetacityCustomerInfo | null> {
   // 1. 캐시된 CUST_ID 가 있으면 그걸로 직접 조회 (1회 호출로 잔액까지)
+  //    응답 CP_NO 가 고객 전화번호와 다르면 오연결된 캐시 → 무효로 보고 CP_NO 재식별로 진행 (self-heal)
   if (customer.metacityCustId) {
     try {
       const resp = await service.searchCustomerByCustId(customer.metacityCustId);
-      const info = extractCustInfo(resp);
+      const info = extractCustInfo(resp, customer.phone ?? undefined);
       if (info) return info;
-      console.warn('[Metacity] 캐시된 CUST_ID 조회 결과 비어있음, CP_NO 로 재시도:', customer.id);
+      console.warn('[Metacity] 캐시된 CUST_ID 조회 결과 비어있음/불일치, CP_NO 로 재시도:', customer.id);
     } catch (err: any) {
       // E4001 등 → 캐시가 stale, CP_NO 로 재식별
       console.warn('[Metacity] CUST_ID 조회 실패, CP_NO 로 재시도:', err.message);
@@ -572,16 +639,17 @@ export async function resolveMetacityCustomer(
   }
   try {
     const resp = await service.searchCustomerByPhone(customer.phone);
-    const info = extractCustInfo(resp);
+    const info = extractCustInfo(resp, customer.phone);
     if (info) return info;
   } catch (err: any) {
     console.warn('[Metacity] CUST_SEARCH(CP_NO) 실패:', err.message);
   }
 
   // 3. LAST_4 폴백 (매직포스가 CP_NO 포맷에 민감한 경우 대비)
+  //    뒷 4자리가 같은 전 회원이 돌아오므로 CP_NO 전체 일치 행만 채택한다
   try {
     const resp = await service.searchCustomerByPhoneLast4(customer.phone);
-    const info = extractCustInfo(resp);
+    const info = extractCustInfo(resp, customer.phone);
     if (info) return info;
   } catch (err: any) {
     console.warn('[Metacity] CUST_SEARCH(LAST_4) 실패:', err.message);
@@ -662,10 +730,7 @@ export async function getMetacityPoints(params: {
   if (!custId) {
     custId = await ensureMetacityMember(service, customer);
     if (custId) {
-      await prisma.customer.update({
-        where: { id: customer.id },
-        data: { metacityCustId: custId, metacitySyncedAt: new Date() },
-      });
+      await cacheMetacityCustId(customer.id, custId);
     } else {
       throw new Error(`[Metacity] 회원 식별 실패로 포인트 조회 불가: customer=${customer.id}`);
     }
@@ -690,10 +755,7 @@ export async function getMetacityPoints(params: {
         console.error('[Metacity] POINT_SEARCH E4001 후 재식별 실패/동일 ID:', customer.id, newCustId);
         throw err;
       }
-      await prisma.customer.update({
-        where: { id: customer.id },
-        data: { metacityCustId: newCustId, metacitySyncedAt: new Date() },
-      });
+      await cacheMetacityCustId(customer.id, newCustId);
 
       return parseMetacityPoints(await service.searchPoints(newCustId));
     }
@@ -728,25 +790,26 @@ async function ensureMetacityMember(
       // 1-a. CP_NO 전체로 조회
       try {
         const searchResult = await service.searchCustomerByPhone(phone);
-        const foundId = extractCustId(searchResult);
+        const foundId = extractCustId(searchResult, phone);
         if (foundId) {
           console.log('[Metacity] CUST_SEARCH(CP_NO) 매칭 성공:', foundId);
           return foundId;
         }
-        console.warn('[Metacity] CUST_SEARCH(CP_NO) 응답 비어있음:', JSON.stringify(searchResult));
+        console.warn('[Metacity] CUST_SEARCH(CP_NO) 응답 비어있음/불일치:', JSON.stringify(searchResult));
       } catch (searchErr: any) {
         console.warn('[Metacity] CUST_SEARCH(CP_NO) 실패:', searchErr.message);
       }
 
       // 1-b. LAST_4_CP_NO로 재시도 (매직포스가 CP_NO 포맷에 민감할 가능성 대비)
+      //      뒷 4자리가 같은 전 회원이 돌아오므로 CP_NO 전체 일치 행만 채택한다
       try {
         const searchResult2 = await service.searchCustomerByPhoneLast4(phone);
-        const foundId2 = extractCustId(searchResult2);
+        const foundId2 = extractCustId(searchResult2, phone);
         if (foundId2) {
           console.log('[Metacity] CUST_SEARCH(LAST_4) 매칭 성공:', foundId2);
           return foundId2;
         }
-        console.warn('[Metacity] CUST_SEARCH(LAST_4) 응답 비어있음:', JSON.stringify(searchResult2));
+        console.warn('[Metacity] CUST_SEARCH(LAST_4) 응답 비어있음/불일치:', JSON.stringify(searchResult2));
       } catch (searchErr2: any) {
         console.warn('[Metacity] CUST_SEARCH(LAST_4) 실패:', searchErr2.message);
       }
