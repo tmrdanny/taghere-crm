@@ -451,7 +451,9 @@ export default function MessageHistoryPage() {
                     </td>
                     <td className="p-4">
                       {getStatusBadge(msg.status)}
-                      {msg.failReason && (
+                      {/* 성공한 건에는 실패 사유를 표시하지 않는다.
+                          (발송 중 남은 내부 상태 문구가 성공 뒤에도 남아 오류로 오해되던 문제 방어) */}
+                      {msg.failReason && msg.status !== 'SENT' && (
                         <div
                           className="text-xs text-red-500 mt-1 max-w-[200px]"
                           title={getFailReasonKorean(msg.failReason) || msg.failReason}

@@ -11,6 +11,37 @@ const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
 const MAX_RETRIES = 3;
 const LOW_BALANCE_THRESHOLD = 400; // 충전금 부족 알림 기준 (400원 미만)
 
+/**
+ * 발송 전 선차감한 금액을 되돌린다 (발송이 최종 실패한 경우).
+ */
+async function refundAlimtalkCharge(
+  storeId: string,
+  cost: number,
+  messageId: string,
+  messageType: string,
+): Promise<void> {
+  if (cost <= 0) return;
+  try {
+    await prisma.wallet.update({
+      where: { storeId },
+      data: { balance: { increment: cost } },
+    });
+    await prisma.paymentTransaction.create({
+      data: {
+        storeId,
+        amount: cost,
+        type: 'ALIMTALK_SEND',
+        status: 'SUCCESS',
+        meta: { messageId, messageType, unitCost: cost, refund: true, reason: 'send_failed' },
+      },
+    });
+    console.log(`[Worker] Refunded ${cost}원 for failed message ${messageId}`);
+  } catch (e) {
+    console.error(`[Worker] Refund failed for message ${messageId}:`, e);
+  }
+}
+
+
 // 알림톡 건당 비용 (메시지 타입별)
 const ALIMTALK_COSTS: Record<string, number> = {
   POINTS_EARNED: 20,      // 포인트 적립 알림톡: 20원
@@ -95,39 +126,27 @@ async function processMessage(messageId: string): Promise<void> {
       }
 
       if (statusResult.success) {
+        const isLowBalanceMessage = msg.messageType === 'LOW_BALANCE';
+        const isFreeMsg = isLowBalanceMessage || msg.messageType === 'CORPORATE_AD';
+        // 프랜차이즈 단가 오버라이드 적용 (없으면 기본 단가)
+        const cost = isFreeMsg
+          ? 0
+          : await resolveAlimtalkCost(msg.storeId, msg.messageType, ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST);
+
         if (statusResult.status === 'SENT') {
           // 발송 성공 확인됨
-          const isLowBalanceMessage = msg.messageType === 'LOW_BALANCE';
-          const isFreeMsg = isLowBalanceMessage || msg.messageType === 'CORPORATE_AD';
-          // 프랜차이즈 단가 오버라이드 적용 (없으면 기본 단가)
-          const cost = isFreeMsg
-            ? 0
-            : await resolveAlimtalkCost(msg.storeId, msg.messageType, ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST);
-
+          // 비용은 발송 전에 이미 차감되었으므로 여기서는 상태만 확정한다.
+          // (failReason 을 비우지 않아 "성공"인데 'Delivery status pending, will retry' 가
+          //  화면에 남아 오류로 오해되던 문제도 함께 해결)
           if (isFreeMsg) {
             await prisma.alimTalkOutbox.update({
               where: { id: messageId },
-              data: { status: 'SENT', sentAt: new Date(), updatedAt: new Date() },
+              data: { status: 'SENT', sentAt: new Date(), updatedAt: new Date(), failReason: null },
             });
           } else {
-            await prisma.$transaction(async (tx) => {
-              await tx.alimTalkOutbox.update({
-                where: { id: messageId },
-                data: { status: 'SENT', sentAt: new Date(), updatedAt: new Date() },
-              });
-              await tx.wallet.update({
-                where: { storeId: msg.storeId },
-                data: { balance: { decrement: cost } },
-              });
-              await tx.paymentTransaction.create({
-                data: {
-                  storeId: msg.storeId,
-                  amount: -cost,
-                  type: 'ALIMTALK_SEND',
-                  status: 'SUCCESS',
-                  meta: { messageId, messageType: msg.messageType, phone: msg.phone, unitCost: cost },
-                },
-              });
+            await prisma.alimTalkOutbox.update({
+              where: { id: messageId },
+              data: { status: 'SENT', sentAt: new Date(), updatedAt: new Date(), failReason: null },
             });
           }
           console.log(`[Worker] Message ${messageId} confirmed SENT`);
@@ -136,6 +155,8 @@ async function processMessage(messageId: string): Promise<void> {
             where: { id: messageId },
             data: { status: 'FAILED', failReason: statusResult.failReason, updatedAt: new Date() },
           });
+          // 발송 전 선차감분 환불 (무료 타입은 cost 0 이라 무시됨)
+          await refundAlimtalkCharge(msg.storeId, cost, messageId, msg.messageType);
           console.log(`[Worker] Message ${messageId} confirmed FAILED: ${statusResult.failReason}`);
         } else {
           // 아직 PENDING - retryCount 증가시키며 재확인 대기
@@ -175,6 +196,8 @@ async function processMessage(messageId: string): Promise<void> {
     const isRetargetCoupon = msg.messageType === 'RETARGET_COUPON';
     const isAutomation = msg.messageType.startsWith('AUTO_');
     let useFreeCredit = false;
+    // 발송 전 선차감 여부 — 발송이 실패하면 환불해야 하므로 추적한다
+    let charged_ = false;
 
     if (!isFreeMessage) {
       // 리타겟 쿠폰 또는 자동화 메시지이면 무료 크레딧 확인
@@ -186,25 +209,43 @@ async function processMessage(messageId: string): Promise<void> {
         }
       }
 
-      // 무료 크레딧을 사용하지 않는 경우에만 지갑 잔액 확인
-      if (!useFreeCredit) {
-        const wallet = await prisma.wallet.findUnique({
-          where: { storeId: msg.storeId },
+      // 무료 크레딧을 사용하지 않으면 발송 "전"에 원자적으로 선차감한다.
+      //
+      // 예전에는 잔액을 조회해 확인만 하고, 차감은 발송 결과가 확정된 뒤에 했다.
+      // 그런데 솔라피 응답 대부분이 PENDING(결과 대기)이라 차감이 한참 뒤로 밀렸고,
+      // 그 사이 뒤따르는 메시지들이 모두 "잔액 있음"으로 판단해 발송돼 잔액이 음수로 내려갔다.
+      // 조건부 updateMany 로 차감에 성공한 건만 발송하면 잔액을 넘겨 나갈 수 없다.
+      if (!useFreeCredit && cost > 0) {
+        const charged = await prisma.wallet.updateMany({
+          where: { storeId: msg.storeId, balance: { gte: cost } },
+          data: { balance: { decrement: cost } },
         });
 
-        if (!wallet || wallet.balance < cost) {
+        if (charged.count !== 1) {
+          const wallet = await prisma.wallet.findUnique({ where: { storeId: msg.storeId } });
           console.log(`[Worker] Insufficient balance for message ${messageId}, balance: ${wallet?.balance ?? 0}, required: ${cost}`);
-          // 메시지 상태를 FAILED로 변경
           await prisma.alimTalkOutbox.update({
             where: { id: messageId },
             data: {
               status: 'FAILED',
-              failReason: 'Insufficient wallet balance',
+              failReason: '충전금이 부족해 발송하지 못했습니다.',
               updatedAt: new Date(),
             },
           });
           return;
         }
+
+        // 차감 원장 기록 (발송 실패 시 아래에서 환불 처리)
+        await prisma.paymentTransaction.create({
+          data: {
+            storeId: msg.storeId,
+            amount: -cost,
+            type: 'ALIMTALK_SEND',
+            status: 'SUCCESS',
+            meta: { messageId, messageType: msg.messageType, phone: msg.phone, unitCost: cost },
+          },
+        });
+        charged_ = true;
       }
     }
 
@@ -242,7 +283,7 @@ async function processMessage(messageId: string): Promise<void> {
       const failReason = statusResult.failReason || null;
 
       if (finalStatus === 'FAILED') {
-        // 발송 실패 - 비용 차감 없이 실패 처리
+        // 발송 실패 - 선차감했다면 환불
         await prisma.alimTalkOutbox.update({
           where: { id: messageId },
           data: {
@@ -252,6 +293,9 @@ async function processMessage(messageId: string): Promise<void> {
             updatedAt: new Date(),
           },
         });
+        if (charged_) {
+          await refundAlimtalkCharge(msg.storeId, cost, messageId, msg.messageType);
+        }
         console.log(`[Worker] Message ${messageId} delivery FAILED: ${failReason}`);
       } else if (finalStatus === 'SENT') {
         // 발송 성공
@@ -286,41 +330,16 @@ async function processMessage(messageId: string): Promise<void> {
 
           console.log(`[Worker] Message ${messageId} (${msg.messageType}) sent successfully with FREE CREDIT, SOLAPI ID: ${result.messageId}`);
         } else {
-          // 일반 메시지 - 트랜잭션으로 상태 업데이트 + 지갑 차감
-          await prisma.$transaction(async (tx) => {
-            // 1. 메시지 상태 업데이트
-            await tx.alimTalkOutbox.update({
-              where: { id: messageId },
-              data: {
-                status: 'SENT',
-                solapiMessageId: result.messageId,
-                sentAt: new Date(),
-                updatedAt: new Date(),
-                failReason: null, // 성공 시 failReason 초기화
-              },
-            });
-
-            // 2. 지갑 잔액 차감
-            await tx.wallet.update({
-              where: { storeId: msg.storeId },
-              data: { balance: { decrement: cost } },
-            });
-
-            // 3. 결제 트랜잭션 로그 생성
-            await tx.paymentTransaction.create({
-              data: {
-                storeId: msg.storeId,
-                amount: -cost,
-                type: 'ALIMTALK_SEND',
-                status: 'SUCCESS',
-                meta: {
-                  messageId: messageId,
-                  messageType: msg.messageType,
-                  phone: msg.phone,
-                  unitCost: cost,
-                },
-              },
-            });
+          // 일반 메시지 - 비용은 발송 전에 이미 차감했으므로 상태만 갱신
+          await prisma.alimTalkOutbox.update({
+            where: { id: messageId },
+            data: {
+              status: 'SENT',
+              solapiMessageId: result.messageId,
+              sentAt: new Date(),
+              updatedAt: new Date(),
+              failReason: null, // 성공 시 failReason 초기화
+            },
           });
 
           console.log(`[Worker] Message ${messageId} (${msg.messageType}) sent successfully, SOLAPI ID: ${result.messageId}, cost: ${cost}원 차감`);
