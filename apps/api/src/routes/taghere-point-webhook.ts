@@ -4,6 +4,7 @@ import { webhookAuthMiddleware, WebhookRequest } from '../middleware/webhook-aut
 import { normalizeCustomerKeyDigits, toPhoneLastDigits } from '../utils/phone.js';
 import { maskPhone } from '../utils/masking.js';
 import {
+  cacheMetacityCustId,
   MetacityCustomerInfo,
   MetacityPointBalance,
   MetacityService,
@@ -137,10 +138,7 @@ router.post('/customer-search', webhookAuthMiddleware, async (req: WebhookReques
         totalPoint = info.totPoint;
         // 정식 식별된 CUST_ID 만 캐시 갱신 (phoneDigits 폴백은 캐시하지 않음 — 다음 호출에서 정상 식별 재시도)
         if (!info.isFallback && info.custId !== customer.metacityCustId) {
-          await prisma.customer.update({
-            where: { id: customer.id },
-            data: { metacityCustId: info.custId, metacitySyncedAt: new Date() },
-          });
+          await cacheMetacityCustId(customer.id, info.custId);
         }
       } else {
         // 메타씨티 호출 실패 → 0 으로 fallback (현행 정책)
@@ -298,8 +296,11 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
       }
 
       // 적립 포인트 계산 + 오늘 첫 방문 체크 (VisitOrOrder 기반)
-      const savePoint = Math.round((purAmtNumber * store.pointRatePercent) / 100);
-      const effectiveUsedPoint = usedPoint || 0;
+      // 적립 기준은 실결제액(purAmt − 사용포인트) — 포인트로 결제한 부분은 적립 대상이 아니다.
+      // 음수 usedPoint 는 0 으로 클램프 (적립 부풀리기 + 메타씨티 음수 USED_POINT 전송 차단)
+      const effectiveUsedPoint = Math.max(0, Math.round(Number(usedPoint) || 0));
+      const accrualBase = Math.max(0, purAmtNumber - effectiveUsedPoint);
+      const savePoint = Math.round((accrualBase * store.pointRatePercent) / 100);
 
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
@@ -465,9 +466,10 @@ router.post('/transaction', webhookAuthMiddleware, async (req: WebhookRequest, r
       });
     }
 
-    // 5. 적립 포인트 계산
-    const savePoint = Math.round(purAmtNumber * store.pointRatePercent / 100);
-    const effectiveUsedPoint = usedPoint || 0;
+    // 5. 적립 포인트 계산 — 기준은 실결제액(purAmt − 사용포인트). 음수 usedPoint 는 0 클램프.
+    const effectiveUsedPoint = Math.max(0, Math.round(Number(usedPoint) || 0));
+    const accrualBase = Math.max(0, purAmtNumber - effectiveUsedPoint);
+    const savePoint = Math.round(accrualBase * store.pointRatePercent / 100);
 
     // 후불 + 결제완료 감지 가능 POS 주문은 실제 적립을 결제완료 시점까지 미룬다.
     // (메타씨티 매장은 위에서 이미 return 되므로 여기 도달하지 않는다)
@@ -1082,6 +1084,8 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
         : normalizedDigits;
 
       try {
+        // metacityCustId 는 (storeId, metacityCustId) 유니크 — 다른 고객(오연결 잔존 등)이 이미
+        // 보유 중이면 P2002 로 create 전체가 죽으므로, 생성 후 cacheMetacityCustId 로 분리 저장한다.
         customer = await prisma.customer.create({
           data: {
             storeId: store.id,
@@ -1093,9 +1097,8 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
             regionSigungu: store.addressSigungu || null,
             consentMarketing: true,
             consentAt: new Date(),
-            metacityCustId: trimmedCustId || null,
             metacityCustCd: trimmedCustCd || null,
-            metacitySyncedAt: (trimmedCustId || trimmedCustCd) ? new Date() : null,
+            metacitySyncedAt: trimmedCustCd ? new Date() : null,
           },
         });
         console.log(`[Point Webhook] Customer created locally (metacity-point-event) - customerId: ${customer.id}, storeId: ${store.id}`);
@@ -1106,19 +1109,22 @@ router.post('/metacity-point-event', webhookAuthMiddleware, async (req: WebhookR
         }
         if (!customer) throw e;
       }
+      if (trimmedCustId && customer.metacityCustId !== trimmedCustId) {
+        await cacheMetacityCustId(customer.id, trimmedCustId);
+      }
     } else {
       // 식별자(CUST_ID/CUST_CD) 캐시 갱신 — 통합은 metacityCustId, 단독은 metacityCustCd.
       const idChanged = trimmedCustId && customer.metacityCustId !== trimmedCustId;
       const cdChanged = trimmedCustCd && customer.metacityCustCd !== trimmedCustCd;
-      if (idChanged || cdChanged) {
+      if (cdChanged) {
         await prisma.customer.update({
           where: { id: customer.id },
-          data: {
-            ...(idChanged && { metacityCustId: trimmedCustId }),
-            ...(cdChanged && { metacityCustCd: trimmedCustCd }),
-            metacitySyncedAt: new Date(),
-          },
+          data: { metacityCustCd: trimmedCustCd, metacitySyncedAt: new Date() },
         });
+      }
+      if (idChanged) {
+        // (storeId, metacityCustId) 유니크 충돌(P2002) 시 캐시만 건너뛰고 이벤트 처리는 계속
+        await cacheMetacityCustId(customer.id, trimmedCustId);
       }
     }
 
