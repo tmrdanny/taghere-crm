@@ -555,3 +555,88 @@ export async function fetchOrderLanguageStatsFromV2(params: {
     unmatchedCrmStoreSlugs: succeeded.flatMap((result) => result.unmatchedCrmStoreSlugs),
   };
 }
+
+export interface DailyVisitorStatsResult {
+  stores: {
+    storeId: string;
+    customerSizeEnabled: boolean;
+    daily: { date: string; visitors: number }[];
+  }[];
+  unmatchedStoreIds: string[];
+}
+
+const DAILY_VISITOR_STATS_TIMEOUT_MS = 5000;
+// V2 요청 DTO 의 storeIds 상한과 맞춘다. 초과분은 나눠 호출 후 합친다
+const DAILY_VISITOR_STATS_MAX_STORE_IDS = 200;
+
+async function requestDailyVisitorStats(body: {
+  storeIds: string[];
+  from: string;
+  to: string;
+}): Promise<DailyVisitorStatsResult | null> {
+  try {
+    const response = await fetch(`${V2_API_URL}/api/v2/internal/crm/daily-visitor-stats`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${V2_API_TOKEN}`,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(DAILY_VISITOR_STATS_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      console.error('[TagHere V2] daily visitor stats failed:', response.status, text);
+      return null;
+    }
+
+    const json: any = await response.json().catch(() => ({}));
+    const data = json?.result ?? json;
+    // 소비 측이 store.daily 를 순회하므로 매장 항목 형태까지 여기서 확정해 둔다
+    if (
+      !Array.isArray(data?.stores) ||
+      !Array.isArray(data?.unmatchedStoreIds) ||
+      !data.stores.every((store: any) => Array.isArray(store?.daily))
+    ) {
+      console.error('[TagHere V2] daily visitor stats: 예상과 다른 응답 형태');
+      return null;
+    }
+    return data as DailyVisitorStatsResult;
+  } catch (error) {
+    console.error('[TagHere V2] daily visitor stats error:', error);
+    return null;
+  }
+}
+
+/**
+ * V2에서 매장별 일자(KST)별 "실제 주문 인원"을 가져온다 (인원 수 입력 매장의 방문객 집계용).
+ * 세션당 인원은 한 번만 더해지고, 세션 없는 주문(키오스크 등)은 주문 1건=1명이다.
+ * 대시보드가 V2 장애에 묶이지 않도록 throw 하지 않고, 실패는 전부 null 로 반환한다.
+ */
+export async function fetchDailyVisitorStatsFromV2(params: {
+  v2StoreIds: string[];
+  from: string;
+  to: string;
+}): Promise<DailyVisitorStatsResult | null> {
+  if (!V2_API_URL || !V2_API_TOKEN) return null;
+  if (params.v2StoreIds.length === 0) return null;
+
+  const chunks: string[][] = [];
+  for (let i = 0; i < params.v2StoreIds.length; i += DAILY_VISITOR_STATS_MAX_STORE_IDS) {
+    chunks.push(params.v2StoreIds.slice(i, i + DAILY_VISITOR_STATS_MAX_STORE_IDS));
+  }
+
+  const results = await Promise.all(
+    chunks.map((storeIds) => requestDailyVisitorStats({ storeIds, from: params.from, to: params.to }))
+  );
+
+  // 한 조각이라도 실패하면 부분 결과를 쓰지 않는다 (호출부가 기존 집계로 폴백)
+  if (results.some((result) => result === null)) return null;
+  const succeeded = results as DailyVisitorStatsResult[];
+
+  return {
+    stores: succeeded.flatMap((result) => result.stores),
+    unmatchedStoreIds: succeeded.flatMap((result) => result.unmatchedStoreIds),
+  };
+}

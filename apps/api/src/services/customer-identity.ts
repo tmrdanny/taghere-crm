@@ -3,6 +3,61 @@ import { prisma } from '../lib/prisma.js';
 import { sidoToShort } from '../utils/address-parser.js';
 import { normalizeCustomerKeyDigits } from '../utils/phone.js';
 
+/** 서버 간 적립 경로가 함께 넘길 수 있는 고객 프로필. 모두 선택이며 CRM Customer 컬럼 형태 그대로다. */
+export type CustomerProfileInput = {
+  name?: string | null;
+  gender?: 'MALE' | 'FEMALE' | null;
+  /** MM-DD */
+  birthday?: string | null;
+  /** YYYY */
+  birthYear?: number | null;
+};
+
+/**
+ * 웹훅 바디(req.body 전체를 넘겨도 됨 — 4개 키만 읽는다)의 프로필 필드를 검증·정규화한다.
+ * name/birthday/birthYear 는 routes/customers.ts 대량 등록과 같은 규칙(trim 후 빈값 제외, M-D~MM-DD 2자리 패딩, 1900~2100 정수).
+ * gender 는 대량 등록(남/여/M/F 허용)과 달리 V2 계약값 MALE/FEMALE 정확 일치만 허용한다.
+ * 유효한 값이 하나도 없으면 null.
+ */
+export function normalizeCustomerProfile(
+  raw: { name?: unknown; gender?: unknown; birthday?: unknown; birthYear?: unknown } | null | undefined,
+): CustomerProfileInput | null {
+  if (!raw) return null;
+  const profile: CustomerProfileInput = {};
+
+  if (typeof raw.name === 'string' && raw.name.trim()) profile.name = raw.name.trim();
+  if (raw.gender === 'MALE' || raw.gender === 'FEMALE') profile.gender = raw.gender;
+  if (typeof raw.birthday === 'string') {
+    const b = raw.birthday.trim();
+    if (/^\d{1,2}-\d{1,2}$/.test(b)) {
+      const [mm, dd] = b.split('-');
+      profile.birthday = `${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+    }
+  }
+  if (raw.birthYear !== undefined && raw.birthYear !== null) {
+    const y = typeof raw.birthYear === 'number' ? raw.birthYear : parseInt(String(raw.birthYear), 10);
+    if (Number.isInteger(y) && y >= 1900 && y <= 2100) profile.birthYear = y;
+  }
+
+  return Object.keys(profile).length > 0 ? profile : null;
+}
+
+/** 기존 고객의 비어 있는 프로필 필드만 채운다. 채울 것이 없으면 쓰기 없이 그대로 반환. */
+async function backfillMissingProfile(
+  customer: Customer,
+  profile: CustomerProfileInput | null,
+): Promise<Customer> {
+  if (!profile) return customer;
+  const data = {
+    ...(profile.name && !customer.name && { name: profile.name }),
+    ...(profile.gender && !customer.gender && { gender: profile.gender }),
+    ...(profile.birthday && !customer.birthday && { birthday: profile.birthday }),
+    ...(profile.birthYear && !customer.birthYear && { birthYear: profile.birthYear }),
+  };
+  if (Object.keys(data).length === 0) return customer;
+  return prisma.customer.update({ where: { id: customer.id }, data });
+}
+
 /**
  * 전화번호로 매장 고객을 찾거나(없으면) 생성한다.
  *
@@ -13,12 +68,15 @@ import { normalizeCustomerKeyDigits } from '../utils/phone.js';
  * - 전화번호 정규화: 숫자만 추출 → +82 국제번호는 0 으로 치환 → 뒤 8자리를 검색키(phoneLastDigits)로 사용
  * - addressSido/addressSigungu 는 매장 원본값을 그대로 받아 내부에서 sidoToShort 로 축약(기존 create 와 동일)
  * - consent 기본값은 `/customer-search` 생성 경로와 동일(consentMarketing=true, consentAt=now)
+ * - profile(선택): 주문 서비스가 보유한 고객 프로필(네아로 로그인). 신규 생성 시 그대로 쓰고,
+ *   기존 고객은 비어 있는 필드만 채운다 — 사장님 수기 입력값·기존 값은 덮어쓰지 않는다.
  */
 export async function findOrCreateCustomerByPhone(
   storeId: string,
   phone: string,
   addressSido: string | null,
   addressSigungu: string | null,
+  profile: CustomerProfileInput | null = null,
 ): Promise<{ customer: Customer; isNewCustomer: boolean }> {
   // 전화번호 정규화
   const normalizedDigits = normalizeCustomerKeyDigits(phone);
@@ -30,7 +88,7 @@ export async function findOrCreateCustomerByPhone(
   });
 
   if (customer) {
-    return { customer, isNewCustomer: false };
+    return { customer: await backfillMissingProfile(customer, profile), isNewCustomer: false };
   }
 
   const formattedPhone = normalizedDigits.length === 11
@@ -43,6 +101,10 @@ export async function findOrCreateCustomerByPhone(
         storeId,
         phone: formattedPhone,
         phoneLastDigits,
+        name: profile?.name ?? null,
+        gender: profile?.gender ?? null,
+        birthday: profile?.birthday ?? null,
+        birthYear: profile?.birthYear ?? null,
         totalPoints: 0,
         visitCount: 0,
         regionSido: sidoToShort(addressSido),
@@ -58,7 +120,7 @@ export async function findOrCreateCustomerByPhone(
       customer = await prisma.customer.findFirst({ where: { storeId, phoneLastDigits } });
     }
     if (!customer) throw e;
-    return { customer, isNewCustomer: false };
+    return { customer: await backfillMissingProfile(customer, profile), isNewCustomer: false };
   }
 }
 

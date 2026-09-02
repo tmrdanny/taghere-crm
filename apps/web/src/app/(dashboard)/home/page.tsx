@@ -38,6 +38,7 @@ interface VisitorChartData {
 
 interface VisitorStats {
   chartData: VisitorChartData[];
+  countingMode?: 'auto' | 'customer_size' | 'mixed'; // customer_size = 태그히어 인원 수 입력 매장 (주문 인원 기준)
   todayVisitors: number;
   yesterdayVisitors: number;
   growth: number;
@@ -1001,7 +1002,9 @@ export default function HomePage() {
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-neutral-900">방문객 수 직접 수정</h2>
             <p className="text-sm text-neutral-500 mt-1">
-              태그히어로 집계되지 않은 손님까지 포함한 총 방문객 수를 입력하세요. 입력한 날짜는 입력값이 최종 방문객 수로 표시됩니다.
+              {visitorStats?.countingMode === 'customer_size'
+                ? '주문 시 입력된 인원 수를 기준으로 집계됩니다. 직접 입력한 날짜는 입력값이 최종 방문객 수로 표시됩니다.'
+                : '태그히어로 집계되지 않은 손님까지 포함한 총 방문객 수를 입력하세요. 입력한 날짜는 입력값이 최종 방문객 수로 표시됩니다.'}
             </p>
           </div>
           {overrideError && (
@@ -1011,7 +1014,9 @@ export default function HomePage() {
           )}
           <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3 gap-y-1 text-sm">
             <div className="text-xs font-medium text-neutral-500 py-1">날짜</div>
-            <div className="text-xs font-medium text-neutral-500 py-1 text-right">자동 집계</div>
+            <div className="text-xs font-medium text-neutral-500 py-1 text-right">
+              {visitorStats?.countingMode === 'customer_size' ? '주문 인원' : '자동 집계'}
+            </div>
             <div className="text-xs font-medium text-neutral-500 py-1 text-center">직접 입력</div>
             <div />
             {visitorStats &&
@@ -1057,7 +1062,11 @@ export default function HomePage() {
                           onClick={() => handleDeleteOverride(item.date)}
                           disabled={savingDate !== null}
                           className="p-1 text-neutral-400 hover:text-red-500 rounded-md hover:bg-neutral-100 disabled:opacity-50"
-                          title="직접입력 삭제 (자동 집계로 복귀)"
+                          title={
+                            visitorStats?.countingMode === 'customer_size'
+                              ? '직접입력 삭제 (주문 인원으로 복귀)'
+                              : '직접입력 삭제 (자동 집계로 복귀)'
+                          }
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
