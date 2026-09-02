@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import {
   computeDailyVisitorReport,
+  parseDateRange,
   kstDateStringToDbDate,
   todayKstString,
 } from '../services/visitor-stats.js';
@@ -172,10 +173,12 @@ router.get('/review-chart', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/visitor-chart', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
+    // startDate/endDate 가 오면 사용자 지정 기간, 아니면 기존 days 프리셋
+    const range = parseDateRange(req.query.startDate, req.query.endDate);
     const daysParam = parseInt((req.query.days as string) || '7', 10);
     const daysNum = [7, 30, 90, 365].includes(daysParam) ? daysParam : 7;
 
-    const { series, countingMode } = await computeDailyVisitorReport([storeId], daysNum);
+    const { series, countingMode } = await computeDailyVisitorReport([storeId], range ?? daysNum);
 
     const chartData = series.map((p) => ({
       date: p.date,
