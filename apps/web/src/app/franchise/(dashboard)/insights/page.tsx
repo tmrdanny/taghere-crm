@@ -22,8 +22,15 @@ import {
   Building2,
   Check,
   Globe,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import DateRangeFilter, { type DateRange } from '@/components/DateRangeFilter';
+import {
+  exportDailyVisitors,
+  exportOrderLanguages,
+  periodLabel,
+} from '@/lib/insights-export';
 import {
   XAxis,
   YAxis,
@@ -162,7 +169,8 @@ export default function FranchiseInsightsPage() {
   const datePickerRef = useRef<HTMLDivElement>(null);
 
   // 일별 방문객 추이 (페이지 공통 기간 필터와 독립)
-  const [dailyDays, setDailyDays] = useState<7 | 30 | 90>(30);
+  const [dailyDays, setDailyDays] = useState<number>(30);
+  const [dailyRange, setDailyRange] = useState<DateRange | null>(null);
   const [dailyStoreFilter, setDailyStoreFilter] = useState<string>('all');
   const [dailyChart, setDailyChart] = useState<
     { date: string; day: string; visitors: number; autoVisitors: number; overridden: boolean }[]
@@ -173,7 +181,8 @@ export default function FranchiseInsightsPage() {
   const storeDropdownRef = useRef<HTMLDivElement>(null);
 
   // 주문 언어 분포 (태그히어 V2에서 조회, 가맹점별 조회 가능)
-  const [langDays, setLangDays] = useState<7 | 30 | 90>(30);
+  const [langDays, setLangDays] = useState<number>(30);
+  const [langRange, setLangRange] = useState<DateRange | null>(null);
   const [langStoreFilter, setLangStoreFilter] = useState<string>('all');
   const [langStats, setLangStats] = useState<OrderLanguageStats | null>(null);
   const [isLangLoading, setIsLangLoading] = useState(true);
@@ -243,6 +252,10 @@ export default function FranchiseInsightsPage() {
         const token = getFranchiseToken();
         if (!token) return;
         const params = new URLSearchParams({ days: String(dailyDays) });
+        if (dailyRange) {
+          params.set('startDate', dailyRange.from);
+          params.set('endDate', dailyRange.to);
+        }
         if (dailyStoreFilter !== 'all') params.append('storeId', dailyStoreFilter);
         const res = await fetch(`${API_BASE}/api/franchise/insights/daily-visitors?${params.toString()}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -275,7 +288,7 @@ export default function FranchiseInsightsPage() {
     return () => {
       ignore = true;
     };
-  }, [dailyDays, dailyStoreFilter]);
+  }, [dailyDays, dailyRange, dailyStoreFilter]);
 
   // 주문 언어 분포 조회
   useEffect(() => {
@@ -286,6 +299,10 @@ export default function FranchiseInsightsPage() {
         const token = getFranchiseToken();
         if (!token) return;
         const params = new URLSearchParams({ days: String(langDays) });
+        if (langRange) {
+          params.set('startDate', langRange.from);
+          params.set('endDate', langRange.to);
+        }
         if (langStoreFilter !== 'all') params.append('storeId', langStoreFilter);
         const res = await fetch(`${API_BASE}/api/franchise/insights/order-languages?${params.toString()}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -311,7 +328,7 @@ export default function FranchiseInsightsPage() {
     return () => {
       ignore = true;
     };
-  }, [langDays, langStoreFilter]);
+  }, [langDays, langRange, langStoreFilter]);
 
   // 월별 고객 추이 조회
   useEffect(() => {
@@ -1098,23 +1115,30 @@ export default function FranchiseInsightsPage() {
                       </div>
                     )}
                   </div>
-                  {/* Days Toggle */}
-                  <div className="flex gap-1 p-1 bg-slate-100 rounded-lg">
-                    {([7, 30, 90] as const).map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => setDailyDays(d)}
-                        className={cn(
-                          'px-3 py-1 text-sm font-medium rounded-md transition-colors',
-                          dailyDays === d
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
-                        )}
-                      >
-                        {d}일
-                      </button>
-                    ))}
-                  </div>
+                  {/* 기간: 프리셋 + 직접 선택 */}
+                  <DateRangeFilter
+                    days={dailyDays}
+                    onDaysChange={setDailyDays}
+                    range={dailyRange}
+                    onRangeChange={setDailyRange}
+                    accentClass="bg-franchise-50 border-franchise-200 text-franchise-700"
+                  />
+                  <button
+                    onClick={() =>
+                      exportDailyVisitors(
+                        dailyChart,
+                        periodLabel(dailyRange, dailyDays),
+                        dailyStoreFilter === 'all'
+                          ? '전체가맹점'
+                          : storeOptions.find((s) => s.id === dailyStoreFilter)?.name || '가맹점'
+                      )
+                    }
+                    disabled={dailyChart.length === 0}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    엑셀
+                  </button>
                 </div>
               </div>
               <p className="text-sm text-slate-500 mb-4">
@@ -1244,23 +1268,33 @@ export default function FranchiseInsightsPage() {
                       </div>
                     )}
                   </div>
-                  {/* Days Toggle */}
-                  <div className="flex gap-1 p-1 bg-slate-100 rounded-lg">
-                    {([7, 30, 90] as const).map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => setLangDays(d)}
-                        className={cn(
-                          'px-3 py-1 text-sm font-medium rounded-md transition-colors',
-                          langDays === d
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
-                        )}
-                      >
-                        {d}일
-                      </button>
-                    ))}
-                  </div>
+                  {/* 기간: 프리셋 + 직접 선택 */}
+                  <DateRangeFilter
+                    days={langDays}
+                    onDaysChange={setLangDays}
+                    range={langRange}
+                    onRangeChange={setLangRange}
+                    accentClass="bg-franchise-50 border-franchise-200 text-franchise-700"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!langStats?.breakdown) return;
+                      exportOrderLanguages(
+                        langStats.breakdown.languages,
+                        (code) => ORDER_LANGUAGE_LABELS[code] || code,
+                        langStats.breakdown,
+                        periodLabel(langRange, langDays),
+                        langStoreFilter === 'all'
+                          ? '전체가맹점'
+                          : storeOptions.find((s) => s.id === langStoreFilter)?.name || '가맹점'
+                      );
+                    }}
+                    disabled={!langStats?.breakdown || langStats.breakdown.languages.length === 0}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    엑셀
+                  </button>
                 </div>
               </div>
               <p className="text-sm text-slate-500 mb-4">

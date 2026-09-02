@@ -8,7 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Modal, ModalContent } from '@/components/ui/modal';
 import { formatNumber, formatCurrency } from '@/lib/utils';
 import { fetchJsonCached, readCache, writeCache, cacheKeyFor, invalidateCacheByUrlPart } from '@/lib/swr-cache';
-import { Users, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin, Mail, Zap, Bell, Cake, UserPlus, ArrowRight, Pencil, X } from 'lucide-react';
+import { Users, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin, Mail, Zap, Bell, Cake, UserPlus, ArrowRight, Pencil, X, Download } from 'lucide-react';
+import DateRangeFilter, { type DateRange } from '@/components/DateRangeFilter';
+import { exportDailyVisitors, periodLabel } from '@/lib/insights-export';
 import {
   XAxis,
   YAxis,
@@ -79,7 +81,10 @@ export default function HomePage() {
   const [storeName, setStoreName] = useState('');
   const [chartPeriod, setChartPeriod] = useState<PeriodKey>('7일');
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [visitorChartData, setVisitorChartData] = useState<{ day: string; visitors: number; overridden: boolean }[]>([]);
+  const [visitorChartData, setVisitorChartData] = useState<
+    { date: string; day: string; visitors: number; autoVisitors: number; overridden: boolean }[]
+  >([]);
+  const [visitorRange, setVisitorRange] = useState<DateRange | null>(null);
   const [visitorStats, setVisitorStats] = useState<VisitorStats | null>(null);
   const [isRefreshingChart, setIsRefreshingChart] = useState(false);
   const [isRefreshingStats, setIsRefreshingStats] = useState(false);
@@ -258,33 +263,37 @@ export default function HomePage() {
   const applyVisitorData = (data: VisitorStats) => {
     setVisitorStats(data);
     const formattedData = data.chartData.map((item: VisitorChartData) => ({
+      date: item.date,
       // date는 KST 기준 'YYYY-MM-DD' 문자열 — TZ 비의존을 위해 문자열 슬라이스로 라벨 생성
       day: `${item.date.slice(5, 7)}/${item.date.slice(8, 10)}`,
       visitors: item.visitors,
+      autoVisitors: item.autoVisitors,
       overridden: item.manualVisitors !== null,
     }));
     setVisitorChartData(formattedData);
   };
 
   const visitorChartDays = chartPeriod === '7일' ? 7 : chartPeriod === '30일' ? 30 : chartPeriod === '90일' ? 90 : 365;
+  // 직접 선택한 범위가 있으면 days 대신 startDate/endDate 로 조회한다
+  const visitorChartUrl = `${API_BASE}/api/dashboard/visitor-chart?days=${visitorChartDays}${
+    visitorRange ? `&startDate=${visitorRange.from}&endDate=${visitorRange.to}` : ''
+  }`;
 
   // Fetch visitor chart data based on period
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    fetchJsonCached<VisitorStats>(
-      `${API_BASE}/api/dashboard/visitor-chart?days=${visitorChartDays}`,
-      token,
-      applyVisitorData
-    ).catch((error) => console.error('Failed to fetch visitor chart data:', error));
+    fetchJsonCached<VisitorStats>(visitorChartUrl, token, applyVisitorData).catch((error) =>
+      console.error('Failed to fetch visitor chart data:', error)
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartPeriod]);
+  }, [chartPeriod, visitorRange]);
 
   // Refetch visitor chart data (bypass cache) and refresh the stored cache entry
   const refetchVisitorChart = async () => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    const url = `${API_BASE}/api/dashboard/visitor-chart?days=${visitorChartDays}`;
+    const url = visitorChartUrl;
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -803,6 +812,27 @@ export default function HomePage() {
                 </button>
               ))}
             </div>
+            <DateRangeFilter
+              days={visitorChartDays}
+              onDaysChange={() => {}}
+              dayOptions={[]}
+              range={visitorRange}
+              onRangeChange={setVisitorRange}
+            />
+            <button
+              onClick={() =>
+                exportDailyVisitors(
+                  visitorChartData,
+                  periodLabel(visitorRange, visitorChartDays),
+                  '내매장'
+                )
+              }
+              disabled={visitorChartData.length === 0}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:hover:bg-white"
+            >
+              <Download className="w-3.5 h-3.5" />
+              엑셀
+            </button>
           </CardHeader>
           <CardContent>
             <div className="h-72">
