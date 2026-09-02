@@ -17,6 +17,7 @@ import { classifyWalletTx, describeWalletTx, WALLET_USAGE_LABELS } from '../util
 import { computeAnalytics } from '../services/analytics.js';
 import {
   computeDailyVisitorSeries,
+  parseDateRange,
   kstDateStringToDbDate,
   todayKstString,
 } from '../services/visitor-stats.js';
@@ -2790,6 +2791,7 @@ router.get('/insights/analytics', async (req: FranchiseAuthRequest, res) => {
 router.get('/insights/daily-visitors', async (req: FranchiseAuthRequest, res) => {
   try {
     const franchiseId = req.franchiseUser!.franchiseId;
+    const range = parseDateRange(req.query.startDate, req.query.endDate);
     const daysParam = parseInt((req.query.days as string) || '30', 10);
     const days = [7, 30, 90].includes(daysParam) ? daysParam : 30;
     const storeIdFilter = (req.query.storeId as string) || '';
@@ -2802,7 +2804,7 @@ router.get('/insights/daily-visitors', async (req: FranchiseAuthRequest, res) =>
       return res.status(404).json({ error: '가맹점을 찾을 수 없습니다.' });
     }
 
-    const chartData = await computeDailyVisitorSeries(stores.map((s) => s.id), days);
+    const chartData = await computeDailyVisitorSeries(stores.map((s) => s.id), range ?? days);
     res.json({ chartData });
   } catch (error) {
     console.error('Franchise daily visitors error:', error);
@@ -2855,10 +2857,13 @@ router.get('/insights/order-languages', async (req: FranchiseAuthRequest, res) =
       return res.json({ available: true, breakdown: null, storeCount: 0, excludedV1Count });
     }
 
-    const toDate = todayKstString();
-    const fromDate = new Date(kstDateStringToDbDate(toDate).getTime() - (days - 1) * 86400000)
-      .toISOString()
-      .slice(0, 10);
+    const langRange = parseDateRange(req.query.startDate, req.query.endDate);
+    const toDate = langRange ? langRange.to : todayKstString();
+    const fromDate = langRange
+      ? langRange.from
+      : new Date(kstDateStringToDbDate(toDate).getTime() - (days - 1) * 86400000)
+          .toISOString()
+          .slice(0, 10);
 
     const stats = await fetchOrderLanguageStatsFromV2({
       crmStoreSlugs: v2Stores.map((s) => s.slug!),

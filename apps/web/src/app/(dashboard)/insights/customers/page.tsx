@@ -3,7 +3,8 @@
 import { API_BASE } from '@/lib/api-config';
 import { getStoreToken } from '@/lib/auth-token';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Users, RefreshCw, TrendingUp, MapPin, Calendar, Gift, Globe } from 'lucide-react';
+import { Users, RefreshCw, TrendingUp, MapPin, Calendar, Gift, Globe, Download } from 'lucide-react';
+import { exportOrderLanguages } from '@/lib/insights-export';
 import { cn } from '@/lib/utils';
 
 
@@ -635,9 +636,29 @@ export default function CustomerInsightsPage() {
 
           {/* 주문 언어 분포 */}
           <div className="bg-white rounded-xl border border-neutral-200 p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <Globe className="w-5 h-5 text-neutral-400" />
-              <h3 className="font-semibold text-neutral-900">주문 언어 분포</h3>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+              <div className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-neutral-400" />
+                <h3 className="font-semibold text-neutral-900">주문 언어 분포</h3>
+              </div>
+              {/* 선택한 기간의 집계 데이터를 엑셀로 저장 (개인정보 미포함) */}
+              <button
+                onClick={() => {
+                  if (!orderLanguages?.breakdown) return;
+                  exportOrderLanguages(
+                    orderLanguages.breakdown.languages,
+                    (code) => ORDER_LANGUAGE_LABELS[code] || code,
+                    orderLanguages.breakdown,
+                    formatDateRange().replace(/\s/g, ''),
+                    '내매장'
+                  );
+                }}
+                disabled={!orderLanguages?.breakdown || orderLanguages.breakdown.languages.length === 0}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:hover:bg-white"
+              >
+                <Download className="w-3.5 h-3.5" />
+                엑셀
+              </button>
             </div>
             {renderOrderLanguagePie()}
           </div>

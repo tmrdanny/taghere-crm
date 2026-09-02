@@ -25,17 +25,38 @@ export function kstDateStringToDbDate(dateStr: string): Date {
   return new Date(`${dateStr}T00:00:00Z`);
 }
 
+/**
+ * 일별 방문객 시계열.
+ *
+ * - 숫자를 넘기면 KST 오늘부터 역산한 N일 (기존 동작)
+ * - { from, to } 를 넘기면 해당 날짜 범위 (YYYY-MM-DD, 양끝 포함). 하루만 조회하려면 from === to
+ */
 export async function computeDailyVisitorSeries(
   storeIds: string[],
-  days: number
+  range: number | { from: string; to: string }
 ): Promise<DailyVisitorPoint[]> {
-  // KST 오늘부터 역산한 days개의 날짜 버킷
-  const todayUtcMidnight = kstDateStringToDbDate(todayKstString()).getTime();
   const dateKeys: string[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    dateKeys.push(new Date(todayUtcMidnight - i * 86400000).toISOString().slice(0, 10));
+
+  if (typeof range === 'number') {
+    // KST 오늘부터 역산한 days개의 날짜 버킷
+    const todayUtcMidnight = kstDateStringToDbDate(todayKstString()).getTime();
+    for (let i = range - 1; i >= 0; i--) {
+      dateKeys.push(new Date(todayUtcMidnight - i * 86400000).toISOString().slice(0, 10));
+    }
+  } else {
+    const startMs = kstDateStringToDbDate(range.from).getTime();
+    const endMs = kstDateStringToDbDate(range.to).getTime();
+    if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs < startMs) return [];
+    for (let t = startMs; t <= endMs; t += 86400000) {
+      dateKeys.push(new Date(t).toISOString().slice(0, 10));
+    }
   }
+
+  if (dateKeys.length === 0) return [];
   const firstDate = dateKeys[0];
+  const lastDate = dateKeys[dateKeys.length - 1];
+  // 마지막 버킷의 KST 자정 다음날 = 범위 종료 경계 (UTC)
+  const endUtc = new Date(Date.parse(`${lastDate}T00:00:00Z`) - KST_OFFSET_MS + 86400000);
   // 첫 버킷의 KST 자정에 해당하는 UTC 시각
   const startUtc = new Date(Date.parse(`${firstDate}T00:00:00Z`) - KST_OFFSET_MS);
 
@@ -46,13 +67,15 @@ export async function computeDailyVisitorSeries(
              to_char(pl."createdAt" + interval '9 hours', 'YYYY-MM-DD') AS d,
              pl."customerId" AS cid
       FROM point_ledger pl
-      WHERE pl."storeId" = ANY(${storeIds}) AND pl.type = 'EARN' AND pl."createdAt" >= ${startUtc}
+      WHERE pl."storeId" = ANY(${storeIds}) AND pl.type = 'EARN'
+        AND pl."createdAt" >= ${startUtc} AND pl."createdAt" < ${endUtc}
       UNION
       SELECT c."storeId" AS sid,
              to_char(c."createdAt" + interval '9 hours', 'YYYY-MM-DD') AS d,
              c.id AS cid
       FROM customers c
-      WHERE c."storeId" = ANY(${storeIds}) AND c."createdAt" >= ${startUtc}
+      WHERE c."storeId" = ANY(${storeIds})
+        AND c."createdAt" >= ${startUtc} AND c."createdAt" < ${endUtc}
     ) t GROUP BY sid, d`;
 
   const autoMap = new Map<string, number>();
@@ -63,7 +86,7 @@ export async function computeDailyVisitorSeries(
   const overrides = await prisma.dailyVisitorOverride.findMany({
     where: {
       storeId: { in: storeIds },
-      date: { gte: kstDateStringToDbDate(firstDate) },
+      date: { gte: kstDateStringToDbDate(firstDate), lte: kstDateStringToDbDate(lastDate) },
     },
     select: { storeId: true, date: true, visitors: true },
   });
@@ -90,4 +113,24 @@ export async function computeDailyVisitorSeries(
     }
     return { date, autoVisitors, visitors, overridden };
   });
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * 쿼리스트링의 startDate/endDate 를 검증해 날짜 범위로 만든다.
+ * 둘 다 유효할 때만 범위를 반환하고, 아니면 null (호출측이 기존 days 방식으로 폴백).
+ * 최대 366일로 제한한다.
+ */
+export function parseDateRange(
+  startDate: unknown,
+  endDate: unknown,
+): { from: string; to: string } | null {
+  if (typeof startDate !== 'string' || typeof endDate !== 'string') return null;
+  if (!DATE_RE.test(startDate) || !DATE_RE.test(endDate)) return null;
+  const from = startDate <= endDate ? startDate : endDate;
+  const to = startDate <= endDate ? endDate : startDate;
+  const spanDays = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000 + 1;
+  if (!Number.isFinite(spanDays) || spanDays < 1 || spanDays > 366) return null;
+  return { from, to };
 }
