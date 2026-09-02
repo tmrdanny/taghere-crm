@@ -30,7 +30,8 @@ vi.mock('../../services/taghere-api.js', async (importOriginal) => {
 
 import { app } from '../../app.js';
 import { prisma } from '../../lib/prisma.js';
-import { findOrCreateCustomerByPhone } from '../../services/customer-identity.js';
+import { findOrCreateCustomerByPhone, normalizeCustomerProfile } from '../../services/customer-identity.js';
+import { TEST_WEBHOOK_TOKEN } from '../helpers/test-env.js';
 
 const STORE_ID = 'char-cfoc-store-1';
 const STORE_SLUG = 'char-cfoc-store';
@@ -170,6 +171,124 @@ describe('findOrCreateCustomerByPhone — 서버 간 적립 경로 생성 기본
     });
     expect(rows).toHaveLength(1);
     expect(rows[0].consentMarketing).toBe(true);
+  });
+
+  // ── 프로필(name/gender/birthday/birthYear) 전달 — 인앱 적립 경로가 네아로 프로필을 함께 넘기는 경우 ──
+
+  it('profile 전달 시 신규 고객에 name/gender/birthday/birthYear 를 저장한다', async () => {
+    const { customer, isNewCustomer } = await findOrCreateCustomerByPhone(
+      STORE_ID,
+      '010-1234-5678',
+      '서울특별시',
+      '강남구',
+      { name: '홍길동', gender: 'FEMALE', birthday: '03-07', birthYear: 1990 },
+    );
+
+    expect(isNewCustomer).toBe(true);
+    expect(customer.name).toBe('홍길동');
+    expect(customer.gender).toBe('FEMALE');
+    expect(customer.birthday).toBe('03-07');
+    expect(customer.birthYear).toBe(1990);
+    // 프로필이 있어도 동의 기본값은 그대로
+    expect(customer.consentMarketing).toBe(true);
+  });
+
+  it('기존 고객: 비어 있는 프로필 필드만 채우고, 이미 있는 값(수기 입력)은 덮어쓰지 않는다', async () => {
+    const seeded = await prisma.customer.create({
+      data: {
+        storeId: STORE_ID,
+        phone: '01012345678',
+        phoneLastDigits: '12345678',
+        name: '사장님입력이름',
+        gender: null,
+        birthday: null,
+        birthYear: 1985,
+      },
+    });
+
+    const { customer, isNewCustomer } = await findOrCreateCustomerByPhone(
+      STORE_ID,
+      '010-1234-5678',
+      null,
+      null,
+      { name: '네이버이름', gender: 'MALE', birthday: '12-25', birthYear: 1990 },
+    );
+
+    expect(isNewCustomer).toBe(false);
+    expect(customer.id).toBe(seeded.id);
+    // 반환값도 갱신본
+    expect(customer.name).toBe('사장님입력이름');
+    expect(customer.gender).toBe('MALE');
+    expect(customer.birthday).toBe('12-25');
+    expect(customer.birthYear).toBe(1985);
+
+    const after = await prisma.customer.findUniqueOrThrow({ where: { id: seeded.id } });
+    expect(after.name).toBe('사장님입력이름');
+    expect(after.gender).toBe('MALE');
+    expect(after.birthday).toBe('12-25');
+    expect(after.birthYear).toBe(1985);
+  });
+
+  it('기존 고객: 채울 필드가 없으면(프로필 미전달 또는 전부 보유) 쓰기 없이 그대로 반환한다', async () => {
+    const seeded = await prisma.customer.create({
+      data: {
+        storeId: STORE_ID,
+        phone: '01012345678',
+        phoneLastDigits: '12345678',
+        name: '기존',
+        gender: 'FEMALE',
+        birthday: '01-01',
+        birthYear: 2000,
+      },
+    });
+
+    const noProfile = await findOrCreateCustomerByPhone(STORE_ID, '010-1234-5678', null, null);
+    const fullProfile = await findOrCreateCustomerByPhone(STORE_ID, '010-1234-5678', null, null, {
+      name: '다른이름',
+      gender: 'MALE',
+      birthday: '02-02',
+      birthYear: 1999,
+    });
+
+    const after = await prisma.customer.findUniqueOrThrow({ where: { id: seeded.id } });
+    expect(noProfile.customer.updatedAt.getTime()).toBe(seeded.updatedAt.getTime());
+    expect(fullProfile.customer.updatedAt.getTime()).toBe(seeded.updatedAt.getTime());
+    expect(after.name).toBe('기존');
+    expect(after.gender).toBe('FEMALE');
+    expect(after.birthday).toBe('01-01');
+    expect(after.birthYear).toBe(2000);
+  });
+
+  it('normalizeCustomerProfile: 대량 등록과 같은 규칙으로 정규화하고, 유효값이 없으면 null', () => {
+    expect(
+      normalizeCustomerProfile({ name: '  홍길동 ', gender: 'MALE', birthday: '3-7', birthYear: '1990' }),
+    ).toEqual({ name: '홍길동', gender: 'MALE', birthday: '03-07', birthYear: 1990 });
+
+    // 잘못된 값은 필드 단위로 버린다
+    expect(
+      normalizeCustomerProfile({ name: '   ', gender: 'M', birthday: '1990-03-07', birthYear: 1800 }),
+    ).toBeNull();
+    expect(normalizeCustomerProfile({ gender: 'FEMALE', birthday: 'not-a-date' })).toEqual({ gender: 'FEMALE' });
+
+    expect(normalizeCustomerProfile(undefined)).toBeNull();
+    expect(normalizeCustomerProfile({})).toBeNull();
+  });
+
+  it('라우트 배선: POST /api/taghere/webhook/point/customer-search 가 바디 프로필을 신규 고객에 저장한다', async () => {
+    const res = await request(app)
+      .post('/api/taghere/webhook/point/customer-search')
+      .set('Authorization', `Bearer ${TEST_WEBHOOK_TOKEN}`)
+      .send({ storeSlug: STORE_SLUG, phone: '010-1234-5678', name: '홍길동', gender: 'FEMALE', birthday: '3-7', birthYear: 1990 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.isNewCustomer).toBe(true);
+    expect(res.body.data.custName).toBe('홍길동');
+
+    const row = await prisma.customer.findFirstOrThrow({ where: { storeId: STORE_ID, phoneLastDigits: '12345678' } });
+    expect(row.name).toBe('홍길동');
+    expect(row.gender).toBe('FEMALE');
+    expect(row.birthday).toBe('03-07');
+    expect(row.birthYear).toBe(1990);
   });
 });
 
