@@ -475,6 +475,67 @@ export class SolapiService {
     return results;
   }
 
+  // 알림톡(ATA) 벌크 발송 — 1,000건씩 그룹 1회 호출 (건별 치환변수 지원, 예약 발송 지원)
+  async sendBulkAlimTalk(params: {
+    messages: Array<{ to: string; templateId: string; variables: Record<string, string> }>;
+    pfId: string;
+    scheduledAt?: Date;
+  }): Promise<BulkSendResult[]> {
+    if (!this.messageService) {
+      throw new Error('SOLAPI not configured');
+    }
+
+    const CHUNK_SIZE = 1000;
+    const CHUNK_DELAY_MS = 100;
+    const results: BulkSendResult[] = [];
+    const { messages, pfId, scheduledAt } = params;
+
+    for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
+      const chunk = messages.slice(i, i + CHUNK_SIZE).map((msg) => ({
+        to: this.normalizePhoneNumber(msg.to),
+        from: '07041380263',
+        type: 'ATA',
+        kakaoOptions: {
+          pfId,
+          templateId: msg.templateId,
+          variables: msg.variables,
+        },
+      }));
+
+      try {
+        const result = await this.messageService.send(
+          chunk as any,
+          scheduledAt ? ({ scheduledDate: scheduledAt } as any) : undefined
+        );
+        const groupId = result.groupInfo?.groupId || '';
+        const failedPhones = new Map<string, string>();
+
+        if (result.failedMessageList && result.failedMessageList.length > 0) {
+          for (const failed of result.failedMessageList) {
+            failedPhones.set((failed as any).to || '', (failed as any).statusMessage || (failed as any).reason || 'Unknown error');
+          }
+        }
+        const acceptedCount = chunk.length - failedPhones.size;
+
+        console.log(`[SOLAPI Bulk ATA] Chunk ${Math.floor(i / CHUNK_SIZE) + 1}: groupId=${groupId}, accepted=${acceptedCount}, failed=${failedPhones.size}${scheduledAt ? `, scheduled=${scheduledAt.toISOString()}` : ''}`);
+        results.push({ groupId, acceptedCount, messageCount: chunk.length, failedPhones });
+      } catch (error: any) {
+        console.error(`[SOLAPI Bulk ATA] Chunk ${Math.floor(i / CHUNK_SIZE) + 1} error:`, error.message);
+        const failedPhones = new Map<string, string>();
+        for (const msg of chunk) {
+          failedPhones.set(msg.to, error.message || 'Chunk send failed');
+        }
+        results.push({ groupId: '', acceptedCount: 0, messageCount: chunk.length, failedPhones });
+      }
+
+      if (i + CHUNK_SIZE < messages.length) {
+        await new Promise((resolve) => setTimeout(resolve, CHUNK_DELAY_MS));
+      }
+    }
+
+    return results;
+  }
+
   // 브랜드 메시지(BMS_FREE) 벌크 발송
   async sendBulkBrandMessage(params: {
     messages: Array<{ to: string; content: string }>;

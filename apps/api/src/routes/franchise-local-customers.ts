@@ -18,14 +18,9 @@ import {
   dedupeTargetsByPhone,
 } from '../services/local-campaign.js';
 import { isSendableTime, getNextSendableTime } from '../utils/send-window.js';
-import { customAlphabet } from 'nanoid';
+import { sendAcquisitionCouponAlimtalk, ACQUISITION_COUPON_COST } from '../services/acquisition-coupon.js';
 
 const router = Router();
-
-// 신규 유치 쿠폰 알림톡 비용 (건당)
-const ACQUISITION_COUPON_COST = 100;
-const ACQUISITION_INSERT_CHUNK_SIZE = 500;
-const generateAcqCouponCode = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 10);
 
 // 프랜차이즈 스코프 (FranchiseWallet / franchiseId 캠페인 귀속)
 function franchiseScope(req: FranchiseAuthRequest): LocalCampaignScope {
@@ -250,108 +245,25 @@ router.post('/kakao/coupon-send', franchiseAuthMiddleware, async (req: Franchise
 
     const customers: Array<{ id: string; phone: string }> = uniqueTargets.slice(0, sendCount);
 
-    const appUrl = env.PUBLIC_APP_URL || 'http://localhost:3999';
-    const domain = appUrl.replace(/^https?:\/\//, '');
-    const naverForTemplate = (repStore.naverPlaceUrl || '').replace(/^https?:\/\//, '');
-
-    // 이력용 캠페인 레코드
     const regionSidoList = [...new Set(regionFilters.map((r) => r.sido))];
-    const regionSigunguList = regionFilters.filter((r) => r.sigungu).map((r) => r.sigungu);
-    const campaign = await prisma.externalSmsCampaign.create({
-      data: {
-        franchiseId,
+    const regionSigunguList = regionFilters.filter((r) => r.sigungu).map((r) => r.sigungu as string);
+
+    // 솔라피 그룹 발송 (1,000건/1회) — 워커 건별 발송 경로를 타지 않는다
+    const { campaignId, queued, dropped, totalCost: chargedCost } = await sendAcquisitionCouponAlimtalk({
+      franchiseId,
+      repStore,
+      targets: customers,
+      couponContent: couponContent.trim(),
+      expiryDate: expiryDate.trim(),
+      campaign: {
         title: `신규 고객 유치 (쿠폰 알림톡) - ${new Date().toLocaleDateString('ko-KR')}`,
-        content: couponContent.trim(),
-        filterAgeGroups: JSON.stringify(ageGroups || []),
+        filterAgeGroups: ageGroups || [],
         filterGender: gender || null,
         filterRegionSido: regionSidoList.join(','),
         filterRegionSigungu: regionSigunguList.join(','),
-        filterCategories: categories && categories.length > 0 ? JSON.stringify(categories) : null,
-        targetCount: sendCount,
-        costPerMessage: ACQUISITION_COUPON_COST,
-        status: 'SENDING',
+        filterCategories: categories && categories.length > 0 ? categories : null,
       },
-    });
-
-    // 청크 단위로 RetargetCoupon + AlimTalkOutbox 생성 + 지갑 차감
-    const codePoolDedup = new Set<string>();
-    let queued = 0;
-    let dropped = 0;
-
-    for (let i = 0; i < customers.length; i += ACQUISITION_INSERT_CHUNK_SIZE) {
-      const slice = customers.slice(i, i + ACQUISITION_INSERT_CHUNK_SIZE);
-
-      const rows = slice.map((c) => {
-        let code = generateAcqCouponCode();
-        let guard = 0;
-        while (codePoolDedup.has(code) && guard < 5) {
-          code = generateAcqCouponCode();
-          guard++;
-        }
-        codePoolDedup.add(code);
-        return { code, phone: c.phone };
-      });
-
-      const retargetRows = rows.map((r) => ({
-        code: r.code,
-        storeId: repStore.id,
-        customerId: null,
-        phone: r.phone,
-        couponContent: couponContent.trim(),
-        expiryDate: expiryDate.trim(),
-        naverPlaceUrl: repStore.naverPlaceUrl || null,
-      }));
-
-      const outboxRows = rows.map((r) => ({
-        storeId: repStore.id,
-        customerId: null,
-        phone: r.phone,
-        messageType: 'RETARGET_COUPON' as const,
-        templateId,
-        variables: {
-          '#{상호}': repStore.name,
-          '#{쿠폰내용}': couponContent.trim(),
-          '#{유효기간}': expiryDate.trim(),
-          '#{네이버플레이스}': naverForTemplate,
-          '#{직원확인}': `${domain}/coupon/verify/${r.code}`,
-        } as any,
-        idempotencyKey: `retarget-coupon-${r.code}`,
-        status: 'PENDING' as const,
-        scheduledAt,
-      }));
-
-      const chunkCost = slice.length * ACQUISITION_COUPON_COST;
-
-      try {
-        await prisma.$transaction(async (tx) => {
-          const couponInsert = await (tx as any).retargetCoupon.createMany({
-            data: retargetRows,
-            skipDuplicates: true,
-          });
-          const outboxInsert = await tx.alimTalkOutbox.createMany({
-            data: outboxRows,
-            skipDuplicates: true,
-          });
-          const ok = Math.min(couponInsert.count, outboxInsert.count);
-          queued += ok;
-          dropped += slice.length - ok;
-          const effectiveCost = ok * ACQUISITION_COUPON_COST;
-          if (effectiveCost > 0) {
-            await tx.franchiseWallet.update({
-              where: { franchiseId },
-              data: { balance: { decrement: effectiveCost } },
-            });
-          }
-        });
-      } catch (chunkErr) {
-        console.error(`[AcquisitionCoupon] chunk ${i} failed:`, chunkErr);
-        dropped += slice.length;
-      }
-    }
-
-    await prisma.externalSmsCampaign.update({
-      where: { id: campaign.id },
-      data: { status: queued > 0 ? 'SENDING' : 'COMPLETED', failedCount: dropped },
+      scheduledAt,
     });
 
     const responseMessage = scheduledAt
@@ -360,12 +272,12 @@ router.post('/kakao/coupon-send', franchiseAuthMiddleware, async (req: Franchise
 
     res.json({
       success: true,
-      campaignId: campaign.id,
+      campaignId,
       count: queued,
       queued,
       dropped,
       pendingCount: queued,
-      totalCost: queued * ACQUISITION_COUPON_COST,
+      totalCost: chargedCost,
       message: responseMessage,
       scheduledAt: scheduledAt?.toISOString(),
     });

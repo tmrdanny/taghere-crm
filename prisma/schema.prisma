@@ -561,6 +561,8 @@ model AlimTalkOutbox {
   failReason    String?            @db.Text
   scheduledAt   DateTime?          // 예약 발송 시간 (null = 즉시)
   sentAt        DateTime?          // 실제 발송 시간
+  franchiseId   String?            // 프랜차이즈 캠페인 과금 주체 (환불 라우팅용, null = 매장 지갑)
+  sentViaGroup  Boolean            @default(false) // 솔라피 그룹 발송으로 접수됨 — 워커 건별 발송 대상 아님, 그룹 단위 상태 조회로 확정
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
@@ -568,6 +570,7 @@ model AlimTalkOutbox {
   @@index([status, scheduledAt])
   @@index([idempotencyKey])
   @@index([createdAt])
+  @@index([sentViaGroup, status])
   @@map("alimtalk_outbox")
 }
 
