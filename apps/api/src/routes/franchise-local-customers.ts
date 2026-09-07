@@ -227,17 +227,44 @@ router.post('/kakao/coupon-send', franchiseAuthMiddleware, async (req: Franchise
       where.OR = categories.map((cat: string) => ({ preferredCategories: { contains: cat } }));
     }
 
-    const availableCount = await prisma.externalCustomer.count({ where });
+    // CRM 고객(Customer)도 SMS 발송·/count 와 동일하게 대상에 포함 (전화번호 있는 고객만, 업종 필터 미적용)
+    const customerWhere: any = {
+      OR: regionOrConditions,
+      consentMarketing: true,
+      phone: { not: null },
+    };
+    if (ageGroups && ageGroups.length > 0) customerWhere.ageGroup = { in: ageGroups };
+    if (gender && gender !== 'all') customerWhere.gender = gender;
+
+    const [externalCount, crmCustomerCount] = await Promise.all([
+      prisma.externalCustomer.count({ where }),
+      prisma.customer.count({ where: customerWhere }),
+    ]);
+    const availableCount = externalCount + crmCustomerCount;
     if (sendCount > availableCount) {
       return res.status(400).json({ error: `발송 가능한 고객이 ${availableCount}명입니다.`, availableCount });
     }
 
-    const customers = await prisma.externalCustomer.findMany({
+    const externalCustomers = await prisma.externalCustomer.findMany({
       where,
       take: sendCount,
       orderBy: { id: 'asc' },
       select: { id: true, phone: true },
     });
+    const remainingCount = sendCount - externalCustomers.length;
+    const crmCustomers =
+      remainingCount > 0
+        ? await prisma.customer.findMany({
+            where: customerWhere,
+            take: remainingCount,
+            orderBy: { id: 'asc' },
+            select: { id: true, phone: true },
+          })
+        : [];
+    const customers: Array<{ id: string; phone: string }> = [
+      ...externalCustomers,
+      ...crmCustomers.filter((c) => c.phone).map((c) => ({ id: c.id, phone: c.phone! })),
+    ];
 
     const appUrl = env.PUBLIC_APP_URL || 'http://localhost:3999';
     const domain = appUrl.replace(/^https?:\/\//, '');
