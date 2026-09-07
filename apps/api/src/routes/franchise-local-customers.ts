@@ -15,6 +15,7 @@ import {
   getKakaoEstimate,
   sendKakaoBrandMessage,
   getCampaigns,
+  dedupeTargetsByPhone,
 } from '../services/local-campaign.js';
 import { isSendableTime, getNextSendableTime } from '../utils/send-window.js';
 import { customAlphabet } from 'nanoid';
@@ -236,35 +237,18 @@ router.post('/kakao/coupon-send', franchiseAuthMiddleware, async (req: Franchise
     if (ageGroups && ageGroups.length > 0) customerWhere.ageGroup = { in: ageGroups };
     if (gender && gender !== 'all') customerWhere.gender = gender;
 
-    const [externalCount, crmCustomerCount] = await Promise.all([
-      prisma.externalCustomer.count({ where }),
-      prisma.customer.count({ where: customerWhere }),
+    // 전화번호 고유 기준으로 대상 확정 (Customer 는 매장별 행이라 같은 번호가 여러 개 — /count 와 동일 규칙)
+    const [externalCustomers, crmCustomers] = await Promise.all([
+      prisma.externalCustomer.findMany({ where, orderBy: { id: 'asc' }, select: { id: true, phone: true } }),
+      prisma.customer.findMany({ where: customerWhere, orderBy: { id: 'asc' }, select: { id: true, phone: true } }),
     ]);
-    const availableCount = externalCount + crmCustomerCount;
+    const uniqueTargets = dedupeTargetsByPhone([...externalCustomers, ...crmCustomers]);
+    const availableCount = uniqueTargets.length;
     if (sendCount > availableCount) {
       return res.status(400).json({ error: `발송 가능한 고객이 ${availableCount}명입니다.`, availableCount });
     }
 
-    const externalCustomers = await prisma.externalCustomer.findMany({
-      where,
-      take: sendCount,
-      orderBy: { id: 'asc' },
-      select: { id: true, phone: true },
-    });
-    const remainingCount = sendCount - externalCustomers.length;
-    const crmCustomers =
-      remainingCount > 0
-        ? await prisma.customer.findMany({
-            where: customerWhere,
-            take: remainingCount,
-            orderBy: { id: 'asc' },
-            select: { id: true, phone: true },
-          })
-        : [];
-    const customers: Array<{ id: string; phone: string }> = [
-      ...externalCustomers,
-      ...crmCustomers.filter((c) => c.phone).map((c) => ({ id: c.id, phone: c.phone! })),
-    ];
+    const customers: Array<{ id: string; phone: string }> = uniqueTargets.slice(0, sendCount);
 
     const appUrl = env.PUBLIC_APP_URL || 'http://localhost:3999';
     const domain = appUrl.replace(/^https?:\/\//, '');

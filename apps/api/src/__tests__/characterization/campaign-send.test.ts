@@ -164,11 +164,11 @@ describe('store scope: /api/local-customers', () => {
       .query({ regions: JSON.stringify([{ sido: '서울' }]) });
 
     expect(res.status).toBe(200);
-    // customer 카운트에는 phone 유무 필터가 없다 → phone null 인 cust-2 도 포함 (발송과 불일치)
+    // 전화번호 고유 기준 — phone null 인 cust-2 는 제외 (발송 가능 대상과 일치)
     expect(res.body).toEqual({
-      totalCount: 4,
-      availableCount: 4,
-      breakdown: { external: 2, customer: 2 },
+      totalCount: 3,
+      availableCount: 3,
+      breakdown: { external: 2, customer: 1 },
     });
   });
 
@@ -193,11 +193,11 @@ describe('store scope: /api/local-customers', () => {
       .query({ regions: JSON.stringify([{ sido: '서울' }]), categories: 'CAFE' });
 
     expect(res.status).toBe(200);
-    // external: 서울 AND CAFE → ext-1 만. customer: category 무시 → 서울 2명
+    // external: 서울 AND CAFE → ext-1 만. customer: category 무시 → 서울 중 phone 있는 cust-1 만
     expect(res.body).toEqual({
-      totalCount: 3,
-      availableCount: 3,
-      breakdown: { external: 1, customer: 2 },
+      totalCount: 2,
+      availableCount: 2,
+      breakdown: { external: 1, customer: 1 },
     });
   });
 
@@ -607,10 +607,11 @@ describe('franchise scope: /api/franchise/local-customers', () => {
     expect(res.status).toBe(200);
     // external: where.OR 가 categories 로 교체 → CAFE 동의 고객 전체(서울 ext-1 + 부산 ext-3) = 2
     // (같은 요청에 store 스코프는 external 1 을 반환 — 이 차이가 dedup 시 보존 대상 지점)
+    // customer: 서울 중 phone 있는 cust-1 만 (phone null cust-2 제외)
     expect(res.body).toEqual({
-      totalCount: 4,
-      availableCount: 4,
-      breakdown: { external: 2, customer: 2 },
+      totalCount: 3,
+      availableCount: 3,
+      breakdown: { external: 2, customer: 1 },
     });
   });
 
@@ -760,6 +761,55 @@ describe('franchise scope: /api/franchise/local-customers', () => {
       where: { franchiseId: FRANCHISE_ID },
     });
     expect(wallet.balance).toBe(100000);
+  });
+
+  it('GET /count & POST /kakao/coupon-send — 같은 전화번호(매장별 Customer 행·External 중복·하이픈 표기)는 1명으로 집계·1회만 발송', async () => {
+    // cust-1 과 같은 번호의 다른 매장 행 + ext-1 과 같은 번호(하이픈 표기)의 Customer 행
+    await prisma.store.create({ data: { id: 'char-store-2', name: '특성화매장2', slug: 'char-store-2' } });
+    await prisma.customer.createMany({
+      data: [
+        { id: 'cust-dup-1', storeId: 'char-store-2', phone: '01022220001', regionSido: '서울', consentMarketing: true },
+        { id: 'cust-dup-2', storeId: 'char-store-2', phone: '010-1111-0001', regionSido: '서울', consentMarketing: true },
+      ],
+    });
+
+    const countRes = await request(app)
+      .get('/api/franchise/local-customers/count')
+      .set(frAuth())
+      .query({ regions: JSON.stringify([{ sido: '서울' }]) });
+    expect(countRes.status).toBe(200);
+    // 고유 번호: ext-1, ext-2, cust-1 = 3 (cust-dup-1/2 는 중복, cust-2 는 phone null)
+    expect(countRes.body).toEqual({
+      totalCount: 3,
+      availableCount: 3,
+      breakdown: { external: 2, customer: 1 },
+    });
+
+    const body = {
+      couponContent: '중복 방지',
+      expiryDate: '2026-12-31',
+      representativeStoreId: STORE_ID,
+      regions: [{ sido: '서울' }],
+    };
+    const over = await request(app)
+      .post('/api/franchise/local-customers/kakao/coupon-send')
+      .set(frAuth())
+      .send({ ...body, sendCount: 4 });
+    expect(over.status).toBe(400);
+    expect(over.body).toEqual({ error: '발송 가능한 고객이 3명입니다.', availableCount: 3 });
+
+    const ok = await request(app)
+      .post('/api/franchise/local-customers/kakao/coupon-send')
+      .set(frAuth())
+      .send({ ...body, sendCount: 3 });
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({ queued: 3, dropped: 0, totalCost: 300 });
+
+    // External 우선 → Customer 는 새 번호만. 번호당 쿠폰·아웃박스 1건
+    const coupons = await (prisma as any).retargetCoupon.findMany({ orderBy: { phone: 'asc' } });
+    expect(coupons.map((c: any) => c.phone)).toEqual(['01011110001', '01011110002', '01022220001']);
+    const outbox = await prisma.alimTalkOutbox.findMany({ orderBy: { phone: 'asc' } });
+    expect(outbox.map((o) => o.phone)).toEqual(['01011110001', '01011110002', '01022220001']);
   });
 
   it('POST /kakao/coupon-send — 100원/건: RETARGET_COUPON outbox(대표매장 storeId), FranchiseWallet 트랜잭션 차감', async () => {
