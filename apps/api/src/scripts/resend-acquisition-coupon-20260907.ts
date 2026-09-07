@@ -37,18 +37,40 @@ async function main() {
     where: { messageType: 'RETARGET_COUPON', storeId: STORE_ID, createdAt: { gte: CAMPAIGN_CREATED_AFTER } },
     select: { phone: true, status: true, failReason: true, variables: true },
   });
+  // 이미 받았거나 지금 처리 중인 번호 = 제외 대상.
+  // SENT 뿐 아니라 PENDING/PROCESSING/RETRY 도 포함해야 이 스크립트를 두 번 돌려도 재발송(그룹 접수 후 PENDING)분이 또 나가지 않는다.
+  const handledPhones = new Set<string>();
   const sentPhones = new Set<string>();
   const stoppedByPhone = new Map<string, string>(); // 정규화 번호 → 원본 phone
   let sampleVars: Record<string, string> | null = null;
   for (const r of rows) {
     const key = normalizePhoneNumber(r.phone);
-    if (r.status === 'SENT') sentPhones.add(key);
-    else if (r.status === 'FAILED' && r.failReason?.startsWith(STOP_REASON_PREFIX)) {
+    if (r.status === 'SENT' || r.status === 'PENDING' || r.status === 'PROCESSING' || r.status === 'RETRY') {
+      handledPhones.add(key);
+      if (r.status === 'SENT') sentPhones.add(key);
+    } else if (r.status === 'FAILED' && r.failReason?.startsWith(STOP_REASON_PREFIX)) {
       if (!stoppedByPhone.has(key)) stoppedByPhone.set(key, r.phone);
       if (!sampleVars) sampleVars = r.variables as Record<string, string>;
     }
   }
-  const targets = [...stoppedByPhone.entries()].filter(([key]) => !sentPhones.has(key)).map(([, phone]) => ({ phone }));
+  // 국내 휴대폰 형식이 아닌 번호(해외 번호, 자릿수 오류)는 원 캠페인에서도 전부 실패했으므로 제외 (무의미한 접수·환불 방지)
+  const isKoreanMobile = (key: string) => /^01[016789]\d{7,8}$/.test(key);
+  const candidates = [...stoppedByPhone.entries()].filter(([key]) => !handledPhones.has(key));
+  const skippedInvalid = candidates.filter(([key]) => !isKoreanMobile(key)).length;
+  const targets = candidates.filter(([key]) => isKoreanMobile(key)).map(([, phone]) => ({ phone }));
+
+  // 자체 검증 — 하나라도 어긋나면 발송하지 않는다
+  const targetKeys = targets.map((t) => normalizePhoneNumber(t.phone));
+  const dupInTargets = targetKeys.length - new Set(targetKeys).size;
+  const overlapWithHandled = targetKeys.filter((k) => handledPhones.has(k)).length;
+  const notInStopped = targetKeys.filter((k) => !stoppedByPhone.has(k)).length;
+  const invalidPhones = targetKeys.filter((k) => !isKoreanMobile(k)).length;
+  const expectedTargetCount = candidates.length - skippedInvalid;
+  const selfCheck = { dupInTargets, overlapWithHandled, notInStopped, invalidPhones, skippedInvalid, expectedTargetCount, actualTargetCount: targets.length };
+  if (dupInTargets || overlapWithHandled || notInStopped || invalidPhones || expectedTargetCount !== targets.length) {
+    console.error('self-check FAILED', selfCheck);
+    throw new Error('대상 검증 실패 — 발송 중단');
+  }
 
   const couponContent = original.content;
   const expiryDate = sampleVars?.['#{유효기간}'];
@@ -64,8 +86,10 @@ async function main() {
     expiryDate,
     rowsToday: rows.length,
     sentPhones: sentPhones.size,
+    handledPhones: handledPhones.size,
     stoppedPhones: stoppedByPhone.size,
     resendTargets: targets.length,
+    selfCheck,
     totalCost,
     walletBalance: wallet.balance,
     sendableNow: isSendableTime(),
