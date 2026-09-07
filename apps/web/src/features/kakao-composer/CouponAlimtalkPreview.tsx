@@ -79,7 +79,7 @@ export function CouponAlimtalkPreview({
                       태그히어 이용 고객에게만 제공되는 쿠폰이에요.
                     </p>
                     <div className="space-y-1 mb-4">
-                      <p>📌 {couponContent || '쿠폰 내용을 입력해주세요'}</p>
+                      <p className="whitespace-pre-line">📌 {couponContent || '쿠폰 내용을 입력해주세요'}</p>
                       <p>📌 {couponExpiryDate || '유효기간을 입력해주세요'}</p>
                     </div>
                     <p className="text-neutral-500">
