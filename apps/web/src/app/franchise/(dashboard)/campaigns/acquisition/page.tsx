@@ -1102,13 +1102,14 @@ export default function LocalCustomersPage() {
 
             <div>
               <label className="text-xs text-neutral-500 mb-1.5 block">쿠폰 내용</label>
-              <input
-                type="text"
+              <textarea
                 value={couponContent}
                 onChange={(e) => setCouponContent(e.target.value)}
                 placeholder="예: 아메리카노 1잔 무료"
-                className="w-full px-4 py-3 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                rows={3}
+                className="w-full px-4 py-3 border border-neutral-300 rounded-lg text-sm resize-y focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
               />
+              <p className="text-xs text-neutral-400 mt-1">엔터로 줄바꿈할 수 있어요</p>
             </div>
 
             <div>
