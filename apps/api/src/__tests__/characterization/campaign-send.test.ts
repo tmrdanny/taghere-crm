@@ -864,6 +864,9 @@ describe('franchise scope: /api/franchise/local-customers', () => {
     // 건별 발송 경로를 타지 않았다 (그룹 발송 1회 그대로)
     expect(solapi.ataCalls).toHaveLength(1);
 
+    // 같은 정산을 한 번 더 돌려도(폴링 겹침/재실행) 환불이 중복되지 않는다
+    await processBatch();
+
     // 실패 1건 환불: 100000 - 200 + 100, 원장 환불 행
     const wallet = await prisma.franchiseWallet.findUniqueOrThrow({ where: { franchiseId: FRANCHISE_ID } });
     expect(wallet.balance).toBe(100000 - 200 + 100);

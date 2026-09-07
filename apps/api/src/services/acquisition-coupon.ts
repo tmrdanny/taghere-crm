@@ -134,7 +134,7 @@ export async function sendAcquisitionCouponAlimtalk(
           select: { id: true },
         });
         return inserted.map((r) => r.id);
-      });
+      }, { timeout: 60_000, maxWait: 10_000 }); // 청크 2,000행 insert — 기본 5초 제한은 원격 실행 시 초과
     } catch (chunkErr) {
       console.error(`[AcquisitionCoupon] chunk ${i} insert failed:`, chunkErr);
       dropped += slice.length;

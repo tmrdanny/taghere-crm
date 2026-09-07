@@ -505,11 +505,13 @@ const GROUP_DELIVERY_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 예약 발송 포함, 
 // 실패분은 프랜차이즈 지갑으로 환불한다 (그룹 발송은 프랜차이즈 지갑에서만 선차감됨).
 async function reconcileGroupSentMessages(): Promise<number> {
   const now = new Date();
+  // RETRY 도 포함 — 배포 겹침 구간에 구버전 워커가 그룹 행을 건별 경로로 건드려 RETRY 로 남긴 행을 회수한다
+  const RECONCILE_STATUSES: Array<'PENDING' | 'RETRY'> = ['PENDING', 'RETRY'];
   const pendingGroups = await prisma.alimTalkOutbox.groupBy({
     by: ['solapiMessageId'],
     where: {
       sentViaGroup: true,
-      status: 'PENDING',
+      status: { in: RECONCILE_STATUSES },
       solapiMessageId: { not: null },
       OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
     },
@@ -526,7 +528,7 @@ async function reconcileGroupSentMessages(): Promise<number> {
   for (const g of pendingGroups) {
     const groupId = g.solapiMessageId!;
     const rows = await prisma.alimTalkOutbox.findMany({
-      where: { solapiMessageId: groupId, sentViaGroup: true, status: 'PENDING' },
+      where: { solapiMessageId: groupId, sentViaGroup: true, status: { in: RECONCILE_STATUSES } },
       select: { id: true, phone: true, franchiseId: true, scheduledAt: true, createdAt: true },
     });
     if (rows.length === 0) continue;
@@ -555,28 +557,23 @@ async function reconcileGroupSentMessages(): Promise<number> {
       }
     }
 
+    // 상태 전이는 "아직 PENDING/RETRY 인 행"에만 적용(낙관적 잠금) — 다른 폴링/인스턴스가 먼저 처리한 행은 건너뛰고,
+    // 환불은 실제로 이번에 FAILED 로 바뀐 건수만큼만 한다 (중복 환불 방지)
     if (sentIds.length > 0) {
       await prisma.alimTalkOutbox.updateMany({
-        where: { id: { in: sentIds } },
+        where: { id: { in: sentIds }, status: { in: RECONCILE_STATUSES } },
         data: { status: 'SENT', sentAt: now, updatedAt: now, failReason: null },
-      });
-    }
-    const failedByReason = new Map<string, string[]>();
-    for (const f of failed) {
-      const list = failedByReason.get(f.reason) || [];
-      list.push(f.id);
-      failedByReason.set(f.reason, list);
-    }
-    for (const [reason, ids] of failedByReason) {
-      await prisma.alimTalkOutbox.updateMany({
-        where: { id: { in: ids } },
-        data: { status: 'FAILED', failReason: reason, updatedAt: now },
       });
     }
     const refundByFranchise = new Map<string, number>();
     for (const f of failed) {
-      if (!f.franchiseId) continue;
-      refundByFranchise.set(f.franchiseId, (refundByFranchise.get(f.franchiseId) || 0) + 1);
+      const transitioned = await prisma.alimTalkOutbox.updateMany({
+        where: { id: f.id, status: { in: RECONCILE_STATUSES } },
+        data: { status: 'FAILED', failReason: f.reason, updatedAt: now },
+      });
+      if (transitioned.count === 1 && f.franchiseId) {
+        refundByFranchise.set(f.franchiseId, (refundByFranchise.get(f.franchiseId) || 0) + 1);
+      }
     }
     for (const [franchiseId, count] of refundByFranchise) {
       await refundAcquisitionCoupons(franchiseId, count, `group ${groupId}`);
@@ -601,8 +598,11 @@ export function startAlimTalkWorker(): void {
   isRunning = true;
   console.log('[Worker] Starting AlimTalk worker...');
 
+  // 폴링 겹침 방지 — 그룹 정산이 5초를 넘기면 다음 폴링이 같은 행을 다시 읽어 환불이 중복됐다
+  let pollInFlight = false;
   const poll = async () => {
-    if (!isRunning) return;
+    if (!isRunning || pollInFlight) return;
+    pollInFlight = true;
 
     try {
       const processed = await processBatch();
@@ -611,6 +611,8 @@ export function startAlimTalkWorker(): void {
       }
     } catch (error) {
       console.error('[Worker] Error in poll cycle:', error);
+    } finally {
+      pollInFlight = false;
     }
   };
 
