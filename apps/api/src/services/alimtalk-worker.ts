@@ -5,6 +5,8 @@ import { getSolapiService, clearSolapiInstance } from './solapi-instance.js';
 import { getRemainingCredits, useCredits } from './credit-service.js';
 import { sendAligoAlimtalk } from './aligo.js';
 import { resolveAlimtalkCost } from './pricing-service.js';
+import { refundAcquisitionCoupons } from './acquisition-coupon.js';
+import { normalizePhoneNumber } from '../utils/phone.js';
 
 const BATCH_SIZE = 10;
 const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
@@ -438,6 +440,7 @@ export async function processBatch(): Promise<number> {
   const staleResult = await prisma.alimTalkOutbox.updateMany({
     where: {
       status: 'RETRY',
+      sentViaGroup: false,
       updatedAt: { lt: new Date(Date.now() - 60 * 60 * 1000) },
     },
     data: { status: 'FAILED', failReason: 'Delivery timeout after 1 hour' },
@@ -450,10 +453,12 @@ export async function processBatch(): Promise<number> {
   // (워커 크래시, getMessageStatus 실패 시 else 누락 등으로 PROCESSING에 갇히는 경우 방지)
   // PLACE_BOOSTER(알리고)는 멱등 키가 없어 재전송 시 중복 발송 위험 → 자동 RETRY 대상에서 제외
   // (전송 후 응답 전 크래시한 행은 PROCESSING으로 남겨 at-most-once 보장; under-send < double-send)
+  // 그룹 발송 행(sentViaGroup)은 접수 직전 PROCESSING 으로 잠깐 머물 뿐이라 되돌리지 않는다 (되돌리면 건별 재발송 = 중복)
   const stuckProcessing = await prisma.alimTalkOutbox.updateMany({
     where: {
       status: 'PROCESSING',
       messageType: { not: 'PLACE_BOOSTER' },
+      sentViaGroup: false,
       updatedAt: { lt: new Date(Date.now() - 5 * 60 * 1000) },
     },
     data: { status: 'RETRY', updatedAt: new Date() },
@@ -462,10 +467,14 @@ export async function processBatch(): Promise<number> {
     console.warn(`[Worker] Recovered ${stuckProcessing.count} stuck PROCESSING messages back to RETRY`);
   }
 
-  // PENDING 또는 RETRY 상태의 메시지 조회
+  // 그룹 발송분은 그룹 단위로 상태를 확정 (건별 경로와 별도)
+  const reconciled = await reconcileGroupSentMessages();
+
+  // PENDING 또는 RETRY 상태의 메시지 조회 (그룹 발송 행 제외)
   const messages = await prisma.alimTalkOutbox.findMany({
     where: {
       status: { in: ['PENDING', 'RETRY'] },
+      sentViaGroup: false,
       OR: [
         { scheduledAt: null },
         { scheduledAt: { lte: new Date() } },
@@ -477,7 +486,7 @@ export async function processBatch(): Promise<number> {
   });
 
   if (messages.length === 0) {
-    return 0;
+    return reconciled;
   }
 
   console.log(`[Worker] Processing ${messages.length} messages`);
@@ -485,7 +494,101 @@ export async function processBatch(): Promise<number> {
   // 병렬 처리 (제한적)
   await Promise.all(messages.map((msg) => processMessage(msg.id)));
 
-  return messages.length;
+  return messages.length + reconciled;
+}
+
+const GROUP_RECONCILE_GROUPS_PER_POLL = 10;
+const GROUP_DELIVERY_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 예약 발송 포함, 발송 예정 시각 기준 24시간
+
+// 솔라피 그룹 발송으로 접수된 아웃박스 행의 최종 상태 확정.
+// 그룹 1개당 상태 조회 1회로 수백~수천 행을 한 번에 처리한다 (건별 경로의 10건/5초 병목 회피).
+// 실패분은 프랜차이즈 지갑으로 환불한다 (그룹 발송은 프랜차이즈 지갑에서만 선차감됨).
+async function reconcileGroupSentMessages(): Promise<number> {
+  const now = new Date();
+  const pendingGroups = await prisma.alimTalkOutbox.groupBy({
+    by: ['solapiMessageId'],
+    where: {
+      sentViaGroup: true,
+      status: 'PENDING',
+      solapiMessageId: { not: null },
+      OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
+    },
+    _min: { updatedAt: true },
+    orderBy: { _min: { updatedAt: 'asc' } },
+    take: GROUP_RECONCILE_GROUPS_PER_POLL,
+  });
+  if (pendingGroups.length === 0) return 0;
+
+  const solapiService = getSolapiService('[Worker] No SOLAPI credentials configured in environment variables');
+  if (!solapiService) return 0;
+
+  let resolved = 0;
+  for (const g of pendingGroups) {
+    const groupId = g.solapiMessageId!;
+    const rows = await prisma.alimTalkOutbox.findMany({
+      where: { solapiMessageId: groupId, sentViaGroup: true, status: 'PENDING' },
+      select: { id: true, phone: true, franchiseId: true, scheduledAt: true, createdAt: true },
+    });
+    if (rows.length === 0) continue;
+
+    const statusResult = await solapiService.getGroupMessageStatuses(groupId);
+    if (!statusResult.success || !statusResult.statuses) {
+      console.error(`[Worker] Group ${groupId} status query failed: ${statusResult.error}`);
+      await prisma.alimTalkOutbox.updateMany({ where: { id: { in: rows.map((r) => r.id) } }, data: { updatedAt: now } });
+      continue;
+    }
+
+    const sentIds: string[] = [];
+    const failed: Array<{ id: string; franchiseId: string | null; reason: string }> = [];
+    const stillPendingIds: string[] = [];
+    for (const row of rows) {
+      const found = statusResult.statuses.get(normalizePhoneNumber(row.phone));
+      const dueAt = row.scheduledAt ?? row.createdAt;
+      if (found?.status === 'SENT') {
+        sentIds.push(row.id);
+      } else if (found?.status === 'FAILED') {
+        failed.push({ id: row.id, franchiseId: row.franchiseId, reason: found.failReason || '발송 실패' });
+      } else if (now.getTime() - dueAt.getTime() > GROUP_DELIVERY_TIMEOUT_MS) {
+        failed.push({ id: row.id, franchiseId: row.franchiseId, reason: 'Delivery timeout - no response from carrier' });
+      } else {
+        stillPendingIds.push(row.id);
+      }
+    }
+
+    if (sentIds.length > 0) {
+      await prisma.alimTalkOutbox.updateMany({
+        where: { id: { in: sentIds } },
+        data: { status: 'SENT', sentAt: now, updatedAt: now, failReason: null },
+      });
+    }
+    const failedByReason = new Map<string, string[]>();
+    for (const f of failed) {
+      const list = failedByReason.get(f.reason) || [];
+      list.push(f.id);
+      failedByReason.set(f.reason, list);
+    }
+    for (const [reason, ids] of failedByReason) {
+      await prisma.alimTalkOutbox.updateMany({
+        where: { id: { in: ids } },
+        data: { status: 'FAILED', failReason: reason, updatedAt: now },
+      });
+    }
+    const refundByFranchise = new Map<string, number>();
+    for (const f of failed) {
+      if (!f.franchiseId) continue;
+      refundByFranchise.set(f.franchiseId, (refundByFranchise.get(f.franchiseId) || 0) + 1);
+    }
+    for (const [franchiseId, count] of refundByFranchise) {
+      await refundAcquisitionCoupons(franchiseId, count, `group ${groupId}`);
+    }
+    if (stillPendingIds.length > 0) {
+      await prisma.alimTalkOutbox.updateMany({ where: { id: { in: stillPendingIds } }, data: { updatedAt: now } });
+    }
+
+    resolved += sentIds.length + failed.length;
+    console.log(`[Worker] Group ${groupId}: sent=${sentIds.length}, failed=${failed.length}, pending=${stillPendingIds.length}`);
+  }
+  return resolved;
 }
 
 // 워커 시작
