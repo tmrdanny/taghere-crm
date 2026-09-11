@@ -94,7 +94,11 @@ function OrderSuccessContent() {
             storeName: data.storeName || '',
             orderNumber: data.orderNumber || undefined,
             items: (data.orderItems || []).map((item: any) => ({
-              name: item.name || item.menuName || item.label || '상품',
+              // 다른 화면(주문내역·웹훅)과 동일한 폴백 체인. title 이 빠져 있어
+              // 메뉴명이 title 에만 있는 V2 주문이 '상품' 으로 표시되던 문제를 막는다.
+              name:
+                item.label || item.name || item.menuName || item.productName ||
+                item.title || item.itemName || item.menuTitle || '상품',
               quantity: item.quantity || item.count || 1,
             })),
             totalPrice: data.resultPrice || 0,
