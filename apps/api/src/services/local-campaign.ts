@@ -9,6 +9,7 @@ import { prisma } from '../lib/prisma.js';
 import { SolapiService, BrandMessageButton, buildPhoneResultMap } from './solapi.js';
 import { getSolapiService } from './solapi-instance.js';
 import { isSendableTime, getNextSendableTime } from '../utils/send-window.js';
+import { normalizePhoneNumber } from '../utils/phone.js';
 
 // 건당 비용 (외부 고객 SMS)
 const EXTERNAL_SMS_COST = 150;
@@ -73,6 +74,21 @@ function buildLiteralRegionOrConditions(regionFilters: Array<{ sido: string; sig
       return { regionSido: r.sido };
     }
   });
+}
+
+// 발송 대상 전화번호 중복 제거 — Customer 는 매장별 행이라 같은 번호가 방문 매장 수만큼 존재하고,
+// ExternalCustomer 와도 겹칠 수 있다. 정규화(01012345678) 기준으로 첫 행만 남긴다 (입력 순서 보존).
+export function dedupeTargetsByPhone<T extends { phone: string | null }>(rows: T[]): Array<T & { phone: string }> {
+  const seen = new Set<string>();
+  const result: Array<T & { phone: string }> = [];
+  for (const row of rows) {
+    if (!row.phone) continue;
+    const key = normalizePhoneNumber(row.phone);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(row as T & { phone: string });
+  }
+  return result;
 }
 
 // 시/도 줄임말 → 전체 이름 매핑 (Customer DB용, store 스코프 region-counts 에서만 사용)
@@ -304,8 +320,7 @@ export async function getFilteredCount(
     return { status: 400, body: { error: '지역을 선택해주세요.' } };
   }
 
-  let externalCount = 0;
-  let customerCount = 0;
+  let externalPhones: Array<{ phone: string }> = [];
 
   // 1. ExternalCustomer 조회
   if (scope.kind === 'store') {
@@ -334,7 +349,7 @@ export async function getFilteredCount(
       externalWhere.gender = gender as string;
     }
 
-    externalCount = await prisma.externalCustomer.count({ where: externalWhere });
+    externalPhones = await prisma.externalCustomer.findMany({ where: externalWhere, select: { phone: true } });
   } else {
     // franchise 스코프: 리터럴 지역 OR + categories 가 지역 OR 를 덮어씀 (현행 동작 보존)
     const regionOrConditions = buildLiteralRegionOrConditions(regionFilters);
@@ -365,7 +380,7 @@ export async function getFilteredCount(
       }
     }
 
-    externalCount = await prisma.externalCustomer.count({ where: externalWhere });
+    externalPhones = await prisma.externalCustomer.findMany({ where: externalWhere, select: { phone: true } });
   }
 
   // 2. Customer 조회 (전체 CRM 고객 - 프랜차이즈 상관없이)
@@ -378,6 +393,7 @@ export async function getFilteredCount(
   const customerWhere: any = {
     OR: customerRegionOrConditions,
     consentMarketing: true,
+    phone: { not: null }, // 전화번호 있는 고객만 (발송 가능 대상과 동일)
   };
 
   // 연령대 필터
@@ -391,10 +407,14 @@ export async function getFilteredCount(
     customerWhere.gender = gender as string;
   }
 
-  customerCount = await prisma.customer.count({ where: customerWhere });
+  const customerPhones = await prisma.customer.findMany({ where: customerWhere, select: { phone: true } });
 
-  // 3. 통합 카운트 반환
-  const totalCount = externalCount + customerCount;
+  // 3. 전화번호 고유 기준 통합 카운트 (External 우선 → Customer 는 새 번호만 가산)
+  const uniqueExternal = dedupeTargetsByPhone(externalPhones);
+  const uniqueAll = dedupeTargetsByPhone([...externalPhones, ...customerPhones]);
+  const externalCount = uniqueExternal.length;
+  const customerCount = uniqueAll.length - externalCount;
+  const totalCount = uniqueAll.length;
   const availableCount = totalCount;
 
   return {

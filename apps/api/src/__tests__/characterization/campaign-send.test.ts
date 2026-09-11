@@ -15,8 +15,12 @@ import jwt from 'jsonwebtoken';
 const solapi = vi.hoisted(() => ({
   smsCalls: [] as Array<Array<{ to: string; text: string }>>,
   brandCalls: [] as any[],
+  ataCalls: [] as any[],
   // 테스트별 오버라이드: (messages) => BulkSendResult[]
   smsResultOverride: null as null | ((messages: Array<{ to: string; text: string }>) => any[]),
+  ataResultOverride: null as null | ((params: any) => any[]),
+  // 그룹 상태 조회 오버라이드: (groupId) => Map<phone, {status, failReason?}>
+  groupStatusOverride: null as null | ((groupId: string) => Map<string, any>),
 }));
 
 vi.mock('../../services/solapi.js', async (importOriginal) => {
@@ -35,6 +39,22 @@ vi.mock('../../services/solapi.js', async (importOriginal) => {
         },
       ];
     }
+    async sendBulkAlimTalk(params: any) {
+      solapi.ataCalls.push(params);
+      if (solapi.ataResultOverride) return solapi.ataResultOverride(params);
+      return [
+        {
+          groupId: 'G-ATA-1',
+          acceptedCount: params.messages.length,
+          messageCount: params.messages.length,
+          failedPhones: new Map<string, string>(),
+        },
+      ];
+    }
+    async getGroupMessageStatuses(groupId: string) {
+      if (solapi.groupStatusOverride) return { success: true, statuses: solapi.groupStatusOverride(groupId) };
+      return { success: true, statuses: new Map() };
+    }
     async sendBulkBrandMessage(params: any) {
       solapi.brandCalls.push(params);
       return [
@@ -51,6 +71,7 @@ vi.mock('../../services/solapi.js', async (importOriginal) => {
 });
 
 import { app } from '../../app.js';
+import { processBatch } from '../../services/alimtalk-worker.js';
 import { prisma } from '../../lib/prisma.js';
 
 // ---- 고정 시각 (KST 낮 14:00 = 발송 가능 시간대) ----
@@ -81,6 +102,7 @@ async function cleanup() {
   await prisma.externalCustomer.deleteMany({});
   await prisma.customer.deleteMany({});
   await prisma.wallet.deleteMany({});
+  await prisma.franchiseTransaction.deleteMany({});
   await prisma.franchiseWallet.deleteMany({});
   await prisma.store.deleteMany({});
   await prisma.franchise.deleteMany({});
@@ -144,7 +166,10 @@ beforeEach(async () => {
   vi.setSystemTime(DAY_TIME_UTC);
   solapi.smsCalls.length = 0;
   solapi.brandCalls.length = 0;
+  solapi.ataCalls.length = 0;
   solapi.smsResultOverride = null;
+  solapi.ataResultOverride = null;
+  solapi.groupStatusOverride = null;
   await cleanup();
   await seed();
 });
@@ -164,11 +189,11 @@ describe('store scope: /api/local-customers', () => {
       .query({ regions: JSON.stringify([{ sido: '서울' }]) });
 
     expect(res.status).toBe(200);
-    // customer 카운트에는 phone 유무 필터가 없다 → phone null 인 cust-2 도 포함 (발송과 불일치)
+    // 전화번호 고유 기준 — phone null 인 cust-2 는 제외 (발송 가능 대상과 일치)
     expect(res.body).toEqual({
-      totalCount: 4,
-      availableCount: 4,
-      breakdown: { external: 2, customer: 2 },
+      totalCount: 3,
+      availableCount: 3,
+      breakdown: { external: 2, customer: 1 },
     });
   });
 
@@ -193,11 +218,11 @@ describe('store scope: /api/local-customers', () => {
       .query({ regions: JSON.stringify([{ sido: '서울' }]), categories: 'CAFE' });
 
     expect(res.status).toBe(200);
-    // external: 서울 AND CAFE → ext-1 만. customer: category 무시 → 서울 2명
+    // external: 서울 AND CAFE → ext-1 만. customer: category 무시 → 서울 중 phone 있는 cust-1 만
     expect(res.body).toEqual({
-      totalCount: 3,
-      availableCount: 3,
-      breakdown: { external: 1, customer: 2 },
+      totalCount: 2,
+      availableCount: 2,
+      breakdown: { external: 1, customer: 1 },
     });
   });
 
@@ -607,10 +632,11 @@ describe('franchise scope: /api/franchise/local-customers', () => {
     expect(res.status).toBe(200);
     // external: where.OR 가 categories 로 교체 → CAFE 동의 고객 전체(서울 ext-1 + 부산 ext-3) = 2
     // (같은 요청에 store 스코프는 external 1 을 반환 — 이 차이가 dedup 시 보존 대상 지점)
+    // customer: 서울 중 phone 있는 cust-1 만 (phone null cust-2 제외)
     expect(res.body).toEqual({
-      totalCount: 4,
-      availableCount: 4,
-      breakdown: { external: 2, customer: 2 },
+      totalCount: 3,
+      availableCount: 3,
+      breakdown: { external: 2, customer: 1 },
     });
   });
 
@@ -762,6 +788,96 @@ describe('franchise scope: /api/franchise/local-customers', () => {
     expect(wallet.balance).toBe(100000);
   });
 
+  it('GET /count & POST /kakao/coupon-send — 같은 전화번호(매장별 Customer 행·External 중복·하이픈 표기)는 1명으로 집계·1회만 발송', async () => {
+    // cust-1 과 같은 번호의 다른 매장 행 + ext-1 과 같은 번호(하이픈 표기)의 Customer 행
+    await prisma.store.create({ data: { id: 'char-store-2', name: '특성화매장2', slug: 'char-store-2' } });
+    await prisma.customer.createMany({
+      data: [
+        { id: 'cust-dup-1', storeId: 'char-store-2', phone: '01022220001', regionSido: '서울', consentMarketing: true },
+        { id: 'cust-dup-2', storeId: 'char-store-2', phone: '010-1111-0001', regionSido: '서울', consentMarketing: true },
+      ],
+    });
+
+    const countRes = await request(app)
+      .get('/api/franchise/local-customers/count')
+      .set(frAuth())
+      .query({ regions: JSON.stringify([{ sido: '서울' }]) });
+    expect(countRes.status).toBe(200);
+    // 고유 번호: ext-1, ext-2, cust-1 = 3 (cust-dup-1/2 는 중복, cust-2 는 phone null)
+    expect(countRes.body).toEqual({
+      totalCount: 3,
+      availableCount: 3,
+      breakdown: { external: 2, customer: 1 },
+    });
+
+    const body = {
+      couponContent: '중복 방지',
+      expiryDate: '2026-12-31',
+      representativeStoreId: STORE_ID,
+      regions: [{ sido: '서울' }],
+    };
+    const over = await request(app)
+      .post('/api/franchise/local-customers/kakao/coupon-send')
+      .set(frAuth())
+      .send({ ...body, sendCount: 4 });
+    expect(over.status).toBe(400);
+    expect(over.body).toEqual({ error: '발송 가능한 고객이 3명입니다.', availableCount: 3 });
+
+    const ok = await request(app)
+      .post('/api/franchise/local-customers/kakao/coupon-send')
+      .set(frAuth())
+      .send({ ...body, sendCount: 3 });
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({ queued: 3, dropped: 0, totalCost: 300 });
+
+    // External 우선 → Customer 는 새 번호만. 번호당 쿠폰·아웃박스 1건
+    const coupons = await (prisma as any).retargetCoupon.findMany({ orderBy: { phone: 'asc' } });
+    expect(coupons.map((c: any) => c.phone)).toEqual(['01011110001', '01011110002', '01022220001']);
+    const outbox = await prisma.alimTalkOutbox.findMany({ orderBy: { phone: 'asc' } });
+    expect(outbox.map((o) => o.phone)).toEqual(['01011110001', '01011110002', '01022220001']);
+  });
+
+  it('워커 그룹 정산 — 그룹 발송 행은 건별 재발송 없이 그룹 상태 조회로 SENT/FAILED 확정, 실패분은 프랜차이즈 지갑 환불', async () => {
+    const res = await request(app)
+      .post('/api/franchise/local-customers/kakao/coupon-send')
+      .set(frAuth())
+      .send({ couponContent: '정산', expiryDate: '2026-12-31', representativeStoreId: STORE_ID, regions: [{ sido: '서울' }], sendCount: 2 });
+    expect(res.status).toBe(200);
+    expect(solapi.ataCalls).toHaveLength(1);
+
+    // 솔라피: ext-1 성공, ext-2 실패(수신거부)
+    solapi.groupStatusOverride = (groupId) => {
+      expect(groupId).toBe('G-ATA-1');
+      return new Map([
+        ['01011110001', { status: 'SENT' }],
+        ['01011110002', { status: 'FAILED', failReason: '수신거부' }],
+      ]);
+    };
+    await processBatch();
+
+    const outbox = await prisma.alimTalkOutbox.findMany({ orderBy: { phone: 'asc' } });
+    expect(outbox.map((o) => [o.phone, o.status, o.failReason])).toEqual([
+      ['01011110001', 'SENT', null],
+      ['01011110002', 'FAILED', '수신거부'],
+    ]);
+    expect(outbox[0].sentAt).not.toBeNull();
+    // 건별 발송 경로를 타지 않았다 (그룹 발송 1회 그대로)
+    expect(solapi.ataCalls).toHaveLength(1);
+
+    // 같은 정산을 한 번 더 돌려도(폴링 겹침/재실행) 환불이 중복되지 않는다
+    await processBatch();
+
+    // 실패 1건 환불: 100000 - 200 + 100, 원장 환불 행
+    const wallet = await prisma.franchiseWallet.findUniqueOrThrow({ where: { franchiseId: FRANCHISE_ID } });
+    expect(wallet.balance).toBe(100000 - 200 + 100);
+    const refunds = await prisma.franchiseTransaction.findMany({ where: { walletId: wallet.id, amount: 100 } });
+    expect(refunds).toHaveLength(1);
+    expect(refunds[0].meta).toMatchObject({ refund: true, count: 1 });
+    // 매장 지갑은 건드리지 않는다 (이전 워커 경로의 이중 과금/환불 없음)
+    const storeWallet = await prisma.wallet.findUnique({ where: { storeId: STORE_ID } });
+    expect(storeWallet?.balance).toBe(100000);
+  });
+
   it('POST /kakao/coupon-send — 100원/건: RETARGET_COUPON outbox(대표매장 storeId), FranchiseWallet 트랜잭션 차감', async () => {
     const res = await request(app)
       .post('/api/franchise/local-customers/kakao/coupon-send')
@@ -804,9 +920,13 @@ describe('franchise scope: /api/franchise/local-customers', () => {
     expect(outbox).toHaveLength(2);
     for (const o of outbox) {
       // store 스코프의 LOCAL_COUPON 과 달리 RETARGET_COUPON 타입 + 쿠폰코드 기반 멱등키
+      // 솔라피 그룹 발송으로 접수됨 — 워커 건별 발송 대상이 아니고(sentViaGroup), 그룹 ID 로 상태 확정, 환불은 프랜차이즈 지갑
       expect(o).toMatchObject({
         storeId: STORE_ID,
         customerId: null,
+        franchiseId: FRANCHISE_ID,
+        sentViaGroup: true,
+        solapiMessageId: 'G-ATA-1',
         messageType: 'RETARGET_COUPON',
         templateId: 'TPL-RETARGET-CHAR',
         status: 'PENDING',
@@ -819,11 +939,22 @@ describe('franchise scope: /api/franchise/local-customers', () => {
       expect(vars['#{직원확인}']).toMatch(/^crm-char-test\.example\.com\/coupon\/verify\//);
     }
 
-    // FranchiseWallet 이 큐잉 성공분만큼 차감 (2 * 100)
+    // 솔라피 그룹 발송 1회 호출 (2건, 건별 치환변수, 주간이라 예약 없음)
+    expect(solapi.ataCalls).toHaveLength(1);
+    expect(solapi.ataCalls[0].pfId).toBe('PF-CHAR-TEST');
+    expect(solapi.ataCalls[0].scheduledAt).toBeUndefined();
+    expect(solapi.ataCalls[0].messages.map((m: any) => m.to)).toEqual(['01011110001', '01011110002']);
+    expect(solapi.ataCalls[0].messages[0].templateId).toBe('TPL-RETARGET-CHAR');
+    expect(solapi.ataCalls[0].messages[0].variables['#{쿠폰내용}']).toBe('프차 쿠폰');
+
+    // FranchiseWallet 이 접수 성공분만큼 차감 (2 * 100) + 원장 기록
     const wallet = await prisma.franchiseWallet.findUniqueOrThrow({
       where: { franchiseId: FRANCHISE_ID },
     });
     expect(wallet.balance).toBe(100000 - 200);
+    const ledger = await prisma.franchiseTransaction.findMany({ where: { walletId: wallet.id, type: 'ALIMTALK_SEND' } });
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0]).toMatchObject({ amount: -200 });
 
     const campaign = await prisma.externalSmsCampaign.findUniqueOrThrow({
       where: { id: res.body.campaignId },

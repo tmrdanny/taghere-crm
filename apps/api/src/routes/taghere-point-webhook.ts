@@ -15,7 +15,7 @@ import { sidoToShort } from '../utils/address-parser.js';
 import { fetchOrder } from '../services/taghere-api.js';
 import { findStoreByV2Ref } from '../services/store-ref.js';
 import { resolveVersionForOrder } from '../services/taghere-version.js';
-import { findOrCreateCustomerByPhone } from '../services/customer-identity.js';
+import { findOrCreateCustomerByPhone, normalizeCustomerProfile } from '../services/customer-identity.js';
 import { enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
 import {
   buildPendingAccrualData,
@@ -120,6 +120,7 @@ router.post('/customer-search', webhookAuthMiddleware, async (req: WebhookReques
       phone,
       store.addressSido ?? null,
       store.addressSigungu ?? null,
+      normalizeCustomerProfile(req.body),
     );
     if (isNewCustomer) {
       console.log(`[Point Webhook] Customer created locally - customerId: ${customer.id}, storeId: ${store.id}`);

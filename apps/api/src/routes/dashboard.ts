@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import {
-  computeDailyVisitorSeries,
+  computeDailyVisitorReport,
   parseDateRange,
   kstDateStringToDbDate,
   todayKstString,
@@ -178,7 +178,7 @@ router.get('/visitor-chart', authMiddleware, async (req: AuthRequest, res) => {
     const daysParam = parseInt((req.query.days as string) || '7', 10);
     const daysNum = [7, 30, 90, 365].includes(daysParam) ? daysParam : 7;
 
-    const series = await computeDailyVisitorSeries([storeId], range ?? daysNum);
+    const { series, countingMode } = await computeDailyVisitorReport([storeId], range ?? daysNum);
 
     const chartData = series.map((p) => ({
       date: p.date,
@@ -197,6 +197,7 @@ router.get('/visitor-chart', authMiddleware, async (req: AuthRequest, res) => {
 
     res.json({
       chartData,
+      countingMode, // 'customer_size' = 태그히어 인원 수 입력 매장 (주문 인원 기준)
       todayVisitors,
       yesterdayVisitors,
       growth: yesterdayVisitors > 0

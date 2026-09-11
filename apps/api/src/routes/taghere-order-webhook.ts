@@ -4,7 +4,7 @@ import { webhookAuthMiddleware, WebhookRequest } from '../middleware/webhook-aut
 import { fetchOrder, resolveCrmPageMode, TaghereOrderData } from '../services/taghere-api.js';
 import { findStoreByV2Ref } from '../services/store-ref.js';
 import { resolveVersionForOrder } from '../services/taghere-version.js';
-import { findOrCreateCustomerByPhone } from '../services/customer-identity.js';
+import { findOrCreateCustomerByPhone, normalizeCustomerProfile } from '../services/customer-identity.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, buildStampUsageRule, RewardEntry } from '../utils/random-reward.js';
 import { enqueueStampEarnedAlimTalk } from '../services/solapi.js';
 import { toPhoneLastDigits } from '../utils/phone.js';
@@ -124,6 +124,7 @@ router.post('/membership/register', webhookAuthMiddleware, async (req: WebhookRe
       phone,
       store.addressSido ?? null,
       store.addressSigungu ?? null,
+      normalizeCustomerProfile(req.body),
     );
 
     const { orderItems, tableLabel, totalAmount } = await extractOrderContext(orderId, resolveVersionForOrder(store, orderId));
@@ -285,6 +286,7 @@ router.post('/stamp/earn', webhookAuthMiddleware, async (req: WebhookRequest, re
       phone,
       store.addressSido ?? null,
       store.addressSigungu ?? null,
+      normalizeCustomerProfile(req.body),
     );
 
     // 이 주문에 이미 지연 적립 예약이 있으면 "오늘 이미 적립"이 아니라 "예약됨"으로 안내해야 한다.
