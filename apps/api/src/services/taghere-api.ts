@@ -140,9 +140,11 @@ async function fetchOrderV2(orderId: string): Promise<TaghereOrderData | null> {
   // (다운스트림은 item.price / item.name / item.quantity 등을 fallback 체인으로 읽음)
   const normalizedItems = Array.isArray(order?.orderProducts)
     ? order.orderProducts.map((p: any) => ({
-        name: p.label ?? p.title ?? null,
-        title: p.title ?? null,
-        label: p.label ?? null,
+        // `||` 로 빈 문자열도 건너뛴다. V2 는 label 을 "" 로 보내고 메뉴명을 title 에만
+        // 담는 경우가 있어, `??` 를 쓰면 name 이 "" 가 되어 화면에 이름이 사라진다.
+        name: p.label || p.title || null,
+        title: p.title || null,
+        label: p.label || null,
         quantity: p.count ?? 1,
         count: p.count ?? 1,
         price: p.amount ?? 0,
