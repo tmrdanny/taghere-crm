@@ -1,6 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
+import { filterStoresByKeyword } from '@/lib/store-search';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 // 배너 비율 프리셋 (API의 ALLOWED_ASPECT_RATIOS 와 동일해야 함)
@@ -71,6 +72,7 @@ export default function AdminBannersPage() {
 
   // 매장 선택기
   const [stores, setStores] = useState<StoreOption[]>([]);
+  const [allStores, setAllStores] = useState<StoreOption[]>([]); // slug 없는 매장 포함(안내용)
   const [storeSearch, setStoreSearch] = useState('');
 
   useEffect(() => {
@@ -118,7 +120,9 @@ export default function AdminBannersPage() {
       if (res.ok) {
         const data = await res.json();
         const list: StoreOption[] = Array.isArray(data) ? data : data.stores || [];
-        // slug 가 없는 매장은 targetSlugs 로 지정할 수 없으므로 목록에서 제외
+        // slug 가 없는 매장은 targetSlugs 로 지정할 수 없다. 다만 목록에서 조용히 빼면
+        // "검색해도 안 나온다" 로 보이므로, 전체는 그대로 들고 있다가 선택 가능 목록만 따로 만든다.
+        setAllStores(list);
         setStores(list.filter((store) => !!store.slug));
       }
     } catch (error) {
@@ -134,18 +138,24 @@ export default function AdminBannersPage() {
     return map;
   }, [stores]);
 
-  // 검색어로 매장 필터링 (매장명 / slug / 점주명)
-  const filteredStores = useMemo(() => {
-    const keyword = storeSearch.trim().toLowerCase();
-    const list = keyword
-      ? stores.filter((store) =>
-          [store.name, store.slug, store.ownerName].some((field) =>
-            (field || '').toLowerCase().includes(keyword)
-          )
-        )
-      : stores;
-    return list.slice(0, 50);
-  }, [stores, storeSearch]);
+  // 검색어로 매장 필터링 (매장명 / slug / 점주명, 초성·띄어쓰기·자모분리 허용)
+  const matchedStores = useMemo(
+    () => filterStoresByKeyword(stores, storeSearch),
+    [stores, storeSearch]
+  );
+
+  // 검색 결과는 전부 보여준다. 이전에는 50개에서 잘려 "검색해도 다 안 나오는" 원인이 됐다.
+  // 목록 자체가 스크롤 영역이라 전량 렌더해도 화면이 깨지지 않는다.
+  const filteredStores = matchedStores;
+
+  // 검색어에는 걸렸지만 slug 가 없어 타겟으로 지정할 수 없는 매장 수
+  const unselectableMatchCount = useMemo(() => {
+    if (!storeSearch.trim()) return 0;
+    return filterStoresByKeyword(
+      allStores.filter((store) => !store.slug),
+      storeSearch
+    ).length;
+  }, [allStores, storeSearch]);
 
   const toggleTargetSlug = (slug: string) => {
     setFormTargetSlugs((prev) =>
@@ -772,6 +782,12 @@ export default function AdminBannersPage() {
                   ) : filteredStores.length === 0 ? (
                     <div className="px-3 py-4 text-xs text-neutral-500 text-center">
                       검색 결과가 없습니다.
+                      {unselectableMatchCount > 0 && (
+                        <span className="block mt-1 text-amber-500/80">
+                          slug 가 없는 매장 {unselectableMatchCount}개가 검색어와 일치하지만, 등록
+                          링크(slug)가 없어 배너 타겟으로 지정할 수 없습니다.
+                        </span>
+                      )}
                     </div>
                   ) : (
                     filteredStores.map((store) => {
@@ -804,7 +820,16 @@ export default function AdminBannersPage() {
 
                 <p className="text-xs text-neutral-500 mt-1">
                   선택하지 않으면 모든 매장에 표시됩니다.
-                  {filteredStores.length >= 50 && ' 검색어를 입력하면 더 정확하게 찾을 수 있습니다.'}
+                  {stores.length > 0 &&
+                    (storeSearch.trim()
+                      ? ` 전체 ${stores.length}개 중 ${filteredStores.length}개 검색됨.`
+                      : ` 전체 ${stores.length}개 매장.`)}
+                  {unselectableMatchCount > 0 && filteredStores.length > 0 && (
+                    <span className="text-amber-500/80">
+                      {' '}
+                      slug 없는 매장 {unselectableMatchCount}개는 타겟 지정이 불가해 제외했습니다.
+                    </span>
+                  )}
                 </p>
               </div>
 
