@@ -12,7 +12,7 @@ import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { customAlphabet } from 'nanoid';
 import type { AlimTalkType } from '@prisma/client';
-import { calculateCostWithCredits, useCredits } from './credit-service.js';
+import { calculateCostWithCredits } from './credit-service.js';
 
 const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1시간
 const AUTOMATION_COST_PER_MESSAGE = 50; // 건당 50원
@@ -464,6 +464,20 @@ export async function sendAutomationMessages(
 
   if (!store) return 0;
 
+  // 월 최대 발송 수 — 각 규칙은 "이미 한도에 도달했는지"만 보고 대상 전체를 넘겨서,
+  // 한 번의 실행으로 한도를 훌쩍 넘겨 발송될 수 있었다. 남은 한도만큼만 잘라서 보낸다.
+  if (rule.monthlyMaxSends) {
+    const monthSent = await prisma.automationLog.count({
+      where: { automationRuleId: rule.id, sentAt: { gte: getKSTMonthStart() } },
+    });
+    const remaining = Math.max(0, rule.monthlyMaxSends - monthSent);
+    if (remaining === 0) return 0;
+    if (targets.length > remaining) {
+      console.log(`[AutoWorker] Rule ${rule.id} capped to monthly remaining ${remaining} (targets ${targets.length})`);
+      targets = targets.slice(0, remaining);
+    }
+  }
+
   // 최종 방어선: 쿠폰 내용이 비어 있으면 발송하지 않는다.
   // (설정 화면에서 막고 있지만, 과거 데이터·직접 DB 수정 등으로 빈 값이 남아 있을 수 있어
   //  기본 문구로 대체 발송되던 동작을 제거)
@@ -573,11 +587,8 @@ export async function sendAutomationMessages(
     }
   }
 
-  // 무료 크레딧 사용 처리
-  if (sentCount > 0 && creditResult.freeCount > 0) {
-    const freeToUse = Math.min(creditResult.freeCount, sentCount);
-    await useCredits(rule.storeId, freeToUse, null, messageType);
-  }
+  // 무료 크레딧은 여기서 차감하지 않는다 — 발송 워커가 메시지별로 발송 직전에 원자적으로 확보한다.
+  // (여기서도 차감하면 크레딧이 이중으로 소진돼, 무료로 나가야 할 건이 지갑에서 차감됐다)
 
   console.log(`[AutoWorker] ${messageType} for store ${rule.storeId}: ${sentCount}/${targets.length} messages queued`);
   return sentCount;
