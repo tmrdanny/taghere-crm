@@ -2,7 +2,7 @@ import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { SolapiService, sendLowBalanceAlimTalk } from './solapi.js';
 import { getSolapiService, clearSolapiInstance } from './solapi-instance.js';
-import { getRemainingCredits, useCredits } from './credit-service.js';
+import { tryConsumeOneCredit, releaseOneCredit } from './credit-service.js';
 import { sendAligoAlimtalk } from './aligo.js';
 import { resolveAlimtalkCost } from './pricing-service.js';
 import { refundAcquisitionCoupons } from './acquisition-coupon.js';
@@ -43,6 +43,32 @@ async function refundAlimtalkCharge(
   }
 }
 
+
+/**
+ * 결과 조회 단계에서 뒤늦게 실패로 확정된 메시지의 결제를 되돌린다.
+ * 이 시점에는 발송 당시 지갑 차감/무료 크레딧 중 무엇으로 나갔는지 메모리에 없으므로
+ * 원장(paymentTransaction)에서 해당 메시지의 차감 기록을 찾아 판단한다.
+ */
+async function refundOrReleaseAfterLateFailure(
+  storeId: string,
+  messageId: string,
+  messageType: string,
+): Promise<void> {
+  const txs = await prisma.paymentTransaction.findMany({
+    where: { storeId, type: 'ALIMTALK_SEND', meta: { path: ['messageId'], equals: messageId } },
+    select: { amount: true },
+  });
+  const charged = txs.filter((t) => t.amount < 0).reduce((sum, t) => sum - t.amount, 0);
+  const refunded = txs.filter((t) => t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
+  const outstanding = charged - refunded;
+
+  if (outstanding > 0) {
+    await refundAlimtalkCharge(storeId, outstanding, messageId, messageType);
+  } else if (charged === 0 && (messageType === 'RETARGET_COUPON' || messageType.startsWith('AUTO_'))) {
+    // 지갑 차감 기록이 없으면 무료 크레딧으로 나간 건
+    await releaseOneCredit(storeId, messageType);
+  }
+}
 
 // 알림톡 건당 비용 (메시지 타입별)
 const ALIMTALK_COSTS: Record<string, number> = {
@@ -157,8 +183,11 @@ async function processMessage(messageId: string): Promise<void> {
             where: { id: messageId },
             data: { status: 'FAILED', failReason: statusResult.failReason, updatedAt: new Date() },
           });
-          // 발송 전 선차감분 환불 (무료 타입은 cost 0 이라 무시됨)
-          await refundAlimtalkCharge(msg.storeId, cost, messageId, msg.messageType);
+          // 발송 전 결제분 되돌리기 — 지갑에서 실제로 차감된 경우에만 환불하고,
+          // 무료 크레딧으로 나간 건은 크레딧을 되돌린다 (없던 차감을 환불해 주지 않도록)
+          if (cost > 0) {
+            await refundOrReleaseAfterLateFailure(msg.storeId, messageId, msg.messageType);
+          }
           console.log(`[Worker] Message ${messageId} confirmed FAILED: ${statusResult.failReason}`);
         } else {
           // 아직 PENDING - retryCount 증가시키며 재확인 대기
@@ -183,13 +212,18 @@ async function processMessage(messageId: string): Promise<void> {
     return;
   }
 
+  // 발송 전 결제 상태 — 발송이 실패하면 catch 에서도 되돌려야 하므로 try 밖에 둔다
+  let cost = 0;
+  let useFreeCredit = false;
+  let charged_ = false;
+
   try {
     // LOW_BALANCE, CORPORATE_AD 타입은 비용 없이 무료 발송
     const isLowBalanceMessage = msg.messageType === 'LOW_BALANCE';
     const isFreeMessage = isLowBalanceMessage || msg.messageType === 'CORPORATE_AD';
 
     // 메시지 타입에 따른 비용 결정 (무료 타입은 0원, 프랜차이즈 단가 오버라이드 적용)
-    const cost = isFreeMessage
+    cost = isFreeMessage
       ? 0
       : await resolveAlimtalkCost(msg.storeId, msg.messageType, ALIMTALK_COSTS[msg.messageType] || DEFAULT_COST);
 
@@ -197,17 +231,15 @@ async function processMessage(messageId: string): Promise<void> {
     // RETARGET_COUPON 및 자동화 메시지는 무료 크레딧 적용 가능
     const isRetargetCoupon = msg.messageType === 'RETARGET_COUPON';
     const isAutomation = msg.messageType.startsWith('AUTO_');
-    let useFreeCredit = false;
-    // 발송 전 선차감 여부 — 발송이 실패하면 환불해야 하므로 추적한다
-    let charged_ = false;
 
     if (!isFreeMessage) {
-      // 리타겟 쿠폰 또는 자동화 메시지이면 무료 크레딧 확인
+      // 리타겟 쿠폰 또는 자동화 메시지이면 무료 크레딧을 발송 전에 원자적으로 확보한다.
+      // (잔여 크레딧 조회만 하고 SENT 확정 시 차감하던 방식은 병렬 처리·PENDING 응답에서
+      //  크레딧이 차감되지 않아, 크레딧 1건으로 수백 건이 지갑 차감 없이 발송될 수 있었다)
       if (isRetargetCoupon || isAutomation) {
-        const remainingCredits = await getRemainingCredits(msg.storeId);
-        if (remainingCredits > 0) {
-          useFreeCredit = true;
-          console.log(`[Worker] Using free credit for RETARGET_COUPON message ${messageId}, remaining: ${remainingCredits}`);
+        useFreeCredit = await tryConsumeOneCredit(msg.storeId, msg.messageType);
+        if (useFreeCredit) {
+          console.log(`[Worker] Reserved free credit for ${msg.messageType} message ${messageId}`);
         }
       }
 
@@ -298,6 +330,9 @@ async function processMessage(messageId: string): Promise<void> {
         if (charged_) {
           await refundAlimtalkCharge(msg.storeId, cost, messageId, msg.messageType);
         }
+        if (useFreeCredit) {
+          await releaseOneCredit(msg.storeId, msg.messageType);
+        }
         console.log(`[Worker] Message ${messageId} delivery FAILED: ${failReason}`);
       } else if (finalStatus === 'SENT') {
         // 발송 성공
@@ -327,8 +362,7 @@ async function processMessage(messageId: string): Promise<void> {
             },
           });
 
-          // 무료 크레딧 차감
-          await useCredits(msg.storeId, 1, null, msg.messageType);
+          // 무료 크레딧은 발송 전에 이미 확보(차감)했다
 
           console.log(`[Worker] Message ${messageId} (${msg.messageType}) sent successfully with FREE CREDIT, SOLAPI ID: ${result.messageId}`);
         } else {
@@ -365,6 +399,15 @@ async function processMessage(messageId: string): Promise<void> {
     }
   } catch (error: any) {
     console.error(`[Worker] Message ${messageId} failed:`, error.message);
+
+    // 발송 요청 자체가 실패했으므로 선차감/확보분을 되돌린다 (재시도 시 다시 결제한다).
+    // 예전에는 되돌리지 않아 재시도마다 중복 차감됐다.
+    if (charged_) {
+      await refundAlimtalkCharge(msg.storeId, cost, messageId, msg.messageType);
+    }
+    if (useFreeCredit) {
+      await releaseOneCredit(msg.storeId, msg.messageType);
+    }
 
     const currentRetry = msg.retryCount + 1;
     const shouldRetry = currentRetry < MAX_RETRIES;

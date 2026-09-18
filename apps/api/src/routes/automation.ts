@@ -149,22 +149,29 @@ router.get('/rules', authMiddleware, async (req: AuthRequest, res: Response) => 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // 규칙별 count 쿼리 2N개 대신 groupBy 2회로 일괄 집계
-    const [sentGroups, usedGroups] = await Promise.all([
-      prisma.automationLog.groupBy({
-        by: ['automationRuleId'],
-        where: { storeId, sentAt: { gte: startOfMonth } },
-        _count: { _all: true },
-      }),
-      prisma.automationLog.groupBy({
-        by: ['automationRuleId'],
-        where: { storeId, sentAt: { gte: startOfMonth }, couponUsed: true },
-        _count: { _all: true },
-      }),
-    ]);
+    // "발송" 건수는 실제로 발송 완료(SENT)된 알림톡만 센다.
+    // AutomationLog 는 큐 적재 시점에 쌓이므로, 충전금 부족 등으로 발송되지 못한 건까지
+    // "N건 발송"으로 보여 실제보다 많이 나간 것처럼 보였다.
+    const monthLogs = await prisma.automationLog.findMany({
+      where: { storeId, sentAt: { gte: startOfMonth } },
+      select: { automationRuleId: true, alimtalkOutboxId: true, couponUsed: true },
+    });
+    const outboxIds = monthLogs.map((l) => l.alimtalkOutboxId).filter((id): id is string => !!id);
+    const sentOutbox = outboxIds.length
+      ? await prisma.alimTalkOutbox.findMany({
+          where: { id: { in: outboxIds }, status: 'SENT' },
+          select: { id: true },
+        })
+      : [];
+    const sentOutboxIds = new Set(sentOutbox.map((o) => o.id));
 
-    const sentMap = new Map(sentGroups.map((g) => [g.automationRuleId, g._count._all]));
-    const usedMap = new Map(usedGroups.map((g) => [g.automationRuleId, g._count._all]));
+    const sentMap = new Map<string, number>();
+    const usedMap = new Map<string, number>();
+    for (const log of monthLogs) {
+      if (!log.alimtalkOutboxId || !sentOutboxIds.has(log.alimtalkOutboxId)) continue;
+      sentMap.set(log.automationRuleId, (sentMap.get(log.automationRuleId) ?? 0) + 1);
+      if (log.couponUsed) usedMap.set(log.automationRuleId, (usedMap.get(log.automationRuleId) ?? 0) + 1);
+    }
 
     const stats = rules.map((rule) => {
       const totalSent = sentMap.get(rule.id) ?? 0;

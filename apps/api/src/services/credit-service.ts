@@ -122,6 +122,43 @@ export async function useCredits(
 }
 
 /**
+ * 무료 크레딧 1건을 "발송 전"에 원자적으로 확보한다. 확보하면 true.
+ *
+ * 예전 발송 워커는 "잔여 크레딧 > 0" 인지만 보고 무료로 보낸 뒤, 발송 결과가 SENT 로
+ * 확정될 때에만 크레딧을 차감했다. 그래서
+ *  - 병렬로 처리되는 메시지가 모두 같은 잔여값을 보고 무료로 나갔고
+ *  - 솔라피 결과가 PENDING 으로 오면 차감이 영영 일어나지 않아
+ * 크레딧이 1건만 남아 있어도 자동화 메시지 수백 건이 지갑 차감 없이 발송될 수 있었다.
+ * usedCredits < totalCredits 조건부 증가로 확보에 성공한 건만 무료 처리한다.
+ */
+export async function tryConsumeOneCredit(storeId: string, messageType: string): Promise<boolean> {
+  const credit = await getOrCreateMonthlyCredit(storeId);
+
+  const updated = await prisma.monthlyCredit.updateMany({
+    where: { id: credit.id, usedCredits: { lt: prisma.monthlyCredit.fields.totalCredits } },
+    data: { usedCredits: { increment: 1 } },
+  });
+  if (updated.count !== 1) return false;
+
+  await prisma.creditUsageLog.create({
+    data: { monthlyCreditId: credit.id, campaignId: null, messageType, usedCount: 1 },
+  });
+  return true;
+}
+
+/**
+ * tryConsumeOneCredit 로 확보한 크레딧을 되돌린다 (발송이 실패한 경우).
+ */
+export async function releaseOneCredit(storeId: string, messageType: string): Promise<void> {
+  const credit = await getOrCreateMonthlyCredit(storeId);
+  await prisma.monthlyCredit.updateMany({
+    where: { id: credit.id, usedCredits: { gt: 0 } },
+    data: { usedCredits: { decrement: 1 } },
+  });
+  console.log(`[Credit] Released 1 credit for store ${storeId} (${messageType} send failed)`);
+}
+
+/**
  * 발송 비용 계산 (무료 크레딧 적용 후)
  *
  * @param storeId 매장 ID
