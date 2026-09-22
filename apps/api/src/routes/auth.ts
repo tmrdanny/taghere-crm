@@ -91,12 +91,19 @@ export async function getUniqueSlug(baseSlug: string): Promise<string> {
 // POST /api/auth/register - 회원가입
 router.post('/register', async (req, res) => {
   try {
-    const { storeName, category, ownerName, phone, businessRegNumber, address, naverPlaceUrl, email, password } = req.body;
+    const { storeName, category, ownerName, phone, businessRegNumber, address, naverPlaceUrl, email, password, agreePrivacy, agreeMarketing } = req.body;
 
     // 필수 필드 검증
     if (!storeName || !ownerName || !phone || !businessRegNumber || !address || !email || !password) {
       return res.status(400).json({ error: '모든 필드를 입력해주세요.' });
     }
+
+    // 개인정보 수집·이용 동의(필수)
+    if (agreePrivacy !== true) {
+      return res.status(400).json({ error: '개인정보 수집·이용에 동의해주세요.' });
+    }
+    const consentAt = new Date();
+    const marketingConsent = agreeMarketing === true;
 
     // 이메일 중복 체크
     const existingUser = await prisma.staffUser.findUnique({
@@ -195,6 +202,9 @@ router.post('/register', async (req, res) => {
           passwordHash,
           name: ownerName,
           role: 'OWNER',
+          privacyAgreedAt: consentAt,
+          marketingConsent,
+          marketingConsentAt: marketingConsent ? consentAt : null,
         },
         include: { store: true },
       });
