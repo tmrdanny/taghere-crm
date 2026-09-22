@@ -151,6 +151,12 @@ model StaffUser {
   role         StaffRole @default(STAFF)
   isAdmin      Boolean   @default(false) // 시스템 관리자 여부
   profileImage String?
+
+  // 회원가입 약관 동의 (증빙용 — 동의 시각을 남긴다)
+  privacyAgreedAt    DateTime? // 개인정보 수집·이용 동의 (필수) 시각
+  marketingConsent   Boolean   @default(false) // 광고성 정보 수신 동의 (선택, 카카오톡 채널 등)
+  marketingConsentAt DateTime? // 광고성 정보 수신 동의/철회 시각
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
