@@ -25,6 +25,9 @@ const CATEGORY_GROUPS = [
   { label: '기타', options: ['FOODCOURT', 'OTHER'] },
 ];
 
+const PRIVACY_POLICY_URL = 'https://tmr-founders.notion.site/c8ddcee089e6489e8c2351ff459d3d80';
+const MARKETING_POLICY_URL = 'https://tmr-founders.notion.site/2492217234e380e1abbbe6867fc96aea';
+
 export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -42,6 +45,16 @@ export default function RegisterPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // 약관 동의 — 개인정보 수집·이용(필수), 광고성 정보 수신(선택)
+  const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [agreeMarketing, setAgreeMarketing] = useState(false);
+  const agreeAll = agreePrivacy && agreeMarketing;
+
+  const handleAgreeAll = (checked: boolean) => {
+    setAgreePrivacy(checked);
+    setAgreeMarketing(checked);
+  };
 
   const handleAddressSearch = () => {
     new window.daum.Postcode({
@@ -91,6 +104,13 @@ export default function RegisterPage() {
       return;
     }
 
+    // 개인정보 수집·이용 동의 필수 체크
+    if (!agreePrivacy) {
+      setError('개인정보 수집·이용에 동의해주세요.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
@@ -109,6 +129,8 @@ export default function RegisterPage() {
           naverPlaceUrl: formData.naverPlaceUrl,
           email: formData.email,
           password: formData.password,
+          agreePrivacy,
+          agreeMarketing,
         }),
       });
 
@@ -328,10 +350,74 @@ export default function RegisterPage() {
               />
             </div>
 
+            {/* 약관 동의 */}
+            <div className="rounded-lg border border-neutral-200 overflow-hidden">
+              <label className="flex items-center gap-3 px-4 py-3 bg-neutral-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreeAll}
+                  onChange={(e) => handleAgreeAll(e.target.checked)}
+                  className="w-5 h-5 rounded border-neutral-300 accent-brand-800 cursor-pointer"
+                />
+                <span className="text-sm font-semibold text-neutral-900">전체 동의</span>
+              </label>
+
+              <div className="px-4 py-3 space-y-3 border-t border-neutral-200">
+                <div className="flex items-start justify-between gap-3">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agreePrivacy}
+                      onChange={(e) => setAgreePrivacy(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-neutral-300 accent-brand-800 cursor-pointer shrink-0"
+                    />
+                    <span className="text-sm text-neutral-700">
+                      <span className="text-red-500">[필수]</span> 개인정보 수집·이용 동의
+                    </span>
+                  </label>
+                  <a
+                    href={PRIVACY_POLICY_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-neutral-500 underline hover:text-neutral-700 shrink-0"
+                  >
+                    보기
+                  </a>
+                </div>
+
+                <div className="flex items-start justify-between gap-3">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agreeMarketing}
+                      onChange={(e) => setAgreeMarketing(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-neutral-300 accent-brand-800 cursor-pointer shrink-0"
+                    />
+                    <span className="text-sm text-neutral-700">
+                      <span className="text-neutral-500">[선택]</span> 광고성 정보 수신 동의
+                      <span className="block mt-1 text-xs text-neutral-500 leading-relaxed">
+                        태그히어의 신규 서비스, 이벤트, 혜택 등 광고성 정보를 카카오톡 채널 메시지로
+                        받아보실 수 있습니다. 동의하지 않아도 회원가입 및 서비스 이용이 가능하며,
+                        동의는 언제든 철회할 수 있습니다.
+                      </span>
+                    </span>
+                  </label>
+                  <a
+                    href={MARKETING_POLICY_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-neutral-500 underline hover:text-neutral-700 shrink-0"
+                  >
+                    보기
+                  </a>
+                </div>
+              </div>
+            </div>
+
             <Button
               type="submit"
               className="w-full h-12"
-              disabled={isLoading}
+              disabled={isLoading || !agreePrivacy}
             >
               {isLoading ? '가입 중...' : '회원가입'}
             </Button>
