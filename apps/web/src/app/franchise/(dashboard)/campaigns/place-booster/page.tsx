@@ -4,7 +4,7 @@ import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { Rocket, ChevronLeft, Info, Wallet, Banknote, X, Loader2 } from 'lucide-react';
-import { BoosterCreateForm, toDateInput, BoosterTargetResult } from '@/components/place-booster/booster-create-form';
+import { BoosterCreateForm, validUntilText, BoosterTargetResult } from '@/components/place-booster/booster-create-form';
 import { BoosterReport, CampaignInputCard } from '@/components/place-booster/booster-report';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -53,7 +53,7 @@ interface Report {
     couponContent: string;
     couponCode: string | null;
     couponAmount: string | null;
-    couponValidUntil: string | null;
+    couponValidUntil: string | null; couponValidUntilText: string | null;
     naverPlaceUrl: string;
     placeId: string;
     ownerPhone: string | null;
@@ -239,7 +239,7 @@ export default function FranchisePlaceBoosterPage() {
             couponContent: report.campaign.couponContent,
             couponCode: report.campaign.couponCode ?? '',
             couponAmount: report.campaign.couponAmount ?? '',
-            couponValidUntil: toDateInput(report.campaign.couponValidUntil),
+            couponValidUntilText: validUntilText(report.campaign),
             ownerPhone: report.campaign.ownerPhone ?? '',
             weekday: report.campaign.weekday,
             sendTime: report.campaign.sendTime,
@@ -423,6 +423,7 @@ function DetailView({
           couponCode: c.couponCode,
           couponAmount: c.couponAmount,
           couponValidUntil: c.couponValidUntil,
+          couponValidUntilText: c.couponValidUntilText,
           ownerPhone: c.ownerPhone,
         }}
       />

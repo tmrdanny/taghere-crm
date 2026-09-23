@@ -2,7 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback } from 'react';
-import { BoosterCreateForm, BoosterTargetResult, BoosterFormValues, ActiveEditMeta, toDateInput } from '@/components/place-booster/booster-create-form';
+import { BoosterCreateForm, BoosterTargetResult, BoosterFormValues, ActiveEditMeta, validUntilText } from '@/components/place-booster/booster-create-form';
 import { BoosterReport, CampaignInputCard, ReportRow, ReportTotals } from '@/components/place-booster/booster-report';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -314,7 +314,7 @@ interface AdminReportData {
     keyword: string; couponContent: string; campaignName: string | null; status: string;
     perBatchCount: number; totalWeeks: number; totalTargetCount: number;
     naverPlaceUrl: string; couponCode: string | null; couponAmount: string | null;
-    couponValidUntil: string | null; ownerPhone: string | null;
+    couponValidUntil: string | null; couponValidUntilText: string | null; ownerPhone: string | null;
   };
   store: { name: string; ownerName: string | null } | null;
   isExternal: boolean;
@@ -432,6 +432,7 @@ function AdminReportView({ id, af, onBack, onChanged }: { id: string; af: (p: st
                 couponCode: data.campaign.couponCode,
                 couponAmount: data.campaign.couponAmount,
                 couponValidUntil: data.campaign.couponValidUntil,
+                couponValidUntilText: data.campaign.couponValidUntilText,
                 ownerPhone: data.campaign.ownerPhone,
               }}
             />
@@ -571,7 +572,7 @@ interface EditCampaign {
   status: string;
   keyword: string; naverPlaceUrl: string; placeId: string;
   couponContent: string; couponCode: string | null; couponAmount: string | null;
-  couponValidUntil: string | null; ownerPhone: string | null;
+  couponValidUntil: string | null; couponValidUntilText: string | null; ownerPhone: string | null;
   weekday: number; sendTime: string; perBatchCount: number; totalWeeks: number;
   storeId: string | null; campaignName: string | null;
 }
@@ -609,7 +610,7 @@ function AdminEditForm({ id, af, campaign: c, storeName, onBack, onSaved }: { id
     couponContent: c.couponContent,
     couponCode: c.couponCode ?? '',
     couponAmount: c.couponAmount ?? '',
-    couponValidUntil: toDateInput(c.couponValidUntil),
+    couponValidUntilText: validUntilText(c),
     ownerPhone: c.ownerPhone ?? '',
     weekday: c.weekday,
     sendTime: c.sendTime,
