@@ -119,7 +119,8 @@ function buildReportModel(data: BoosterReportData, displayName: string): ReportM
   const couponMeta = [
     c.couponAmount ? `쿠폰 금액 ${stripEmoji(c.couponAmount)}` : '',
     c.couponCode ? `코드 ${c.couponCode}` : '',
-    validUntilText(c) ? `유효기간 ${validUntilText(c)}` : '',
+    // PDF 요약은 한 줄로 이어 붙이므로 문구 안의 줄바꿈은 공백으로 바꾼다
+    validUntilText(c) ? `유효기간 ${validUntilText(c).replace(/\s*\n\s*/g, ' ')}` : '',
   ]
     .filter(Boolean)
     .join('   ·   ');
