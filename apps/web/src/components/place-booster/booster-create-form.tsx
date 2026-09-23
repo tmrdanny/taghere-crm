@@ -359,14 +359,13 @@ export function BoosterCreateForm({
             <Field label="쿠폰 코드">
               <input className="input" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="예: 다주막 네이버 쿠폰" />
             </Field>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="쿠폰 금액">
-                <input className="input" value={couponAmount} onChange={(e) => setCouponAmount(e.target.value)} placeholder="예: 10% 할인" />
-              </Field>
-              <Field label="유효기간">
-                <input className="input" value={couponValidUntilText} onChange={(e) => setCouponValidUntilText(e.target.value)} placeholder="예: 2026.04.30까지 / 발급일로부터 30일" />
-              </Field>
-            </div>
+            <Field label="쿠폰 금액">
+              <input className="input" value={couponAmount} onChange={(e) => setCouponAmount(e.target.value)} placeholder="예: 10% 할인" />
+            </Field>
+            {/* 유효기간은 여러 줄 입력이라 쿠폰 내용처럼 전체 너비를 쓴다 */}
+            <Field label="유효기간" hint="Enter 로 줄바꿈할 수 있어요">
+              <textarea className="input" rows={3} value={couponValidUntilText} onChange={(e) => setCouponValidUntilText(e.target.value)} placeholder={'예: 2026.04.30까지\n발급일로부터 30일 이내'} />
+            </Field>
             <Field label="사장님 번호" hint="발송 때마다 이 번호로도 동일 알림톡이 전송됩니다 (사장님 확인용)">
               <input className="input" value={ownerPhone} onChange={(e) => setOwnerPhone(e.target.value)} placeholder="예: 010-1234-5678" inputMode="tel" />
             </Field>
