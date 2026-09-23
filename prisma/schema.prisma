@@ -2356,7 +2356,8 @@ model PlaceBoosterCampaign {
   couponContent   String                     // 쿠폰 내용 (알림톡 첫 줄 "{쿠폰 내용} 쿠폰이 도착했어요")
   couponCode      String?                    // 쿠폰 코드 (알림톡 "쿠폰 코드: {쿠폰 코드}")
   couponAmount    String?                    // 쿠폰 금액 (알림톡 "쿠폰: {쿠폰 금액}" — 자유 텍스트)
-  couponValidUntil DateTime?                 // 쿠폰 유효기간 (알림톡 "유효기간: {유효기간}")
+  couponValidUntil DateTime?                 // (레거시) 날짜 입력 시절 유효기간 — 신규 저장은 couponValidUntilText 사용
+  couponValidUntilText String?               // 쿠폰 유효기간 문구 (알림톡 "유효기간: {유효기간}" — 자유 텍스트, 예: "발급일로부터 30일")
   targetRegions   Json                       // { sido, sigungu, adjacent: string[] } — 발송 시 시군구→인접→시/도 순으로 채움(selectRecipients)
   weekday         Int                        // 발송 요일 0=일~6=토 (JS getDay, KST)
   sendTime        String                     // 발송 시각 "HH:mm" (KST)

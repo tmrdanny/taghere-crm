@@ -18,6 +18,7 @@ import {
   pdf,
 } from '@react-pdf/renderer';
 import type { ReportRow, ReportTotals } from './booster-report';
+import { validUntilText } from './booster-create-form';
 
 // ── 폰트: 로컬 Pretendard TTF (public/fonts) 임베드 ──
 Font.register({
@@ -45,6 +46,7 @@ export interface BoosterReportData {
     couponCode: string | null;
     couponAmount: string | null;
     couponValidUntil: string | null;
+    couponValidUntilText?: string | null;
     ownerPhone: string | null;
   };
   store: { name: string; ownerName: string | null } | null;
@@ -117,7 +119,7 @@ function buildReportModel(data: BoosterReportData, displayName: string): ReportM
   const couponMeta = [
     c.couponAmount ? `쿠폰 금액 ${stripEmoji(c.couponAmount)}` : '',
     c.couponCode ? `코드 ${c.couponCode}` : '',
-    c.couponValidUntil ? `유효기간 ~ ${fmtDate(c.couponValidUntil)}` : '',
+    validUntilText(c) ? `유효기간 ${validUntilText(c)}` : '',
   ]
     .filter(Boolean)
     .join('   ·   ');
