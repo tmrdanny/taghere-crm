@@ -62,11 +62,17 @@ function buildBoosterMessage(c: {
   couponCode?: string | null;
   couponAmount?: string | null;
   couponValidUntil?: Date | null;
+  couponValidUntilText?: string | null;
 }): string {
+  // 유효기간은 자유 문구(couponValidUntilText)를 그대로 쓴다.
+  // 문구 입력 이전에 만들어진 캠페인은 날짜 컬럼(couponValidUntil)을 "YYYY.MM.DD까지"로 표기한다.
+  const validPhrase = c.couponValidUntilText?.trim()
+    ? c.couponValidUntilText.trim()
+    : c.couponValidUntil
+      ? `${formatBoosterValidUntil(c.couponValidUntil)}까지`
+      : '';
   // 유효기간 표기 뒤에 고정 안내문을 줄바꿈과 함께 덧붙인다(변수 값에 포함 → 템플릿 매칭 유지).
-  const validText = c.couponValidUntil
-    ? `${formatBoosterValidUntil(c.couponValidUntil)}까지\n\n${BOOSTER_COUPON_GUIDE}`
-    : BOOSTER_COUPON_GUIDE;
+  const validText = validPhrase ? `${validPhrase}\n\n${BOOSTER_COUPON_GUIDE}` : BOOSTER_COUPON_GUIDE;
   // "[태그히어 플레이스] …" 안내문은 카카오 템플릿(UG_5628) 부가정보로 자동 첨부되므로
   // 본문에 다시 넣지 않는다(넣으면 회색 부가정보와 중복 출력됨).
   return [
@@ -80,7 +86,7 @@ function buildBoosterMessage(c: {
 
 /** 캠페인 → 알리고 알림톡 페이로드 (버튼=추적 링크 /r/{code}/{weekNo}) */
 export function buildBoosterAlimtalk(
-  campaign: Pick<PlaceBoosterCampaign, 'trackingCode' | 'couponContent' | 'couponCode' | 'couponAmount' | 'couponValidUntil'>,
+  campaign: Pick<PlaceBoosterCampaign, 'trackingCode' | 'couponContent' | 'couponCode' | 'couponAmount' | 'couponValidUntil' | 'couponValidUntilText'>,
   weekNo: number
 ): BoosterAlimtalk {
   return {
@@ -102,10 +108,11 @@ export interface PreviewAlimtalkInput {
   couponContent: string;
   couponCode: string;
   couponAmount: string;
-  couponValidUntil: string | Date;
+  couponValidUntil?: string | Date | null;
+  couponValidUntilText?: string | null;
 }
 export function buildBoosterPreviewAlimtalk(input: PreviewAlimtalkInput): BoosterAlimtalk {
-  if (!input.couponContent?.trim() || !input.couponCode?.trim() || !input.couponAmount?.trim() || !input.couponValidUntil) {
+  if (!input.couponContent?.trim() || !input.couponCode?.trim() || !input.couponAmount?.trim() || !resolveValidUntilText(input)) {
     throw new BoosterError('쿠폰 내용/코드/금액/유효기간을 모두 입력 후 테스트해주세요.');
   }
   const placeId = parseNaverPlaceId(input.naverPlaceUrl || '');
@@ -120,6 +127,7 @@ export function buildBoosterPreviewAlimtalk(input: PreviewAlimtalkInput): Booste
       couponCode: input.couponCode.trim(),
       couponAmount: input.couponAmount.trim(),
       couponValidUntil: parseCouponValidUntil(input.couponValidUntil),
+      couponValidUntilText: resolveValidUntilText(input),
     }),
     buttonName: '쿠폰 받기',
     buttonUrl: buildNaverMapUrl(input.keyword.trim(), placeId),
@@ -132,7 +140,8 @@ export interface CreateCampaignInput {
   couponContent: string;
   couponCode: string;
   couponAmount: string;
-  couponValidUntil: string | Date;
+  couponValidUntil?: string | Date | null; // (레거시) 날짜 입력 시절 값 — 수정 화면이 그대로 보낼 수 있어 받아만 둔다
+  couponValidUntilText?: string | null;    // 유효기간 문구 (자유 텍스트)
   ownerPhone: string; // 점주 핸드폰 — 회차마다 점주에게도 동일 알림톡 발송
   weekday: number; // 0=일 ~ 6=토 (KST)
   sendTime: string; // "HH:mm" (KST)
@@ -184,6 +193,17 @@ export function computeBatchSchedules(
 }
 
 /** 'YYYY-MM-DD'는 KST 자정으로 해석(off-by-one 방지). 그 외는 그대로 파싱. */
+/**
+ * 저장·발송에 쓸 유효기간 문구. 폼이 보낸 문구를 우선하고,
+ * 문구 입력 이전 데이터(날짜만 있는 수정 요청)는 "YYYY.MM.DD까지"로 변환해 문구로 승격한다.
+ */
+function resolveValidUntilText(input: { couponValidUntilText?: string | null; couponValidUntil?: string | Date | null }): string {
+  const text = input.couponValidUntilText?.trim();
+  if (text) return text;
+  const date = parseCouponValidUntil(input.couponValidUntil);
+  return date ? `${formatBoosterValidUntil(date)}까지` : '';
+}
+
 function parseCouponValidUntil(value?: string | Date | null): Date | null {
   if (!value) return null;
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -211,7 +231,7 @@ function validateCampaignInput(input: CreateCampaignInput): { placeId: string } 
   if (!input.couponContent?.trim()) throw new BoosterError('쿠폰 내용을 입력해주세요.');
   if (!input.couponCode?.trim()) throw new BoosterError('쿠폰 코드를 입력해주세요.');
   if (!input.couponAmount?.trim()) throw new BoosterError('쿠폰 금액을 입력해주세요.');
-  if (!input.couponValidUntil) throw new BoosterError('유효기간을 입력해주세요.');
+  if (!resolveValidUntilText(input)) throw new BoosterError('유효기간을 입력해주세요.');
   if (!input.ownerPhone?.trim()) throw new BoosterError('사장님 번호를 입력해주세요.');
 
   if (input.weekday < 0 || input.weekday > 6) {
@@ -290,6 +310,7 @@ export async function createCampaign(
       couponCode: input.couponCode.trim(),
       couponAmount: input.couponAmount.trim(),
       couponValidUntil: parseCouponValidUntil(input.couponValidUntil),
+      couponValidUntilText: resolveValidUntilText(input),
       ownerPhone: normalizePhoneNumber(input.ownerPhone.trim()),
       targetRegions: targetRegions as unknown as Prisma.InputJsonValue,
       weekday: input.weekday,
@@ -396,6 +417,7 @@ export async function updateCampaign(
         couponCode: input.couponCode.trim(),
         couponAmount: input.couponAmount.trim(),
         couponValidUntil: parseCouponValidUntil(input.couponValidUntil),
+        couponValidUntilText: resolveValidUntilText(input),
         ownerPhone: normalizePhoneNumber(input.ownerPhone.trim()),
         targetRegions,
         weekday: input.weekday,
@@ -482,6 +504,7 @@ async function updateActiveCampaign(
         couponCode: input.couponCode.trim(),
         couponAmount: input.couponAmount.trim(),
         couponValidUntil: parseCouponValidUntil(input.couponValidUntil),
+        couponValidUntilText: resolveValidUntilText(input),
         ownerPhone: normalizePhoneNumber(input.ownerPhone.trim()),
         targetRegions,
         weekday: input.weekday,

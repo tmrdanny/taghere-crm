@@ -11,7 +11,7 @@ import { useState, type ReactNode } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { Card } from '@/components/ui/card';
 import { Info, ChevronDown } from 'lucide-react';
-import { fmtDateTime } from './booster-create-form';
+import { fmtDateTime, validUntilText } from './booster-create-form';
 
 const won = (n: number) => (n ?? 0).toLocaleString('ko-KR');
 
@@ -105,13 +105,8 @@ export interface CampaignInputFields {
   couponCode?: string | null;
   couponAmount?: string | null;
   couponValidUntil?: string | Date | null;
+  couponValidUntilText?: string | null;
   ownerPhone?: string | null;
-}
-
-function fmtValidUntil(v?: string | Date | null): string {
-  if (!v) return '-';
-  const d = typeof v === 'string' ? v : v.toISOString();
-  return d.slice(0, 10).replace(/-/g, '.');
 }
 
 /** 캠페인 입력값 그대로 표시 (취소 후 재등록 시 참고용) — 기본 접힘, 펼치기 가능 */
@@ -132,7 +127,7 @@ export function CampaignInputCard({ fields }: { fields: CampaignInputFields }) {
     { label: '쿠폰 내용', value: fields.couponContent || '-' },
     { label: '쿠폰 코드', value: fields.couponCode || '-' },
     { label: '쿠폰 금액', value: fields.couponAmount || '-' },
-    { label: '유효기간', value: fmtValidUntil(fields.couponValidUntil) },
+    { label: '유효기간', value: validUntilText(fields) || '-' },
     ...(fields.ownerPhone ? [{ label: '사장님 번호', value: fields.ownerPhone }] : []),
   ];
   return (
