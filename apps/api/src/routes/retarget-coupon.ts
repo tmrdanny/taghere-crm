@@ -5,6 +5,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { customAlphabet } from 'nanoid';
 import { calculateCostWithCredits, useCredits } from '../services/credit-service.js';
 import { resolveTargetCustomerIds } from '../lib/customer-filters.js';
+import { loadStoreSegment, resolveSegmentCustomers } from '../services/segment-engine.js';
 
 const router = Router();
 
@@ -106,6 +107,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res: Response) => 
       // 신규: 서버에서 대상 고객을 직접 해소 (프론트가 페이지네이션 미지정으로 /api/customers를 호출해
       //       발송 대상이 50명으로 잘리던 버그 회피)
       targetType,
+      segmentId,
       genderFilter,
       ageGroups,
       regionSidos,
@@ -123,7 +125,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res: Response) => 
     // 발송 대상 결정 분기:
     //   - targetType이 ALL/REVISIT/NEW이면 서버에서 필터 기반 전체 매칭 고객 조회 (페이지네이션 없음)
     //   - targetType이 CUSTOM 또는 미지정이면 customerIds 사용 (기존 호환)
-    const serverResolved = targetType && ['ALL', 'REVISIT', 'NEW'].includes(targetType);
+    const serverResolved = targetType && ['ALL', 'REVISIT', 'NEW', 'SEGMENT'].includes(targetType);
     if (!serverResolved && (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0)) {
       return res.status(400).json({ error: '발송할 고객을 선택해주세요.' });
     }
@@ -139,14 +141,22 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res: Response) => 
     }
 
     // 발송 대상 고객 조회 (id + phone, 페이지네이션 없음)
-    const resolved = await resolveTargetCustomerIds(prisma, storeId, {
-      targetType,
-      customerIds,
-      genderFilter,
-      ageGroups,
-      regionSidos,
-      regionSigungus,
-    });
+    // SEGMENT: 저장된 세그먼트 조건을 발송 시점에 다시 평가 (수신 동의 고객만)
+    let resolved: { id: string; phone: string | null }[];
+    if (targetType === 'SEGMENT') {
+      const segment = segmentId ? await loadStoreSegment(storeId, String(segmentId)) : null;
+      if (!segment) return res.status(400).json({ error: '세그먼트를 찾을 수 없습니다.' });
+      resolved = await resolveSegmentCustomers(storeId, segment.conditions);
+    } else {
+      resolved = await resolveTargetCustomerIds(prisma, storeId, {
+        targetType,
+        customerIds,
+        genderFilter,
+        ageGroups,
+        regionSidos,
+        regionSigungus,
+      });
+    }
 
     const requested = serverResolved ? resolved.length : (Array.isArray(customerIds) ? customerIds.length : 0);
 

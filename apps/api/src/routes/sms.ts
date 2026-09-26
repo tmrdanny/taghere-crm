@@ -14,6 +14,7 @@ import { resolvePrice } from '../services/pricing-service.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 import { getByteLength } from '../utils/byte-length.js';
 import { getAgeGroupBirthYearRange, buildRegionConditions, buildFilterConditions } from '../lib/customer-filters.js';
+import { countSegment, loadStoreSegment, resolveSegmentCustomers } from '../services/segment-engine.js';
 import {
   mmsImageUpload as upload,
   mmsUploadDir as uploadDir,
@@ -128,7 +129,7 @@ router.get('/region-counts', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { targetType, content, customerIds, genderFilter, ageGroups, hasImage, regionSidos, regionSigungus } = req.query;
+    const { targetType, segmentId, content, customerIds, genderFilter, ageGroups, hasImage, regionSidos, regionSigungus } = req.query;
 
     // 파라미터를 배열로 변환
     const ageGroupList = ageGroups ? (ageGroups as string).split(',').filter(Boolean) : undefined;
@@ -145,7 +146,12 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
 
     let targetCount = 0;
 
-    if (targetType === 'CUSTOM' && customerIds) {
+    if (targetType === 'SEGMENT') {
+      // 세그먼트: 수신 동의 + 전화번호 보유 고객 수
+      const segment = segmentId ? await loadStoreSegment(storeId, String(segmentId)) : null;
+      if (!segment) return res.status(400).json({ error: '세그먼트를 찾을 수 없습니다.' });
+      targetCount = (await countSegment(storeId, segment.conditions)).reachable;
+    } else if (targetType === 'CUSTOM' && customerIds) {
       // 직접 선택한 고객 (필터는 이미 선택된 고객에게 적용하지 않음)
       const ids = (customerIds as string).split(',');
       targetCount = await prisma.customer.count({
@@ -234,7 +240,7 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { title, content, targetType, customerIds, genderFilter, ageGroups, imageUrl, imageId, isAdMessage = false, regionSidos, regionSigungus } = req.body;
+    const { title, content, targetType, segmentId, customerIds, genderFilter, ageGroups, imageUrl, imageId, isAdMessage = false, regionSidos, regionSigungus } = req.body;
 
     if (!content || content.trim() === '') {
       return res.status(400).json({ error: '메시지 내용을 입력해주세요.' });
@@ -288,10 +294,18 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       where.AND = [...(where.AND || []), { OR: regionConditions }];
     }
 
-    const customers = await prisma.customer.findMany({
-      where,
-      select: { id: true, name: true, phone: true },
-    });
+    let customers: Array<{ id: string; name: string | null; phone: string | null }>;
+    if (targetType === 'SEGMENT') {
+      // 세그먼트: 저장된 조건을 발송 시점에 다시 평가 (수신 동의 고객만)
+      const segment = segmentId ? await loadStoreSegment(storeId, String(segmentId)) : null;
+      if (!segment) return res.status(400).json({ error: '세그먼트를 찾을 수 없습니다.' });
+      customers = await resolveSegmentCustomers(storeId, segment.conditions);
+    } else {
+      customers = await prisma.customer.findMany({
+        where,
+        select: { id: true, name: true, phone: true },
+      });
+    }
 
     if (customers.length === 0) {
       return res.status(400).json({ error: '발송 대상이 없습니다.' });

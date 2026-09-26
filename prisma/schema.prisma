@@ -71,6 +71,7 @@ model Store {
 
   // Relations
   staffUsers            StaffUser[]
+  customerSegments      CustomerSegment[]
   customers             Customer[]
   visitsOrOrders        VisitOrOrder[]
   pointLedger           PointLedger[]
@@ -2462,4 +2463,18 @@ model PlaceBoosterDraft {
 
   @@index([createdByAdmin, storeId])
   @@map("place_booster_drafts")
+}
+
+// 저장된 고객 세그먼트 — 조건(JSON)만 저장하고 발송 시점마다 다시 평가한다 (services/segment-engine.ts)
+model CustomerSegment {
+  id         String   @id @default(cuid())
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name       String
+  conditions Json     // SegmentConditions
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([storeId])
+  @@map("customer_segments")
 }

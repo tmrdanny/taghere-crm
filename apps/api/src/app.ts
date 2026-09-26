@@ -48,6 +48,7 @@ import stampsRoutes from './routes/stamps.js';
 import monthlyCreditRoutes from './routes/monthly-credit.js';
 import visitSourceSettingsRoutes from './routes/visit-source-settings.js';
 import insightsRoutes from './routes/insights.js';
+import segmentsRoutes from './routes/segments.js';
 import retargetCouponRoutes from './routes/retarget-coupon.js';
 import couponFormRoutes from './routes/coupon-form.js';
 import automationRoutes from './routes/automation.js';
@@ -122,6 +123,9 @@ app.use(cors({
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 86400, // Preflight 캐시 24시간
 }));
+// 고객 대량 등록은 청크(최대 2,000행)당 수백 KB — 기본 100KB 한도에 걸려 ~500행에서 413이 나던 문제.
+// 이 경로만 한도를 올리고, 먼저 파싱된 body 는 아래 전역 파서가 건너뛴다.
+app.use('/api/customers/bulk', express.json({ limit: '5mb' }));
 app.use(express.json());
 
 // Rate Limiting - 일반 API (15분에 5000요청)
@@ -271,6 +275,7 @@ app.use('/api/visit-source-settings', visitSourceSettingsRoutes);
 
 // Insights routes
 app.use('/api/insights', insightsRoutes);
+app.use('/api/segments', segmentsRoutes);
 
 // Retarget coupon routes
 app.use('/api/retarget-coupon', retargetCouponRoutes);

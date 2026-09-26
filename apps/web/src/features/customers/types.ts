@@ -149,6 +149,8 @@ export interface BulkRow {
   memo?: string;
   initialPoints?: number;
   initialStamps?: number;
+  consentMarketing?: string; // 마케팅 수신 동의 (Y/N 등)
+  row?: number; // 엑셀 행 번호 (오류 위치 표시용)
 }
 
 // 대량 등록 결과
@@ -156,4 +158,10 @@ export interface BulkUploadResult {
   created: number;
   skipped: number;
   errors: Array<{ row: number; phone: string; reason: string }>;
+}
+
+// 대량 등록 진행 상태
+export interface BulkUploadProgress {
+  done: number;
+  total: number;
 }

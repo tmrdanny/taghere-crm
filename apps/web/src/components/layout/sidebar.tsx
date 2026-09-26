@@ -394,7 +394,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
         href={item.isExternal || item.isComingSoon ? '#' : item.href}
         onClick={(e) => handleNavClick(e, item)}
         className={cn(
-          'ad-press relative flex items-center gap-2.5 mx-2 px-2.5 h-9 [@media(max-height:860px)]:h-8 rounded-[10px] text-[13px] transition-colors',
+          'ad-press relative flex items-center gap-3 mx-2 px-3 h-10 [@media(max-height:860px)]:h-[34px] rounded-[10px] text-[13.5px] transition-colors',
           active
             ? 'bg-white font-semibold text-[color:var(--ad-ink)] shadow-[0_0_0_1px_var(--ad-line)]'
             : 'text-[color:var(--ad-ink-2)] hover:bg-white/60',
@@ -451,8 +451,8 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
     }
 
     return (
-      <div key={group.title} className="mt-5 [@media(max-height:860px)]:mt-3">
-        <p className="mb-1 flex items-center gap-1.5 px-[18px] text-[11px] font-medium text-[color:var(--ad-faint)]">
+      <div key={group.title} className="mt-6 [@media(max-height:860px)]:mt-3">
+        <p className="mb-1.5 flex items-center gap-1.5 px-5 text-[11px] font-medium text-[color:var(--ad-faint)]">
           {group.title}
           {group.badge && (
             <span className="rounded-full bg-[color:var(--ad-bg)] px-1.5 py-px text-[10px] font-medium text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line)]">
@@ -460,7 +460,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
             </span>
           )}
         </p>
-        <div className="space-y-px">{group.items.map(item => renderNavItem(item))}</div>
+        <div className="space-y-0.5 [@media(max-height:860px)]:space-y-0">{group.items.map(item => renderNavItem(item))}</div>
       </div>
     );
   };
@@ -507,14 +507,14 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
 
         {/* Navigation */}
         {/* 포스기처럼 휠이 없는 환경 대비: 스크롤바를 얇게 보이고, 넘칠 때 아래쪽을 흐리게 표시 */}
-        <nav className="ad-scroll flex-1 overflow-y-auto py-2">
+        <nav className="ad-scroll flex-1 overflow-y-auto py-3">
           {/* 상단 홈 메뉴 */}
-          <div className="space-y-px">{topNavItems.map(item => renderNavItem(item))}</div>
+          <div className="space-y-0.5">{topNavItems.map(item => renderNavItem(item))}</div>
 
           {/* 카테고리별 메뉴 (항상 펼침) */}
           {navGroupsForUser.map(group => renderNavGroup(group))}
 
-          <div className="pointer-events-none sticky bottom-0 h-6 bg-gradient-to-t from-[rgba(250,251,252,0.95)] to-transparent" aria-hidden />
+          <div className="pointer-events-none sticky bottom-0 -mt-6 h-6 bg-gradient-to-t from-[rgba(250,251,252,0.95)] to-transparent" aria-hidden />
         </nav>
 
         {/* 매장·관리 메뉴 (발송 내역, 사용내역, 충전 관리, 설정, 테이블 채팅, 앱 설치) */}
@@ -798,7 +798,7 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
     // 관리자 사이드바와 동일: 드롭다운 없이 카테고리 제목 + 아이콘 메뉴를 항상 펼쳐 보여준다
     return (
       <div key={group.title} className="mt-5">
-        <p className="mb-1 flex items-center gap-1.5 px-[18px] text-[11px] font-medium text-[color:var(--ad-faint)]">
+        <p className="mb-1.5 flex items-center gap-1.5 px-5 text-[11px] font-medium text-[color:var(--ad-faint)]">
           {group.title}
           {group.badge && (
             <span className="rounded-full bg-[color:var(--ad-bg)] px-1.5 py-px text-[10px] font-medium text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line)]">
