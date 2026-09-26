@@ -136,13 +136,12 @@ export default function AdminCustomersExportPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-neutral-900 mb-1">고객 데이터 추출</h1>
-      <p className="text-neutral-500 text-sm mb-8">전체 매장의 고객 데이터를 엑셀 파일로 다운로드합니다.</p>
+      <p className="mb-5 text-[13px] text-[color:var(--ad-muted)]">전체 매장의 고객 데이터를 엑셀 파일로 다운로드합니다.</p>
 
-      <div className="bg-white border border-[#EAEAEA] rounded-xl p-6 max-w-md">
+      <div className="ad-card p-5 max-w-md">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+            <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
               다운로드 비밀번호
             </label>
             <input
@@ -151,26 +150,26 @@ export default function AdminCustomersExportPage() {
               onChange={(e) => { setPassword(e.target.value); setError(''); }}
               onKeyDown={(e) => e.key === 'Enter' && handleExport()}
               placeholder="비밀번호를 입력하세요"
-              className="w-full px-4 py-2.5 border border-[#EAEAEA] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
+              className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
             />
           </div>
 
           {error && (
-            <p className="text-red-500 text-sm">{error}</p>
+            <p className="text-[13px] text-[color:var(--ad-neg)]">{error}</p>
           )}
 
           {result && (
-            <p className="text-green-600 text-sm">{result}</p>
+            <p className="text-[13px] text-[color:var(--ad-pos)]">{result}</p>
           )}
 
           <button
             onClick={handleExport}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-neutral-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="ad-press w-full inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
                 추출 중...
               </>
             ) : (

@@ -4,16 +4,14 @@ import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback } from 'react';
 import { BoosterCreateForm, BoosterTargetResult, BoosterFormValues, ActiveEditMeta, validUntilText } from '@/components/place-booster/booster-create-form';
 import { BoosterReport, CampaignInputCard, ReportRow, ReportTotals } from '@/components/place-booster/booster-report';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
 
 const STATUS: Record<string, { label: string; cls: string }> = {
-  DRAFT: { label: '결제 대기', cls: 'bg-gray-100 text-gray-600' },
-  SCHEDULED: { label: '발송 예정', cls: 'bg-blue-100 text-blue-700' },
-  RUNNING: { label: '발송 중', cls: 'bg-green-100 text-green-700' },
-  COMPLETED: { label: '완료', cls: 'bg-gray-200 text-gray-700' },
-  CANCELLED: { label: '취소됨', cls: 'bg-red-100 text-red-600' },
+  DRAFT: { label: '결제 대기', cls: 'bg-[#ffdace] text-[#993d1f]' },
+  SCHEDULED: { label: '발송 예정', cls: 'bg-[color:var(--ad-blue-soft)] text-[color:var(--ad-link)]' },
+  RUNNING: { label: '발송 중', cls: 'bg-[#d9fad3] text-[color:var(--ad-pos)]' },
+  COMPLETED: { label: '완료', cls: 'bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]' },
+  CANCELLED: { label: '취소됨', cls: 'bg-[#ffc4d0] text-[color:var(--ad-neg)]' },
 };
 const won = (n: number) => (n ?? 0).toLocaleString('ko-KR');
 const adminToken = () => (typeof window !== 'undefined' ? localStorage.getItem('adminToken') || '' : '');
@@ -142,18 +140,18 @@ export default function AdminPlaceBoosterPage() {
   const pages = Math.max(1, Math.ceil(total / 20));
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold">네이버 플레이스 부스터</h1>
-        {!showCreate && !detailId && !editId && (
-          <button className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm" onClick={startCreate}>
+    // ad-booster: 공용 부스터 컴포넌트(점주·프랜차이즈와 공유)를 관리자 화면에서만 v2 톤으로 보이게 하는 범위
+    <div className="ad-booster">
+      {!showCreate && !detailId && !editId && (
+        <div className="flex flex-wrap items-center justify-end gap-3 mb-5">
+          <button className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50" onClick={startCreate}>
             + 캠페인 생성
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {msg && (
-        <div className="mb-3 bg-blue-50 text-blue-700 px-3 py-2 rounded text-sm flex justify-between">
+        <div className="mb-4 bg-[color:var(--ad-blue-soft)] text-[color:var(--ad-link)] px-4 py-2.5 rounded-[10px] text-[13px] flex justify-between">
           {msg} <button onClick={() => setMsg('')}>✕</button>
         </div>
       )}
@@ -204,94 +202,96 @@ export default function AdminPlaceBoosterPage() {
       ) : (
       <>
       {analytics && (
-        <div className="grid grid-cols-3 gap-3 mb-5">
+        <div className="ad-card grid grid-cols-3 overflow-hidden mb-4">
           <Stat label="전체 캠페인" value={won(analytics.totalCampaigns)} />
           <Stat label="진행 중" value={won(analytics.activeCampaigns)} />
           <Stat label="승인 대기" value={won(analytics.pendingApproval)} highlight={analytics.pendingApproval > 0} />
         </div>
       )}
       {drafts.length > 0 && (
-        <div className="mb-4 border border-gray-200 rounded-lg divide-y">
+        <div className="ad-card mb-4 divide-y divide-[color:var(--ad-line)]">
           {drafts.map((d) => (
-            <div key={d.id} className="flex items-center justify-between gap-3 px-3 py-2">
+            <div key={d.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
               <button className="text-left flex-1 min-w-0" onClick={() => resumeDraft(d)}>
-                <span className="text-sm font-medium">{d.formData?.keyword?.trim() || d.formData?.target?.campaignName || '(제목 없음)'}</span>
-                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">임시 저장됨</span>
-                <span className="ml-2 text-xs text-gray-400">이어서 작성</span>
+                <span className="text-[13px] font-medium text-[color:var(--ad-ink)]">{d.formData?.keyword?.trim() || d.formData?.target?.campaignName || '(제목 없음)'}</span>
+                <span className="ml-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]">임시 저장됨</span>
+                <span className="ml-2 text-[12px] text-[color:var(--ad-faint)]">이어서 작성</span>
               </button>
-              <button className="text-xs font-medium px-2 py-1 rounded border border-red-200 text-red-700 bg-red-50 hover:bg-red-100" onClick={() => deleteDraft(d.id)}>삭제</button>
+              <button className="ad-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[color:var(--ad-neg)]" onClick={() => deleteDraft(d.id)}>삭제</button>
             </div>
           ))}
         </div>
       )}
 
-      <div className="flex gap-2 mb-3">
+      <div className="flex flex-wrap gap-2 mb-3">
         <input
-          className="border rounded px-3 py-2 text-sm flex-1"
+          className="h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none flex-1 min-w-[200px]"
           placeholder="매장명 / 대표자 / 키워드 검색"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
-        <select className="border rounded px-3 py-2 text-sm" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
+        <select className="h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
           <option value="">전체 상태</option>
           {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
       </div>
 
-      <div className="bg-white rounded-lg border overflow-x-auto">
-        <table className="w-full text-sm min-w-[640px]">
-          <thead className="bg-gray-50 text-gray-500 text-xs">
-            <tr>
-              <th className="px-3 py-2 text-left">매장</th>
-              <th className="px-3 py-2 text-left">키워드</th>
-              <th className="px-3 py-2 text-left">상태</th>
-              <th className="px-3 py-2 text-left">결제</th>
-              <th className="px-3 py-2 text-right">진행</th>
-              <th className="px-3 py-2 text-right">발송</th>
-              <th className="px-3 py-2 text-right">액션</th>
+      <div className="ad-card overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px]">
+          <thead>
+            <tr className="border-b border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] text-left text-[11.5px] text-[color:var(--ad-muted)]">
+              <th className="px-4 py-2.5 font-medium text-left">매장</th>
+              <th className="px-4 py-2.5 font-medium text-left">키워드</th>
+              <th className="px-4 py-2.5 font-medium text-left">상태</th>
+              <th className="px-4 py-2.5 font-medium text-left">결제</th>
+              <th className="px-4 py-2.5 font-medium text-right">진행</th>
+              <th className="px-4 py-2.5 font-medium text-right">발송</th>
+              <th className="px-4 py-2.5 font-medium text-right">액션</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-[color:var(--ad-line)] text-[13px]">
             {rows.map((r) => (
-              <tr key={r.id} className="border-t">
-                <td className="px-3 py-2">
-                  <div className="font-medium flex items-center gap-1.5">
+              <tr key={r.id} className="hover:bg-[rgba(110,173,255,0.05)]">
+                <td className="px-4 py-3">
+                  <div className="font-medium text-[color:var(--ad-ink)] flex items-center gap-1.5">
                     {r.store?.name || r.campaignName || '—'}
-                    {r.isExternal && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">외부</span>}
+                    {r.isExternal && <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-[color:var(--ad-blue-soft)] text-[color:var(--ad-link)]">외부</span>}
                   </div>
-                  <div className="text-xs text-gray-400">{r.isExternal ? '외부 고객' : r.store?.ownerName || ''}</div>
+                  <div className="text-[12px] text-[color:var(--ad-faint)]">{r.isExternal ? '외부 고객' : r.store?.ownerName || ''}</div>
                 </td>
-                <td className="px-3 py-2">{r.keyword}</td>
-                <td className="px-3 py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${(STATUS[r.status] || STATUS.DRAFT).cls}`}>{(STATUS[r.status] || STATUS.DRAFT).label}</span></td>
-                <td className="px-3 py-2 text-xs">{r.paymentStatus === 'PAID' ? '완료' : r.paymentStatus === 'PENDING_APPROVAL' ? '승인 대기' : '미결제'}</td>
-                <td className="px-3 py-2 text-right text-xs">{r.sentBatches}/{r.totalBatches}주</td>
-                <td className="px-3 py-2 text-right">{won(r.sentCount)}</td>
-                <td className="px-3 py-2 text-right whitespace-nowrap">
+                <td className="px-4 py-3">{r.keyword}</td>
+                <td className="px-4 py-3"><span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${(STATUS[r.status] || STATUS.DRAFT).cls}`}>{(STATUS[r.status] || STATUS.DRAFT).label}</span></td>
+                <td className="px-4 py-3 text-[12px] text-[color:var(--ad-ink-2)]">{r.paymentStatus === 'PAID' ? '완료' : r.paymentStatus === 'PENDING_APPROVAL' ? '승인 대기' : '미결제'}</td>
+                <td className="px-4 py-3 text-right text-[12px] ad-tnum">{r.sentBatches}/{r.totalBatches}주</td>
+                <td className="px-4 py-3 text-right ad-tnum">{won(r.sentCount)}</td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">
                   <div className="flex justify-end gap-1">
-                    <button className="text-xs font-medium px-2 py-1 rounded border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100" onClick={() => setDetailId(r.id)}>상세</button>
+                    <button className="ad-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[color:var(--ad-link)]" onClick={() => setDetailId(r.id)}>상세</button>
                     {EDITABLE_STATUSES.includes(r.status) && (
-                      <button disabled={acting} className="text-xs font-medium px-2 py-1 rounded border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-40" onClick={() => setEditId(r.id)}>수정</button>
+                      <button disabled={acting} className="ad-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[color:var(--ad-ink-2)]" onClick={() => setEditId(r.id)}>수정</button>
                     )}
                     {r.paymentStatus === 'PENDING_APPROVAL' && (
-                      <button disabled={acting} className="text-xs font-medium px-2 py-1 rounded border border-green-200 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-40" onClick={() => act(`/api/admin/place-booster/campaigns/${r.id}/approve`, 'POST', '승인되었습니다.')}>승인</button>
+                      <button disabled={acting} className="ad-press text-[12px] font-semibold px-2.5 h-7 rounded-[8px] bg-[color:var(--ad-yellow)] text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-40" onClick={() => act(`/api/admin/place-booster/campaigns/${r.id}/approve`, 'POST', '승인되었습니다.')}>승인</button>
                     )}
                     {r.status !== 'CANCELLED' && r.status !== 'COMPLETED' && (
-                      <button disabled={acting} className="text-xs font-medium px-2 py-1 rounded border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:opacity-40" onClick={() => { if (confirm('취소(중지)하시겠습니까?')) act(`/api/admin/place-booster/campaigns/${r.id}/cancel`, 'POST', (d) => d.failed?.length ? `취소했습니다. 단, ${d.failed.length}개 회차(${d.failed.map((f: any) => `${f.weekNo}주`).join(', ')})는 발송 5분 이내라 취소되지 않고 발송됩니다.` : '취소되었습니다.'); }}>취소</button>
+                      <button disabled={acting} className="ad-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[#993d1f]" onClick={() => { if (confirm('취소(중지)하시겠습니까?')) act(`/api/admin/place-booster/campaigns/${r.id}/cancel`, 'POST', (d) => d.failed?.length ? `취소했습니다. 단, ${d.failed.length}개 회차(${d.failed.map((f: any) => `${f.weekNo}주`).join(', ')})는 발송 5분 이내라 취소되지 않고 발송됩니다.` : '취소되었습니다.'); }}>취소</button>
                     )}
-                    <button disabled={acting} className="text-xs font-medium px-2 py-1 rounded border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-40" onClick={() => { if (confirm('삭제(숨김)하시겠습니까?')) act(`/api/admin/place-booster/campaigns/${r.id}`, 'DELETE', '삭제되었습니다.'); }}>삭제</button>
+                    <button disabled={acting} className="ad-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[color:var(--ad-neg)]" onClick={() => { if (confirm('삭제(숨김)하시겠습니까?')) act(`/api/admin/place-booster/campaigns/${r.id}`, 'DELETE', '삭제되었습니다.'); }}>삭제</button>
                   </div>
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={7} className="px-3 py-10 text-center text-gray-400">{loading ? '불러오는 중…' : '캠페인이 없습니다.'}</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-[13px] text-[color:var(--ad-faint)]">{loading ? '불러오는 중…' : '캠페인이 없습니다.'}</td></tr>}
           </tbody>
         </table>
       </div>
+      </div>
 
-      <div className="flex justify-center gap-2 mt-4 text-sm">
-        <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="px-3 py-1 border rounded disabled:opacity-40">이전</button>
-        <span className="px-2 py-1">{page} / {pages}</span>
-        <button disabled={page >= pages} onClick={() => setPage((p) => p + 1)} className="px-3 py-1 border rounded disabled:opacity-40">다음</button>
+      <div className="flex items-center justify-center gap-2 mt-4 text-[13px] text-[color:var(--ad-ink-2)]">
+        <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="ad-press inline-flex items-center justify-center h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">이전</button>
+        <span className="px-2 py-1 ad-tnum">{page} / {pages}</span>
+        <button disabled={page >= pages} onClick={() => setPage((p) => p + 1)} className="ad-press inline-flex items-center justify-center h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">다음</button>
       </div>
       </>
       )}
@@ -302,9 +302,9 @@ export default function AdminPlaceBoosterPage() {
 
 function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className={`rounded-lg border p-3 text-center ${highlight ? 'border-amber-300 bg-amber-50' : 'bg-white'}`}>
-      <div className="text-xs text-gray-500">{label}</div>
-      <div className="text-lg font-bold mt-1">{value}</div>
+    <div className={`p-5 border-l border-[color:var(--ad-line)] first:border-l-0 ${highlight ? 'bg-[color:var(--ad-yellow-soft)]' : ''}`}>
+      <div className="text-[12px] text-[color:var(--ad-muted)]">{label}</div>
+      <div className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)] mt-1">{value}</div>
     </div>
   );
 }
@@ -370,58 +370,58 @@ function AdminReportView({ id, af, onBack, onChanged }: { id: string; af: (p: st
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
-        <button onClick={onBack} className="flex items-center gap-0.5 text-[15px] text-neutral-500 hover:text-neutral-700">
-          <ChevronLeft className="w-5 h-5" /> 목록으로
+        <button onClick={onBack} className="flex items-center gap-0.5 text-[13px] font-medium text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]">
+          <ChevronLeft className="w-4 h-4" /> 목록으로
         </button>
         {data && (
-          <Button type="button" variant="secondary" size="sm" onClick={exportPdf} disabled={exporting}>
+          <button type="button" className="ad-press inline-flex items-center justify-center h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50" onClick={exportPdf} disabled={exporting}>
             {exporting ? 'PDF 생성 중…' : 'PDF 다운로드'}
-          </Button>
+          </button>
         )}
       </div>
 
       {!data ? (
-        <p className="text-[15px] text-neutral-400">불러오는 중…</p>
+        <p className="text-[13px] text-[color:var(--ad-faint)]">불러오는 중…</p>
       ) : (
         <>
           {/* 테스트 발송 (PDF 캡처 영역 밖) */}
-          <Card className="p-5 mb-4">
-            <div className="text-[15px] font-semibold text-neutral-800 mb-1">테스트 발송</div>
-            <p className="text-sm text-neutral-400 mb-3">입력한 번호로 실제와 똑같은 알림톡 1건을 즉시 보냅니다. (발송 대상·회차·결제와 무관)</p>
+          <div className="ad-card p-5 mb-4">
+            <div className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-1">테스트 발송</div>
+            <p className="text-[12px] text-[color:var(--ad-faint)] mb-3">입력한 번호로 실제와 똑같은 알림톡 1건을 즉시 보냅니다. (발송 대상·회차·결제와 무관)</p>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
-                className="flex-1 border border-neutral-300 rounded-lg px-3.5 py-3 text-base min-h-12"
+                className="flex-1 h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 value={testPhone}
                 onChange={(e) => setTestPhone(e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="받을 휴대폰 번호 (예: 01012345678)"
                 inputMode="numeric"
               />
-              <Button type="button" variant="secondary" size="lg" className="shrink-0" onClick={sendTest} disabled={testSending}>
+              <button type="button" className="ad-press inline-flex items-center justify-center h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50 shrink-0" onClick={sendTest} disabled={testSending}>
                 {testSending ? '발송 중…' : '테스트 발송'}
-              </Button>
+              </button>
             </div>
-            {testMsg && <p className={`text-sm mt-2 ${testMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{testMsg}</p>}
-          </Card>
+            {testMsg && <p className={`text-[12.5px] mt-2 ${testMsg.startsWith('✓') ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-neg)]'}`}>{testMsg}</p>}
+          </div>
 
           {/* 성과 리포트 (화면용 — PDF는 데이터로 별도 렌더) */}
           <div>
-            <Card className="p-6 mb-4">
+            <div className="ad-card p-5 mb-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-bold text-neutral-900">{displayName}</h2>
-                    {data.isExternal && <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">외부</span>}
+                    <h2 className="text-[17px] font-bold text-[color:var(--ad-ink)]">{displayName}</h2>
+                    {data.isExternal && <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-[color:var(--ad-blue-soft)] text-[color:var(--ad-link)]">외부</span>}
                   </div>
-                  <p className="text-base text-neutral-500 mt-1.5">유입 키워드: {data.campaign.keyword} · {data.campaign.couponContent}</p>
-                  <div className="text-sm text-neutral-400 mt-1">
+                  <p className="text-[13px] text-[color:var(--ad-muted)] mt-1.5">유입 키워드: {data.campaign.keyword} · {data.campaign.couponContent}</p>
+                  <div className="text-[12px] text-[color:var(--ad-faint)] mt-1 ad-tnum">
                     {data.campaign.perBatchCount.toLocaleString()}명 × {data.campaign.totalWeeks}주 (총 {data.campaign.totalTargetCount.toLocaleString()}명)
                   </div>
                 </div>
-                <span className={`text-sm px-2.5 py-1 rounded-full shrink-0 ${(STATUS[data.campaign.status] || STATUS.DRAFT).cls}`}>
+                <span className={`inline-flex rounded-full px-2.5 py-1 text-[12px] font-medium shrink-0 ${(STATUS[data.campaign.status] || STATUS.DRAFT).cls}`}>
                   {(STATUS[data.campaign.status] || STATUS.DRAFT).label}
                 </span>
               </div>
-            </Card>
+            </div>
 
             {/* 캠페인 입력 정보 (취소 후 재등록 참고용) */}
             <CampaignInputCard
@@ -479,12 +479,12 @@ function useAdminTarget(
 
   const renderTarget = () => (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-1 bg-neutral-100 rounded-lg p-1">
+      <div className="grid grid-cols-2 gap-1 rounded-[10px] bg-[rgba(29,32,34,0.045)] p-[3px]">
         {([['store', '기존 매장'], ['external', '외부 고객']] as const).map(([m, label]) => (
           <button
             key={m}
             type="button"
-            className={`py-2 rounded-md text-sm font-medium transition-colors ${mode === m ? 'bg-white shadow text-neutral-900' : 'text-neutral-500'}`}
+            className={`ad-press py-2 rounded-[8px] text-[13px] font-medium transition-colors ${mode === m ? 'bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-muted)]'}`}
             onClick={() => setMode(m)}
           >
             {label}
@@ -494,26 +494,26 @@ function useAdminTarget(
       {mode === 'external' ? (
         <input className="input" placeholder="외부 고객/캠페인 식별용 이름 (예: 행궁동 카페 6월)" value={campaignName} onChange={(e) => setCampaignName(e.target.value)} />
       ) : selectedStoreName ? (
-        <div className="flex items-center justify-between border border-green-300 bg-green-50 rounded-xl px-4 py-3 text-sm">
-          <span className="font-medium">{selectedStoreName}</span>
-          <button type="button" className="text-xs text-neutral-500 underline" onClick={() => { setStoreId(''); setSelectedStoreName(''); }}>변경</button>
+        <div className="flex items-center justify-between border border-[color:var(--ad-line-strong)] bg-[color:var(--ad-bg-alt)] rounded-[10px] px-4 py-3 text-[13px]">
+          <span className="font-medium text-[color:var(--ad-ink)]">{selectedStoreName}</span>
+          <button type="button" className="text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline" onClick={() => { setStoreId(''); setSelectedStoreName(''); }}>변경</button>
         </div>
       ) : (
         <>
           <input className="input" placeholder="매장명 / 대표자 검색" value={storeSearch} onChange={(e) => setStoreSearch(e.target.value)} />
           {storeSearch.trim() && (
-            <div className="max-h-44 overflow-y-auto border border-neutral-200 rounded-xl divide-y">
-              {stores.length === 0 && <div className="px-3 py-2 text-sm text-neutral-400">검색 결과가 없습니다.</div>}
+            <div className="max-h-44 overflow-y-auto border border-[color:var(--ad-line)] rounded-[10px] divide-y divide-[color:var(--ad-line)] bg-white">
+              {stores.length === 0 && <div className="px-3 py-2 text-[13px] text-[color:var(--ad-faint)]">검색 결과가 없습니다.</div>}
               {stores.map((s) => (
                 <button
                   type="button"
                   key={s.id}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50"
+                  className="w-full text-left px-3 py-2 text-[13px] hover:bg-[color:var(--ad-bg-alt)]"
                   onClick={() => { setStoreId(s.id); setSelectedStoreName(s.name); setStoreSearch(''); setPrefillPhone(s.phone || ''); }}
                 >
-                  <span className="font-medium">{s.name}</span>
-                  {s.ownerName ? <span className="text-neutral-500"> ({s.ownerName})</span> : null}
-                  <span className="text-xs text-neutral-400"> — {s.address || '주소없음'}</span>
+                  <span className="font-medium text-[color:var(--ad-ink)]">{s.name}</span>
+                  {s.ownerName ? <span className="text-[color:var(--ad-muted)]"> ({s.ownerName})</span> : null}
+                  <span className="text-[12px] text-[color:var(--ad-faint)]"> — {s.address || '주소없음'}</span>
                 </button>
               ))}
             </div>
@@ -592,8 +592,8 @@ function AdminEditView({ id, af, onBack, onSaved }: { id: string; af: (p: string
       .catch(() => setErr('네트워크 오류가 발생했습니다.'));
   }, [af, id]);
 
-  if (err) return <div className="rounded-lg bg-red-50 text-red-700 px-4 py-3 text-sm">{err} <button className="underline ml-2" onClick={onBack}>목록으로</button></div>;
-  if (!data) return <div className="p-10 text-center text-gray-400">불러오는 중…</div>;
+  if (err) return <div className="rounded-[10px] bg-[#ffc4d0]/40 text-[color:var(--ad-neg)] px-4 py-3 text-[13px]">{err} <button className="underline ml-2" onClick={onBack}>목록으로</button></div>;
+  if (!data) return <div className="p-10 text-center text-[13px] text-[color:var(--ad-faint)]">불러오는 중…</div>;
   return <AdminEditForm id={id} af={af} campaign={data.campaign} storeName={data.store?.name ?? ''} onBack={onBack} onSaved={onSaved} />;
 }
 

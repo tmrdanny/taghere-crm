@@ -12,6 +12,7 @@ import { trackEvent } from '@/lib/analytics';
 import { Rocket, Ticket, Calendar, ChevronLeft, Loader2, ExternalLink, Store } from 'lucide-react';
 import { buildBoosterSearchUrl } from '@/lib/booster-link';
 import { Button } from '@/components/ui/button';
+import { IPhoneFrame } from '@/components/ui/iphone-frame';
 
 const KST_OFFSET = 9 * 60 * 60 * 1000;
 
@@ -540,12 +541,8 @@ function AlimtalkPreview({
 
   const now = new Date();
   return (
-    <div className="flex justify-center">
-      <div className="relative w-72 h-[580px] bg-neutral-800 rounded-[2.5rem] p-2 shadow-2xl">
-        <div className="w-full h-full bg-neutral-900 rounded-[2rem] p-1 overflow-hidden">
-          <div className="w-full h-full bg-[#B2C7D9] rounded-[1.75rem] overflow-hidden flex flex-col relative">
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-neutral-900 rounded-full z-10" />
-            <div className="flex items-center justify-between px-4 pt-10 pb-2">
+    <IPhoneFrame screenClassName="bg-[#B2C7D9]">
+            <div className="flex items-center justify-between px-4 pt-1 pb-2">
               <ChevronLeft className="w-4 h-4 text-neutral-700" />
               <span className="font-medium text-xs text-neutral-800">태그히어 플레이스</span>
               <span className="text-base leading-none text-neutral-700">≡</span>
@@ -555,7 +552,7 @@ function AlimtalkPreview({
                 {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
               </span>
             </div>
-            <div className="flex-1 pl-2 pr-4 overflow-auto">
+            <div className="flex-1 pl-2 pr-4 pb-6 overflow-auto">
               <div className="flex gap-1.5">
                 <div className="flex-shrink-0">
                   <div className="w-7 h-7 rounded-full bg-neutral-300" />
@@ -595,9 +592,6 @@ function AlimtalkPreview({
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </IPhoneFrame>
   );
 }

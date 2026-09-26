@@ -13,9 +13,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronUp,
-  Wifi,
   Camera,
-  BatteryFull,
   X,
   Search,
   Plus,
@@ -32,6 +30,7 @@ import {
 import { cn } from '@/lib/utils';
 import { KakaoButton } from '@/features/messages';
 import { CouponAlimtalkPreview } from '@/features/kakao-composer';
+import { IPhoneFrame } from '@/components/ui/iphone-frame';
 
 
 // 대한민국 17개 시/도 목록
@@ -1481,31 +1480,20 @@ export default function LocalCustomersPage() {
         <div className="bg-[#e2e8f0] rounded-3xl p-5">
           {activeTab === 'kakao' ? (
             /* 카카오톡 미리보기 - 쿠폰 알림톡 (messages 페이지와 동일) */
-            <div className="relative w-full h-[680px] bg-neutral-800 rounded-[2.5rem] p-2 shadow-2xl">
-              <div className="w-full h-full bg-neutral-900 rounded-[2rem] p-1 overflow-hidden">
-                <div className="w-full h-full bg-[#B2C7D9] rounded-[1.75rem] overflow-hidden flex flex-col relative">
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-neutral-900 rounded-full z-10" />
+            <IPhoneFrame screenClassName="bg-[#B2C7D9]" className="w-full max-w-[320px]">
 
                   <CouponAlimtalkPreview
                     couponStoreName={(franchiseStores.find((s) => s.id === representativeStoreId)?.name) || ''}
                     couponContent={couponContent}
                     couponExpiryDate={couponExpiryDate}
                   />
-                </div>
-              </div>
-            </div>
+            </IPhoneFrame>
           ) : SHOW_LEGACY_KAKAO_UI ? (
             /* (구) 카카오톡 미리보기 - 네이버 리뷰 스타일 (비활성) */
-            <div className="relative w-full h-[680px] bg-neutral-800 rounded-[2.5rem] p-2 shadow-2xl">
-              {/* Inner bezel */}
-              <div className="w-full h-full bg-neutral-900 rounded-[2rem] p-1 overflow-hidden">
-                {/* Screen */}
-                <div className="w-full h-full bg-[#B2C7D9] rounded-[1.75rem] overflow-hidden flex flex-col relative">
-                  {/* Dynamic Island / Notch */}
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-neutral-900 rounded-full z-10" />
+            <IPhoneFrame screenClassName="bg-[#B2C7D9]" className="w-full max-w-[320px]">
 
                   {/* KakaoTalk header */}
-                  <div className="flex items-center justify-between px-4 pt-10 pb-2">
+                  <div className="flex items-center justify-between px-4 pt-1 pb-2">
                     <ChevronLeft className="w-4 h-4 text-neutral-700" />
                     <span className="font-medium text-xs text-neutral-800">카카오톡</span>
                     <Menu className="w-4 h-4 text-neutral-700" />
@@ -1591,23 +1579,11 @@ export default function LocalCustomersPage() {
 
                   {/* Bottom safe area */}
                   <div className="h-6" />
-                </div>
-              </div>
-            </div>
+            </IPhoneFrame>
           ) : (
             /* SMS 미리보기 - 기존 스타일 유지 */
-            <div className="w-full h-[680px] bg-white rounded-[44px] border-[10px] border-[#1e293b] overflow-hidden flex flex-col shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] relative">
-              {/* Dynamic Island */}
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[90px] h-[28px] bg-[#1e293b] rounded-full z-20" />
+            <IPhoneFrame screenClassName="bg-white" className="w-full max-w-[320px]">
 
-              {/* Status Bar */}
-              <div className="h-12 bg-white flex items-end justify-between px-6 pb-1 text-xs font-semibold">
-                <span>12:30</span>
-                <div className="flex items-center gap-1">
-                  <Wifi className="w-4 h-4" />
-                  <BatteryFull className="w-5 h-5" />
-                </div>
-              </div>
 
               {/* iOS Header */}
               <div className="h-[60px] bg-white flex items-center justify-between px-4 border-b border-[#e5e7eb]">
@@ -1657,7 +1633,7 @@ export default function LocalCustomersPage() {
               <div className="h-8 bg-white flex items-center justify-center">
                 <div className="w-32 h-1 bg-[#1e293b] rounded-full" />
               </div>
-            </div>
+            </IPhoneFrame>
           )}
         </div>
       </div>

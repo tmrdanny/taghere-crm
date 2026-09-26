@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { API_BASE } from '@/lib/api-config';
 import { CouponAlimtalkPreview } from '@/features/kakao-composer';
 import { UploadedImage } from './types';
+import { IPhoneFrame } from '@/components/ui/iphone-frame';
 
 // 발송 메시지 미리보기 (우측 폰 프레임). SMS / 카카오 알림톡 탭에 따라 화면 전환.
 // 읽기 전용 표시 컴포넌트 — 상태/핸들러는 부모에서 관리.
@@ -29,22 +30,13 @@ export function MessagePreview({
         <p className="text-center text-[#64748b] mb-4">발송 메시지 미리보기</p>
         <div className="flex justify-center">
           {/* Phone Frame */}
-          <div className="relative w-72 h-[580px] bg-neutral-800 rounded-[2.5rem] p-2 shadow-2xl">
-            {/* Inner bezel */}
-            <div className="w-full h-full bg-neutral-900 rounded-[2rem] p-1 overflow-hidden">
-              {/* Screen */}
-              <div className={cn(
-                "w-full h-full rounded-[1.75rem] overflow-hidden flex flex-col relative",
-                activeTab === 'sms' ? 'bg-white' : 'bg-[#B2C7D9]'
-              )}>
-                {/* Dynamic Island / Notch */}
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-neutral-900 rounded-full z-10" />
+          <IPhoneFrame screenClassName={activeTab === 'sms' ? 'bg-white' : 'bg-[#B2C7D9]'}>
 
                 {/* SMS Preview */}
                 {activeTab === 'sms' && (
                   <>
                     {/* iOS Header */}
-                    <div className="flex items-center justify-between px-4 pt-10 pb-2 border-b border-[#e5e5ea]">
+                    <div className="flex items-center justify-between px-4 pt-1 pb-2 border-b border-[#e5e5ea]">
                       <ChevronLeft className="w-5 h-5 text-[#007aff]" />
                       <div className="flex flex-col items-center gap-1">
                         <div className="w-8 h-8 bg-[#9ca3af] rounded-full flex items-center justify-center text-white">
@@ -110,9 +102,7 @@ export function MessagePreview({
                     couponExpiryDate={couponExpiryDate}
                   />
                 )}
-              </div>
-            </div>
-          </div>
+          </IPhoneFrame>
         </div>
       </div>
     </div>

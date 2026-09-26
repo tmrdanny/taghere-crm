@@ -38,9 +38,9 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING: 'bg-yellow-100 text-yellow-700',
-  SUCCESS: 'bg-green-100 text-green-700',
-  FAILED: 'bg-red-100 text-red-700',
+  PENDING: 'bg-[#ffdace] text-[#993d1f]',
+  SUCCESS: 'bg-[#d9fad3] text-[color:var(--ad-pos)]',
+  FAILED: 'bg-[#ffc4d0] text-[color:var(--ad-neg)]',
 };
 
 export default function PaymentsPage() {
@@ -161,46 +161,45 @@ export default function PaymentsPage() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-neutral-900">결제내역</h1>
-        <p className="text-sm text-neutral-500 mt-1">
+      <div className="mb-5">
+        <p className="text-[13px] text-[color:var(--ad-muted)]">
           전체 매장의 충전금 결제 내역을 조회합니다.
         </p>
       </div>
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-lg border border-[#EAEAEA] p-4">
-            <div className="text-sm text-neutral-500 mb-1">최근 30일 충전</div>
-            <div className="text-2xl font-bold text-emerald-600">
+        <div className="ad-card mb-4 grid grid-cols-1 md:grid-cols-3">
+          <div className="p-5">
+            <div className="text-[12px] text-[color:var(--ad-muted)] mb-1">최근 30일 충전</div>
+            <div className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-pos)]">
               +{formatCurrency(summary.topup.totalAmount)}원
             </div>
-            <div className="text-xs text-neutral-400 mt-1">{summary.topup.count}건</div>
+            <div className="text-[12px] text-[color:var(--ad-faint)] mt-1">{summary.topup.count}건</div>
           </div>
-          <div className="bg-white rounded-lg border border-[#EAEAEA] p-4">
-            <div className="text-sm text-neutral-500 mb-1">최근 30일 차감</div>
-            <div className="text-2xl font-bold text-red-600">
+          <div className="p-5 border-t md:border-t-0 md:border-l border-[color:var(--ad-line)]">
+            <div className="text-[12px] text-[color:var(--ad-muted)] mb-1">최근 30일 차감</div>
+            <div className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-neg)]">
               -{formatCurrency(summary.deduct.totalAmount)}원
             </div>
-            <div className="text-xs text-neutral-400 mt-1">{summary.deduct.count}건</div>
+            <div className="text-[12px] text-[color:var(--ad-faint)] mt-1">{summary.deduct.count}건</div>
           </div>
-          <div className="bg-white rounded-lg border border-[#EAEAEA] p-4">
-            <div className="text-sm text-neutral-500 mb-1">최근 30일 순증감</div>
-            <div className={`text-2xl font-bold ${summary.total.netAmount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+          <div className="p-5 border-t md:border-t-0 md:border-l border-[color:var(--ad-line)]">
+            <div className="text-[12px] text-[color:var(--ad-muted)] mb-1">최근 30일 순증감</div>
+            <div className={`text-[22px] font-semibold tracking-[-0.03em] ad-tnum ${summary.total.netAmount >= 0 ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-neg)]'}`}>
               {summary.total.netAmount >= 0 ? '+' : ''}{formatCurrency(summary.total.netAmount)}원
             </div>
-            <div className="text-xs text-neutral-400 mt-1">{summary.total.count}건</div>
+            <div className="text-[12px] text-[color:var(--ad-faint)] mt-1">{summary.total.count}건</div>
           </div>
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg border border-[#EAEAEA] p-4 mb-6">
+      <div className="ad-card p-4 mb-4">
         <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
           <div className="relative flex-1 min-w-[200px] max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--ad-faint)]" />
             <input
               type="text"
               value={searchQuery}
@@ -209,7 +208,7 @@ export default function PaymentsPage() {
                 setPage(1);
               }}
               placeholder="매장명으로 검색"
-              className="w-full pl-10 pr-4 py-2 border border-[#EAEAEA] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              className="w-full pl-10 pr-3 h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
             />
           </div>
 
@@ -217,16 +216,16 @@ export default function PaymentsPage() {
           <div className="relative">
             <button
               onClick={() => setShowTypeDropdown(!showTypeDropdown)}
-              className="flex items-center gap-2 px-4 py-2 border border-[#EAEAEA] rounded-lg text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+              className="ad-press flex items-center gap-2 h-10 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
             >
-              <Filter className="w-4 h-4 text-neutral-400" />
+              <Filter className="w-4 h-4 text-[color:var(--ad-faint)]" />
               {typeFilter === 'all' ? '전체 유형' : TYPE_LABELS[typeFilter]}
-              <ChevronDown className="w-4 h-4 text-neutral-400" />
+              <ChevronDown className="w-4 h-4 text-[color:var(--ad-faint)]" />
             </button>
             {showTypeDropdown && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowTypeDropdown(false)} />
-                <div className="absolute z-20 mt-1 w-40 bg-white border border-[#EAEAEA] rounded-lg shadow-lg">
+                <div className="absolute z-20 mt-1 w-40 overflow-hidden bg-white border border-[color:var(--ad-line)] rounded-[12px] shadow-[0_12px_32px_-12px_rgba(19,22,81,0.25)]">
                   {[
                     { value: 'all', label: '전체 유형' },
                     { value: 'TOPUP', label: '충전' },
@@ -242,8 +241,8 @@ export default function PaymentsPage() {
                         setShowTypeDropdown(false);
                         setPage(1);
                       }}
-                      className={`w-full px-4 py-2 text-left text-sm hover:bg-neutral-50 transition-colors ${
-                        typeFilter === option.value ? 'bg-neutral-100 font-medium' : ''
+                      className={`w-full px-4 py-2 text-left text-[13px] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)] transition-colors ${
+                        typeFilter === option.value ? 'bg-[color:var(--ad-bg)] font-medium text-[color:var(--ad-ink)]' : ''
                       }`}
                     >
                       {option.label}
@@ -258,15 +257,15 @@ export default function PaymentsPage() {
           <div className="relative">
             <button
               onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-              className="flex items-center gap-2 px-4 py-2 border border-[#EAEAEA] rounded-lg text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+              className="ad-press flex items-center gap-2 h-10 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
             >
               {statusFilter === 'all' ? '전체 상태' : STATUS_LABELS[statusFilter]}
-              <ChevronDown className="w-4 h-4 text-neutral-400" />
+              <ChevronDown className="w-4 h-4 text-[color:var(--ad-faint)]" />
             </button>
             {showStatusDropdown && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowStatusDropdown(false)} />
-                <div className="absolute z-20 mt-1 w-32 bg-white border border-[#EAEAEA] rounded-lg shadow-lg">
+                <div className="absolute z-20 mt-1 w-32 overflow-hidden bg-white border border-[color:var(--ad-line)] rounded-[12px] shadow-[0_12px_32px_-12px_rgba(19,22,81,0.25)]">
                   {[
                     { value: 'all', label: '전체 상태' },
                     { value: 'SUCCESS', label: '성공' },
@@ -280,8 +279,8 @@ export default function PaymentsPage() {
                         setShowStatusDropdown(false);
                         setPage(1);
                       }}
-                      className={`w-full px-4 py-2 text-left text-sm hover:bg-neutral-50 transition-colors ${
-                        statusFilter === option.value ? 'bg-neutral-100 font-medium' : ''
+                      className={`w-full px-4 py-2 text-left text-[13px] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)] transition-colors ${
+                        statusFilter === option.value ? 'bg-[color:var(--ad-bg)] font-medium text-[color:var(--ad-ink)]' : ''
                       }`}
                     >
                       {option.label}
@@ -301,9 +300,9 @@ export default function PaymentsPage() {
                 setStartDate(e.target.value);
                 setPage(1);
               }}
-              className="px-3 py-2 border border-[#EAEAEA] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              className="px-3 h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
             />
-            <span className="text-neutral-400">~</span>
+            <span className="text-[color:var(--ad-faint)]">~</span>
             <input
               type="date"
               value={endDate}
@@ -311,88 +310,88 @@ export default function PaymentsPage() {
                 setEndDate(e.target.value);
                 setPage(1);
               }}
-              className="px-3 py-2 border border-[#EAEAEA] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              className="px-3 h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
             />
           </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg border border-[#EAEAEA]">
+      <div className="ad-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[#EAEAEA]">
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+              <tr className="border-b border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] text-left text-[11.5px] text-[color:var(--ad-muted)]">
+                <th className="px-4 py-2.5 text-left font-medium">
                   일시
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-left font-medium">
                   매장명
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-left font-medium">
                   점주
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-left font-medium">
                   유형
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-right font-medium">
                   금액
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-left font-medium">
                   상태
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-left font-medium">
                   설명
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#EAEAEA]">
+            <tbody className="divide-y divide-[color:var(--ad-line)] text-[13px]">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={7} className="px-4 py-12 text-center">
                     <div className="flex items-center justify-center">
-                      <div className="w-6 h-6 border-2 border-neutral-900 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-6 h-6 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
                     </div>
                   </td>
                 </tr>
               ) : transactions.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-neutral-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-[13px] text-[color:var(--ad-faint)]">
                     결제 내역이 없습니다.
                   </td>
                 </tr>
               ) : (
                 transactions.map((transaction) => (
-                  <tr key={transaction.id} className="hover:bg-neutral-50 transition-colors">
-                    <td className="px-6 py-4 text-sm text-neutral-600">
+                  <tr key={transaction.id} className="hover:bg-[rgba(110,173,255,0.05)] transition-colors">
+                    <td className="px-4 py-3 ad-tnum text-[color:var(--ad-muted)]">
                       {formatDate(transaction.createdAt)}
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-neutral-900">{transaction.storeName}</div>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-[color:var(--ad-ink)]">{transaction.storeName}</div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-neutral-600">
+                    <td className="px-4 py-3 text-[color:var(--ad-ink-2)]">
                       {transaction.ownerName || '-'}
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded ${
-                        transaction.type === 'TOPUP' ? 'bg-emerald-100 text-emerald-700' :
-                        transaction.type === 'DEDUCT' ? 'bg-red-100 text-red-700' :
-                        'bg-neutral-100 text-neutral-700'
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        transaction.type === 'TOPUP' ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]' :
+                        transaction.type === 'DEDUCT' ? 'bg-[#ffc4d0] text-[color:var(--ad-neg)]' :
+                        'bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]'
                       }`}>
                         {TYPE_LABELS[transaction.type] || transaction.type}
                       </span>
                     </td>
-                    <td className={`px-6 py-4 text-sm font-medium text-right ${
-                      transaction.amount >= 0 ? 'text-emerald-600' : 'text-red-600'
+                    <td className={`px-4 py-3 font-medium text-right ad-tnum ${
+                      transaction.amount >= 0 ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-neg)]'
                     }`}>
                       {transaction.amount >= 0 ? '+' : ''}{formatCurrency(transaction.amount)}원
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded ${STATUS_COLORS[transaction.status]}`}>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_COLORS[transaction.status]}`}>
                         {STATUS_LABELS[transaction.status]}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-neutral-500 max-w-[200px] truncate">
+                    <td className="px-4 py-3 text-[color:var(--ad-muted)] max-w-[200px] truncate">
                       {getDescription(transaction)}
                     </td>
                   </tr>
@@ -404,25 +403,25 @@ export default function PaymentsPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-[#EAEAEA]">
-            <div className="text-sm text-neutral-500">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-[color:var(--ad-line)]">
+            <div className="text-[12.5px] text-[color:var(--ad-muted)] ad-tnum">
               총 {total.toLocaleString()}건 중 {((page - 1) * limit + 1).toLocaleString()}-{Math.min(page * limit, total).toLocaleString()}건
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage(page - 1)}
                 disabled={page === 1}
-                className="p-2 border border-[#EAEAEA] rounded-lg hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="ad-press p-2 rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="px-3 py-1 text-sm text-neutral-700">
+              <span className="px-3 py-1 text-[13px] ad-tnum text-[color:var(--ad-ink-2)]">
                 {page} / {totalPages}
               </span>
               <button
                 onClick={() => setPage(page + 1)}
                 disabled={page === totalPages}
-                className="p-2 border border-[#EAEAEA] rounded-lg hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="ad-press p-2 rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>

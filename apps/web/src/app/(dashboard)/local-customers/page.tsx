@@ -14,9 +14,7 @@ import {
   Info,
   ChevronLeft,
   ChevronUp,
-  Wifi,
   Camera,
-  BatteryFull,
   X,
   Search,
   Plus,
@@ -26,6 +24,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChargeModal } from '@/components/ChargeModal';
+import { IPhoneFrame } from '@/components/ui/iphone-frame';
 
 
 // 대한민국 17개 시/도 목록 + 미지정
@@ -857,11 +856,8 @@ export default function LocalCustomersPage() {
       <div className="hidden lg:block flex-none w-[360px] self-start">
         <div className="bg-[#e2e8f0] rounded-3xl p-5">
           {activeTab === 'kakao' ? (
-            <div className="relative w-full h-[680px] bg-neutral-800 rounded-[2.5rem] p-2 shadow-2xl">
-              <div className="w-full h-full bg-neutral-900 rounded-[2rem] p-1 overflow-hidden">
-                <div className="w-full h-full bg-[#B2C7D9] rounded-[1.75rem] overflow-hidden flex flex-col relative">
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-neutral-900 rounded-full z-10" />
-                  <div className="flex items-center justify-between px-4 pt-10 pb-2"><ChevronLeft className="w-4 h-4 text-neutral-700" /><span className="font-medium text-xs text-neutral-800">카카오톡</span><Menu className="w-4 h-4 text-neutral-700" /></div>
+            <IPhoneFrame screenClassName="bg-[#B2C7D9]" className="w-full max-w-[320px]">
+                  <div className="flex items-center justify-between px-4 pt-1 pb-2"><ChevronLeft className="w-4 h-4 text-neutral-700" /><span className="font-medium text-xs text-neutral-800">카카오톡</span><Menu className="w-4 h-4 text-neutral-700" /></div>
                   <div className="flex justify-center mb-3"><span className="text-[10px] bg-neutral-500/30 text-neutral-700 px-2 py-0.5 rounded-full">{new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
                   <div className="flex-1 pl-2 pr-4 overflow-auto">
                     <div className="flex gap-1.5">
@@ -905,13 +901,9 @@ export default function LocalCustomersPage() {
                     </div>
                   </div>
                   <div className="h-6" />
-                </div>
-              </div>
-            </div>
+            </IPhoneFrame>
           ) : (
-            <div className="w-full h-[680px] bg-white rounded-[44px] border-[10px] border-[#1e293b] overflow-hidden flex flex-col shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] relative">
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[90px] h-[28px] bg-[#1e293b] rounded-full z-20" />
-              <div className="h-12 bg-white flex items-end justify-between px-6 pb-1 text-xs font-semibold"><span>12:30</span><div className="flex items-center gap-1"><Wifi className="w-4 h-4" /><BatteryFull className="w-5 h-5" /></div></div>
+            <IPhoneFrame screenClassName="bg-white" className="w-full max-w-[320px]">
               <div className="h-[60px] bg-white flex items-center justify-between px-4 border-b border-[#e5e7eb]">
                 <ChevronLeft className="w-6 h-6 text-[#007aff]" />
                 <div className="flex flex-col items-center"><div className="w-10 h-10 rounded-full bg-[#e5e7eb] flex items-center justify-center"><Users className="w-5 h-5 text-[#9ca3af]" /></div><span className="text-[13px] font-semibold text-[#1e293b] mt-1">태그히어 CRM</span></div>
@@ -927,7 +919,7 @@ export default function LocalCustomersPage() {
                 <div className="w-8 h-8 bg-[#007aff] rounded-full flex items-center justify-center"><ChevronUp className="w-5 h-5 text-white" /></div>
               </div>
               <div className="h-8 bg-white flex items-center justify-center"><div className="w-32 h-1 bg-[#1e293b] rounded-full" /></div>
-            </div>
+            </IPhoneFrame>
           )}
         </div>
       </div>

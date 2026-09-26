@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Clock,
 } from 'lucide-react';
+import { IPhoneFrame } from '@/components/ui/iphone-frame';
 
 
 interface Settings {
@@ -264,16 +265,10 @@ export default function NaverReviewPage() {
             <p className="text-center text-neutral-500 mb-4">포인트 적립 알림톡 미리보기</p>
             <div className="flex justify-center sticky top-24">
               {/* Phone Frame */}
-              <div className="relative w-72 h-[580px] bg-neutral-800 rounded-[2.5rem] p-2 shadow-2xl">
-                {/* Inner bezel */}
-                <div className="w-full h-full bg-neutral-900 rounded-[2rem] p-1 overflow-hidden">
-                  {/* Screen */}
-                  <div className="w-full h-full bg-[#B2C7D9] rounded-[1.75rem] overflow-hidden flex flex-col relative">
-                    {/* Dynamic Island / Notch */}
-                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-neutral-900 rounded-full z-10" />
+              <IPhoneFrame screenClassName="bg-[#B2C7D9]">
 
                     {/* KakaoTalk header */}
-                    <div className="flex items-center justify-between px-4 pt-10 pb-2">
+                    <div className="flex items-center justify-between px-4 pt-1 pb-2">
                       <ChevronLeft className="w-4 h-4 text-neutral-700" />
                       <span className="font-medium text-xs text-neutral-800">채널명</span>
                       <Menu className="w-4 h-4 text-neutral-700" />
@@ -370,9 +365,7 @@ export default function NaverReviewPage() {
 
                     {/* Bottom safe area */}
                     <div className="h-6" />
-                  </div>
-                </div>
-              </div>
+              </IPhoneFrame>
             </div>
           </div>
         </div>

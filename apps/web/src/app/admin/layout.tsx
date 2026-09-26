@@ -5,6 +5,29 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import {
+  BadgeCheck,
+  Building2,
+  ChartNoAxesColumn,
+  ChevronRight,
+  CreditCard,
+  Download,
+  Home,
+  Image as ImageIcon,
+  LayoutGrid,
+  Link2,
+  List,
+  LogOut,
+  Megaphone,
+  Menu,
+  Package,
+  PanelLeft,
+  Rocket,
+  Store,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react';
+import './admin-theme.css';
 
 export default function AdminLayout({
   children,
@@ -16,6 +39,11 @@ export default function AdminLayout({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     // 로그인 페이지는 인증 체크 건너뛰기
@@ -77,8 +105,8 @@ export default function AdminLayout({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-neutral-900 border-t-transparent rounded-full animate-spin" />
+      <div className="flex min-h-[100dvh] items-center justify-center bg-[#f2f3f4]">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#131651] border-t-transparent" />
       </div>
     );
   }
@@ -106,259 +134,190 @@ export default function AdminLayout({
     return 'Admin';
   };
 
-  const menuItems = [
-    { href: '/admin', label: '홈', icon: HomeIcon },
-    { href: '/admin/stores', label: '매장 관리', icon: StoreIcon },
-    { href: '/admin/store-list', label: '매장 목록', icon: ListIcon },
-    { href: '/admin/franchises', label: '프랜차이즈 관리', icon: FranchiseIcon },
-    { href: '/admin/payments', label: '결제내역', icon: PaymentIcon },
-    { href: '/admin/announcements', label: '공지사항', icon: AnnouncementIcon },
-    { href: '/admin/banners', label: '배너 관리', icon: BannerIcon },
-    { href: '/admin/store-products', label: '스토어 상품', icon: PackageIcon },
-    { href: '/admin/automation', label: '자동 마케팅', icon: ZapIcon },
-    { href: '/admin/place-booster', label: '네이버 플레이스 부스터', icon: RocketIcon },
-    { href: '/admin/table-link', label: '테이블 링크', icon: LinkIcon },
-    { href: '/admin/food-court', label: '푸드코트 모드', icon: GridIcon },
-    { href: '/admin/customers', label: '고객 추출', icon: DownloadIcon },
-    { href: '/admin/corporate-ad', label: '기업광고', icon: MegaphoneIcon },
-    { href: '/admin/insights', label: 'CRM 분석 대시보드', icon: ChartIcon },
-  ];
+  const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+
+  const sidebar = (
+    <AdminSidebar
+      pathname={pathname}
+      onCollapse={() => setIsSidebarOpen(false)}
+      onLogout={handleLogout}
+      onNavigate={() => setIsMobileMenuOpen(false)}
+    />
+  );
 
   return (
-    <div className="h-screen bg-white flex">
-      {/* Sidebar */}
-      <aside
-        className={`${
-          isSidebarOpen ? 'w-60' : 'w-0'
-        } border-r border-[#EAEAEA] flex-shrink-0 transition-all duration-300 overflow-hidden relative`}
-      >
-        <div className="h-full flex flex-col w-60">
-          {/* Sidebar Header */}
-          <div className="h-14 flex items-center justify-between px-5 border-b border-[#EAEAEA]">
-            <div className="flex items-center">
-              <Image
-                src="/Taghere-logo.png"
-                alt="태그히어"
-                width={32}
-                height={32}
-                className="rounded"
-              />
-              <span className="ml-2 font-semibold text-neutral-900 text-[15px]">TagHere Admin</span>
-            </div>
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
-              title="사이드바 접기"
-            >
-              <ChevronLeftIcon className="w-5 h-5 text-neutral-500" />
-            </button>
-          </div>
+    <div className="ad">
+      <div className="ad-sky" aria-hidden>
+        <span className="ad-cloud" />
+        <span className="ad-cloud" />
+        <span className="ad-cloud" />
+        <span className="ad-cloud" />
+      </div>
 
-          {/* Menu */}
-          <nav className="flex-1 py-4">
-            {menuItems.map((item) => {
-              const isActive = pathname === item.href;
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-5 py-2.5 text-[14px] transition-colors relative ${
-                    isActive
-                      ? 'text-neutral-900 font-medium bg-neutral-100'
-                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
-                  }`}
-                >
-                  {isActive && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-[#FFD541] rounded-r" />
-                  )}
-                  <Icon className="w-5 h-5" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+      <div className="ad-shell">
+        {/* 데스크톱 사이드바 */}
+        {isSidebarOpen && <div className="hidden lg:flex">{sidebar}</div>}
 
-          {/* Logout */}
-          <div className="border-t border-[#EAEAEA] p-4">
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-[14px] text-neutral-500 hover:text-neutral-900 transition-colors"
-            >
-              <LogoutIcon className="w-5 h-5" />
-              로그아웃
-            </button>
-          </div>
+        {/* 모바일 사이드바 서랍 */}
+        <div
+          className={`ad-scrim fixed inset-0 z-40 bg-[rgba(0,0,0,0.4)] lg:hidden ${isMobileMenuOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+          onClick={() => setIsMobileMenuOpen(false)}
+          aria-hidden
+        />
+        <div
+          className={`ad-drawer fixed inset-y-0 left-0 z-50 flex lg:hidden ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          aria-hidden={!isMobileMenuOpen}
+        >
+          {sidebar}
         </div>
-      </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Page Content */}
-        <main className="flex-1 overflow-auto bg-[#FAFAFA] relative">
-          {/* Sidebar Open Button (when closed) */}
-          {!isSidebarOpen && (
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* 상단 바 */}
+          <header className="ad-topbar sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 px-4 sm:px-6">
             <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="fixed top-4 left-4 z-50 p-2 bg-white border border-[#EAEAEA] rounded-lg shadow-sm hover:bg-neutral-50 transition-colors"
-              title="사이드바 열기"
+              onClick={() => setIsMobileMenuOpen(true)}
+              aria-label="메뉴 열기"
+              className="ad-press grid h-8 w-8 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70 lg:hidden"
             >
-              <ChevronRightIcon className="w-5 h-5 text-neutral-600" />
+              <Menu size={17} strokeWidth={1.7} />
             </button>
-          )}
-          <div className="max-w-7xl mx-auto px-6 py-8">
-            {children}
-          </div>
-        </main>
+            {!isSidebarOpen && (
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                aria-label="사이드바 열기"
+                title="사이드바 열기"
+                className="ad-press hidden h-8 w-8 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70 lg:grid"
+              >
+                <PanelLeft size={16} strokeWidth={1.6} />
+              </button>
+            )}
+            <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-[color:var(--ad-faint)]">
+              <span className="hidden sm:inline">TagHere Admin</span>
+              <ChevronRight size={13} strokeWidth={1.7} className="hidden shrink-0 sm:block" />
+              <span className="truncate font-medium text-[color:var(--ad-ink)]">{getPageTitle()}</span>
+            </span>
+            <span className="ml-auto hidden text-[12px] text-[color:var(--ad-faint)] sm:inline">{today}</span>
+          </header>
+
+          <main className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8">{children}</main>
+        </div>
       </div>
     </div>
   );
 }
 
-// Icons
-function ChartIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-    </svg>
-  );
-}
+type MenuItem = { href: string; label: string; icon: LucideIcon };
 
-function HomeIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-    </svg>
-  );
-}
+// 기존 메뉴 15개를 성격별 그룹으로
+const menuGroups: { title: string; items: MenuItem[] }[] = [
+  {
+    title: '운영',
+    items: [
+      { href: '/admin', label: '홈', icon: Home },
+      { href: '/admin/stores', label: '매장 관리', icon: Store },
+      { href: '/admin/store-list', label: '매장 목록', icon: List },
+      { href: '/admin/franchises', label: '프랜차이즈 관리', icon: Building2 },
+    ],
+  },
+  {
+    title: '매출',
+    items: [
+      { href: '/admin/payments', label: '결제내역', icon: CreditCard },
+      { href: '/admin/store-products', label: '스토어 상품', icon: Package },
+    ],
+  },
+  {
+    title: '마케팅',
+    items: [
+      { href: '/admin/automation', label: '자동 마케팅', icon: Zap },
+      { href: '/admin/place-booster', label: '네이버 플레이스 부스터', icon: Rocket },
+      { href: '/admin/corporate-ad', label: '기업광고', icon: BadgeCheck },
+      { href: '/admin/announcements', label: '공지사항', icon: Megaphone },
+      { href: '/admin/banners', label: '배너 관리', icon: ImageIcon },
+    ],
+  },
+  {
+    title: '도구',
+    items: [
+      { href: '/admin/table-link', label: '테이블 링크', icon: Link2 },
+      { href: '/admin/food-court', label: '푸드코트 모드', icon: LayoutGrid },
+      { href: '/admin/customers', label: '고객 추출', icon: Download },
+      { href: '/admin/insights', label: 'CRM 분석 대시보드', icon: ChartNoAxesColumn },
+    ],
+  },
+];
 
-function StoreIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
-    </svg>
-  );
-}
+function AdminSidebar({
+  pathname,
+  onCollapse,
+  onLogout,
+  onNavigate,
+}: {
+  pathname: string;
+  onCollapse: () => void;
+  onLogout: () => void;
+  onNavigate: () => void;
+}) {
+  const isActive = (href: string) => (href === '/admin' ? pathname === href : pathname === href || pathname.startsWith(href + '/'));
 
-function AnnouncementIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535m0 0A23.74 23.74 0 0018.795 3m.38 1.125a23.91 23.91 0 011.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 001.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 010 3.46" />
-    </svg>
-  );
-}
+    <aside className="ad-side flex w-[240px] shrink-0 flex-col">
+      <div className="flex h-14 items-center justify-between px-4">
+        <Link href="/admin" onClick={onNavigate} className="flex items-center gap-2">
+          <Image src="/Taghere-logo.png" alt="태그히어" width={24} height={24} className="h-6 w-6" priority />
+          <span className="text-[14px] font-semibold tracking-[-0.02em]">TagHere Admin</span>
+        </Link>
+        <button
+          onClick={onCollapse}
+          aria-label="사이드바 접기"
+          title="사이드바 접기"
+          className="ad-press hidden h-7 w-7 place-items-center rounded-md text-[color:var(--ad-faint)] hover:bg-white/70 hover:text-[color:var(--ad-ink)] lg:grid"
+        >
+          <PanelLeft size={15} strokeWidth={1.6} />
+        </button>
+      </div>
 
-function BannerIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-    </svg>
-  );
-}
+      <nav className="ad-noscroll flex-1 overflow-y-auto px-3 pb-3">
+        {menuGroups.map((group, gi) => (
+          <div key={group.title} className={gi > 0 ? 'mt-5' : 'mt-1'}>
+            <p className="mb-1 px-2.5 text-[11px] font-medium text-[color:var(--ad-faint)]">{group.title}</p>
+            <ul className="space-y-px">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={onNavigate}
+                      aria-current={active ? 'page' : undefined}
+                      className={`ad-press relative flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] ${
+                        active
+                          ? 'bg-white font-semibold text-[color:var(--ad-ink)] shadow-[0_0_0_1px_var(--ad-line)]'
+                          : 'text-[color:var(--ad-ink-2)] hover:bg-white/60'
+                      }`}
+                    >
+                      {active && <span className="absolute -left-3 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-[color:var(--ad-yellow)]" />}
+                      <Icon size={16} strokeWidth={1.7} className={active ? 'text-[color:var(--ad-navy)]' : 'text-[color:var(--ad-faint)]'} />
+                      <span className="flex-1 truncate">{item.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </nav>
 
-function HamburgerIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-    </svg>
-  );
-}
-
-function LogoutIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-    </svg>
-  );
-}
-
-function ChevronLeftIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-    </svg>
-  );
-}
-
-function FranchiseIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
-    </svg>
-  );
-}
-
-function PaymentIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-    </svg>
-  );
-}
-
-function ListIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-    </svg>
-  );
-}
-
-function DownloadIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-    </svg>
-  );
-}
-
-function PackageIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-    </svg>
-  );
-}
-
-function ZapIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-    </svg>
-  );
-}
-
-function LinkIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-    </svg>
-  );
-}
-
-// Same megaphone SVG as AnnouncementIcon (byte-identical duplicate)
-const MegaphoneIcon = AnnouncementIcon;
-
-function RocketIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-    </svg>
-  );
-}
-
-function GridIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-    </svg>
+      <div className="border-t border-[color:var(--ad-line)] p-3">
+        <button
+          onClick={onLogout}
+          className="ad-press flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] text-[color:var(--ad-muted)] hover:bg-white/60 hover:text-[color:var(--ad-ink)]"
+        >
+          <LogOut size={16} strokeWidth={1.7} />
+          로그아웃
+        </button>
+      </div>
+    </aside>
   );
 }

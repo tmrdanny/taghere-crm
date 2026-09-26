@@ -1,0 +1,150 @@
+/* 관리자 공통 테마 — taghere-v2 디자인 토큰 기반, .ad 범위 안에서만 적용 */
+
+.ad {
+  /* taghere-v2 디자인 토큰 (packages/config-tailwind/theme.css) */
+  --ad-ink: #1d2022;          /* text-primary */
+  --ad-ink-2: #383c40;        /* cool-neutral-800 */
+  --ad-muted: #55595e;        /* text-secondary */
+  --ad-faint: #91959a;        /* text-tertiary */
+  --ad-line: #ebeced;         /* border-normal */
+  --ad-line-strong: #d1d3d6;  /* border-medium */
+  --ad-bg: #f2f3f4;           /* background-base */
+  --ad-bg-alt: #f8f9fa;       /* background-alternative */
+  --ad-blue: #6eadff;         /* accent-primary */
+  --ad-blue-2: #a5ccff;       /* blue-300 */
+  --ad-blue-soft: #dcebff;    /* accent-light */
+  --ad-navy: #131651;         /* secondary-strong, icon-active */
+  --ad-link: #2a2d62;         /* secondary-normal */
+  --ad-yellow: #ffd541;       /* primary-normal */
+  --ad-yellow-strong: #e5bf3a;
+  --ad-yellow-soft: #fff4d1;
+  --ad-pos: #3a8d2b;          /* green-700 (텍스트용) */
+  --ad-pos-dot: #61eb49;      /* state-positive */
+  --ad-neg: #cc0832;          /* red-600 (텍스트용) */
+  --ad-amber: #cc5229;        /* orange-600 */
+  --ad-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  position: relative;
+  min-height: 100dvh;
+  color: var(--ad-ink);
+  font-family: 'Pretendard JP', 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  background: var(--ad-bg);
+}
+
+/* ─── 배경: 브랜드 색을 아주 옅게 번지게 (유리 뒤에 비칠 색) ─── */
+.ad-sky { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
+.ad-cloud { position: absolute; border-radius: 9999px; will-change: transform; animation: ad-drift 70s ease-in-out infinite alternate; }
+.ad-cloud:nth-child(1) { width: 52vw; height: 52vw; top: -24vw; left: -16vw; background: radial-gradient(closest-side, rgba(110, 173, 255, 0.28), transparent); }
+.ad-cloud:nth-child(2) { width: 40vw; height: 40vw; top: -14vw; right: -10vw; background: radial-gradient(closest-side, rgba(255, 213, 65, 0.22), transparent); animation-duration: 85s; }
+.ad-cloud:nth-child(3) { width: 46vw; height: 46vw; bottom: -26vw; left: 18vw; background: radial-gradient(closest-side, rgba(42, 45, 98, 0.1), transparent); animation-duration: 95s; animation-direction: alternate-reverse; }
+.ad-cloud:nth-child(4) { width: 34vw; height: 34vw; bottom: -12vw; right: -8vw; background: radial-gradient(closest-side, rgba(110, 173, 255, 0.18), transparent); animation-duration: 75s; animation-direction: alternate-reverse; }
+
+/* ─── 전체 화면 레이아웃 (프레임·바깥 라운드 없음) ─── */
+.ad-shell { position: relative; display: flex; min-height: 100dvh; }
+.ad-side {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  background: rgba(250, 251, 252, 0.66);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+  border-right: 1px solid var(--ad-line);
+}
+.ad-topbar {
+  background: rgba(242, 243, 244, 0.72);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  border-bottom: 1px solid var(--ad-line);
+}
+
+.ad-card {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 0 1px var(--ad-line), 0 1px 2px rgba(29, 32, 34, 0.03);
+}
+.ad-hair { border-color: var(--ad-line); }
+.ad-tnum { font-variant-numeric: tabular-nums; }
+
+.ad-press { transition: transform 0.2s var(--ad-ease), background-color 0.2s, color 0.2s, box-shadow 0.2s; }
+.ad-press:active { transform: scale(0.97); }
+.ad-lift { transition: transform 0.45s var(--ad-ease), box-shadow 0.45s var(--ad-ease); }
+.ad-lift:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px var(--ad-line-strong), 0 12px 28px -16px rgba(19, 22, 81, 0.25); }
+
+/* 등장 */
+.ad-rise {
+  opacity: 0;
+  animation: ad-rise 0.75s var(--ad-ease) forwards;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+.ad-grow-x { transform-origin: left; transform: scaleX(0); animation: ad-grow-x 1s var(--ad-ease) forwards; animation-delay: calc(200ms + var(--i, 0) * 70ms); }
+.ad-grow-y { transform-origin: bottom; transform: scaleY(0); animation: ad-grow-y 0.9s var(--ad-ease) forwards; animation-delay: calc(150ms + var(--i, 0) * 50ms); }
+
+.ad-skel { position: relative; overflow: hidden; border-radius: 8px; background: rgba(29, 32, 34, 0.06); }
+.ad-skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  animation: ad-shimmer 1.5s ease-in-out infinite;
+}
+
+/* 모바일 사이드바 서랍 */
+.ad-drawer { transition: transform 0.4s var(--ad-ease); }
+.ad-scrim { transition: opacity 0.3s ease; }
+
+.ad-seg-indicator { transition: transform 0.5s var(--ad-ease), width 0.5s var(--ad-ease); }
+
+.ad-scroll { scrollbar-width: thin; scrollbar-color: rgba(29, 32, 34, 0.14) transparent; }
+.ad-noscroll { scrollbar-width: none; }
+.ad-noscroll::-webkit-scrollbar { display: none; }
+
+/* ─── 공용 부스터 컴포넌트 재매핑 (관리자 부스터 페이지 한정) ───
+   components/place-booster/* 는 점주·프랜차이즈 화면과 공유하므로 코드를 바꾸지 않고
+   .ad-booster 범위 안에서만 기본 Tailwind 클래스를 v2 토큰으로 덮어쓴다. */
+.ad-booster .text-neutral-900,
+.ad-booster .text-neutral-800 { color: var(--ad-ink); }
+.ad-booster .text-neutral-700,
+.ad-booster .text-neutral-600 { color: var(--ad-ink-2); }
+.ad-booster .text-neutral-500 { color: var(--ad-muted); }
+.ad-booster .text-neutral-400 { color: var(--ad-faint); }
+.ad-booster .text-brand-800 { color: var(--ad-link); }
+.ad-booster .text-red-600,
+.ad-booster .text-red-700 { color: var(--ad-neg); }
+.ad-booster .text-green-700 { color: var(--ad-pos); }
+.ad-booster .border-neutral-100,
+.ad-booster .border-neutral-200 { border-color: var(--ad-line); }
+.ad-booster .border-neutral-300 { border-color: var(--ad-line-strong); }
+.ad-booster .bg-neutral-50 { background-color: var(--ad-bg-alt); }
+.ad-booster .hover\:bg-neutral-50:hover { background-color: var(--ad-bg-alt); }
+.ad-booster .bg-brand-50 { background-color: var(--ad-blue-soft); }
+.ad-booster .shadow-card { box-shadow: 0 1px 2px rgba(29, 32, 34, 0.03); }
+.ad-booster .rounded-xl { border-radius: 16px; }
+.ad-booster .rounded-lg { border-radius: 10px; }
+.ad-booster input:not([type='checkbox']):not([type='radio']),
+.ad-booster select,
+.ad-booster textarea { border-color: var(--ad-line-strong); border-radius: 10px; }
+.ad-booster input:focus,
+.ad-booster select:focus,
+.ad-booster textarea:focus { border-color: var(--ad-navy); outline: none; box-shadow: none; }
+/* 주요 버튼(공용 Button 기본값 = bg-brand-800)은 v2 노랑 */
+.ad-booster .bg-brand-800 { background-color: var(--ad-yellow); color: var(--ad-ink); }
+.ad-booster .hover\:bg-brand-900:hover { background-color: var(--ad-yellow-strong); }
+.ad-booster .border-brand-800 { border-color: var(--ad-link); }
+
+@keyframes ad-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes ad-grow-x { to { transform: scaleX(1); } }
+@keyframes ad-grow-y { to { transform: scaleY(1); } }
+@keyframes ad-shimmer { to { transform: translateX(100%); } }
+@keyframes ad-drift { from { transform: translate3d(-3vw, 0, 0); } to { transform: translate3d(5vw, 3vw, 0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ad *, .ad *::before, .ad *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

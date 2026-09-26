@@ -59,6 +59,7 @@ import {
   KakaoTestModal,
 } from '@/features/messages';
 import { CouponAlimtalkPreview } from '@/features/kakao-composer';
+import { IPhoneFrame } from '@/components/ui/iphone-frame';
 
 
 // 연령대 옵션 (local-customers와 동일)
@@ -1906,22 +1907,13 @@ export default function MessagesPage() {
           <p className="text-center text-[#64748b] mb-4">발송 메시지 미리보기</p>
           <div className="flex justify-center">
             {/* Phone Frame */}
-            <div className="relative w-72 h-[580px] bg-neutral-800 rounded-[2.5rem] p-2 shadow-2xl">
-              {/* Inner bezel */}
-              <div className="w-full h-full bg-neutral-900 rounded-[2rem] p-1 overflow-hidden">
-                {/* Screen */}
-                <div className={cn(
-                  "w-full h-full rounded-[1.75rem] overflow-hidden flex flex-col relative",
-                  activeTab === 'sms' ? 'bg-white' : 'bg-[#B2C7D9]'
-                )}>
-                  {/* Dynamic Island / Notch */}
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-neutral-900 rounded-full z-10" />
+            <IPhoneFrame screenClassName={activeTab === 'sms' ? 'bg-white' : 'bg-[#B2C7D9]'}>
 
                   {/* SMS Preview */}
                   {activeTab === 'sms' && (
                     <>
                       {/* iOS Header */}
-                      <div className="flex items-center justify-between px-4 pt-10 pb-2 border-b border-[#e5e5ea]">
+                      <div className="flex items-center justify-between px-4 pt-1 pb-2 border-b border-[#e5e5ea]">
                         <ChevronLeft className="w-5 h-5 text-[#007aff]" />
                         <div className="flex flex-col items-center gap-1">
                           <div className="w-8 h-8 bg-[#9ca3af] rounded-full flex items-center justify-center text-white">
@@ -1990,7 +1982,7 @@ export default function MessagesPage() {
                   {SHOW_LEGACY_KAKAO_UI && activeTab === 'kakao' && (
                     <>
                       {/* KakaoTalk header */}
-                      <div className="flex items-center justify-between px-4 pt-10 pb-2">
+                      <div className="flex items-center justify-between px-4 pt-1 pb-2">
                         <ChevronLeft className="w-4 h-4 text-neutral-700" />
                         <span className="font-medium text-xs text-neutral-800">태그히어</span>
                         <div className="w-4" />
@@ -2080,9 +2072,7 @@ export default function MessagesPage() {
                       <div className="h-6" />
                     </>
                   )}
-                </div>
-              </div>
-            </div>
+            </IPhoneFrame>
           </div>
         </div>
       </div>

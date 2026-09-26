@@ -331,25 +331,25 @@ export default function StoreProductsPage() {
     switch (status) {
       case 'PAID':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
+          <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-[#d9fad3] text-[color:var(--ad-pos)]">
             결제완료
           </span>
         );
       case 'PENDING':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+          <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-[#ffdace] text-[#993d1f]">
             결제대기
           </span>
         );
       case 'CANCELLED':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+          <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-[#ffc4d0] text-[color:var(--ad-neg)]">
             취소됨
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-neutral-700 text-neutral-400">
+          <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]">
             {status}
           </span>
         );
@@ -359,20 +359,20 @@ export default function StoreProductsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {/* Toast */}
       {toast && (
         <div
-          className={`fixed top-4 right-4 px-4 py-3 rounded-lg text-sm font-medium z-50 ${
+          className={`fixed top-4 right-4 px-4 py-3 rounded-[10px] text-[13px] font-medium z-50 shadow-[0_8px_24px_-12px_rgba(19,22,81,0.35)] ${
             toast.type === 'success'
-              ? 'bg-green-500/10 border border-green-500/20 text-green-400'
-              : 'bg-red-500/10 border border-red-500/20 text-red-400'
+              ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]'
+              : 'bg-[#ffc4d0] text-[color:var(--ad-neg)]'
           }`}
         >
           {toast.message}
@@ -380,15 +380,12 @@ export default function StoreProductsPage() {
       )}
 
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">스토어 상품 관리</h1>
-          <p className="text-neutral-500 mt-1">스토어에서 판매할 상품을 관리합니다.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <p className="text-[13px] text-[color:var(--ad-muted)]">스토어에서 판매할 상품을 관리합니다.</p>
         {activeTab === 'products' && (
           <button
             onClick={openCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white rounded-lg text-sm font-medium hover:bg-neutral-800 transition-colors"
+            className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -399,24 +396,24 @@ export default function StoreProductsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-neutral-200">
-        <nav className="-mb-px flex gap-4">
+      <div className="flex">
+        <nav className="flex items-center rounded-[10px] bg-[rgba(29,32,34,0.045)] p-[3px]">
           <button
             onClick={() => setActiveTab('products')}
-            className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
+            className={`ad-press h-8 px-3.5 rounded-[8px] text-[13px] font-medium transition-colors ${
               activeTab === 'products'
-                ? 'border-neutral-900 text-neutral-900'
-                : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                ? 'bg-white text-[color:var(--ad-ink)] shadow-[0_1px_3px_rgba(19,22,81,0.12)]'
+                : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'
             }`}
           >
             상품 목록
           </button>
           <button
             onClick={() => setActiveTab('orders')}
-            className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
+            className={`ad-press h-8 px-3.5 rounded-[8px] text-[13px] font-medium transition-colors ${
               activeTab === 'orders'
-                ? 'border-neutral-900 text-neutral-900'
-                : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                ? 'bg-white text-[color:var(--ad-ink)] shadow-[0_1px_3px_rgba(19,22,81,0.12)]'
+                : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'
             }`}
           >
             주문 내역
@@ -426,17 +423,17 @@ export default function StoreProductsPage() {
 
       {/* Products Tab */}
       {activeTab === 'products' && (
-        <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
+        <div className="ad-card overflow-hidden">
           {products.length === 0 ? (
-            <div className="p-12 text-center text-neutral-500">
+            <div className="p-12 text-center text-[13px] text-[color:var(--ad-faint)]">
               등록된 상품이 없습니다.
             </div>
           ) : (
-            <div className="divide-y divide-neutral-200">
+            <div className="divide-y divide-[color:var(--ad-line)]">
               {products.map((product) => (
                 <div
                   key={product.id}
-                  className="p-4 hover:bg-neutral-50 transition-colors"
+                  className="p-5 hover:bg-[rgba(110,173,255,0.05)] transition-colors"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-4 flex-1 min-w-0">
@@ -444,34 +441,34 @@ export default function StoreProductsPage() {
                         <img
                           src={product.imageUrl}
                           alt={product.name}
-                          className="w-16 h-16 object-cover rounded-lg border border-neutral-200"
+                          className="w-16 h-16 object-cover rounded-[10px] border border-[color:var(--ad-line)]"
                         />
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                            className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
                               product.isActive
-                                ? 'bg-green-50 text-green-700 border border-green-200'
-                                : 'bg-neutral-100 text-neutral-500'
+                                ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]'
+                                : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]'
                             }`}
                           >
                             {product.isActive ? '판매중' : '판매중지'}
                           </span>
-                          <span className="text-xs text-neutral-400">정렬: {product.sortOrder}</span>
+                          <span className="text-[12px] text-[color:var(--ad-faint)] ad-tnum">정렬: {product.sortOrder}</span>
                         </div>
-                        <h3 className="text-base font-medium text-neutral-900 truncate">
+                        <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] truncate">
                           {product.name}
                         </h3>
-                        <p className="text-lg font-semibold text-neutral-900 mt-0.5">
+                        <p className="text-[15px] font-semibold tracking-[-0.02em] text-[color:var(--ad-ink)] mt-0.5 ad-tnum">
                           {formatPrice(product.price)}
                         </p>
                         {product.description && (
-                          <p className="text-sm text-neutral-500 mt-1 line-clamp-2">
+                          <p className="text-[13px] text-[color:var(--ad-muted)] mt-1 line-clamp-2">
                             {product.description}
                           </p>
                         )}
-                        <p className="text-xs text-neutral-400 mt-2">
+                        <p className="text-[12px] text-[color:var(--ad-faint)] mt-2 ad-tnum">
                           등록: {new Date(product.createdAt).toLocaleDateString('ko-KR')}
                         </p>
                       </div>
@@ -480,10 +477,10 @@ export default function StoreProductsPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => toggleActive(product)}
-                        className={`p-2 rounded-lg transition-colors ${
+                        className={`ad-press p-2 rounded-[10px] transition-colors ${
                           product.isActive
-                            ? 'text-green-600 hover:bg-green-50'
-                            : 'text-neutral-400 hover:bg-neutral-100'
+                            ? 'text-[color:var(--ad-pos)] hover:bg-[#d9fad3]'
+                            : 'text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg)]'
                         }`}
                         title={product.isActive ? '판매중지' : '판매시작'}
                       >
@@ -497,7 +494,7 @@ export default function StoreProductsPage() {
                       </button>
                       <button
                         onClick={() => openEditModal(product)}
-                        className="p-2 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
+                        className="ad-press p-2 text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-bg)] rounded-[10px] transition-colors"
                         title="수정"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -507,7 +504,7 @@ export default function StoreProductsPage() {
                       <button
                         onClick={() => handleDelete(product.id)}
                         disabled={deletingId === product.id}
-                        className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                        className="ad-press p-2 text-[color:var(--ad-neg)] hover:bg-[#ffc4d0]/50 rounded-[10px] transition-colors disabled:opacity-50"
                         title="삭제"
                       >
                         {deletingId === product.id ? (
@@ -529,42 +526,42 @@ export default function StoreProductsPage() {
 
       {/* Orders Tab */}
       {activeTab === 'orders' && (
-        <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
+        <div className="ad-card overflow-hidden">
           {orders.length === 0 ? (
-            <div className="p-12 text-center text-neutral-500">
+            <div className="p-12 text-center text-[13px] text-[color:var(--ad-faint)]">
               주문 내역이 없습니다.
             </div>
           ) : (
-            <div className="divide-y divide-neutral-200">
+            <div className="divide-y divide-[color:var(--ad-line)]">
               {orders.map((order) => (
                 <div
                   key={order.id}
-                  className="p-4 hover:bg-neutral-50 transition-colors"
+                  className="p-5 hover:bg-[rgba(110,173,255,0.05)] transition-colors"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         {getStatusBadge(order.status)}
-                        <span className="text-sm font-mono text-neutral-500">
+                        <span className="text-[12.5px] font-mono text-[color:var(--ad-muted)]">
                           #{order.orderNumber}
                         </span>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm text-neutral-900">
-                          <span className="font-medium">구매자:</span> {order.customerName} ({order.customerPhone})
+                        <p className="text-[13px] text-[color:var(--ad-ink)]">
+                          <span className="font-medium text-[color:var(--ad-ink-2)]">구매자:</span> {order.customerName} ({order.customerPhone})
                         </p>
-                        <p className="text-sm text-neutral-900">
-                          <span className="font-medium">매장:</span> {order.store.name}
+                        <p className="text-[13px] text-[color:var(--ad-ink)]">
+                          <span className="font-medium text-[color:var(--ad-ink-2)]">매장:</span> {order.store.name}
                         </p>
-                        <p className="text-sm text-neutral-900">
-                          <span className="font-medium">상품:</span>{' '}
+                        <p className="text-[13px] text-[color:var(--ad-ink)]">
+                          <span className="font-medium text-[color:var(--ad-ink-2)]">상품:</span>{' '}
                           {order.items.map((item) => `${item.productName} x${item.quantity}`).join(', ')}
                         </p>
-                        <p className="text-base font-semibold text-neutral-900">
+                        <p className="text-[15px] font-semibold tracking-[-0.02em] text-[color:var(--ad-ink)] ad-tnum">
                           총 {formatPrice(order.totalAmount)}
                         </p>
                       </div>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-neutral-400">
+                      <div className="flex items-center gap-4 mt-2 text-[12px] text-[color:var(--ad-faint)] ad-tnum">
                         <span>주문: {formatDate(order.createdAt)}</span>
                         {order.paidAt && <span>결제: {formatDate(order.paidAt)}</span>}
                       </div>
@@ -579,41 +576,41 @@ export default function StoreProductsPage() {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-neutral-900 mb-4">
+        <div className="fixed inset-0 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-[17px] font-bold text-[color:var(--ad-ink)] mb-4">
               {editingId ? '상품 수정' : '새 상품 등록'}
             </h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                  상품명 <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  상품명 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="상품명을 입력하세요"
-                  className="w-full h-10 px-3 bg-white border border-neutral-300 rounded-lg text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 focus:border-neutral-900"
+                  className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                  가격 (원) <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  가격 (원) <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <input
                   type="number"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                   placeholder="0"
-                  className="w-full h-10 px-3 bg-white border border-neutral-300 rounded-lg text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 focus:border-neutral-900"
+                  className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   설명 (선택)
                 </label>
                 <textarea
@@ -621,12 +618,12 @@ export default function StoreProductsPage() {
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="상품 설명을 입력하세요"
                   rows={3}
-                  className="w-full px-3 py-2 bg-white border border-neutral-300 rounded-lg text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 focus:border-neutral-900 resize-none"
+                  className="w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 py-2.5 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none resize-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   상품 이미지 (선택)
                 </label>
 
@@ -636,12 +633,12 @@ export default function StoreProductsPage() {
                     <img
                       src={imagePreview}
                       alt="상품 이미지 미리보기"
-                      className="w-full h-40 object-cover rounded-lg border border-neutral-200"
+                      className="w-full h-40 object-cover rounded-[10px] border border-[color:var(--ad-line)]"
                     />
                     <button
                       type="button"
                       onClick={removeImage}
-                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                      className="ad-press absolute top-2 right-2 p-1.5 bg-[#cc0832] text-white rounded-full hover:opacity-90 transition-opacity"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -649,15 +646,15 @@ export default function StoreProductsPage() {
                     </button>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-neutral-300 rounded-lg cursor-pointer hover:border-neutral-400 hover:bg-neutral-50 transition-colors mb-3">
+                  <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-[color:var(--ad-line-strong)] rounded-[10px] cursor-pointer hover:border-[color:var(--ad-navy)] hover:bg-[color:var(--ad-bg-alt)] transition-colors mb-3">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <svg className="w-8 h-8 mb-3 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-8 h-8 mb-3 text-[color:var(--ad-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      <p className="text-sm text-neutral-500">
+                      <p className="text-[13px] text-[color:var(--ad-muted)]">
                         클릭하여 이미지 업로드
                       </p>
-                      <p className="text-xs text-neutral-400 mt-1">
+                      <p className="text-[12px] text-[color:var(--ad-faint)] mt-1">
                         JPG, PNG, GIF, WebP (최대 5MB)
                       </p>
                     </div>
@@ -673,15 +670,15 @@ export default function StoreProductsPage() {
 
                 {/* 업로드 중 표시 */}
                 {isUploading && (
-                  <div className="flex items-center gap-2 text-sm text-neutral-500">
-                    <div className="w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+                  <div className="flex items-center gap-2 text-[13px] text-[color:var(--ad-muted)]">
+                    <div className="w-4 h-4 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
                     이미지 업로드 중...
                   </div>
                 )}
 
                 {/* URL 직접 입력 옵션 */}
                 <div className="mt-2">
-                  <p className="text-xs text-neutral-500 mb-1">또는 URL 직접 입력</p>
+                  <p className="text-[12px] text-[color:var(--ad-faint)] mb-1">또는 URL 직접 입력</p>
                   <input
                     type="text"
                     value={formData.imageUrl}
@@ -690,14 +687,14 @@ export default function StoreProductsPage() {
                       setImagePreview(e.target.value || null);
                     }}
                     placeholder="https://example.com/image.jpg"
-                    className="w-full h-9 px-3 bg-white border border-neutral-300 rounded-lg text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 focus:border-neutral-900"
+                    className="w-full h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                  <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                     정렬 순서
                   </label>
                   <input
@@ -705,22 +702,22 @@ export default function StoreProductsPage() {
                     value={formData.sortOrder}
                     onChange={(e) => setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })}
                     placeholder="0"
-                    className="w-full h-10 px-3 bg-white border border-neutral-300 rounded-lg text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 focus:border-neutral-900"
+                    className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                   />
-                  <p className="text-xs text-neutral-500 mt-1">낮을수록 상단 표시</p>
+                  <p className="text-[12px] text-[color:var(--ad-faint)] mt-1">낮을수록 상단 표시</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                  <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                     상태
                   </label>
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                    className={`w-full h-10 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    className={`ad-press w-full h-10 px-3 rounded-[10px] text-[13px] font-medium transition-colors ${
                       formData.isActive
-                        ? 'bg-green-50 border border-green-200 text-green-700'
-                        : 'bg-neutral-100 border border-neutral-200 text-neutral-500'
+                        ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]'
+                        : 'bg-white text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]'
                     }`}
                   >
                     {formData.isActive ? '판매중' : '판매중지'}
@@ -729,21 +726,21 @@ export default function StoreProductsPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-2 mt-6">
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg text-sm font-medium transition-colors"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 취소
               </button>
               <button
                 onClick={handleSave}
                 disabled={isSaving || !formData.name || !formData.price}
-                className="flex-1 h-10 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
               >
                 {isSaving ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
                     저장 중...
                   </>
                 ) : (

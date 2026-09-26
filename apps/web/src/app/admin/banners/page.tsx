@@ -391,20 +391,20 @@ export default function AdminBannersPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {/* Toast */}
       {toast && (
         <div
-          className={`fixed top-4 right-4 px-4 py-3 rounded-lg text-sm font-medium z-50 ${
+          className={`fixed top-4 right-4 px-4 py-3 rounded-[10px] text-[13px] font-medium z-50 shadow-[0_8px_24px_-12px_rgba(19,22,81,0.35)] ${
             toast.type === 'success'
-              ? 'bg-green-500/10 border border-green-500/20 text-green-400'
-              : 'bg-red-500/10 border border-red-500/20 text-red-400'
+              ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]'
+              : 'bg-[#ffc4d0] text-[color:var(--ad-neg)]'
           }`}
         >
           {toast.message}
@@ -412,14 +412,11 @@ export default function AdminBannersPage() {
       )}
 
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">주문완료 배너</h1>
-          <p className="text-neutral-500 mt-1">주문 완료 페이지에 표시되는 배너를 관리합니다 (이미지/영상)</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <p className="text-[13px] text-[color:var(--ad-muted)]">주문 완료 페이지에 표시되는 배너를 관리합니다 (이미지/영상)</p>
         <button
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white text-neutral-900 rounded-lg text-sm font-medium hover:bg-neutral-100 transition-colors"
+          className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -429,18 +426,18 @@ export default function AdminBannersPage() {
       </div>
 
       {/* Banners List */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+      <div className="ad-card overflow-hidden">
         {banners.length === 0 ? (
-          <div className="p-12 text-center text-neutral-500">
+          <div className="p-12 text-center text-[13px] text-[color:var(--ad-faint)]">
             등록된 배너가 없습니다.
           </div>
         ) : (
-          <div className="divide-y divide-neutral-800">
+          <div className="divide-y divide-[color:var(--ad-line)]">
             {banners.map((banner) => (
-              <div key={banner.id} className="p-4 flex items-center gap-4">
+              <div key={banner.id} className="p-5 flex items-center gap-4 hover:bg-[rgba(110,173,255,0.05)] transition-colors">
                 {/* Preview */}
                 <div
-                  className="w-32 rounded-lg overflow-hidden bg-neutral-800 flex-shrink-0 relative"
+                  className="w-32 rounded-[10px] overflow-hidden bg-[color:var(--ad-bg)] flex-shrink-0 relative"
                   style={{ aspectRatio: banner.aspectRatio || DEFAULT_ASPECT_RATIO }}
                 >
                   {banner.mediaType === 'VIDEO' ? (
@@ -472,27 +469,27 @@ export default function AdminBannersPage() {
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-medium text-white truncate">{banner.title}</h3>
+                    <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] truncate">{banner.title}</h3>
                     <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
                         banner.mediaType === 'VIDEO'
-                          ? 'bg-purple-500/10 text-purple-400'
-                          : 'bg-blue-500/10 text-blue-400'
+                          ? 'bg-[color:var(--ad-navy)] text-white'
+                          : 'bg-[color:var(--ad-blue-soft)] text-[color:var(--ad-link)]'
                       }`}
                     >
                       {banner.mediaType === 'VIDEO' ? '영상' : '이미지'}
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
                         banner.isActive
-                          ? 'bg-green-500/10 text-green-400'
-                          : 'bg-neutral-700 text-neutral-400'
+                          ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]'
+                          : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]'
                       }`}
                     >
                       {banner.isActive ? '활성' : '비활성'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-neutral-500">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1.5 text-[12px] text-[color:var(--ad-faint)]">
                     <span>순서: {banner.order}</span>
                     <span>자동 슬라이드: {banner.autoSlide ? `${banner.slideInterval / 1000}초` : '꺼짐'}</span>
                     <span>비율: {aspectRatioLabel(banner.aspectRatio || DEFAULT_ASPECT_RATIO)}</span>
@@ -508,23 +505,23 @@ export default function AdminBannersPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => toggleActive(banner)}
-                    className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                    className={`ad-press h-8 px-3 rounded-[10px] text-[12.5px] font-medium transition-colors ${
                       banner.isActive
-                        ? 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600'
-                        : 'bg-green-600 text-white hover:bg-green-500'
+                        ? 'bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'
+                        : 'bg-[color:var(--ad-navy)] text-white hover:bg-[#2a2d62]'
                     }`}
                   >
                     {banner.isActive ? '비활성화' : '활성화'}
                   </button>
                   <button
                     onClick={() => openEditModal(banner)}
-                    className="px-3 py-1.5 bg-neutral-800 text-neutral-300 rounded text-xs font-medium hover:bg-neutral-700 transition-colors"
+                    className="ad-press h-8 px-3 rounded-[10px] bg-white text-[12.5px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                   >
                     수정
                   </button>
                   <button
                     onClick={() => handleDelete(banner)}
-                    className="px-3 py-1.5 bg-red-600/10 text-red-400 rounded text-xs font-medium hover:bg-red-600/20 transition-colors"
+                    className="ad-press h-8 px-3 rounded-[10px] bg-white text-[12.5px] font-medium text-[color:var(--ad-neg)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                   >
                     삭제
                   </button>
@@ -537,28 +534,28 @@ export default function AdminBannersPage() {
 
       {/* Modal */}
       {modal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-white mb-4">
+        <div className="fixed inset-0 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-[17px] font-bold text-[color:var(--ad-ink)] mb-4">
               {modal.mode === 'edit' ? '배너 수정' : '새 배너 추가'}
             </h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  제목 <span className="text-red-400">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  제목 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <input
                   type="text"
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
                   placeholder="배너 제목 (관리용)"
-                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                  className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   배너 비율
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -567,31 +564,31 @@ export default function AdminBannersPage() {
                       key={option.value}
                       type="button"
                       onClick={() => setFormAspectRatio(option.value)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors ${
+                      className={`ad-press flex items-center gap-2 px-3 py-2 rounded-[10px] border text-left transition-colors ${
                         formAspectRatio === option.value
-                          ? 'bg-white/10 border-white/40 text-white'
-                          : 'bg-neutral-800 border-neutral-700 text-neutral-400 hover:border-neutral-500'
+                          ? 'bg-[color:var(--ad-blue-soft)] border-[color:var(--ad-navy)] text-[color:var(--ad-link)]'
+                          : 'bg-white border-[color:var(--ad-line-strong)] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]'
                       }`}
                     >
                       <span
-                        className="w-6 bg-neutral-600 rounded-sm flex-shrink-0"
+                        className="w-6 bg-[color:var(--ad-blue-2)] rounded-sm flex-shrink-0"
                         style={{ aspectRatio: option.value }}
                       />
                       <span className="min-w-0">
                         <span className="block text-xs font-medium truncate">{option.label}</span>
-                        <span className="block text-[11px] text-neutral-500 truncate">{option.hint}</span>
+                        <span className="block text-[11px] text-[color:var(--ad-faint)] truncate">{option.hint}</span>
                       </span>
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-neutral-500 mt-1.5">
+                <p className="text-[12px] text-[color:var(--ad-faint)] mt-1.5">
                   업로드한 미디어는 선택한 비율에 맞춰 표시됩니다. (예: 315 × 420px 배너는 세로형 3:4)
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  배너 미디어 <span className="text-red-400">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  배너 미디어 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
 
                 {/* 파일 업로드 버튼 */}
@@ -608,11 +605,11 @@ export default function AdminBannersPage() {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading}
-                    className="flex-1 h-10 px-3 bg-neutral-800 border border-neutral-700 border-dashed rounded-lg text-sm text-neutral-400 hover:text-white hover:border-neutral-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="ad-press flex-1 h-10 px-3 bg-white border border-[color:var(--ad-line-strong)] border-dashed rounded-[10px] text-[13px] text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)] hover:border-[color:var(--ad-navy)] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {isUploading ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
                         업로드 중... {uploadProgress}%
                       </>
                     ) : (
@@ -629,9 +626,9 @@ export default function AdminBannersPage() {
                 {/* 업로드 진행률 바 */}
                 {isUploading && (
                   <div className="mb-2">
-                    <div className="h-1 bg-neutral-700 rounded-full overflow-hidden">
+                    <div className="h-1 bg-[color:var(--ad-bg)] rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-green-500 transition-all duration-300"
+                        className="h-full bg-[color:var(--ad-blue)] transition-all duration-300"
                         style={{ width: `${uploadProgress}%` }}
                       />
                     </div>
@@ -640,7 +637,7 @@ export default function AdminBannersPage() {
 
                 {/* 미디어 미리보기 */}
                 {formImageUrl ? (
-                  <div className="relative rounded-lg overflow-hidden bg-neutral-800">
+                  <div className="relative rounded-[10px] overflow-hidden bg-[color:var(--ad-bg)]">
                     {formMediaType === 'VIDEO' ? (
                       <video
                         src={formImageUrl}
@@ -676,8 +673,8 @@ export default function AdminBannersPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="h-40 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center">
-                    <div className="text-center text-neutral-500">
+                  <div className="h-40 rounded-[10px] bg-[color:var(--ad-bg-alt)] border border-[color:var(--ad-line)] flex items-center justify-center">
+                    <div className="text-center text-[color:var(--ad-faint)]">
                       <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
@@ -690,7 +687,7 @@ export default function AdminBannersPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   링크 URL (선택)
                 </label>
                 <input
@@ -698,38 +695,38 @@ export default function AdminBannersPage() {
                   value={formLinkUrl}
                   onChange={(e) => setFormLinkUrl(e.target.value)}
                   placeholder="클릭 시 이동할 URL"
-                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                  className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                     정렬 순서
                   </label>
                   <input
                     type="number"
                     value={formOrder}
                     onChange={(e) => setFormOrder(parseInt(e.target.value) || 0)}
-                    className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                    className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                     슬라이드 간격 (ms)
                   </label>
                   <input
                     type="number"
                     value={formSlideInterval}
                     onChange={(e) => setFormSlideInterval(parseInt(e.target.value) || 3000)}
-                    className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                    className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   대상 매장 ({formTargetSlugs.length > 0 ? `${formTargetSlugs.length}곳 선택됨` : '전체'})
                 </label>
 
@@ -739,13 +736,13 @@ export default function AdminBannersPage() {
                     {formTargetSlugs.map((slug) => (
                       <span
                         key={slug}
-                        className="inline-flex items-center gap-1 pl-2 pr-1 py-1 bg-white/10 border border-white/20 rounded-md text-xs text-white"
+                        className="inline-flex items-center gap-1 pl-2 pr-1 py-1 bg-[color:var(--ad-blue-soft)] rounded-full text-[12px] text-[color:var(--ad-link)]"
                       >
                         <span className="max-w-[160px] truncate">{storeLabel(slug)}</span>
                         <button
                           type="button"
                           onClick={() => toggleTargetSlug(slug)}
-                          className="w-4 h-4 rounded-full hover:bg-white/20 flex items-center justify-center text-neutral-300"
+                          className="w-4 h-4 rounded-full hover:bg-white/70 flex items-center justify-center text-[color:var(--ad-link)]"
                           aria-label={`${storeLabel(slug)} 선택 해제`}
                         >
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -757,7 +754,7 @@ export default function AdminBannersPage() {
                     <button
                       type="button"
                       onClick={() => setFormTargetSlugs([])}
-                      className="px-2 py-1 text-xs text-neutral-400 hover:text-white transition-colors"
+                      className="px-2 py-1 text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
                     >
                       전체 해제
                     </button>
@@ -770,20 +767,20 @@ export default function AdminBannersPage() {
                   value={storeSearch}
                   onChange={(e) => setStoreSearch(e.target.value)}
                   placeholder="매장명 · slug · 점주명으로 검색"
-                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                  className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
 
                 {/* 검색 결과 목록 (다중 선택) */}
-                <div className="mt-2 max-h-52 overflow-y-auto border border-neutral-800 rounded-lg divide-y divide-neutral-800">
+                <div className="mt-2 max-h-52 overflow-y-auto border border-[color:var(--ad-line)] rounded-[10px] divide-y divide-[color:var(--ad-line)]">
                   {stores.length === 0 ? (
-                    <div className="px-3 py-4 text-xs text-neutral-500 text-center">
+                    <div className="px-3 py-4 text-[12px] text-[color:var(--ad-faint)] text-center">
                       매장 목록을 불러오는 중입니다.
                     </div>
                   ) : filteredStores.length === 0 ? (
-                    <div className="px-3 py-4 text-xs text-neutral-500 text-center">
+                    <div className="px-3 py-4 text-[12px] text-[color:var(--ad-faint)] text-center">
                       검색 결과가 없습니다.
                       {unselectableMatchCount > 0 && (
-                        <span className="block mt-1 text-amber-500/80">
+                        <span className="block mt-1 text-[#993d1f]">
                           slug 가 없는 매장 {unselectableMatchCount}개가 검색어와 일치하지만, 등록
                           링크(slug)가 없어 배너 타겟으로 지정할 수 없습니다.
                         </span>
@@ -797,18 +794,18 @@ export default function AdminBannersPage() {
                         <label
                           key={store.id}
                           className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
-                            checked ? 'bg-white/5' : 'hover:bg-neutral-800/60'
+                            checked ? 'bg-[color:var(--ad-blue-soft)]/60' : 'hover:bg-[color:var(--ad-bg-alt)]'
                           }`}
                         >
                           <input
                             type="checkbox"
                             checked={checked}
                             onChange={() => toggleTargetSlug(slug)}
-                            className="w-4 h-4 rounded border-neutral-600 bg-neutral-800 text-green-500 focus:ring-green-500 focus:ring-offset-0"
+                            className="w-4 h-4 rounded border-[color:var(--ad-line-strong)] text-[#131651] focus:ring-[#131651] focus:ring-offset-0"
                           />
                           <span className="min-w-0 flex-1">
-                            <span className="block text-sm text-white truncate">{store.name || slug}</span>
-                            <span className="block text-xs text-neutral-500 truncate">
+                            <span className="block text-[13px] text-[color:var(--ad-ink)] truncate">{store.name || slug}</span>
+                            <span className="block text-[12px] text-[color:var(--ad-faint)] truncate">
                               {storeSubLabel(store)}
                             </span>
                           </span>
@@ -818,14 +815,14 @@ export default function AdminBannersPage() {
                   )}
                 </div>
 
-                <p className="text-xs text-neutral-500 mt-1">
+                <p className="text-[12px] text-[color:var(--ad-faint)] mt-1">
                   선택하지 않으면 모든 매장에 표시됩니다.
                   {stores.length > 0 &&
                     (storeSearch.trim()
                       ? ` 전체 ${stores.length}개 중 ${filteredStores.length}개 검색됨.`
                       : ` 전체 ${stores.length}개 매장.`)}
                   {unselectableMatchCount > 0 && filteredStores.length > 0 && (
-                    <span className="text-amber-500/80">
+                    <span className="text-[#993d1f]">
                       {' '}
                       slug 없는 매장 {unselectableMatchCount}개는 타겟 지정이 불가해 제외했습니다.
                     </span>
@@ -839,9 +836,9 @@ export default function AdminBannersPage() {
                     type="checkbox"
                     checked={formIsActive}
                     onChange={(e) => setFormIsActive(e.target.checked)}
-                    className="w-4 h-4 rounded border-neutral-600 bg-neutral-800 text-green-500 focus:ring-green-500 focus:ring-offset-0"
+                    className="w-4 h-4 rounded border-[color:var(--ad-line-strong)] text-[#131651] focus:ring-[#131651] focus:ring-offset-0"
                   />
-                  <span className="text-sm text-neutral-300">활성화</span>
+                  <span className="text-[13px] text-[color:var(--ad-ink-2)]">활성화</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -849,28 +846,28 @@ export default function AdminBannersPage() {
                     type="checkbox"
                     checked={formAutoSlide}
                     onChange={(e) => setFormAutoSlide(e.target.checked)}
-                    className="w-4 h-4 rounded border-neutral-600 bg-neutral-800 text-green-500 focus:ring-green-500 focus:ring-offset-0"
+                    className="w-4 h-4 rounded border-[color:var(--ad-line-strong)] text-[#131651] focus:ring-[#131651] focus:ring-offset-0"
                   />
-                  <span className="text-sm text-neutral-300">자동 슬라이드</span>
+                  <span className="text-[13px] text-[color:var(--ad-ink-2)]">자동 슬라이드</span>
                 </label>
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-2 mt-6">
               <button
                 onClick={() => setModal(null)}
-                className="flex-1 h-10 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-sm font-medium transition-colors"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 취소
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || !formTitle || !formImageUrl}
-                className="flex-1 h-10 bg-white hover:bg-neutral-100 text-neutral-900 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
               >
                 {isSubmitting ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
                     저장 중...
                   </>
                 ) : (

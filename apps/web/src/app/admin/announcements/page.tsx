@@ -207,20 +207,24 @@ export default function AnnouncementsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
+  const inputCls =
+    'w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none';
+  const labelCls = 'mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]';
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {/* Toast */}
       {toast && (
         <div
-          className={`fixed top-4 right-4 px-4 py-3 rounded-lg text-sm font-medium z-50 ${
+          className={`fixed top-4 right-4 px-4 py-3 rounded-[10px] text-[13px] font-medium z-50 shadow-[0_8px_24px_-12px_rgba(19,22,81,0.35)] ${
             toast.type === 'success'
-              ? 'bg-green-500/10 border border-green-500/20 text-green-400'
-              : 'bg-red-500/10 border border-red-500/20 text-red-400'
+              ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]'
+              : 'bg-[#ffc4d0] text-[color:var(--ad-neg)]'
           }`}
         >
           {toast.message}
@@ -228,14 +232,11 @@ export default function AnnouncementsPage() {
       )}
 
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">공지사항 관리</h1>
-          <p className="text-neutral-500 mt-1">전체 매장에 표시되는 공지사항을 관리합니다.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <p className="text-[13px] text-[color:var(--ad-muted)]">전체 매장에 표시되는 공지사항을 관리합니다.</p>
         <button
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white text-neutral-900 rounded-lg text-sm font-medium hover:bg-neutral-100 transition-colors"
+          className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -245,43 +246,43 @@ export default function AnnouncementsPage() {
       </div>
 
       {/* Announcements List */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+      <div className="ad-card overflow-hidden">
         {announcements.length === 0 ? (
-          <div className="p-12 text-center text-neutral-500">
+          <div className="p-12 text-center text-[13px] text-[color:var(--ad-faint)]">
             등록된 공지사항이 없습니다.
           </div>
         ) : (
-          <div className="divide-y divide-neutral-800">
+          <div className="divide-y divide-[color:var(--ad-line)]">
             {announcements.map((announcement) => (
               <div
                 key={announcement.id}
-                className="p-4 hover:bg-neutral-800/50 transition-colors"
+                className="p-5 hover:bg-[rgba(110,173,255,0.05)] transition-colors"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1.5">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
                           announcement.isActive
-                            ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                            : 'bg-neutral-700 text-neutral-400'
+                            ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]'
+                            : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]'
                         }`}
                       >
                         {announcement.isActive ? '활성' : '비활성'}
                       </span>
                       {announcement.priority > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-[#ffdace] text-[#993d1f]">
                           우선순위: {announcement.priority}
                         </span>
                       )}
                     </div>
-                    <h3 className="text-base font-medium text-white truncate">
+                    <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] truncate">
                       {announcement.title}
                     </h3>
-                    <p className="text-sm text-neutral-400 mt-1 line-clamp-2">
+                    <p className="text-[13px] text-[color:var(--ad-muted)] mt-1 line-clamp-2">
                       {announcement.content}
                     </p>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-neutral-500">
+                    <div className="flex items-center gap-4 mt-2 text-[12px] text-[color:var(--ad-faint)] ad-tnum">
                       <span>
                         생성: {new Date(announcement.createdAt).toLocaleDateString('ko-KR')}
                       </span>
@@ -298,13 +299,13 @@ export default function AnnouncementsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => toggleActive(announcement)}
-                      className={`p-2 rounded-lg transition-colors ${
+                      className={`ad-press p-2 rounded-[10px] transition-colors ${
                         announcement.isActive
-                          ? 'text-green-400 hover:bg-green-500/10'
-                          : 'text-neutral-500 hover:bg-neutral-700'
+                          ? 'text-[color:var(--ad-pos)] hover:bg-[#d9fad3]'
+                          : 'text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg)]'
                       }`}
                       title={announcement.isActive ? '비활성화' : '활성화'}
                     >
@@ -318,7 +319,7 @@ export default function AnnouncementsPage() {
                     </button>
                     <button
                       onClick={() => openEditModal(announcement)}
-                      className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-700 rounded-lg transition-colors"
+                      className="ad-press p-2 text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-bg)] rounded-[10px] transition-colors"
                       title="수정"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -328,7 +329,7 @@ export default function AnnouncementsPage() {
                     <button
                       onClick={() => handleDelete(announcement.id)}
                       disabled={deletingId === announcement.id}
-                      className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
+                      className="ad-press p-2 text-[color:var(--ad-neg)] hover:bg-[#ffc4d0]/50 rounded-[10px] transition-colors disabled:opacity-50"
                       title="삭제"
                     >
                       {deletingId === announcement.id ? (
@@ -349,42 +350,42 @@ export default function AnnouncementsPage() {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-white mb-4">
+        <div className="fixed inset-0 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-[17px] font-bold text-[color:var(--ad-ink)] mb-4">
               {editingId ? '공지사항 수정' : '새 공지사항'}
             </h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  제목 <span className="text-red-400">*</span>
+                <label className={labelCls}>
+                  제목 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="공지사항 제목"
-                  className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                  className={inputCls}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  내용 <span className="text-red-400">*</span>
+                <label className={labelCls}>
+                  내용 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <textarea
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                   placeholder="공지사항 내용을 입력하세요"
                   rows={5}
-                  className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20 resize-none"
+                  className="w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 py-2.5 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  <label className={labelCls}>
                     우선순위
                   </label>
                   <input
@@ -392,22 +393,22 @@ export default function AnnouncementsPage() {
                     value={formData.priority}
                     onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}
                     placeholder="0"
-                    className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                    className={inputCls}
                   />
-                  <p className="text-xs text-neutral-500 mt-1">높을수록 상단 표시</p>
+                  <p className="text-[12px] text-[color:var(--ad-faint)] mt-1">높을수록 상단 표시</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  <label className={labelCls}>
                     상태
                   </label>
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                    className={`w-full h-10 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    className={`ad-press w-full h-10 px-3 rounded-[10px] text-[13px] font-medium transition-colors ${
                       formData.isActive
-                        ? 'bg-green-500/10 border border-green-500/20 text-green-400'
-                        : 'bg-neutral-800 border border-neutral-700 text-neutral-400'
+                        ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]'
+                        : 'bg-white text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]'
                     }`}
                   >
                     {formData.isActive ? '활성화됨' : '비활성화됨'}
@@ -417,46 +418,46 @@ export default function AnnouncementsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  <label className={labelCls}>
                     시작일 (선택)
                   </label>
                   <input
                     type="date"
                     value={formData.startAt}
                     onChange={(e) => setFormData({ ...formData, startAt: e.target.value })}
-                    className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                    className={inputCls}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  <label className={labelCls}>
                     종료일 (선택)
                   </label>
                   <input
                     type="date"
                     value={formData.endAt}
                     onChange={(e) => setFormData({ ...formData, endAt: e.target.value })}
-                    className="w-full h-10 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20"
+                    className={inputCls}
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-2 mt-6">
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 h-10 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-sm font-medium transition-colors"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 취소
               </button>
               <button
                 onClick={handleSave}
                 disabled={isSaving || !formData.title || !formData.content}
-                className="flex-1 h-10 bg-white hover:bg-neutral-100 text-neutral-900 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
               >
                 {isSaving ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-neutral-900 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
                     저장 중...
                   </>
                 ) : (

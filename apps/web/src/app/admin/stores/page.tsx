@@ -708,20 +708,20 @@ export default function AdminStoresPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Toast */}
       {toast && (
         <div
-          className={`fixed top-4 right-4 px-4 py-3 rounded-lg text-sm font-medium z-50 shadow-lg ${
+          className={`fixed top-4 right-4 px-4 py-3 rounded-[10px] text-[13px] font-medium z-50 shadow-lg ${
             toast.type === 'success'
-              ? 'bg-green-50 border border-green-200 text-green-700'
-              : 'bg-red-50 border border-red-200 text-red-700'
+              ? 'bg-white border border-[color:var(--ad-line)] text-[color:var(--ad-pos)]'
+              : 'bg-white border border-[color:var(--ad-line)] text-[color:var(--ad-neg)]'
           }`}
         >
           {toast.message}
@@ -729,30 +729,29 @@ export default function AdminStoresPage() {
       )}
 
       {/* Header */}
-      <div className="bg-white border border-[#EAEAEA] rounded-xl p-4 sm:p-5">
+      <div>
         <div className="flex flex-col gap-3">
-          {/* 상단: 제목 + 잔액부족 버튼 */}
-          <div className="flex items-center justify-between">
+          {/* 상단: 설명 + 잔액부족 버튼 */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-[15px] sm:text-[16px] font-semibold text-neutral-900">매장 목록</h2>
-              <p className="text-[12px] sm:text-[13px] text-neutral-500 mt-0.5">총 {stores.length}개 매장</p>
+              <p className="text-[13px] text-[color:var(--ad-muted)] ad-tnum">총 {stores.length}개 매장</p>
             </div>
             <div className="flex gap-2">
               {/* 주소 일괄 관리 버튼 */}
               <button
                 onClick={() => setShowBulkAddress(true)}
-                className="h-9 sm:h-10 px-3 sm:px-4 bg-neutral-900 hover:bg-neutral-800 text-white text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors whitespace-nowrap"
+                className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] whitespace-nowrap"
               >
                 주소 일괄 관리
               </button>
               {/* 발송잔액 부족 알림 버튼 */}
               <button
                 onClick={openLowBalanceModal}
-                className="h-9 sm:h-10 px-3 sm:px-4 bg-orange-500 hover:bg-orange-600 text-white text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap"
+                className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] inline-flex items-center gap-1.5 whitespace-nowrap"
               >
                 <span className="hidden sm:inline">잔액부족</span>
                 {lowBalanceStores.length > 0 && (
-                  <span className="bg-white/20 px-1.5 py-0.5 rounded text-[11px]">
+                  <span className="inline-flex rounded-full bg-[#ffdace] px-2 py-0.5 text-[11px] font-medium text-[#993d1f]">
                     {lowBalanceStores.length}
                   </span>
                 )}
@@ -760,7 +759,7 @@ export default function AdminStoresPage() {
               {/* 누적 고객 알림 버튼 */}
               <button
                 onClick={openCustomerCountModal}
-                className="h-9 sm:h-10 px-3 sm:px-4 bg-blue-500 hover:bg-blue-600 text-white text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap"
+                className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] inline-flex items-center gap-1.5 whitespace-nowrap"
               >
                 <span className="hidden sm:inline">누적고객</span>
               </button>
@@ -774,10 +773,10 @@ export default function AdminStoresPage() {
                 placeholder="매장명, ID, 이메일 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-10 pl-10 pr-4 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white pl-10 pr-4 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
               />
               <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--ad-faint)]"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -793,7 +792,7 @@ export default function AdminStoresPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[13px] text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541] cursor-pointer"
+              className="h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink-2)] focus:border-[color:var(--ad-navy)] focus:outline-none cursor-pointer"
             >
               <option value="newest">최신순</option>
               <option value="customers">고객 많은순</option>
@@ -810,61 +809,61 @@ export default function AdminStoresPage() {
           <div
             key={store.id}
             onClick={() => openStoreDetail(store)}
-            className="bg-white border border-[#EAEAEA] rounded-xl p-4 sm:p-5 cursor-pointer hover:shadow-lg hover:border-[#FFD541] transition-all group"
+            className="ad-card p-4 sm:p-5 cursor-pointer transition-all hover:shadow-[0_0_0_1.5px_var(--ad-yellow)] group"
           >
             {/* Store Name & Owner */}
             <div className="mb-3 sm:mb-4">
-              <h3 className="text-[15px] sm:text-[16px] font-semibold text-neutral-900 group-hover:text-[#D4A800] transition-colors truncate">
+              <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] group-hover:text-[color:var(--ad-link)] transition-colors truncate">
                 {store.name}
               </h3>
-              <p className="text-[12px] sm:text-[13px] text-neutral-500 truncate">{store.ownerName || '-'}</p>
+              <p className="text-[12px] sm:text-[13px] text-[color:var(--ad-muted)] truncate">{store.ownerName || '-'}</p>
             </div>
 
             {/* Stats */}
             <div className="space-y-1.5 sm:space-y-2 mb-3 sm:mb-4">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] sm:text-[12px] text-neutral-500">고객 수</span>
-                <span className="text-[13px] sm:text-[14px] font-medium text-neutral-900">
+                <span className="text-[11px] sm:text-[12px] text-[color:var(--ad-muted)]">고객 수</span>
+                <span className="text-[13px] font-medium text-[color:var(--ad-ink)] ad-tnum">
                   {formatNumber(store.customerCount)}명
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[11px] sm:text-[12px] text-neutral-500">충전금</span>
-                <span className="text-[13px] sm:text-[14px] font-medium text-neutral-900">
+                <span className="text-[11px] sm:text-[12px] text-[color:var(--ad-muted)]">충전금</span>
+                <span className="text-[13px] font-medium text-[color:var(--ad-ink)] ad-tnum">
                   {formatNumber(store.walletBalance || 0)}원
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[11px] sm:text-[12px] text-neutral-500">무료 크레딧</span>
-                <span className="text-[13px] sm:text-[14px] font-medium text-neutral-900">
+                <span className="text-[11px] sm:text-[12px] text-[color:var(--ad-muted)]">무료 크레딧</span>
+                <span className="text-[13px] font-medium text-[color:var(--ad-ink)] ad-tnum">
                   {store.monthlyCredit?.remaining ?? 30}/{store.monthlyCredit?.total ?? 30}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[11px] sm:text-[12px] text-neutral-500">가입일</span>
-                <span className="text-[11px] sm:text-[12px] text-neutral-600">
+                <span className="text-[11px] sm:text-[12px] text-[color:var(--ad-muted)]">가입일</span>
+                <span className="text-[11px] sm:text-[12px] text-[color:var(--ad-muted)]">
                   {new Date(store.createdAt).toLocaleDateString('ko-KR')}
                 </span>
               </div>
             </div>
 
             {/* Quick Actions */}
-            <div className="flex gap-1.5 sm:gap-2 pt-3 border-t border-[#EAEAEA]">
+            <div className="flex gap-1.5 sm:gap-2 pt-3 border-t border-[color:var(--ad-line)]">
               <button
                 onClick={(e) => handleOpenStoreHome(store.id, e)}
-                className="flex-1 px-1.5 sm:px-2 py-2 sm:py-1.5 text-[11px] sm:text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+                className="ad-press flex-1 h-8 rounded-[8px] bg-[color:var(--ad-blue-soft)] text-[12px] font-medium text-[color:var(--ad-link)] hover:bg-[#cfe2ff]"
               >
                 홈
               </button>
               <button
                 onClick={(e) => openTopupModal(store, e)}
-                className="flex-1 px-1.5 sm:px-2 py-2 sm:py-1.5 text-[11px] sm:text-[11px] font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded transition-colors"
+                className="ad-press flex-1 h-8 rounded-[8px] bg-[#d9fad3] text-[12px] font-medium text-[color:var(--ad-pos)] hover:bg-[#c6f3be]"
               >
                 +충전
               </button>
               <button
                 onClick={(e) => openDeductModal(store, e)}
-                className="flex-1 px-1.5 sm:px-2 py-2 sm:py-1.5 text-[11px] sm:text-[11px] font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
+                className="ad-press flex-1 h-8 rounded-[8px] bg-[#ffe3e9] text-[12px] font-medium text-[color:var(--ad-neg)] hover:bg-[#ffc4d0]"
               >
                 -차감
               </button>
@@ -872,7 +871,7 @@ export default function AdminStoresPage() {
           </div>
         ))}
         {filteredStores.length === 0 && (
-          <div className="col-span-full text-center py-12 text-neutral-500">
+          <div className="col-span-full text-center py-12 text-[13px] text-[color:var(--ad-faint)]">
             {searchQuery ? '검색 결과가 없습니다.' : '등록된 매장이 없습니다.'}
           </div>
         )}
@@ -880,21 +879,21 @@ export default function AdminStoresPage() {
 
       {/* 페이지네이션 (렌더) */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-4 text-sm">
+        <div className="flex items-center justify-center gap-2 mt-4 text-[13px]">
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-3 py-1.5 border border-[#EAEAEA] rounded-lg text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             이전
           </button>
-          <span className="text-neutral-700 min-w-[110px] text-center">
+          <span className="text-[color:var(--ad-ink-2)] min-w-[110px] text-center ad-tnum">
             {currentPage} / {totalPages} · 총 {filteredStores.length.toLocaleString()}개
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-3 py-1.5 border border-[#EAEAEA] rounded-lg text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             다음
           </button>
@@ -904,20 +903,20 @@ export default function AdminStoresPage() {
       {/* Store Detail Modal */}
       {selectedStore && (
         <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={() => {
             setSelectedStore(null);
             setIsEditMode(false);
           }}
         >
           <div
-            className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl"
+            className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="sticky top-0 bg-white border-b border-[#EAEAEA] px-6 py-4 flex items-center justify-between z-10 rounded-t-xl">
+            <div className="sticky top-0 bg-white border-b border-[color:var(--ad-line)] px-6 py-4 flex items-center justify-between z-10 rounded-t-[20px]">
               <div>
-                <h3 className="text-[18px] font-semibold text-neutral-900">
+                <h3 className="text-[17px] font-bold text-[color:var(--ad-ink)]">
                   {isEditMode ? '매장 정보 수정' : '매장 상세 정보'}
                 </h3>
               </div>
@@ -925,7 +924,7 @@ export default function AdminStoresPage() {
                 {!isEditMode ? (
                   <button
                     onClick={() => setIsEditMode(true)}
-                    className="text-[14px] font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                    className="text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
                   >
                     수정
                   </button>
@@ -933,17 +932,17 @@ export default function AdminStoresPage() {
                   <>
                     <button
                       onClick={() => setIsEditMode(false)}
-                      className="text-[14px] font-medium text-neutral-500 hover:text-neutral-700 transition-colors"
+                      className="text-[12.5px] font-medium text-[color:var(--ad-muted)] hover:underline"
                     >
                       취소
                     </button>
                     <button
                       onClick={handleSaveStore}
                       disabled={isSaving}
-                      className="text-[14px] font-medium text-blue-600 hover:text-blue-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+                      className="text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline disabled:opacity-50 flex items-center gap-1"
                     >
                       {isSaving && (
-                        <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-3 h-3 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
                       )}
                       저장
                     </button>
@@ -951,7 +950,7 @@ export default function AdminStoresPage() {
                 )}
                 <button
                   onClick={() => setSelectedStore(null)}
-                  className="p-1 text-neutral-400 hover:text-neutral-600 transition-colors"
+                  className="p-1 text-[color:var(--ad-faint)] hover:text-[color:var(--ad-ink)] transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -963,31 +962,31 @@ export default function AdminStoresPage() {
             {/* Modal Body */}
             <div className="p-6 space-y-6">
               {/* 기본 정보 카드 */}
-              <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-4">
-                <h4 className="text-[15px] font-semibold text-neutral-900 mb-2">기본 정보</h4>
+              <div className="ad-card p-5 space-y-4">
+                <h4 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-2">기본 정보</h4>
 
                 {/* 2-column: 매장명 & 업종 */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                    <label className="block text-[12px] text-neutral-500 mb-1">매장명</label>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                    <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">매장명</label>
                     {isEditMode ? (
                       <input
                         type="text"
                         value={editForm.name || ''}
                         onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                        className="w-full text-[16px] font-medium text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
+                        className="w-full text-[14px] font-medium text-[color:var(--ad-ink)] bg-transparent border-none p-0 focus:outline-none focus:ring-0"
                       />
                     ) : (
-                      <p className="text-[16px] font-medium text-neutral-900">{selectedStore.name}</p>
+                      <p className="text-[14px] font-medium text-[color:var(--ad-ink)]">{selectedStore.name}</p>
                     )}
                   </div>
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                    <label className="block text-[12px] text-neutral-500 mb-1">업종</label>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                    <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">업종</label>
                     {isEditMode ? (
                       <select
                         value={editForm.category || ''}
                         onChange={(e) => setEditForm({ ...editForm, category: e.target.value || null })}
-                        className="w-full text-[16px] font-medium text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
+                        className="w-full text-[14px] font-medium text-[color:var(--ad-ink)] bg-transparent border-none p-0 focus:outline-none focus:ring-0"
                       >
                         <option value="">업종 선택</option>
                         {CATEGORY_GROUPS.map((group) => (
@@ -1001,7 +1000,7 @@ export default function AdminStoresPage() {
                         ))}
                       </select>
                     ) : (
-                      <p className="text-[16px] font-medium text-neutral-900">
+                      <p className="text-[14px] font-medium text-[color:var(--ad-ink)]">
                         {selectedStore.category ? STORE_CATEGORIES[selectedStore.category as keyof typeof STORE_CATEGORIES] || selectedStore.category : '-'}
                       </p>
                     )}
@@ -1010,124 +1009,124 @@ export default function AdminStoresPage() {
 
                 {/* 2-column: 연락처 & 사업자등록번호 */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                    <label className="block text-[12px] text-neutral-500 mb-1">연락처</label>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                    <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">연락처</label>
                     {isEditMode ? (
                       <input
                         type="text"
                         value={editForm.phone || ''}
                         onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                        className="w-full text-[16px] font-medium text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
+                        className="w-full text-[14px] font-medium text-[color:var(--ad-ink)] bg-transparent border-none p-0 focus:outline-none focus:ring-0"
                         placeholder="연락처 입력"
                       />
                     ) : (
-                      <p className="text-[16px] font-medium text-neutral-900">{selectedStore.phone || '-'}</p>
+                      <p className="text-[14px] font-medium text-[color:var(--ad-ink)]">{selectedStore.phone || '-'}</p>
                     )}
                   </div>
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                    <label className="block text-[12px] text-neutral-500 mb-1">사업자등록번호</label>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                    <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">사업자등록번호</label>
                     {isEditMode ? (
                       <input
                         type="text"
                         value={editForm.businessRegNumber || ''}
                         onChange={(e) => setEditForm({ ...editForm, businessRegNumber: e.target.value })}
-                        className="w-full text-[16px] font-medium text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
+                        className="w-full text-[14px] font-medium text-[color:var(--ad-ink)] bg-transparent border-none p-0 focus:outline-none focus:ring-0"
                         placeholder="000-00-00000"
                       />
                     ) : (
-                      <p className="text-[16px] font-medium text-neutral-900">{selectedStore.businessRegNumber || '-'}</p>
+                      <p className="text-[14px] font-medium text-[color:var(--ad-ink)]">{selectedStore.businessRegNumber || '-'}</p>
                     )}
                   </div>
                 </div>
 
                 {/* 2-column: 대표자명 & 점주 이메일 */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                    <label className="block text-[12px] text-neutral-500 mb-1">대표자명</label>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                    <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">대표자명</label>
                     {isEditMode ? (
                       <input
                         type="text"
                         value={editForm.ownerName || ''}
                         onChange={(e) => setEditForm({ ...editForm, ownerName: e.target.value })}
-                        className="w-full text-[16px] font-medium text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
+                        className="w-full text-[14px] font-medium text-[color:var(--ad-ink)] bg-transparent border-none p-0 focus:outline-none focus:ring-0"
                         placeholder="대표자명 입력"
                       />
                     ) : (
-                      <p className="text-[16px] font-medium text-neutral-900">{selectedStore.ownerName || '-'}</p>
+                      <p className="text-[14px] font-medium text-[color:var(--ad-ink)]">{selectedStore.ownerName || '-'}</p>
                     )}
                   </div>
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                    <label className="block text-[12px] text-neutral-500 mb-1">점주 이메일 (로그인 계정)</label>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                    <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">점주 이메일 (로그인 계정)</label>
                     {isEditMode ? (
                       <input
                         type="email"
                         value={editForm.ownerEmail || ''}
                         onChange={(e) => setEditForm({ ...editForm, ownerEmail: e.target.value })}
-                        className="w-full text-[16px] font-medium text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
+                        className="w-full text-[14px] font-medium text-[color:var(--ad-ink)] bg-transparent border-none p-0 focus:outline-none focus:ring-0"
                         placeholder="점주 이메일 입력"
                       />
                     ) : (
-                      <p className="text-[16px] font-medium text-neutral-900">{selectedStore.ownerEmail || '-'}</p>
+                      <p className="text-[14px] font-medium text-[color:var(--ad-ink)]">{selectedStore.ownerEmail || '-'}</p>
                     )}
                   </div>
                 </div>
 
                 {/* 2-column: Slug & 가입일 */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                    <label className="block text-[12px] text-neutral-500 mb-1">Slug (URL)</label>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                    <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">Slug (URL)</label>
                     {isEditMode ? (
                       <input
                         type="text"
                         value={editForm.slug || ''}
                         onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
-                        className="w-full text-[16px] font-medium text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
+                        className="w-full text-[14px] font-medium text-[color:var(--ad-ink)] bg-transparent border-none p-0 focus:outline-none focus:ring-0"
                         placeholder="slug 입력"
                       />
                     ) : (
-                      <p className="text-[16px] font-medium text-neutral-900">{selectedStore.slug || '-'}</p>
+                      <p className="text-[14px] font-medium text-[color:var(--ad-ink)]">{selectedStore.slug || '-'}</p>
                     )}
                   </div>
-                  <div className="rounded-xl p-4 bg-neutral-50">
-                    <label className="block text-[12px] text-neutral-500 mb-1">가입일</label>
-                    <p className="text-[16px] font-medium text-neutral-900">
+                  <div className="rounded-xl p-4 bg-[color:var(--ad-bg-alt)]">
+                    <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">가입일</label>
+                    <p className="text-[14px] font-medium text-[color:var(--ad-ink)]">
                       {new Date(selectedStore.createdAt).toLocaleDateString('ko-KR')}
                     </p>
                   </div>
                 </div>
 
                 {/* 주소 */}
-                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                  <label className="block text-[12px] text-neutral-500 mb-1">주소</label>
+                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                  <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">주소</label>
                   {isEditMode ? (
                     <input
                       type="text"
                       value={editForm.address || ''}
                       onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                      className="w-full text-[16px] font-medium text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
+                      className="w-full text-[14px] font-medium text-[color:var(--ad-ink)] bg-transparent border-none p-0 focus:outline-none focus:ring-0"
                       placeholder="주소 입력"
                     />
                   ) : (
-                    <p className="text-[16px] font-medium text-neutral-900">{selectedStore.address || '-'}</p>
+                    <p className="text-[14px] font-medium text-[color:var(--ad-ink)]">{selectedStore.address || '-'}</p>
                   )}
                 </div>
               </div>
 
               {/* 시스템 정보 카드 */}
-              <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-4">
-                <h4 className="text-[15px] font-semibold text-neutral-900 mb-2">시스템 정보</h4>
+              <div className="ad-card p-5 space-y-4">
+                <h4 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-2">시스템 정보</h4>
 
                 {/* 2-column: Store ID & 고객 수 */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl p-4 bg-neutral-50">
-                    <label className="block text-[12px] text-neutral-500 mb-1">Store ID</label>
+                  <div className="rounded-xl p-4 bg-[color:var(--ad-bg-alt)]">
+                    <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">Store ID</label>
                     <div className="flex items-center gap-2">
-                      <code className="text-[14px] text-neutral-700 font-mono truncate">
+                      <code className="text-[14px] text-[color:var(--ad-ink-2)] font-mono truncate">
                         {selectedStore.id}
                       </code>
                       <button
                         onClick={(e) => copyToClipboard(selectedStore.id, e)}
-                        className="p-1 text-neutral-400 hover:text-neutral-600 transition-colors flex-shrink-0"
+                        className="p-1 text-[color:var(--ad-faint)] hover:text-[color:var(--ad-ink)] transition-colors flex-shrink-0"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -1135,59 +1134,59 @@ export default function AdminStoresPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="rounded-xl p-4 bg-neutral-50">
-                    <label className="block text-[12px] text-neutral-500 mb-1">고객 수</label>
-                    <p className="text-[16px] font-semibold text-neutral-900">{formatNumber(selectedStore.customerCount)}명</p>
+                  <div className="rounded-xl p-4 bg-[color:var(--ad-bg-alt)]">
+                    <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">고객 수</label>
+                    <p className="text-[14px] font-semibold text-[color:var(--ad-ink)]">{formatNumber(selectedStore.customerCount)}명</p>
                   </div>
                 </div>
 
                 {/* 2-column: 충전금 & 무료 크레딧 */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl p-4 bg-neutral-50">
-                    <label className="block text-[12px] text-neutral-500 mb-1">충전금</label>
+                  <div className="rounded-xl p-4 bg-[color:var(--ad-bg-alt)]">
+                    <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">충전금</label>
                     <div className="flex items-center gap-3">
-                      <p className="text-[20px] font-bold text-blue-600">
+                      <p className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-link)]">
                         {formatNumber(selectedStore.walletBalance || 0)}원
                       </p>
                       <button
                         onClick={(e) => openTopupModal(selectedStore, e)}
-                        className="px-3 py-1.5 text-[12px] font-medium text-white bg-green-500 hover:bg-green-600 rounded-lg transition-colors"
+                        className="ad-press h-8 px-3 rounded-[10px] bg-[color:var(--ad-yellow)] text-[12px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)]"
                       >
                         충전
                       </button>
                       {(selectedStore.walletBalance || 0) > 0 && (
                         <button
                           onClick={(e) => openDeductModal(selectedStore, e)}
-                          className="px-3 py-1.5 text-[12px] font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+                          className="ad-press h-8 px-3 rounded-[10px] bg-[#cc0832] text-[12px] font-semibold text-white hover:bg-[#b0072b]"
                         >
                           차감
                         </button>
                       )}
                     </div>
                   </div>
-                  <div className="rounded-xl p-4 bg-neutral-50">
-                    <label className="block text-[12px] text-neutral-500 mb-1">이번 달 무료 크레딧</label>
-                    <p className="text-[20px] font-bold text-neutral-900">
+                  <div className="rounded-xl p-4 bg-[color:var(--ad-bg-alt)]">
+                    <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">이번 달 무료 크레딧</label>
+                    <p className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                       {selectedStore.monthlyCredit?.remaining ?? 30}/{selectedStore.monthlyCredit?.total ?? 30}
-                      <span className="text-[14px] font-normal text-neutral-500 ml-1">건</span>
+                      <span className="text-[14px] font-normal text-[color:var(--ad-muted)] ml-1">건</span>
                     </p>
-                    <p className="text-[11px] text-neutral-400 mt-1">
+                    <p className="text-[11px] text-[color:var(--ad-faint)] mt-1">
                       사용: {selectedStore.monthlyCredit?.used ?? 0}건
                     </p>
                   </div>
                 </div>
 
                 {/* 고객등록 링크 (포인트) */}
-                <div className="rounded-xl p-4 bg-neutral-50">
-                  <label className="block text-[12px] text-neutral-500 mb-1">포인트 적립 링크</label>
+                <div className="rounded-xl p-4 bg-[color:var(--ad-bg-alt)]">
+                  <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">포인트 적립 링크</label>
                   {selectedStore.slug ? (
                     <div className="flex items-center gap-2">
-                      <code className="text-[13px] text-blue-600 font-mono truncate flex-1">
+                      <code className="text-[13px] text-[color:var(--ad-link)] font-mono truncate flex-1">
                         /taghere-enroll/{selectedStore.slug}?ordersheetId=&#123;ordersheetId&#125;
                       </code>
                       <button
                         onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll/${selectedStore.slug}?ordersheetId={ordersheetId}`, e)}
-                        className="p-1 text-neutral-400 hover:text-neutral-600 transition-colors flex-shrink-0"
+                        className="p-1 text-[color:var(--ad-faint)] hover:text-[color:var(--ad-ink)] transition-colors flex-shrink-0"
                         title="복사"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1196,21 +1195,21 @@ export default function AdminStoresPage() {
                       </button>
                     </div>
                   ) : (
-                    <span className="text-[14px] text-neutral-400">slug 없음</span>
+                    <span className="text-[14px] text-[color:var(--ad-faint)]">slug 없음</span>
                   )}
                 </div>
 
                 {/* 스탬프 적립 링크 (태그히어 사용) */}
-                <div className="rounded-xl p-4 bg-amber-50">
-                  <label className="block text-[12px] text-amber-600 mb-1">스탬프 적립 링크 (태그히어 사용)</label>
+                <div className="rounded-xl p-4 bg-[color:var(--ad-yellow-soft)]">
+                  <label className="block text-[12px] text-[#993d1f] mb-1">스탬프 적립 링크 (태그히어 사용)</label>
                   {selectedStore.slug ? (
                     <div className="flex items-center gap-2">
-                      <code className="text-[13px] text-amber-700 font-mono truncate flex-1">
+                      <code className="text-[13px] text-[#993d1f] font-mono truncate flex-1">
                         /taghere-enroll-stamp/{selectedStore.slug}?ordersheetId={'{ordersheetId}'}
                       </code>
                       <button
                         onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll-stamp/${selectedStore.slug}?ordersheetId={ordersheetId}`, e)}
-                        className="p-1 text-amber-500 hover:text-amber-700 transition-colors flex-shrink-0"
+                        className="p-1 text-[#993d1f] hover:text-[#993d1f] transition-colors flex-shrink-0"
                         title="복사"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1219,23 +1218,23 @@ export default function AdminStoresPage() {
                       </button>
                     </div>
                   ) : (
-                    <span className="text-[14px] text-amber-400">slug 없음</span>
+                    <span className="text-[14px] text-[#993d1f]">slug 없음</span>
                   )}
                 </div>
 
                 {/* 스탬프 적립 링크 (태그히어 사용 X) — QR에는 반드시 비밀 입구(스캔 토큰 발급) URL 사용 */}
-                <div className="rounded-xl p-4 bg-neutral-50">
-                  <label className="block text-[12px] text-neutral-500 mb-1">
+                <div className="rounded-xl p-4 bg-[color:var(--ad-bg-alt)]">
+                  <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">
                     스탬프 적립 QR 링크 (태그히어 사용 X · 스캔 토큰 발급 입구)
                   </label>
                   {selectedStore.slug && selectedStore.scanEntrySecret ? (
                     <div className="flex items-center gap-2">
-                      <code className="text-[13px] text-neutral-600 font-mono truncate flex-1">
+                      <code className="text-[13px] text-[color:var(--ad-muted)] font-mono truncate flex-1">
                         /api/taghere/stamp-scan-entry/{selectedStore.slug}/{selectedStore.scanEntrySecret}
                       </code>
                       <button
                         onClick={(e) => copyToClipboard(`${API_BASE}/api/taghere/stamp-scan-entry/${selectedStore.slug}/${selectedStore.scanEntrySecret}`, e)}
-                        className="p-1 text-neutral-400 hover:text-neutral-600 transition-colors flex-shrink-0"
+                        className="p-1 text-[color:var(--ad-faint)] hover:text-[color:var(--ad-ink)] transition-colors flex-shrink-0"
                         title="복사"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1244,26 +1243,26 @@ export default function AdminStoresPage() {
                       </button>
                     </div>
                   ) : selectedStore.slug ? (
-                    <span className="text-[14px] text-amber-500">입구 secret 발급 대기 — 잠시 후 새로고침해주세요</span>
+                    <span className="text-[14px] text-[#993d1f]">입구 secret 발급 대기 — 잠시 후 새로고침해주세요</span>
                   ) : (
-                    <span className="text-[14px] text-neutral-400">slug 없음</span>
+                    <span className="text-[14px] text-[color:var(--ad-faint)]">slug 없음</span>
                   )}
-                  <p className="mt-1 text-[11px] text-neutral-400">
+                  <p className="mt-1 text-[11px] text-[color:var(--ad-faint)]">
                     이전 페이지 직링크(/taghere-enroll-stamp/…)는 이제 적립되지 않습니다. QR/shortURL 목적지를 위 링크로 교체하세요.
                   </p>
                 </div>
 
                 {/* 하이트진로 스탬프 적립 링크 */}
-                <div className="rounded-xl p-4 bg-green-50">
-                  <label className="block text-[12px] text-green-600 mb-1">하이트진로 스탬프 적립 링크 (바코드 스캔)</label>
+                <div className="rounded-xl p-4 bg-[#effcec]">
+                  <label className="block text-[12px] text-[color:var(--ad-pos)] mb-1">하이트진로 스탬프 적립 링크 (바코드 스캔)</label>
                   {selectedStore.slug ? (
                     <div className="flex items-center gap-2">
-                      <code className="text-[13px] text-green-700 font-mono truncate flex-1">
+                      <code className="text-[13px] text-[color:var(--ad-pos)] font-mono truncate flex-1">
                         /taghere-enroll-stamp-hitejinro/{selectedStore.slug}
                       </code>
                       <button
                         onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll-stamp-hitejinro/${selectedStore.slug}`, e)}
-                        className="p-1 text-green-400 hover:text-green-600 transition-colors flex-shrink-0"
+                        className="p-1 text-[color:var(--ad-pos)] hover:text-[color:var(--ad-pos)] transition-colors flex-shrink-0"
                         title="복사"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1272,21 +1271,21 @@ export default function AdminStoresPage() {
                       </button>
                     </div>
                   ) : (
-                    <span className="text-[14px] text-green-400">slug 없음</span>
+                    <span className="text-[14px] text-[color:var(--ad-pos)]">slug 없음</span>
                   )}
                 </div>
 
                 {/* 멤버십 등록 링크 (태그히어 사용) */}
-                <div className="rounded-xl p-4 bg-purple-50">
-                  <label className="block text-[12px] text-purple-600 mb-1">멤버십 등록 링크 (태그히어 사용)</label>
+                <div className="rounded-xl p-4 bg-[color:var(--ad-blue-soft)]">
+                  <label className="block text-[12px] text-[color:var(--ad-link)] mb-1">멤버십 등록 링크 (태그히어 사용)</label>
                   {selectedStore.slug ? (
                     <div className="flex items-center gap-2">
-                      <code className="text-[13px] text-purple-700 font-mono truncate flex-1">
+                      <code className="text-[13px] text-[color:var(--ad-link)] font-mono truncate flex-1">
                         /taghere-enroll-member/{selectedStore.slug}?ordersheetId={'{ordersheetId}'}
                       </code>
                       <button
                         onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll-member/${selectedStore.slug}?ordersheetId={ordersheetId}`, e)}
-                        className="p-1 text-purple-400 hover:text-purple-600 transition-colors flex-shrink-0"
+                        className="p-1 text-[color:var(--ad-blue)] hover:text-[color:var(--ad-link)] transition-colors flex-shrink-0"
                         title="복사"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1295,21 +1294,21 @@ export default function AdminStoresPage() {
                       </button>
                     </div>
                   ) : (
-                    <span className="text-[14px] text-purple-400">slug 없음</span>
+                    <span className="text-[14px] text-[color:var(--ad-blue)]">slug 없음</span>
                   )}
                 </div>
 
                 {/* 멤버십 등록 링크 (태그히어 사용 X) */}
-                <div className="rounded-xl p-4 bg-purple-50">
-                  <label className="block text-[12px] text-purple-600 mb-1">멤버십 등록 링크 (태그히어 사용 X)</label>
+                <div className="rounded-xl p-4 bg-[color:var(--ad-blue-soft)]">
+                  <label className="block text-[12px] text-[color:var(--ad-link)] mb-1">멤버십 등록 링크 (태그히어 사용 X)</label>
                   {selectedStore.slug ? (
                     <div className="flex items-center gap-2">
-                      <code className="text-[13px] text-purple-700 font-mono truncate flex-1">
+                      <code className="text-[13px] text-[color:var(--ad-link)] font-mono truncate flex-1">
                         /taghere-enroll-member/{selectedStore.slug}
                       </code>
                       <button
                         onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/taghere-enroll-member/${selectedStore.slug}`, e)}
-                        className="p-1 text-purple-400 hover:text-purple-600 transition-colors flex-shrink-0"
+                        className="p-1 text-[color:var(--ad-blue)] hover:text-[color:var(--ad-link)] transition-colors flex-shrink-0"
                         title="복사"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1318,21 +1317,21 @@ export default function AdminStoresPage() {
                       </button>
                     </div>
                   ) : (
-                    <span className="text-[14px] text-purple-400">slug 없음</span>
+                    <span className="text-[14px] text-[color:var(--ad-blue)]">slug 없음</span>
                   )}
                 </div>
 
                 {/* 웨이팅 태블릿 링크 */}
-                <div className="rounded-xl p-4 bg-blue-50">
-                  <label className="block text-[12px] text-blue-600 mb-1">웨이팅 태블릿 링크</label>
+                <div className="rounded-xl p-4 bg-[color:var(--ad-blue-soft)]">
+                  <label className="block text-[12px] text-[color:var(--ad-link)] mb-1">웨이팅 태블릿 링크</label>
                   {selectedStore.slug ? (
                     <div className="flex items-center gap-2">
-                      <code className="text-[13px] text-blue-700 font-mono truncate flex-1">
+                      <code className="text-[13px] text-[color:var(--ad-link)] font-mono truncate flex-1">
                         /w/{selectedStore.slug}/tablet
                       </code>
                       <button
                         onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/w/${selectedStore.slug}/tablet`, e)}
-                        className="p-1 text-blue-400 hover:text-blue-600 transition-colors flex-shrink-0"
+                        className="p-1 text-[color:var(--ad-blue)] hover:text-[color:var(--ad-link)] transition-colors flex-shrink-0"
                         title="복사"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1341,21 +1340,21 @@ export default function AdminStoresPage() {
                       </button>
                     </div>
                   ) : (
-                    <span className="text-[14px] text-blue-400">slug 없음</span>
+                    <span className="text-[14px] text-[color:var(--ad-blue)]">slug 없음</span>
                   )}
                 </div>
 
                 {/* 웨이팅 QR/NFC 링크 */}
-                <div className="rounded-xl p-4 bg-blue-50">
-                  <label className="block text-[12px] text-blue-600 mb-1">웨이팅 QR/NFC 링크</label>
+                <div className="rounded-xl p-4 bg-[color:var(--ad-blue-soft)]">
+                  <label className="block text-[12px] text-[color:var(--ad-link)] mb-1">웨이팅 QR/NFC 링크</label>
                   {selectedStore.slug ? (
                     <div className="flex items-center gap-2">
-                      <code className="text-[13px] text-blue-700 font-mono truncate flex-1">
+                      <code className="text-[13px] text-[color:var(--ad-link)] font-mono truncate flex-1">
                         /w/{selectedStore.slug}
                       </code>
                       <button
                         onClick={(e) => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}/w/${selectedStore.slug}`, e)}
-                        className="p-1 text-blue-400 hover:text-blue-600 transition-colors flex-shrink-0"
+                        className="p-1 text-[color:var(--ad-blue)] hover:text-[color:var(--ad-link)] transition-colors flex-shrink-0"
                         title="복사"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1364,22 +1363,22 @@ export default function AdminStoresPage() {
                       </button>
                     </div>
                   ) : (
-                    <span className="text-[14px] text-blue-400">slug 없음</span>
+                    <span className="text-[14px] text-[color:var(--ad-blue)]">slug 없음</span>
                   )}
                 </div>
 
                 {/* CRM 연동 토글 */}
-                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                  <label className="block text-[12px] text-neutral-500 mb-2">태그히어 CRM 연동</label>
+                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                  <label className="block text-[12px] text-[color:var(--ad-muted)] mb-2">태그히어 CRM 연동</label>
                   {isEditMode ? (
                     <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => setEditForm({ ...editForm, crmEnabled: true })}
-                        className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-lg border transition-all ${
+                        className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-[10px] border transition-all ${
                           editForm.crmEnabled !== false
-                            ? 'bg-green-500 text-white border-green-500'
-                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                            ? 'bg-[color:var(--ad-navy)] text-white border-[color:var(--ad-navy)]'
+                            : 'bg-white text-[color:var(--ad-muted)] border-[color:var(--ad-line)] hover:border-[color:var(--ad-line-strong)]'
                         }`}
                       >
                         활성화
@@ -1387,20 +1386,20 @@ export default function AdminStoresPage() {
                       <button
                         type="button"
                         onClick={() => setEditForm({ ...editForm, crmEnabled: false })}
-                        className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-lg border transition-all ${
+                        className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-[10px] border transition-all ${
                           editForm.crmEnabled === false
-                            ? 'bg-neutral-700 text-white border-neutral-700'
-                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                            ? 'bg-[color:var(--ad-navy)] text-white border-[color:var(--ad-navy)]'
+                            : 'bg-white text-[color:var(--ad-muted)] border-[color:var(--ad-line)] hover:border-[color:var(--ad-line-strong)]'
                         }`}
                       >
                         비활성화
                       </button>
                     </div>
                   ) : (
-                    <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-lg ${
+                    <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-[10px] ${
                       selectedStore.crmEnabled !== false
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-neutral-200 text-neutral-600'
+                        ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]'
+                        : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]'
                     }`}>
                       {selectedStore.crmEnabled !== false ? '활성화' : '비활성화'}
                     </span>
@@ -1408,17 +1407,17 @@ export default function AdminStoresPage() {
                 </div>
 
                 {/* 등록 모드 셀렉터 */}
-                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                  <label className="block text-[12px] text-neutral-500 mb-2">등록 모드</label>
+                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                  <label className="block text-[12px] text-[color:var(--ad-muted)] mb-2">등록 모드</label>
                   {isEditMode ? (
                     <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => setEditForm({ ...editForm, enrollmentMode: 'POINTS' })}
-                        className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-lg border transition-all ${
+                        className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-[10px] border transition-all ${
                           editForm.enrollmentMode === 'POINTS'
-                            ? 'bg-blue-500 text-white border-blue-500'
-                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                            ? 'bg-[color:var(--ad-navy)] text-white border-[color:var(--ad-navy)]'
+                            : 'bg-white text-[color:var(--ad-muted)] border-[color:var(--ad-line)] hover:border-[color:var(--ad-line-strong)]'
                         }`}
                       >
                         포인트 적립
@@ -1426,10 +1425,10 @@ export default function AdminStoresPage() {
                       <button
                         type="button"
                         onClick={() => setEditForm({ ...editForm, enrollmentMode: 'STAMP' })}
-                        className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-lg border transition-all ${
+                        className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-[10px] border transition-all ${
                           editForm.enrollmentMode === 'STAMP'
-                            ? 'bg-amber-500 text-white border-amber-500'
-                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                            ? 'bg-[color:var(--ad-navy)] text-white border-[color:var(--ad-navy)]'
+                            : 'bg-white text-[color:var(--ad-muted)] border-[color:var(--ad-line)] hover:border-[color:var(--ad-line-strong)]'
                         }`}
                       >
                         스탬프 적립
@@ -1437,22 +1436,22 @@ export default function AdminStoresPage() {
                       <button
                         type="button"
                         onClick={() => setEditForm({ ...editForm, enrollmentMode: 'MEMBERSHIP' })}
-                        className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-lg border transition-all ${
+                        className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-[10px] border transition-all ${
                           editForm.enrollmentMode === 'MEMBERSHIP'
-                            ? 'bg-purple-500 text-white border-purple-500'
-                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                            ? 'bg-[color:var(--ad-navy)] text-white border-[color:var(--ad-navy)]'
+                            : 'bg-white text-[color:var(--ad-muted)] border-[color:var(--ad-line)] hover:border-[color:var(--ad-line-strong)]'
                         }`}
                       >
                         멤버십 등록
                       </button>
                     </div>
                   ) : (
-                    <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-lg ${
+                    <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-[10px] ${
                       selectedStore.enrollmentMode === 'MEMBERSHIP'
-                        ? 'bg-purple-100 text-purple-700'
+                        ? 'bg-[color:var(--ad-blue-soft)] text-[color:var(--ad-navy)]'
                         : selectedStore.enrollmentMode === 'STAMP'
-                        ? 'bg-amber-100 text-amber-700'
-                        : 'bg-blue-100 text-blue-700'
+                        ? 'bg-[#ffdace] text-[#993d1f]'
+                        : 'bg-[color:var(--ad-blue-soft)] text-[color:var(--ad-link)]'
                     }`}>
                       {selectedStore.enrollmentMode === 'MEMBERSHIP' ? '멤버십 등록'
                         : selectedStore.enrollmentMode === 'STAMP' ? '스탬프 적립'
@@ -1462,13 +1461,13 @@ export default function AdminStoresPage() {
                 </div>
 
                 {/* 태그히어 연동 — 버전은 매장 ID 매핑의 파생값 (직접 편집 불가) */}
-                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                  <label className="block text-[12px] text-neutral-500 mb-2">태그히어 연동 (버전은 매장 ID로 결정)</label>
+                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                  <label className="block text-[12px] text-[color:var(--ad-muted)] mb-2">태그히어 연동 (버전은 매장 ID로 결정)</label>
                   <div className="mb-2">
-                    <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-lg ${
+                    <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-[10px] ${
                       selectedStore.taghereVersion === 'v2'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-blue-100 text-blue-700'
+                        ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]'
+                        : 'bg-[color:var(--ad-blue-soft)] text-[color:var(--ad-link)]'
                     }`}>
                       {selectedStore.taghereVersion === 'v2' ? 'V2' : 'V1'}
                     </span>
@@ -1480,18 +1479,18 @@ export default function AdminStoresPage() {
                         value={editForm.v2StoreId ?? ''}
                         onChange={(e) => setEditForm({ ...editForm, v2StoreId: e.target.value.trim() })}
                         placeholder="V2 매장 ID (SR...)"
-                        className="w-full px-3 py-2 text-[13px] font-mono border border-neutral-200 rounded-lg"
+                        className="w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 py-2.5 text-[13px] font-mono focus:border-[color:var(--ad-navy)] focus:outline-none"
                       />
                       <input
                         type="text"
                         value={editForm.v1StoreId ?? ''}
                         onChange={(e) => setEditForm({ ...editForm, v1StoreId: e.target.value.trim() })}
                         placeholder="V1 매장 ID (24자리 hex)"
-                        className="w-full px-3 py-2 text-[13px] font-mono border border-neutral-200 rounded-lg"
+                        className="w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 py-2.5 text-[13px] font-mono focus:border-[color:var(--ad-navy)] focus:outline-none"
                       />
                     </div>
                   ) : (
-                    <div className="space-y-1 text-[12px] font-mono text-neutral-600">
+                    <div className="space-y-1 text-[12px] font-mono text-[color:var(--ad-muted)]">
                       <div>V2: {selectedStore.v2StoreId ?? '-'}</div>
                       <div>V1: {selectedStore.v1StoreId ?? '-'}</div>
                     </div>
@@ -1500,18 +1499,18 @@ export default function AdminStoresPage() {
               </div>
 
               {/* 야화 연동 카드 (웨이팅·실시간 성별통계·포인트 동기화) */}
-              <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-2">
+              <div className="ad-card p-5 space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-[15px] font-semibold text-neutral-900">야화 연동</h4>
-                    <p className="text-[12px] text-neutral-500 mt-0.5">웨이팅·실시간 성별통계·포인트가 야화 앱과 동기화됩니다.</p>
+                    <h4 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">야화 연동</h4>
+                    <p className="text-[12px] text-[color:var(--ad-muted)] mt-0.5">웨이팅·실시간 성별통계·포인트가 야화 앱과 동기화됩니다.</p>
                   </div>
                   {isEditMode ? (
                     <button
                       type="button"
                       onClick={() => setEditForm({ ...editForm, yahwaEnabled: !editForm.yahwaEnabled })}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
-                        editForm.yahwaEnabled ? 'bg-green-500' : 'bg-neutral-300'
+                        editForm.yahwaEnabled ? 'bg-[#4dbc3a]' : 'bg-[color:var(--ad-line-strong)]'
                       }`}
                     >
                       <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -1520,7 +1519,7 @@ export default function AdminStoresPage() {
                     </button>
                   ) : (
                     <span className={`inline-block px-2.5 py-1 text-[12px] font-medium rounded-full shrink-0 ${
-                      selectedStore.yahwaEnabled ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'
+                      selectedStore.yahwaEnabled ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]' : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]'
                     }`}>
                       {selectedStore.yahwaEnabled ? 'ON' : 'OFF'}
                     </span>
@@ -1529,11 +1528,11 @@ export default function AdminStoresPage() {
               </div>
 
               {/* 위치 기반 적립 확인 카드 (기본 OFF) */}
-              <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-3">
+              <div className="ad-card p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-[15px] font-semibold text-neutral-900">위치 기반 적립 확인</h4>
-                    <p className="text-[12px] text-neutral-500 mt-0.5">
+                    <h4 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">위치 기반 적립 확인</h4>
+                    <p className="text-[12px] text-[color:var(--ad-muted)] mt-0.5">
                       스탬프 적립 시 고객 위치가 매장 반경 내인지 검증합니다. 켜면 매장 주소로 좌표를 자동 계산합니다.
                     </p>
                   </div>
@@ -1542,7 +1541,7 @@ export default function AdminStoresPage() {
                       type="button"
                       onClick={() => setEditForm({ ...editForm, locationGuardEnabled: !editForm.locationGuardEnabled })}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
-                        editForm.locationGuardEnabled ? 'bg-green-500' : 'bg-neutral-300'
+                        editForm.locationGuardEnabled ? 'bg-[#4dbc3a]' : 'bg-[color:var(--ad-line-strong)]'
                       }`}
                     >
                       <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -1551,7 +1550,7 @@ export default function AdminStoresPage() {
                     </button>
                   ) : (
                     <span className={`inline-block px-2.5 py-1 text-[12px] font-medium rounded-full shrink-0 ${
-                      selectedStore.locationGuardEnabled ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'
+                      selectedStore.locationGuardEnabled ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]' : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]'
                     }`}>
                       {selectedStore.locationGuardEnabled ? 'ON' : 'OFF'}
                     </span>
@@ -1559,8 +1558,8 @@ export default function AdminStoresPage() {
                 </div>
                 {((isEditMode && editForm.locationGuardEnabled) || (!isEditMode && selectedStore.locationGuardEnabled)) && (
                   <div className="space-y-2 pt-1">
-                    <div className={`rounded-xl p-3 flex items-center justify-between ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                      <span className="text-[13px] text-neutral-500">허용 반경 (m)</span>
+                    <div className={`rounded-xl p-3 flex items-center justify-between ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                      <span className="text-[13px] text-[color:var(--ad-muted)]">허용 반경 (m)</span>
                       {isEditMode ? (
                         <input
                           type="number"
@@ -1568,20 +1567,20 @@ export default function AdminStoresPage() {
                           max={2000}
                           value={editForm.locationGuardRadiusM ?? 200}
                           onChange={(e) => setEditForm({ ...editForm, locationGuardRadiusM: parseInt(e.target.value) || 200 })}
-                          className="w-24 px-2 py-1 text-[14px] text-right border border-neutral-200 rounded-lg"
+                          className="w-24 h-8 rounded-[8px] border border-[color:var(--ad-line-strong)] bg-white px-2 text-[13px] text-right ad-tnum focus:border-[color:var(--ad-navy)] focus:outline-none"
                         />
                       ) : (
-                        <span className="text-[14px] font-medium text-neutral-900">{selectedStore.locationGuardRadiusM ?? 200}m</span>
+                        <span className="text-[14px] font-medium text-[color:var(--ad-ink)]">{selectedStore.locationGuardRadiusM ?? 200}m</span>
                       )}
                     </div>
-                    <div className="rounded-xl p-3 bg-neutral-50 flex items-center justify-between">
-                      <span className="text-[13px] text-neutral-500">매장 좌표</span>
+                    <div className="rounded-xl p-3 bg-[color:var(--ad-bg-alt)] flex items-center justify-between">
+                      <span className="text-[13px] text-[color:var(--ad-muted)]">매장 좌표</span>
                       {selectedStore.latitude != null && selectedStore.longitude != null ? (
-                        <span className="text-[13px] font-mono text-neutral-700">
+                        <span className="text-[13px] font-mono text-[color:var(--ad-ink-2)]">
                           {selectedStore.latitude.toFixed(6)}, {selectedStore.longitude.toFixed(6)}
                         </span>
                       ) : (
-                        <span className="text-[13px] text-amber-500">미설정 — 저장 시 주소로 자동 계산</span>
+                        <span className="text-[13px] text-[#993d1f]">미설정 — 저장 시 주소로 자동 계산</span>
                       )}
                     </div>
                   </div>
@@ -1589,15 +1588,15 @@ export default function AdminStoresPage() {
               </div>
 
               {/* 메타씨티 POS 연동 카드 */}
-              <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-4">
+              <div className="ad-card p-5 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-[15px] font-semibold text-neutral-900">메타씨티 POS 연동</h4>
+                  <h4 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">메타씨티 POS 연동</h4>
                   {isEditMode ? (
                     <button
                       type="button"
                       onClick={() => setEditForm({ ...editForm, metacityEnabled: !editForm.metacityEnabled })}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        editForm.metacityEnabled ? 'bg-green-500' : 'bg-neutral-300'
+                        editForm.metacityEnabled ? 'bg-[#4dbc3a]' : 'bg-[color:var(--ad-line-strong)]'
                       }`}
                     >
                       <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -1606,7 +1605,7 @@ export default function AdminStoresPage() {
                     </button>
                   ) : (
                     <span className={`inline-block px-2.5 py-1 text-[12px] font-medium rounded-full ${
-                      selectedStore.metacityEnabled ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'
+                      selectedStore.metacityEnabled ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]' : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]'
                     }`}>
                       {selectedStore.metacityEnabled ? 'ON' : 'OFF'}
                     </span>
@@ -1615,9 +1614,9 @@ export default function AdminStoresPage() {
 
                 {((isEditMode && editForm.metacityEnabled) || (!isEditMode && selectedStore.metacityEnabled)) && (
                   <div className="space-y-3 pt-1">
-                    <div className={`rounded-xl p-3 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
+                    <div className={`rounded-xl p-3 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="block text-[12px] text-neutral-500">매장 코드</label>
+                        <label className="block text-[12px] text-[color:var(--ad-muted)]">매장 코드</label>
                         {isEditMode && (
                           <button
                             type="button"
@@ -1638,7 +1637,7 @@ export default function AdminStoresPage() {
                                 alert(err.message || '매장 코드 자동 발견 중 오류가 발생했습니다.');
                               }
                             }}
-                            className="px-2 py-1 text-[11px] font-medium rounded-md border border-neutral-300 text-neutral-700 bg-white hover:bg-neutral-50 transition-colors"
+                            className="ad-press h-7 px-2.5 rounded-[8px] bg-white text-[11.5px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                           >
                             자동 가져오기
                           </button>
@@ -1653,16 +1652,16 @@ export default function AdminStoresPage() {
                           placeholder="I26031700004"
                         />
                       ) : (
-                        <p className="text-[14px] text-neutral-800 font-mono">{selectedStore.metacityStoreIdx || '-'}</p>
+                        <p className="text-[14px] text-[color:var(--ad-ink)] font-mono">{selectedStore.metacityStoreIdx || '-'}</p>
                       )}
                     </div>
 
                     {/* V2 재동기화 버튼 (조회 모드에서만, CRM ↔ V2 webhook 실패 시 수동 재시도) */}
                     {!isEditMode && (
-                      <div className="rounded-xl p-3 bg-neutral-50 flex items-center justify-between">
+                      <div className="rounded-xl p-3 bg-[color:var(--ad-bg-alt)] flex items-center justify-between">
                         <div>
-                          <p className="text-[12px] text-neutral-500">V2 매장 설정 동기화</p>
-                          <p className="text-[11px] text-neutral-400 mt-0.5">webhook 실패 시 수동으로 재전송</p>
+                          <p className="text-[12px] text-[color:var(--ad-muted)]">V2 매장 설정 동기화</p>
+                          <p className="text-[11px] text-[color:var(--ad-faint)] mt-0.5">webhook 실패 시 수동으로 재전송</p>
                         </div>
                         <button
                           type="button"
@@ -1683,7 +1682,7 @@ export default function AdminStoresPage() {
                               alert(err.message || '재동기화 중 오류가 발생했습니다.');
                             }
                           }}
-                          className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-neutral-900 text-white hover:bg-neutral-700 transition-colors"
+                          className="ad-press h-8 px-3 rounded-[10px] bg-[color:var(--ad-yellow)] text-[12px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)]"
                         >
                           V2 재동기화
                         </button>
@@ -1691,17 +1690,17 @@ export default function AdminStoresPage() {
                     )}
 
                     {/* 회원 유형: 통합 / 단독 */}
-                    <div className={`rounded-xl p-3 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                      <label className="block text-[12px] text-neutral-500 mb-2">회원 유형</label>
+                    <div className={`rounded-xl p-3 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                      <label className="block text-[12px] text-[color:var(--ad-muted)] mb-2">회원 유형</label>
                       {isEditMode ? (
                         <div className="flex gap-2">
                           <button
                             type="button"
                             onClick={() => setEditForm({ ...editForm, metacityMembershipType: 'INTEGRATED' })}
-                            className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-lg border transition-all ${
+                            className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-[10px] border transition-all ${
                               (editForm.metacityMembershipType ?? 'INTEGRATED') === 'INTEGRATED'
-                                ? 'bg-blue-500 text-white border-blue-500'
-                                : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                                ? 'bg-[color:var(--ad-navy)] text-white border-[color:var(--ad-navy)]'
+                                : 'bg-white text-[color:var(--ad-muted)] border-[color:var(--ad-line)] hover:border-[color:var(--ad-line-strong)]'
                             }`}
                           >
                             통합 회원
@@ -1709,20 +1708,20 @@ export default function AdminStoresPage() {
                           <button
                             type="button"
                             onClick={() => setEditForm({ ...editForm, metacityMembershipType: 'STANDALONE' })}
-                            className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-lg border transition-all ${
+                            className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-[10px] border transition-all ${
                               editForm.metacityMembershipType === 'STANDALONE'
-                                ? 'bg-purple-500 text-white border-purple-500'
-                                : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                                ? 'bg-[color:var(--ad-navy)] text-white border-[color:var(--ad-navy)]'
+                                : 'bg-white text-[color:var(--ad-muted)] border-[color:var(--ad-line)] hover:border-[color:var(--ad-line-strong)]'
                             }`}
                           >
                             단독 회원
                           </button>
                         </div>
                       ) : (
-                        <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-lg ${
+                        <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-[10px] ${
                           selectedStore.metacityMembershipType === 'STANDALONE'
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-blue-100 text-blue-700'
+                            ? 'bg-[color:var(--ad-blue-soft)] text-[color:var(--ad-navy)]'
+                            : 'bg-[color:var(--ad-blue-soft)] text-[color:var(--ad-link)]'
                         }`}>
                           {selectedStore.metacityMembershipType === 'STANDALONE' ? '단독 회원' : '통합 회원'}
                         </span>
@@ -1733,13 +1732,13 @@ export default function AdminStoresPage() {
               </div>
 
               {/* 포인트 설정 카드 */}
-              <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-4">
-                <h4 className="text-[15px] font-semibold text-neutral-900 mb-2">포인트 설정</h4>
+              <div className="ad-card p-5 space-y-4">
+                <h4 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-2">포인트 설정</h4>
 
                 {/* 2-column: 적립률 & 알림톡 */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                    <label className="block text-[12px] text-neutral-500 mb-1">적립률 (0.1~99.9%)</label>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                    <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">적립률 (0.1~99.9%)</label>
                     {isEditMode ? (
                       <div className="flex items-center gap-1">
                         <input
@@ -1753,25 +1752,25 @@ export default function AdminStoresPage() {
                               setPointRateInput(val);
                             }
                           }}
-                          className="w-20 text-[20px] font-bold text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
+                          className="w-20 text-[20px] font-bold text-[color:var(--ad-ink)] bg-transparent border-none p-0 focus:outline-none focus:ring-0"
                         />
-                        <span className="text-[20px] font-bold text-neutral-900">%</span>
+                        <span className="text-[17px] font-bold text-[color:var(--ad-ink)]">%</span>
                       </div>
                     ) : (
-                      <p className="text-[20px] font-bold text-neutral-900">{selectedStore.pointRatePercent ?? 5}%</p>
+                      <p className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{selectedStore.pointRatePercent ?? 5}%</p>
                     )}
                   </div>
-                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                    <label className="block text-[12px] text-neutral-500 mb-2">포인트 알림톡</label>
+                  <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                    <label className="block text-[12px] text-[color:var(--ad-muted)] mb-2">포인트 알림톡</label>
                     {isEditMode ? (
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => setEditForm({ ...editForm, pointsAlimtalkEnabled: true })}
-                          className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-lg border transition-all ${
+                          className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-[10px] border transition-all ${
                             editForm.pointsAlimtalkEnabled !== false
-                              ? 'bg-blue-500 text-white border-blue-500'
-                              : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                              ? 'bg-[color:var(--ad-navy)] text-white border-[color:var(--ad-navy)]'
+                              : 'bg-white text-[color:var(--ad-muted)] border-[color:var(--ad-line)] hover:border-[color:var(--ad-line-strong)]'
                           }`}
                         >
                           활성화
@@ -1779,20 +1778,20 @@ export default function AdminStoresPage() {
                         <button
                           type="button"
                           onClick={() => setEditForm({ ...editForm, pointsAlimtalkEnabled: false })}
-                          className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-lg border transition-all ${
+                          className={`flex-1 py-2 px-3 text-[14px] font-medium rounded-[10px] border transition-all ${
                             editForm.pointsAlimtalkEnabled === false
-                              ? 'bg-neutral-700 text-white border-neutral-700'
-                              : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                              ? 'bg-[color:var(--ad-navy)] text-white border-[color:var(--ad-navy)]'
+                              : 'bg-white text-[color:var(--ad-muted)] border-[color:var(--ad-line)] hover:border-[color:var(--ad-line-strong)]'
                           }`}
                         >
                           비활성화
                         </button>
                       </div>
                     ) : (
-                      <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-lg ${
+                      <span className={`inline-block px-3 py-1.5 text-[13px] font-medium rounded-[10px] ${
                         selectedStore.pointsAlimtalkEnabled !== false
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-neutral-200 text-neutral-600'
+                          ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]'
+                          : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]'
                       }`}>
                         {selectedStore.pointsAlimtalkEnabled !== false ? '활성화' : '비활성화'}
                       </span>
@@ -1801,27 +1800,27 @@ export default function AdminStoresPage() {
                 </div>
 
                 {/* 포인트 사용 규칙 */}
-                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-neutral-200' : 'bg-neutral-50'}`}>
-                  <label className="block text-[12px] text-neutral-500 mb-1">포인트 사용 규칙 안내</label>
+                <div className={`rounded-xl p-4 ${isEditMode ? 'bg-white border border-[color:var(--ad-line)]' : 'bg-[color:var(--ad-bg-alt)]'}`}>
+                  <label className="block text-[12px] text-[color:var(--ad-muted)] mb-1">포인트 사용 규칙 안내</label>
                   {isEditMode ? (
                     <textarea
                       value={editForm.pointUsageRule || ''}
                       onChange={(e) => setEditForm({ ...editForm, pointUsageRule: e.target.value })}
                       placeholder="예: 1,000P 이상 적립 시 사용 가능"
                       rows={2}
-                      className="w-full text-[15px] text-neutral-900 bg-transparent border-none p-0 focus:outline-none focus:ring-0 resize-none placeholder-neutral-400"
+                      className="w-full text-[14px] text-[color:var(--ad-ink)] bg-transparent border-none p-0 focus:outline-none focus:ring-0 resize-none placeholder:text-[color:var(--ad-faint)]"
                     />
                   ) : (
-                    <p className="text-[15px] text-neutral-900">{selectedStore.pointUsageRule || '-'}</p>
+                    <p className="text-[15px] text-[color:var(--ad-ink)]">{selectedStore.pointUsageRule || '-'}</p>
                   )}
                 </div>
               </div>
 
               {/* 액션 버튼들 */}
-              <div className="pt-4 border-t border-neutral-200 flex items-center justify-between">
+              <div className="pt-4 border-t border-[color:var(--ad-line)] flex items-center justify-between">
                 <button
                   onClick={(e) => handleOpenStoreHome(selectedStore.id, e)}
-                  className="px-4 py-2 text-[13px] font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors flex items-center gap-2"
+                  className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -1831,7 +1830,7 @@ export default function AdminStoresPage() {
                 <button
                   onClick={() => handleResetPassword(selectedStore.id, selectedStore.name)}
                   disabled={resettingStoreId === selectedStore.id}
-                  className="text-[13px] font-medium text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
+                  className="text-[12.5px] font-medium text-[color:var(--ad-neg)] hover:underline disabled:opacity-50"
                 >
                   {resettingStoreId === selectedStore.id ? '초기화 중...' : '비밀번호 초기화'}
                 </button>
@@ -1843,40 +1842,40 @@ export default function AdminStoresPage() {
 
       {/* Topup Modal */}
       {topupModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl w-full max-w-md mx-4 p-6 shadow-xl">
-            <h3 className="text-[18px] font-semibold text-neutral-900 mb-4">
+        <div className="fixed inset-0 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] w-full max-w-md mx-4 p-6">
+            <h3 className="text-[17px] font-bold text-[color:var(--ad-ink)] mb-4">
               충전금 충전
             </h3>
-            <p className="text-[14px] text-neutral-600 mb-4">
-              <span className="text-neutral-900 font-medium">{topupModal.storeName}</span> 매장에 충전금을 충전합니다.
+            <p className="text-[14px] text-[color:var(--ad-muted)] mb-4">
+              <span className="text-[color:var(--ad-ink)] font-medium">{topupModal.storeName}</span> 매장에 충전금을 충전합니다.
             </p>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[14px] font-medium text-neutral-700 mb-1.5">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   현재 잔액
                 </label>
-                <p className="text-[18px] font-semibold text-neutral-900">
+                <p className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                   {formatNumber(topupModal.currentBalance)}원
                 </p>
               </div>
 
               <div>
-                <label className="block text-[14px] font-medium text-neutral-700 mb-1.5">
-                  충전 금액 <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  충전 금액 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <input
                   type="number"
                   value={topupAmount}
                   onChange={(e) => setTopupAmount(e.target.value)}
                   placeholder="충전할 금액을 입력하세요"
-                  className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                  className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[14px] font-medium text-neutral-700 mb-1.5">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   충전 사유 (선택)
                 </label>
                 <input
@@ -1884,20 +1883,20 @@ export default function AdminStoresPage() {
                   value={topupReason}
                   onChange={(e) => setTopupReason(e.target.value)}
                   placeholder="예: 프로모션 지급, 보상 처리 등"
-                  className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                  className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[14px] font-medium text-neutral-700 mb-1.5">
-                  비밀번호 <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  비밀번호 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <input
                   type="password"
                   value={topupPassword}
                   onChange={(e) => setTopupPassword(e.target.value)}
                   placeholder="비밀번호를 입력하세요"
-                  className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                  className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
             </div>
@@ -1905,18 +1904,18 @@ export default function AdminStoresPage() {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setTopupModal(null)}
-                className="flex-1 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg text-[14px] font-medium transition-colors"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-white text-[13px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 취소
               </button>
               <button
                 onClick={handleTopup}
                 disabled={isTopupLoading || !topupAmount || !topupPassword}
-                className="flex-1 h-10 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 rounded-lg text-[14px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-[color:var(--ad-yellow)] hover:bg-[color:var(--ad-yellow-strong)] text-[color:var(--ad-ink)] text-[13px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isTopupLoading ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-neutral-900 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
                     충전 중...
                   </>
                 ) : (
@@ -1930,28 +1929,28 @@ export default function AdminStoresPage() {
 
       {/* Deduct Modal */}
       {deductModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl w-full max-w-md mx-4 p-6 shadow-xl">
-            <h3 className="text-[18px] font-semibold text-neutral-900 mb-4">
+        <div className="fixed inset-0 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] w-full max-w-md mx-4 p-6">
+            <h3 className="text-[17px] font-bold text-[color:var(--ad-ink)] mb-4">
               충전금 삭제 (차감)
             </h3>
-            <p className="text-[14px] text-neutral-600 mb-4">
-              <span className="text-neutral-900 font-medium">{deductModal.storeName}</span> 매장의 충전금을 차감합니다.
+            <p className="text-[14px] text-[color:var(--ad-muted)] mb-4">
+              <span className="text-[color:var(--ad-ink)] font-medium">{deductModal.storeName}</span> 매장의 충전금을 차감합니다.
             </p>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[14px] font-medium text-neutral-700 mb-1.5">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   현재 잔액
                 </label>
-                <p className="text-[18px] font-semibold text-neutral-900">
+                <p className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                   {formatNumber(deductModal.currentBalance)}원
                 </p>
               </div>
 
               <div>
-                <label className="block text-[14px] font-medium text-neutral-700 mb-1.5">
-                  차감 금액 <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  차감 금액 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <input
                   type="number"
@@ -1959,12 +1958,12 @@ export default function AdminStoresPage() {
                   onChange={(e) => setDeductAmount(e.target.value)}
                   placeholder="차감할 금액을 입력하세요"
                   max={deductModal.currentBalance}
-                  className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                  className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[14px] font-medium text-neutral-700 mb-1.5">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   차감 사유 (선택)
                 </label>
                 <input
@@ -1972,20 +1971,20 @@ export default function AdminStoresPage() {
                   value={deductReason}
                   onChange={(e) => setDeductReason(e.target.value)}
                   placeholder="예: 오충전 정정, 환불 처리 등"
-                  className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                  className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[14px] font-medium text-neutral-700 mb-1.5">
-                  비밀번호 <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  비밀번호 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <input
                   type="password"
                   value={deductPassword}
                   onChange={(e) => setDeductPassword(e.target.value)}
                   placeholder="비밀번호를 입력하세요"
-                  className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+                  className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
             </div>
@@ -1993,14 +1992,14 @@ export default function AdminStoresPage() {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setDeductModal(null)}
-                className="flex-1 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg text-[14px] font-medium transition-colors"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-white text-[13px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 취소
               </button>
               <button
                 onClick={handleDeduct}
                 disabled={isDeductLoading || !deductAmount || !deductPassword}
-                className="flex-1 h-10 bg-red-500 hover:bg-red-600 text-white rounded-lg text-[14px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-[#cc0832] hover:bg-[#b0072b] text-white text-[13px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isDeductLoading ? (
                   <>
@@ -2018,26 +2017,26 @@ export default function AdminStoresPage() {
 
       {/* Delete Customers Modal */}
       {deleteCustomersModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl w-full max-w-md mx-4 p-6 shadow-xl">
-            <h3 className="text-[18px] font-semibold text-neutral-900 mb-4">
+        <div className="fixed inset-0 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] w-full max-w-md mx-4 p-6">
+            <h3 className="text-[17px] font-bold text-[color:var(--ad-ink)] mb-4">
               고객 전체 삭제
             </h3>
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
-              <p className="text-[14px] text-red-700 font-medium">
+            <div className="p-4 bg-[#fff0f3] border border-[#ffc4d0] rounded-[10px] mb-4">
+              <p className="text-[14px] text-[color:var(--ad-neg)] font-medium">
                 이 작업은 되돌릴 수 없습니다!
               </p>
             </div>
-            <p className="text-[14px] text-neutral-600 mb-2">
-              <span className="text-neutral-900 font-medium">{deleteCustomersModal.storeName}</span> 매장의 모든 고객을 삭제합니다.
+            <p className="text-[14px] text-[color:var(--ad-muted)] mb-2">
+              <span className="text-[color:var(--ad-ink)] font-medium">{deleteCustomersModal.storeName}</span> 매장의 모든 고객을 삭제합니다.
             </p>
-            <p className="text-[14px] text-neutral-600 mb-4">
-              삭제될 고객 수: <span className="text-red-600 font-semibold">{formatNumber(deleteCustomersModal.customerCount)}명</span>
+            <p className="text-[14px] text-[color:var(--ad-muted)] mb-4">
+              삭제될 고객 수: <span className="text-[color:var(--ad-neg)] font-semibold">{formatNumber(deleteCustomersModal.customerCount)}명</span>
             </p>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[14px] font-medium text-neutral-700 mb-1.5">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   확인을 위해 &quot;삭제&quot;를 입력하세요
                 </label>
                 <input
@@ -2045,7 +2044,7 @@ export default function AdminStoresPage() {
                   value={deleteConfirmText}
                   onChange={(e) => setDeleteConfirmText(e.target.value)}
                   placeholder="삭제"
-                  className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500"
+                  className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
             </div>
@@ -2053,14 +2052,14 @@ export default function AdminStoresPage() {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setDeleteCustomersModal(null)}
-                className="flex-1 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg text-[14px] font-medium transition-colors"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-white text-[13px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 취소
               </button>
               <button
                 onClick={handleDeleteCustomers}
                 disabled={isDeleteLoading || deleteConfirmText !== '삭제'}
-                className="flex-1 h-10 bg-red-500 hover:bg-red-600 text-white rounded-lg text-[14px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-[#cc0832] hover:bg-[#b0072b] text-white text-[13px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isDeleteLoading ? (
                   <>
@@ -2078,32 +2077,30 @@ export default function AdminStoresPage() {
 
       {/* 발송잔액 부족 알림 모달 */}
       {lowBalanceModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-lg w-full max-h-[80vh] flex flex-col">
-            <h3 className="text-[16px] font-semibold text-neutral-900 mb-4">
+        <div className="fixed inset-0 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] p-6 max-w-lg w-full max-h-[80vh] flex flex-col">
+            <h3 className="text-[17px] font-bold text-[color:var(--ad-ink)] mb-4">
               발송잔액 부족 알림 발송
             </h3>
 
             {/* 통계 */}
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-[12px] text-orange-600">잔액 300원 미만</p>
-                  <p className="text-[18px] font-bold text-orange-700">{lowBalanceStores.length}개</p>
-                </div>
-                <div>
-                  <p className="text-[12px] text-orange-600">발송 제외</p>
-                  <p className="text-[18px] font-bold text-orange-700">{excludedStoreIds.size}개</p>
-                </div>
-                <div>
-                  <p className="text-[12px] text-orange-600">발송 대상</p>
-                  <p className="text-[18px] font-bold text-orange-700">{targetLowBalanceStores.length}개</p>
-                </div>
+            <div className="flex divide-x divide-[color:var(--ad-line)] rounded-[12px] border border-[color:var(--ad-line)] mb-4">
+              <div className="flex-1 px-3 py-3 text-left">
+                <p className="text-[12px] text-[color:var(--ad-muted)]">잔액 300원 미만</p>
+                <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.03em] ad-tnum text-[#993d1f]">{lowBalanceStores.length}개</p>
+              </div>
+              <div className="flex-1 px-3 py-3 text-left">
+                <p className="text-[12px] text-[color:var(--ad-muted)]">발송 제외</p>
+                <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-muted)]">{excludedStoreIds.size}개</p>
+              </div>
+              <div className="flex-1 px-3 py-3 text-left">
+                <p className="text-[12px] text-[color:var(--ad-muted)]">발송 대상</p>
+                <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{targetLowBalanceStores.length}개</p>
               </div>
             </div>
 
             {/* 안내 문구 */}
-            <p className="text-[13px] text-neutral-500 mb-3">
+            <p className="text-[13px] text-[color:var(--ad-muted)] mb-3">
               체크 해제한 매장은 발송에서 제외됩니다.
             </p>
 
@@ -2111,31 +2108,31 @@ export default function AdminStoresPage() {
             <div className="flex items-center gap-2 mb-2">
               <button
                 onClick={() => setExcludedStoreIds(new Set())}
-                className="text-[12px] text-blue-600 hover:underline"
+                className="text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
               >
                 전체 선택
               </button>
-              <span className="text-neutral-300">|</span>
+              <span className="text-[color:var(--ad-faint)]">|</span>
               <button
                 onClick={() => setExcludedStoreIds(new Set(lowBalanceStores.map(s => s.id)))}
-                className="text-[12px] text-blue-600 hover:underline"
+                className="text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
               >
                 전체 해제
               </button>
             </div>
 
             {/* 매장 목록 */}
-            <div className="flex-1 overflow-y-auto border border-[#EAEAEA] rounded-lg mb-4">
+            <div className="flex-1 overflow-y-auto border border-[color:var(--ad-line)] rounded-[10px] mb-4">
               {lowBalanceStores.length === 0 ? (
-                <div className="p-4 text-center text-neutral-500 text-[13px]">
+                <div className="p-4 text-center text-[color:var(--ad-muted)] text-[13px]">
                   잔액 300원 미만인 매장이 없습니다.
                 </div>
               ) : (
-                <div className="divide-y divide-[#EAEAEA]">
+                <div className="divide-y divide-[color:var(--ad-line)]">
                   {lowBalanceStores.map((store) => (
                     <label
                       key={store.id}
-                      className="flex items-center gap-3 p-3 hover:bg-neutral-50 cursor-pointer"
+                      className="flex items-center gap-3 p-3 hover:bg-[color:var(--ad-bg-alt)] cursor-pointer"
                     >
                       <input
                         type="checkbox"
@@ -2149,13 +2146,13 @@ export default function AdminStoresPage() {
                           }
                           setExcludedStoreIds(newSet);
                         }}
-                        className="w-4 h-4 rounded border-neutral-300 text-orange-500 focus:ring-orange-500"
+                        className="w-4 h-4 rounded border-[color:var(--ad-line-strong)] text-[#131651] focus:ring-[#131651]"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-medium text-neutral-900 truncate">
+                        <p className="text-[13px] font-medium text-[color:var(--ad-ink)] truncate">
                           {store.name}
                         </p>
-                        <p className="text-[12px] text-neutral-500">
+                        <p className="text-[12px] text-[color:var(--ad-muted)]">
                           잔액: {formatNumber(store.walletBalance ?? 0)}원 · {store.phone}
                         </p>
                       </div>
@@ -2167,7 +2164,7 @@ export default function AdminStoresPage() {
 
             {/* 비밀번호 입력 */}
             <div className="mb-4">
-              <label className="block text-[13px] font-medium text-neutral-700 mb-1">
+              <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                 관리자 비밀번호
               </label>
               <input
@@ -2175,7 +2172,7 @@ export default function AdminStoresPage() {
                 value={lowBalancePassword}
                 onChange={(e) => setLowBalancePassword(e.target.value)}
                 placeholder="비밀번호 입력"
-                className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500"
+                className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
               />
             </div>
 
@@ -2187,14 +2184,14 @@ export default function AdminStoresPage() {
                   setLowBalancePassword('');
                   setExcludedStoreIds(new Set());
                 }}
-                className="flex-1 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg text-[14px] font-medium transition-colors"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-white text-[13px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 취소
               </button>
               <button
                 onClick={handleSendLowBalanceNotification}
                 disabled={isSendingLowBalance || targetLowBalanceStores.length === 0}
-                className="flex-1 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-[14px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-[color:var(--ad-yellow)] hover:bg-[color:var(--ad-yellow-strong)] text-[color:var(--ad-ink)] text-[13px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isSendingLowBalance ? (
                   <>
@@ -2212,15 +2209,15 @@ export default function AdminStoresPage() {
 
       {/* 누적 고객 알림 모달 */}
       {customerCountModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-lg w-full max-h-[80vh] flex flex-col">
-            <h3 className="text-[16px] font-semibold text-neutral-900 mb-4">
+        <div className="fixed inset-0 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] p-6 max-w-lg w-full max-h-[80vh] flex flex-col">
+            <h3 className="text-[17px] font-bold text-[color:var(--ad-ink)] mb-4">
               누적 고객 알림톡 발송
             </h3>
 
             {/* 고객수 필터 */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <p className="text-[13px] font-medium text-blue-700 mb-3">고객수 필터</p>
+            <div className="bg-[color:var(--ad-blue-soft)] border border-[color:var(--ad-blue-2)] rounded-[10px] p-4 mb-4">
+              <p className="text-[13px] font-medium text-[color:var(--ad-link)] mb-3">고객수 필터</p>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -2228,40 +2225,40 @@ export default function AdminStoresPage() {
                   value={ccMinCustomers}
                   onChange={(e) => setCcMinCustomers(e.target.value)}
                   placeholder="최소"
-                  className="w-24 h-9 px-3 bg-white border border-blue-300 rounded-lg text-[13px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  className="w-24 h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13px] text-[color:var(--ad-ink)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
-                <span className="text-[13px] text-neutral-500">명 이상</span>
-                <span className="text-neutral-300 mx-1">~</span>
+                <span className="text-[13px] text-[color:var(--ad-muted)]">명 이상</span>
+                <span className="text-[color:var(--ad-faint)] mx-1">~</span>
                 <input
                   type="number"
                   min="0"
                   value={ccMaxCustomers}
                   onChange={(e) => setCcMaxCustomers(e.target.value)}
                   placeholder="제한없음"
-                  className="w-24 h-9 px-3 bg-white border border-blue-300 rounded-lg text-[13px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  className="w-24 h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13px] text-[color:var(--ad-ink)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
-                <span className="text-[13px] text-neutral-500">명 이하</span>
+                <span className="text-[13px] text-[color:var(--ad-muted)]">명 이하</span>
               </div>
             </div>
 
             {/* 통계 */}
-            <div className="grid grid-cols-3 gap-4 text-center bg-neutral-50 rounded-lg p-3 mb-4">
-              <div>
-                <p className="text-[12px] text-neutral-500">필터 결과</p>
-                <p className="text-[18px] font-bold text-blue-700">{ccFilteredStores.length}개</p>
+            <div className="flex divide-x divide-[color:var(--ad-line)] rounded-[12px] border border-[color:var(--ad-line)] mb-4">
+              <div className="flex-1 px-3 py-3 text-left">
+                <p className="text-[12px] text-[color:var(--ad-muted)]">필터 결과</p>
+                <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{ccFilteredStores.length}개</p>
               </div>
-              <div>
-                <p className="text-[12px] text-neutral-500">제외</p>
-                <p className="text-[18px] font-bold text-neutral-600">{ccExcludedIds.size}개</p>
+              <div className="flex-1 px-3 py-3 text-left">
+                <p className="text-[12px] text-[color:var(--ad-muted)]">제외</p>
+                <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-muted)]">{ccExcludedIds.size}개</p>
               </div>
-              <div>
-                <p className="text-[12px] text-neutral-500">발송 대상</p>
-                <p className="text-[18px] font-bold text-blue-700">{ccTargetStores.length}개</p>
+              <div className="flex-1 px-3 py-3 text-left">
+                <p className="text-[12px] text-[color:var(--ad-muted)]">발송 대상</p>
+                <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-link)]">{ccTargetStores.length}개</p>
               </div>
             </div>
 
             {/* 안내 문구 */}
-            <p className="text-[13px] text-neutral-500 mb-2">
+            <p className="text-[13px] text-[color:var(--ad-muted)] mb-2">
               각 매장의 실제 누적 고객수가 #{'{'}고객수{'}'} 변수로 들어갑니다.
             </p>
 
@@ -2269,31 +2266,31 @@ export default function AdminStoresPage() {
             <div className="flex items-center gap-2 mb-2">
               <button
                 onClick={() => setCcExcludedIds(new Set())}
-                className="text-[12px] text-blue-600 hover:underline"
+                className="text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
               >
                 전체 선택
               </button>
-              <span className="text-neutral-300">|</span>
+              <span className="text-[color:var(--ad-faint)]">|</span>
               <button
                 onClick={() => setCcExcludedIds(new Set(ccFilteredStores.map(s => s.id)))}
-                className="text-[12px] text-blue-600 hover:underline"
+                className="text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
               >
                 전체 해제
               </button>
             </div>
 
             {/* 매장 목록 */}
-            <div className="flex-1 overflow-y-auto border border-[#EAEAEA] rounded-lg mb-4">
+            <div className="flex-1 overflow-y-auto border border-[color:var(--ad-line)] rounded-[10px] mb-4">
               {ccFilteredStores.length === 0 ? (
-                <div className="p-4 text-center text-neutral-500 text-[13px]">
+                <div className="p-4 text-center text-[color:var(--ad-muted)] text-[13px]">
                   조건에 맞는 매장이 없습니다.
                 </div>
               ) : (
-                <div className="divide-y divide-[#EAEAEA]">
+                <div className="divide-y divide-[color:var(--ad-line)]">
                   {ccFilteredStores.map((store) => (
                     <label
                       key={store.id}
-                      className="flex items-center gap-3 p-3 hover:bg-neutral-50 cursor-pointer"
+                      className="flex items-center gap-3 p-3 hover:bg-[color:var(--ad-bg-alt)] cursor-pointer"
                     >
                       <input
                         type="checkbox"
@@ -2304,13 +2301,13 @@ export default function AdminStoresPage() {
                           else newSet.add(store.id);
                           setCcExcludedIds(newSet);
                         }}
-                        className="w-4 h-4 rounded border-neutral-300 text-blue-500 focus:ring-blue-500"
+                        className="w-4 h-4 rounded border-[color:var(--ad-line-strong)] text-[#131651] focus:ring-[#131651]"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-medium text-neutral-900 truncate">
+                        <p className="text-[13px] font-medium text-[color:var(--ad-ink)] truncate">
                           {store.name}
                         </p>
-                        <p className="text-[12px] text-neutral-500">
+                        <p className="text-[12px] text-[color:var(--ad-muted)]">
                           고객: {formatNumber(store.customerCount)}명 · {store.phone}
                         </p>
                       </div>
@@ -2322,7 +2319,7 @@ export default function AdminStoresPage() {
 
             {/* 비밀번호 */}
             <div className="mb-4">
-              <label className="block text-[13px] font-medium text-neutral-700 mb-1">
+              <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                 관리자 비밀번호
               </label>
               <input
@@ -2330,7 +2327,7 @@ export default function AdminStoresPage() {
                 value={ccPassword}
                 onChange={(e) => setCcPassword(e.target.value)}
                 placeholder="비밀번호 입력"
-                className="w-full h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
               />
             </div>
 
@@ -2342,14 +2339,14 @@ export default function AdminStoresPage() {
                   setCcPassword('');
                   setCcExcludedIds(new Set());
                 }}
-                className="flex-1 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg text-[14px] font-medium transition-colors"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-white text-[13px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 취소
               </button>
               <button
                 onClick={handleSendCustomerCountNotification}
                 disabled={isSendingCc || ccTargetStores.length === 0}
-                className="flex-1 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-[14px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="ad-press flex-1 h-10 rounded-[10px] bg-[color:var(--ad-yellow)] hover:bg-[color:var(--ad-yellow-strong)] text-[color:var(--ad-ink)] text-[13px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isSendingCc ? (
                   <>
@@ -2521,12 +2518,12 @@ function BulkAddressModal({
   const missingCount = stores.filter((s) => !s.address || s.address.trim() === '').length;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         {/* 헤더 */}
-        <div className="sticky top-0 bg-white border-b border-[#EAEAEA] px-6 py-4 flex items-center justify-between rounded-t-2xl">
-          <h2 className="text-lg font-bold text-neutral-900">매장 주소 일괄 관리</h2>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-900">
+        <div className="sticky top-0 bg-white border-b border-[color:var(--ad-line)] px-6 py-4 flex items-center justify-between rounded-t-[20px]">
+          <h2 className="text-[17px] font-bold text-[color:var(--ad-ink)]">매장 주소 일괄 관리</h2>
+          <button onClick={onClose} className="text-[color:var(--ad-faint)] hover:text-[color:var(--ad-ink)]">
             ✕
           </button>
         </div>
@@ -2535,14 +2532,14 @@ function BulkAddressModal({
           {/* Step 1: 템플릿 다운로드 */}
           <section>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-neutral-900">1. 엑셀 템플릿 다운로드</h3>
-              <div className="flex gap-1 text-xs">
+              <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">1. 엑셀 템플릿 다운로드</h3>
+              <div className="flex gap-1 text-[12px]">
                 <button
                   onClick={() => setFilter('missing')}
                   className={`px-3 py-1 rounded-full ${
                     filter === 'missing'
-                      ? 'bg-neutral-900 text-white'
-                      : 'bg-neutral-100 text-neutral-700'
+                      ? 'bg-[color:var(--ad-navy)] text-white'
+                      : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-ink-2)]'
                   }`}
                 >
                   주소 누락만 ({missingCount})
@@ -2550,19 +2547,19 @@ function BulkAddressModal({
                 <button
                   onClick={() => setFilter('all')}
                   className={`px-3 py-1 rounded-full ${
-                    filter === 'all' ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-700'
+                    filter === 'all' ? 'bg-[color:var(--ad-navy)] text-white' : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-ink-2)]'
                   }`}
                 >
                   전체 ({stores.length})
                 </button>
               </div>
             </div>
-            <p className="text-xs text-neutral-500 mb-3">
+            <p className="text-[12px] text-[color:var(--ad-muted)] mb-3">
               "새 주소(입력)" 칸에 주소를 채우면 시도/시군구는 자동 파싱됩니다.
             </p>
             <button
               onClick={handleDownloadTemplate}
-              className="px-4 py-2 bg-neutral-900 text-white text-sm rounded-lg hover:bg-neutral-800"
+              className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
             >
               📥 템플릿 다운로드
             </button>
@@ -2570,9 +2567,9 @@ function BulkAddressModal({
 
           {/* Step 2: 업로드 */}
           <section>
-            <h3 className="text-sm font-semibold text-neutral-900 mb-2">2. 엑셀 업로드</h3>
+            <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-2">2. 엑셀 업로드</h3>
             <div
-              className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center cursor-pointer hover:border-neutral-400"
+              className="border-2 border-dashed border-[color:var(--ad-line-strong)] rounded-[10px] p-6 text-center cursor-pointer hover:border-[color:var(--ad-line-strong)]"
               onClick={() => fileInputRef.current?.click()}
               onDrop={(e) => {
                 e.preventDefault();
@@ -2591,21 +2588,21 @@ function BulkAddressModal({
                   if (file) handleFileSelect(file);
                 }}
               />
-              <p className="text-sm text-neutral-700 font-medium">
+              <p className="text-[13px] text-[color:var(--ad-ink-2)] font-medium">
                 엑셀 파일을 드래그하거나 클릭
               </p>
-              <p className="text-xs text-neutral-400 mt-1">.xlsx / .xls</p>
+              <p className="text-[12px] text-[color:var(--ad-faint)] mt-1">.xlsx / .xls</p>
             </div>
 
             {parsedRows && (
-              <div className="mt-3 p-3 bg-neutral-50 rounded-lg">
-                <p className="text-sm text-neutral-700 mb-2">
+              <div className="mt-3 p-3 bg-[color:var(--ad-bg-alt)] rounded-[10px]">
+                <p className="text-[13px] text-[color:var(--ad-ink-2)] mb-2">
                   <strong>{parsedRows.length}개</strong>의 매장 주소를 업데이트합니다.
                 </p>
                 <button
                   onClick={handleUpload}
                   disabled={isUploading}
-                  className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 disabled:opacity-60"
+                  className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
                 >
                   {isUploading ? '업데이트 중...' : '업데이트 실행'}
                 </button>
@@ -2616,37 +2613,37 @@ function BulkAddressModal({
           {/* Step 3: 결과 */}
           {result && (
             <section>
-              <h3 className="text-sm font-semibold text-neutral-900 mb-2">3. 결과</h3>
-              <div className="grid grid-cols-3 gap-3 mb-3">
-                <div className="bg-neutral-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-neutral-500">총 시도</p>
-                  <p className="text-xl font-bold text-neutral-900">{result.total}</p>
+              <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-2">3. 결과</h3>
+              <div className="flex divide-x divide-[color:var(--ad-line)] rounded-[12px] border border-[color:var(--ad-line)] mb-3">
+                <div className="flex-1 px-3 py-3 text-left">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">총 시도</p>
+                  <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{result.total}</p>
                 </div>
-                <div className="bg-emerald-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-emerald-700">성공</p>
-                  <p className="text-xl font-bold text-emerald-600">{result.updated}</p>
+                <div className="flex-1 px-3 py-3 text-left">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">성공</p>
+                  <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-pos)]">{result.updated}</p>
                 </div>
-                <div className="bg-red-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-red-700">실패</p>
-                  <p className="text-xl font-bold text-red-600">{result.failed.length}</p>
+                <div className="flex-1 px-3 py-3 text-left">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">실패</p>
+                  <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-neg)]">{result.failed.length}</p>
                 </div>
               </div>
 
               {result.failed.length > 0 && (
-                <div className="border border-red-200 rounded-lg overflow-hidden">
-                  <div className="bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                <div className="border border-[#ffc4d0] rounded-[10px] overflow-hidden">
+                  <div className="bg-[#fff0f3] px-3 py-2 text-[12px] font-semibold text-[color:var(--ad-neg)]">
                     실패 항목 (엑셀에서 수정 후 재업로드)
                   </div>
                   <div className="max-h-48 overflow-y-auto">
                     {result.failed.map((f, i) => (
                       <div
                         key={i}
-                        className="px-3 py-2 text-xs border-t border-red-100 flex justify-between"
+                        className="px-3 py-2 text-[12px] border-t border-[#ffc4d0] flex justify-between"
                       >
-                        <span className="text-neutral-700 truncate flex-1">
+                        <span className="text-[color:var(--ad-ink-2)] truncate flex-1">
                           {f.name || '(이름 없음)'}: {f.address}
                         </span>
-                        <span className="text-red-600 ml-2 flex-shrink-0">{f.reason}</span>
+                        <span className="text-[color:var(--ad-neg)] ml-2 flex-shrink-0">{f.reason}</span>
                       </div>
                     ))}
                   </div>
@@ -2655,20 +2652,20 @@ function BulkAddressModal({
 
               {/* 고객 지역 백필 */}
               {result.updated > 0 && (
-                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm font-semibold text-blue-900 mb-1">
+                <div className="mt-4 p-4 bg-[color:var(--ad-blue-soft)] rounded-[10px]">
+                  <p className="text-[13px] font-semibold text-[color:var(--ad-navy)] mb-1">
                     ✨ 과거 가입 고객 지역도 채우기
                   </p>
-                  <p className="text-xs text-blue-700 mb-3">
+                  <p className="text-[12px] text-[color:var(--ad-link)] mb-3">
                     매장 주소가 업데이트되었습니다. 그 매장에 가입한 과거 고객들의 지역 정보(시/도, 시/군/구)도
                     매장 주소 기준으로 자동 채울 수 있습니다.
                   </p>
                   {populateResult ? (
-                    <p className="text-sm text-blue-900">
+                    <p className="text-[13px] text-[color:var(--ad-navy)]">
                       ✅ <strong>{populateResult.updated.toLocaleString()}명</strong>의 고객 지역 정보가
                       채워졌습니다.
                       {populateResult.skippedNoStoreAddress > 0 && (
-                        <span className="block text-xs text-blue-700 mt-1">
+                        <span className="block text-[12px] text-[color:var(--ad-link)] mt-1">
                           (매장 주소 없는 고객 {populateResult.skippedNoStoreAddress.toLocaleString()}명
                           스킵)
                         </span>
@@ -2678,7 +2675,7 @@ function BulkAddressModal({
                     <button
                       onClick={handlePopulateCustomers}
                       disabled={isPopulating}
-                      className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-60"
+                      className="ad-press inline-flex items-center justify-center h-9 px-4 rounded-[10px] bg-[color:var(--ad-navy)] text-[13px] font-semibold text-white hover:bg-[#2a2d62] disabled:opacity-50"
                     >
                       {isPopulating ? '백필 중...' : '고객 지역 백필 실행'}
                     </button>
@@ -2690,13 +2687,13 @@ function BulkAddressModal({
         </div>
 
         {/* 푸터 */}
-        <div className="sticky bottom-0 bg-white border-t border-[#EAEAEA] px-6 py-3 flex justify-end rounded-b-2xl">
+        <div className="sticky bottom-0 bg-white border-t border-[color:var(--ad-line)] px-6 py-3 flex justify-end rounded-b-[20px]">
           <button
             onClick={() => {
               if (result && result.updated > 0) onDone();
               else onClose();
             }}
-            className="px-4 py-2 bg-neutral-900 text-white text-sm rounded-lg hover:bg-neutral-800"
+            className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
           >
             닫기
           </button>
