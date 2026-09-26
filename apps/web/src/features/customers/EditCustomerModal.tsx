@@ -8,7 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber, formatDate, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
-import { ShoppingBag, MessageSquare, History, Send, Stamp } from 'lucide-react';
+import { ShoppingBag, MessageSquare, History, Send, Stamp, Star } from 'lucide-react';
 import {
   Customer,
   PointLedgerEntry,
@@ -108,12 +108,12 @@ export function EditCustomerModal({
 
   return (
     <Modal open={open} onOpenChange={onOpenChange}>
-      <ModalContent className="sm:max-w-4xl max-h-[85vh] flex flex-col overflow-x-hidden">
+      <ModalContent className="rounded-[20px] border-0 shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] sm:max-w-4xl max-h-[85vh] flex flex-col overflow-x-hidden">
         <ModalHeader className="flex-shrink-0">
           <div className="flex items-center gap-2">
-            <ModalTitle>고객 정보</ModalTitle>
-            {customer?.isVip && <Badge variant="vip">VIP</Badge>}
-            {customer?.isNew && <Badge variant="new">신규</Badge>}
+            <ModalTitle className="text-[17px] font-semibold text-[color:var(--ad-ink)]">고객 정보</ModalTitle>
+            {customer?.isVip && <Badge variant="vip" className="inline-flex rounded-full border-0 bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">VIP</Badge>}
+            {customer?.isNew && <Badge variant="new" className="inline-flex rounded-full border-0 bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">신규</Badge>}
           </div>
         </ModalHeader>
 
@@ -124,27 +124,27 @@ export function EditCustomerModal({
             <div className="space-y-4 min-w-0">
               {/* Read-only info: Visit count, last visit, points, total order */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-neutral-50 rounded-lg">
-                  <p className="text-xs text-neutral-500 mb-1">방문 횟수</p>
-                  <p className="font-semibold text-neutral-900">
+                <div className="p-3 bg-[#f8f9fa] rounded-[10px]">
+                  <p className="text-[12px] text-[#55595e] mb-1">방문 횟수</p>
+                  <p className="font-medium text-[color:var(--ad-ink)]">
                     {customer?.visitCount || 0}회
                   </p>
                 </div>
-                <div className="p-3 bg-neutral-50 rounded-lg">
-                  <p className="text-xs text-neutral-500 mb-1">마지막 방문일</p>
-                  <p className="font-semibold text-neutral-900">
+                <div className="p-3 bg-[#f8f9fa] rounded-[10px]">
+                  <p className="text-[12px] text-[#55595e] mb-1">마지막 방문일</p>
+                  <p className="font-medium text-[color:var(--ad-ink)]">
                     {customer?.lastVisitAt ? formatDate(customer.lastVisitAt) : '-'}
                   </p>
                 </div>
-                <div className="p-3 bg-neutral-50 rounded-lg">
-                  <p className="text-xs text-neutral-500 mb-1">적립 포인트</p>
-                  <p className="font-semibold text-neutral-900">
+                <div className="p-3 bg-[#f8f9fa] rounded-[10px]">
+                  <p className="text-[12px] text-[#55595e] mb-1">적립 포인트</p>
+                  <p className="font-medium text-[color:var(--ad-ink)]">
                     {formatNumber(customer?.totalPoints || 0)} P
                   </p>
                 </div>
-                <div className="p-3 bg-neutral-50 rounded-lg">
-                  <p className="text-xs text-neutral-500 mb-1">스탬프</p>
-                  <p className="font-semibold text-neutral-900">
+                <div className="p-3 bg-[#f8f9fa] rounded-[10px]">
+                  <p className="text-[12px] text-[#55595e] mb-1">스탬프</p>
+                  <p className="font-medium text-[color:var(--ad-ink)]">
                     {totalStamps}개
                   </p>
                 </div>
@@ -152,8 +152,8 @@ export function EditCustomerModal({
 
               {/* Stamp Use Section */}
               {totalStamps > 0 && (
-                <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-lg space-y-2">
-                  <p className="text-sm font-medium text-neutral-700">스탬프 보상 사용</p>
+                <div className="p-3 bg-[#f8f9fa] border border-[#ebeced] rounded-[10px] space-y-2">
+                  <p className="text-[13px] font-medium text-[#383c40]">스탬프 보상 사용</p>
                   <div className="flex flex-wrap gap-2">
                     {stampRewardTiers.map((amount) => (
                       <Button
@@ -162,13 +162,13 @@ export function EditCustomerModal({
                         size="sm"
                         disabled={totalStamps < amount || submitting}
                         onClick={() => onUseStampReward(amount)}
-                        className="flex-1 min-w-[70px]"
+                        className="ad-press h-9 flex-1 min-w-[70px] rounded-[10px] border-0 bg-white px-3 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                       >
                         {amount}개 사용
                       </Button>
                     ))}
                   </div>
-                  <p className="text-xs text-neutral-500">
+                  <p className="text-[12px] text-[#55595e]">
                     고객이 보상을 요청하면 해당 버튼을 눌러주세요.
                   </p>
                 </div>
@@ -176,22 +176,22 @@ export function EditCustomerModal({
 
               {/* Nickname */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-600">닉네임</label>
-                <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-700">
+                <label className="text-[13px] font-medium text-[#383c40]">닉네임</label>
+                <div className="px-3 py-2 bg-[#f8f9fa] border border-[#ebeced] rounded-[10px] text-[13px] text-[#383c40]">
                   {maskNickname(name)}
                 </div>
               </div>
 
               {/* Gender */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-600">성별</label>
+                <label className="text-[13px] font-medium text-[#383c40]">성별</label>
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    className={`flex-1 py-2 px-4 rounded-lg border-2 transition-colors ${
+                    className={`flex-1 py-2 px-4 rounded-[10px] border-2 transition-colors ${
                       gender === 'MALE'
-                        ? 'border-brand-800 bg-brand-50 text-brand-800'
-                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
+                        ? 'border-[color:var(--ad-ink)] bg-white font-medium text-[color:var(--ad-ink)]'
+                        : 'border-[#ebeced] text-[#383c40] hover:border-[#d1d3d6]'
                     }`}
                     onClick={() => onGenderChange('MALE')}
                   >
@@ -199,10 +199,10 @@ export function EditCustomerModal({
                   </button>
                   <button
                     type="button"
-                    className={`flex-1 py-2 px-4 rounded-lg border-2 transition-colors ${
+                    className={`flex-1 py-2 px-4 rounded-[10px] border-2 transition-colors ${
                       gender === 'FEMALE'
-                        ? 'border-brand-800 bg-brand-50 text-brand-800'
-                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
+                        ? 'border-[color:var(--ad-ink)] bg-white font-medium text-[color:var(--ad-ink)]'
+                        : 'border-[#ebeced] text-[#383c40] hover:border-[#d1d3d6]'
                     }`}
                     onClick={() => onGenderChange('FEMALE')}
                   >
@@ -214,14 +214,14 @@ export function EditCustomerModal({
               {/* Birthday and Age Group */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-600">생일</label>
-                  <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-700">
+                  <label className="text-[13px] font-medium text-[#383c40]">생일</label>
+                  <div className="px-3 py-2 bg-[#f8f9fa] border border-[#ebeced] rounded-[10px] text-[13px] text-[#383c40]">
                     {birthday ? formatBirthdayMonth(birthday).replace(' 생일', '') : '-'}
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-600">연령대</label>
-                  <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-700">
+                  <label className="text-[13px] font-medium text-[#383c40]">연령대</label>
+                  <div className="px-3 py-2 bg-[#f8f9fa] border border-[#ebeced] rounded-[10px] text-[13px] text-[#383c40]">
                     {birthYear ? getAgeGroup(parseInt(birthYear, 10)) : '-'}
                   </div>
                 </div>
@@ -229,9 +229,9 @@ export function EditCustomerModal({
 
               {/* Memo (moved here for left column) */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-600">메모</label>
+                <label className="text-[13px] font-medium text-[#383c40]">메모</label>
                 <textarea
-                  className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-800 focus:border-transparent"
+                  className="w-full resize-none rounded-[10px] border border-[#d1d3d6] bg-white px-3 py-2.5 text-[13.5px] placeholder:text-[#91959a] focus:border-[#131651] focus:outline-none"
                   rows={3}
                   placeholder="고객에 대한 메모를 입력하세요"
                   value={memo}
@@ -243,22 +243,22 @@ export function EditCustomerModal({
             {/* Right Column - Tabs for Orders, Feedback, History */}
             <div className="flex flex-col min-w-0 overflow-hidden h-full">
               {/* Tab Headers - 2 rows, 3 columns grid */}
-              <div className="flex-shrink-0 border-b border-neutral-200">
+              <div className="flex-shrink-0 border-b border-[#ebeced]">
                 <div className="grid grid-cols-3 gap-1">
                   {/* Row 1 */}
                   <button
                     type="button"
                     onClick={() => onTabChange('orders')}
-                    className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                    className={`flex items-center justify-center gap-1 px-2 py-2.5 text-[13px] font-medium border-b-2 transition-colors ${
                       tab === 'orders'
-                        ? 'border-brand-800 text-brand-800 bg-brand-50'
-                        : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
+                        ? 'border-[color:var(--ad-ink)] text-[color:var(--ad-ink)]'
+                        : 'border-transparent text-[#55595e] hover:text-[#383c40] hover:bg-[#f8f9fa]'
                     }`}
                   >
                     <ShoppingBag className="w-4 h-4 flex-shrink-0" />
                     <span>주문</span>
                     {(orderHistory?.length || 0) > 0 && (
-                      <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
+                      <span className="text-[11px] bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)] px-1.5 py-0.5 rounded-full">
                         {orderHistory.length}
                       </span>
                     )}
@@ -266,31 +266,31 @@ export function EditCustomerModal({
                   <button
                     type="button"
                     onClick={() => onTabChange('feedback')}
-                    className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                    className={`flex items-center justify-center gap-1 px-2 py-2.5 text-[13px] font-medium border-b-2 transition-colors ${
                       tab === 'feedback'
-                        ? 'border-brand-800 text-brand-800 bg-brand-50'
-                        : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
+                        ? 'border-[color:var(--ad-ink)] text-[color:var(--ad-ink)]'
+                        : 'border-transparent text-[#55595e] hover:text-[#383c40] hover:bg-[#f8f9fa]'
                     }`}
                   >
                     <MessageSquare className="w-4 h-4 flex-shrink-0" />
                     <span>피드백</span>
                     {(feedbackHistory?.length || 0) > 0 && (
-                      <span className="text-yellow-500">★{feedbackHistory.length}</span>
+                      <span className="inline-flex items-center gap-0.5 text-[color:var(--ad-muted)]"><Star className="h-3 w-3" strokeWidth={2} />{feedbackHistory.length}</span>
                     )}
                   </button>
                   <button
                     type="button"
                     onClick={() => onTabChange('messages')}
-                    className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                    className={`flex items-center justify-center gap-1 px-2 py-2.5 text-[13px] font-medium border-b-2 transition-colors ${
                       tab === 'messages'
-                        ? 'border-brand-800 text-brand-800 bg-brand-50'
-                        : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
+                        ? 'border-[color:var(--ad-ink)] text-[color:var(--ad-ink)]'
+                        : 'border-transparent text-[#55595e] hover:text-[#383c40] hover:bg-[#f8f9fa]'
                     }`}
                   >
                     <Send className="w-4 h-4 flex-shrink-0" />
                     <span>발송내역</span>
                     {messageSummary.total > 0 && (
-                      <span className="text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">
+                      <span className="text-[11px] bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)] px-1.5 py-0.5 rounded-full">
                         {messageSummary.total}
                       </span>
                     )}
@@ -299,16 +299,16 @@ export function EditCustomerModal({
                   <button
                     type="button"
                     onClick={() => onTabChange('history')}
-                    className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                    className={`flex items-center justify-center gap-1 px-2 py-2.5 text-[13px] font-medium border-b-2 transition-colors ${
                       tab === 'history'
-                        ? 'border-brand-800 text-brand-800 bg-brand-50'
-                        : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
+                        ? 'border-[color:var(--ad-ink)] text-[color:var(--ad-ink)]'
+                        : 'border-transparent text-[#55595e] hover:text-[#383c40] hover:bg-[#f8f9fa]'
                     }`}
                   >
                     <History className="w-4 h-4 flex-shrink-0" />
                     <span>포인트</span>
                     {(pointHistory?.length || 0) > 0 && (
-                      <span className="text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full">
+                      <span className="text-[11px] bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)] px-1.5 py-0.5 rounded-full">
                         {pointHistory.length}
                       </span>
                     )}
@@ -316,16 +316,16 @@ export function EditCustomerModal({
                   <button
                     type="button"
                     onClick={() => onTabChange('stamps')}
-                    className={`flex items-center justify-center gap-1 px-2 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                    className={`flex items-center justify-center gap-1 px-2 py-2.5 text-[13px] font-medium border-b-2 transition-colors ${
                       tab === 'stamps'
-                        ? 'border-brand-800 text-brand-800 bg-brand-50'
-                        : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
+                        ? 'border-[color:var(--ad-ink)] text-[color:var(--ad-ink)]'
+                        : 'border-transparent text-[#55595e] hover:text-[#383c40] hover:bg-[#f8f9fa]'
                     }`}
                   >
                     <Stamp className="w-4 h-4 flex-shrink-0" />
                     <span>스탬프</span>
                     {(stampHistory?.length || 0) > 0 && (
-                      <span className="text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full">
+                      <span className="text-[11px] bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)] px-1.5 py-0.5 rounded-full">
                         {stampHistory.length}
                       </span>
                     )}
@@ -390,21 +390,21 @@ export function EditCustomerModal({
             variant="ghost"
             onClick={onDelete}
             disabled={submitting}
-            className="text-red-500 hover:text-red-600 hover:bg-red-50 mr-auto"
+            className="mr-auto h-10 rounded-[12px] text-[13px] font-medium text-[color:var(--ad-neg)] hover:bg-[#fff2f5] hover:text-[color:var(--ad-neg)]"
           >
             고객 삭제
           </Button>
           <Button
             variant="secondary"
             onClick={onClose}
-            className="flex-1"
+            className="flex-1 ad-press h-10 rounded-[12px] border-0 bg-white text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
           >
             취소
           </Button>
           <Button
             onClick={onSave}
             disabled={submitting}
-            className="flex-1"
+            className="flex-1 ad-press h-10 rounded-[12px] bg-[color:var(--ad-ink)] text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
           >
             {submitting ? '저장 중...' : '저장하기'}
           </Button>

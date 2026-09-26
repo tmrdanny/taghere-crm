@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -21,13 +21,11 @@ import {
   ExternalLink,
   ChevronDown,
   Store,
-  TabletSmartphone,
   ListOrdered,
   HandCoins,
   Stamp,
   MapPin,
   BarChart3,
-  ShoppingBag,
   ClipboardList,
   Zap,
   PieChart,
@@ -37,15 +35,6 @@ import {
   Ticket,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-// 네이버 아이콘 컴포넌트 (동그라미 안에 N)
-function NaverIcon({ className }: { className?: string }) {
-  return (
-    <div className={cn('w-5 h-5 rounded-full bg-[#03C75A] flex items-center justify-center', className)}>
-      <span className="text-white text-xs font-bold leading-none">N</span>
-    </div>
-  );
-}
 
 // BeforeInstallPromptEvent 타입 정의
 interface BeforeInstallPromptEvent extends Event {
@@ -85,11 +74,11 @@ const navGroups: NavGroup[] = [
     title: '매장 운영',
     icon: Store,
     items: [
-      { href: 'https://admin.tag-here.com', label: '주문/결제', icon: TabletSmartphone, isExternal: true },
+      // 주문/결제: 메뉴에서 숨김 (외부 링크)
       { href: '/waiting', label: '웨이팅', icon: ListOrdered },
       { href: '/points', label: '포인트 적립', icon: HandCoins },
       { href: '/stamp-settings', label: '스탬프 설정', icon: Stamp },
-      { href: '/table-chat', label: '테이블 채팅', icon: MessageSquare, isNew: true },
+      // 테이블 채팅: 하단 '관리' 메뉴로 이동
     ],
   },
   {
@@ -111,7 +100,7 @@ const navGroups: NavGroup[] = [
       { href: '/messages', label: '메시지 발송', icon: MessageSquareMore },
       { href: '/coupon-links', label: '쿠폰 발행 링크', icon: Ticket, isNew: true },
       { href: '/place-booster', label: '네이버 플레이스 부스터', icon: Rocket, isNew: true },
-      { href: '/naver-review', label: '네이버 리뷰 요청', icon: NaverIcon, isCustomIcon: true },
+      // 네이버 리뷰 요청: 메뉴에서 숨김 (페이지는 유지)
     ],
   },
   {
@@ -151,9 +140,10 @@ function buildNavGroups(taghereVersion?: string, stampEnabled?: boolean): NavGro
 
 // 하단 독립 메뉴
 const bottomNavItems: NavItem[] = [
+  { href: '/table-chat', label: '테이블 채팅', icon: MessageSquare, isNew: true },
   { href: '/message-history', label: '발송 내역', icon: History },
   { href: '/wallet-history', label: '사용내역', icon: MessagesSquare },
-  { href: '/store', label: '스토어', icon: ShoppingBag, badge: '태블릿' },
+  // 스토어: 메뉴에서 숨김 (페이지는 유지)
   { href: '/billing', label: '충전 관리', icon: CreditCard },
   { href: '/settings', label: '설정', icon: Settings },
 ];
@@ -212,16 +202,16 @@ function ComingSoonModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-8 w-[360px] max-w-[90vw] mx-4 shadow-xl">
-        <h3 className="text-xl font-semibold text-neutral-900 mb-3">준비중입니다</h3>
-        <p className="text-neutral-600 text-sm mb-6 leading-relaxed">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.4)] backdrop-blur-sm">
+      <div className="mx-4 w-[360px] max-w-[90vw] rounded-[20px] bg-white p-7 shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)]">
+        <h3 className="mb-2 text-[17px] font-bold text-[color:var(--ad-ink)]">준비중입니다</h3>
+        <p className="mb-6 text-[13.5px] leading-relaxed text-[color:var(--ad-muted)]">
           {featureName || '해당 기능'}은 현재 준비중입니다.<br/>
           곧 오픈 예정이니 조금만 기다려주세요!
         </p>
         <button
           onClick={onClose}
-          className="w-full bg-brand-600 text-white py-3 px-4 rounded-lg text-sm font-medium hover:bg-brand-700"
+          className="ad-press h-11 w-full rounded-[10px] bg-[color:var(--ad-ink)] text-[14px] font-semibold text-white hover:bg-[#383c40]"
         >
           확인
         </button>
@@ -242,7 +232,30 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
   const pathname = usePathname();
   const { canInstall, handleInstall } = useInstallPrompt();
   const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; featureName?: string }>({ open: false });
-  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [storeName, setStoreName] = useState('');
+  const accountRef = useRef<HTMLDivElement>(null);
+
+  // 매장 이름: 레이아웃이 저장해 둔 /api/auth/me 캐시 재사용
+  useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem('auth-me-cache');
+      if (cached) setStoreName(JSON.parse(cached)?.user?.store?.name || '');
+    } catch {
+      // 캐시 파싱 실패 시 무시
+    }
+  }, []);
+
+  // 관리 메뉴: 바깥을 누르거나 페이지가 바뀌면 닫기
+  useEffect(() => {
+    if (!accountOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) setAccountOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [accountOpen]);
+  useEffect(() => setAccountOpen(false), [pathname]);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [visitedPages, setVisitedPages] = useState<string[]>([]);
 
@@ -295,11 +308,6 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
 
   // 현재 경로에 따라 활성화된 그룹 자동 확장
   useEffect(() => {
-    const activeGroups = navGroupsForUser
-      .filter(group => isGroupActive(group))
-      .map(group => group.title);
-    setExpandedGroups(activeGroups);
-
     // 하위 메뉴가 있는 아이템 중 활성화된 것 자동 확장
     const activeItems: string[] = [];
     navGroupsForUser.forEach(group => {
@@ -311,14 +319,6 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
     });
     setExpandedItems(activeItems);
   }, [pathname]);
-
-  const toggleGroup = (title: string) => {
-    setExpandedGroups(prev =>
-      prev.includes(title)
-        ? prev.filter(t => t !== title)
-        : [...prev, title]
-    );
-  };
 
   const toggleItem = (label: string) => {
     setExpandedItems(prev =>
@@ -352,24 +352,24 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
           <button
             onClick={() => toggleItem(item.label)}
             className={cn(
-              'flex items-center gap-3 w-full mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+              'ad-press flex items-center gap-2.5 w-full mx-2 px-2.5 h-9 rounded-[10px] text-[13px] transition-colors',
               itemActive
-                ? 'bg-brand-50 text-brand-800'
-                : 'text-slate-800 hover:text-slate-900 hover:bg-slate-50',
+                ? 'bg-white font-semibold text-[color:var(--ad-ink)] shadow-[0_0_0_1px_var(--ad-line)]'
+                : 'text-[color:var(--ad-ink-2)] hover:bg-white/60',
               isSubItem && 'ml-4'
             )}
             style={{ width: 'calc(100% - 16px)' }}
           >
-            <Icon className={cn('w-5 h-5 flex-shrink-0', itemActive && 'text-brand-800')} />
+            <Icon strokeWidth={1.7} className={cn('w-4 h-4 flex-shrink-0', itemActive ? 'text-[color:var(--ad-navy)]' : 'text-[color:var(--ad-faint)]')} />
             <span className="flex-1 text-left">{item.label}</span>
             {shouldShowNew(item) && !isItemExpanded && (
-              <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+              <span className="rounded-full bg-[color:var(--ad-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line)]">
                 NEW
               </span>
             )}
             <ChevronDown
               className={cn(
-                'w-4 h-4 transition-transform duration-200',
+                'w-3.5 h-3.5 text-[color:var(--ad-faint)] transition-transform duration-200',
                 isItemExpanded && 'rotate-180'
               )}
             />
@@ -380,7 +380,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
               isItemExpanded ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'
             )}
           >
-            <div className="py-1 ml-6 pl-2 border-l border-slate-200 space-y-1">
+            <div className="py-1 ml-6 pl-2 border-l border-[color:var(--ad-line)] space-y-1">
               {item.subItems!.map(subItem => renderNavItem(subItem, true, true))}
             </div>
           </div>
@@ -394,22 +394,25 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
         href={item.isExternal || item.isComingSoon ? '#' : item.href}
         onClick={(e) => handleNavClick(e, item)}
         className={cn(
-          'flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+          'ad-press relative flex items-center gap-2.5 mx-2 px-2.5 h-9 [@media(max-height:860px)]:h-8 rounded-[10px] text-[13px] transition-colors',
           active
-            ? 'bg-brand-50 text-brand-800'
-            : 'text-slate-800 hover:text-slate-900 hover:bg-slate-50',
+            ? 'bg-white font-semibold text-[color:var(--ad-ink)] shadow-[0_0_0_1px_var(--ad-line)]'
+            : 'text-[color:var(--ad-ink-2)] hover:bg-white/60',
           isCollapsed && 'justify-center',
           isSubItem && !isCollapsed && 'ml-4',
           isNestedSubItem && !isCollapsed && 'ml-2'
         )}
         title={isCollapsed ? item.label : undefined}
       >
+        {active && !isCollapsed && !isSubItem && (
+          <span className="absolute -left-2 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-[color:var(--ad-ink)]" />
+        )}
         {/* 2번째 depth부터는 아이콘 숨김 */}
         {!isSubItem && (
           <div className="relative flex-shrink-0">
-            <Icon className={cn('w-5 h-5', active && 'text-brand-800')} />
+            <Icon strokeWidth={1.7} className={cn('w-4 h-4', active ? 'text-[color:var(--ad-navy)]' : 'text-[color:var(--ad-faint)]')} />
             {isCollapsed && shouldShowNew(item) && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-[color:var(--ad-ink)] rounded-full flex items-center justify-center">
                 <span className="text-white text-[8px] font-bold leading-none">N</span>
               </span>
             )}
@@ -419,17 +422,17 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
           <>
             <span className="flex-1">{item.label}</span>
             {item.badge && (
-              <span className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded font-medium">
+              <span className="rounded-full bg-[color:var(--ad-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line)]">
                 {item.badge}
               </span>
             )}
             {shouldShowNew(item) && (
-              <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+              <span className="rounded-full bg-[color:var(--ad-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line)]">
                 NEW
               </span>
             )}
             {item.isExternal && (
-              <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
+              <ExternalLink className="w-3.5 h-3.5 text-[color:var(--ad-faint)]" />
             )}
           </>
         )}
@@ -438,64 +441,26 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
   };
 
   const renderNavGroup = (group: NavGroup) => {
-    const GroupIcon = group.icon;
-    const isExpanded = expandedGroups.includes(group.title);
-    const groupActive = isGroupActive(group);
-    const hasNewItem = group.items.some(item => shouldShowNew(item));
-
-    // 접힌 상태에서는 그룹의 첫 번째 아이템만 표시
+    // 관리자 사이드바와 동일: 드롭다운 없이 카테고리 제목 + 아이콘 메뉴를 항상 펼쳐 보여준다
     if (isCollapsed) {
       return (
-        <div key={group.title} className="mb-1">
+        <div key={group.title} className="mt-3 space-y-px border-t border-[color:var(--ad-line)] pt-3">
           {group.items.map(item => renderNavItem(item))}
         </div>
       );
     }
 
     return (
-      <div key={group.title} className="mb-1">
-        {/* 그룹 헤더 (드롭다운 토글) */}
-        <button
-          onClick={() => toggleGroup(group.title)}
-          className={cn(
-            'flex items-center gap-3 w-full mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-            groupActive
-              ? 'bg-brand-50 text-brand-800'
-              : 'text-slate-800 hover:text-slate-900 hover:bg-slate-50'
-          )}
-          style={{ width: 'calc(100% - 16px)' }}
-        >
-          <GroupIcon className={cn('w-5 h-5 flex-shrink-0', groupActive && 'text-brand-800')} />
-          <span className="flex-1 text-left">{group.title}</span>
+      <div key={group.title} className="mt-5 [@media(max-height:860px)]:mt-3">
+        <p className="mb-1 flex items-center gap-1.5 px-[18px] text-[11px] font-medium text-[color:var(--ad-faint)]">
+          {group.title}
           {group.badge && (
-            <span className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded font-medium">
+            <span className="rounded-full bg-[color:var(--ad-bg)] px-1.5 py-px text-[10px] font-medium text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line)]">
               {group.badge}
             </span>
           )}
-          {hasNewItem && !isExpanded && (
-            <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-              NEW
-            </span>
-          )}
-          <ChevronDown
-            className={cn(
-              'w-4 h-4 transition-transform duration-200',
-              isExpanded && 'rotate-180'
-            )}
-          />
-        </button>
-
-        {/* 드롭다운 아이템들 */}
-        <div
-          className={cn(
-            'overflow-hidden transition-all duration-200',
-            isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-          )}
-        >
-          <div className="py-1 ml-4 pl-2 border-l border-slate-200 space-y-1">
-            {group.items.map(item => renderNavItem(item, true))}
-          </div>
-        </div>
+        </p>
+        <div className="space-y-px">{group.items.map(item => renderNavItem(item))}</div>
       </div>
     );
   };
@@ -504,14 +469,13 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
     <>
       <aside
         className={cn(
-          'hidden lg:flex flex-col bg-white border-r border-neutral-200 sticky top-0 transition-all duration-300',
-          isCollapsed ? 'w-20' : 'w-64'
+          'ad-side hidden lg:flex flex-col transition-[width] duration-300',
+          isCollapsed ? 'w-[76px]' : 'w-[248px]'
         )}
-        style={{ zoom: 0.9, height: '111.11vh' }}
       >
         {/* Logo */}
         <div className={cn(
-          "flex items-center h-16 px-4 border-b border-slate-200",
+          "flex items-center h-14 px-4",
           isCollapsed ? "justify-center" : "justify-between"
         )}>
           {!isCollapsed && (
@@ -519,18 +483,18 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
               <Image
                 src="/Taghere-logo.png"
                 alt="태그히어 CRM"
-                width={140}
-                height={40}
-                className="h-8 w-auto flex-shrink-0"
+                width={24}
+                height={24}
+                className="h-6 w-6 flex-shrink-0"
               />
-              <span className="text-lg font-semibold text-neutral-900 whitespace-nowrap">
-                Taghere CRM
+              <span className="text-[14px] font-semibold tracking-[-0.02em] text-[color:var(--ad-ink)] whitespace-nowrap">
+                태그히어 CRM
               </span>
             </Link>
           )}
           <button
             onClick={onToggleCollapse}
-            className="p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-md transition-colors"
+            className="ad-press grid h-7 w-7 place-items-center rounded-md text-[color:var(--ad-faint)] hover:bg-white/70 hover:text-[color:var(--ad-ink)]"
             title={isCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
           >
             {isCollapsed ? (
@@ -542,40 +506,97 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-4 overflow-y-auto">
+        {/* 포스기처럼 휠이 없는 환경 대비: 스크롤바를 얇게 보이고, 넘칠 때 아래쪽을 흐리게 표시 */}
+        <nav className="ad-scroll flex-1 overflow-y-auto py-2">
           {/* 상단 홈 메뉴 */}
-          {topNavItems.map(item => renderNavItem(item))}
+          <div className="space-y-px">{topNavItems.map(item => renderNavItem(item))}</div>
 
-          {/* 구분선 */}
-          <div className="mx-4 my-3 border-t border-slate-200" />
-
-          {/* 그룹화된 메뉴 (드롭다운) */}
+          {/* 카테고리별 메뉴 (항상 펼침) */}
           {navGroupsForUser.map(group => renderNavGroup(group))}
 
-          {/* 구분선 */}
-          <div className="mx-4 my-3 border-t border-slate-200" />
-
-          {/* 하단 메뉴 */}
-          {bottomNavItems.map(item => renderNavItem(item))}
+          <div className="pointer-events-none sticky bottom-0 h-6 bg-gradient-to-t from-[rgba(250,251,252,0.95)] to-transparent" aria-hidden />
         </nav>
 
-        {/* 앱 설치 버튼 */}
-        {canInstall && (
-          <div className="p-2 border-t border-neutral-200">
-            <button
-              onClick={handleInstall}
+        {/* 매장·관리 메뉴 (발송 내역, 사용내역, 충전 관리, 설정, 테이블 채팅, 앱 설치) */}
+        <div ref={accountRef} className="relative border-t border-[color:var(--ad-line)] p-2">
+          {accountOpen && (
+            <div
               className={cn(
-                'flex items-center gap-3 w-full px-3 py-3 rounded-lg text-sm font-medium transition-colors',
-                'text-brand-700 hover:bg-brand-50',
-                isCollapsed && 'justify-center'
+                'absolute z-50 w-[232px] rounded-[16px] bg-white p-1.5 shadow-[0_0_0_1px_var(--ad-line),0_18px_40px_-16px_rgba(29,32,34,0.25)]',
+                isCollapsed ? 'bottom-2 left-full ml-2' : 'bottom-full left-2 mb-2'
               )}
-              title={isCollapsed ? '앱 설치' : undefined}
+              role="menu"
             >
-              <Download className="w-5 h-5 flex-shrink-0" />
-              {!isCollapsed && <span>앱 설치</span>}
-            </button>
-          </div>
-        )}
+              <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-medium text-[color:var(--ad-faint)]">관리</p>
+              {bottomNavItems.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    role="menuitem"
+                    onClick={(e) => {
+                      handleNavClick(e, item);
+                      setAccountOpen(false);
+                    }}
+                    className={cn(
+                      'ad-press flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-[13px]',
+                      active ? 'bg-[color:var(--ad-bg)] font-semibold text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]'
+                    )}
+                  >
+                    <Icon strokeWidth={1.7} className="h-4 w-4 text-[color:var(--ad-faint)]" />
+                    <span className="flex-1">{item.label}</span>
+                    {shouldShowNew(item) && (
+                      <span className="rounded-full bg-[color:var(--ad-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line)]">
+                        NEW
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+              {canInstall && (
+                <>
+                  <div className="mx-2 my-1 border-t border-[color:var(--ad-line)]" />
+                  <button
+                    onClick={() => {
+                      handleInstall();
+                      setAccountOpen(false);
+                    }}
+                    className="ad-press flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]"
+                  >
+                    <Download strokeWidth={1.7} className="h-4 w-4 text-[color:var(--ad-faint)]" />
+                    앱 설치
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+          <button
+            onClick={() => setAccountOpen((v) => !v)}
+            aria-expanded={accountOpen}
+            aria-haspopup="menu"
+            title={isCollapsed ? '관리 메뉴' : undefined}
+            className={cn(
+              'ad-press flex h-11 w-full items-center gap-2.5 rounded-[12px] px-2 text-left hover:bg-white/60',
+              accountOpen && 'bg-white shadow-[0_0_0_1px_var(--ad-line)]',
+              isCollapsed && 'justify-center'
+            )}
+          >
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[color:var(--ad-bg)] text-[12px] font-semibold text-[color:var(--ad-ink-2)]">
+              {(storeName || '매장').slice(0, 1)}
+            </span>
+            {!isCollapsed && (
+              <>
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate text-[13px] font-medium text-[color:var(--ad-ink)]">{storeName || '내 매장'}</span>
+                  <span className="block text-[11.5px] text-[color:var(--ad-faint)]">관리 · 설정</span>
+                </span>
+                <Settings strokeWidth={1.7} className="h-4 w-4 text-[color:var(--ad-faint)]" />
+              </>
+            )}
+          </button>
+        </div>
       </aside>
 
       {/* 준비중 모달 */}
@@ -595,7 +616,6 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { canInstall, handleInstall } = useInstallPrompt();
   const [comingSoonModal, setComingSoonModal] = useState<{ open: boolean; featureName?: string }>({ open: false });
-  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [visitedPages, setVisitedPages] = useState<string[]>([]);
 
@@ -656,11 +676,6 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
 
   // 현재 경로에 따라 활성화된 그룹 자동 확장
   useEffect(() => {
-    const activeGroups = navGroupsForUser
-      .filter(group => isGroupActive(group))
-      .map(group => group.title);
-    setExpandedGroups(activeGroups);
-
     // 하위 메뉴가 있는 아이템 중 활성화된 것 자동 확장
     const activeItems: string[] = [];
     navGroupsForUser.forEach(group => {
@@ -672,14 +687,6 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
     });
     setExpandedItems(activeItems);
   }, [pathname]);
-
-  const toggleGroup = (title: string) => {
-    setExpandedGroups(prev =>
-      prev.includes(title)
-        ? prev.filter(t => t !== title)
-        : [...prev, title]
-    );
-  };
 
   const toggleItem = (label: string) => {
     setExpandedItems(prev =>
@@ -717,24 +724,24 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
           <button
             onClick={() => toggleItem(item.label)}
             className={cn(
-              'flex items-center gap-3 w-full mx-2 px-3 py-3 rounded-lg text-sm font-medium transition-colors',
+              'ad-press flex items-center gap-2.5 w-full mx-2 px-2.5 h-10 rounded-[10px] text-[14px] transition-colors',
               itemActive
-                ? 'bg-brand-50 text-brand-800'
-                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50',
+                ? 'bg-white font-semibold text-[color:var(--ad-ink)] shadow-[0_0_0_1px_var(--ad-line)]'
+                : 'text-[color:var(--ad-ink-2)] hover:bg-white/60',
               isSubItem && 'ml-4'
             )}
             style={{ width: 'calc(100% - 16px)' }}
           >
-            <Icon className={cn('w-5 h-5 flex-shrink-0', itemActive && 'text-brand-800')} />
+            <Icon strokeWidth={1.7} className={cn('w-4 h-4 flex-shrink-0', itemActive ? 'text-[color:var(--ad-navy)]' : 'text-[color:var(--ad-faint)]')} />
             <span className="flex-1 text-left">{item.label}</span>
             {shouldShowNew(item) && !isItemExpanded && (
-              <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+              <span className="rounded-full bg-[color:var(--ad-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line)]">
                 NEW
               </span>
             )}
             <ChevronDown
               className={cn(
-                'w-4 h-4 transition-transform duration-200',
+                'w-3.5 h-3.5 text-[color:var(--ad-faint)] transition-transform duration-200',
                 isItemExpanded && 'rotate-180'
               )}
             />
@@ -745,7 +752,7 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
               isItemExpanded ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'
             )}
           >
-            <div className="py-1 ml-6 pl-2 border-l border-neutral-200 space-y-1">
+            <div className="py-1 ml-6 pl-2 border-l border-[color:var(--ad-line)] space-y-1">
               {item.subItems!.map(subItem => renderMobileNavItem(subItem, true, true))}
             </div>
           </div>
@@ -759,84 +766,47 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
         href={item.isExternal || item.isComingSoon ? '#' : item.href}
         onClick={(e) => handleNavClick(e, item)}
         className={cn(
-          'flex items-center gap-3 mx-2 px-3 py-3 rounded-lg text-sm font-medium transition-colors',
+          'ad-press relative flex items-center gap-2.5 mx-2 px-2.5 h-10 rounded-[10px] text-[14px] transition-colors',
           active
-            ? 'bg-brand-50 text-brand-800'
-            : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50',
+            ? 'bg-white font-semibold text-[color:var(--ad-ink)] shadow-[0_0_0_1px_var(--ad-line)]'
+            : 'text-[color:var(--ad-ink-2)] hover:bg-white/60',
           isSubItem && 'ml-4',
           isNestedSubItem && 'ml-2'
         )}
       >
         {/* 2번째 depth부터는 아이콘 숨김 */}
-        {!isSubItem && <Icon className={cn('w-5 h-5', active && 'text-brand-800')} />}
+        {!isSubItem && <Icon strokeWidth={1.7} className={cn('w-4 h-4', active ? 'text-[color:var(--ad-navy)]' : 'text-[color:var(--ad-faint)]')} />}
         <span className="flex-1">{item.label}</span>
         {item.badge && (
-          <span className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded font-medium">
+          <span className="rounded-full bg-[color:var(--ad-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line)]">
             {item.badge}
           </span>
         )}
         {shouldShowNew(item) && (
-          <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+          <span className="rounded-full bg-[color:var(--ad-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line)]">
             NEW
           </span>
         )}
         {item.isExternal && (
-          <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
+          <ExternalLink className="w-3.5 h-3.5 text-[color:var(--ad-faint)]" />
         )}
       </Link>
     );
   };
 
   const renderMobileNavGroup = (group: NavGroup) => {
-    const GroupIcon = group.icon;
-    const isExpanded = expandedGroups.includes(group.title);
-    const groupActive = isGroupActive(group);
-    const hasNewItem = group.items.some(item => shouldShowNew(item));
-
+    // 관리자 사이드바와 동일: 드롭다운 없이 카테고리 제목 + 아이콘 메뉴를 항상 펼쳐 보여준다
     return (
-      <div key={group.title} className="mb-1">
-        {/* 그룹 헤더 (드롭다운 토글) */}
-        <button
-          onClick={() => toggleGroup(group.title)}
-          className={cn(
-            'flex items-center gap-3 w-full mx-2 px-3 py-3 rounded-lg text-sm font-medium transition-colors',
-            groupActive
-              ? 'bg-brand-50 text-brand-800'
-              : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
-          )}
-          style={{ width: 'calc(100% - 16px)' }}
-        >
-          <GroupIcon className={cn('w-5 h-5 flex-shrink-0', groupActive && 'text-brand-800')} />
-          <span className="flex-1 text-left">{group.title}</span>
+      <div key={group.title} className="mt-5">
+        <p className="mb-1 flex items-center gap-1.5 px-[18px] text-[11px] font-medium text-[color:var(--ad-faint)]">
+          {group.title}
           {group.badge && (
-            <span className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded font-medium">
+            <span className="rounded-full bg-[color:var(--ad-bg)] px-1.5 py-px text-[10px] font-medium text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line)]">
               {group.badge}
             </span>
           )}
-          {hasNewItem && !isExpanded && (
-            <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-              NEW
-            </span>
-          )}
-          <ChevronDown
-            className={cn(
-              'w-4 h-4 transition-transform duration-200',
-              isExpanded && 'rotate-180'
-            )}
-          />
-        </button>
-
-        {/* 드롭다운 아이템들 */}
-        <div
-          className={cn(
-            'overflow-hidden transition-all duration-200',
-            isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-          )}
-        >
-          <div className="py-1">
-            {group.items.map(item => renderMobileNavItem(item, true))}
-          </div>
-        </div>
+        </p>
+        <div className="space-y-px">{group.items.map(item => renderMobileNavItem(item))}</div>
       </div>
     );
   };
@@ -844,7 +814,7 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
   return (
     <>
       {/* Mobile Header */}
-      <header className="lg:hidden sticky top-0 z-40 w-full bg-white shadow-sm">
+      <header className="ad-topbar lg:hidden sticky top-0 z-40 w-full">
         <div className="flex h-14 items-center justify-between px-4">
           <Link href="/home" className="flex items-center gap-2">
             <Image
@@ -857,7 +827,7 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
           </Link>
 
           <button
-            className="p-2 text-neutral-600 hover:text-neutral-900"
+            className="ad-press grid h-9 w-9 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70"
             onClick={toggleMobileMenu}
             aria-label="메뉴 열기"
           >
@@ -869,7 +839,7 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-50 lg:hidden"
+          className="fixed inset-0 z-50 bg-[rgba(0,0,0,0.4)] lg:hidden"
           onClick={closeMobileMenu}
         />
       )}
@@ -877,12 +847,12 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
       {/* Mobile Slide-out Menu */}
       <div
         className={cn(
-          'fixed top-0 left-0 h-full w-72 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out lg:hidden overflow-y-auto',
+          'ad-side !fixed top-0 left-0 !h-full w-72 z-50 transform transition-transform duration-300 ease-in-out lg:hidden overflow-y-auto',
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         {/* Mobile Menu Header */}
-        <div className="flex items-center justify-between h-14 px-4 border-b">
+        <div className="flex items-center justify-between h-14 px-4 border-b border-[color:var(--ad-line)]">
           <Link href="/home" className="flex items-center gap-2" onClick={closeMobileMenu}>
             <Image
               src="/Taghere-logo.png"
@@ -893,7 +863,7 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
             />
           </Link>
           <button
-            className="p-2 text-neutral-600 hover:text-neutral-900"
+            className="ad-press grid h-9 w-9 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70"
             onClick={closeMobileMenu}
             aria-label="메뉴 닫기"
           >
@@ -904,19 +874,13 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
         {/* Mobile Navigation Links */}
         <nav className="py-4">
           {/* 상단 홈 메뉴 */}
-          {topNavItems.map(item => renderMobileNavItem(item))}
+          <div className="space-y-px">{topNavItems.map(item => renderMobileNavItem(item))}</div>
 
-          {/* 구분선 */}
-          <div className="mx-4 my-3 border-t border-neutral-200" />
-
-          {/* 그룹화된 메뉴 (드롭다운) */}
+          {/* 카테고리별 메뉴 (항상 펼침) */}
           {navGroupsForUser.map(group => renderMobileNavGroup(group))}
 
-          {/* 구분선 */}
-          <div className="mx-4 my-3 border-t border-neutral-200" />
-
           {/* 하단 메뉴 */}
-          {bottomNavItems.map(item => renderMobileNavItem(item))}
+          {renderMobileNavGroup({ title: '관리', icon: Settings, items: bottomNavItems })}
 
           {/* 앱 설치 버튼 */}
           {canInstall && (
@@ -925,7 +889,7 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
                 handleInstall();
                 closeMobileMenu();
               }}
-              className="flex items-center gap-3 mx-2 px-3 py-3 rounded-lg text-sm font-medium transition-colors text-brand-700 hover:bg-brand-50 mt-2 border-t border-neutral-100 pt-5"
+              className="ad-press mx-2 mt-2 flex items-center gap-2.5 rounded-[10px] px-2.5 h-10 text-[14px] text-[color:var(--ad-muted)] hover:bg-white/60"
             >
               <Download className="w-5 h-5" />
               <span>앱 설치</span>

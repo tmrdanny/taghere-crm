@@ -51,16 +51,16 @@ export function AddCustomerModal({
 }) {
   return (
     <Modal open={open} onOpenChange={onOpenChange}>
-      <ModalContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+      <ModalContent className="rounded-[20px] border-0 shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] sm:max-w-lg max-h-[85vh] flex flex-col">
         <ModalHeader className="flex-shrink-0">
-          <ModalTitle>고객 등록</ModalTitle>
+          <ModalTitle className="text-[17px] font-semibold text-[color:var(--ad-ink)]">고객 등록</ModalTitle>
         </ModalHeader>
 
         <div className="space-y-4 py-4 overflow-y-auto flex-1 px-1">
           {/* Phone - Required */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-600">
-              전화번호 <span className="text-red-500">*</span>
+            <label className="text-[13px] font-medium text-[#383c40]">
+              전화번호 <span className="text-[#cc0832]">*</span>
             </label>
             <Input
               type="tel"
@@ -68,14 +68,14 @@ export function AddCustomerModal({
               value={phone}
               onChange={(e) => onPhoneChange(e.target.value)}
             />
-            <p className="text-xs text-neutral-500">
+            <p className="text-[12px] text-[#55595e]">
               하이픈(-) 없이 숫자만 입력해도 됩니다.
             </p>
           </div>
 
           {/* Nickname */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-600">닉네임</label>
+            <label className="text-[13px] font-medium text-[#383c40]">닉네임</label>
             <Input
               type="text"
               placeholder="닉네임을 입력하세요"
@@ -83,20 +83,20 @@ export function AddCustomerModal({
               onChange={(e) => onNameChange(e.target.value)}
             />
             {name && (
-              <p className="text-xs text-neutral-500">표시: {maskNickname(name)}</p>
+              <p className="text-[12px] text-[#55595e]">표시: {maskNickname(name)}</p>
             )}
           </div>
 
           {/* Gender */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-600">성별</label>
+            <label className="text-[13px] font-medium text-[#383c40]">성별</label>
             <div className="flex gap-2">
               <button
                 type="button"
-                className={`flex-1 py-2 px-4 rounded-lg border-2 transition-colors ${
+                className={`flex-1 py-2 px-4 rounded-[10px] border-2 transition-colors ${
                   gender === 'MALE'
-                    ? 'border-brand-800 bg-brand-50 text-brand-800'
-                    : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
+                    ? 'border-[color:var(--ad-ink)] bg-white font-medium text-[color:var(--ad-ink)]'
+                    : 'border-[#ebeced] text-[#383c40] hover:border-[#d1d3d6]'
                 }`}
                 onClick={() => onGenderChange('MALE')}
               >
@@ -104,10 +104,10 @@ export function AddCustomerModal({
               </button>
               <button
                 type="button"
-                className={`flex-1 py-2 px-4 rounded-lg border-2 transition-colors ${
+                className={`flex-1 py-2 px-4 rounded-[10px] border-2 transition-colors ${
                   gender === 'FEMALE'
-                    ? 'border-brand-800 bg-brand-50 text-brand-800'
-                    : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
+                    ? 'border-[color:var(--ad-ink)] bg-white font-medium text-[color:var(--ad-ink)]'
+                    : 'border-[#ebeced] text-[#383c40] hover:border-[#d1d3d6]'
                 }`}
                 onClick={() => onGenderChange('FEMALE')}
               >
@@ -119,7 +119,7 @@ export function AddCustomerModal({
           {/* Birthday and Birth Year */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">생일 (MM-DD)</label>
+              <label className="text-[13px] font-medium text-[#383c40]">생일 (MM-DD)</label>
               <Input
                 type="text"
                 placeholder="01-15"
@@ -129,7 +129,7 @@ export function AddCustomerModal({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">출생연도</label>
+              <label className="text-[13px] font-medium text-[#383c40]">출생연도</label>
               <Input
                 type="number"
                 placeholder="1990"
@@ -143,7 +143,7 @@ export function AddCustomerModal({
 
           {/* Initial Points */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-600">초기 포인트</label>
+            <label className="text-[13px] font-medium text-[#383c40]">초기 포인트</label>
             <div className="relative">
               <Input
                 type="number"
@@ -152,18 +152,18 @@ export function AddCustomerModal({
                 onChange={(e) => onInitialPointsChange(e.target.value)}
                 className="pr-8"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">p</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#91959a]">p</span>
             </div>
-            <p className="text-xs text-neutral-500">
+            <p className="text-[12px] text-[#55595e]">
               등록 시 지급할 포인트를 입력하세요. (선택)
             </p>
           </div>
 
           {/* Memo */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-600">메모</label>
+            <label className="text-[13px] font-medium text-[#383c40]">메모</label>
             <textarea
-              className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-800 focus:border-transparent"
+              className="w-full resize-none rounded-[10px] border border-[#d1d3d6] bg-white px-3 py-2.5 text-[13.5px] placeholder:text-[#91959a] focus:border-[#131651] focus:outline-none"
               rows={3}
               placeholder="고객에 대한 메모를 입력하세요"
               value={memo}
@@ -176,14 +176,14 @@ export function AddCustomerModal({
           <Button
             variant="secondary"
             onClick={() => onOpenChange(false)}
-            className="flex-1"
+            className="flex-1 ad-press h-10 rounded-[12px] border-0 bg-white text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
           >
             취소
           </Button>
           <Button
             onClick={onSubmit}
             disabled={!phone || submitting}
-            className="flex-1"
+            className="flex-1 ad-press h-10 rounded-[12px] bg-[color:var(--ad-ink)] text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
           >
             {submitting ? '등록 중...' : '등록하기'}
           </Button>

@@ -6,21 +6,21 @@ import { Announcement } from './types';
 export function CustomerAnnouncements({ announcements }: { announcements: Announcement[] }) {
   if (announcements.length === 0) return null;
   return (
-    <div className="mb-6 space-y-3">
+    <div className="mb-4 space-y-2">
       {announcements.map((announcement) => (
         <div
           key={announcement.id}
-          className="flex items-start gap-3 p-4 bg-brand-50 border border-brand-200 rounded-lg"
+          className="ad-card flex items-start gap-3 p-4"
         >
           <div className="flex-shrink-0 mt-0.5">
-            <Megaphone className="w-5 h-5 text-brand-700" />
+            <Megaphone className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <Badge variant="info" className="text-xs">공지</Badge>
-              <span className="font-medium text-neutral-900">{announcement.title}</span>
+              <Badge variant="info" className="inline-flex rounded-full border-0 bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)] hover:bg-[color:var(--ad-bg)]">공지</Badge>
+              <span className="text-[14px] font-semibold text-[color:var(--ad-ink)]">{announcement.title}</span>
             </div>
-            <p className="text-sm text-neutral-700 whitespace-pre-wrap">{announcement.content}</p>
+            <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-[color:var(--ad-ink-2)]">{announcement.content}</p>
           </div>
         </div>
       ))}

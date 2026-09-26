@@ -794,7 +794,7 @@ export default function AdminBannersPage() {
                         <label
                           key={store.id}
                           className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
-                            checked ? 'bg-[color:var(--ad-blue-soft)]/60' : 'hover:bg-[color:var(--ad-bg-alt)]'
+                            checked ? 'bg-[rgba(220,235,255,0.6)]' : 'hover:bg-[color:var(--ad-bg-alt)]'
                           }`}
                         >
                           <input

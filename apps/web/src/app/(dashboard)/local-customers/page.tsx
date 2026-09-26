@@ -531,80 +531,80 @@ export default function LocalCustomersPage() {
 
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row lg:items-start p-4 md:p-6 gap-6 max-w-[1200px] mx-auto w-full lg:justify-center">
+    <div className="flex-1 flex flex-col lg:flex-row lg:items-start gap-6 mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8 lg:justify-center">
       {/* Left Panel - Settings */}
-      <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6">
+      <div className="ad-card flex-1 lg:max-w-[720px] p-5 md:p-6 flex flex-col gap-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e5e7eb]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[color:var(--ad-line)]">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg sm:text-xl font-bold text-neutral-900">신규 고객 유치</h1>
-            <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">NEW</span>
+            <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">신규 고객 유치</h1>
+            <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">NEW</span>
           </div>
-          <div className="flex bg-[#f1f5f9] rounded-lg p-1 self-start sm:self-auto">
-            <button onClick={() => setActiveTab('kakao')} className={cn('px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all', activeTab === 'kakao' ? 'bg-white shadow-sm text-[#1e293b]' : 'text-[#64748b] hover:text-[#1e293b]')}>쿠폰 알림톡</button>
-            <button onClick={() => setActiveTab('sms')} className={cn('px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all', activeTab === 'sms' ? 'bg-white shadow-sm text-[#1e293b]' : 'text-[#64748b] hover:text-[#1e293b]')}>문자 (SMS/LMS)</button>
+          <div className="flex rounded-[10px] bg-[rgba(29,32,34,0.045)] p-[3px] self-start sm:self-auto">
+            <button onClick={() => setActiveTab('kakao')} className={cn('px-3 sm:px-4 h-8 text-[12.5px] sm:text-[13px] font-semibold rounded-[8px] transition-all', activeTab === 'kakao' ? 'bg-white shadow-sm text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]')}>쿠폰 알림톡</button>
+            <button onClick={() => setActiveTab('sms')} className={cn('px-3 sm:px-4 h-8 text-[12.5px] sm:text-[13px] font-semibold rounded-[8px] transition-all', activeTab === 'sms' ? 'bg-white shadow-sm text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]')}>문자 (SMS/LMS)</button>
           </div>
         </div>
 
         {/* 안내 콜아웃 */}
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
-          <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-blue-800">문자를 받으시는 고객분들은 전국 태그히어 이용 고객 중 매장의 이벤트와 혜택을 주기적으로 받기 희망하신 분들입니다.</p>
+        <div className="rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[13px] text-[color:var(--ad-muted)] flex items-start gap-2.5">
+          <Info className="w-4 h-4 text-[color:var(--ad-faint)] flex-shrink-0 mt-0.5" strokeWidth={1.8} />
+          <p className="leading-relaxed">문자를 받으시는 고객분들은 전국 태그히어 이용 고객 중 매장의 이벤트와 혜택을 주기적으로 받기 희망하신 분들입니다.</p>
         </div>
 
         {/* 에러/성공 메시지 */}
-        {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700"><AlertCircle className="w-5 h-5 flex-shrink-0" /><span>{error}</span></div>}
-        {successMessage && <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-700">{successMessage}</div>}
+        {error && <div className="px-4 py-3 rounded-[12px] bg-[#fff2f5] flex items-center gap-2 text-[13px] text-[color:var(--ad-neg)]"><AlertCircle className="w-4 h-4 flex-shrink-0" strokeWidth={1.8} /><span>{error}</span></div>}
+        {successMessage && <div className="rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[13px] text-[color:var(--ad-muted)] text-[color:var(--ad-ink-2)]">{successMessage}</div>}
 
         {/* 발송 대상 선택 */}
         <div>
-          <h2 className="text-sm font-semibold text-neutral-900 mb-3">발송 대상 선택</h2>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="p-4 rounded-xl border border-neutral-200 bg-white"><p className="text-sm text-neutral-600">전체 고객</p><p className="text-2xl font-bold text-neutral-900">{globalTotalCount.toLocaleString()}명</p></div>
-            <div className={cn('p-4 rounded-xl border-2 transition-all', selectedSidos.length > 0 ? 'border-brand-500 bg-brand-50' : 'border-neutral-200 bg-white')}><p className="text-sm text-neutral-600">선택 지역</p><p className="text-2xl font-bold text-green-600">{isLoading ? '...' : availableCount.toLocaleString()}명</p></div>
-            <div className="p-4 rounded-xl border border-neutral-200 bg-white"><p className="text-sm text-neutral-600">발송 예정</p><p className="text-2xl font-bold text-brand-600">{sendCount.toLocaleString()}명</p></div>
+          <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">발송 대상 선택</h2>
+          <div className="grid grid-cols-3 rounded-[14px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line)] overflow-hidden">
+            <div className="p-4"><p className="text-[12px] text-[color:var(--ad-muted)]">전체 고객</p><p className="mt-1 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{globalTotalCount.toLocaleString()}명</p></div>
+            <div className={cn('p-4 border-l border-[color:var(--ad-line)] transition-all', selectedSidos.length > 0 ? 'bg-[color:var(--ad-bg)]' : 'bg-white')}><p className="text-[12px] text-[color:var(--ad-muted)]">선택 지역</p><p className="mt-1 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{isLoading ? '...' : availableCount.toLocaleString()}명</p></div>
+            <div className="p-4 border-l border-[color:var(--ad-line)]"><p className="text-[12px] text-[color:var(--ad-muted)]">발송 예정</p><p className="mt-1 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{sendCount.toLocaleString()}명</p></div>
           </div>
         </div>
 
         {/* 지역 선택 */}
         <div>
-          <div className="p-4 rounded-xl border border-neutral-200 bg-white">
+          <div className="p-4 rounded-[14px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line)]">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center"><MapPin className="w-5 h-5 text-neutral-500" /></div>
-              <div className="flex-1"><p className="text-sm font-medium text-neutral-900">지역 선택</p><p className="text-xs text-neutral-500">여러 지역을 선택할 수 있습니다</p></div>
+              <MapPin className="w-4 h-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              <div className="flex-1"><p className="text-[14px] font-semibold text-[color:var(--ad-ink)]">지역 선택</p><p className="text-[12px] text-[color:var(--ad-faint)]">여러 지역을 선택할 수 있습니다</p></div>
             </div>
 
             {selectedSidos.length > 0 && (
               <div className="space-y-2 mb-3">
                 <div className="flex flex-wrap gap-2">
                   {selectedSidos.map((sido) => (
-                    <span key={sido} className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-100 text-brand-700 rounded-full text-sm font-medium">
+                    <span key={sido} className="inline-flex items-center gap-1 px-3 py-1.5 bg-[color:var(--ad-bg)] text-[color:var(--ad-ink)] rounded-full text-[13px] font-medium">
                       {sido}
                       {(selectedSigungus[sido]?.length || 0) > 0 && (
-                        <span className="text-xs text-brand-500">({selectedSigungus[sido].length})</span>
+                        <span className="text-[11.5px] text-[color:var(--ad-faint)]">({selectedSigungus[sido].length})</span>
                       )}
-                      <button onClick={() => removeSido(sido)} className="hover:bg-brand-200 rounded-full p-0.5 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => removeSido(sido)} className="hover:bg-[color:var(--ad-line)] rounded-full p-0.5 transition-colors"><X className="w-3.5 h-3.5" /></button>
                     </span>
                   ))}
                 </div>
 
                 {/* 시/군/구 상세 선택 */}
-                <div className="border border-neutral-200 rounded-lg overflow-hidden">
-                  <div className="flex overflow-x-auto bg-neutral-50 border-b border-neutral-200">
+                <div className="border border-[color:var(--ad-line)] rounded-[12px] overflow-hidden">
+                  <div className="flex overflow-x-auto bg-[color:var(--ad-bg-alt)] border-b border-[color:var(--ad-line)]">
                     {selectedSidos.map((sido) => (
                       <button
                         key={sido}
                         onClick={() => setActiveSidoForSigungu(activeSidoForSigungu === sido ? null : sido)}
                         className={cn(
-                          'px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 transition-colors',
+                          'px-3 py-2 text-[12px] font-medium whitespace-nowrap border-b-2 transition-colors',
                           activeSidoForSigungu === sido
-                            ? 'border-brand-600 text-brand-700 bg-white'
-                            : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                            ? 'border-[color:var(--ad-ink)] text-[color:var(--ad-ink)] bg-white'
+                            : 'border-transparent text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'
                         )}
                       >
                         {sido}
                         {(selectedSigungus[sido]?.length || 0) > 0 && (
-                          <span className="ml-1 text-brand-500">{selectedSigungus[sido].length}</span>
+                          <span className="ml-1 text-[color:var(--ad-muted)]">{selectedSigungus[sido].length}</span>
                         )}
                       </button>
                     ))}
@@ -618,7 +618,7 @@ export default function LocalCustomersPage() {
                           value={sigunguSearchQuery}
                           onChange={(e) => setSigunguSearchQuery(e.target.value)}
                           placeholder={`${activeSidoForSigungu} 시/군/구 검색...`}
-                          className="w-full px-3 py-1.5 border border-neutral-200 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-brand-500"
+                          className="w-full h-8 px-3 rounded-[8px] border border-[color:var(--ad-line-strong)] text-[12.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                         />
                       </div>
                       <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
@@ -641,24 +641,24 @@ export default function LocalCustomersPage() {
                                   });
                                 }}
                                 className={cn(
-                                  'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                                  'px-2.5 py-1 rounded-[8px] text-[12px] font-medium transition-colors',
                                   isSelected
-                                    ? 'bg-brand-600 text-white'
-                                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                                    ? 'bg-[color:var(--ad-ink)] text-white'
+                                    : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-line)]'
                                 )}
                               >
-                                {sigungu} <span className={cn('text-[10px]', isSelected ? 'text-brand-200' : 'text-neutral-400')}>{count.toLocaleString()}</span>
+                                {sigungu} <span className={cn('text-[10px]', isSelected ? 'text-white/60' : 'text-[color:var(--ad-faint)]')}>{count.toLocaleString()}</span>
                               </button>
                             );
                           })}
                       </div>
                       {(selectedSigungus[activeSidoForSigungu]?.length || 0) > 0 && (
-                        <p className="text-[10px] text-neutral-400 mt-2">
+                        <p className="text-[11px] text-[color:var(--ad-faint)] mt-2">
                           * 미선택 시 {activeSidoForSigungu} 전체에 발송됩니다
                         </p>
                       )}
                       {(selectedSigungus[activeSidoForSigungu]?.length || 0) === 0 && (
-                        <p className="text-[10px] text-neutral-400 mt-2">
+                        <p className="text-[11px] text-[color:var(--ad-faint)] mt-2">
                           * 상세 지역 미선택 시 {activeSidoForSigungu} 전체에 발송됩니다
                         </p>
                       )}
@@ -666,7 +666,7 @@ export default function LocalCustomersPage() {
                   )}
 
                   {activeSidoForSigungu && !regionCounts.sigunguCounts[activeSidoForSigungu] && (
-                    <div className="p-3 text-xs text-neutral-400 text-center">상세 지역 데이터가 없습니다</div>
+                    <div className="p-3 text-[12px] text-[color:var(--ad-faint)] text-center">상세 지역 데이터가 없습니다</div>
                   )}
                 </div>
               </div>
@@ -674,31 +674,31 @@ export default function LocalCustomersPage() {
 
             <div className="relative">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                <input type="text" value={regionSearchQuery} onChange={(e) => { setRegionSearchQuery(e.target.value); setIsRegionDropdownOpen(true); }} onFocus={() => setIsRegionDropdownOpen(true)} placeholder="지역 검색 (예: 서울, 경기, 부산...)" className="w-full pl-9 pr-4 py-2.5 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--ad-faint)]" />
+                <input type="text" value={regionSearchQuery} onChange={(e) => { setRegionSearchQuery(e.target.value); setIsRegionDropdownOpen(true); }} onFocus={() => setIsRegionDropdownOpen(true)} placeholder="지역 검색 (예: 서울, 경기, 부산...)" className="w-full h-10 pl-9 pr-4 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none" />
               </div>
 
               {isRegionDropdownOpen && (
-                <div className="absolute z-20 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
+                <div className="absolute z-20 w-full mt-1 bg-white border border-[color:var(--ad-line)] rounded-[12px] shadow-[0_12px_32px_-12px_rgba(29,32,34,0.22)] max-h-72 overflow-y-auto">
                   {filteredSidos.length > 0 && selectedSidos.length < KOREA_SIDOS.length && (
-                    <button onClick={() => { setSelectedSidos(KOREA_SIDOS); setIsRegionDropdownOpen(false); setRegionSearchQuery(''); }} className="w-full px-4 py-2.5 text-left text-sm flex items-center justify-between transition-colors bg-blue-50 hover:bg-blue-100 text-blue-700 border-b border-blue-200">
+                    <button onClick={() => { setSelectedSidos(KOREA_SIDOS); setIsRegionDropdownOpen(false); setRegionSearchQuery(''); }} className="w-full px-4 py-2.5 text-left text-[13px] flex items-center justify-between transition-colors bg-white hover:bg-[color:var(--ad-bg-alt)] text-[color:var(--ad-ink)] border-b border-[color:var(--ad-line)]">
                       <span className="font-semibold">전체 선택</span>
-                      <span className="text-xs text-blue-600">+{globalTotalCount.toLocaleString()}명</span>
+                      <span className="text-[12px] text-[color:var(--ad-muted)] ad-tnum">+{globalTotalCount.toLocaleString()}명</span>
                     </button>
                   )}
                   {filteredSidos.length > 0 ? filteredSidos.map((sido) => {
                     const isSelected = selectedSidos.includes(sido);
                     const count = regionCounts.sidoCounts[sido] || 0;
                     return (
-                      <button key={sido} onClick={() => !isSelected && addSido(sido)} disabled={isSelected} className={cn("w-full px-4 py-2.5 text-left text-sm flex items-center justify-between transition-colors", isSelected ? "bg-brand-50 text-brand-600" : "hover:bg-neutral-50 text-neutral-700")}>
+                      <button key={sido} onClick={() => !isSelected && addSido(sido)} disabled={isSelected} className={cn("w-full px-4 py-2.5 text-left text-[13px] flex items-center justify-between transition-colors", isSelected ? "bg-[color:var(--ad-bg-alt)] text-[color:var(--ad-faint)]" : "hover:bg-[color:var(--ad-bg-alt)] text-[color:var(--ad-ink-2)]")}>
                         <span className="font-medium">{sido}</span>
                         <div className="flex items-center gap-2">
-                          {count > 0 && !isSelected && <span className="text-xs text-neutral-500">+{count.toLocaleString()}명</span>}
-                          {isSelected ? <span className="text-xs text-brand-500">선택됨</span> : <Plus className="w-4 h-4 text-neutral-400" />}
+                          {count > 0 && !isSelected && <span className="text-[12px] text-[color:var(--ad-muted)] ad-tnum">+{count.toLocaleString()}명</span>}
+                          {isSelected ? <span className="text-[12px] text-[color:var(--ad-faint)]">선택됨</span> : <Plus className="w-4 h-4 text-[color:var(--ad-faint)]" />}
                         </div>
                       </button>
                     );
-                  }) : <div className="px-4 py-3 text-sm text-neutral-500">검색 결과가 없습니다</div>}
+                  }) : <div className="px-4 py-3 text-[13px] text-[color:var(--ad-faint)]">검색 결과가 없습니다</div>}
                 </div>
               )}
             </div>
@@ -708,57 +708,58 @@ export default function LocalCustomersPage() {
 
         {/* 상세 필터 */}
         <div>
-          <h2 className="text-sm font-semibold text-neutral-900 mb-3">상세 필터</h2>
+          <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">상세 필터</h2>
           <div className="flex flex-wrap gap-2">
-            {GENDER_OPTIONS.map((option) => (<button key={option.value} onClick={() => setGender(option.value)} className={cn('px-4 py-2 rounded-full text-sm font-medium transition-colors border', gender === option.value ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-neutral-700 border-neutral-200 hover:border-brand-300')}>{option.label}</button>))}
-            <div className="w-px h-8 bg-neutral-200 mx-1" />
-            {AGE_GROUP_OPTIONS.map((option) => (<button key={option.value} onClick={() => toggleAgeGroup(option.value)} className={cn('px-4 py-2 rounded-full text-sm font-medium transition-colors border', selectedAgeGroups.includes(option.value) ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-neutral-700 border-neutral-200 hover:border-brand-300')}>{option.label}</button>))}
+            {GENDER_OPTIONS.map((option) => (<button key={option.value} onClick={() => setGender(option.value)} className={cn('ad-press px-3.5 h-9 rounded-full text-[13px] font-medium transition-colors border', gender === option.value ? 'bg-[color:var(--ad-ink)] text-white border-[color:var(--ad-ink)]' : 'bg-white text-[color:var(--ad-ink-2)] border-[color:var(--ad-line-strong)] hover:border-[color:var(--ad-ink)]')}>{option.label}</button>))}
+            <div className="w-px h-8 bg-[color:var(--ad-line-strong)] mx-1" />
+            {AGE_GROUP_OPTIONS.map((option) => (<button key={option.value} onClick={() => toggleAgeGroup(option.value)} className={cn('ad-press px-3.5 h-9 rounded-full text-[13px] font-medium transition-colors border', selectedAgeGroups.includes(option.value) ? 'bg-[color:var(--ad-ink)] text-white border-[color:var(--ad-ink)]' : 'bg-white text-[color:var(--ad-ink-2)] border-[color:var(--ad-line-strong)] hover:border-[color:var(--ad-ink)]')}>{option.label}</button>))}
           </div>
-          {selectedAgeGroups.length === 0 && <p className="text-xs text-neutral-500 mt-2">연령대 미선택 시 전체 연령대로 발송됩니다</p>}
+          {selectedAgeGroups.length === 0 && <p className="text-[12px] text-[color:var(--ad-muted)] mt-2">연령대 미선택 시 전체 연령대로 발송됩니다</p>}
         </div>
 
         {/* 발송 인원 수 */}
         <div>
-          <h2 className="text-sm font-semibold text-neutral-900 mb-3">발송 인원 수</h2>
+          <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">발송 인원 수</h2>
           <div className="flex items-center gap-3">
-            <input type="number" min={0} max={availableCount || 10000} value={sendCount} onChange={(e) => setSendCount(Math.max(0, parseInt(e.target.value) || 0))} className={cn('w-32 border rounded-lg px-3 py-2 text-right focus:outline-none focus:ring-2 focus:ring-brand-500', isOverLimit ? 'border-orange-400 bg-orange-50' : 'border-neutral-300')} />
-            <span className="text-neutral-600">명</span>
-            {isOverLimit && <span className="text-sm text-orange-600 flex items-center gap-1"><AlertCircle className="w-4 h-4" />발송 가능 인원 초과</span>}
+            <input type="number" min={0} max={availableCount || 10000} value={sendCount} onChange={(e) => setSendCount(Math.max(0, parseInt(e.target.value) || 0))} className={cn('w-32 h-10 border rounded-[10px] px-3 text-right text-[13.5px] ad-tnum focus:outline-none focus:border-[color:var(--ad-navy)]', isOverLimit ? 'border-[color:var(--ad-neg)] bg-[#fff2f5]' : 'border-[color:var(--ad-line-strong)]')} />
+            <span className="text-[13px] text-[color:var(--ad-muted)]">명</span>
+            {isOverLimit && <span className="text-[12.5px] text-[color:var(--ad-neg)] flex items-center gap-1"><AlertCircle className="w-4 h-4" strokeWidth={1.8} />발송 가능 인원 초과</span>}
           </div>
-          {availableCount > 0 && <p className="text-xs text-neutral-500 mt-2">최대 발송 가능: {availableCount.toLocaleString()}명</p>}
+          {availableCount > 0 && <p className="text-[12px] text-[color:var(--ad-muted)] mt-2">최대 발송 가능: {availableCount.toLocaleString()}명</p>}
         </div>
 
         {/* 쿠폰 알림톡 전용: 쿠폰 정보 입력 */}
         {activeTab === 'kakao' && (
           <div className="flex flex-col gap-4">
-            <label className="text-sm font-semibold text-[#1e293b]">쿠폰 정보</label>
+            <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">쿠폰 정보</label>
 
             {/* 쿠폰 내용 */}
             <div>
-              <label className="text-xs text-[#64748b] mb-1.5 block">쿠폰 내용</label>
+              <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">쿠폰 내용</label>
               <input
                 type="text"
                 value={couponContent}
                 onChange={(e) => setCouponContent(e.target.value)}
                 placeholder="예: 아메리카노 1잔 무료"
-                className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                className="w-full h-10 px-3 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
               />
             </div>
 
             {/* 유효기간 */}
             <div>
-              <label className="text-xs text-[#64748b] mb-1.5 block">유효기간</label>
+              <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">유효기간</label>
               <input
                 type="text"
                 value={couponExpiryDate}
                 onChange={(e) => setCouponExpiryDate(e.target.value)}
                 placeholder="예: 2025년 3월 31일까지"
-                className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                className="w-full h-10 px-3 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
               />
             </div>
 
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-xs text-blue-700">카카오톡 알림톡으로 쿠폰이 발송됩니다. 건당 150원이 차감됩니다.</p>
+            <div className="rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[13px] text-[color:var(--ad-muted)] flex items-start gap-2.5">
+              <Info className="w-4 h-4 text-[color:var(--ad-faint)] flex-shrink-0 mt-0.5" strokeWidth={1.8} />
+              <p>카카오톡 알림톡으로 쿠폰이 발송됩니다. 건당 150원이 차감됩니다.</p>
             </div>
           </div>
         )}
@@ -766,28 +767,28 @@ export default function LocalCustomersPage() {
         {/* 메시지 내용 입력 (SMS만) */}
         {activeTab === 'sms' && (
           <div>
-            <h2 className="text-sm font-semibold text-neutral-900 mb-3">메시지 내용 입력 <span className="text-neutral-400 font-normal">(단문/장문 자동 전환)</span></h2>
-            <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder={`[태그히어] 4월 봄맞이 이벤트 안내\n\n안녕하세요!\n따뜻한 봄을 맞아 태그히어 강남본점에서 특별한 혜택을 준비했습니다.\n\n[이벤트 혜택]\n- 첫 방문 고객 10% 할인\n- 2인 이상 방문 시 음료 무료\n\n기간: 4/1 ~ 4/30\n\n많은 관심 부탁드립니다!`} rows={8} className="w-full border border-neutral-300 rounded-lg px-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none" />
-            <div className="flex justify-between text-xs text-neutral-500 mt-2">
+            <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">메시지 내용 입력 <span className="text-[color:var(--ad-faint)] font-normal">(단문/장문 자동 전환)</span></h2>
+            <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder={`[태그히어] 4월 봄맞이 이벤트 안내\n\n안녕하세요!\n따뜻한 봄을 맞아 태그히어 강남본점에서 특별한 혜택을 준비했습니다.\n\n[이벤트 혜택]\n- 첫 방문 고객 10% 할인\n- 2인 이상 방문 시 음료 무료\n\n기간: 4/1 ~ 4/30\n\n많은 관심 부탁드립니다!`} rows={8} className="w-full px-3 py-2.5 text-[color:var(--ad-ink)] leading-relaxed rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none resize-none" />
+            <div className="flex justify-between text-[12px] text-[color:var(--ad-muted)] ad-tnum mt-2">
               <span>{smsMessageType} ({byteLength}byte)</span><span>{content.length}자</span>
             </div>
           </div>
         )}
 
         {/* SMS 전용: 이미지 첨부 안내 */}
-        {activeTab === 'sms' && <div className="p-3 bg-neutral-50 rounded-lg"><div className="flex items-center gap-2 text-neutral-400"><Info className="w-4 h-4" /><span className="text-sm">외부 고객 SMS는 텍스트만 발송 가능합니다. (이미지 첨부 불가)</span></div></div>}
+        {activeTab === 'sms' && <div className="rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[13px] text-[color:var(--ad-muted)]"><div className="flex items-center gap-2.5"><Info className="w-4 h-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} /><span>외부 고객 SMS는 텍스트만 발송 가능합니다. (이미지 첨부 불가)</span></div></div>}
 
         {/* 비용 요약 및 발송 버튼 */}
-        <div className="border-t border-neutral-200 pt-4 mt-auto">
+        <div className="border-t border-[color:var(--ad-line)] pt-5 mt-auto">
           <div className="flex items-center justify-between mb-4">
-            <div><p className="text-sm text-neutral-600">예상 비용</p><p className="text-xl font-bold text-neutral-900">{sendCount.toLocaleString()}명 × {getCostPerMessage()}원 = <span className="text-brand-600">{estimatedCost.toLocaleString()}원</span></p></div>
+            <div><p className="text-[12px] text-[color:var(--ad-muted)]">예상 비용</p><p className="mt-1 text-[18px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{sendCount.toLocaleString()}명 × {getCostPerMessage()}원 = <span className="font-semibold text-[color:var(--ad-ink)]">{estimatedCost.toLocaleString()}원</span></p></div>
             <div className="text-right">
-              <p className="text-sm text-neutral-600">현재 잔액</p>
-              <p className={cn('text-xl font-bold', canAfford ? 'text-green-600' : 'text-red-600')}>{walletBalance.toLocaleString()}원</p>
+              <p className="text-[12px] text-[color:var(--ad-muted)]">현재 잔액</p>
+              <p className={cn('mt-1 text-[18px] font-medium tracking-[-0.03em] ad-tnum', canAfford ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]')}>{walletBalance.toLocaleString()}원</p>
               {!canAfford && estimatedCost > 0 && (
                 <button
                   onClick={() => setIsChargeModalOpen(true)}
-                  className="mt-1 text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1 ml-auto"
+                  className="mt-1 text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline flex items-center gap-1 ml-auto"
                 >
                   <Wallet className="w-4 h-4" />
                   충전하기
@@ -805,32 +806,32 @@ export default function LocalCustomersPage() {
             const roi = estimatedCost > 0 ? Math.round((estimatedRevenue / estimatedCost) * 100) : 0;
 
             return (
-              <div className="mb-4 bg-gradient-to-r from-emerald-50 to-blue-50 border border-emerald-100 rounded-xl p-5">
-                <h3 className="text-base font-semibold text-emerald-800 mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-emerald-600" />
+              <div className="mb-4 rounded-[14px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line)] p-5">
+                <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                   예상 마케팅 효과
                 </h3>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-xs text-emerald-600 mb-1">예상 방문율</p>
-                    <p className="text-xl font-bold text-emerald-800">{(conversionRate * 100).toFixed(1)}%</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-3">
+                  <div className="px-3 py-1">
+                    <p className="text-[12px] text-[color:var(--ad-muted)] mb-1">예상 방문율</p>
+                    <p className="text-[18px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{(conversionRate * 100).toFixed(1)}%</p>
                   </div>
-                  <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-xs text-emerald-600 mb-1">예상 방문</p>
-                    <p className="text-xl font-bold text-emerald-800">{estimatedVisitors.toLocaleString()}명</p>
+                  <div className="px-3 py-1 border-l border-[color:var(--ad-line)]">
+                    <p className="text-[12px] text-[color:var(--ad-muted)] mb-1">예상 방문</p>
+                    <p className="text-[18px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{estimatedVisitors.toLocaleString()}명</p>
                   </div>
-                  <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-xs text-emerald-600 mb-1">예상 매출</p>
-                    <p className="text-xl font-bold text-emerald-800">{estimatedRevenue.toLocaleString()}원</p>
+                  <div className="px-3 py-1 sm:border-l border-[color:var(--ad-line)]">
+                    <p className="text-[12px] text-[color:var(--ad-muted)] mb-1">예상 매출</p>
+                    <p className="text-[18px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{estimatedRevenue.toLocaleString()}원</p>
                   </div>
-                  <div className="bg-emerald-100/80 rounded-lg p-3 ring-1 ring-emerald-200">
-                    <p className="text-xs text-emerald-600 mb-1">예상 ROI</p>
-                    <p className="text-xl font-bold text-emerald-800">{roi.toLocaleString()}%</p>
+                  <div className="px-3 py-1 sm:border-l border-[color:var(--ad-line)]">
+                    <p className="text-[12px] text-[color:var(--ad-muted)] mb-1">예상 ROI</p>
+                    <p className="text-[18px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{roi.toLocaleString()}%</p>
                   </div>
                 </div>
 
-                <p className="text-xs text-emerald-600/70 mt-3">
+                <p className="text-[11.5px] text-[color:var(--ad-faint)] mt-4">
                   * 업계 평균 방문율 {(conversionRate * 100).toFixed(1)}% 및 {activeTab === 'kakao' ? '매장 평균' : '기본'} 객단가 {avgOrderValue.toLocaleString()}원 기준
                 </p>
               </div>
@@ -839,22 +840,22 @@ export default function LocalCustomersPage() {
 
           {/* 테스트 발송 (SMS만) */}
           {activeTab === 'sms' && (
-            <div className="mb-4 p-3 bg-neutral-50 rounded-lg">
-              <label className="block text-sm font-medium text-neutral-700 mb-2">테스트 발송 (선택)</label>
+            <div className="mb-4 p-4 bg-[color:var(--ad-bg-alt)] rounded-[12px]">
+              <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">테스트 발송 (선택)</label>
               <div className="flex gap-2">
-                <input type="tel" value={testPhone} onChange={(e) => setTestPhone(e.target.value)} placeholder="010-1234-5678" className="flex-1 border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
-                <button onClick={handleTestSend} disabled={isTestSending || !content.trim() || !testPhone} className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg text-sm font-medium hover:bg-neutral-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">{isTestSending ? '발송 중...' : '테스트 발송'}</button>
+                <input type="tel" value={testPhone} onChange={(e) => setTestPhone(e.target.value)} placeholder="010-1234-5678" className="flex-1 h-10 px-3 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none" />
+                <button onClick={handleTestSend} disabled={isTestSending || !content.trim() || !testPhone} className="ad-press inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] h-10 disabled:opacity-50 disabled:cursor-not-allowed">{isTestSending ? '발송 중...' : '테스트 발송'}</button>
               </div>
             </div>
           )}
 
-          <button onClick={handleSend} disabled={!canSend} className={cn('w-full py-3.5 rounded-xl text-white font-semibold flex items-center justify-center gap-2 transition-colors', canSend ? 'bg-[#2a2d62] hover:bg-[#1d1f45]' : 'bg-neutral-300 cursor-not-allowed')}><Send className="w-5 h-5" />{(isSending || isCouponSending) ? '발송 중...' : '발송하기'}</button>
+          <button onClick={handleSend} disabled={!canSend} className={cn('ad-press w-full h-12 rounded-[12px] text-[14px] font-semibold flex items-center justify-center gap-2 transition-colors', canSend ? 'bg-[color:var(--ad-ink)] text-white hover:bg-[#383c40]' : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-faint)] cursor-not-allowed')}><Send className="w-4 h-4" />{(isSending || isCouponSending) ? '발송 중...' : '발송하기'}</button>
         </div>
       </div>
 
       {/* Right Panel - iPhone Preview */}
       <div className="hidden lg:block flex-none w-[360px] self-start">
-        <div className="bg-[#e2e8f0] rounded-3xl p-5">
+        <div className="rounded-[24px] bg-[color:var(--ad-bg)] p-5 flex justify-center">
           {activeTab === 'kakao' ? (
             <IPhoneFrame screenClassName="bg-[#B2C7D9]" className="w-full max-w-[320px]">
                   <div className="flex items-center justify-between px-4 pt-1 pb-2"><ChevronLeft className="w-4 h-4 text-neutral-700" /><span className="font-medium text-xs text-neutral-800">카카오톡</span><Menu className="w-4 h-4 text-neutral-700" /></div>

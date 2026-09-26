@@ -13,12 +13,12 @@ export function FeedbackHistoryTab({
   return (
     <div className="flex-1 overflow-hidden flex flex-col mt-3">
       {loadingHistory && (
-        <div className="text-center py-4 text-neutral-500 text-sm">
+        <div className="text-center py-4 text-[#55595e] text-[13px]">
           불러오는 중...
         </div>
       )}
       {!loadingHistory && (feedbackHistory?.length || 0) === 0 && (
-        <div className="text-center py-4 text-neutral-500 text-sm">
+        <div className="text-center py-4 text-[#55595e] text-[13px]">
           고객이 남긴 피드백이 없습니다.
         </div>
       )}
@@ -28,16 +28,16 @@ export function FeedbackHistoryTab({
             {(feedbackHistory || []).map((feedback) => (
               <div
                 key={feedback.id}
-                className="p-3 bg-neutral-50 rounded-lg border border-neutral-100"
+                className="p-3 bg-[#f8f9fa] rounded-[10px] border border-[#ebeced]"
               >
                 <div className="flex items-center justify-between mb-2">
                   <StarRating rating={feedback.rating} readonly />
-                  <span className="text-xs text-neutral-400">
+                  <span className="text-[12px] text-[#91959a]">
                     {formatDate(feedback.createdAt)}
                   </span>
                 </div>
                 {feedback.text && (
-                  <p className="text-sm text-neutral-700">{feedback.text}</p>
+                  <p className="text-[13px] text-[#383c40]">{feedback.text}</p>
                 )}
               </div>
             ))}

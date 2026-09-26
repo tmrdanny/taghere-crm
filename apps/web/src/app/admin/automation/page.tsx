@@ -6,6 +6,7 @@ import { formatNumber } from '@/lib/utils';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
+import { AlertTriangle } from 'lucide-react';
 
 interface RuleTypeCount {
   enabled: number;
@@ -685,7 +686,7 @@ const StoreTable = memo(function StoreTable({ stores }: { stores: StoreAutomatio
                                 }`}
                               >
                                 {RULE_TYPE_LABELS[rule] || rule}
-                                {blocked && ' ⚠'}
+                                {blocked && <AlertTriangle className="ml-1 inline h-3 w-3 align-[-1px]" strokeWidth={2} />}
                               </span>
                             );
                           })}

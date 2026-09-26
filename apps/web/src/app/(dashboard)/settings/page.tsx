@@ -4,11 +4,9 @@ import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Store, User, LogOut, MessageSquare, Percent, FileText, Lock } from 'lucide-react';
+import { Store, User, LogOut, MessageSquare, Percent, FileText, Lock, Lightbulb, Info } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 
@@ -491,54 +489,55 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {ToastComponent}
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-neutral-900">설정</h1>
-        <p className="text-neutral-500 mt-1">
+      <div className="mb-5">
+        <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">설정</h1>
+        <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
           매장 운영에 필요한 주요 설정을 관리하세요.
         </p>
       </div>
 
-      <div className="space-y-6">
+      <div className="mx-auto max-w-4xl space-y-4">
         {/* Store Info Card */}
-        <Card>
-          <CardHeader className="pb-4">
+        <div className="ad-card">
+          <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
-              <Store className="w-5 h-5 text-neutral-600" />
-              <CardTitle className="text-lg">매장 정보</CardTitle>
+              <Store className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">매장 정보</h2>
             </div>
-            <p className="text-sm text-neutral-500 mt-1">
+            <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
               매장의 기본 정보를 관리합니다.
             </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          </div>
+          <div className="px-5 pb-5 space-y-4">
             {isLoadingStore ? (
-              <div className="text-center py-8 text-neutral-500">
+              <div className="py-8 text-center text-[13px] text-[color:var(--ad-faint)]">
                 불러오는 중...
               </div>
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-700">
-                      매장명 <span className="text-red-500">*</span>
+                    <label className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                      매장명 <span className="text-[color:var(--ad-neg)]">*</span>
                     </label>
                     <Input
                       value={storeName}
+                      className="h-10 rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)]"
                       onChange={(e) => setStoreName(e.target.value)}
                       placeholder="매장명을 입력하세요"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-700">
+                    <label className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                       업종
                     </label>
                     <select
                       value={storeCategory}
                       onChange={(e) => setStoreCategory(e.target.value)}
-                      className="w-full h-10 px-3 rounded-md border border-neutral-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                      className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] focus:border-[color:var(--ad-ink)] focus:outline-none"
                     >
                       <option value="">업종 선택</option>
                       {CATEGORY_GROUPS.map((group) => (
@@ -553,68 +552,73 @@ export default function SettingsPage() {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-700">
+                    <label className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                       대표자명
                     </label>
                     <Input
                       value={ownerName}
+                      className="h-10 rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)]"
                       onChange={(e) => setOwnerName(e.target.value)}
                       placeholder="대표자명을 입력하세요"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-700">
+                    <label className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                       연락처
                     </label>
                     <Input
                       value={storePhone}
+                      className="h-10 rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)]"
                       onChange={(e) => setStorePhone(e.target.value)}
                       placeholder="연락처를 입력하세요"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-700">
+                    <label className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                       사업자등록번호
                     </label>
                     <Input
                       value={businessRegNumber}
+                      className="h-10 rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)]"
                       onChange={(e) => setBusinessRegNumber(e.target.value)}
                       placeholder="사업자등록번호를 입력하세요"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-700">
+                  <label className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                     주소
                   </label>
                   <Input
                     value={storeAddress}
+                    className="h-10 rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)]"
                     onChange={(e) => setStoreAddress(e.target.value)}
                     placeholder="매장 주소를 입력하세요"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-700">
+                  <label className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                     네이버 플레이스 링크
                   </label>
                   <Input
                     value={naverPlaceUrl}
+                    className="h-10 rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)]"
                     onChange={(e) => setNaverPlaceUrl(e.target.value)}
                     placeholder="https://naver.me/..."
                   />
-                  <p className="text-xs text-neutral-500">
+                  <p className="text-[12px] text-[color:var(--ad-faint)]">
                     네이버플레이스 -&gt; &apos;공유&apos;를 클릭하여 나오는 링크를 넣어주세요.
                   </p>
                 </div>
                 <div className="flex justify-end pt-2">
-                  <Button onClick={handleSaveStore} disabled={isSavingStore}>
+                  <button type="button" className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40" onClick={handleSaveStore} disabled={isSavingStore}>
                     {isSavingStore ? '저장 중...' : '저장하기'}
-                  </Button>
+                  </button>
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Customer Enroll Link Card - admin으로 이동됨, 숨김 처리
         {storeSlug && (
@@ -662,8 +666,9 @@ export default function SettingsPage() {
                     )}
                   </Button>
                 </div>
-                <p className="text-xs text-neutral-500">
-                  💡 태그히어 배너에 복사하여 사용하세요. ordersheetId는 자동으로 치환됩니다.
+                <p className="flex items-center gap-1.5 text-xs text-neutral-500">
+                  <Lightbulb className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
+                  태그히어 배너에 복사하여 사용하세요. ordersheetId는 자동으로 치환됩니다.
                 </p>
               </div>
 
@@ -708,23 +713,23 @@ export default function SettingsPage() {
         */}
 
         {/* Alimtalk Settings Card */}
-        <Card>
-          <CardHeader className="pb-4">
+        <div className="ad-card">
+          <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-neutral-600" />
-              <CardTitle className="text-lg">알림톡 설정</CardTitle>
+              <MessageSquare className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">알림톡 설정</h2>
             </div>
-            <p className="text-sm text-neutral-500 mt-1">
+            <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
               고객에게 발송되는 알림톡을 관리합니다.
             </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          </div>
+          <div className="px-5 pb-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-neutral-900">
+                <p className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">
                   포인트 적립/사용 알림톡 자동 발송
                 </p>
-                <p className="text-sm text-neutral-500 mt-1">
+                <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
                   포인트 적립 또는 사용 시 고객에게 알림톡을 자동으로 발송합니다.
                 </p>
               </div>
@@ -735,20 +740,23 @@ export default function SettingsPage() {
               />
             </div>
             {!canEnableAlimtalk && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-800">
-                  ⚠️ 충전금이 {MIN_BALANCE_FOR_ALIMTALK}원 미만입니다. 알림톡을 발송하려면 먼저 충전해주세요.
-                </p>
-                <p className="text-xs text-amber-600 mt-1">
-                  현재 잔액: {walletBalance.toLocaleString()}원
-                </p>
+              <div className="flex gap-2 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[13px] text-[color:var(--ad-muted)]">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                <div>
+                  <p>
+                    충전금이 {MIN_BALANCE_FOR_ALIMTALK}원 미만입니다. 알림톡을 발송하려면 먼저 충전해주세요.
+                  </p>
+                  <p className="ad-tnum mt-1 text-[12px] text-[color:var(--ad-faint)]">
+                    현재 잔액: {walletBalance.toLocaleString()}원
+                  </p>
+                </div>
               </div>
             )}
 
             {/* 발송 빈도 설정 */}
             {pointsAlimtalkEnabled && canEnableAlimtalk && (
-              <div className="mt-4 pt-4 border-t border-neutral-200">
-                <p className="text-sm font-medium text-neutral-700 mb-3">발송 빈도</p>
+              <div className="mt-4 border-t border-[color:var(--ad-line)] pt-4">
+                <p className="mb-3 text-[13px] font-medium text-[color:var(--ad-ink-2)]">발송 빈도</p>
                 <div className="space-y-3">
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input
@@ -758,11 +766,11 @@ export default function SettingsPage() {
                       checked={pointsAlimtalkFrequency === 'EVERY_ORDER'}
                       onChange={() => handleChangeFrequency('EVERY_ORDER')}
                       disabled={isSavingFrequency}
-                      className="mt-1 w-4 h-4 text-brand-600 border-neutral-300 focus:ring-brand-500"
+                      className="mt-0.5 h-4 w-4 accent-[#1d2022]"
                     />
                     <div>
-                      <span className="text-sm font-medium text-neutral-900">매 주문 발송</span>
-                      <p className="text-xs text-neutral-500 mt-0.5">
+                      <span className="text-[13px] font-medium text-[color:var(--ad-ink)]">매 주문 발송</span>
+                      <p className="mt-0.5 text-[12px] text-[color:var(--ad-muted)]">
                         포인트 적립 시마다 알림톡을 발송합니다.
                       </p>
                     </div>
@@ -775,11 +783,11 @@ export default function SettingsPage() {
                       checked={pointsAlimtalkFrequency === 'FIRST_ONLY'}
                       onChange={() => handleChangeFrequency('FIRST_ONLY')}
                       disabled={isSavingFrequency}
-                      className="mt-1 w-4 h-4 text-brand-600 border-neutral-300 focus:ring-brand-500"
+                      className="mt-0.5 h-4 w-4 accent-[#1d2022]"
                     />
                     <div>
-                      <span className="text-sm font-medium text-neutral-900">첫 주문 1회만 발송</span>
-                      <p className="text-xs text-neutral-500 mt-0.5">
+                      <span className="text-[13px] font-medium text-[color:var(--ad-ink)]">첫 주문 1회만 발송</span>
+                      <p className="mt-0.5 text-[12px] text-[color:var(--ad-muted)]">
                         당일 첫 주문 시에만 알림톡을 발송합니다. (포인트는 매번 적립)
                       </p>
                     </div>
@@ -789,13 +797,13 @@ export default function SettingsPage() {
             )}
 
             {/* 스탬프 적립 알림톡 */}
-            <div className="mt-4 pt-4 border-t border-neutral-200">
+            <div className="mt-4 border-t border-[color:var(--ad-line)] pt-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-neutral-900">
+                  <p className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">
                     스탬프 적립 알림톡 발송
                   </p>
-                  <p className="text-sm text-neutral-500 mt-1">
+                  <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
                     스탬프 적립 시 고객에게 현재 스탬프 수와 보상 정보를 알림톡으로 발송합니다.
                   </p>
                 </div>
@@ -807,25 +815,25 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Point Rate Settings Card */}
-        <Card>
-          <CardHeader className="pb-4">
+        <div className="ad-card">
+          <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
-              <Percent className="w-5 h-5 text-neutral-600" />
-              <CardTitle className="text-lg">포인트 적립률</CardTitle>
+              <Percent className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">포인트 적립률</h2>
             </div>
-            <p className="text-sm text-neutral-500 mt-1">
+            <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
               주문/결제 금액의 일정 비율을 포인트로 적립합니다.
             </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
+          </div>
+          <div className="px-5 pb-5 space-y-6">
             {/* 적립률 설정 */}
-            <div className="space-y-4 p-4 bg-neutral-50 rounded-lg">
+            <div className="space-y-4 rounded-[12px] bg-[color:var(--ad-bg-alt)] p-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-700">
+                <label className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   적립률 (0.1~99.9%)
                 </label>
                 <div className="flex items-center gap-2">
@@ -841,102 +849,103 @@ export default function SettingsPage() {
                       }
                     }}
                     placeholder="5"
-                    className="w-24"
+                    className="ad-tnum w-24 h-10 rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)]"
                   />
-                  <span className="text-neutral-500">%</span>
+                  <span className="text-[13px] text-[color:var(--ad-muted)]">%</span>
                 </div>
               </div>
-              <p className="text-xs text-neutral-500">
+              <p className="text-[12px] text-[color:var(--ad-faint)]">
                 예: 5% 설정 시 10,000원 결제 → 500P 적립 (소수점 한 자리까지, 반올림 적용)
               </p>
               <div className="flex justify-end">
-                <Button onClick={handleSavePointRate} disabled={isSavingPointRate}>
+                <button type="button" className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40" onClick={handleSavePointRate} disabled={isSavingPointRate}>
                   {isSavingPointRate ? '저장 중...' : '저장하기'}
-                </Button>
+                </button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Point Usage Rule Settings Card */}
-        <Card>
-          <CardHeader className="pb-4">
+        <div className="ad-card">
+          <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-neutral-600" />
-              <CardTitle className="text-lg">포인트 사용 규칙</CardTitle>
+              <FileText className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">포인트 사용 규칙</h2>
             </div>
-            <p className="text-sm text-neutral-500 mt-1">
+            <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
               고객이 포인트를 어떤 기준으로 쓸 수 있는지 작성해주세요.
             </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          </div>
+          <div className="px-5 pb-5 space-y-4">
             <div className="space-y-2">
               <Textarea
                 value={pointUsageRule}
                 onChange={(e) => setPointUsageRule(e.target.value)}
                 placeholder="3,000원 이상부터 사용 가능, 다음 번 방문부터 사용 가능, (자유롭게 작성 하셔도 돼요)."
                 rows={3}
-                className="resize-none"
+                className="resize-none rounded-[10px] border-[color:var(--ad-line-strong)] py-2.5 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)]"
               />
-              <p className="text-xs text-neutral-500">
-                💡 이 내용은 포인트 적립 알림톡에 포함되어 고객에게 발송됩니다.
+              <p className="text-[12px] text-[color:var(--ad-faint)]">
+                이 내용은 포인트 적립 알림톡에 포함되어 고객에게 발송됩니다.
               </p>
             </div>
             <div className="flex justify-end">
-              <Button onClick={handleSavePointUsageRule} disabled={isSavingPointUsageRule}>
+              <button type="button" className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40" onClick={handleSavePointUsageRule} disabled={isSavingPointUsageRule}>
                 {isSavingPointUsageRule ? '저장 중...' : '저장하기'}
-              </Button>
+              </button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Account Card */}
-        <Card>
-          <CardHeader className="pb-4">
+        <div className="ad-card">
+          <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
-              <User className="w-5 h-5 text-neutral-600" />
-              <CardTitle className="text-lg">계정 관리</CardTitle>
+              <User className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">계정 관리</h2>
             </div>
-            <p className="text-sm text-neutral-500">
+            <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
               로그인 정보 및 계정 보안을 관리합니다.
             </p>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="px-5 pb-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-neutral-900">
+                <p className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">
                   {userInfo?.email || ''}
                 </p>
               </div>
-              <Button
-                variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50"
+              <button
+                type="button"
+                className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-neg)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                 onClick={handleLogout}
               >
-                <LogOut className="w-4 h-4 mr-2" />
+                <LogOut className="h-4 w-4" />
                 로그아웃
-              </Button>
+              </button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Password Change Card — 일단 숨김 (SHOW_PASSWORD_CHANGE 로 재노출 가능) */}
         {SHOW_PASSWORD_CHANGE && (
-        <Card>
-          <CardHeader className="pb-4">
+        <div className="ad-card">
+          <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
-              <Lock className="w-5 h-5 text-neutral-600" />
-              <CardTitle className="text-lg">비밀번호 변경</CardTitle>
+              <Lock className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">비밀번호 변경</h2>
             </div>
-            <p className="text-sm text-neutral-500">
+            <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
               계정 비밀번호를 변경합니다.
             </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          </div>
+          <div className="px-5 pb-5 space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">현재 비밀번호</label>
+              <label className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">현재 비밀번호</label>
               <Input
                 type="password"
+                className="h-10 rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)]"
                 autoComplete="current-password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -944,9 +953,10 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">새 비밀번호</label>
+              <label className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">새 비밀번호</label>
               <Input
                 type="password"
+                className="h-10 rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)]"
                 autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -954,20 +964,23 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-600">새 비밀번호 확인</label>
+              <label className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">새 비밀번호 확인</label>
               <Input
                 type="password"
+                className="h-10 rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)]"
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="새 비밀번호를 다시 입력하세요"
               />
               {confirmPassword && newPassword !== confirmPassword && (
-                <p className="text-xs text-red-600">새 비밀번호가 일치하지 않습니다.</p>
+                <p className="text-[12px] text-[color:var(--ad-neg)]">새 비밀번호가 일치하지 않습니다.</p>
               )}
             </div>
             <div className="flex justify-end">
-              <Button
+              <button
+                type="button"
+                className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={handleChangePassword}
                 disabled={
                   isChangingPassword ||
@@ -977,10 +990,10 @@ export default function SettingsPage() {
                 }
               >
                 {isChangingPassword ? '변경 중...' : '비밀번호 변경'}
-              </Button>
+              </button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
         )}
       </div>
     </div>

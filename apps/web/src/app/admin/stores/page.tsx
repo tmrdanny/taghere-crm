@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { formatNumber } from '@/lib/utils';
 import { fetchJsonCached } from '@/lib/swr-cache';
 import * as XLSX from 'xlsx';
+import { X, Download, MapPin, CheckCircle2 } from 'lucide-react';
 
 // 업종 분류
 const CATEGORY_GROUPS = [
@@ -2523,8 +2524,8 @@ function BulkAddressModal({
         {/* 헤더 */}
         <div className="sticky top-0 bg-white border-b border-[color:var(--ad-line)] px-6 py-4 flex items-center justify-between rounded-t-[20px]">
           <h2 className="text-[17px] font-bold text-[color:var(--ad-ink)]">매장 주소 일괄 관리</h2>
-          <button onClick={onClose} className="text-[color:var(--ad-faint)] hover:text-[color:var(--ad-ink)]">
-            ✕
+          <button onClick={onClose} className="text-[color:var(--ad-faint)] hover:text-[color:var(--ad-ink)]" aria-label="닫기">
+            <X className="h-5 w-5" strokeWidth={1.8} />
           </button>
         </div>
 
@@ -2561,7 +2562,8 @@ function BulkAddressModal({
               onClick={handleDownloadTemplate}
               className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
             >
-              📥 템플릿 다운로드
+              <Download className="h-4 w-4" strokeWidth={1.8} />
+              템플릿 다운로드
             </button>
           </section>
 
@@ -2653,8 +2655,9 @@ function BulkAddressModal({
               {/* 고객 지역 백필 */}
               {result.updated > 0 && (
                 <div className="mt-4 p-4 bg-[color:var(--ad-blue-soft)] rounded-[10px]">
-                  <p className="text-[13px] font-semibold text-[color:var(--ad-navy)] mb-1">
-                    ✨ 과거 가입 고객 지역도 채우기
+                  <p className="text-[13px] font-semibold text-[color:var(--ad-navy)] mb-1 flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5" strokeWidth={1.8} />
+                    과거 가입 고객 지역도 채우기
                   </p>
                   <p className="text-[12px] text-[color:var(--ad-link)] mb-3">
                     매장 주소가 업데이트되었습니다. 그 매장에 가입한 과거 고객들의 지역 정보(시/도, 시/군/구)도
@@ -2662,7 +2665,8 @@ function BulkAddressModal({
                   </p>
                   {populateResult ? (
                     <p className="text-[13px] text-[color:var(--ad-navy)]">
-                      ✅ <strong>{populateResult.updated.toLocaleString()}명</strong>의 고객 지역 정보가
+                      <CheckCircle2 className="mr-1 inline h-3.5 w-3.5 align-[-2px] text-[color:var(--ad-pos)]" strokeWidth={2} />
+                      <strong>{populateResult.updated.toLocaleString()}명</strong>의 고객 지역 정보가
                       채워졌습니다.
                       {populateResult.skippedNoStoreAddress > 0 && (
                         <span className="block text-[12px] text-[color:var(--ad-link)] mt-1">

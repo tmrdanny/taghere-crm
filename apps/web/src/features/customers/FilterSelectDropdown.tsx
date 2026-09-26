@@ -28,7 +28,11 @@ export function FilterSelectDropdown({
           e.stopPropagation();
           onToggle();
         }}
-        className="flex items-center gap-1"
+        className={
+          value === 'all'
+            ? 'ad-press flex h-9 items-center gap-1 rounded-[10px] border-0 bg-white px-3 text-[13px] font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'
+            : 'ad-press flex h-9 items-center gap-1 rounded-[10px] border-0 bg-white px-3 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-ink)] hover:bg-[color:var(--ad-bg-alt)]'
+        }
       >
         {label} {options.find((o) => o.value === value)?.label}
         <ChevronDown className="w-3.5 h-3.5" />
@@ -41,12 +45,12 @@ export function FilterSelectDropdown({
           {options.map((option) => (
             <button
               key={option.value}
-              className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-50 flex items-center justify-between"
+              className="flex w-full items-center justify-between px-3 py-2 text-left text-[13px] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]"
               onClick={() => onSelect(option.value)}
             >
               {option.label}
               {value === option.value && (
-                <Check className="w-4 h-4 text-brand-800" />
+                <Check className="h-4 w-4 text-[color:var(--ad-ink)]" />
               )}
             </button>
           ))}

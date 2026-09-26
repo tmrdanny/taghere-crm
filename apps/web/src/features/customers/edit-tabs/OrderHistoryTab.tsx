@@ -41,7 +41,7 @@ export function OrderHistoryTab({
           variant={showDateFilter ? 'default' : 'secondary'}
           size="sm"
           onClick={onToggleDateFilter}
-          className="text-xs px-3 py-1.5 h-auto flex items-center gap-1.5"
+          className={showDateFilter ? 'ad-press inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-[color:var(--ad-ink)] px-3 text-[12.5px] font-medium text-white hover:bg-[#383c40]' : 'ad-press inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'}
         >
           <Calendar className="w-3.5 h-3.5" />
           날짜 조회
@@ -50,7 +50,7 @@ export function OrderHistoryTab({
           variant={cancelMode ? 'destructive' : 'secondary'}
           size="sm"
           onClick={onToggleCancelMode}
-          className="text-xs px-3 py-1.5 h-auto flex items-center gap-1.5"
+          className={cancelMode ? 'ad-press inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-[color:var(--ad-ink)] px-3 text-[12.5px] font-medium text-white hover:bg-[#383c40]' : 'ad-press inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'}
         >
           <X className="w-3.5 h-3.5" />
           적립 취소
@@ -59,20 +59,20 @@ export function OrderHistoryTab({
 
       {/* Date Filter - Conditional */}
       {showDateFilter && (
-        <div className="mb-3 flex-shrink-0 p-3 bg-neutral-50 rounded-lg border border-neutral-200 space-y-2">
+        <div className="mb-3 flex-shrink-0 p-3 bg-[#f8f9fa] rounded-[10px] border border-[#ebeced] space-y-2">
           <div className="flex items-center gap-2">
             <input
               type="date"
               value={orderStartDate}
               onChange={(e) => onStartDateChange(e.target.value)}
-              className="px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 flex-1 min-w-0"
+              className="h-9 min-w-0 flex-1 rounded-[10px] border border-[#d1d3d6] bg-white px-2 text-[13px] focus:border-[#131651] focus:outline-none"
             />
-            <span className="text-neutral-400 text-sm">~</span>
+            <span className="text-[#91959a] text-[13px]">~</span>
             <input
               type="date"
               value={orderEndDate}
               onChange={(e) => onEndDateChange(e.target.value)}
-              className="px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800 flex-1 min-w-0"
+              className="h-9 min-w-0 flex-1 rounded-[10px] border border-[#d1d3d6] bg-white px-2 text-[13px] focus:border-[#131651] focus:outline-none"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -81,7 +81,7 @@ export function OrderHistoryTab({
               size="sm"
               onClick={onApplyFilter}
               disabled={loadingHistory}
-              className="text-sm px-4 py-1.5 h-auto flex-1"
+              className="ad-press inline-flex h-9 flex-1 items-center justify-center rounded-[10px] border-0 bg-white px-4 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
             >
               조회
             </Button>
@@ -89,7 +89,7 @@ export function OrderHistoryTab({
               variant="ghost"
               size="sm"
               onClick={onResetFilter}
-              className="text-sm px-4 py-1.5 h-auto flex-1 text-neutral-500"
+              className="ad-press inline-flex h-9 flex-1 items-center justify-center rounded-[10px] border-0 bg-transparent px-4 text-[13px] font-medium text-[color:var(--ad-muted)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink)]"
             >
               초기화
             </Button>
@@ -98,12 +98,12 @@ export function OrderHistoryTab({
       )}
 
       {loadingHistory && (
-        <div className="text-center py-4 text-neutral-500 text-sm">
+        <div className="text-center py-4 text-[#55595e] text-[13px]">
           불러오는 중...
         </div>
       )}
       {!loadingHistory && (orderHistory?.length || 0) === 0 && (
-        <div className="text-center py-4 text-neutral-500 text-sm">
+        <div className="text-center py-4 text-[#55595e] text-[13px]">
           주문 내역이 없습니다.
         </div>
       )}
@@ -113,25 +113,25 @@ export function OrderHistoryTab({
             {(orderHistory || []).map((order) => (
               <div
                 key={order.id}
-                className="p-3 bg-neutral-50 rounded-lg border border-neutral-100"
+                className="p-3 bg-[#f8f9fa] rounded-[10px] border border-[#ebeced]"
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-neutral-900">
+                    <span className="text-[13px] font-medium text-[#1d2022]">
                       {order.totalAmount ? `${formatNumber(order.totalAmount)}원` : '금액 미입력'}
                     </span>
                     {order.tableNumber && (
-                      <span className="text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+                      <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">
                         {order.tableNumber}
                       </span>
                     )}
                   </div>
-                  <span className="text-xs text-neutral-400">
+                  <span className="text-[12px] text-[#91959a]">
                     {formatDate(order.visitedAt)} {new Date(order.visitedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
                   </span>
                 </div>
                 {getOrderItems(order.items).length > 0 ? (
-                  <div className="space-y-1.5 pt-1 border-t border-neutral-200 mt-2">
+                  <div className="space-y-1.5 pt-1 border-t border-[#ebeced] mt-2">
                     {getOrderItems(order.items).map((item: OrderItem, idx: number) => {
                       const menuName = item.label || item.name || item.menuName || item.productName || item.title || '(메뉴명 없음)';
                       const qty = item.count || item.quantity || item.qty || 1;
@@ -143,27 +143,27 @@ export function OrderHistoryTab({
                       const optionText = formatOrderItemOption(item.option);
 
                       return (
-                        <div key={idx} className={`flex items-center justify-between text-sm py-0.5 group ${isFullyCancelled ? 'opacity-50' : ''}`}>
-                          <div className={`flex-1 pr-2 ${isFullyCancelled ? 'text-neutral-400 line-through' : 'text-neutral-700'}`}>
+                        <div key={idx} className={`flex items-center justify-between text-[13px] py-0.5 group ${isFullyCancelled ? 'opacity-50' : ''}`}>
+                          <div className={`flex-1 pr-2 ${isFullyCancelled ? 'text-[#91959a] line-through' : 'text-[#383c40]'}`}>
                             <span className="truncate">
                               {menuName}
                               {qty > 1 && (
-                                <span className="text-neutral-400 ml-1">x{qty}</span>
+                                <span className="text-[#91959a] ml-1">x{qty}</span>
                               )}
                               {isFullyCancelled && (
-                                <span className="ml-2 text-xs text-red-500">(취소됨)</span>
+                                <span className="ml-2 text-[12px] text-[color:var(--ad-muted)]">(취소됨)</span>
                               )}
                               {isPartlyCancelled && (
-                                <span className="ml-2 text-xs text-orange-500">({cancelledQty}개 취소)</span>
+                                <span className="ml-2 text-[12px] text-[color:var(--ad-muted)]">({cancelledQty}개 취소)</span>
                               )}
                             </span>
                             {optionText && (
-                              <div className="text-xs text-neutral-400 mt-0.5">{optionText}</div>
+                              <div className="text-[12px] text-[#91959a] mt-0.5">{optionText}</div>
                             )}
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             {itemPrice > 0 && (
-                              <span className={`${isFullyCancelled ? 'text-neutral-400 line-through' : 'text-neutral-500'}`}>
+                              <span className={`${isFullyCancelled ? 'text-[#91959a] line-through' : 'text-[#55595e]'}`}>
                                 {formatNumber(itemPrice)}원
                               </span>
                             )}
@@ -174,7 +174,7 @@ export function OrderHistoryTab({
                                   e.stopPropagation();
                                   onCancelItem(order.id, idx, menuName, itemPrice, qty, cancelledQty);
                                 }}
-                                className="p-1.5 rounded-full bg-red-100 text-red-500 hover:bg-red-200 transition-colors"
+                                className="p-1.5 rounded-full bg-white text-[color:var(--ad-neg)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[#fff2f5] transition-colors"
                                 title="적립 취소"
                               >
                                 <X className="w-4 h-4" />
@@ -186,7 +186,7 @@ export function OrderHistoryTab({
                     })}
                   </div>
                 ) : (
-                  <p className="text-xs text-neutral-400">메뉴 정보 없음</p>
+                  <p className="text-[12px] text-[#91959a]">메뉴 정보 없음</p>
                 )}
               </div>
             ))}

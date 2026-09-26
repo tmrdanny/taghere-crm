@@ -4,10 +4,7 @@ import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
 import {
   Info,
@@ -365,70 +362,65 @@ export default function BillingPage() {
 
   // 거래 상태 배지
   const getStatusBadge = (status: string) => {
+    const base = 'inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium';
     switch (status) {
       case 'SUCCESS':
-        return <Badge variant="success">완료</Badge>;
+        return <span className={`${base} text-[color:var(--ad-muted)]`}>완료</span>;
       case 'PENDING':
-        return <Badge variant="warning">대기중</Badge>;
+        return <span className={`${base} text-[color:var(--ad-muted)]`}>대기중</span>;
       case 'FAILED':
-        return <Badge variant="error">실패</Badge>;
+        return <span className={`${base} text-[color:var(--ad-neg)]`}>실패</span>;
       default:
-        return <Badge>{status}</Badge>;
+        return <span className={`${base} text-[color:var(--ad-muted)]`}>{status}</span>;
     }
   };
 
   if (isLoading || isConfirmingPayment) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)]">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-800" />
+      <div className="flex h-[calc(100vh-4rem)] flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[color:var(--ad-faint)]" />
         {isConfirmingPayment && (
-          <p className="mt-4 text-sm text-neutral-500">결제 처리 중...</p>
+          <p className="mt-4 text-[13px] text-[color:var(--ad-muted)]">결제 처리 중...</p>
         )}
       </div>
     );
   }
 
   return (
-    <div className="p-4 lg:p-6 max-w-7xl mx-auto">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {ToastComponent}
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-900">충전 관리</h1>
-        <p className="text-neutral-500 mt-1">
+      <div className="mb-5">
+        <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">충전 관리</h1>
+        <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
           알림톡 발송을 위한 충전금을 관리합니다.
         </p>
       </div>
 
       {/* 현재 잔액 */}
-      <Card className="mb-6 border-brand-200 bg-brand-50/30">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-neutral-500 mb-1">현재 보유 충전금</p>
-              <p className="text-3xl font-bold text-neutral-900">
-                {formatCurrency(balance)}
-              </p>
-              <p className="text-xs text-neutral-400 mt-1">
-                약 {Math.floor(balance / 50)}건 발송 가능
-              </p>
-            </div>
-            <div className="p-3 bg-brand-100 rounded-lg">
-              <Wallet className="w-6 h-6 text-brand-800" />
-            </div>
+      <div className="ad-card mb-5 p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="mb-1 text-[12px] text-[color:var(--ad-muted)]">현재 보유 충전금</p>
+            <p className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+              {formatCurrency(balance)}
+            </p>
+            <p className="ad-tnum mt-1 text-[12px] text-[color:var(--ad-faint)]">
+              약 {Math.floor(balance / 50)}건 발송 가능
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          <Wallet className="h-5 w-5 text-[color:var(--ad-faint)]" strokeWidth={1.7} />
+        </div>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* 충전 섹션 */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">충전</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className="ad-card p-5">
+          <h2 className="mb-4 text-[14px] font-semibold text-[color:var(--ad-ink)]">충전</h2>
+          <div className="space-y-4">
             {/* 충전 금액 입력 */}
             <div>
-              <label className="text-sm font-medium text-neutral-700 block mb-2">
+              <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                 충전 금액 입력
               </label>
               <div className="relative">
@@ -436,7 +428,7 @@ export default function BillingPage() {
                   type="text"
                   value={customAmount}
                   onChange={(e) => handleAmountChange(e.target.value)}
-                  className="text-right text-xl font-bold pr-4 h-14"
+                  className="ad-tnum h-12 rounded-[10px] border-[color:var(--ad-line-strong)] pr-4 text-right text-[20px] font-medium text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)]"
                   placeholder="0"
                 />
               </div>
@@ -448,16 +440,16 @@ export default function BillingPage() {
                 <button
                   key={preset.amount}
                   onClick={() => handlePresetClick(preset.amount)}
-                  className={`relative px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  className={`ad-press relative h-9 rounded-[10px] px-3 text-[13px] font-medium transition-colors ${
                     amount === preset.amount
-                      ? 'bg-brand-800 text-white border-brand-800'
-                      : 'bg-white text-neutral-700 border-neutral-300 hover:border-brand-800'
+                      ? 'bg-[color:var(--ad-ink)] text-white'
+                      : 'bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'
                   }`}
                 >
                   {preset.amount >= 10000 ? `${preset.amount / 10000}만` : formatCurrency(preset.amount)}
                   {preset.bonusRate > 0 && (
-                    <span className={`ml-1 text-xs font-bold ${
-                      amount === preset.amount ? 'text-yellow-300' : 'text-green-600'
+                    <span className={`ml-1 text-[11px] font-medium ${
+                      amount === preset.amount ? 'text-white/70' : 'text-[color:var(--ad-muted)]'
                     }`}>
                       +{preset.bonusRate}%
                     </span>
@@ -467,89 +459,90 @@ export default function BillingPage() {
             </div>
 
             {/* 결제 예정 금액 */}
-            <div className="border-t border-neutral-200 pt-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-neutral-500">결제 금액</span>
-                <span className="text-base font-medium text-neutral-700">
+            <div className="border-t border-[color:var(--ad-line)] pt-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-[color:var(--ad-muted)]">결제 금액</span>
+                <span className="ad-tnum text-[14px] font-medium text-[color:var(--ad-ink-2)]">
                   {formatCurrency(totalAmount)}
                 </span>
               </div>
               {getBonusRate(amount) > 0 && (
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-sm text-green-600">보너스 충전 (+{getBonusRate(amount)}%)</span>
-                  <span className="text-base font-medium text-green-600">
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-[13px] text-[color:var(--ad-pos)]">보너스 충전 (+{getBonusRate(amount)}%)</span>
+                  <span className="ad-tnum text-[14px] font-medium text-[color:var(--ad-pos)]">
                     +{formatCurrency(getChargeAmountWithBonus(amount) - amount)}
                   </span>
                 </div>
               )}
-              <div className="flex justify-between items-center mt-2 pt-2 border-t border-neutral-100">
-                <span className="text-sm font-semibold text-neutral-900">
+              <div className="mt-2 flex items-center justify-between border-t border-[color:var(--ad-line)] pt-2">
+                <span className="text-[13px] font-semibold text-[color:var(--ad-ink)]">
                   실제 충전 금액
                 </span>
-                <span className="text-xl font-bold text-brand-800">
+                <span className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                   {formatCurrency(getChargeAmountWithBonus(amount))}
                 </span>
               </div>
             </div>
 
             {/* 토스페이먼츠 결제 위젯 */}
-            <div className="border-t border-neutral-200 pt-4" key={`widget-container-${widgetKey}`}>
+            <div className="border-t border-[color:var(--ad-line)] pt-4" key={`widget-container-${widgetKey}`}>
               <div id="payment-methods" className="mb-3" />
               <div id="agreement" className="mb-3" />
             </div>
 
             {/* 충전하기 버튼 */}
-            <Button
+            <button
+              type="button"
               onClick={handleCardPayment}
               disabled={!isPaymentReady || isProcessing || amount < 1000}
-              className="w-full h-11 text-base"
+              className="ad-press inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   결제 처리 중...
                 </>
               ) : (
                 <>
-                  <CreditCard className="w-4 h-4 mr-2" />
+                  <CreditCard className="h-4 w-4" />
                   {formatCurrency(totalAmount)} 결제하고 {formatCurrency(getChargeAmountWithBonus(amount))} 충전하기
                 </>
               )}
-            </Button>
-          </CardContent>
-        </Card>
+            </button>
+          </div>
+        </div>
 
         {/* 충전 내역 */}
-        <Card className="lg:max-h-[calc(100vh-20rem)] overflow-hidden flex flex-col">
-          <CardHeader className="pb-3 flex-shrink-0">
-            <CardTitle className="text-lg">충전 내역</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-y-auto flex-1">
+        <div className="ad-card flex flex-col overflow-hidden lg:max-h-[calc(100vh-20rem)]">
+          <div className="flex-shrink-0 border-b border-[color:var(--ad-line)] px-5 py-4">
+            <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">충전 내역</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto">
             {transactions.length === 0 ? (
-              <p className="text-center text-neutral-400 py-8">
+              <p className="py-10 text-center text-[13px] text-[color:var(--ad-faint)]">
                 충전 내역이 없습니다
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className="divide-y divide-[color:var(--ad-line)]">
                 {transactions.map((tx) => (
                   <div
                     key={tx.id}
-                    className="p-3 border border-neutral-200 rounded-lg hover:border-neutral-300 transition-colors"
+                    className="px-5 py-3 transition-colors hover:bg-[color:var(--ad-bg-alt)]"
                   >
-                    <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-neutral-900">
+                        <p className="text-[13px] font-medium text-[color:var(--ad-ink)]">
                           {getTransactionLabel(tx.type)}
                         </p>
-                        <p className="text-xs text-neutral-500 mt-0.5">
+                        <p className="ad-tnum mt-0.5 text-[12px] text-[color:var(--ad-muted)]">
                           {formatDate(tx.createdAt)}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className={`text-base font-semibold ${
+                        <p className={`ad-tnum text-[14px] font-medium ${
                           tx.type === 'TOPUP'
-                            ? 'text-green-600'
-                            : 'text-red-600'
+                            ? 'text-[color:var(--ad-ink)]'
+                            : 'text-[color:var(--ad-neg)]'
                         }`}>
                           {tx.type === 'TOPUP' ? '+' : '-'}
                           {formatCurrency(tx.amount)}
@@ -563,8 +556,8 @@ export default function BillingPage() {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

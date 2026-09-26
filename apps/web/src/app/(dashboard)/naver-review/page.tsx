@@ -2,7 +2,6 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback } from 'react';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import {
@@ -11,8 +10,7 @@ import {
   Menu,
   Loader2,
   AlertCircle,
-  Clock,
-} from 'lucide-react';
+  Clock, X } from 'lucide-react';
 import { IPhoneFrame } from '@/components/ui/iphone-frame';
 
 
@@ -119,82 +117,82 @@ export default function NaverReviewPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-800" />
+        <Loader2 className="w-8 h-8 animate-spin text-[color:var(--ad-faint)]" />
       </div>
     );
   }
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {/* Toast notification */}
       {ToastComponent}
 
-      <div className="max-w-5xl mx-auto">
+      <div>
         {/* Error message */}
         {error && (
-          <div className="mb-4 flex items-center gap-2 bg-red-50 text-red-700 px-4 py-3 rounded-lg">
+          <div className="mb-4 flex items-center gap-2 rounded-[12px] bg-[#fff0f3] px-4 py-3 text-[13px] text-[color:var(--ad-neg)]">
             <AlertCircle className="w-5 h-5" />
             <span>{error}</span>
-            <button onClick={() => setError(null)} className="ml-auto">
-              ✕
+            <button onClick={() => setError(null)} className="ml-auto" aria-label="닫기">
+              <X className="h-4 w-4" strokeWidth={1.8} />
             </button>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left: Settings */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4">
             {/* Header */}
             <div>
-              <h1 className="text-2xl font-semibold text-neutral-900">
+              <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">
                 리뷰 안내 문구 설정
               </h1>
-              <p className="text-neutral-500 mt-1">
+              <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
                 포인트 적립 알림톡에 포함될 리뷰 안내 문구를 설정하세요.
               </p>
             </div>
 
             {/* Info Card */}
-            <Card className="p-4 bg-blue-50 border-blue-200">
-              <div className="flex gap-3">
-                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-800">
+            <div className="rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[13px] text-[color:var(--ad-muted)]">
+              <div className="flex gap-2.5">
+                <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                <p>
                   포인트 적립 시 발송되는 알림톡에 리뷰 안내 문구가 함께 표시됩니다.
                 </p>
               </div>
-            </Card>
+            </div>
 
             {/* Benefit Text Input */}
-            <Card className="p-6">
+            <div className="ad-card p-5">
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-neutral-700 block mb-1">
+                  <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                     리뷰 이벤트 상품 (혜택 내용)
                   </label>
                   <textarea
                     value={benefitText}
                     onChange={(e) => setBenefitText(e.target.value)}
                     placeholder="예: 🍤 네이버 리뷰 작성시 새우 튀김 18cm (8,000원 상당) 즉시 제공!"
-                    className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+                    className="flex min-h-[100px] w-full py-2.5 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 resize-y"
                     rows={4}
                   />
-                  <p className="text-sm text-neutral-500 mt-2">
+                  <p className="mt-2 text-[12px] text-[color:var(--ad-faint)]">
                     입력하지 않으면 기본 문구 &quot;진심을 담은 리뷰는 매장에 큰 도움이 됩니다 :)&quot;가 표시됩니다.
                   </p>
                 </div>
               </div>
-            </Card>
+            </div>
 
             {/* Delay Settings */}
-            <Card className="p-6">
+            <div className="ad-card p-5">
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-neutral-500" />
+                  <Clock className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                   <div className="flex-1">
-                    <h3 className="text-sm font-medium text-neutral-900">
+                    <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">
                       알림톡 지연 발송
                     </h3>
-                    <p className="text-xs text-neutral-500 mt-0.5">
+                    <p className="mt-0.5 text-[12px] text-[color:var(--ad-faint)]">
                       적립/리뷰 알림톡을 설정한 시간 후에 발송합니다
                     </p>
                   </div>
@@ -204,7 +202,7 @@ export default function NaverReviewPage() {
                     aria-checked={delayEnabled}
                     onClick={() => setDelayEnabled(!delayEnabled)}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      delayEnabled ? 'bg-brand-800' : 'bg-neutral-200'
+                      delayEnabled ? 'bg-[color:var(--ad-ink)]' : 'bg-[color:var(--ad-line-strong)]'
                     }`}
                   >
                     <span
@@ -216,22 +214,23 @@ export default function NaverReviewPage() {
                 </div>
 
                 {delayEnabled && (
-                  <div className="space-y-3 pt-2 border-t border-neutral-100">
-                    <Card className="p-3 bg-amber-50 border-amber-200">
-                      <p className="text-xs text-amber-800">
+                  <div className="space-y-3 pt-3 border-t border-[color:var(--ad-line)]">
+                    <div className="flex gap-2.5 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[13px] text-[color:var(--ad-muted)]">
+                      <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                      <p>
                         고객이 포인트/스탬프를 적립한 후, 설정한 시간이 지나면 알림톡이 발송됩니다.
                         식사 후 결제 시점에 리뷰를 요청하고 싶을 때 유용합니다.
                       </p>
-                    </Card>
+                    </div>
 
                     <div>
-                      <label className="text-sm font-medium text-neutral-700 block mb-2">
+                      <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                         발송 지연 시간
                       </label>
                       <select
                         value={delayMinutes}
                         onChange={(e) => setDelayMinutes(Number(e.target.value))}
-                        className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        className="w-full h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                       >
                         {Array.from({ length: 12 }, (_, i) => (i + 1) * 10).map((min) => (
                           <option key={min} value={min}>
@@ -243,26 +242,26 @@ export default function NaverReviewPage() {
                   </div>
                 )}
               </div>
-            </Card>
+            </div>
 
             {/* Save Button */}
-            <Card className="p-6">
+            <div>
               <Button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="w-full h-12 text-base"
+                className="ad-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
               >
                 {isSaving ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : null}
                 저장하기
               </Button>
-            </Card>
+            </div>
           </div>
 
           {/* Right: Phone Preview */}
           <div className="lg:col-span-1">
-            <p className="text-center text-neutral-500 mb-4">포인트 적립 알림톡 미리보기</p>
+            <p className="mb-4 text-center text-[13px] text-[color:var(--ad-muted)]">포인트 적립 알림톡 미리보기</p>
             <div className="flex justify-center sticky top-24">
               {/* Phone Frame */}
               <IPhoneFrame screenClassName="bg-[#B2C7D9]">

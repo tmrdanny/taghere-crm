@@ -4,7 +4,7 @@ import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback } from 'react';
 import { BoosterCreateForm, BoosterTargetResult, BoosterFormValues, ActiveEditMeta, validUntilText } from '@/components/place-booster/booster-create-form';
 import { BoosterReport, CampaignInputCard, ReportRow, ReportTotals } from '@/components/place-booster/booster-report';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Check, X } from 'lucide-react';
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   DRAFT: { label: '결제 대기', cls: 'bg-[#ffdace] text-[#993d1f]' },
@@ -152,7 +152,7 @@ export default function AdminPlaceBoosterPage() {
 
       {msg && (
         <div className="mb-4 bg-[color:var(--ad-blue-soft)] text-[color:var(--ad-link)] px-4 py-2.5 rounded-[10px] text-[13px] flex justify-between">
-          {msg} <button onClick={() => setMsg('')}>✕</button>
+          {msg} <button onClick={() => setMsg('')} aria-label="닫기" className="inline-grid place-items-center align-middle"><X className="h-4 w-4" strokeWidth={1.8} /></button>
         </div>
       )}
 
@@ -400,7 +400,7 @@ function AdminReportView({ id, af, onBack, onChanged }: { id: string; af: (p: st
                 {testSending ? '발송 중…' : '테스트 발송'}
               </button>
             </div>
-            {testMsg && <p className={`text-[12.5px] mt-2 ${testMsg.startsWith('✓') ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-neg)]'}`}>{testMsg}</p>}
+            {testMsg && <p className={`mt-2 flex items-center gap-1.5 text-[12.5px] ${testMsg.startsWith('✓') ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-neg)]'}`}>{testMsg.startsWith('✓') && <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={2.2} />}{testMsg.replace(/^✓\s*/, '')}</p>}
           </div>
 
           {/* 성과 리포트 (화면용 — PDF는 데이터로 별도 렌더) */}

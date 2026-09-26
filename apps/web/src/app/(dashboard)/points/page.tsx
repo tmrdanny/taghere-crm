@@ -3,9 +3,7 @@
 import { API_BASE } from '@/lib/api-config';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { trackEvent } from '@/lib/analytics';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Modal,
   ModalContent,
@@ -14,7 +12,7 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { formatNumber, formatPhone, getRelativeTime, maskNickname } from '@/lib/utils';
-import { Delete, Loader2, UserPlus, RefreshCw, AlertCircle, CheckCircle2, Calculator, Keyboard, Info } from 'lucide-react';
+import { Delete, Loader2, UserPlus, RefreshCw, AlertCircle, CheckCircle2, Calculator, Keyboard, Info, X } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
 
@@ -390,7 +388,7 @@ export default function PointsPage() {
   const currentPoints = parseInt(pointsInput) || 0;
 
   return (
-    <div className="min-h-screen bg-neutral-100 p-4 lg:p-6 flex items-center justify-center">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {ToastComponent}
 
       {/* Hidden input for keyboard typing */}
@@ -405,41 +403,41 @@ export default function PointsPage() {
         autoFocus
       />
 
-      <div className="w-full max-w-7xl">
+      <div className="w-full">
         {/* 안내 콜아웃 */}
-        <Card className="mb-4 lg:mb-6 bg-blue-50 border-blue-200">
-          <div className="p-4">
-            <div className="flex gap-3">
-              <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="text-blue-800">
+        <div className="mb-4 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[13px] text-[color:var(--ad-muted)]">
+          <div>
+            <div className="flex gap-2.5">
+              <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              <div className="text-[13px]">
+                <p className="font-medium text-[color:var(--ad-ink-2)]">
                   포인트 적립 시, 고객에게 알림톡이 발송됩니다.
                 </p>
-                <p className="text-blue-600 mt-1">
+                <p className="mt-1 text-[12.5px] text-[color:var(--ad-muted)]">
                   적립/사용 알림톡 1건 발송 시 20원이 차감됩니다. 비용이 없을경우 알림톡은 자동으로 발송 중지 됩니다.
                 </p>
               </div>
             </div>
           </div>
-        </Card>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
 
           {/* Left Panel - Recent Transactions & Tablet Link */}
           <div className="lg:col-span-4 order-2 lg:order-1 flex flex-col gap-4">
             {/* Recent Transactions Card */}
-            <Card className="bg-white shadow-sm flex-1">
-              <div className="p-4 border-b border-neutral-100">
+            <div className="ad-card flex-1">
+              <div className="px-5 py-4 border-b border-[color:var(--ad-line)]">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-base font-semibold text-neutral-900">
+                  <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">
                     최근 적립 내역
                   </h2>
                   <button
                     onClick={fetchRecentTransactions}
-                    className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
+                    className="ad-press p-2 rounded-[10px] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
                     title="새로고침"
                   >
-                    <RefreshCw className="w-4 h-4 text-neutral-500" />
+                    <RefreshCw className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                   </button>
                 </div>
               </div>
@@ -447,10 +445,10 @@ export default function PointsPage() {
               <div className="p-2 max-h-[calc(100vh-26rem)] overflow-y-auto">
                 {isLoadingRecent ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-neutral-400" />
+                    <Loader2 className="w-6 h-6 animate-spin text-[color:var(--ad-faint)]" />
                   </div>
                 ) : recentTransactions.length === 0 ? (
-                  <p className="text-center text-sm text-neutral-400 py-8">
+                  <p className="text-center text-[13px] text-[color:var(--ad-faint)] py-8">
                     적립 내역이 없습니다
                   </p>
                 ) : (
@@ -458,21 +456,21 @@ export default function PointsPage() {
                     {recentTransactions.map((tx) => (
                       <div
                         key={tx.id}
-                        className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors"
+                        className="flex items-center justify-between px-3 py-2.5 rounded-[10px] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-neutral-900 truncate">
+                            <span className="text-[13.5px] font-medium text-[color:var(--ad-ink)] truncate">
                               {tx.customerName ? maskNickname(tx.customerName) : (tx.phone ? formatPhone(tx.phone) : '알 수 없음')}
                             </span>
-                            {tx.isVip && <Badge variant="vip">VIP</Badge>}
-                            {tx.isNew && <Badge variant="new">신규</Badge>}
+                            {tx.isVip && <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">VIP</span>}
+                            {tx.isNew && <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">신규</span>}
                           </div>
-                          <span className="text-xs text-neutral-500">
+                          <span className="text-[12px] text-[color:var(--ad-faint)] ad-tnum">
                             {formatTime(tx.createdAt)}
                           </span>
                         </div>
-                        <span className="text-sm font-bold text-green-600 ml-2">
+                        <span className="text-[13.5px] font-semibold text-[color:var(--ad-pos)] ad-tnum ml-2">
                           +{formatNumber(tx.points)}P
                         </span>
                       </div>
@@ -480,34 +478,35 @@ export default function PointsPage() {
                   </div>
                 )}
               </div>
-            </Card>
+            </div>
 
           </div>
 
           {/* Right Panel - Point Input */}
           <div className="lg:col-span-8 order-1 lg:order-2">
-            <Card className="bg-white shadow-sm">
+            <div className="ad-card">
               {/* Header */}
-              <div className="p-4 lg:p-6 border-b border-neutral-100">
-                <h1 className="text-xl font-bold text-neutral-900">
+              <div className="p-5 border-b border-[color:var(--ad-line)]">
+                <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">
                   포인트 적립
                 </h1>
-                <p className="text-sm text-neutral-500 mt-1">
+                <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
                   전화번호를 입력하고 적립할 포인트를 선택하세요
                 </p>
               </div>
 
-              <div className="p-4 lg:p-6">
+              <div className="p-5">
                 {/* Error message */}
                 {error && (
-                  <div className="flex items-center gap-2 bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4">
+                  <div className="flex items-center gap-2 rounded-[12px] bg-[#fff0f3] text-[color:var(--ad-neg)] px-4 py-3 mb-4">
                     <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                    <span className="text-sm">{error}</span>
+                    <span className="text-[13px]">{error}</span>
                     <button
                       onClick={() => setError(null)}
-                      className="ml-auto text-red-500 hover:text-red-700 p-1"
+                      className="ml-auto text-[color:var(--ad-neg)] opacity-70 hover:opacity-100 p-1"
+                      aria-label="닫기"
                     >
-                      ✕
+                      <X className="h-4 w-4" strokeWidth={1.8} />
                     </button>
                   </div>
                 )}
@@ -519,28 +518,28 @@ export default function PointsPage() {
                   <div className="space-y-4">
                     {/* Phone Input */}
                     <div>
-                      <label className="text-sm font-medium text-neutral-700 block mb-2">
+                      <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                         전화번호
                       </label>
                       <div
-                        className="flex items-center justify-center px-4 py-4 border-2 rounded-xl bg-white cursor-text transition-colors border-brand-800 ring-2 ring-brand-100"
+                        className="flex items-center justify-center px-4 py-4 border rounded-[12px] bg-white cursor-text transition-colors border-[color:var(--ad-ink)] ring-[3px] ring-[rgba(29,32,34,0.06)]"
                         onClick={() => {
                           hiddenInputRef.current?.focus();
                         }}
                       >
-                        <span className="text-2xl font-semibold text-neutral-900">010</span>
-                        <span className="text-2xl font-semibold text-neutral-300 mx-1">-</span>
-                        <span className="text-2xl font-semibold tracking-wider">
+                        <span className="text-[24px] font-medium ad-tnum text-[color:var(--ad-ink)]">010</span>
+                        <span className="text-[24px] font-medium text-[color:var(--ad-line-strong)] mx-1">-</span>
+                        <span className="text-[24px] font-medium ad-tnum tracking-wider">
                           {part1.split('').map((char, i) => (
-                            <span key={i} className={char === '_' ? 'text-neutral-300' : 'text-neutral-900'}>
+                            <span key={i} className={char === '_' ? 'text-[color:var(--ad-line-strong)]' : 'text-[color:var(--ad-ink)]'}>
                               {char}
                             </span>
                           ))}
                         </span>
-                        <span className="text-2xl font-semibold text-neutral-300 mx-1">-</span>
-                        <span className="text-2xl font-semibold tracking-wider">
+                        <span className="text-[24px] font-medium text-[color:var(--ad-line-strong)] mx-1">-</span>
+                        <span className="text-[24px] font-medium ad-tnum tracking-wider">
                           {part2.split('').map((char, i) => (
-                            <span key={i} className={char === '_' ? 'text-neutral-300' : 'text-neutral-900'}>
+                            <span key={i} className={char === '_' ? 'text-[color:var(--ad-line-strong)]' : 'text-[color:var(--ad-ink)]'}>
                               {char}
                             </span>
                           ))}
@@ -550,9 +549,9 @@ export default function PointsPage() {
 
                     {/* Customer Search Status */}
                     {isSearching && (
-                      <div className="flex items-center justify-center py-4 bg-neutral-50 rounded-xl">
-                        <Loader2 className="w-5 h-5 animate-spin text-neutral-400 mr-2" />
-                        <span className="text-sm text-neutral-500">고객 검색 중...</span>
+                      <div className="flex items-center justify-center py-4 bg-[color:var(--ad-bg-alt)] rounded-[12px]">
+                        <Loader2 className="w-5 h-5 animate-spin text-[color:var(--ad-faint)] mr-2" />
+                        <span className="text-[13px] text-[color:var(--ad-muted)]">고객 검색 중...</span>
                       </div>
                     )}
 
@@ -564,7 +563,7 @@ export default function PointsPage() {
                         }
                       }}
                       disabled={phoneInput.length !== 8 || isSearching}
-                      className="w-full py-4 text-base font-semibold rounded-xl hidden lg:flex"
+                      className="ad-press hidden lg:flex h-11 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
                       size="lg"
                     >
                       다음
@@ -572,34 +571,34 @@ export default function PointsPage() {
                   </div>
 
                   {/* Right Column - Keypad */}
-                  <div className="bg-neutral-50 rounded-2xl p-4">
+                  <div className="bg-[color:var(--ad-bg-alt)] rounded-[16px] p-3">
                     <div className="grid grid-cols-3 gap-2">
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                         <button
                           key={num}
                           onClick={() => handleKeypadPress(num.toString())}
-                          className="aspect-square flex items-center justify-center text-2xl font-semibold text-neutral-900 bg-white rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
+                          className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] ad-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
                         >
                           {num}
                         </button>
                       ))}
                       <button
                         onClick={handleKeypadClear}
-                        className="aspect-square flex items-center justify-center text-sm font-semibold text-neutral-600 bg-red-50 rounded-xl hover:bg-red-100 active:bg-red-200 transition-colors"
+                        className="aspect-square flex items-center justify-center text-[13px] font-medium text-[color:var(--ad-neg)] bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[#fff0f3] active:bg-[#ffe1e8] transition-colors"
                       >
                         초기화
                       </button>
                       <button
                         onClick={() => handleKeypadPress('0')}
-                        className="aspect-square flex items-center justify-center text-2xl font-semibold text-neutral-900 bg-white rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
+                        className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] ad-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
                       >
                         0
                       </button>
                       <button
                         onClick={handleKeypadDelete}
-                        className="aspect-square flex items-center justify-center text-neutral-600 bg-neutral-200 rounded-xl hover:bg-neutral-300 active:bg-neutral-400 transition-colors"
+                        className="aspect-square flex items-center justify-center text-[color:var(--ad-ink-2)] bg-[color:var(--ad-bg)] rounded-[12px] hover:bg-[color:var(--ad-line)] active:bg-[color:var(--ad-line-strong)] transition-colors"
                       >
-                        <Delete className="w-6 h-6" />
+                        <Delete className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
@@ -613,14 +612,14 @@ export default function PointsPage() {
                     }
                   }}
                   disabled={phoneInput.length !== 8 || isSearching}
-                  className="w-full py-4 text-base font-semibold rounded-xl mt-4 lg:hidden"
+                  className="ad-press mt-4 flex h-11 w-full lg:hidden items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
                   size="lg"
                 >
                   다음
                 </Button>
 
               </div>
-            </Card>
+            </div>
           </div>
         </div>
       </div>
@@ -643,22 +642,22 @@ export default function PointsPage() {
 
           <div className="py-4 space-y-4">
             {/* Customer Info */}
-            <div className="bg-neutral-50 rounded-xl p-4">
+            <div className="bg-[color:var(--ad-bg-alt)] rounded-[12px] p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-neutral-500">고객</span>
-                  <span className="font-medium text-neutral-900">
+                  <span className="text-[13px] text-[color:var(--ad-muted)]">고객</span>
+                  <span className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">
                     {customer?.name || (isNewCustomer ? '신규 고객' : '알 수 없음')}
                   </span>
-                  {customer?.isVip && <Badge variant="vip">VIP</Badge>}
-                  {isNewCustomer && <Badge variant="new">신규</Badge>}
+                  {customer?.isVip && <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">VIP</span>}
+                  {isNewCustomer && <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">신규</span>}
                 </div>
-                <span className="text-sm text-neutral-500">
+                <span className="text-[13px] text-[color:var(--ad-muted)]">
                   010-{phoneInput.slice(0, 4)}-{phoneInput.slice(4)}
                 </span>
               </div>
               {customer && (
-                <p className="text-xs text-neutral-500 mt-1">
+                <p className="mt-1 text-[12px] text-[color:var(--ad-faint)] ad-tnum">
                   보유 포인트: {formatNumber(customer.totalPoints)}P · 방문 {customer.visitCount}회
                 </p>
               )}
@@ -667,23 +666,23 @@ export default function PointsPage() {
             {/* Input Method Selection */}
             {!inputMethod && (
               <div className="space-y-3">
-                <p className="text-sm text-neutral-600 font-medium">적립 방식을 선택하세요</p>
+                <p className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">적립 방식을 선택하세요</p>
                 <div className="grid grid-cols-2 gap-3">
                   {/* Payment Amount Option */}
                   <button
                     onClick={() => handleSelectInputMethod('payment')}
                     disabled={!storeSettings.pointRateEnabled}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${
+                    className={`ad-press p-4 rounded-[12px] border text-left transition-all ${
                       storeSettings.pointRateEnabled
-                        ? 'border-neutral-200 hover:border-brand-800 hover:bg-brand-50'
-                        : 'border-neutral-100 bg-neutral-50 cursor-not-allowed'
+                        ? 'border-[color:var(--ad-line-strong)] bg-white hover:border-[color:var(--ad-ink)] hover:bg-[color:var(--ad-bg-alt)]'
+                        : 'border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] cursor-not-allowed'
                     }`}
                   >
-                    <Calculator className={`w-6 h-6 mb-2 ${storeSettings.pointRateEnabled ? 'text-brand-800' : 'text-neutral-400'}`} />
-                    <p className={`font-semibold ${storeSettings.pointRateEnabled ? 'text-neutral-900' : 'text-neutral-400'}`}>
+                    <Calculator className={`w-5 h-5 mb-2 ${storeSettings.pointRateEnabled ? 'text-[color:var(--ad-muted)]' : 'text-[color:var(--ad-faint)]'}`} strokeWidth={1.8} />
+                    <p className={`text-[14px] font-semibold ${storeSettings.pointRateEnabled ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-faint)]'}`}>
                       결제금액 입력
                     </p>
-                    <p className={`text-xs mt-1 ${storeSettings.pointRateEnabled ? 'text-neutral-500' : 'text-neutral-400'}`}>
+                    <p className={`text-[12px] mt-1 ${storeSettings.pointRateEnabled ? 'text-[color:var(--ad-muted)]' : 'text-[color:var(--ad-faint)]'}`}>
                       {storeSettings.pointRateEnabled
                         ? `${storeSettings.pointRatePercent}% 자동 계산`
                         : '설정에서 활성화 필요'}
@@ -693,11 +692,11 @@ export default function PointsPage() {
                   {/* Direct Input Option */}
                   <button
                     onClick={() => handleSelectInputMethod('direct')}
-                    className="p-4 rounded-xl border-2 border-neutral-200 hover:border-brand-800 hover:bg-brand-50 text-left transition-all"
+                    className="ad-press p-4 rounded-[12px] border border-[color:var(--ad-line-strong)] bg-white hover:border-[color:var(--ad-ink)] hover:bg-[color:var(--ad-bg-alt)] text-left transition-all"
                   >
-                    <Keyboard className="w-6 h-6 text-brand-800 mb-2" />
-                    <p className="font-semibold text-neutral-900">직접 입력</p>
-                    <p className="text-xs text-neutral-500 mt-1">포인트 직접 입력</p>
+                    <Keyboard className="w-5 h-5 text-[color:var(--ad-muted)] mb-2" strokeWidth={1.8} />
+                    <p className="text-[14px] font-semibold text-[color:var(--ad-ink)]">직접 입력</p>
+                    <p className="text-[12px] text-[color:var(--ad-muted)] mt-1">포인트 직접 입력</p>
                   </button>
                 </div>
               </div>
@@ -708,21 +707,21 @@ export default function PointsPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Left - Input and Preview */}
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-sm text-brand-800">
-                    <Calculator className="w-4 h-4" />
+                  <div className="flex items-center gap-2 text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                    <Calculator className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                     <span>결제금액 입력 ({storeSettings.pointRatePercent}% 적립)</span>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-700">결제 금액</label>
+                    <label className="block text-[13px] font-medium text-[color:var(--ad-ink-2)]">결제 금액</label>
                     <div
-                      className="flex items-center justify-between px-4 py-3 border-2 rounded-xl bg-white border-brand-800 ring-2 ring-brand-100 cursor-text"
+                      className="flex items-center justify-between px-4 py-3 border rounded-[12px] bg-white border-[color:var(--ad-ink)] ring-[3px] ring-[rgba(29,32,34,0.06)] cursor-text"
                       onClick={() => paymentInputRef.current?.focus()}
                     >
-                      <span className="text-2xl font-bold text-neutral-900">
+                      <span className="text-[24px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                         {paymentInput ? formatNumber(parseInt(paymentInput)) : '0'}
                       </span>
-                      <span className="text-lg text-neutral-500">원</span>
+                      <span className="text-[15px] text-[color:var(--ad-muted)]">원</span>
                     </div>
                     <input
                       ref={paymentInputRef}
@@ -740,10 +739,10 @@ export default function PointsPage() {
                       <button
                         key={preset}
                         onClick={() => setPaymentInput(preset.toString())}
-                        className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                        className={`ad-press h-9 rounded-[10px] text-[13px] font-medium ad-tnum transition-all ${
                           parseInt(paymentInput) === preset
-                            ? 'bg-brand-800 text-white'
-                            : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                            ? 'bg-[color:var(--ad-ink)] text-white'
+                            : 'bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'
                         }`}
                       >
                         {formatNumber(preset)}
@@ -752,63 +751,63 @@ export default function PointsPage() {
                   </div>
 
                   {/* Calculated Points Preview */}
-                  <div className="bg-brand-50 rounded-xl p-4 text-center">
-                    <p className="text-sm text-brand-700">적립 예정 포인트</p>
-                    <p className="text-2xl font-bold text-brand-800 mt-1">
+                  <div className="bg-[color:var(--ad-bg-alt)] rounded-[12px] p-4 text-center">
+                    <p className="text-[12px] text-[color:var(--ad-muted)]">적립 예정 포인트</p>
+                    <p className="text-[24px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)] mt-1">
                       {formatNumber(calculatePointsFromPayment(parseInt(paymentInput) || 0))} P
                     </p>
                   </div>
 
                   <button
                     onClick={() => setInputMethod(null)}
-                    className="text-sm text-neutral-500 hover:text-neutral-700"
+                    className="text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
                   >
                     ← 다른 방식 선택
                   </button>
                 </div>
 
                 {/* Right - Keypad */}
-                <div className="bg-neutral-50 rounded-2xl p-4">
+                <div className="bg-[color:var(--ad-bg-alt)] rounded-[16px] p-3">
                   <div className="grid grid-cols-3 gap-2">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                       <button
                         key={num}
                         onClick={() => setPaymentInput(prev => prev + num.toString())}
-                        className="aspect-square flex items-center justify-center text-2xl font-semibold text-neutral-900 bg-white rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
+                        className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] ad-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
                       >
                         {num}
                       </button>
                     ))}
                     <button
                       onClick={() => setPaymentInput('')}
-                      className="aspect-square flex items-center justify-center text-sm font-semibold text-neutral-600 bg-red-50 rounded-xl hover:bg-red-100 active:bg-red-200 transition-colors"
+                      className="aspect-square flex items-center justify-center text-[13px] font-medium text-[color:var(--ad-neg)] bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[#fff0f3] active:bg-[#ffe1e8] transition-colors"
                     >
                       초기화
                     </button>
                     <button
                       onClick={() => setPaymentInput(prev => prev + '0')}
-                      className="aspect-square flex items-center justify-center text-2xl font-semibold text-neutral-900 bg-white rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
+                      className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] ad-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
                     >
                       0
                     </button>
                     <button
                       onClick={() => setPaymentInput(prev => prev.slice(0, -1))}
-                      className="aspect-square flex items-center justify-center text-neutral-600 bg-neutral-200 rounded-xl hover:bg-neutral-300 active:bg-neutral-400 transition-colors"
+                      className="aspect-square flex items-center justify-center text-[color:var(--ad-ink-2)] bg-[color:var(--ad-bg)] rounded-[12px] hover:bg-[color:var(--ad-line)] active:bg-[color:var(--ad-line-strong)] transition-colors"
                     >
-                      <Delete className="w-6 h-6" />
+                      <Delete className="w-5 h-5" />
                     </button>
                   </div>
                   {/* Quick add buttons */}
                   <div className="grid grid-cols-2 gap-2 mt-3">
                     <button
                       onClick={() => setPaymentInput(prev => (parseInt(prev || '0') + 10000).toString())}
-                      className="py-3 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                      className="ad-press h-11 rounded-[12px] bg-white text-[13px] font-medium ad-tnum text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
                     >
                       +1만
                     </button>
                     <button
                       onClick={() => setPaymentInput(prev => (parseInt(prev || '0') + 50000).toString())}
-                      className="py-3 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                      className="ad-press h-11 rounded-[12px] bg-white text-[13px] font-medium ad-tnum text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
                     >
                       +5만
                     </button>
@@ -822,21 +821,21 @@ export default function PointsPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Left - Input and Preview */}
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-sm text-brand-800">
-                    <Keyboard className="w-4 h-4" />
+                  <div className="flex items-center gap-2 text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                    <Keyboard className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                     <span>직접 포인트 입력</span>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-700">적립 포인트</label>
+                    <label className="block text-[13px] font-medium text-[color:var(--ad-ink-2)]">적립 포인트</label>
                     <div
-                      className="flex items-center justify-between px-4 py-3 border-2 rounded-xl bg-white border-brand-800 ring-2 ring-brand-100 cursor-text"
+                      className="flex items-center justify-between px-4 py-3 border rounded-[12px] bg-white border-[color:var(--ad-ink)] ring-[3px] ring-[rgba(29,32,34,0.06)] cursor-text"
                       onClick={() => pointsInputRef.current?.focus()}
                     >
-                      <span className="text-2xl font-bold text-neutral-900">
+                      <span className="text-[24px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                         {pointsInput ? formatNumber(parseInt(pointsInput)) : '0'}
                       </span>
-                      <span className="text-lg text-neutral-500">P</span>
+                      <span className="text-[15px] text-[color:var(--ad-muted)]">P</span>
                     </div>
                     <input
                       ref={pointsInputRef}
@@ -854,10 +853,10 @@ export default function PointsPage() {
                       <button
                         key={preset}
                         onClick={() => setPointsInput(preset.toString())}
-                        className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                        className={`ad-press h-9 rounded-[10px] text-[13px] font-medium ad-tnum transition-all ${
                           parseInt(pointsInput) === preset
-                            ? 'bg-brand-800 text-white'
-                            : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                            ? 'bg-[color:var(--ad-ink)] text-white'
+                            : 'bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'
                         }`}
                       >
                         {formatNumber(preset)}P
@@ -867,54 +866,54 @@ export default function PointsPage() {
 
                   <button
                     onClick={() => setInputMethod(null)}
-                    className="text-sm text-neutral-500 hover:text-neutral-700"
+                    className="text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
                   >
                     ← 다른 방식 선택
                   </button>
                 </div>
 
                 {/* Right - Keypad */}
-                <div className="bg-neutral-50 rounded-2xl p-4">
+                <div className="bg-[color:var(--ad-bg-alt)] rounded-[16px] p-3">
                   <div className="grid grid-cols-3 gap-2">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                       <button
                         key={num}
                         onClick={() => setPointsInput(prev => prev + num.toString())}
-                        className="aspect-square flex items-center justify-center text-2xl font-semibold text-neutral-900 bg-white rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
+                        className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] ad-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
                       >
                         {num}
                       </button>
                     ))}
                     <button
                       onClick={() => setPointsInput('')}
-                      className="aspect-square flex items-center justify-center text-sm font-semibold text-neutral-600 bg-red-50 rounded-xl hover:bg-red-100 active:bg-red-200 transition-colors"
+                      className="aspect-square flex items-center justify-center text-[13px] font-medium text-[color:var(--ad-neg)] bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[#fff0f3] active:bg-[#ffe1e8] transition-colors"
                     >
                       초기화
                     </button>
                     <button
                       onClick={() => setPointsInput(prev => prev + '0')}
-                      className="aspect-square flex items-center justify-center text-2xl font-semibold text-neutral-900 bg-white rounded-xl hover:bg-neutral-100 active:bg-neutral-200 transition-colors shadow-sm"
+                      className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] ad-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
                     >
                       0
                     </button>
                     <button
                       onClick={() => setPointsInput(prev => prev.slice(0, -1))}
-                      className="aspect-square flex items-center justify-center text-neutral-600 bg-neutral-200 rounded-xl hover:bg-neutral-300 active:bg-neutral-400 transition-colors"
+                      className="aspect-square flex items-center justify-center text-[color:var(--ad-ink-2)] bg-[color:var(--ad-bg)] rounded-[12px] hover:bg-[color:var(--ad-line)] active:bg-[color:var(--ad-line-strong)] transition-colors"
                     >
-                      <Delete className="w-6 h-6" />
+                      <Delete className="w-5 h-5" />
                     </button>
                   </div>
                   {/* Quick add buttons */}
                   <div className="grid grid-cols-2 gap-2 mt-3">
                     <button
                       onClick={() => setPointsInput(prev => (parseInt(prev || '0') + 500).toString())}
-                      className="py-3 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                      className="ad-press h-11 rounded-[12px] bg-white text-[13px] font-medium ad-tnum text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
                     >
                       +500P
                     </button>
                     <button
                       onClick={() => setPointsInput(prev => (parseInt(prev || '0') + 1000).toString())}
-                      className="py-3 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                      className="ad-press h-11 rounded-[12px] bg-white text-[13px] font-medium ad-tnum text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
                     >
                       +1000P
                     </button>
@@ -927,6 +926,7 @@ export default function PointsPage() {
           <ModalFooter>
             <Button
               variant="outline"
+              className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               onClick={() => {
                 setShowInputMethodModal(false);
                 setInputMethod(null);
@@ -936,6 +936,7 @@ export default function PointsPage() {
             </Button>
             {inputMethod && (
               <Button
+                className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
                 onClick={handleInputMethodConfirm}
                 disabled={
                   (inputMethod === 'payment' && calculatePointsFromPayment(parseInt(paymentInput) || 0) <= 0) ||
@@ -957,31 +958,31 @@ export default function PointsPage() {
           </ModalHeader>
 
           <div className="py-4">
-            <div className="bg-neutral-50 rounded-xl p-4 space-y-3">
+            <div className="bg-[color:var(--ad-bg-alt)] rounded-[12px] p-4 space-y-3">
               {/* Customer info */}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-neutral-500">고객</span>
+                <span className="text-[13px] text-[color:var(--ad-muted)]">고객</span>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-neutral-900">
+                  <span className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">
                     {customer?.name || (isNewCustomer ? '신규 고객' : '알 수 없음')}
                   </span>
-                  {customer?.isVip && <Badge variant="vip">VIP</Badge>}
-                  {isNewCustomer && <Badge variant="new">신규</Badge>}
+                  {customer?.isVip && <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">VIP</span>}
+                  {isNewCustomer && <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">신규</span>}
                 </div>
               </div>
 
               {/* Phone */}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-neutral-500">전화번호</span>
-                <span className="font-medium text-neutral-900">
+                <span className="text-[13px] text-[color:var(--ad-muted)]">전화번호</span>
+                <span className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">
                   010-{phoneInput.slice(0, 4)}-{phoneInput.slice(4)}
                 </span>
               </div>
 
               {/* Points to earn */}
-              <div className="flex items-center justify-between border-t border-neutral-200 pt-3">
-                <span className="text-sm text-neutral-500">적립 포인트</span>
-                <span className="text-xl font-bold text-brand-800">
+              <div className="flex items-center justify-between border-t border-[color:var(--ad-line)] pt-3">
+                <span className="text-[13px] text-[color:var(--ad-muted)]">적립 포인트</span>
+                <span className="text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                   +{formatNumber(currentPoints)} P
                 </span>
               </div>
@@ -989,8 +990,8 @@ export default function PointsPage() {
               {/* New balance (if existing customer) */}
               {customer && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-neutral-500">적립 후 잔액</span>
-                  <span className="font-medium text-green-600">
+                  <span className="text-[13px] text-[color:var(--ad-muted)]">적립 후 잔액</span>
+                  <span className="text-[13.5px] font-medium ad-tnum text-[color:var(--ad-pos)]">
                     {formatNumber(customer.totalPoints + currentPoints)} P
                   </span>
                 </div>
@@ -1001,6 +1002,7 @@ export default function PointsPage() {
           <ModalFooter>
             <Button
               variant="outline"
+              className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               onClick={() => setShowConfirmModal(false)}
               disabled={isSubmitting}
             >
@@ -1009,7 +1011,7 @@ export default function PointsPage() {
             <Button
               onClick={handleSubmitEarn}
               disabled={isSubmitting}
-              className="min-w-24"
+              className="min-w-24 ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
             >
               {isSubmitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1034,23 +1036,23 @@ export default function PointsPage() {
         <ModalContent className="max-w-sm">
           <div className="py-8 text-center">
             <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle2 className="w-10 h-10 text-green-600" />
+              <div className="w-14 h-14 bg-[color:var(--ad-bg)] rounded-full flex items-center justify-center">
+                <CheckCircle2 className="w-7 h-7 text-[color:var(--ad-pos)]" strokeWidth={1.7} />
               </div>
             </div>
-            <h2 className="text-xl font-bold text-neutral-900 mb-2">
+            <h2 className="text-[17px] font-semibold text-[color:var(--ad-ink)] mb-2">
               포인트 적립 완료
             </h2>
-            <p className="text-neutral-600 mb-4">
+            <p className="text-[13.5px] text-[color:var(--ad-ink-2)] mb-4">
               {successData?.customerName || '고객'}님에게<br />
-              <span className="text-brand-800 font-bold text-lg">
+              <span className="text-[color:var(--ad-ink)] font-semibold text-[17px] ad-tnum">
                 {formatNumber(successData?.points || 0)}P
               </span>
               가 적립되었습니다.
             </p>
-            <div className="bg-neutral-50 rounded-lg py-3 px-4 inline-block">
-              <span className="text-sm text-neutral-500">현재 보유 포인트</span>
-              <p className="text-xl font-bold text-neutral-900">
+            <div className="bg-[color:var(--ad-bg-alt)] rounded-[12px] py-3 px-4 inline-block">
+              <span className="text-[13px] text-[color:var(--ad-muted)]">현재 보유 포인트</span>
+              <p className="text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                 {formatNumber(successData?.totalPoints || 0)} P
               </p>
             </div>
@@ -1062,7 +1064,7 @@ export default function PointsPage() {
                 setShowSuccessModal(false);
                 handleReset();
               }}
-              className="min-w-32"
+              className="min-w-32 ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
             >
               확인
             </Button>

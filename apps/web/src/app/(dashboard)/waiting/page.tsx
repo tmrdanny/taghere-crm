@@ -470,8 +470,8 @@ export default function WaitingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-brand-800 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-neutral-500">로딩 중...</p>
+          <div className="w-8 h-8 border-4 border-[color:var(--ad-ink)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[13px] text-[color:var(--ad-faint)]">로딩 중...</p>
         </div>
       </div>
     );
@@ -482,17 +482,17 @@ export default function WaitingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="text-center max-w-md">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-8 h-8 text-red-500" />
+          <div className="w-12 h-12 bg-[color:var(--ad-bg)] rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-5 h-5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
           </div>
-          <h1 className="text-xl font-bold text-neutral-900 mb-2">웨이팅 서비스 이용 불가</h1>
-          <p className="text-neutral-600 mb-6">
+          <h1 className="text-[20px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)] mb-2">웨이팅 서비스 이용 불가</h1>
+          <p className="text-[13.5px] leading-relaxed text-[color:var(--ad-muted)] mb-6">
             웨이팅 서비스는 충전금이 10,000원 이상일 때 사용 가능합니다.
             <br />
-            현재 잔액: <span className="font-semibold text-red-500">0원</span>
+            현재 잔액: <span className="font-semibold text-[color:var(--ad-neg)] ad-tnum">0원</span>
           </p>
           <Link href="/billing">
-            <Button>
+            <Button className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 border-0">
               충전하러 가기
             </Button>
           </Link>
@@ -502,12 +502,12 @@ export default function WaitingPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {ToastComponent}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <div className="flex flex-wrap items-center gap-4">
           <WaitingOperationStatusSelector
             status={settings?.operationStatus || 'CLOSED'}
             onChange={handleOperationStatusChange}
@@ -515,25 +515,25 @@ export default function WaitingPage() {
           />
 
           {/* Stats */}
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2 text-neutral-600">
+          <div className="flex items-center gap-4 text-[13px]">
+            <div className="flex items-center gap-2 text-[color:var(--ad-muted)]">
               <Users className="w-4 h-4" />
               <span>
                 총 웨이팅{' '}
-                <span className="font-semibold text-neutral-900">
+                <span className="font-semibold text-[color:var(--ad-ink)] ad-tnum">
                   {stats?.totalTeams || 0}팀
                 </span>
                 {' / '}
-                <span className="font-semibold text-neutral-900">
+                <span className="font-semibold text-[color:var(--ad-ink)] ad-tnum">
                   {stats?.totalGuests || 0}명
                 </span>
               </span>
             </div>
-            <div className="flex items-center gap-2 text-neutral-600">
+            <div className="flex items-center gap-2 text-[color:var(--ad-muted)]">
               <Clock className="w-4 h-4" />
               <span>
                 예상시간{' '}
-                <span className="font-semibold text-neutral-900">
+                <span className="font-semibold text-[color:var(--ad-ink)] ad-tnum">
                   {stats?.estimatedMinutes || 0}분
                 </span>
               </span>
@@ -545,6 +545,7 @@ export default function WaitingPage() {
           <Button
             variant="outline"
             size="sm"
+            className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0"
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
@@ -552,12 +553,13 @@ export default function WaitingPage() {
             새로고침
           </Button>
           <Link href="/waiting/settings">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0">
               <Settings className="w-4 h-4 mr-1" />
               설정
             </Button>
           </Link>
           <Button
+            className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 border-0"
             onClick={() => {
               setPreSelectedTypeId(null);
               setAddModalOpen(true);
@@ -571,24 +573,22 @@ export default function WaitingPage() {
 
       {/* CTA: 웨이팅 화면 켜기 */}
       {storeSlug && (
-        <div className="mb-6 p-5 bg-gradient-to-r from-brand-800 to-brand-700 rounded-xl shadow-lg">
+        <div className="ad-card mb-5 p-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                <Tablet className="w-6 h-6 text-white" />
-              </div>
+            <div className="flex items-center gap-3">
+              <Tablet className="h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
               <div>
-                <h3 className="text-white font-bold text-lg">태블릿에서 웨이팅 화면 켜기</h3>
-                <p className="text-white/80 text-sm mt-0.5">
+                <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">태블릿에서 웨이팅 화면 켜기</h3>
+                <p className="text-[13px] text-[color:var(--ad-muted)] mt-0.5">
                   고객이 직접 웨이팅을 등록할 수 있는 화면을 태블릿에서 띄워주세요
                 </p>
               </div>
             </div>
             <Button
               onClick={() => window.open(`/w/${storeSlug}/tablet`, '_blank')}
-              className="bg-white text-brand-800 hover:bg-white/90 font-semibold px-6 h-11 shadow-md"
+              className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0"
             >
-              <ExternalLink className="w-4 h-4 mr-2" />
+              <ExternalLink className="w-4 h-4" />
               웨이팅 화면 열기
             </Button>
           </div>
@@ -597,20 +597,20 @@ export default function WaitingPage() {
 
       {/* Warning if wallet balance is low */}
       {walletBalance !== null && walletBalance > 0 && walletBalance < 10000 && (
-        <div className="flex items-center justify-between gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-lg">
+        <div className="flex items-center justify-between gap-3 p-4 mb-5 rounded-[12px] bg-[#fff2f5]">
           <div className="flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <AlertCircle className="w-5 h-5 text-[color:var(--ad-neg)] flex-shrink-0" />
             <div>
-              <p className="font-medium text-red-800">
+              <p className="text-[13.5px] font-semibold text-[color:var(--ad-neg)]">
                 충전금이 부족합니다
               </p>
-              <p className="text-sm text-red-700 mt-0.5">
+              <p className="text-[13px] text-[color:var(--ad-ink-2)] mt-0.5">
                 웨이팅 서비스는 충전금이 10,000원 이상일 때 사용 가능합니다. (현재 잔액: {formatNumber(walletBalance)}원)
               </p>
             </div>
           </div>
           <Link href="/billing">
-            <Button variant="outline" size="sm" className="border-red-300 text-red-700 hover:bg-red-100">
+            <Button variant="outline" size="sm" className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0">
               충전하기
             </Button>
           </Link>
@@ -619,10 +619,10 @@ export default function WaitingPage() {
 
       {/* Warning if operation is not accepting */}
       {settings?.operationStatus !== 'ACCEPTING' && (
-        <div className="flex items-center gap-3 p-4 mb-6 bg-warning-light border border-warning rounded-lg">
-          <AlertCircle className="w-5 h-5 text-warning flex-shrink-0" />
+        <div className="flex items-start gap-2.5 mb-5 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[13px] text-[color:var(--ad-muted)]">
+          <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
           <div>
-            <p className="font-medium text-amber-800">
+            <p className="text-[13.5px] font-semibold text-[color:var(--ad-ink)]">
               현재 웨이팅 접수가{' '}
               {settings?.operationStatus === 'WALK_IN'
                 ? '바로입장 상태'
@@ -631,7 +631,7 @@ export default function WaitingPage() {
                 : '운영종료 상태'}
               입니다.
             </p>
-            <p className="text-sm text-amber-700 mt-0.5">
+            <p className="text-[13px] text-[color:var(--ad-muted)] mt-0.5">
               새로운 웨이팅을 받으려면 운영 상태를 '접수중'으로 변경해주세요.
             </p>
           </div>
@@ -639,7 +639,7 @@ export default function WaitingPage() {
       )}
 
       {/* Type Cards */}
-      <div className="mb-6">
+      <div className="mb-5">
         <WaitingTypeCards
           types={types}
           stats={stats?.byType || []}
@@ -648,9 +648,9 @@ export default function WaitingPage() {
       </div>
 
       {/* Filters */}
-      <Card className="mb-6">
+      <Card className="ad-card overflow-hidden border-0">
         {/* Type Tabs */}
-        <div className="p-4 border-b border-neutral-100">
+        <div className="p-4 border-b border-[color:var(--ad-line)]">
           <WaitingTypeTabs
             types={types}
             selectedTypeId={selectedTypeId}

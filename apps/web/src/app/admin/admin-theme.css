@@ -1,6 +1,7 @@
 /* 관리자 공통 테마 — taghere-v2 디자인 토큰 기반, .ad 범위 안에서만 적용 */
 
-.ad {
+/* 토큰은 전역(:root)에 둔다 — 모달처럼 body 로 포털되는 요소에서도 var(--ad-*) 가 동작하도록. 이름이 --ad- 로 한정돼 다른 화면과 충돌 없음 */
+:root {
   /* taghere-v2 디자인 토큰 (packages/config-tailwind/theme.css) */
   --ad-ink: #1d2022;          /* text-primary */
   --ad-ink-2: #383c40;        /* cool-neutral-800 */
@@ -23,6 +24,9 @@
   --ad-neg: #cc0832;          /* red-600 (텍스트용) */
   --ad-amber: #cc5229;        /* orange-600 */
   --ad-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ad {
 
   position: relative;
   min-height: 100dvh;
@@ -40,6 +44,14 @@
 .ad-cloud:nth-child(2) { width: 40vw; height: 40vw; top: -14vw; right: -10vw; background: radial-gradient(closest-side, rgba(255, 213, 65, 0.22), transparent); animation-duration: 85s; }
 .ad-cloud:nth-child(3) { width: 46vw; height: 46vw; bottom: -26vw; left: 18vw; background: radial-gradient(closest-side, rgba(42, 45, 98, 0.1), transparent); animation-duration: 95s; animation-direction: alternate-reverse; }
 .ad-cloud:nth-child(4) { width: 34vw; height: 34vw; bottom: -12vw; right: -8vw; background: radial-gradient(closest-side, rgba(110, 173, 255, 0.18), transparent); animation-duration: 75s; animation-direction: alternate-reverse; }
+
+/* 사장님 CRM: 배경은 차분하게 — 색 번짐 대신 아주 옅은 단색 톤 하나만 */
+.ad-crm .ad-cloud { display: none; }
+.ad-crm .ad-cloud:nth-child(1) {
+  display: block;
+  animation: none;
+  background: radial-gradient(closest-side, rgba(110, 173, 255, 0.07), transparent);
+}
 
 /* ─── 전체 화면 레이아웃 (프레임·바깥 라운드 없음) ─── */
 .ad-shell { position: relative; display: flex; min-height: 100dvh; }
@@ -101,38 +113,61 @@
 .ad-noscroll { scrollbar-width: none; }
 .ad-noscroll::-webkit-scrollbar { display: none; }
 
-/* ─── 공용 부스터 컴포넌트 재매핑 (관리자 부스터 페이지 한정) ───
-   components/place-booster/* 는 점주·프랜차이즈 화면과 공유하므로 코드를 바꾸지 않고
-   .ad-booster 범위 안에서만 기본 Tailwind 클래스를 v2 토큰으로 덮어쓴다. */
-.ad-booster .text-neutral-900,
-.ad-booster .text-neutral-800 { color: var(--ad-ink); }
-.ad-booster .text-neutral-700,
-.ad-booster .text-neutral-600 { color: var(--ad-ink-2); }
-.ad-booster .text-neutral-500 { color: var(--ad-muted); }
-.ad-booster .text-neutral-400 { color: var(--ad-faint); }
-.ad-booster .text-brand-800 { color: var(--ad-link); }
-.ad-booster .text-red-600,
-.ad-booster .text-red-700 { color: var(--ad-neg); }
-.ad-booster .text-green-700 { color: var(--ad-pos); }
-.ad-booster .border-neutral-100,
-.ad-booster .border-neutral-200 { border-color: var(--ad-line); }
-.ad-booster .border-neutral-300 { border-color: var(--ad-line-strong); }
-.ad-booster .bg-neutral-50 { background-color: var(--ad-bg-alt); }
-.ad-booster .hover\:bg-neutral-50:hover { background-color: var(--ad-bg-alt); }
-.ad-booster .bg-brand-50 { background-color: var(--ad-blue-soft); }
-.ad-booster .shadow-card { box-shadow: 0 1px 2px rgba(29, 32, 34, 0.03); }
-.ad-booster .rounded-xl { border-radius: 16px; }
-.ad-booster .rounded-lg { border-radius: 10px; }
-.ad-booster input:not([type='checkbox']):not([type='radio']),
-.ad-booster select,
-.ad-booster textarea { border-color: var(--ad-line-strong); border-radius: 10px; }
-.ad-booster input:focus,
-.ad-booster select:focus,
-.ad-booster textarea:focus { border-color: var(--ad-navy); outline: none; box-shadow: none; }
+/* ─── 기본 Tailwind 클래스 → v2 토큰 재매핑 ───
+   .ad-booster: 관리자 부스터 페이지(점주·프랜차이즈와 공유하는 컴포넌트 포함)
+   .ad-crm    : 사장님 CRM 전체 — 공용 컴포넌트(Card/Button 등)까지 코드 변경 없이 v2 톤으로 */
+:is(.ad-booster, .ad-crm) .text-neutral-900,
+:is(.ad-booster, .ad-crm) .text-neutral-800 { color: var(--ad-ink); }
+:is(.ad-booster, .ad-crm) .text-neutral-700,
+:is(.ad-booster, .ad-crm) .text-neutral-600 { color: var(--ad-ink-2); }
+:is(.ad-booster, .ad-crm) .text-neutral-500 { color: var(--ad-muted); }
+:is(.ad-booster, .ad-crm) .text-neutral-400 { color: var(--ad-faint); }
+:is(.ad-booster, .ad-crm) .text-brand-800 { color: var(--ad-link); }
+:is(.ad-booster, .ad-crm) .text-red-600,
+:is(.ad-booster, .ad-crm) .text-red-700 { color: var(--ad-neg); }
+:is(.ad-booster, .ad-crm) .text-green-700 { color: var(--ad-pos); }
+:is(.ad-booster, .ad-crm) .border-neutral-100,
+:is(.ad-booster, .ad-crm) .border-neutral-200 { border-color: var(--ad-line); }
+:is(.ad-booster, .ad-crm) .border-neutral-300 { border-color: var(--ad-line-strong); }
+:is(.ad-booster, .ad-crm) .bg-neutral-50 { background-color: var(--ad-bg-alt); }
+:is(.ad-booster, .ad-crm) .hover\:bg-neutral-50:hover { background-color: var(--ad-bg-alt); }
+:is(.ad-booster, .ad-crm) .bg-brand-50 { background-color: var(--ad-blue-soft); }
+:is(.ad-booster, .ad-crm) .shadow-card { box-shadow: 0 1px 2px rgba(29, 32, 34, 0.03); }
+:is(.ad-booster, .ad-crm) .rounded-xl { border-radius: 16px; }
+:is(.ad-booster, .ad-crm) .rounded-lg { border-radius: 10px; }
+:is(.ad-booster, .ad-crm) input:not([type='checkbox']):not([type='radio']),
+:is(.ad-booster, .ad-crm) select,
+:is(.ad-booster, .ad-crm) textarea { border-color: var(--ad-line-strong); border-radius: 10px; }
+:is(.ad-booster, .ad-crm) input:focus,
+:is(.ad-booster, .ad-crm) select:focus,
+:is(.ad-booster, .ad-crm) textarea:focus { border-color: var(--ad-navy); outline: none; box-shadow: none; }
 /* 주요 버튼(공용 Button 기본값 = bg-brand-800)은 v2 노랑 */
-.ad-booster .bg-brand-800 { background-color: var(--ad-yellow); color: var(--ad-ink); }
-.ad-booster .hover\:bg-brand-900:hover { background-color: var(--ad-yellow-strong); }
-.ad-booster .border-brand-800 { border-color: var(--ad-link); }
+:is(.ad-booster, .ad-crm) .bg-brand-800 { background-color: var(--ad-yellow); color: var(--ad-ink); }
+:is(.ad-booster, .ad-crm) .hover\:bg-brand-900:hover { background-color: var(--ad-yellow-strong); }
+:is(.ad-booster, .ad-crm) .border-brand-800 { border-color: var(--ad-link); }
+
+:is(.ad-booster, .ad-crm) .bg-brand-700 { background-color: var(--ad-yellow); color: var(--ad-ink); }
+:is(.ad-booster, .ad-crm) .hover\:bg-brand-700:hover { background-color: var(--ad-yellow-strong); }
+:is(.ad-booster, .ad-crm) .text-brand-700 { color: var(--ad-link); }
+:is(.ad-booster, .ad-crm) .bg-brand-100 { background-color: var(--ad-blue-soft); }
+:is(.ad-booster, .ad-crm) .border-brand-200 { border-color: var(--ad-blue-soft); }
+:is(.ad-booster, .ad-crm) .bg-neutral-100 { background-color: var(--ad-bg); }
+:is(.ad-booster, .ad-crm) .hover\:bg-neutral-100:hover { background-color: var(--ad-bg); }
+:is(.ad-booster, .ad-crm) .bg-slate-50 { background-color: var(--ad-bg-alt); }
+:is(.ad-booster, .ad-crm) .text-slate-800,
+:is(.ad-booster, .ad-crm) .text-slate-900 { color: var(--ad-ink); }
+:is(.ad-booster, .ad-crm) .border-slate-200 { border-color: var(--ad-line); }
+/* 사장님 CRM은 무채색 톤: 공용 Button 기본값(bg-brand-800)을 노랑 대신 검정으로 */
+.ad-crm .bg-brand-800,
+.ad-crm .bg-brand-700 { background-color: var(--ad-ink); color: #fff; }
+.ad-crm .hover\:bg-brand-900:hover,
+.ad-crm .hover\:bg-brand-700:hover { background-color: #383c40; }
+.ad-crm .bg-brand-50,
+.ad-crm .bg-brand-100 { background-color: var(--ad-bg); }
+.ad-crm .text-brand-800,
+.ad-crm .text-brand-700 { color: var(--ad-ink); }
+/* 공용 Card: rounded-xl border border-neutral-200 bg-white shadow-card */
+.ad-crm .rounded-xl.border.bg-white.shadow-card { border-radius: 16px; border-color: var(--ad-line); box-shadow: 0 1px 2px rgba(29, 32, 34, 0.03); }
 
 @keyframes ad-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes ad-grow-x { to { transform: scaleX(1); } }

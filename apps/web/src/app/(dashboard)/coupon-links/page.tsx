@@ -3,13 +3,11 @@
 import { API_BASE } from '@/lib/api-config';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toast';
-import { Ticket, Plus, Trash2, Copy, Download, Link2, Pencil, Users, CheckCircle2, Image as ImageIcon } from 'lucide-react';
+import { Ticket, Plus, Trash2, Copy, Download, Link2, Pencil, Users, CheckCircle2, Info, Image as ImageIcon } from 'lucide-react';
 
 interface FormField {
   id: string;
@@ -288,117 +286,119 @@ export default function CouponLinksPage() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {ToastComponent}
 
       {/* 헤더 */}
-      <div className="flex items-start justify-between gap-4 mb-6">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <Ticket className="w-6 h-6 text-neutral-700" />
-            <h1 className="text-2xl font-bold text-neutral-900">쿠폰 발행 링크</h1>
+            <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">쿠폰 발행 링크</h1>
           </div>
-          <p className="text-sm text-neutral-500 mt-1.5">
+          <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
             쿠폰을 직접 만들고 QR코드로 출력하여 설문을 제출하신 손님들에게 자동으로 쿠폰을 발송해요
           </p>
         </div>
-        <Button onClick={openCreate} className="shrink-0">
-          <Plus className="w-4 h-4 mr-1.5" />
+        <button onClick={openCreate} className="shrink-0 ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
+          <Plus className="w-4 h-4" />
           새 링크 만들기
-        </Button>
+        </button>
       </div>
 
       {/* 비용 안내 */}
-      <div className="mb-6 px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl text-[13px] text-blue-700">
-        설문이 제출될 때마다 쿠폰 알림톡이 자동 발송되며 <strong>건당 50원</strong>이 차감돼요. (월 무료 발송 건수가 남아있으면 무료로 발송)
+      <div className="mb-4 flex items-start gap-2 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[13px] text-[color:var(--ad-muted)]">
+        <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+        <p>
+        설문이 제출될 때마다 쿠폰 알림톡이 자동 발송되며 <span className="font-medium text-[color:var(--ad-ink-2)]">건당 50원</span>이 차감돼요. (월 무료 발송 건수가 남아있으면 무료로 발송)
+        </p>
       </div>
 
       {/* 목록 */}
       {isLoading ? (
         <div className="space-y-4 animate-pulse">
           {[...Array(2)].map((_, i) => (
-            <div key={i} className="h-40 bg-neutral-100 rounded-xl" />
+            <div key={i} className="h-40 rounded-[16px] bg-[color:var(--ad-bg)]" />
           ))}
         </div>
       ) : forms.length === 0 ? (
-        <Card>
-          <CardContent className="py-16 text-center">
-            <div className="text-4xl mb-3">🎟️</div>
-            <p className="text-neutral-900 font-medium mb-1">아직 만든 쿠폰 발행 링크가 없어요</p>
-            <p className="text-sm text-neutral-500 mb-5">
+        <div className="ad-card">
+          <div className="px-5 py-16 text-center">
+            <Ticket className="mx-auto mb-3 h-8 w-8 text-[color:var(--ad-faint)]" />
+            <p className="mb-1 text-[14px] font-medium text-[color:var(--ad-ink)]">아직 만든 쿠폰 발행 링크가 없어요</p>
+            <p className="mb-5 text-[13px] text-[color:var(--ad-faint)]">
               첫 링크를 만들고 QR을 매장에 붙여보세요. 손님이 설문을 제출하면 쿠폰이 자동 발송돼요.
             </p>
-            <Button onClick={openCreate}>
-              <Plus className="w-4 h-4 mr-1.5" />
+            <button onClick={openCreate} className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]">
+              <Plus className="w-4 h-4" />
               새 링크 만들기
-            </Button>
-          </CardContent>
-        </Card>
+            </button>
+          </div>
+        </div>
       ) : (
         <div className="space-y-4">
           {forms.map((f) => {
             const rate = f.submissionCount > 0 ? Math.round((f.usedCount / f.submissionCount) * 100) : 0;
             return (
-              <Card key={f.id} className={!f.enabled ? 'opacity-60' : ''}>
-                <CardHeader className="pb-3">
+              <div key={f.id} className={`ad-card ${!f.enabled ? 'opacity-60' : ''}`}>
+                <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <CardTitle className="text-lg truncate">{f.title}</CardTitle>
-                      <p className="text-sm text-neutral-500 mt-0.5 truncate">
+                      <h2 className="truncate text-[15px] font-semibold text-[color:var(--ad-ink)]">{f.title}</h2>
+                      <p className="mt-0.5 truncate text-[13px] text-[color:var(--ad-muted)]">
                         {f.couponContent} · 유효기간 {f.expiryDate}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-neutral-400">{f.enabled ? '진행 중' : '중지됨'}</span>
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-[color:var(--ad-bg)] ${f.enabled ? 'text-[color:var(--ad-ink-2)]' : 'text-[color:var(--ad-muted)]'}`}>{f.enabled ? '진행 중' : '중지됨'}</span>
                       <Switch checked={f.enabled} onCheckedChange={() => toggleEnabled(f)} />
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent>
+                </div>
+                <div className="p-5">
                   {/* 통계 */}
-                  <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className="bg-neutral-50 rounded-lg p-3 text-center">
-                      <div className="flex items-center justify-center gap-1 text-[12px] text-neutral-500 mb-0.5">
+                  <div className="mb-4 grid grid-cols-3 rounded-[12px] border border-[color:var(--ad-line)]">
+                    <div className="p-3.5">
+                      <div className="mb-0.5 flex items-center gap-1 text-[12px] text-[color:var(--ad-muted)]">
                         <Users className="w-3.5 h-3.5" /> 쿠폰 발급
                       </div>
-                      <p className="text-lg font-bold text-neutral-900">{f.submissionCount.toLocaleString()}명</p>
+                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{f.submissionCount.toLocaleString()}명</p>
                     </div>
-                    <div className="bg-neutral-50 rounded-lg p-3 text-center">
-                      <div className="flex items-center justify-center gap-1 text-[12px] text-neutral-500 mb-0.5">
+                    <div className="border-l border-[color:var(--ad-line)] p-3.5">
+                      <div className="mb-0.5 flex items-center gap-1 text-[12px] text-[color:var(--ad-muted)]">
                         <CheckCircle2 className="w-3.5 h-3.5" /> 사용 완료
                       </div>
-                      <p className="text-lg font-bold text-emerald-600">{f.usedCount.toLocaleString()}명</p>
+                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{f.usedCount.toLocaleString()}명</p>
                     </div>
-                    <div className="bg-neutral-50 rounded-lg p-3 text-center">
-                      <p className="text-[12px] text-neutral-500 mb-0.5">사용률</p>
-                      <p className="text-lg font-bold text-neutral-900">{rate}%</p>
+                    <div className="border-l border-[color:var(--ad-line)] p-3.5">
+                      <p className="mb-0.5 text-[12px] text-[color:var(--ad-muted)]">사용률</p>
+                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{rate}%</p>
                     </div>
                   </div>
 
                   {/* 링크 + 액션 */}
                   <div className="flex flex-wrap items-center gap-2">
-                    <code className="flex-1 min-w-[200px] px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-[12px] text-neutral-600 font-mono truncate">
+                    <code className="min-w-[200px] flex-1 truncate rounded-[10px] border border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] px-3 py-2 font-mono text-[12px] text-[color:var(--ad-ink-2)]">
                       {formUrl(f.slug)}
                     </code>
-                    <Button variant="outline" size="sm" onClick={() => copyUrl(f.slug)}>
-                      <Link2 className="w-4 h-4 mr-1" /> 링크 복사
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setQrForm(f)}>
+                    <button onClick={() => copyUrl(f.slug)} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
+                      <Link2 className="w-4 h-4" /> 링크 복사
+                    </button>
+                    <button onClick={() => setQrForm(f)} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
                       QR 코드
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => openEdit(f)}>
-                      <Pencil className="w-4 h-4 mr-1" /> 수정
-                    </Button>
+                    </button>
+                    <button onClick={() => openEdit(f)} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
+                      <Pencil className="w-4 h-4" /> 수정
+                    </button>
                     <button
                       onClick={() => handleDelete(f)}
-                      className="p-2 text-neutral-400 hover:text-red-500 transition-colors"
+                      className="ad-press rounded-[8px] p-2 text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)]"
                       title="삭제"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
@@ -414,7 +414,7 @@ export default function CouponLinksPage() {
           <div className="space-y-5 py-2">
             {/* 상단 배너 이미지 */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">상단 배너 이미지 (선택)</label>
+              <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">상단 배너 이미지 (선택)</label>
               <input
                 ref={bannerInputRef}
                 type="file"
@@ -432,15 +432,15 @@ export default function CouponLinksPage() {
                   <img
                     src={fullImageUrl(bannerUrl)}
                     alt="배너 미리보기"
-                    className="w-full aspect-[860/260] object-cover rounded-lg border border-neutral-200"
+                    className="aspect-[860/260] w-full rounded-[10px] border border-[color:var(--ad-line)] object-cover"
                   />
                   <div className="mt-2 flex gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => bannerInputRef.current?.click()} disabled={isUploadingBanner}>
+                    <button type="button" onClick={() => bannerInputRef.current?.click()} disabled={isUploadingBanner} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
                       {isUploadingBanner ? '업로드 중...' : '이미지 변경'}
-                    </Button>
-                    <Button type="button" variant="outline" size="sm" onClick={() => setBannerUrl('')}>
+                    </button>
+                    <button type="button" onClick={() => setBannerUrl('')} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
                       제거
-                    </Button>
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -448,9 +448,9 @@ export default function CouponLinksPage() {
                   type="button"
                   onClick={() => bannerInputRef.current?.click()}
                   disabled={isUploadingBanner}
-                  className="w-full py-8 border-2 border-dashed border-neutral-300 rounded-lg text-sm text-neutral-500 hover:border-neutral-400 hover:text-neutral-600 transition-colors flex flex-col items-center gap-1"
+                  className="flex w-full flex-col items-center gap-1 rounded-[12px] border-2 border-dashed border-[color:var(--ad-line-strong)] py-8 text-[13px] text-[color:var(--ad-muted)] transition-colors hover:border-[color:var(--ad-faint)] hover:text-[color:var(--ad-ink-2)]"
                 >
-                  <ImageIcon className="w-6 h-6 text-neutral-400" />
+                  <ImageIcon className="h-6 w-6 text-[color:var(--ad-faint)]" />
                   {isUploadingBanner ? '업로드 중...' : '배너 이미지 업로드 (권장 크기 860 x 260px, 최대 5MB)'}
                 </button>
               )}
@@ -458,60 +458,60 @@ export default function CouponLinksPage() {
 
             {/* 기본 정보 */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">폼 제목</label>
+              <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">폼 제목</label>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 설문하고 아메리카노 쿠폰 받기" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">안내 문구 (선택)</label>
+              <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">안내 문구 (선택)</label>
               <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 30초만 참여하면 쿠폰을 드려요!" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-700">
-                  쿠폰 내용 <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  쿠폰 내용 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <Input value={couponContent} onChange={(e) => setCouponContent(e.target.value)} placeholder="예: 아메리카노 1잔 무료" />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-700">
-                  유효기간 <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  유효기간 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <Input value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} placeholder="예: 2026년 8월 31일까지" />
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">
-                네이버 플레이스 URL <span className="text-red-500">*</span>
+              <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                네이버 플레이스 URL <span className="text-[color:var(--ad-neg)]">*</span>
               </label>
               <Input
                 value={naverPlaceUrl}
                 onChange={(e) => setNaverPlaceUrl(e.target.value)}
                 placeholder="예: https://naver.me/xxxxx 또는 네이버 플레이스 공유 링크"
               />
-              <p className="text-xs text-neutral-400">
+              <p className="text-[12px] text-[color:var(--ad-faint)]">
                 쿠폰 알림톡의 길찾기 버튼에 사용돼요. 매장 정보에 함께 저장됩니다.
               </p>
             </div>
 
             {/* 설문 항목 */}
-            <div className="space-y-3 pt-2 border-t border-neutral-100">
+            <div className="space-y-3 border-t border-[color:var(--ad-line)] pt-4">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-neutral-700">설문 항목</label>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">설문 항목</label>
                 <div className="flex gap-1.5">
-                  <Button type="button" variant="outline" size="sm" onClick={() => addPreset('name')}>+ 이름</Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => addPreset('gender')}>+ 성별</Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => addPreset('custom')}>+ 직접 추가</Button>
+                  <button type="button" onClick={() => addPreset('name')} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">+ 이름</button>
+                  <button type="button" onClick={() => addPreset('gender')} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">+ 성별</button>
+                  <button type="button" onClick={() => addPreset('custom')} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">+ 직접 추가</button>
                 </div>
               </div>
 
               {/* 연락처 고정 행 */}
-              <div className="flex items-center gap-3 p-3 bg-neutral-50 rounded-lg border border-neutral-200">
-                <span className="flex-1 text-sm font-medium text-neutral-900">휴대폰 번호</span>
-                <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">필수 · 고정</span>
+              <div className="flex items-center gap-3 rounded-[12px] border border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] p-3">
+                <span className="flex-1 text-[13.5px] font-medium text-[color:var(--ad-ink)]">휴대폰 번호</span>
+                <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">필수 · 고정</span>
               </div>
 
               {fields.map((f) => (
-                <div key={f.id} className="p-3 bg-white rounded-lg border border-neutral-200 space-y-2">
+                <div key={f.id} className="space-y-2 rounded-[12px] border border-[color:var(--ad-line)] bg-white p-3">
                   <div className="flex items-center gap-2">
                     <Input
                       value={f.label}
@@ -528,16 +528,16 @@ export default function CouponLinksPage() {
                           choiceOptions: type === 'CHOICE' ? (f.choiceOptions?.length ? f.choiceOptions : ['', '']) : undefined,
                         });
                       }}
-                      className="px-2 py-2 border border-neutral-200 rounded-lg text-sm"
+                      className="h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-2.5 text-[13.5px] focus:border-[color:var(--ad-ink)] focus:outline-none"
                     >
                       <option value="TEXT">주관식</option>
                       <option value="CHOICE">선택형</option>
                     </select>
-                    <label className="flex items-center gap-1.5 text-xs text-neutral-500 shrink-0">
+                    <label className="flex shrink-0 items-center gap-1.5 text-[12px] text-[color:var(--ad-muted)]">
                       필수
                       <Switch checked={f.required} onCheckedChange={(v) => updateField(f.id, { required: v })} />
                     </label>
-                    <button onClick={() => removeField(f.id)} className="p-1.5 text-neutral-400 hover:text-red-500">
+                    <button onClick={() => removeField(f.id)} className="ad-press rounded-[8px] p-1.5 text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)]">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -559,10 +559,10 @@ export default function CouponLinksPage() {
           </div>
 
           <ModalFooter>
-            <Button variant="secondary" onClick={() => setIsEditorOpen(false)}>취소</Button>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <button onClick={() => setIsEditorOpen(false)} className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]">취소</button>
+            <button onClick={handleSave} disabled={isSaving} className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
               {isSaving ? '저장 중...' : editingId ? '수정하기' : '만들기'}
-            </Button>
+            </button>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -575,18 +575,18 @@ export default function CouponLinksPage() {
           </ModalHeader>
           {qrForm && (
             <div className="flex flex-col items-center py-4">
-              <div ref={qrWrapRef} className="p-4 bg-white border border-neutral-200 rounded-xl">
+              <div ref={qrWrapRef} className="rounded-[16px] border border-[color:var(--ad-line)] bg-white p-4">
                 <QRCodeCanvas value={formUrl(qrForm.slug)} size={220} level="M" includeMargin />
               </div>
-              <p className="mt-3 text-sm font-medium text-neutral-900">{qrForm.title}</p>
-              <p className="text-xs text-neutral-400 mt-0.5 break-all text-center px-4">{formUrl(qrForm.slug)}</p>
+              <p className="mt-3 text-[14px] font-medium text-[color:var(--ad-ink)]">{qrForm.title}</p>
+              <p className="mt-0.5 break-all px-4 text-center text-[12px] text-[color:var(--ad-faint)]">{formUrl(qrForm.slug)}</p>
               <div className="flex gap-2 mt-4">
-                <Button variant="outline" size="sm" onClick={copyQr}>
-                  <Copy className="w-4 h-4 mr-1" /> 이미지 복사
-                </Button>
-                <Button size="sm" onClick={downloadQr}>
-                  <Download className="w-4 h-4 mr-1" /> 다운로드
-                </Button>
+                <button onClick={copyQr} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
+                  <Copy className="w-4 h-4" /> 이미지 복사
+                </button>
+                <button onClick={downloadQr} className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
+                  <Download className="w-4 h-4" /> 다운로드
+                </button>
               </div>
             </div>
           )}

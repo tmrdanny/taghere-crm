@@ -13,7 +13,8 @@ export function StarRating({ rating, onRatingChange, readonly = false }: { ratin
           className={`${readonly ? 'cursor-default' : 'cursor-pointer hover:scale-110'} transition-transform`}
         >
           <Star
-            className={`w-6 h-6 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'fill-none text-neutral-300'}`}
+            strokeWidth={1.7}
+            className={`w-6 h-6 ${star <= rating ? 'fill-none text-[color:var(--ad-ink-2)]' : 'fill-none text-[#d1d3d6]'}`}
           />
         </button>
       ))}
