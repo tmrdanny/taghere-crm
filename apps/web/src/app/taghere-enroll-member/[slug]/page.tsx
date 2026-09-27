@@ -64,19 +64,33 @@ function CouponBottomSheet({
       .catch(() => {});
   }, [customerId]);
 
-  const sendCoupons = async (couponIds: string[], method: 'single' | 'all') => {
-    if (couponIds.length === 0) return;
-    const res = await fetch(`${API_BASE}/api/membership/coupons/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ customerId, couponIds }),
-    });
-    if (res.ok) {
+  const [sendError, setSendError] = useState(false);
+
+  // 발송 성공(sent) 또는 이미 받은(skipped) 쿠폰을 받은 것으로 표시. 실패가 있으면 false
+  const sendCoupons = async (couponIds: string[], method: 'single' | 'all'): Promise<boolean> => {
+    if (couponIds.length === 0) return true;
+    setSendError(false);
+    try {
+      const res = await fetch(`${API_BASE}/api/membership/coupons/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId, couponIds }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
       const data = await res.json();
-      const newDownloaded = new Set(downloadedIds);
-      [...(data.sent || []), ...(data.skipped || [])].forEach((id: string) => newDownloaded.add(id));
-      setDownloadedIds(newDownloaded);
+      const received: string[] = [...(data.sent || []), ...(data.skipped || [])];
+      setDownloadedIds((prev) => {
+        const next = new Set(prev);
+        received.forEach((id) => next.add(id));
+        return next;
+      });
       trackEvent('coupon_download', { method, count: couponIds.length });
+      const ok = (data.failed || []).length === 0;
+      if (!ok) setSendError(true);
+      return ok;
+    } catch {
+      setSendError(true);
+      return false;
     }
   };
 
@@ -94,6 +108,7 @@ function CouponBottomSheet({
     }
   };
 
+  // 한 번 탭으로 남은 쿠폰을 모두 받고, 성공하면 체크 표시를 잠깐 보여준 뒤 바로 다음 단계로 넘어간다
   const handleDownloadAll = async () => {
     const remaining = coupons.filter((c) => !downloadedIds.has(c.id)).map((c) => c.id);
     if (remaining.length === 0) {
@@ -101,24 +116,32 @@ function CouponBottomSheet({
       return;
     }
     setIsBatchSending(true);
-    try {
-      await sendCoupons(remaining, 'all');
-    } finally {
+    const ok = await sendCoupons(remaining, 'all');
+    if (ok) {
+      setTimeout(onAllDownloaded, 700);
+    } else {
       setIsBatchSending(false);
     }
   };
 
   const allDownloaded = coupons.length > 0 && coupons.every((c) => downloadedIds.has(c.id));
+  const remainingCount = coupons.filter((c) => !downloadedIds.has(c.id)).length;
+  const totalAmount = coupons.reduce((sum, c) => sum + (c.amountValue || 0), 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
-      {/* 백드롭 */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      {/* 백드롭 — 실수로 탭해도 쿠폰을 놓치지 않도록 닫기는 X 버튼으로만 */}
+      <div className="absolute inset-0 bg-black/40" />
 
       {/* 시트 */}
       <div className="relative w-full max-w-[430px] bg-white rounded-t-3xl shadow-2xl coupon-sheet-slide-up">
         <div className="px-5 pt-5 pb-3 flex items-center justify-between">
-          <h2 className="text-[18px] font-bold text-[#1d2022]">쿠폰 혜택</h2>
+          <div>
+            <h2 className="text-[18px] font-bold text-[#1d2022]">쿠폰 혜택</h2>
+            <p className="text-[13px] text-neutral-400 mt-0.5">
+              {coupons.length}장{totalAmount > 0 ? ` · 총 ${totalAmount.toLocaleString()}원` : ''}
+            </p>
+          </div>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500"
@@ -132,14 +155,17 @@ function CouponBottomSheet({
 
         {/* 쿠폰 리스트 */}
         <div className="px-5 space-y-2 max-h-[50vh] overflow-y-auto">
-          {coupons.map((coupon) => {
+          {coupons.map((coupon, index) => {
             const isDownloaded = downloadedIds.has(coupon.id);
-            const isLoading = loadingIds.has(coupon.id);
+            const isLoading = loadingIds.has(coupon.id) || (isBatchSending && !isDownloaded);
 
             return (
               <div
                 key={coupon.id}
-                className="flex items-center gap-3 p-3 border border-neutral-200 rounded-xl"
+                className={`coupon-row flex items-center gap-3 p-3 border rounded-xl transition-colors duration-300 ${
+                  isDownloaded ? 'border-[#FFD541] bg-[#FFFBEA]' : 'border-neutral-200'
+                }`}
+                style={{ animationDelay: `${index * 60}ms` }}
               >
                 {/* 브랜드 아이콘 */}
                 <div className="w-11 h-11 rounded-full overflow-hidden bg-neutral-100 flex-shrink-0">
@@ -158,20 +184,20 @@ function CouponBottomSheet({
                   <p className="text-[14px] font-medium text-[#1d2022] truncate">
                     {coupon.couponName || coupon.brandName}
                   </p>
-                  {coupon.expiryDate && (
-                    <p className="text-[12px] text-neutral-400 mt-0.5">{coupon.expiryDate} 까지</p>
-                  )}
+                  <p className="text-[12px] text-neutral-400 mt-0.5 truncate">
+                    {[coupon.couponAmount, coupon.expiryDate && `${coupon.expiryDate} 까지`].filter(Boolean).join(' · ')}
+                  </p>
                 </div>
 
                 {/* 다운로드 아이콘 */}
                 <button
                   onClick={() => handleSingleDownload(coupon.id)}
                   disabled={isDownloaded || isLoading}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                  className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-[background-color,transform] duration-300 active:scale-90 ${
                     isDownloaded
-                      ? 'bg-[#FFD541] text-[#1d2022]'
+                      ? 'bg-[#FFD541] text-[#1d2022] coupon-check-pop'
                       : 'bg-neutral-900 text-white hover:bg-neutral-800'
-                  } disabled:opacity-60`}
+                  } ${isLoading ? 'opacity-60' : ''}`}
                   aria-label={isDownloaded ? '다운로드 완료' : '쿠폰 다운로드'}
                 >
                   {isLoading ? (
@@ -191,25 +217,52 @@ function CouponBottomSheet({
           })}
         </div>
 
-        {/* 안내 */}
-        <p className="px-5 pt-3 text-center text-[12px] text-neutral-400">
-          *쿠폰은 입력하신 번호로 알림톡이 전송됩니다
-        </p>
+        {/* 안내 / 오류 */}
+        {sendError ? (
+          <p className="px-5 pt-3 text-center text-[12px] text-[#ff6b6b]" role="alert">
+            쿠폰을 보내지 못했어요. 아래 버튼을 다시 눌러주세요.
+          </p>
+        ) : (
+          <p className="px-5 pt-3 text-center text-[12px] text-neutral-400">
+            쿠폰은 카카오 계정의 번호로 알림톡이 전송돼요
+          </p>
+        )}
 
-        {/* CTA */}
-        <div className="px-5 pt-3 pb-8">
+        {/* CTA — 한 번 탭으로 전부 받고 다음 단계로 */}
+        <div className="px-5 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))]">
           <button
-            onClick={allDownloaded ? onAllDownloaded : handleDownloadAll}
+            onClick={handleDownloadAll}
             disabled={isBatchSending}
-            className="w-full py-4 bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022] font-semibold text-base rounded-[10px] transition-colors disabled:opacity-60"
+            className="w-full py-4 bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022] font-semibold text-base rounded-[10px] transition-[background-color,transform] active:scale-[0.98] disabled:opacity-80"
           >
-            {isBatchSending ? '발송 중...' : allDownloaded ? '확인' : '쿠폰 전체 다운받기'}
+            {isBatchSending
+              ? allDownloaded
+                ? '받기 완료'
+                : '쿠폰 보내는 중...'
+              : allDownloaded
+                ? '다음'
+                : remainingCount === coupons.length
+                  ? `쿠폰 ${coupons.length}장 한 번에 받기`
+                  : `남은 쿠폰 ${remainingCount}장 받기`}
           </button>
         </div>
       </div>
     </div>
   );
 }
+
+const CONSENT_ITEMS = [
+  {
+    key: 'privacy',
+    label: '개인정보 수집·이용 동의',
+    href: 'https://tmr-founders.notion.site/26a2217234e3808389fbc84989029713?source=copy_link',
+  },
+  {
+    key: 'partner',
+    label: '제휴 브랜드 혜택 수신 동의',
+    href: 'https://tmr-founders.notion.site/2de2217234e3807bbfa0db51b12a5e77?source=copy_link',
+  },
+] as const;
 
 function TaghereMemberEnrollContent() {
   const params = useParams();
@@ -220,7 +273,10 @@ function TaghereMemberEnrollContent() {
   const [error, setError] = useState<string | null>(null);
   const [showAlreadyRegistered, setShowAlreadyRegistered] = useState(false);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
-  const [isAgreed, setIsAgreed] = useState(false);
+  // 필수 동의 2종 — 기본 체크 상태로 진입
+  const [agreePrivacy, setAgreePrivacy] = useState(true);
+  const [agreePartner, setAgreePartner] = useState(true);
+  const isAgreed = agreePrivacy && agreePartner;
   const [showAgreementWarning, setShowAgreementWarning] = useState(false);
   const [isAutoEarning, setIsAutoEarning] = useState(false);
   const autoEarnAttemptedRef = useRef(false);
@@ -230,6 +286,12 @@ function TaghereMemberEnrollContent() {
   const [coupons, setCoupons] = useState<MembershipCoupon[]>([]);
   const [showCouponSheet, setShowCouponSheet] = useState(false);
   const [proceedToNext, setProceedToNext] = useState(false);
+  // 쿠폰 발급 플로우 진입 신호 (단일 기업이면 시트 없이 자동 발급)
+  const [enterCouponFlow, setEnterCouponFlow] = useState(false);
+  const [couponsLoaded, setCouponsLoaded] = useState(false);
+  const autoIssueAttemptedRef = useRef(false);
+  // 메뉴판 복귀 링크 — 나가기 시 즉시 이동할 수 있도록 미리 받아둔다
+  const [menuLink, setMenuLink] = useState<string | null>(null);
 
   const slug = params.slug as string;
   const rawOrderId = searchParams.get('ordersheetId') || searchParams.get('orderId');
@@ -283,9 +345,9 @@ function TaghereMemberEnrollContent() {
           hasExistingPreferences: data.hasExistingPreferences || false,
           hasVisitSource: data.hasVisitSource || false,
         });
-        // 멤버십 모드 + showCouponSheet 응답 → 쿠폰 시트 우선 표시
+        // 멤버십 모드 + showCouponSheet 응답 → 쿠폰 발급 플로우 진입
         if (data.mode === 'membership' && data.showCouponSheet) {
-          setShowCouponSheet(true);
+          setEnterCouponFlow(true);
         }
         setOrderInfo(null);
         setUserId(data.customerId);
@@ -306,7 +368,57 @@ function TaghereMemberEnrollContent() {
     }
   };
 
+  // 단일 기업 광고: 쿠폰 시트/추가 클릭 없이 쿠폰 1개를 즉시 발급하고 다음 단계로 진행
+  const issueSingleCouponAndProceed = async (custId: string, coupon: MembershipCoupon) => {
+    if (autoIssueAttemptedRef.current) return;
+    autoIssueAttemptedRef.current = true;
+    try {
+      const apiUrl = API_BASE;
+      await fetch(`${apiUrl}/api/membership/coupons/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: custId, couponIds: [coupon.id] }),
+      });
+      trackEvent('coupon_download', { method: 'auto_single', count: 1, store_slug: slug });
+    } catch (e) {
+      console.error('Auto coupon issue failed:', e);
+    } finally {
+      setShowCouponSheet(false);
+      setProceedToNext(true);
+      setSuccessData((prev) =>
+        prev ?? {
+          storeName: successStoreName || '태그히어',
+          customerId: custId,
+          hasExistingPreferences: hasPreferences,
+          hasVisitSource: hasVisitSourceParam,
+        }
+      );
+    }
+  };
+
   // 쿠폰 리스트 조회
+  // 메뉴판 복귀 링크 미리 조회 — 나가기 클릭 시 지연 없이 이동하기 위함.
+  // 실패해도 조용히 넘어간다 (주문완료 페이지 폴백이 있으므로 등록 흐름을 막지 않음)
+  useEffect(() => {
+    if (!ordersheetId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/taghere/ordersheet?ordersheetId=${ordersheetId}&slug=${slug}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data?.menuLink) setMenuLink(data.menuLink);
+      } catch {
+        // 폴백 경로가 있으므로 무시
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ordersheetId, slug]);
+
   useEffect(() => {
     const fetchCoupons = async () => {
       try {
@@ -317,17 +429,35 @@ function TaghereMemberEnrollContent() {
         }
       } catch (e) {
         console.error('Failed to fetch coupons:', e);
+      } finally {
+        setCouponsLoaded(true);
       }
     };
     fetchCoupons();
   }, []);
 
-  // showCouponSheet=true 파라미터 감지 시 시트 자동 오픈
+  // showCouponSheet=true 파라미터 감지 → 쿠폰 발급 플로우 진입
   useEffect(() => {
-    if (showCouponSheetParam && resolvedCustomerId) {
+    if (showCouponSheetParam && customerId) {
+      setEnterCouponFlow(true);
+    }
+  }, [showCouponSheetParam, customerId]);
+
+  // 쿠폰 발급 플로우 처리
+  // - 단일 기업(쿠폰 1개): 시트 없이 즉시 발급 후 다음 단계로
+  // - 복수 기업: 기존 쿠폰 시트 표시
+  // - 광고 쿠폰 없음: 발급 없이 다음 단계로
+  useEffect(() => {
+    if (!enterCouponFlow || !customerId || !couponsLoaded) return;
+    if (coupons.length === 1) {
+      issueSingleCouponAndProceed(customerId, coupons[0]);
+    } else if (coupons.length === 0) {
+      setProceedToNext(true);
+    } else {
       setShowCouponSheet(true);
     }
-  }, [showCouponSheetParam, resolvedCustomerId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enterCouponFlow, customerId, couponsLoaded, coupons]);
 
   // 방문 경로 옵션 + 설문 조회
   useEffect(() => {
@@ -542,9 +672,13 @@ function TaghereMemberEnrollContent() {
     }, 500);
   };
 
-  const handleCloseSuccessPopup = () => {
-    setSuccessData(null);
-
+  // 나가기 공통 처리 — 메뉴판 링크가 있으면 바로 메뉴판, 없으면 주문완료 페이지로.
+  // (손님이 어느 경로로 나가든 한 번의 동작으로 빠져나갈 수 있게 통일)
+  const exitToMenu = () => {
+    if (menuLink) {
+      window.location.href = menuLink;
+      return;
+    }
     const url = new URL(window.location.origin + '/taghere-enroll-member/order-success');
     if (ordersheetId) url.searchParams.set(orderParamName, ordersheetId);
     url.searchParams.set('slug', slug);
@@ -552,13 +686,24 @@ function TaghereMemberEnrollContent() {
     window.location.href = url.toString();
   };
 
-  if (isLoading || isAutoEarning) {
+  const handleCloseSuccessPopup = () => {
+    setSuccessData(null);
+    exitToMenu();
+  };
+
+  // 쿠폰 발급 플로우 진입 후 결정(자동 발급 / 시트)이 끝나기 전까지 로딩 표시
+  const isResolvingCouponFlow = enterCouponFlow && !showCouponSheet && !proceedToNext;
+
+  if (isLoading || isAutoEarning || isResolvingCouponFlow) {
     return (
       <div className="h-[100dvh] bg-neutral-100 font-pretendard flex justify-center overflow-hidden">
         <div className="w-full max-w-md h-full flex flex-col items-center justify-center bg-white gap-4">
           <div className="w-8 h-8 border-2 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
           {isAutoEarning && (
             <p className="text-sm text-neutral-500">자동으로 멤버십 등록 중...</p>
+          )}
+          {isResolvingCouponFlow && !isAutoEarning && (
+            <p className="text-sm text-neutral-500">쿠폰을 발급하고 있어요...</p>
           )}
         </div>
       </div>
@@ -583,13 +728,9 @@ function TaghereMemberEnrollContent() {
     );
   }
 
-  // X 버튼 클릭 시 주문완료 페이지로 이동
+  // X 버튼 클릭 시 메뉴판으로 (링크 없으면 주문완료 페이지)
   const handleSkipEarn = () => {
-    const url = new URL(window.location.origin + '/taghere-enroll-member/order-success');
-    if (ordersheetId) url.searchParams.set(orderParamName, ordersheetId);
-    url.searchParams.set('slug', slug);
-    url.searchParams.set('type', 'membership');
-    window.location.href = url.toString();
+    exitToMenu();
   };
 
   return (
@@ -637,7 +778,11 @@ function TaghereMemberEnrollContent() {
                 });
               }
             }}
-            onClose={() => setShowCouponSheet(false)}
+            onClose={() => {
+              // 쿠폰을 받지 않고 나가기 — 시트만 닫으면 빠져나갈 수 없는 화면에 갇힌다
+              setShowCouponSheet(false);
+              exitToMenu();
+            }}
           />
         </>
       ) : proceedToNext && successData ? (
@@ -729,52 +874,61 @@ function TaghereMemberEnrollContent() {
             <div className="flex-shrink-0 flex flex-col px-5 pb-6">
               {/* 주문 접수 완료 안내 */}
               <p className="text-center text-[13px] text-neutral-400 mb-3">주문이 접수되었어요</p>
-              {/* 동의 안내 영역 */}
+              {/* 동의 안내 영역 — 필수 2종, 기본 체크 */}
               <div
-                className={`rounded-[12px] mb-4 p-4 transition-colors ${
+                className={`rounded-[12px] mb-4 px-4 py-3 space-y-1 transition-colors ${
                   showAgreementWarning && !isAgreed ? 'bg-[#fff0f3] border border-[#ffb3c1]' : 'bg-[#f8f9fa]'
                 }`}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-start gap-1">
-                    <p className="text-[14px] font-medium leading-[140%] text-[#55595e]">
-                      쿠폰을 받기 위해 전국 매장 혜택 수신 동의가 필요해요.
-                    </p>
-                    <span className="text-[#ff6b6b] text-[14px]">*</span>
-                  </div>
-                  <a
-                    href="https://tmr-founders.notion.site/2492217234e380e1abbbe6867fc96aea?source=copy_link"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-shrink-0 p-1"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <svg className="w-5 h-5 text-[#b1b5b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </a>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAgreed(!isAgreed);
-                    setShowAgreementWarning(false);
-                  }}
-                  className="flex items-center gap-2.5"
-                >
-                  <div className={`w-[20px] h-[20px] border-2 rounded flex items-center justify-center transition-colors flex-shrink-0 ${
-                    isAgreed ? 'bg-[#FFD541] border-[#FFD541]' : showAgreementWarning && !isAgreed ? 'border-[#ffb3c1] bg-white' : 'border-[#d1d5db] bg-white'
-                  }`}>
-                    {isAgreed && (
-                      <svg className="w-3 h-3 text-[#1d2022]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className={`text-[14px] ${showAgreementWarning && !isAgreed ? 'text-[#ff6b6b]' : 'text-[#55595e]'}`}>
-                    네, 동의합니다
-                  </span>
-                </button>
+                {CONSENT_ITEMS.map((item) => {
+                  const checked = item.key === 'privacy' ? agreePrivacy : agreePartner;
+                  const warn = showAgreementWarning && !checked;
+                  return (
+                    <div key={item.key} className="flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={checked}
+                        onClick={() => {
+                          if (item.key === 'privacy') setAgreePrivacy(!agreePrivacy);
+                          else setAgreePartner(!agreePartner);
+                          setShowAgreementWarning(false);
+                        }}
+                        className="flex items-center gap-2.5 py-1.5 min-w-0 text-left"
+                      >
+                        <div
+                          className={`w-[20px] h-[20px] border-2 rounded flex items-center justify-center transition-colors flex-shrink-0 ${
+                            checked ? 'bg-[#FFD541] border-[#FFD541]' : warn ? 'border-[#ffb3c1] bg-white' : 'border-[#d1d5db] bg-white'
+                          }`}
+                        >
+                          {checked && (
+                            <svg className="w-3 h-3 text-[#1d2022]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className={`text-[14px] leading-[140%] ${warn ? 'text-[#ff6b6b]' : 'text-[#55595e]'}`}>
+                          {item.label} <span className="text-neutral-400">(필수)</span>
+                        </span>
+                      </button>
+                      <a
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-shrink-0 p-1"
+                        aria-label={`${item.label} 전문 보기`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <svg className="w-5 h-5 text-[#b1b5b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </a>
+                    </div>
+                  );
+                })}
+                {showAgreementWarning && !isAgreed && (
+                  <p className="text-[12px] text-[#ff6b6b] pt-1">쿠폰을 받으려면 필수 항목에 동의해주세요.</p>
+                )}
               </div>
 
               <button
@@ -791,9 +945,9 @@ function TaghereMemberEnrollContent() {
                   }
                 }}
                 disabled={isOpening}
-                className="w-full py-4 font-semibold text-base rounded-[10px] transition-colors bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022]"
+                className="w-full py-4 font-semibold text-base rounded-[10px] transition-[background-color,transform] active:scale-[0.98] bg-[#FFD541] hover:bg-[#FFCA00] text-[#1d2022]"
               >
-                {isOpening ? '가입 중...' : resolvedCustomerId ? '쿠폰 다시 보기' : '쿠폰 다운받기'}
+                {isOpening ? '가입 중...' : resolvedCustomerId ? '쿠폰 다시 보기' : '동의하고 쿠폰 받기'}
               </button>
             </div>
           </div>
@@ -812,13 +966,7 @@ function TaghereMemberEnrollContent() {
               이 주문에 대한 멤버십 등록이 이미 완료되었습니다.
             </p>
             <button
-              onClick={() => {
-                const url = new URL(window.location.origin + '/taghere-enroll-member/order-success');
-                if (ordersheetId) url.searchParams.set(orderParamName, ordersheetId);
-                url.searchParams.set('slug', slug);
-                url.searchParams.set('type', 'membership');
-                window.location.href = url.toString();
-              }}
+              onClick={exitToMenu}
               className="w-full py-3 bg-[#FFD541] hover:bg-[#FFCA00] text-neutral-900 font-semibold text-base rounded-xl transition-colors"
             >
               확인
@@ -857,6 +1005,24 @@ function TaghereMemberEnrollContent() {
         @keyframes couponSheetSlideUp {
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
+        }
+
+        .coupon-row {
+          animation: couponRowIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        @keyframes couponRowIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .coupon-check-pop {
+          animation: couponCheckPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes couponCheckPop {
+          0% { transform: scale(0.7); }
+          100% { transform: scale(1); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .coupon-row, .coupon-check-pop, .coupon-sheet-slide-up, .taghere-brands-wrapper { animation: none; }
         }
 
         video,
