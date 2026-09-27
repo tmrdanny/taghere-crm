@@ -2,7 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Fragment, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +15,14 @@ import {
 import { formatNumber, formatPhone, maskNickname } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
 import { SegmentPicker, type PickedSegment } from '@/features/segments/SegmentPicker';
+import { PremiumKakaoComposer } from '@/features/premium-kakao/PremiumKakaoComposer';
+import { AlimtalkSamples } from '@/features/premium-kakao/AlimtalkSamples';
+import { MobilePreviewSheet } from '@/features/messages/MobilePreviewSheet';
+import { ReservationsPanel } from '@/features/messages/ReservationsPanel';
+import { SendTimePicker, SendTimeValue, defaultSendTime, formatSendTime, sendTimeError, sendTimeToIso } from '@/features/messages/SendTimePicker';
+import { PremiumKakaoPreview } from '@/features/premium-kakao/PremiumKakaoPreview';
+import { BubbleType, PkContent, emptyContent } from '@/features/premium-kakao/spec';
+import { StaffVerifyField, StaffVerifyValue, emptyStaffVerify, smsCouponPreview, staffVerifyPayload } from '@/features/marketing-performance/StaffVerifyField';
 import {
   Send,
   Users,
@@ -120,7 +128,25 @@ export default function MessagesPage() {
   const { showToast, ToastComponent } = useToast();
 
   // Tab state (문자 우선 - 카카오톡 임시 비활성화)
-  const [activeTab, setActiveTab] = useState<'sms' | 'kakao'>('sms');
+  const [activeTab, setActiveTab] = useState<'sms' | 'kakao'>('kakao');
+  // 카카오톡 탭 형태: 템플릿 기본형(쿠폰 알림톡) / 브랜드 메시지(premiumType)
+  // 진입 시 기본 형태는 이미지형
+  const [kakaoMode, setKakaoMode] = useState<'ALIMTALK' | 'BMS'>('BMS');
+  // 프리미엄 카카오톡 (브랜드 메시지 — 전 가맹점 고객, 프랜차이즈 지갑 과금)
+  const [premiumType, setPremiumType] = useState<BubbleType>('IMAGE');
+  const [premiumContents, setPremiumContents] = useState<Partial<Record<BubbleType, PkContent>>>({});
+  const premiumContent = premiumContents[premiumType] ?? emptyContent(premiumType);
+  const [premiumVerify, setPremiumVerify] = useState<StaffVerifyValue>(emptyStaffVerify);
+  // 발송 매장 안내 미리보기 — 실제로는 손님마다 소속 가맹점 이름이 들어간다
+  const [premiumFooterName, setPremiumFooterName] = useState('');
+  // 발송 시간 (지금 / 예약) — 문자, 템플릿 기본형(쿠폰 알림톡)
+  const [smsSendTime, setSmsSendTime] = useState<SendTimeValue>(defaultSendTime);
+  // 새로 예약하면 “예약된 발송” 목록을 다시 불러온다
+  const [reservationKey, setReservationKey] = useState(0);
+  const bumpReservations = () => setReservationKey((k) => k + 1);
+  const [couponSendTime, setCouponSendTime] = useState<SendTimeValue>(defaultSendTime);
+  // 문자 직원 확인 쿠폰 (선택)
+  const [smsVerify, setSmsVerify] = useState<StaffVerifyValue>(emptyStaffVerify);
 
   // Target counts
   const [targetCounts, setTargetCounts] = useState<TargetCounts>({ all: 0, revisit: 0, new: 0 });
@@ -308,6 +334,12 @@ export default function MessagesPage() {
       if (uploadedImage) {
         params.set('hasImage', 'true');
       }
+      // 직원 확인 쿠폰 링크까지 포함한 길이로 비용 계산
+      if (smsVerify.enabled) {
+        params.set('staffVerify', 'true');
+        params.set('couponContent', smsVerify.couponContent);
+        params.set('expiryDate', smsVerify.expiryDate);
+      }
 
       const res = await fetch(`${API_BASE}/api/franchise/sms/estimate?${params}`, {
         headers: { Authorization: `Bearer ${getAuthToken()}` },
@@ -320,7 +352,7 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Failed to fetch estimate:', error);
     }
-  }, [messageContent, selectedTarget, selectedCustomers, selectedSegment, genderFilter, selectedAgeGroups, uploadedImage]);
+  }, [messageContent, selectedTarget, selectedCustomers, selectedSegment, genderFilter, selectedAgeGroups, uploadedImage, smsVerify]);
 
   // Fetch test count
   const fetchTestCount = useCallback(async () => {
@@ -669,7 +701,7 @@ export default function MessagesPage() {
     return byteLength;
   };
 
-  const byteLength = getByteLength(messageContent);
+  const byteLength = getByteLength(messageContent + smsCouponPreview(smsVerify));
   const isLongMessage = byteLength > 90;
 
   // Get current target count
@@ -1037,7 +1069,14 @@ export default function MessagesPage() {
         imageUrl: uploadedImage?.imageUrl || undefined,
         imageId: uploadedImage?.imageId || undefined, // SOLAPI 이미지 ID 전달
         isAdMessage,
+        staffVerify: staffVerifyPayload(smsVerify),
+        scheduledAt: sendTimeToIso(smsSendTime),
       };
+      if (smsVerify.enabled && !smsVerify.couponContent.trim()) {
+        showToast('직원 확인 쿠폰 내용을 입력해주세요.', 'error');
+        setIsSending(false);
+        return;
+      }
 
       if (selectedTarget === 'CUSTOM') {
         body.customerIds = selectedCustomers.map(c => c.id);
@@ -1066,7 +1105,8 @@ export default function MessagesPage() {
         const sentOrPending = data.sentCount || data.pendingCount || 0;
         const failedMsg = data.failedCount > 0 ? `, ${data.failedCount}건 실패` : '';
         const costMsg = data.totalCost ? ` (비용: ${formatNumber(data.totalCost)}원)` : '';
-        showToast(`${sentOrPending}건 발송 요청 완료${failedMsg}${costMsg}`, 'success');
+        showToast(data.message || `${sentOrPending}건 발송 요청 완료${failedMsg}${costMsg}`, 'success');
+        bumpReservations();
         setMessageContent('');
         setUploadedImage(null);
         setImageError(null);
@@ -1105,6 +1145,7 @@ export default function MessagesPage() {
       const body: any = {
         couponContent: couponContent.trim(),
         expiryDate: couponExpiryDate.trim(),
+        scheduledAt: sendTimeToIso(couponSendTime),
         targetType: selectedTarget,
         genderFilter: genderFilter !== 'all' ? genderFilter : undefined,
         ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : undefined,
@@ -1133,6 +1174,7 @@ export default function MessagesPage() {
 
       if (res.ok) {
         showToast(data.message || '쿠폰 알림톡이 발송되었습니다.', 'success');
+        bumpReservations();
         setCouponContent('');
         setCouponExpiryDate('');
         fetchTargetCounts();
@@ -1161,33 +1203,31 @@ export default function MessagesPage() {
       {/* Left Panel - Settings */}
       <div className="ad-card flex-1 lg:max-w-[720px] p-5 md:p-6 flex flex-col gap-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[color:var(--ad-line)]">
-          <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">캠페인 메시지 만들기</h1>
-          <div className="flex rounded-[10px] bg-[rgba(29,32,34,0.045)] p-[3px] self-start sm:self-auto">
-            <button
-              onClick={() => setActiveTab('kakao')}
-              className={cn(
-                'h-8 px-3 sm:px-4 text-[13px] font-medium rounded-[8px] transition-all',
-                activeTab === 'kakao'
-                  ? 'bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] text-[color:var(--ad-ink)]'
-                  : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'
-              )}
-            >
-              카카오톡
-            </button>
-            <button
-              onClick={() => setActiveTab('sms')}
-              className={cn(
-                'h-8 px-3 sm:px-4 text-[13px] font-medium rounded-[8px] transition-all',
-                activeTab === 'sms'
-                  ? 'bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] text-[color:var(--ad-ink)]'
-                  : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'
-              )}
-            >
-              문자 (SMS/LMS)
-            </button>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pb-5 border-b border-[color:var(--ad-line)]">
+          <h1 className="whitespace-nowrap text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">캠페인 메시지 만들기</h1>
+          <div className="flex max-w-full overflow-x-auto rounded-[10px] bg-[rgba(29,32,34,0.045)] p-[3px]">
+            {([
+              ['kakao', '카카오톡'],
+              ['sms', '문자 (SMS/LMS)'],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={cn(
+                  'h-8 whitespace-nowrap px-3 sm:px-4 text-[13px] font-medium rounded-[8px] transition-all',
+                  activeTab === key
+                    ? 'bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] text-[color:var(--ad-ink)]'
+                    : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'
+                )}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
+
+        {/* 예약된 발송 — 발송 2분 전까지 취소·환불 */}
+        <ReservationsPanel apiUrl="/api/franchise/marketing-performance" tokenKey="franchiseToken" refreshKey={reservationKey} showToast={showToast} />
 
         {/* Target Selection */}
         <div className="flex flex-col gap-3">
@@ -1427,6 +1467,9 @@ export default function MessagesPage() {
                   </div>
                 )}
               </div>
+
+              {/* 직원 확인 쿠폰 (마케팅 성과 추적) */}
+              <StaffVerifyField value={smsVerify} onChange={setSmsVerify} />
             </div>
 
             {/* Cost Summary */}
@@ -1447,6 +1490,9 @@ export default function MessagesPage() {
                   </p>
                 </div>
               </div>
+              <div className="mb-3">
+                <SendTimePicker value={smsSendTime} onChange={setSmsSendTime} adWindow={isAdMessage} />
+              </div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2 w-full sm:w-auto">
                   <button
                     disabled={!messageContent.trim()}
@@ -1459,12 +1505,13 @@ export default function MessagesPage() {
                     disabled={
                       !messageContent.trim() ||
                       getCurrentTargetCount() === 0 ||
-                      (estimate !== null && !estimate.canSend)
+                      (estimate !== null && !estimate.canSend) ||
+                      !!sendTimeError(smsSendTime, isAdMessage)
                     }
                     onClick={() => setShowConfirmModal(true)}
                     className="ad-press inline-flex h-10 w-full sm:w-auto items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    메시지 발송하기
+                    {smsSendTime.mode === 'schedule' ? `${formatSendTime(smsSendTime)} 예약하기` : '메시지 발송하기'}
                   </button>
               </div>
 
@@ -1534,11 +1581,27 @@ export default function MessagesPage() {
         )}
 
         {/* 카카오톡 탭 콘텐츠 (쿠폰 알림톡 — messages 페이지와 동일) */}
+        {/* 카카오톡 — 형태 선택: 템플릿 기본형(쿠폰 알림톡) + 브랜드 메시지 8종 (전 가맹점 고객) */}
         {activeTab === 'kakao' && (
-          <>
+          <PremiumKakaoComposer
+            leadingType={{
+              name: '템플릿 기본형',
+              tip: '쿠폰 알림톡',
+              priceLabel: '건당 50원',
+              selected: kakaoMode === 'ALIMTALK',
+              onSelect: () => setKakaoMode('ALIMTALK'),
+              content: (
+                <>
             {/* Step 2: 쿠폰 정보 입력 */}
             <div className="flex flex-col gap-4">
-              <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">2. 어떤 쿠폰을 보낼까요?</label>
+              <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">3. 어떤 쿠폰을 보낼까요?</label>
+
+              <AlimtalkSamples
+                onPick={(content, expiry) => {
+                  setCouponContent(content);
+                  setCouponExpiryDate(expiry);
+                }}
+              />
 
               <div>
                 <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">쿠폰 내용</label>
@@ -1570,7 +1633,7 @@ export default function MessagesPage() {
             {/* Step 3: Expected Effect & CTA */}
             <div className="p-5 bg-[color:var(--ad-bg-alt)] rounded-[16px] border border-[color:var(--ad-line)]">
               <div className="mb-4">
-                <span className="text-[14px] font-semibold text-[color:var(--ad-ink)]">3. 쿠폰을 보내면 이런 효과가 예상돼요</span>
+                <span className="text-[14px] font-semibold text-[color:var(--ad-ink)]">4. 쿠폰을 보내면 이런 효과가 예상돼요</span>
               </div>
 
               <div className="ad-card grid grid-cols-3 divide-x divide-[color:var(--ad-line)] mb-4 overflow-hidden">
@@ -1625,13 +1688,17 @@ export default function MessagesPage() {
                 )}
               </div>
 
+              <div className="mb-3">
+                <SendTimePicker value={couponSendTime} onChange={setCouponSendTime} />
+              </div>
               <button
                 disabled={
                   !couponContent.trim() ||
                   !couponExpiryDate.trim() ||
                   getCurrentTargetCount() === 0 ||
                   getCurrentTargetCount() > 50000 ||
-                  isCouponSending
+                  isCouponSending ||
+                  !!sendTimeError(couponSendTime, true)
                 }
                 onClick={handleCouponSend}
                 className="ad-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1644,12 +1711,41 @@ export default function MessagesPage() {
                 ) : (
                   <>
                     <Send className="h-4 w-4" />
-                    쿠폰 알림톡 발송하기 ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
+                    {couponSendTime.mode === 'schedule' ? `${formatSendTime(couponSendTime)} 예약하기` : '쿠폰 알림톡 발송하기'} ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
                   </>
                 )}
               </button>
             </div>
-          </>
+                </>
+              ),
+            }}
+            type={premiumType}
+            onTypeChange={(t) => {
+              setPremiumType(t);
+              setKakaoMode('BMS');
+            }}
+            content={premiumContent}
+            onContentChange={(c) => setPremiumContents((prev) => ({ ...prev, [premiumType]: c }))}
+            target={{
+              targetType: selectedTarget,
+              customerIds: selectedTarget === 'CUSTOM' ? selectedCustomers.map((c) => c.id) : undefined,
+              segmentId: selectedTarget === 'SEGMENT' ? selectedSegment?.id : undefined,
+              genderFilter: selectedTarget !== 'SEGMENT' && genderFilter !== 'all' ? genderFilter : undefined,
+              ageGroups: selectedTarget !== 'SEGMENT' && selectedAgeGroups.length > 0 ? selectedAgeGroups : undefined,
+            }}
+            targetReady={(selectedTarget !== 'CUSTOM' || selectedCustomers.length > 0) && (selectedTarget !== 'SEGMENT' || !!selectedSegment)}
+            showToast={showToast}
+            onNeedCharge={() => router.push('/franchise/billing')}
+            onSent={() => {
+              setPremiumContents((prev) => ({ ...prev, [premiumType]: emptyContent(premiumType) }));
+              bumpReservations();
+            }}
+            staffVerify={premiumVerify}
+            onStaffVerifyChange={setPremiumVerify}
+            onFooterName={setPremiumFooterName}
+            apiBase="/api/franchise/premium-kakao"
+            tokenKey="franchiseToken"
+          />
         )}
 
         {/* (구) 브랜드 메시지 카카오 콘텐츠 — 비활성 (messages 페이지와 동일하게 쿠폰 알림톡 사용) */}
@@ -1953,181 +2049,190 @@ export default function MessagesPage() {
         )}
       </div>
 
-      {/* Right Panel - Preview (hidden on mobile) */}
-      <div className="hidden lg:block flex-none w-[360px] self-start">
-        <div className="rounded-[20px] bg-[color:var(--ad-bg)] p-5">
-          <p className="text-center text-[13px] font-medium text-[color:var(--ad-muted)] mb-4">발송 메시지 미리보기</p>
-          <div className="flex justify-center">
-            {/* Phone Frame */}
-            <IPhoneFrame screenClassName={activeTab === 'sms' ? 'bg-white' : 'bg-[#B2C7D9]'}>
+      {/* Right Panel - Preview (데스크톱: 오른쪽 패널 / 모바일: 아래 “미리보기” 버튼 → 시트) */}
+      {(['aside', 'sheet'] as const).map((mode) => {
+        const inline = mode === 'sheet';
+        const preview =
+          activeTab === 'kakao' && kakaoMode === 'BMS' ? (
+            <PremiumKakaoPreview type={premiumType} content={premiumContent} verifyButton={premiumVerify.enabled} footerName={premiumFooterName} inline={inline} />
+          ) : (
+            <div className={inline ? 'mx-auto w-full max-w-[360px]' : 'hidden flex-none w-[360px] self-start lg:block'}>
+            <div className="rounded-[20px] bg-[color:var(--ad-bg)] p-5">
+              <p className="text-center text-[13px] font-medium text-[color:var(--ad-muted)] mb-4">발송 메시지 미리보기</p>
+              <div className="flex justify-center">
+                {/* Phone Frame */}
+                <IPhoneFrame screenClassName={activeTab === 'sms' ? 'bg-white' : 'bg-[#B2C7D9]'}>
 
-                  {/* SMS Preview */}
-                  {activeTab === 'sms' && (
-                    <>
-                      {/* iOS Header */}
-                      <div className="flex items-center justify-between px-4 pt-1 pb-2 border-b border-[#e5e5ea]">
-                        <ChevronLeft className="w-5 h-5 text-[#007aff]" />
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="w-8 h-8 bg-[#9ca3af] rounded-full flex items-center justify-center text-white">
-                            <Users className="w-4 h-4" />
-                          </div>
-                          <span className="text-[11px] font-medium text-[#1e293b]">태그히어 CRM</span>
-                        </div>
-                        <div className="w-5" />
-                      </div>
-
-                      {/* Date badge */}
-                      <div className="flex justify-center my-3">
-                        <span className="text-[10px] bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full">
-                          오늘 오후 12:30
-                        </span>
-                      </div>
-
-                      {/* Message Body */}
-                      <div className="flex-1 px-3 overflow-y-auto">
-                        <div className="flex justify-start">
-                          <div className="bg-[#e5e5ea] text-[#1e293b] py-2.5 px-3 rounded-2xl rounded-bl-sm max-w-[85%] text-[12px] leading-[1.5]">
-                            {/* 이미지 미리보기 */}
-                            {uploadedImage && (
-                              <div className="mb-2 -mx-1 -mt-1">
-                                <img
-                                  src={`${API_BASE}${uploadedImage.imageUrl}`}
-                                  alt="첨부 이미지"
-                                  className="w-full max-w-[180px] rounded-lg"
-                                />
+                      {/* SMS Preview */}
+                      {activeTab === 'sms' && (
+                        <>
+                          {/* iOS Header */}
+                          <div className="flex items-center justify-between px-4 pt-1 pb-2 border-b border-[#e5e5ea]">
+                            <ChevronLeft className="w-5 h-5 text-[#007aff]" />
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="w-8 h-8 bg-[#9ca3af] rounded-full flex items-center justify-center text-white">
+                                <Users className="w-4 h-4" />
                               </div>
-                            )}
-                            {messageContent ? (
-                              <span className="whitespace-pre-wrap break-words">
-                                {messageContent.replace(/{고객명}/g, '{고객명}')}
-                              </span>
-                            ) : (
-                              <span className="text-[#94a3b8]">메시지 미리보기</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Input Bar */}
-                      <div className="py-2 px-3 bg-white border-t border-[#e5e5ea] flex items-center gap-2">
-                        <Camera className="w-5 h-5 text-[#c7c7cc]" />
-                        <div className="flex-1 h-8 border border-[#c7c7cc] rounded-full px-3 flex items-center text-[12px] text-[#c7c7cc]">
-                          iMessage
-                        </div>
-                        <div className="w-6 h-6 bg-[#007aff] rounded-full flex items-center justify-center text-white">
-                          <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Kakao Preview - 쿠폰 알림톡 (messages 페이지와 동일) */}
-                  {activeTab === 'kakao' && (
-                    <CouponAlimtalkPreview
-                      couponStoreName={couponStoreName}
-                      couponContent={couponContent}
-                      couponExpiryDate={couponExpiryDate}
-                    />
-                  )}
-
-                  {/* (구) 브랜드 메시지 미리보기 — 비활성 */}
-                  {SHOW_LEGACY_KAKAO_UI && activeTab === 'kakao' && (
-                    <>
-                      {/* KakaoTalk header */}
-                      <div className="flex items-center justify-between px-4 pt-1 pb-2">
-                        <ChevronLeft className="w-4 h-4 text-neutral-700" />
-                        <span className="font-medium text-xs text-neutral-800">태그히어</span>
-                        <div className="w-4" />
-                      </div>
-
-                      {/* Date badge */}
-                      <div className="flex justify-center mb-3">
-                        <span className="text-[10px] bg-neutral-500/30 text-neutral-700 px-2 py-0.5 rounded-full">
-                          {new Date().toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </span>
-                      </div>
-
-                      {/* Message area */}
-                      <div className="flex-1 pl-2 pr-4 overflow-auto">
-                        <div className="flex gap-1.5">
-                          {/* Profile icon */}
-                          <div className="flex-shrink-0">
-                            <div className="w-7 h-7 rounded-full bg-neutral-300" />
+                              <span className="text-[11px] font-medium text-[#1e293b]">태그히어 CRM</span>
+                            </div>
+                            <div className="w-5" />
                           </div>
 
-                          {/* Message content */}
-                          <div className="flex-1 min-w-0 mr-4">
-                            <p className="text-[10px] text-neutral-600 mb-0.5">태그히어</p>
+                          {/* Date badge */}
+                          <div className="flex justify-center my-3">
+                            <span className="text-[10px] bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full">
+                              오늘 오후 12:30
+                            </span>
+                          </div>
 
-                            {/* Message bubble - KakaoTalk style */}
-                            <div className="relative">
-                              {/* Kakao badge */}
-                              <div className="absolute -top-1 -right-1 z-10">
-                                <span className="bg-neutral-700 text-white text-[8px] px-1 py-0.5 rounded-full font-medium">
-                                  kakao
-                                </span>
-                              </div>
-
-                              <div className="bg-[#FEE500] rounded-t-md px-2 py-1.5">
-                                <span className="text-[10px] font-medium text-neutral-800">브랜드 메시지</span>
-                              </div>
-                              <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
-                                {/* 이미지 */}
-                                {kakaoMessageType === 'IMAGE' && kakaoUploadedImage && (
-                                  <img
-                                    src={`${API_BASE}${kakaoUploadedImage.imageUrl}`}
-                                    alt="첨부 이미지"
-                                    className="w-full h-auto"
-                                  />
-                                )}
-
-                                {/* Message body */}
-                                <div className="p-3">
-                                  {kakaoContent ? (
-                                    <p className="text-[11px] text-neutral-800 whitespace-pre-wrap break-words leading-[1.5]">
-                                      {kakaoContent.replace(/{고객명}/g, '{고객명}')}
-                                    </p>
-                                  ) : (
-                                    <p className="text-[11px] text-[#94a3b8]">메시지 미리보기</p>
-                                  )}
-                                </div>
-
-                                {/* 버튼 */}
-                                {kakaoButtons.filter(b => b.name.trim()).length > 0 && (
-                                  <div className="border-t border-neutral-200">
-                                    {kakaoButtons.filter(b => b.name.trim()).map((button, index) => (
-                                      <button
-                                        key={index}
-                                        className="w-full py-2 text-center text-[10px] font-medium text-neutral-800 bg-white hover:bg-neutral-50 transition-colors border-b border-neutral-200 last:border-b-0"
-                                      >
-                                        {button.name || '버튼'}
-                                      </button>
-                                    ))}
+                          {/* Message Body */}
+                          <div className="flex-1 px-3 overflow-y-auto">
+                            <div className="flex justify-start">
+                              <div className="bg-[#e5e5ea] text-[#1e293b] py-2.5 px-3 rounded-2xl rounded-bl-sm max-w-[85%] text-[12px] leading-[1.5]">
+                                {/* 이미지 미리보기 */}
+                                {uploadedImage && (
+                                  <div className="mb-2 -mx-1 -mt-1">
+                                    <img
+                                      src={`${API_BASE}${uploadedImage.imageUrl}`}
+                                      alt="첨부 이미지"
+                                      className="w-full max-w-[180px] rounded-lg"
+                                    />
                                   </div>
+                                )}
+                                {messageContent ? (
+                                  <span className="whitespace-pre-wrap break-words">
+                                    {messageContent.replace(/{고객명}/g, '{고객명}') + smsCouponPreview(smsVerify)}
+                                  </span>
+                                ) : (
+                                  <span className="text-[#94a3b8]">메시지 미리보기</span>
                                 )}
                               </div>
                             </div>
-
-                            {/* Time */}
-                            <p className="text-[8px] text-neutral-500 mt-0.5 text-right">
-                              오후 12:30
-                            </p>
                           </div>
-                        </div>
-                      </div>
 
-                      {/* Bottom safe area */}
-                      <div className="h-6" />
-                    </>
-                  )}
-            </IPhoneFrame>
-          </div>
-        </div>
-      </div>
+                          {/* Input Bar */}
+                          <div className="py-2 px-3 bg-white border-t border-[#e5e5ea] flex items-center gap-2">
+                            <Camera className="w-5 h-5 text-[#c7c7cc]" />
+                            <div className="flex-1 h-8 border border-[#c7c7cc] rounded-full px-3 flex items-center text-[12px] text-[#c7c7cc]">
+                              iMessage
+                            </div>
+                            <div className="w-6 h-6 bg-[#007aff] rounded-full flex items-center justify-center text-white">
+                              <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Kakao Preview - 쿠폰 알림톡 (messages 페이지와 동일) */}
+                      {activeTab === 'kakao' && (
+                        <CouponAlimtalkPreview
+                          couponStoreName={couponStoreName}
+                          couponContent={couponContent}
+                          couponExpiryDate={couponExpiryDate}
+                        />
+                      )}
+
+                      {/* (구) 브랜드 메시지 미리보기 — 비활성 */}
+                      {SHOW_LEGACY_KAKAO_UI && activeTab === 'kakao' && (
+                        <>
+                          {/* KakaoTalk header */}
+                          <div className="flex items-center justify-between px-4 pt-1 pb-2">
+                            <ChevronLeft className="w-4 h-4 text-neutral-700" />
+                            <span className="font-medium text-xs text-neutral-800">태그히어</span>
+                            <div className="w-4" />
+                          </div>
+
+                          {/* Date badge */}
+                          <div className="flex justify-center mb-3">
+                            <span className="text-[10px] bg-neutral-500/30 text-neutral-700 px-2 py-0.5 rounded-full">
+                              {new Date().toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                              })}
+                            </span>
+                          </div>
+
+                          {/* Message area */}
+                          <div className="flex-1 pl-2 pr-4 overflow-auto">
+                            <div className="flex gap-1.5">
+                              {/* Profile icon */}
+                              <div className="flex-shrink-0">
+                                <div className="w-7 h-7 rounded-full bg-neutral-300" />
+                              </div>
+
+                              {/* Message content */}
+                              <div className="flex-1 min-w-0 mr-4">
+                                <p className="text-[10px] text-neutral-600 mb-0.5">태그히어</p>
+
+                                {/* Message bubble - KakaoTalk style */}
+                                <div className="relative">
+                                  {/* Kakao badge */}
+                                  <div className="absolute -top-1 -right-1 z-10">
+                                    <span className="bg-neutral-700 text-white text-[8px] px-1 py-0.5 rounded-full font-medium">
+                                      kakao
+                                    </span>
+                                  </div>
+
+                                  <div className="bg-[#FEE500] rounded-t-md px-2 py-1.5">
+                                    <span className="text-[10px] font-medium text-neutral-800">브랜드 메시지</span>
+                                  </div>
+                                  <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
+                                    {/* 이미지 */}
+                                    {kakaoMessageType === 'IMAGE' && kakaoUploadedImage && (
+                                      <img
+                                        src={`${API_BASE}${kakaoUploadedImage.imageUrl}`}
+                                        alt="첨부 이미지"
+                                        className="w-full h-auto"
+                                      />
+                                    )}
+
+                                    {/* Message body */}
+                                    <div className="p-3">
+                                      {kakaoContent ? (
+                                        <p className="text-[11px] text-neutral-800 whitespace-pre-wrap break-words leading-[1.5]">
+                                          {kakaoContent.replace(/{고객명}/g, '{고객명}')}
+                                        </p>
+                                      ) : (
+                                        <p className="text-[11px] text-[#94a3b8]">메시지 미리보기</p>
+                                      )}
+                                    </div>
+
+                                    {/* 버튼 */}
+                                    {kakaoButtons.filter(b => b.name.trim()).length > 0 && (
+                                      <div className="border-t border-neutral-200">
+                                        {kakaoButtons.filter(b => b.name.trim()).map((button, index) => (
+                                          <button
+                                            key={index}
+                                            className="w-full py-2 text-center text-[10px] font-medium text-neutral-800 bg-white hover:bg-neutral-50 transition-colors border-b border-neutral-200 last:border-b-0"
+                                          >
+                                            {button.name || '버튼'}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Time */}
+                                <p className="text-[8px] text-neutral-500 mt-0.5 text-right">
+                                  오후 12:30
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Bottom safe area */}
+                          <div className="h-6" />
+                        </>
+                      )}
+                </IPhoneFrame>
+              </div>
+            </div>
+            </div>
+          );
+        return inline ? <MobilePreviewSheet key={mode}>{preview}</MobilePreviewSheet> : <Fragment key={mode}>{preview}</Fragment>;
+      })}
 
       {/* Confirm Modal */}
       <SendConfirmModal

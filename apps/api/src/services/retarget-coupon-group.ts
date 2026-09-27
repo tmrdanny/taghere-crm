@@ -39,8 +39,12 @@ export async function sendRetargetCouponGroup(params: {
   expiryDate: string;
   billing: CouponBilling;
   logTag: string;
+  /** 마케팅 성과 추적 캠페인 (MarketingCampaign) — 쿠폰 사용을 캠페인별로 센다 */
+  campaignId?: string;
+  /** 예약 발송 시각 (없으면 즉시) */
+  scheduledAt?: Date;
 }): Promise<CouponGroupResult> {
-  const { recipients, couponContent, expiryDate, billing, logTag } = params;
+  const { recipients, couponContent, expiryDate, billing, logTag, campaignId, scheduledAt } = params;
 
   const templateId = env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON;
   if (!templateId) throw new Error('알림톡 템플릿이 설정되지 않았습니다.');
@@ -93,6 +97,7 @@ export async function sendRetargetCouponGroup(params: {
             couponContent,
             expiryDate,
             naverPlaceUrl: r.naverPlaceUrl,
+            campaignId: campaignId ?? null,
           })),
           skipDuplicates: true,
         });
@@ -110,6 +115,7 @@ export async function sendRetargetCouponGroup(params: {
             status: 'PROCESSING' as const,
             sentViaGroup: true,
             unitCost: billing.unitCost,
+            scheduledAt: scheduledAt ?? null,
           })),
           skipDuplicates: true,
         });
@@ -133,6 +139,7 @@ export async function sendRetargetCouponGroup(params: {
     const [result] = await solapiService.sendBulkAlimTalk({
       messages: sendRows.map((r) => ({ to: r.phone, templateId, variables: variablesFor(r) })),
       pfId,
+      scheduledAt,
     });
 
     // 3) 접수 결과 분류 — 접수분은 PENDING + 그룹 ID, 즉시 거절분은 FAILED (과금 없음)

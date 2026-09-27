@@ -4,6 +4,9 @@ import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/fra
 import { getAgeGroupBirthYearRange } from '../lib/customer-filters.js';
 import { loadFranchiseSegment, resolveSegmentCustomersInStores } from '../services/segment-engine.js';
 import { sendRetargetCouponGroup } from '../services/retarget-coupon-group.js';
+import { recordMarketingCampaign, updateMarketingCampaign } from '../services/marketing/tracker.js';
+import { targetLabelOf } from '../services/marketing/labels.js';
+import { resolveSendTime, formatKst } from '../utils/send-window.js';
 
 const router = Router();
 
@@ -155,9 +158,28 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       });
     }
 
+    // 발송 시각 — 예약 요청이 있으면 그 시각, 발송 불가 시간이면 다음 오전 8시
+    const sendTime = resolveSendTime(req.body.scheduledAt, { adWindow: true });
+    if (sendTime.error) return res.status(400).json({ error: sendTime.error });
+    const scheduledAt = sendTime.at;
+
+    // 마케팅 성과 추적 캠페인 (쿠폰 사용·재방문을 캠페인별로 집계)
+    const campaignId = await recordMarketingCampaign({
+      franchiseId,
+      channel: 'KAKAO_COUPON',
+      title: couponContent.trim(),
+      content: `${couponContent.trim()} · ${expiryDate.trim()}까지`,
+      targetLabel: targetLabelOf(targetType, req.body.segmentId),
+      couponContent: couponContent.trim(),
+      sentAt: scheduledAt,
+      recipients: resolved.map((c) => ({ customerId: c.id, storeId: c.storeId })),
+    });
+
     // 솔라피 그룹 발송 (10,000건/1회) — 각 고객의 소속 매장 정보로 보내고, 접수된 건만 프랜차이즈 지갑에서 과금
     const overrideNaver = (naverPlaceUrl || '').trim();
     const result = await sendRetargetCouponGroup({
+      campaignId,
+      scheduledAt,
       recipients: resolved
         .filter((c) => c.phone)
         .map((c) => {
@@ -176,12 +198,14 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       logTag: '[FranchiseRetargetCoupon]',
     });
     const { queued, dropped } = result;
+    await updateMarketingCampaign(campaignId, { cost: result.totalCost });
 
     console.log(`[FranchiseRetargetCoupon] franchiseId=${franchiseId} resolved=${resolved.length} queued=${queued} dropped=${dropped}`);
 
     res.json({
       success: true,
-      message: `${queued.toLocaleString()}명에게 쿠폰 알림톡을 보냈습니다.${dropped > 0 ? ` (${dropped.toLocaleString()}명은 접수 실패로 제외, 비용 미청구)` : ''}`,
+      scheduledAt: scheduledAt?.toISOString() ?? null,
+      message: `${queued.toLocaleString()}명에게 쿠폰 알림톡을 ${scheduledAt ? `${formatKst(scheduledAt)}에 보내도록 예약했어요` : '보냈습니다'}.${dropped > 0 ? ` (${dropped.toLocaleString()}명은 접수 실패로 제외, 비용 미청구)` : ''}`,
       count: queued,
       resolved: resolved.length,
       queued,

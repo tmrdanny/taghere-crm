@@ -33,6 +33,7 @@ import {
   Rocket,
   MessagesSquare,
   Ticket,
+  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -99,6 +100,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/automation', label: '자동 마케팅', icon: Zap, badge: '30건 무료' },
       { href: '/messages', label: '메시지 발송', icon: MessageSquareMore },
+      { href: '/marketing-performance', label: '마케팅 성과', icon: TrendingUp, isNew: true },
       { href: '/coupon-links', label: '쿠폰 발행 링크', icon: Ticket, isNew: true },
       { href: '/place-booster', label: '네이버 플레이스 부스터', icon: Rocket, isNew: true },
       // 네이버 리뷰 요청: 메뉴에서 숨김 (페이지는 유지)
@@ -395,7 +397,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
         href={item.isExternal || item.isComingSoon ? '#' : item.href}
         onClick={(e) => handleNavClick(e, item)}
         className={cn(
-          'ad-press relative flex items-center gap-3 mx-2 px-3 h-10 [@media(max-height:860px)]:h-[34px] rounded-[10px] text-[13.5px] transition-colors',
+          'ad-press relative flex items-center gap-3 mx-2 px-3 h-10 [@media(max-height:860px)]:h-[33px] rounded-[10px] text-[13.5px] transition-colors',
           active
             ? 'bg-white font-semibold text-[color:var(--ad-ink)] shadow-[0_0_0_1px_var(--ad-line)]'
             : 'text-[color:var(--ad-ink-2)] hover:bg-white/60',
@@ -452,7 +454,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
     }
 
     return (
-      <div key={group.title} className="mt-6 [@media(max-height:860px)]:mt-3">
+      <div key={group.title} className="mt-6 [@media(max-height:860px)]:mt-2.5">
         <p className="mb-1.5 flex items-center gap-1.5 px-5 text-[11px] font-medium text-[color:var(--ad-faint)]">
           {group.title}
           {group.badge && (

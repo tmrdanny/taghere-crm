@@ -50,6 +50,8 @@ import visitSourceSettingsRoutes from './routes/visit-source-settings.js';
 import insightsRoutes from './routes/insights.js';
 import segmentsRoutes from './routes/segments.js';
 import franchiseSegmentsRoutes from './routes/franchise-segments.js';
+import premiumKakaoRoutes, { franchisePremiumKakaoRoutes } from './routes/premium-kakao.js';
+import { ownerRouter as marketingPerformanceRoutes, franchiseRouter as franchiseMarketingPerformanceRoutes } from './routes/marketing-performance.js';
 import retargetCouponRoutes from './routes/retarget-coupon.js';
 import couponFormRoutes from './routes/coupon-form.js';
 import automationRoutes from './routes/automation.js';
@@ -178,6 +180,8 @@ app.use('/api/taghere/auto-earn', earnLimiter);
 
 // Static file serving for uploads (MMS images)
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+// 프리미엄 카카오톡 공용 샘플 이미지 (미리보기용)
+app.use('/premium-stock', express.static(path.join(process.cwd(), 'assets', 'premium-stock'), { maxAge: '7d' }));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -277,6 +281,8 @@ app.use('/api/visit-source-settings', visitSourceSettingsRoutes);
 // Insights routes
 app.use('/api/insights', insightsRoutes);
 app.use('/api/segments', segmentsRoutes);
+app.use('/api/premium-kakao', premiumKakaoRoutes);
+app.use('/api/marketing-performance', marketingPerformanceRoutes);
 
 // Retarget coupon routes
 app.use('/api/retarget-coupon', retargetCouponRoutes);
@@ -304,6 +310,8 @@ app.use('/api/v1', v1YahwaRoutes);
 // Franchise routes
 app.use('/api/franchise/auth', franchiseAuthRoutes);
 app.use('/api/franchise/segments', franchiseSegmentsRoutes);
+app.use('/api/franchise/premium-kakao', franchisePremiumKakaoRoutes);
+app.use('/api/franchise/marketing-performance', franchiseMarketingPerformanceRoutes);
 app.use('/api/franchise/sms', franchiseSmsRoutes);
 app.use('/api/franchise/retarget-coupon', franchiseRetargetCouponRoutes);
 app.use('/api/franchise/place-booster', franchisePlaceBoosterRoutes);

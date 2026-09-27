@@ -72,6 +72,7 @@ model Store {
   // Relations
   staffUsers            StaffUser[]
   customerSegments      CustomerSegment[]
+  premiumKakaoCampaigns PremiumKakaoCampaign[]
   customers             Customer[]
   visitsOrOrders        VisitOrOrder[]
   pointLedger           PointLedger[]
@@ -603,6 +604,7 @@ enum AlimTalkType {
   LOCAL_COUPON          // 지역 고객 쿠폰 알림톡
   CUSTOMER_COUNT        // 누적 고객 수 알림
   PLACE_BOOSTER         // 네이버 플레이스 부스터 쿠폰 알림톡
+  PREMIUM_KAKAO         // 프리미엄 카카오톡 (브랜드 메시지)
 }
 
 enum AlimTalkStatus {
@@ -1230,6 +1232,8 @@ model FranchiseSmsCampaign {
   genderFilter  String?
   ageGroups     String?  // JSON array
   imageUrl      String?
+  solapiGroupIds Json?    // 솔라피 그룹 ID 목록 (예약 취소용)
+  scheduledAt   DateTime? // 예약 발송 시각 (null = 즉시)
   status        String   // "PENDING" | "COMPLETED" | "FAILED"
   createdAt     DateTime @default(now())
 
@@ -1740,6 +1744,7 @@ model RetargetCoupon {
   naverPlaceUrl   String?             // 네이버 플레이스 URL
   usedAt          DateTime?           // 사용 완료 시간
   usedBy          String?             // 사용 처리자 정보
+  campaignId      String?             // 마케팅 성과 추적용 캠페인 (MarketingCampaign)
   createdAt       DateTime  @default(now())
 
   // Relations
@@ -1748,6 +1753,7 @@ model RetargetCoupon {
 
   @@index([storeId])
   @@index([code])
+  @@index([campaignId])
   @@index([phone])
   @@map("retarget_coupons")
 }
@@ -2480,6 +2486,88 @@ model CustomerSegment {
 
   @@index([storeId])
   @@map("customer_segments")
+}
+
+// 프리미엄 카카오톡 캠페인 — 카카오 브랜드 메시지("태그히어 플레이스" 채널).
+// 확대 발송(targeting M)은 템플릿 기반만 허용되므로, 발송할 때 편집 내용을 솔라피 브랜드 템플릿으로 등록하고
+// 그 템플릿으로 그룹 발송한다. 수신자별 기록은 alimtalk_outbox(messageType PREMIUM_KAKAO)에 쌓여
+// 워커의 그룹 결과 확인·환불을 그대로 탄다. 결과가 모두 확정되면 템플릿을 지운다 (계정당 100개 제한).
+model PremiumKakaoCampaign {
+  id               String    @id @default(cuid())
+  storeId          String?   // 사장님 발송 매장 (프랜차이즈 발송이면 null)
+  store            Store?    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  franchiseId      String?   // 프랜차이즈 본사 발송 (전 가맹점 대상, 프랜차이즈 지갑 과금)
+  bubbleType       String    // TEXT | IMAGE | WIDE | WIDE_ITEM_LIST | COMMERCE | CAROUSEL_FEED | CAROUSEL_COMMERCE | PREMIUM_VIDEO
+  content          Json      // 편집 내용 (web features/premium-kakao/spec.ts 의 PkContent)
+  solapiTemplateId String?
+  targetType       String    // ALL | REVISIT | NEW | CUSTOM | SEGMENT | TEST
+  targetFilter     Json?     // 성별·연령대·고객 그룹 등 발송 당시 조건
+  targetCount      Int       @default(0)
+  queuedCount      Int       @default(0)
+  sentCount        Int       @default(0)
+  failedCount      Int       @default(0)
+  unitCost         Int       // 건당 판매가 (부가세 포함)
+  totalCost        Int       @default(0) // 접수 시 차감액
+  status           String    @default("SENDING") // SENDING | COMPLETED | FAILED
+  isTest           Boolean   @default(false)
+  scheduledAt      DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([storeId, createdAt])
+  @@index([status])
+  @@map("premium_kakao_campaigns")
+}
+
+// 프리미엄 카카오톡 공용 샘플 이미지 → 솔라피 파일 ID 캐시 (이미지·슬롯별 한 번만 업로드)
+model PremiumStockImage {
+  id        String   @id @default(cuid())
+  key       String   // 샘플 이미지 키 (예: new-menu)
+  slot      String   // 솔라피 업로드 파일 유형 (BMS, BMS_WIDE, ...)
+  fileId    String
+  createdAt DateTime @default(now())
+
+  @@unique([key, slot])
+  @@map("premium_stock_images")
+}
+
+// 마케팅 성과 추적 — 채널(문자·카카오 쿠폰·프리미엄 카카오톡)과 상관없이 발송 1건을 캠페인으로 남기고,
+// 받은 고객을 기록해 쿠폰 사용(직원 확인)과 발송 후 재방문·매출을 캠페인 단위로 집계한다.
+model MarketingCampaign {
+  id              String    @id @default(cuid())
+  storeId         String?   // 사장님 발송 (프랜차이즈 발송이면 null)
+  franchiseId     String?   // 프랜차이즈 본사 발송
+  channel         String    // SMS | KAKAO_COUPON | PREMIUM_KAKAO
+  sourceId        String?   // 채널별 원본 캠페인 ID (SmsCampaign / PremiumKakaoCampaign 등)
+  title           String    // 목록 표시용 한 줄 요약
+  content         String?   @db.Text
+  targetLabel     String?   // 전체 / 재방문 / 신규 / 고객 그룹명 등
+  couponEnabled   Boolean   @default(false) // 직원 확인 쿠폰 포함
+  couponContent   String?
+  recipientCount  Int       @default(0)
+  cost            Int       @default(0)
+  sentAt          DateTime  @default(now())
+  canceledAt      DateTime? // 예약 취소
+  createdAt       DateTime  @default(now())
+
+  recipients      MarketingCampaignRecipient[]
+
+  @@index([storeId, sentAt])
+  @@index([franchiseId, sentAt])
+  @@map("marketing_campaigns")
+}
+
+model MarketingCampaignRecipient {
+  id          String            @id @default(cuid())
+  campaignId  String
+  campaign    MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customerId  String
+  storeId     String
+
+  @@index([campaignId])
+  @@index([customerId])
+  @@map("marketing_campaign_recipients")
 }
 
 // 프랜차이즈 고객 그룹 — 전 가맹점 고객을 같은 조건(SegmentConditions)으로 묶는다

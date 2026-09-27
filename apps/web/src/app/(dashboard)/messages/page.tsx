@@ -2,7 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
-import { useState, useEffect, useCallback } from 'react';
+import { Fragment, useState, useEffect, useCallback } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,14 @@ import {
 import { cn } from '@/lib/utils';
 import { ChargeModal } from '@/components/ChargeModal';
 import { SegmentPicker } from '@/features/segments/SegmentPicker';
+import { PremiumKakaoComposer } from '@/features/premium-kakao/PremiumKakaoComposer';
+import { AlimtalkSamples } from '@/features/premium-kakao/AlimtalkSamples';
+import { MobilePreviewSheet } from '@/features/messages/MobilePreviewSheet';
+import { ReservationsPanel } from '@/features/messages/ReservationsPanel';
+import { SendTimePicker, SendTimeValue, defaultSendTime, formatSendTime, sendTimeError, sendTimeToIso } from '@/features/messages/SendTimePicker';
+import { PremiumKakaoPreview } from '@/features/premium-kakao/PremiumKakaoPreview';
+import { BubbleType, PkContent, emptyContent } from '@/features/premium-kakao/spec';
+import { StaffVerifyField, StaffVerifyValue, emptyStaffVerify, smsCouponPreview, staffVerifyPayload } from '@/features/marketing-performance/StaffVerifyField';
 
 
 import {
@@ -64,6 +72,27 @@ export default function MessagesPage() {
 
   // Tab state (카카오톡 우선)
   const [activeTab, setActiveTab] = useState<'sms' | 'kakao'>('kakao');
+  // 프리미엄 카카오톡(브랜드 메시지) 작성 상태 — 탭을 오가도 유지되고 브라우저에 임시 저장된다
+  const [premiumType, setPremiumType] = useState<BubbleType>('IMAGE');
+  // 카카오톡 탭 형태: 템플릿 기본형(쿠폰 알림톡) / 브랜드 메시지(premiumType)
+  // 진입 시 기본 형태는 이미지형
+  const [kakaoMode, setKakaoMode] = useState<'ALIMTALK' | 'BMS'>('BMS');
+  const [premiumContents, setPremiumContents] = useState<Partial<Record<BubbleType, PkContent>>>({});
+  // 버튼·목록 링크 기본값은 매장 네이버 플레이스 (쿠폰 설정에서 불러옴)
+  const [storeNaverUrl, setStoreNaverUrl] = useState('');
+  const [premiumFooterName, setPremiumFooterName] = useState('');
+  const premiumContent = premiumContents[premiumType] ?? emptyContent(premiumType, storeNaverUrl);
+  // 발송 시간 (지금 / 예약) — 문자, 템플릿 기본형(쿠폰 알림톡)
+  const [smsSendTime, setSmsSendTime] = useState<SendTimeValue>(defaultSendTime);
+  // 새로 예약하면 “예약된 발송” 목록을 다시 불러온다
+  const [reservationKey, setReservationKey] = useState(0);
+  const bumpReservations = () => setReservationKey((k) => k + 1);
+  const [couponSendTime, setCouponSendTime] = useState<SendTimeValue>(defaultSendTime);
+  // 문자 직원 확인 쿠폰 (선택)
+  const [smsVerify, setSmsVerify] = useState<StaffVerifyValue>(emptyStaffVerify);
+  // 프리미엄 카카오톡 직원 확인 (쿠폰의 “받기”가 직원 확인 화면으로)
+  const [premiumVerify, setPremiumVerify] = useState<StaffVerifyValue>(emptyStaffVerify);
+  const [chargeOverride, setChargeOverride] = useState<{ required: number; balance: number } | null>(null);
 
   // 리타겟 쿠폰 상태
   const [couponContent, setCouponContent] = useState('');
@@ -253,7 +282,8 @@ export default function MessagesPage() {
         const draft = JSON.parse(savedDraft);
         if (draft.messageContent) setMessageContent(draft.messageContent);
         if (draft.kakaoContent) setKakaoContent(draft.kakaoContent);
-        if (draft.activeTab) setActiveTab(draft.activeTab);
+        // 탭·형태는 복원하지 않는다 — 진입 시 항상 카카오톡 · 이미지형
+        if (draft.premiumContents) setPremiumContents(draft.premiumContents);
         if (draft.selectedTarget && draft.selectedTarget !== 'SEGMENT' && !searchParams.get('customers') && !searchParams.get('segmentId')) {
           setSelectedTarget(draft.selectedTarget);
         }
@@ -281,11 +311,14 @@ export default function MessagesPage() {
         isAdMessage,
         kakaoMessageType,
         kakaoButtons,
+        premiumType,
+        premiumContents,
+        kakaoMode,
       };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     }, 500);
     return () => clearTimeout(timer);
-  }, [messageContent, kakaoContent, activeTab, selectedTarget, genderFilter, selectedAgeGroups, isAdMessage, kakaoMessageType, kakaoButtons]);
+  }, [messageContent, kakaoContent, activeTab, selectedTarget, genderFilter, selectedAgeGroups, isAdMessage, kakaoMessageType, kakaoButtons, premiumType, premiumContents, kakaoMode]);
 
   // Draft 삭제 함수
   const clearDraft = () => {
@@ -303,6 +336,7 @@ export default function MessagesPage() {
           const data = await res.json();
           setCouponStoreName(data.storeName || '');
           setCouponNaverPlaceUrl(data.naverPlaceUrl || '');
+          setStoreNaverUrl(data.naverPlaceUrl || '');
         }
       } catch (error) {
         console.error('Failed to fetch coupon settings:', error);
@@ -367,6 +401,12 @@ export default function MessagesPage() {
       if (uploadedImage) {
         params.set('hasImage', 'true');
       }
+      // 직원 확인 쿠폰 링크까지 포함한 길이로 비용 계산
+      if (smsVerify.enabled) {
+        params.set('staffVerify', 'true');
+        params.set('couponContent', smsVerify.couponContent);
+        params.set('expiryDate', smsVerify.expiryDate);
+      }
 
       const res = await fetch(`${API_BASE}/api/sms/estimate?${params}`, {
         headers: { Authorization: `Bearer ${getAuthToken()}` },
@@ -379,7 +419,7 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Failed to fetch estimate:', error);
     }
-  }, [messageContent, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, uploadedImage]);
+  }, [messageContent, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, uploadedImage, smsVerify]);
 
   // Fetch test count
   const fetchTestCount = useCallback(async () => {
@@ -724,7 +764,7 @@ export default function MessagesPage() {
     return byteLength;
   };
 
-  const byteLength = getByteLength(messageContent);
+  const byteLength = getByteLength(messageContent + smsCouponPreview(smsVerify));
   const isLongMessage = byteLength > 90;
 
   // Get current target count
@@ -1025,7 +1065,13 @@ export default function MessagesPage() {
         imageUrl: uploadedImage?.imageUrl || undefined,
         imageId: uploadedImage?.imageId || undefined, // SOLAPI 이미지 ID 전달
         isAdMessage,
+        staffVerify: staffVerifyPayload(smsVerify),
+        scheduledAt: sendTimeToIso(smsSendTime),
       };
+      if (smsVerify.enabled && !smsVerify.couponContent.trim()) {
+        showToast('직원 확인 쿠폰 내용을 입력해주세요.', 'error');
+        return;
+      }
 
       if (selectedTarget === 'CUSTOM') {
         body.customerIds = selectedCustomers.map(c => c.id);
@@ -1054,7 +1100,8 @@ export default function MessagesPage() {
         trackEvent('owner_message_send', { channel: 'sms', target_type: selectedTarget, target_count: sentOrPending, has_image: !!uploadedImage });
         const failedMsg = data.failedCount > 0 ? `, ${data.failedCount}건 실패` : '';
         const costMsg = data.totalCost ? ` (비용: ${formatNumber(data.totalCost)}원)` : '';
-        showToast(`${sentOrPending}건 발송 요청 완료${failedMsg}${costMsg}`, 'success');
+        showToast(data.scheduledAt ? data.message : `${sentOrPending}건 발송 요청 완료${failedMsg}${costMsg}`, 'success');
+        bumpReservations();
         setMessageContent('');
         setUploadedImage(null);
         setImageError(null);
@@ -1095,6 +1142,9 @@ export default function MessagesPage() {
           targetCount={getCurrentTargetCount()}
           freeCreditsRemaining={estimate?.freeCredits?.remaining}
         />
+
+        {/* 예약된 발송 — 발송 2분 전까지 취소·환불 */}
+        <ReservationsPanel apiUrl="/api/marketing-performance" refreshKey={reservationKey} showToast={showToast} />
 
         {/* Step 1: Target Selection */}
         <div className="flex flex-col gap-3">
@@ -1395,6 +1445,9 @@ export default function MessagesPage() {
                   <span>{imageError}</span>
                 </div>
               )}
+
+              {/* 직원 확인 쿠폰 (마케팅 성과 추적) */}
+              <StaffVerifyField value={smsVerify} onChange={setSmsVerify} />
             </div>
 
             {/* Step 3: Expected Effect & CTA */}
@@ -1477,18 +1530,20 @@ export default function MessagesPage() {
                 </div>
               ) : (
                 <>
+                  <SendTimePicker value={smsSendTime} onChange={setSmsSendTime} adWindow={isAdMessage} />
                   {/* CTA 버튼 */}
                   <button
                     disabled={
                       !messageContent.trim() ||
                       getCurrentTargetCount() === 0 ||
-                      (estimate !== null && !estimate.canSend)
+                      (estimate !== null && !estimate.canSend) ||
+                      !!sendTimeError(smsSendTime, isAdMessage)
                     }
                     onClick={() => setShowConfirmModal(true)}
                     className="ad-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Send className="h-4 w-4" />
-                    메시지 발송하기 ({formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원)
+                    {smsSendTime.mode === 'schedule' ? `${formatSendTime(smsSendTime)} 예약하기` : '메시지 발송하기'} ({formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원)
                   </button>
 
                   {/* 테스트 발송 링크 */}
@@ -1518,12 +1573,27 @@ export default function MessagesPage() {
           </>
         )}
 
-        {/* 카카오톡 탭 콘텐츠 - 쿠폰 알림톡 */}
+        {/* 카카오톡 탭 — 형태 선택: 템플릿 기본형(쿠폰 알림톡) + 브랜드 메시지 8종 */}
         {activeTab === 'kakao' && (
-          <>
+          <PremiumKakaoComposer
+            leadingType={{
+              name: '템플릿 기본형',
+              tip: '쿠폰 알림톡',
+              priceLabel: '건당 50원',
+              selected: kakaoMode === 'ALIMTALK',
+              onSelect: () => setKakaoMode('ALIMTALK'),
+              content: (
+                <>
             {/* Step 2: 쿠폰 정보 입력 */}
             <div className="flex flex-col gap-4">
-              <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">2. 어떤 쿠폰을 보낼까요?</label>
+              <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">3. 어떤 쿠폰을 보낼까요?</label>
+
+              <AlimtalkSamples
+                onPick={(content, expiry) => {
+                  setCouponContent(content);
+                  setCouponExpiryDate(expiry);
+                }}
+              />
 
               {/* 쿠폰 내용 */}
               <div>
@@ -1573,7 +1643,7 @@ export default function MessagesPage() {
             <div className="p-5 bg-[color:var(--ad-bg-alt)] rounded-[16px] border border-[color:var(--ad-line)]">
               {/* ROI 강조 메시지 */}
               <div className="mb-4">
-                <span className="text-[14px] font-semibold text-[color:var(--ad-ink)]">3. 쿠폰을 보내면 이런 효과가 예상돼요</span>
+                <span className="text-[14px] font-semibold text-[color:var(--ad-ink)]">4. 쿠폰을 보내면 이런 효과가 예상돼요</span>
               </div>
 
               {/* 효과 예측 카드 */}
@@ -1648,6 +1718,7 @@ export default function MessagesPage() {
                 )}
               </div>
 
+              <SendTimePicker value={couponSendTime} onChange={setCouponSendTime} />
               {/* CTA 버튼 */}
               <button
                 disabled={
@@ -1655,7 +1726,8 @@ export default function MessagesPage() {
                   !couponExpiryDate.trim() ||
                   getCurrentTargetCount() === 0 ||
                   getCurrentTargetCount() > 50000 ||
-                  isCouponSending
+                  isCouponSending ||
+                  !!sendTimeError(couponSendTime, true)
                 }
                 onClick={async () => {
                   if (!couponContent.trim() || !couponExpiryDate.trim()) {
@@ -1685,6 +1757,7 @@ export default function MessagesPage() {
                       targetType: selectedTarget,
                       genderFilter: genderFilter !== 'all' ? genderFilter : undefined,
                       ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : undefined,
+                      scheduledAt: sendTimeToIso(couponSendTime),
                     };
                     if (selectedTarget === 'CUSTOM') {
                       body.customerIds = selectedCustomers.map(c => c.id);
@@ -1713,6 +1786,7 @@ export default function MessagesPage() {
                     const result = await sendRes.json();
                     if (sendRes.ok) {
                       showToast(result.message || '쿠폰 알림톡이 발송되었습니다.', 'success');
+                      bumpReservations();
                       setCouponContent('');
                       setCouponExpiryDate('');
                     } else {
@@ -1735,25 +1809,69 @@ export default function MessagesPage() {
                 ) : (
                   <>
                     <Send className="h-4 w-4" />
-                    쿠폰 알림톡 발송하기 ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
+                    {couponSendTime.mode === 'schedule' ? `${formatSendTime(couponSendTime)} 예약하기` : '쿠폰 알림톡 발송하기'} ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
                   </>
                 )}
               </button>
             </div>
-          </>
+                </>
+              ),
+            }}
+            type={premiumType}
+            onTypeChange={(t) => {
+              setPremiumType(t);
+              setKakaoMode('BMS');
+            }}
+            content={premiumContent}
+            onContentChange={(c) => setPremiumContents((prev) => ({ ...prev, [premiumType]: c }))}
+            target={{
+              targetType: selectedTarget,
+              customerIds: selectedTarget === 'CUSTOM' ? selectedCustomers.map((c) => c.id) : undefined,
+              segmentId: selectedTarget === 'SEGMENT' ? selectedSegment?.id : undefined,
+              genderFilter: selectedTarget !== 'SEGMENT' && genderFilter !== 'all' ? genderFilter : undefined,
+              ageGroups: selectedTarget !== 'SEGMENT' && selectedAgeGroups.length > 0 ? selectedAgeGroups : undefined,
+            }}
+            targetReady={
+              (selectedTarget !== 'CUSTOM' || selectedCustomers.length > 0) && (selectedTarget !== 'SEGMENT' || !!selectedSegment)
+            }
+            showToast={showToast}
+            onNeedCharge={(required, balance) => {
+              setChargeOverride({ required, balance });
+              setIsChargeModalOpen(true);
+            }}
+            onSent={() => {
+              setPremiumContents((prev) => ({ ...prev, [premiumType]: emptyContent(premiumType, storeNaverUrl) }));
+              bumpReservations();
+            }}
+            staffVerify={premiumVerify}
+            onStaffVerifyChange={setPremiumVerify}
+            defaultLink={storeNaverUrl}
+            onFooterName={setPremiumFooterName}
+          />
         )}
+
       </div>
 
-      {/* Right Panel - Preview (hidden on mobile) */}
-      <MessagePreview
-        activeTab={activeTab}
-        uploadedImage={uploadedImage}
-        messageContent={messageContent}
-        isAdMessage={isAdMessage}
-        couponStoreName={couponStoreName}
-        couponContent={couponContent}
-        couponExpiryDate={couponExpiryDate}
-      />
+      {/* Right Panel - Preview (데스크톱: 오른쪽 패널 / 모바일: 아래 “미리보기” 버튼 → 시트) */}
+      {(['aside', 'sheet'] as const).map((mode) => {
+        const inline = mode === 'sheet';
+        const preview =
+          activeTab === 'kakao' && kakaoMode === 'BMS' ? (
+            <PremiumKakaoPreview type={premiumType} content={premiumContent} verifyButton={premiumVerify.enabled} footerName={premiumFooterName || couponStoreName} inline={inline} />
+          ) : (
+            <MessagePreview
+              activeTab={activeTab}
+              uploadedImage={uploadedImage}
+              messageContent={messageContent + smsCouponPreview(smsVerify)}
+              isAdMessage={isAdMessage}
+              couponStoreName={couponStoreName}
+              couponContent={couponContent}
+              couponExpiryDate={couponExpiryDate}
+              inline={inline}
+            />
+          );
+        return inline ? <MobilePreviewSheet key={mode}>{preview}</MobilePreviewSheet> : <Fragment key={mode}>{preview}</Fragment>;
+      })}
 
       {/* Confirm Modal */}
       <SendConfirmModal
@@ -1827,12 +1945,16 @@ export default function MessagesPage() {
       {/* 충전 모달 */}
       <ChargeModal
         isOpen={isChargeModalOpen}
-        onClose={() => setIsChargeModalOpen(false)}
+        onClose={() => {
+          setIsChargeModalOpen(false);
+          setChargeOverride(null);
+        }}
         onSuccess={() => {
           setIsChargeModalOpen(false);
+          setChargeOverride(null);
         }}
-        currentBalance={activeTab === 'kakao' ? (kakaoEstimate?.walletBalance || 0) : (estimate?.walletBalance || 0)}
-        requiredAmount={activeTab === 'kakao' ? (kakaoEstimate?.totalCost || 0) : (estimate?.totalCost || 0)}
+        currentBalance={chargeOverride ? chargeOverride.balance : activeTab === 'kakao' ? (kakaoEstimate?.walletBalance || 0) : (estimate?.walletBalance || 0)}
+        requiredAmount={chargeOverride ? chargeOverride.required : activeTab === 'kakao' ? (kakaoEstimate?.totalCost || 0) : (estimate?.totalCost || 0)}
         successRedirectPath="/messages"
       />
     </div>

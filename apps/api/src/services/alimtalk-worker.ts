@@ -7,6 +7,7 @@ import { sendAligoAlimtalk } from './aligo.js';
 import { resolveAlimtalkCost } from './pricing-service.js';
 import { refundAcquisitionCoupons } from './acquisition-coupon.js';
 import { refundGroupCouponFailures } from './retarget-coupon-group.js';
+import { finalizePremiumKakaoCampaigns } from './premium-kakao/send.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 
 const BATCH_SIZE = 10;
@@ -513,6 +514,8 @@ export async function processBatch(): Promise<number> {
 
   // 그룹 발송분은 그룹 단위로 상태를 확정 (건별 경로와 별도)
   const reconciled = await reconcileGroupSentMessages();
+  // 프리미엄 카카오톡: 결과가 모두 확정된 캠페인 마감 (집계 + 브랜드 템플릿 삭제)
+  await finalizePremiumKakaoCampaigns().catch((e) => console.error('[Worker] premium kakao finalize failed:', e));
 
   // PENDING 또는 RETRY 상태의 메시지 조회 (그룹 발송 행 제외)
   const messages = await prisma.alimTalkOutbox.findMany({

@@ -15,6 +15,7 @@ export function MessagePreview({
   couponStoreName,
   couponContent,
   couponExpiryDate,
+  inline = false,
 }: {
   activeTab: 'sms' | 'kakao';
   uploadedImage: UploadedImage | null;
@@ -23,9 +24,11 @@ export function MessagePreview({
   couponStoreName: string;
   couponContent: string;
   couponExpiryDate: string;
+  /** 모바일 시트 안에서 쓸 때 — 데스크톱 전용 숨김 없이 그린다 */
+  inline?: boolean;
 }) {
   return (
-    <div className="hidden lg:block flex-none w-[360px] self-start">
+    <div className={inline ? 'mx-auto w-full max-w-[360px]' : 'hidden lg:block flex-none w-[360px] self-start'}>
       <div className="bg-[#e2e8f0] rounded-3xl p-5">
         <p className="text-center text-[#64748b] mb-4">발송 메시지 미리보기</p>
         <div className="flex justify-center">
