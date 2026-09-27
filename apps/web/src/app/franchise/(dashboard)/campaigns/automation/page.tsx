@@ -3,7 +3,6 @@
 import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import {
@@ -199,59 +198,59 @@ export default function FranchiseAutomationPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 lg:p-8 max-w-4xl mx-auto">
-        <div className="text-center py-12 text-slate-500">불러오는 중...</div>
+      <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
+        <div className="py-12 text-center text-[13px] text-[color:var(--ad-faint)]">불러오는 중...</div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {ToastComponent}
 
       {/* 헤더 */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-slate-900">자동 마케팅</h1>
-        <p className="text-slate-500 mt-1">
+      <div className="mb-5">
+        <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">자동 마케팅</h1>
+        <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
           가맹점별로 자동 마케팅을 설정할 수 있습니다. 비용은 각 가맹점의 충전금에서 차감됩니다.
         </p>
       </div>
 
       {/* 가맹점 선택 */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-slate-700 mb-2">
-          <Store className="w-4 h-4 inline-block mr-1" />
+      <div className="mb-4">
+        <label className="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+          <Store className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
           가맹점 선택
         </label>
         <div className="relative">
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="w-full flex items-center justify-between px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm hover:border-slate-400 transition-colors"
+            className="flex h-10 w-full items-center justify-between rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] transition-colors hover:bg-[color:var(--ad-bg-alt)]"
           >
-            <span className={selectedStoreId ? 'text-slate-900' : 'text-slate-400'}>
+            <span className={selectedStoreId ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-faint)]'}>
               {selectedStoreId === 'ALL'
                 ? `전체 가맹점 (${stores.length}개)`
                 : selectedStore
                   ? `${selectedStore.name} (활성 ${selectedStore.activeRuleCount}개)`
                   : '가맹점을 선택해주세요'}
             </span>
-            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`h-4 w-4 text-[color:var(--ad-faint)] transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {isDropdownOpen && (
-            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-[12px] border border-[color:var(--ad-line)] bg-white py-1 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.18)]">
               {/* 전체 가맹점 옵션 */}
               <button
                 onClick={() => {
                   setSelectedStoreId('ALL');
                   setIsDropdownOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors border-b border-slate-100 ${
-                  selectedStoreId === 'ALL' ? 'bg-franchise-50 text-franchise-700 font-medium' : 'text-slate-700'
+                className={`flex w-full items-center justify-between border-b border-[color:var(--ad-line)] px-3 py-2.5 text-[13px] transition-colors hover:bg-[color:var(--ad-bg-alt)] ${
+                  selectedStoreId === 'ALL' ? 'bg-[color:var(--ad-bg)] font-medium text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-ink-2)]'
                 }`}
               >
                 <span>전체 가맹점 ({stores.length}개)</span>
-                <span className="text-xs text-slate-400">일괄 설정</span>
+                <span className="text-[12px] text-[color:var(--ad-faint)]">일괄 설정</span>
               </button>
 
               {stores.map((store) => (
@@ -261,17 +260,17 @@ export default function FranchiseAutomationPage() {
                     setSelectedStoreId(store.id);
                     setIsDropdownOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors ${
-                    selectedStoreId === store.id ? 'bg-franchise-50 text-franchise-700 font-medium' : 'text-slate-700'
+                  className={`flex w-full items-center justify-between px-3 py-2.5 text-[13px] transition-colors hover:bg-[color:var(--ad-bg-alt)] ${
+                    selectedStoreId === store.id ? 'bg-[color:var(--ad-bg)] font-medium text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-ink-2)]'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <span>{store.name}</span>
                     {!store.naverPlaceUrl && (
-                      <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">네이버 미설정</span>
+                      <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">네이버 미설정</span>
                     )}
                   </div>
-                  <span className="text-xs text-slate-400">
+                  <span className="ad-tnum text-[12px] text-[color:var(--ad-faint)]">
                     활성 {store.activeRuleCount}개
                   </span>
                 </button>
@@ -283,63 +282,64 @@ export default function FranchiseAutomationPage() {
 
       {/* 가맹점 미선택 */}
       {!selectedStoreId && (
-        <div className="text-center py-16 text-slate-400">
-          <Store className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p>가맹점을 선택하면 자동 마케팅 시나리오가 표시됩니다</p>
+        <div className="ad-card py-16 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--ad-bg)]">
+            <Store className="h-5 w-5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+          </div>
+          <p className="text-[13px] text-[color:var(--ad-faint)]">가맹점을 선택하면 자동 마케팅 시나리오가 표시됩니다</p>
         </div>
       )}
 
       {/* 전체 가맹점 모드 */}
       {selectedStoreId === 'ALL' && (
         <>
-          <div className="mb-4 p-3 bg-franchise-50 border border-franchise-200 rounded-lg">
-            <p className="text-sm text-franchise-700">
-              <strong>전체 가맹점 일괄 설정</strong> - ON/OFF를 토글하면 모든 가맹점에 일괄 적용됩니다.
+          <div className="mb-4 flex items-start gap-2 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[13px] text-[color:var(--ad-muted)]">
+            <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+            <p>
+              <span className="font-medium text-[color:var(--ad-ink-2)]">전체 가맹점 일괄 설정</span> - ON/OFF를 토글하면 모든 가맹점에 일괄 적용됩니다.
               네이버 플레이스 링크가 없는 가맹점은 활성화에서 자동으로 제외됩니다.
             </p>
           </div>
 
-          <div className="space-y-3">
-            {SCENARIOS.map((scenario) => {
-              const Icon = scenario.icon;
-              return (
-                <Card key={scenario.type}>
-                  <CardContent className="py-4 px-5">
+          <div className="ad-card overflow-hidden">
+            <div className="divide-y divide-[color:var(--ad-line)]">
+              {SCENARIOS.map((scenario) => {
+                const Icon = scenario.icon;
+                return (
+                  <div key={scenario.type} className="px-5 py-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-slate-100 text-slate-500">
-                        <Icon className="w-5 h-5" />
+                      <Icon className="h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">{scenario.label}</h3>
+                        <p className="mt-0.5 text-[13px] text-[color:var(--ad-muted)]">{scenario.description}</p>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-slate-900">{scenario.label}</h3>
-                        <p className="text-sm text-slate-500 mt-0.5">{scenario.description}</p>
-                      </div>
-                      <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="flex flex-shrink-0 items-center gap-2">
                         <button
                           onClick={() => handleToggle(scenario.type, true)}
                           disabled={togglingType === scenario.type}
-                          className="px-3 py-1.5 text-xs font-medium bg-franchise-600 text-white rounded-md hover:bg-franchise-700 disabled:opacity-50 transition-colors"
+                          className="ad-press inline-flex h-8 items-center justify-center rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
                         >
                           전체 ON
                         </button>
                         <button
                           onClick={() => handleToggle(scenario.type, false)}
                           disabled={togglingType === scenario.type}
-                          className="px-3 py-1.5 text-xs font-medium bg-slate-200 text-slate-700 rounded-md hover:bg-slate-300 disabled:opacity-50 transition-colors"
+                          className="ad-press inline-flex h-8 items-center justify-center rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
                         >
                           전체 OFF
                         </button>
                         <button
                           onClick={() => router.push(`/franchise/campaigns/automation/${scenario.type}?storeId=ALL`)}
-                          className="p-1.5 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-50 transition-colors"
+                          className="ad-press rounded-[8px] p-1.5 text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]"
                         >
-                          <ChevronRight className="w-5 h-5" />
+                          <ChevronRight className="h-5 w-5" />
                         </button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </>
       )}
@@ -348,75 +348,70 @@ export default function FranchiseAutomationPage() {
       {selectedStoreId && selectedStoreId !== 'ALL' && (
         <>
           {isLoadingRules ? (
-            <div className="text-center py-12 text-slate-500">불러오는 중...</div>
+            <div className="py-12 text-center text-[13px] text-[color:var(--ad-faint)]">불러오는 중...</div>
           ) : (
             <>
               {/* 대시보드 */}
               {dashboard && (dashboard.totalSent > 0 || rules.some((r) => r.enabled)) && (
-                <Card className="mb-6">
-                  <CardContent className="pt-6">
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div>
-                        <div className="flex items-center justify-center gap-1.5 text-slate-500 text-sm mb-1">
-                          <Send className="w-4 h-4" />
-                          <span>자동 발송</span>
-                        </div>
-                        <div className="text-2xl font-bold text-slate-900">{dashboard.totalSent}건</div>
+                <div className="ad-card mb-4">
+                  <div className="grid grid-cols-3">
+                    <div className="p-5">
+                      <div className="mb-1 flex items-center gap-1.5 text-[12px] text-[color:var(--ad-muted)]">
+                        <Send className="h-3.5 w-3.5" />
+                        <span>자동 발송</span>
                       </div>
-                      <div>
-                        <div className="flex items-center justify-center gap-1.5 text-slate-500 text-sm mb-1">
-                          <Gift className="w-4 h-4" />
-                          <span>쿠폰 사용</span>
-                        </div>
-                        <div className="text-2xl font-bold text-slate-900">
-                          {dashboard.totalCouponUsed}건
-                          <span className="text-sm font-normal text-slate-500 ml-1">({dashboard.usageRate}%)</span>
-                        </div>
+                      <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{dashboard.totalSent}건</div>
+                    </div>
+                    <div className="border-l border-[color:var(--ad-line)] p-5">
+                      <div className="mb-1 flex items-center gap-1.5 text-[12px] text-[color:var(--ad-muted)]">
+                        <Gift className="h-3.5 w-3.5" />
+                        <span>쿠폰 사용</span>
                       </div>
-                      <div>
-                        <div className="flex items-center justify-center gap-1.5 text-slate-500 text-sm mb-1">
-                          <TrendingUp className="w-4 h-4" />
-                          <span>추정 매출</span>
-                        </div>
-                        <div className="text-2xl font-bold text-slate-900">
-                          {dashboard.estimatedRevenue > 0 ? `${dashboard.estimatedRevenue.toLocaleString()}원` : '-'}
-                        </div>
+                      <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                        {dashboard.totalCouponUsed}건
+                        <span className="ml-1 text-[13px] font-normal text-[color:var(--ad-muted)]">({dashboard.usageRate}%)</span>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="border-l border-[color:var(--ad-line)] p-5">
+                      <div className="mb-1 flex items-center gap-1.5 text-[12px] text-[color:var(--ad-muted)]">
+                        <TrendingUp className="h-3.5 w-3.5" />
+                        <span>추정 매출</span>
+                      </div>
+                      <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                        {dashboard.estimatedRevenue > 0 ? `${dashboard.estimatedRevenue.toLocaleString()}원` : '-'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {/* 시나리오 목록 */}
-              <div className="space-y-3">
-                {SCENARIOS.map((scenario) => {
-                  const rule = getRuleByType(scenario.type);
-                  const stat = getStatByType(scenario.type);
-                  const Icon = scenario.icon;
+              <div className="ad-card overflow-hidden">
+                <div className="divide-y divide-[color:var(--ad-line)]">
+                  {SCENARIOS.map((scenario) => {
+                    const rule = getRuleByType(scenario.type);
+                    const stat = getStatByType(scenario.type);
+                    const Icon = scenario.icon;
 
-                  return (
-                    <Card key={scenario.type}>
-                      <CardContent className="py-4 px-5">
+                    return (
+                      <div key={scenario.type} className="px-5 py-4">
                         <div className="flex items-center gap-4">
-                          <div
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                              rule?.enabled
-                                ? 'bg-franchise-100 text-franchise-700'
-                                : 'bg-slate-100 text-slate-500'
+                          <Icon
+                            className={`h-4 w-4 flex-shrink-0 ${
+                              rule?.enabled ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-faint)]'
                             }`}
-                          >
-                            <Icon className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-slate-900">{scenario.label}</h3>
-                            <p className="text-sm text-slate-500 mt-0.5">{scenario.description}</p>
+                            strokeWidth={1.8}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">{scenario.label}</h3>
+                            <p className="mt-0.5 text-[13px] text-[color:var(--ad-muted)]">{scenario.description}</p>
                             {stat && stat.monthlySent > 0 && (
-                              <p className="text-xs text-slate-400 mt-1">
+                              <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
                                 이번 달: {stat.monthlySent}건 발송, {stat.monthlyCouponUsed}건 사용 ({stat.usageRate}%)
                               </p>
                             )}
                           </div>
-                          <div className="flex items-center gap-3 flex-shrink-0">
+                          <div className="flex flex-shrink-0 items-center gap-3">
                             <Switch
                               checked={rule?.enabled || false}
                               onCheckedChange={(checked) => handleToggle(scenario.type, checked)}
@@ -426,16 +421,16 @@ export default function FranchiseAutomationPage() {
                               onClick={() =>
                                 router.push(`/franchise/campaigns/automation/${scenario.type}?storeId=${selectedStoreId}`)
                               }
-                              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-50 transition-colors"
+                              className="ad-press rounded-[8px] p-1.5 text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]"
                             >
-                              <ChevronRight className="w-5 h-5" />
+                              <ChevronRight className="h-5 w-5" />
                             </button>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </>
           )}
@@ -444,8 +439,8 @@ export default function FranchiseAutomationPage() {
 
       {/* 과금 안내 */}
       {selectedStoreId && (
-        <div className="mt-6 flex items-start gap-2 text-sm text-slate-500 bg-slate-50 rounded-lg p-4">
-          <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        <div className="mt-4 flex items-start gap-2 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[13px] text-[color:var(--ad-muted)]">
+          <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
           <p>
             자동 마케팅은 건당 50원이 과금됩니다. 월 30건까지 무료 크레딧이 적용됩니다.
             비용은 각 가맹점의 충전금에서 차감됩니다.

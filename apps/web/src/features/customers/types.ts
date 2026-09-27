@@ -19,6 +19,9 @@ export interface Customer {
   isNew: boolean;
   visitSource: string | null;  // 방문 경로
   lastTableLabel: string | null;  // 마지막 방문 좌석
+  regionSido?: string | null;     // 시/도 (DB는 줄임말: 서울, 경기 …)
+  regionSigungu?: string | null;  // 시/군/구
+  consentMarketing?: boolean;     // 마케팅 수신 동의
   surveyAnswers: Array<{
     questionId: string;
     label: string;
@@ -149,7 +152,9 @@ export interface BulkRow {
   memo?: string;
   initialPoints?: number;
   initialStamps?: number;
-  consentMarketing?: string; // 마케팅 수신 동의 (Y/N 등)
+  consentMarketing?: string; // 마케팅 수신 동의 원문 (동의/미동의/Y/N 등, 빈 값이면 서버에서 동의 처리)
+  regionSido?: string;       // 지역 — 시/도 (정식명칭으로 정규화)
+  regionSigungu?: string;    // 지역 — 시/군/구
   row?: number; // 엑셀 행 번호 (오류 위치 표시용)
 }
 
@@ -164,4 +169,67 @@ export interface BulkUploadResult {
 export interface BulkUploadProgress {
   done: number;
   total: number;
+}
+
+// ─── 지역 / 마케팅 수신 동의 헬퍼 ───────────────────────────────
+
+// 시/도 목록. value 는 Customer.regionSido 저장 형식(줄임말), label 은 정식명칭.
+export const SIDO_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: '서울', label: '서울특별시' },
+  { value: '부산', label: '부산광역시' },
+  { value: '대구', label: '대구광역시' },
+  { value: '인천', label: '인천광역시' },
+  { value: '광주', label: '광주광역시' },
+  { value: '대전', label: '대전광역시' },
+  { value: '울산', label: '울산광역시' },
+  { value: '세종', label: '세종특별자치시' },
+  { value: '경기', label: '경기도' },
+  { value: '강원', label: '강원특별자치도' },
+  { value: '충북', label: '충청북도' },
+  { value: '충남', label: '충청남도' },
+  { value: '전북', label: '전북특별자치도' },
+  { value: '전남', label: '전라남도' },
+  { value: '경북', label: '경상북도' },
+  { value: '경남', label: '경상남도' },
+  { value: '제주', label: '제주특별자치도' },
+];
+
+const SIDO_SHORT_TO_FULL: Record<string, string> = Object.fromEntries(SIDO_OPTIONS.map((o) => [o.value, o.label]));
+// 구 명칭 → 현 정식명칭
+const SIDO_LEGACY_TO_FULL: Record<string, string> = { 강원도: '강원특별자치도', 전라북도: '전북특별자치도' };
+const SIDO_FULL_NAMES = new Set(SIDO_OPTIONS.map((o) => o.label));
+
+// 시/도 입력(서울, 서울시, 서울특별시, 경기 …)을 정식명칭으로. 알 수 없는 값은 그대로.
+export function normalizeSidoName(sido: string | null | undefined): string {
+  const s = (sido ?? '').trim();
+  if (!s) return '';
+  if (SIDO_FULL_NAMES.has(s)) return s;
+  if (SIDO_LEGACY_TO_FULL[s]) return SIDO_LEGACY_TO_FULL[s];
+  if (SIDO_SHORT_TO_FULL[s]) return SIDO_SHORT_TO_FULL[s];
+  const stripped = s.replace(/(특별자치시|특별자치도|특별시|광역시|시|도)$/, '');
+  return SIDO_SHORT_TO_FULL[stripped] ?? s;
+}
+
+// 엑셀 '지역' 칸("서울 마포구", "서울특별시 마포구")을 첫 공백 기준으로 시/도 + 시/군/구로 분리.
+export function parseRegionText(text: unknown): { regionSido?: string; regionSigungu?: string } {
+  const t = String(text ?? '').trim().replace(/\s+/g, ' ');
+  if (!t) return {};
+  const idx = t.indexOf(' ');
+  const sido = idx === -1 ? t : t.slice(0, idx);
+  const sigungu = idx === -1 ? '' : t.slice(idx + 1).trim();
+  return { regionSido: normalizeSidoName(sido) || undefined, regionSigungu: sigungu || undefined };
+}
+
+// 목록 표시용 "서울특별시 마포구". 값이 없으면 '-'.
+export function formatRegion(sido?: string | null, sigungu?: string | null): string {
+  const full = [normalizeSidoName(sido), (sigungu ?? '').trim()].filter(Boolean).join(' ');
+  return full || '-';
+}
+
+// 엑셀 '마케팅 수신 동의' 칸 해석 (미리보기용 — 최종 판정은 서버). 빈 값은 동의.
+export function parseConsentText(value: unknown): boolean {
+  const v = String(value ?? '').trim().toUpperCase();
+  if (!v) return true;
+  if (['Y', 'YES', 'O', 'TRUE', '1', '동의', '예', '동의함'].includes(v)) return true;
+  return false;
 }

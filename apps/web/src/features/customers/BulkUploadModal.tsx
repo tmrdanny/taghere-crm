@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Download, Upload, Info } from 'lucide-react';
-import { BulkRow, BulkUploadProgress, BulkUploadResult } from './types';
+import { BulkRow, BulkUploadProgress, BulkUploadResult, formatRegion, parseConsentText } from './types';
 
 // 엑셀 대량 고객 등록 모달. 파싱 데이터·결과·핸들러는 부모에서 관리하고 props로 전달.
 export function BulkUploadModal({
@@ -45,6 +45,7 @@ export function BulkUploadModal({
   onUpload: () => void;
 }) {
   const hasConsentColumn = parsedData.some((row) => row.consentMarketing !== undefined);
+  const hasRegionColumn = parsedData.some((row) => row.regionSido !== undefined || row.regionSigungu !== undefined);
   const progressPct = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
@@ -71,6 +72,18 @@ export function BulkUploadModal({
               <Download className="h-4 w-4" />
               샘플 다운로드
             </Button>
+          </div>
+
+          {/* 컬럼 안내 */}
+          <div className="rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[12px] leading-relaxed text-[color:var(--ad-muted)]">
+            <p>
+              <span className="font-medium text-[color:var(--ad-ink-2)]">필수</span> 전화번호
+              <span className="mx-1.5 text-[color:var(--ad-faint)]">·</span>
+              <span className="font-medium text-[color:var(--ad-ink-2)]">선택</span> 이름, 성별, 생년(YYYY), 생일(MM-DD), 메모, 포인트 적립, 스탬프 적립, 지역, 마케팅 수신 동의
+            </p>
+            <p className="mt-1">
+              지역은 &apos;서울 마포구&apos;처럼 시/도와 시/군/구를 띄어 적어주세요. 마케팅 수신 동의는 동의/미동의(Y/N)로 적고, 빈 칸은 동의로 등록됩니다.
+            </p>
           </div>
 
           {/* 파일 업로드 */}
@@ -111,6 +124,9 @@ export function BulkUploadModal({
                       <th className="px-3 py-2 text-left font-medium text-[#383c40]">생년</th>
                       <th className="px-3 py-2 text-left font-medium text-[#383c40]">생일</th>
                       <th className="px-3 py-2 text-left font-medium text-[#383c40]">메모</th>
+                      {hasRegionColumn && (
+                        <th className="px-3 py-2 text-left font-medium text-[#383c40]">지역</th>
+                      )}
                       {hasConsentColumn && (
                         <th className="px-3 py-2 text-left font-medium text-[#383c40]">수신동의</th>
                       )}
@@ -128,7 +144,12 @@ export function BulkUploadModal({
                         <td className="px-3 py-2">{row.birthYear || '-'}</td>
                         <td className="px-3 py-2">{row.birthday || '-'}</td>
                         <td className="px-3 py-2">{row.memo || '-'}</td>
-                        {hasConsentColumn && <td className="px-3 py-2">{row.consentMarketing || '-'}</td>}
+                        {hasRegionColumn && (
+                          <td className="px-3 py-2 whitespace-nowrap">{formatRegion(row.regionSido, row.regionSigungu)}</td>
+                        )}
+                        {hasConsentColumn && (
+                          <td className="px-3 py-2">{parseConsentText(row.consentMarketing) ? '동의' : '미동의'}</td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -147,8 +168,8 @@ export function BulkUploadModal({
             </div>
           )}
 
-          {/* 마케팅 수신 동의 확인 — 동의 열이 있을 때만 */}
-          {parsedData.length > 0 && !result && hasConsentColumn && (
+          {/* 마케팅 수신 동의 확인 — 동의 열이 없거나 빈 칸이어도 기본 '동의'로 등록되므로 항상 표시 */}
+          {parsedData.length > 0 && !result && (
             <label className="flex items-start gap-2 p-3 border border-[#ebeced] rounded-[10px] cursor-pointer">
               <input
                 type="checkbox"
@@ -158,9 +179,9 @@ export function BulkUploadModal({
                 className="mt-0.5 w-4 h-4 shrink-0"
               />
               <span className="text-[13px] text-[#383c40]">
-                &apos;마케팅 수신동의&apos;가 Y인 고객은 광고성 정보 수신에 직접 동의한 고객임을 확인합니다.
+                미동의로 표시한 고객을 제외한 나머지 고객은 광고성 정보 수신에 동의한 고객임을 확인합니다.
                 <span className="block text-[12px] text-[#55595e] mt-0.5">
-                  체크하지 않으면 모든 고객이 수신 미동의로 등록되어 마케팅 메시지 대상에서 제외됩니다.
+                  체크를 해제하면 모든 고객이 수신 미동의로 등록되어 마케팅 메시지 대상에서 제외됩니다.
                 </span>
               </span>
             </label>

@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { maskNickname } from '@/lib/utils';
+import { SIDO_OPTIONS } from './types';
 
 // 고객 등록 모달. 폼 상태는 부모에서 관리하고 props로 전달한다.
 export function AddCustomerModal({
@@ -27,6 +28,12 @@ export function AddCustomerModal({
   onInitialPointsChange,
   memo,
   onMemoChange,
+  regionSido,
+  onRegionSidoChange,
+  regionSigungu,
+  onRegionSigunguChange,
+  consentMarketing,
+  onConsentMarketingChange,
   submitting,
   onSubmit,
 }: {
@@ -46,6 +53,12 @@ export function AddCustomerModal({
   onInitialPointsChange: (value: string) => void;
   memo: string;
   onMemoChange: (value: string) => void;
+  regionSido: string;
+  onRegionSidoChange: (value: string) => void;
+  regionSigungu: string;
+  onRegionSigunguChange: (value: string) => void;
+  consentMarketing: boolean;
+  onConsentMarketingChange: (value: boolean) => void;
   submitting: boolean;
   onSubmit: () => void;
 }) {
@@ -139,6 +152,68 @@ export function AddCustomerModal({
                 max={new Date().getFullYear()}
               />
             </div>
+          </div>
+
+          {/* Region */}
+          <div className="space-y-2">
+            <label className="text-[13px] font-medium text-[#383c40]">지역</label>
+            <div className="grid grid-cols-2 gap-4">
+              <select
+                value={regionSido}
+                onChange={(e) => onRegionSidoChange(e.target.value)}
+                className={`flex h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-800 focus:border-transparent ${
+                  regionSido ? 'text-[color:var(--ad-ink)]' : 'text-neutral-400'
+                }`}
+              >
+                <option value="">시/도 선택</option>
+                {SIDO_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value} className="text-[color:var(--ad-ink)]">
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <Input
+                type="text"
+                placeholder="시/군/구 (예: 마포구)"
+                value={regionSigungu}
+                onChange={(e) => onRegionSigunguChange(e.target.value)}
+              />
+            </div>
+            <p className="text-[12px] text-[#55595e]">
+              비워 두면 매장 지역으로 등록됩니다.
+            </p>
+          </div>
+
+          {/* Marketing consent */}
+          <div className="space-y-2">
+            <label className="text-[13px] font-medium text-[#383c40]">마케팅 수신 동의</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className={`flex-1 py-2 px-4 rounded-[10px] border-2 transition-colors ${
+                  consentMarketing
+                    ? 'border-[color:var(--ad-ink)] bg-white font-medium text-[color:var(--ad-ink)]'
+                    : 'border-[#ebeced] text-[#383c40] hover:border-[#d1d3d6]'
+                }`}
+                onClick={() => onConsentMarketingChange(true)}
+              >
+                동의
+              </button>
+              <button
+                type="button"
+                className={`flex-1 py-2 px-4 rounded-[10px] border-2 transition-colors ${
+                  !consentMarketing
+                    ? 'border-[color:var(--ad-ink)] bg-white font-medium text-[color:var(--ad-ink)]'
+                    : 'border-[#ebeced] text-[#383c40] hover:border-[#d1d3d6]'
+                }`}
+                onClick={() => onConsentMarketingChange(false)}
+              >
+                미동의
+              </button>
+            </div>
+            <p className="text-[12px] text-[#55595e]">
+              미동의 고객은 마케팅 메시지 발송 대상에서 제외됩니다.
+            </p>
           </div>
 
           {/* Initial Points */}

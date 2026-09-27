@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { sidoToShort } from '../utils/address-parser.js';
+import { sidoToShort, normalizeSidoInput } from '../utils/address-parser.js';
 import { PointsError, reverseOrderItemAccrual } from '../services/points.js';
 
 const router = Router();
@@ -414,10 +414,23 @@ router.get('/search/phone/:digits', authMiddleware, async (req: AuthRequest, res
 // - 각 row 는 엑셀 행 번호(row)를 들고 와 오류 행 번호가 파일 전체 기준으로 맞는다.
 const BULK_CHUNK_MAX = 2000;
 
+// 마케팅 수신 동의 값 파싱. 태그히어 고객은 기본적으로 수신 동의 상태이므로 빈 값은 동의(true)로 본다.
+// 동의/Y/O/true/1 → true, 미동의/N/X/false/0 → false, 그 외 알 수 없는 값은 보수적으로 미동의.
+const CONSENT_TRUE_VALUES = ['Y', 'YES', 'O', 'TRUE', '1', '동의', '예', '동의함'];
+const CONSENT_FALSE_VALUES = ['N', 'NO', 'X', 'FALSE', '0', '미동의', '아니오', '아니요', '거부', '비동의'];
 function parseConsentValue(value: unknown): boolean {
-  if (value === true) return true;
+  if (typeof value === 'boolean') return value;
   const v = String(value ?? '').trim().toUpperCase();
-  return ['Y', 'YES', 'O', 'TRUE', '1', '동의', '예'].includes(v);
+  if (!v) return true;
+  if (CONSENT_TRUE_VALUES.includes(v)) return true;
+  if (CONSENT_FALSE_VALUES.includes(v)) return false;
+  return false;
+}
+
+// 지역 입력값 정규화 (시/도는 Customer.regionSido 저장 형식인 줄임말로)
+function parseRegionInput(sido: unknown, sigungu: unknown): { regionSido: string | null; regionSigungu: string | null } {
+  const sg = String(sigungu ?? '').trim();
+  return { regionSido: normalizeSidoInput(sido), regionSigungu: sg || null };
 }
 
 router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
@@ -448,6 +461,8 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
       initialPoints: number;
       initialStamps: number;
       consentMarketing: boolean;
+      regionSido: string | null;
+      regionSigungu: string | null;
     }> = [];
 
     // 1. 각 row 검증 + 정규화
@@ -518,6 +533,7 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
         initialPoints: Math.max(0, parseInt(String(row.initialPoints || 0), 10) || 0),
         initialStamps: Math.max(0, parseInt(String(row.initialStamps || 0), 10) || 0),
         consentMarketing: allowConsent && parseConsentValue(row.consentMarketing),
+        ...parseRegionInput(row.regionSido, row.regionSigungu),
       });
     }
 
@@ -557,6 +573,8 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
             lastVisitAt: null,
             consentMarketing: r.consentMarketing,
             consentAt: r.consentMarketing ? now : null,
+            regionSido: r.regionSido,
+            regionSigungu: r.regionSigungu,
             createdAt: now, // 아래에서 "이번 호출로 생성된 행"을 정확히 식별하기 위한 표식
           })),
           skipDuplicates: true,
@@ -616,7 +634,7 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { name, phone, gender, birthday, birthYear, memo, initialPoints, feedbackRating, feedbackText } = req.body;
+    const { name, phone, gender, birthday, birthYear, memo, initialPoints, feedbackRating, feedbackText, consentMarketing } = req.body;
 
     // 필수 필드 검증
     if (!phone) {
@@ -645,6 +663,14 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       select: { addressSido: true, addressSigungu: true },
     });
 
+    // 지역: 직접 입력값이 있으면 그 값, 없으면 매장 지역으로 채운다(기존 동작)
+    const inputRegion = parseRegionInput(req.body.regionSido, req.body.regionSigungu);
+    const hasInputRegion = !!(inputRegion.regionSido || inputRegion.regionSigungu);
+
+    // 마케팅 수신 동의: 값이 없으면 기본 동의(true)
+    const consent = consentMarketing === undefined || consentMarketing === null ? true : parseConsentValue(consentMarketing);
+    const now = new Date();
+
     // 고객 생성
     const customer = await prisma.customer.create({
       data: {
@@ -662,8 +688,10 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         feedbackRating: feedbackRating || null,
         feedbackText: feedbackText || null,
         feedbackAt: feedbackRating || feedbackText ? new Date() : null,
-        regionSido: sidoToShort(store?.addressSido ?? null),
-        regionSigungu: store?.addressSigungu || null,
+        regionSido: hasInputRegion ? inputRegion.regionSido : sidoToShort(store?.addressSido ?? null),
+        regionSigungu: hasInputRegion ? inputRegion.regionSigungu : store?.addressSigungu || null,
+        consentMarketing: consent,
+        consentAt: consent ? now : null,
       },
     });
 

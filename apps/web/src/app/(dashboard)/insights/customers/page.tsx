@@ -5,6 +5,7 @@ import { getStoreToken } from '@/lib/auth-token';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Users, RefreshCw, TrendingUp, MapPin, Calendar, Gift, Globe, Download } from 'lucide-react';
 import { exportOrderLanguages } from '@/lib/insights-export';
+import { SurveyResults } from '@/components/insights/SurveyResults';
 import { cn } from '@/lib/utils';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
@@ -766,6 +767,19 @@ export default function CustomerInsightsPage() {
               </div>
               {renderGenderAgeSpendingChart()}
             </div>
+          </div>
+
+          {/* 고객 설문 결과 지표 — 위 기간 필터와 같은 기간으로 조회 */}
+          <div className="mt-6">
+            <SurveyResults
+              url={`${API_BASE}/api/insights/survey-results?${new URLSearchParams({
+                ...(startDate ? { startDate } : {}),
+                ...(endDate ? { endDate } : {}),
+              }).toString()}`}
+              tokenKey="token"
+              fileLabel={startDate || endDate ? `${startDate || '처음'}_${endDate || '오늘'}` : '전체기간'}
+              emptyAction={{ href: '/survey', label: '고객 설문 설정하기' }}
+            />
           </div>
         </>
       ) : null}

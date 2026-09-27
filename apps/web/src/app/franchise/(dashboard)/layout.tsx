@@ -4,6 +4,7 @@ import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FranchiseSidebar } from '@/components/franchise/sidebar';
+import '@/app/admin/admin-theme.css';
 
 interface FranchiseUser {
   id: string;
@@ -64,17 +65,8 @@ export default function FranchiseDashboardLayout({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          {/* Loading Skeleton */}
-          <div className="space-y-4">
-            <div className="w-12 h-12 border-4 border-franchise-600 border-t-transparent rounded-full animate-spin mx-auto" />
-            <div className="space-y-2">
-              <div className="h-4 w-32 bg-slate-200 rounded animate-pulse mx-auto" />
-              <div className="h-3 w-24 bg-slate-100 rounded animate-pulse mx-auto" />
-            </div>
-          </div>
-        </div>
+      <div className="flex min-h-[100dvh] items-center justify-center bg-[#f2f3f4]">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#1d2022] border-t-transparent" />
       </div>
     );
   }
@@ -84,12 +76,17 @@ export default function FranchiseDashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="flex">
+    // 사장님 CRM과 같은 테마: .ad(v2 토큰·차분한 배경) + .ad-crm(공용 컴포넌트 기본 색을 무채색으로 재매핑)
+    <div className="ad ad-crm">
+      <div className="ad-sky" aria-hidden>
+        <span className="ad-cloud" />
+        <span className="ad-cloud" />
+        <span className="ad-cloud" />
+        <span className="ad-cloud" />
+      </div>
+      <div className="ad-shell">
         <FranchiseSidebar user={user} />
-        <main className="flex-1 lg:ml-0 pt-14 lg:pt-0">
-          {children}
-        </main>
+        <main className="relative min-w-0 flex-1 overflow-x-clip pt-14 lg:pt-0">{children}</main>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { computeAnalytics } from '../services/analytics.js';
+import { computeSurveyResults } from '../services/survey-results.js';
 import { fetchOrderLanguageStatsFromV2 } from '../services/taghere-api.js';
 import { resolveVersion } from '../services/taghere-version.js';
 
@@ -774,6 +775,18 @@ router.get('/revenue', async (req: AuthRequest, res) => {
 });
 
 // GET /api/insights/analytics?days=90 - 데이터 분석 (시간대별 메뉴/객단가/재방문 주기 등)
+// GET /api/insights/survey-results?startDate=&endDate= - 고객 설문 결과 지표 (질문별 요약 + 응답 목록)
+router.get('/survey-results', async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+    res.json(await computeSurveyResults([storeId], { startDate, endDate }));
+  } catch (error) {
+    console.error('Survey results error:', error);
+    res.status(500).json({ error: '고객 설문 결과 조회 중 오류가 발생했습니다.' });
+  }
+});
+
 router.get('/analytics', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;

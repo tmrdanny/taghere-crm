@@ -2,7 +2,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatPhone, formatNumber, maskNickname, formatBirthdayMonth, getAgeGroup } from '@/lib/utils';
 import { Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Customer } from './types';
+import { Customer, formatRegion } from './types';
 
 // 고객 목록 테이블 + 페이지네이션.
 // 컬럼 표시 여부·선택·액션·페이지 상태는 부모에서 관리하고 props로 전달.
@@ -54,7 +54,7 @@ export function CustomerTable({
   return (
     <Card className="ad-card overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-[13px]">
+        <table className="w-full min-w-max text-[13px] [&_td]:whitespace-nowrap">
           <thead>
             <tr className="border-b border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] text-left text-[11.5px] text-[color:var(--ad-muted)]">
               <th className="w-12 px-4 py-2.5">
@@ -71,57 +71,67 @@ export function CustomerTable({
                 />
               </th>
               {isColumnVisible('nickname') && (
-                <th className="px-4 py-2.5 text-left font-medium">
+                <th className="whitespace-nowrap px-4 py-2.5 text-left font-medium">
                   닉네임
                 </th>
               )}
               {isColumnVisible('phone') && (
-                <th className="px-4 py-2.5 text-left font-medium">
+                <th className="whitespace-nowrap px-4 py-2.5 text-left font-medium">
                   전화번호
                 </th>
               )}
               {isColumnVisible('points') && (
-                <th className="px-4 py-2.5 text-left font-medium">
+                <th className="whitespace-nowrap px-4 py-2.5 text-left font-medium">
                   적립 포인트
                 </th>
               )}
               {isColumnVisible('stamps') && (
-                <th className="px-4 py-2.5 text-left font-medium">
+                <th className="whitespace-nowrap px-4 py-2.5 text-left font-medium">
                   스탬프
                 </th>
               )}
               {isColumnVisible('birthday') && (
-                <th className="px-4 py-2.5 text-left font-medium">
+                <th className="whitespace-nowrap px-4 py-2.5 text-left font-medium">
                   생일 / 연령대
                 </th>
               )}
               {isColumnVisible('memo') && (
-                <th className="px-4 py-2.5 text-left font-medium">
+                <th className="whitespace-nowrap px-4 py-2.5 text-left font-medium">
                   메모
                 </th>
               )}
               {isColumnVisible('visitSource') && (
-                <th className="px-4 py-2.5 text-left font-medium">
+                <th className="whitespace-nowrap px-4 py-2.5 text-left font-medium">
                   방문 경로
                 </th>
               )}
               {isColumnVisible('tableLabel') && (
-                <th className="px-4 py-2.5 text-left font-medium">
+                <th className="whitespace-nowrap px-4 py-2.5 text-left font-medium">
                   좌석
                 </th>
               )}
               {isColumnVisible('visitCount') && (
-                <th className="px-4 py-2.5 text-left font-medium">
+                <th className="whitespace-nowrap px-4 py-2.5 text-left font-medium">
                   방문 횟수
                 </th>
               )}
+              {isColumnVisible('region') && (
+                <th className="whitespace-nowrap px-4 py-2.5 text-left font-medium">
+                  지역
+                </th>
+              )}
+              {isColumnVisible('consentMarketing') && (
+                <th className="whitespace-nowrap px-4 py-2.5 text-left font-medium">
+                  마케팅 수신 동의
+                </th>
+              )}
               {surveyQuestionLabels.map((sq) => (
-                <th key={sq.id} className="px-4 py-2.5 text-left font-medium">
+                <th key={sq.id} className="max-w-[200px] truncate whitespace-nowrap px-4 py-2.5 text-left font-medium" title={sq.label}>
                   {sq.label}
                 </th>
               ))}
               {isColumnVisible('actions') && (
-                <th className="px-4 py-2.5 text-left font-medium">
+                <th className="whitespace-nowrap px-4 py-2.5 text-left font-medium">
                   액션
                 </th>
               )}
@@ -246,11 +256,31 @@ export function CustomerTable({
                         </div>
                       </td>
                     )}
+                    {isColumnVisible('region') && (
+                      <td className="px-4 py-3">
+                        <span className="whitespace-nowrap text-[color:var(--ad-ink-2)]">
+                          {formatRegion(customer.regionSido, customer.regionSigungu)}
+                        </span>
+                      </td>
+                    )}
+                    {isColumnVisible('consentMarketing') && (
+                      <td className="px-4 py-3">
+                        {customer.consentMarketing ? (
+                          <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">
+                            동의
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-neg)]">
+                            미동의
+                          </span>
+                        )}
+                      </td>
+                    )}
                     {surveyQuestionLabels.map((sq) => {
                       const answer = customer.surveyAnswers?.find((a) => a.questionId === sq.id);
                       return (
-                        <td key={sq.id} className="px-4 py-3">
-                          <span className="text-[color:var(--ad-ink-2)]">
+                        <td key={sq.id} className="max-w-[200px] px-4 py-3">
+                          <span className="block truncate text-[color:var(--ad-ink-2)]">
                             {answer?.valueDate
                               ? new Date(answer.valueDate).toLocaleDateString('ko-KR')
                               : answer?.valueText || '-'}

@@ -166,6 +166,31 @@
 .ad-crm .bg-brand-100 { background-color: var(--ad-bg); }
 .ad-crm .text-brand-800,
 .ad-crm .text-brand-700 { color: var(--ad-ink); }
+/* 프랜차이즈 페이지: franchise-* 파란 팔레트도 무채색 톤으로 */
+.ad-crm .bg-franchise-500,
+.ad-crm .bg-franchise-600,
+.ad-crm .bg-franchise-700 { background-color: var(--ad-ink); color: #fff; }
+.ad-crm .hover\:bg-franchise-600:hover,
+.ad-crm .hover\:bg-franchise-700:hover { background-color: #383c40; }
+.ad-crm .bg-franchise-50,
+.ad-crm .bg-franchise-100 { background-color: var(--ad-bg); }
+.ad-crm .hover\:bg-franchise-50:hover { background-color: var(--ad-bg-alt); }
+.ad-crm .text-franchise-500,
+.ad-crm .text-franchise-600,
+.ad-crm .text-franchise-700,
+.ad-crm .text-franchise-800 { color: var(--ad-ink); }
+.ad-crm .border-franchise-200,
+.ad-crm .border-franchise-300 { border-color: var(--ad-line-strong); }
+.ad-crm .border-franchise-500,
+.ad-crm .border-franchise-600 { border-color: var(--ad-ink); }
+.ad-crm .bg-slate-100 { background-color: var(--ad-bg); }
+.ad-crm .text-slate-500 { color: var(--ad-muted); }
+.ad-crm .text-slate-400 { color: var(--ad-faint); }
+.ad-crm .text-slate-600,
+.ad-crm .text-slate-700 { color: var(--ad-ink-2); }
+.ad-crm .border-slate-100,
+.ad-crm .border-slate-300 { border-color: var(--ad-line); }
+
 /* 공용 Card: rounded-xl border border-neutral-200 bg-white shadow-card */
 .ad-crm .rounded-xl.border.bg-white.shadow-card { border-radius: 16px; border-color: var(--ad-line); box-shadow: 0 1px 2px rgba(29, 32, 34, 0.03); }
 

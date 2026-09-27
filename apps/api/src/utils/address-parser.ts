@@ -135,3 +135,21 @@ export function sidoToShort(sido: string | null): string | null {
   if (!sido) return null;
   return SIDO_FULL_TO_SHORT[sido] || sido;
 }
+
+const SIDO_SHORT_NAMES = new Set(Object.values(SIDO_FULL_TO_SHORT));
+
+/**
+ * 사용자가 직접 입력한 시/도(엑셀·등록 폼)를 Customer.regionSido 저장 형식(줄임말)으로 정규화.
+ * 예: 서울특별시/서울시/서울 → 서울, 경기도/경기 → 경기, 제주도 → 제주
+ * 알 수 없는 값은 입력 그대로 반환, 빈 값은 null.
+ */
+export function normalizeSidoInput(sido: unknown): string | null {
+  const s = String(sido ?? '').trim();
+  if (!s) return null;
+  if (SIDO_FULL_TO_SHORT[s]) return SIDO_FULL_TO_SHORT[s];
+  if (SIDO_SHORT_NAMES.has(s)) return s;
+  // "서울시", "세종시", "제주도", "강원도" 등 접미사만 붙은 약칭
+  const stripped = s.replace(/(특별자치시|특별자치도|특별시|광역시|시|도)$/, '');
+  if (SIDO_SHORT_NAMES.has(stripped)) return stripped;
+  return s;
+}

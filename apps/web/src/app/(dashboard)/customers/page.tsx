@@ -24,6 +24,7 @@ import {
   Announcement,
   MessageHistoryEntry,
   BulkRow,
+  parseRegionText,
   AddCustomerModal,
   BulkUploadModal,
   CustomerTable,
@@ -50,6 +51,8 @@ const COLUMN_DEFINITIONS = [
   { id: 'visitSource', label: '방문 경로', required: false, defaultVisible: true },
   { id: 'tableLabel', label: '좌석', required: false, defaultVisible: true },
   { id: 'visitCount', label: '방문 횟수', required: false, defaultVisible: true },
+  { id: 'region', label: '지역', required: false, defaultVisible: false },
+  { id: 'consentMarketing', label: '마케팅 수신 동의', required: false, defaultVisible: false },
   { id: 'actions', label: '액션', required: true, defaultVisible: true },
 ] as const;
 
@@ -131,6 +134,10 @@ export default function CustomersPage() {
   const [addBirthYear, setAddBirthYear] = useState('');  // YYYY 형식
   const [addMemo, setAddMemo] = useState('');
   const [addInitialPoints, setAddInitialPoints] = useState('');
+  const [addRegionSido, setAddRegionSido] = useState('');
+  const [addRegionSigungu, setAddRegionSigungu] = useState('');
+  // 태그히어 고객은 기본적으로 마케팅 수신에 동의한 상태 → 기본값 동의
+  const [addConsentMarketing, setAddConsentMarketing] = useState(true);
   const [submittingAdd, setSubmittingAdd] = useState(false);
 
   // Bulk upload modal states
@@ -141,7 +148,8 @@ export default function CustomersPage() {
   // 파싱 단계에서 걸러진 행(파일 내 중복 등) — 업로드 결과 오류에 합쳐서 보여준다
   const [bulkClientErrors, setBulkClientErrors] = useState<Array<{ row: number; phone: string; reason: string }>>([]);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
-  const [bulkConsentAttested, setBulkConsentAttested] = useState(false);
+  // 태그히어 고객은 기본적으로 수신 동의 상태 → 동의 확인 체크 기본값 true
+  const [bulkConsentAttested, setBulkConsentAttested] = useState(true);
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
   // Edit modal tab and feedback states
   const [editModalTab, setEditModalTab] = useState<'feedback' | 'history' | 'stamps' | 'orders' | 'messages'>('orders');
@@ -884,6 +892,9 @@ export default function CustomersPage() {
           birthYear: addBirthYear ? parseInt(addBirthYear, 10) : null,
           memo: addMemo || null,
           initialPoints: addInitialPoints ? parseInt(addInitialPoints, 10) : 0,
+          regionSido: addRegionSido || null,
+          regionSigungu: addRegionSigungu.trim() || null,
+          consentMarketing: addConsentMarketing,
         }),
       });
 
@@ -900,6 +911,9 @@ export default function CustomersPage() {
       setAddBirthYear('');
       setAddMemo('');
       setAddInitialPoints('');
+      setAddRegionSido('');
+      setAddRegionSigungu('');
+      setAddConsentMarketing(true);
       setPage(1);
       setRefreshKey((key) => key + 1);
       trackEvent('owner_customer_add');
@@ -913,13 +927,14 @@ export default function CustomersPage() {
 
   // 샘플 엑셀 다운로드
   const handleDownloadSampleExcel = () => {
-    const headers = ['전화번호', '이름', '성별', '생년(YYYY)', '생일(MM-DD)', '메모', '포인트 적립', '스탬프 적립', '마케팅 수신동의(Y/N)'];
+    const headers = ['전화번호', '이름', '성별', '생년(YYYY)', '생일(MM-DD)', '메모', '포인트 적립', '스탬프 적립', '지역', '마케팅 수신 동의'];
     const sampleData = [
-      ['01012345678', '홍길동', '남', 1990, '03-15', 'VIP고객', 500, 3, 'Y'],
-      ['01098765432', '김영희', '여', 1985, '11-20', '', 0, 0, 'N'],
+      ['01012345678', '홍길동', '남', 1990, '03-15', 'VIP고객', 500, 3, '서울 마포구', '동의'],
+      ['01098765432', '김영희', '여', 1985, '11-20', '', 0, 0, '경기도 성남시', '미동의'],
+      ['01055556666', '이철수', '', '', '', '', 0, 0, '', ''],
     ];
     const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
-    ws['!cols'] = [{ wch: 15 }, { wch: 12 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
+    ws['!cols'] = [{ wch: 15 }, { wch: 12 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 16 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '고객목록');
     XLSX.writeFile(wb, '대량_고객등록_샘플.xlsx');
@@ -969,6 +984,7 @@ export default function CustomersPage() {
           else if (h.includes('포인트') || h.includes('point') || h.includes('Point')) colMap.initialPoints = idx;
           else if (h.includes('스탬프') || h.includes('stamp') || h.includes('Stamp')) colMap.initialStamps = idx;
           else if (h.includes('동의') || h.includes('consent') || h.includes('Consent')) colMap.consentMarketing = idx;
+          else if (h.includes('지역') || h.includes('region') || h.includes('Region')) colMap.region = idx;
         });
 
         if (colMap.phone === undefined) {
@@ -1007,6 +1023,8 @@ export default function CustomersPage() {
             memo: colMap.memo !== undefined ? (row[colMap.memo] ? String(row[colMap.memo]).trim() : undefined) : undefined,
             initialPoints: colMap.initialPoints !== undefined ? (parseInt(String(row[colMap.initialPoints] || 0), 10) || 0) : undefined,
             initialStamps: colMap.initialStamps !== undefined ? (parseInt(String(row[colMap.initialStamps] || 0), 10) || 0) : undefined,
+            // 지역: "서울 마포구" → 시/도(정식명칭) + 시/군/구. 빈 칸이면 보내지 않는다.
+            ...(colMap.region !== undefined ? parseRegionText(row[colMap.region]) : {}),
           });
         }
 
@@ -1224,7 +1242,7 @@ export default function CustomersPage() {
           setBulkResult(null);
           setBulkClientErrors([]);
           setBulkProgress(null);
-          setBulkConsentAttested(false);
+          setBulkConsentAttested(true);
         }}
       />
 
@@ -1515,6 +1533,12 @@ export default function CustomersPage() {
         onInitialPointsChange={setAddInitialPoints}
         memo={addMemo}
         onMemoChange={setAddMemo}
+        regionSido={addRegionSido}
+        onRegionSidoChange={setAddRegionSido}
+        regionSigungu={addRegionSigungu}
+        onRegionSigunguChange={setAddRegionSigungu}
+        consentMarketing={addConsentMarketing}
+        onConsentMarketingChange={setAddConsentMarketing}
         submitting={submittingAdd}
         onSubmit={handleAddCustomer}
       />
