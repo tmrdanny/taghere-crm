@@ -1,4 +1,4 @@
-// 세그먼트 조건 타입 — API services/segment-engine.ts 의 SegmentConditions 와 같은 모양
+// 고객 그룹(세그먼트) 조건 타입 — API services/segment-engine.ts 의 SegmentConditions 와 같은 모양
 export interface MenuCondition {
   names: string[];
   mode: 'ANY' | 'NONE';

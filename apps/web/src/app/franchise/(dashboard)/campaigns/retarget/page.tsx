@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/modal';
 import { formatNumber, formatPhone, maskNickname } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
+import { SegmentPicker, type PickedSegment } from '@/features/segments/SegmentPicker';
 import {
   Send,
   Users,
@@ -123,7 +124,9 @@ export default function MessagesPage() {
 
   // Target counts
   const [targetCounts, setTargetCounts] = useState<TargetCounts>({ all: 0, revisit: 0, new: 0 });
-  const [selectedTarget, setSelectedTarget] = useState<'ALL' | 'REVISIT' | 'NEW' | 'CUSTOM'>('ALL');
+  const [selectedTarget, setSelectedTarget] = useState<'ALL' | 'REVISIT' | 'NEW' | 'CUSTOM' | 'SEGMENT'>('ALL');
+  // 고객 그룹으로 발송 — reachable 은 전 가맹점 수신 동의 + 전화번호 보유 고객 수
+  const [selectedSegment, setSelectedSegment] = useState<PickedSegment | null>(null);
 
   // Custom selected customers (from customer list page)
   const [selectedCustomers, setSelectedCustomers] = useState<SelectedCustomer[]>([]);
@@ -211,6 +214,28 @@ export default function MessagesPage() {
     return localStorage.getItem('franchiseToken') || 'dev-token';
   };
 
+  // 고객 그룹 선택 → 현재 발송 가능 인원 조회
+  const selectSegment = useCallback(async (segmentId: string) => {
+    if (!segmentId) {
+      setSelectedSegment(null);
+      setSelectedTarget('ALL');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/franchise/segments/${segmentId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('franchiseToken') || ''}` },
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setSelectedSegment({ id: data.segment.id, name: data.segment.name, reachable: data.reachable });
+      setSelectedCustomers([]);
+      setSelectedTarget('SEGMENT');
+    } catch {
+      showToast('고객 그룹을 불러오지 못했습니다.', 'error');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Parse selected customers from URL params
   useEffect(() => {
     const customersParam = searchParams.get('customers');
@@ -267,6 +292,9 @@ export default function MessagesPage() {
       if (selectedTarget === 'CUSTOM' && selectedCustomers.length > 0) {
         params.set('customerIds', selectedCustomers.map(c => c.id).join(','));
       }
+      if (selectedTarget === 'SEGMENT' && selectedSegment) {
+        params.set('segmentId', selectedSegment.id);
+      }
 
       // 필터 추가
       if (genderFilter !== 'all') {
@@ -292,7 +320,7 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Failed to fetch estimate:', error);
     }
-  }, [messageContent, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, uploadedImage]);
+  }, [messageContent, selectedTarget, selectedCustomers, selectedSegment, genderFilter, selectedAgeGroups, uploadedImage]);
 
   // Fetch test count
   const fetchTestCount = useCallback(async () => {
@@ -593,6 +621,7 @@ export default function MessagesPage() {
       try {
         const count =
           selectedTarget === 'CUSTOM' ? selectedCustomers.length
+          : selectedTarget === 'SEGMENT' ? selectedSegment?.reachable ?? 0
           : selectedTarget === 'ALL' ? targetCounts.all
           : selectedTarget === 'REVISIT' ? targetCounts.revisit
           : targetCounts.new;
@@ -618,7 +647,7 @@ export default function MessagesPage() {
     const debounce = setTimeout(run, 300);
     return () => { cancelled = true; clearTimeout(debounce); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, targetCounts]);
+  }, [activeTab, selectedTarget, selectedCustomers, selectedSegment, genderFilter, selectedAgeGroups, targetCounts]);
 
   // Update target counts when filters change
   useEffect(() => {
@@ -646,6 +675,7 @@ export default function MessagesPage() {
   // Get current target count
   const getCurrentTargetCount = () => {
     if (selectedTarget === 'CUSTOM') return selectedCustomers.length;
+    if (selectedTarget === 'SEGMENT') return selectedSegment?.reachable ?? 0;
     if (selectedTarget === 'ALL') return targetCounts.all;
     if (selectedTarget === 'REVISIT') return targetCounts.revisit;
     return targetCounts.new;
@@ -1012,6 +1042,14 @@ export default function MessagesPage() {
       if (selectedTarget === 'CUSTOM') {
         body.customerIds = selectedCustomers.map(c => c.id);
       }
+      if (selectedTarget === 'SEGMENT') {
+        if (!selectedSegment) {
+          showToast('고객 그룹을 선택해주세요.', 'error');
+          setIsSending(false);
+          return;
+        }
+        body.segmentId = selectedSegment.id;
+      }
 
       const res = await fetch(`${API_BASE}/api/franchise/sms/send`, {
         method: 'POST',
@@ -1057,8 +1095,8 @@ export default function MessagesPage() {
       showToast('발송 대상을 선택해주세요.', 'error');
       return;
     }
-    if (getCurrentTargetCount() > 3000) {
-      showToast('1회 발송 최대 3,000명입니다. 필터를 좁히거나 나눠 발송해 주세요.', 'error');
+    if (getCurrentTargetCount() > 50000) {
+      showToast('1회 발송 최대 50,000명입니다. 필터를 좁히거나 나눠 발송해 주세요.', 'error');
       return;
     }
 
@@ -1078,6 +1116,9 @@ export default function MessagesPage() {
           setIsCouponSending(false);
           return;
         }
+      }
+      if (selectedTarget === 'SEGMENT' && selectedSegment) {
+        body.segmentId = selectedSegment.id;
       }
 
       const res = await fetch(`${API_BASE}/api/franchise/retarget-coupon/send`, {
@@ -1242,7 +1283,18 @@ export default function MessagesPage() {
             )}
           </button>
 
-          {/* Filters */}
+          {/* 고객 그룹으로 보내기 (전 가맹점 고객 기준) */}
+          <SegmentPicker
+            active={selectedTarget === 'SEGMENT'}
+            selected={selectedSegment}
+            onSelect={selectSegment}
+            apiPath="/api/franchise/segments"
+            tokenKey="franchiseToken"
+            scopeLabel="전 가맹점 고객 기준"
+          />
+
+          {/* Filters — 고객 그룹 발송 시에는 그룹 조건이 대신 적용된다 */}
+          {selectedTarget !== 'SEGMENT' && (
           <div className="mt-2">
             <label className="text-[12px] font-medium text-[color:var(--ad-muted)] mb-2 block">상세 필터</label>
             <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
@@ -1286,6 +1338,7 @@ export default function MessagesPage() {
               <p className="text-[12px] text-[color:var(--ad-faint)] mt-1.5">연령대 미선택 시 전체 연령대로 발송됩니다</p>
             )}
           </div>
+          )}
         </div>
 
         {/* SMS 탭 콘텐츠 */}
@@ -1564,8 +1617,8 @@ export default function MessagesPage() {
               </div>
 
               <div className="mb-4 text-[12px] text-[color:var(--ad-muted)] text-center px-2">
-                1회 발송 최대 <span className="text-[13.5px] font-semibold text-[color:var(--ad-ink)]">3,000명</span>까지 가능합니다.
-                {getCurrentTargetCount() > 3000 && (
+                1회 발송 최대 <span className="text-[13.5px] font-semibold text-[color:var(--ad-ink)]">50,000명</span>까지 가능합니다.
+                {getCurrentTargetCount() > 50000 && (
                   <div className="mt-1 text-[color:var(--ad-neg)]">
                     현재 {formatNumber(getCurrentTargetCount())}명 → 필터를 좁히거나 나눠 발송해 주세요.
                   </div>
@@ -1577,7 +1630,7 @@ export default function MessagesPage() {
                   !couponContent.trim() ||
                   !couponExpiryDate.trim() ||
                   getCurrentTargetCount() === 0 ||
-                  getCurrentTargetCount() > 3000 ||
+                  getCurrentTargetCount() > 50000 ||
                   isCouponSending
                 }
                 onClick={handleCouponSend}

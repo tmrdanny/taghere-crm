@@ -2,7 +2,7 @@
 //
 // 이전에는 아웃박스에 건별로 쌓고 워커(5초/10건)가 1건씩 보내 5만 건에 7시간이 걸렸고,
 // 워커가 매장 지갑/크레딧까지 다시 차감했다(프랜차이즈 지갑과 이중 과금).
-// 지금은 솔라피 그룹 발송(1,000건/1회)으로 직접 접수하고, 아웃박스 행은 그룹 ID 를 들고
+// 지금은 솔라피 그룹 발송(10,000건/1회)으로 직접 접수하고, 아웃박스 행은 그룹 ID 를 들고
 // PENDING 으로 남긴다. 최종 상태(SENT/FAILED)와 실패분 환불은 워커의 그룹 단위 조회가 확정한다.
 import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
@@ -11,7 +11,7 @@ import { normalizePhoneNumber } from '../utils/phone.js';
 import { customAlphabet } from 'nanoid';
 
 export const ACQUISITION_COUPON_COST = 100;
-const CHUNK_SIZE = 1000; // 솔라피 그룹 1회 호출 단위와 동일
+const CHUNK_SIZE = 10000; // 솔라피 send() 1회 요청 최대 건수 (= 그룹 1개)
 const generateAcqCouponCode = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 10);
 
 export interface AcquisitionCouponSendParams {
@@ -134,7 +134,7 @@ export async function sendAcquisitionCouponAlimtalk(
           select: { id: true },
         });
         return inserted.map((r) => r.id);
-      }, { timeout: 60_000, maxWait: 10_000 }); // 청크 2,000행 insert — 기본 5초 제한은 원격 실행 시 초과
+      }, { timeout: 60_000, maxWait: 10_000 }); // 청크 최대 2만 행 insert — 기본 5초 제한은 원격 실행 시 초과
     } catch (chunkErr) {
       console.error(`[AcquisitionCoupon] chunk ${i} insert failed:`, chunkErr);
       dropped += slice.length;

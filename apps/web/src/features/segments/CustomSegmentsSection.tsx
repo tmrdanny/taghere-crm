@@ -12,7 +12,7 @@ import { SegmentBuilderModal } from './SegmentBuilderModal';
 
 const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('token') || ''}` });
 
-// 맞춤 세그먼트 — 저장·수정·삭제하고 메시지 발송 화면으로 넘긴다
+// 내가 만든 고객 그룹 — 저장·수정·삭제하고 메시지 발송 화면으로 넘긴다
 export function CustomSegmentsSection() {
   const router = useRouter();
   const { showToast, ToastComponent } = useToast();
@@ -29,7 +29,7 @@ export function CustomSegmentsSection() {
       const data = await res.json();
       const list: SavedSegment[] = data.segments ?? [];
       setSegments(list);
-      // 세그먼트별 현재 발송 가능 인원 (조건은 저장, 인원은 지금 시점 기준)
+      // 그룹별 현재 발송 가능 인원 (조건은 저장, 인원은 지금 시점 기준)
       setReachable(Object.fromEntries(list.map((s) => [s.id, null])));
       await Promise.all(
         list.map(async (s) => {
@@ -43,7 +43,7 @@ export function CustomSegmentsSection() {
         })
       );
     } catch {
-      showToast('세그먼트를 불러오지 못했습니다.', 'error');
+      showToast('고객 그룹을 불러오지 못했습니다.', 'error');
     } finally {
       setLoading(false);
     }
@@ -54,7 +54,7 @@ export function CustomSegmentsSection() {
   }, [load]);
 
   const handleDelete = async (segment: SavedSegment) => {
-    if (!confirm(`'${segment.name}' 세그먼트를 삭제할까요?`)) return;
+    if (!confirm(`'${segment.name}' 그룹을 삭제할까요?`)) return;
     const res = await fetch(`${API_BASE}/api/segments/${segment.id}`, { method: 'DELETE', headers: authHeader() });
     if (res.ok) {
       showToast('삭제했습니다.', 'success');
@@ -68,8 +68,8 @@ export function CustomSegmentsSection() {
     <div className="mb-8">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">맞춤 세그먼트</h2>
-          <p className="mt-0.5 text-[12px] text-[color:var(--ad-faint)]">방문·결제·주문 메뉴·고객 정보를 조합해 고객을 나누고 바로 메시지를 보낼 수 있습니다.</p>
+          <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">내가 만든 고객 그룹</h2>
+          <p className="mt-0.5 text-[12px] text-[color:var(--ad-faint)]">방문·결제·주문 메뉴·고객 정보를 조합해 고객을 묶고 바로 메시지를 보낼 수 있습니다.</p>
         </div>
         <Button
           onClick={() => {
@@ -79,7 +79,7 @@ export function CustomSegmentsSection() {
           className="ad-press inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
         >
           <Plus className="h-4 w-4" />
-          세그먼트 만들기
+          고객 그룹 만들기
         </Button>
       </div>
 
@@ -88,7 +88,7 @@ export function CustomSegmentsSection() {
       ) : segments.length === 0 ? (
         <Card className="ad-card border-0">
           <CardContent className="py-10 text-center">
-            <p className="text-[13px] text-[color:var(--ad-ink-2)]">아직 만든 세그먼트가 없습니다.</p>
+            <p className="text-[13px] text-[color:var(--ad-ink-2)]">아직 만든 고객 그룹이 없습니다.</p>
             <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">예: 아메리카노를 3회 이상 주문했지만 60일 넘게 오지 않은 고객</p>
           </CardContent>
         </Card>

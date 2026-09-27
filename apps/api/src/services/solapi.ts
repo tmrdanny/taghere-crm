@@ -485,7 +485,7 @@ export class SolapiService {
       throw new Error('SOLAPI not configured');
     }
 
-    const CHUNK_SIZE = 1000;
+    const CHUNK_SIZE = 10000; // 솔라피 send() 1회 요청 최대 건수
     const CHUNK_DELAY_MS = 100;
     const results: BulkSendResult[] = [];
     const { messages, pfId, scheduledAt } = params;

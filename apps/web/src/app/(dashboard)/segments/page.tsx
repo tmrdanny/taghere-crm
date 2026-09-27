@@ -143,7 +143,7 @@ export default function SegmentsPage() {
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       <div className="mb-6">
-        <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">고객 세그먼트</h1>
+        <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">고객 그룹</h1>
       </div>
 
       <CustomSegmentsSection />
@@ -165,7 +165,7 @@ export default function SegmentsPage() {
         </button>
       </div>
 
-      {/* 세그먼트 요약 카드 (6개) */}
+      {/* 자동 분류 요약 카드 (6개) */}
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         {data.segments.map((seg) => {
           const meta = SEGMENT_META[seg.type];
@@ -192,10 +192,10 @@ export default function SegmentsPage() {
         })}
       </div>
 
-      {/* 세그먼트 분포 도넛 차트 */}
+      {/* 자동 분류 분포 도넛 차트 */}
       <Card className="ad-card mb-4 border-0">
         <CardContent className="p-5">
-          <h3 className="mb-4 text-[14px] font-semibold text-[color:var(--ad-ink)]">세그먼트 분포</h3>
+          <h3 className="mb-4 text-[14px] font-semibold text-[color:var(--ad-ink)]">자동 분류 분포</h3>
           <div className="flex items-center justify-center gap-8">
             {/* 도넛 차트 */}
             <div className="relative">
@@ -247,7 +247,7 @@ export default function SegmentsPage() {
         </CardContent>
       </Card>
 
-      {/* 세그먼트별 상세 (선택 시) */}
+      {/* 분류별 상세 (선택 시) */}
       {selectedSegment && selectedMeta && (
         <Card className="ad-card overflow-hidden border-0">
           <CardContent className="p-0">
@@ -261,7 +261,7 @@ export default function SegmentsPage() {
             {loadingCustomers ? (
               <div className="py-10 text-center text-[13px] text-[color:var(--ad-faint)]">불러오는 중...</div>
             ) : customers.length === 0 ? (
-              <div className="py-10 text-center text-[13px] text-[color:var(--ad-faint)]">해당 세그먼트에 고객이 없습니다.</div>
+              <div className="py-10 text-center text-[13px] text-[color:var(--ad-faint)]">해당 분류에 고객이 없습니다.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-[13px]">
@@ -298,9 +298,9 @@ export default function SegmentsPage() {
         </Card>
       )}
 
-      {/* 세그먼트 설명 */}
+      {/* 분류 설명 */}
       <div className="ad-card mt-4 p-5">
-        <h4 className="mb-2 text-[14px] font-semibold text-[color:var(--ad-ink)]">세그먼트 분류 기준</h4>
+        <h4 className="mb-2 text-[14px] font-semibold text-[color:var(--ad-ink)]">자동 분류 기준</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[12px] text-[color:var(--ad-muted)]">
           <div><span className="font-medium">VIP:</span> 30일 내 방문, 10회+ 방문, 소비 상위 20%</div>
           <div><span className="font-medium">단골:</span> 45일 내 방문, 5~9회 방문</div>

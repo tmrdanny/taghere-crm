@@ -18,7 +18,7 @@ function sanitizeName(value: unknown): string {
   return String(value ?? '').trim().slice(0, 50);
 }
 
-// GET /api/segments - 저장된 세그먼트 목록
+// GET /api/segments - 저장된 고객 그룹 목록
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
@@ -29,7 +29,7 @@ router.get('/', async (req: AuthRequest, res) => {
     res.json({ segments: segments.map((s) => ({ ...s, conditions: sanitizeConditions(s.conditions) })) });
   } catch (error) {
     console.error('[Segments] list error:', error);
-    res.status(500).json({ error: '세그먼트 목록을 불러오지 못했습니다.' });
+    res.status(500).json({ error: '고객 그룹 목록을 불러오지 못했습니다.' });
   }
 });
 
@@ -64,12 +64,12 @@ router.get('/:id', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
     const segment = await loadStoreSegment(storeId, req.params.id);
-    if (!segment) return res.status(404).json({ error: '세그먼트를 찾을 수 없습니다.' });
+    if (!segment) return res.status(404).json({ error: '고객 그룹를 찾을 수 없습니다.' });
     const counts = await countSegment(storeId, segment.conditions);
     res.json({ segment, ...counts });
   } catch (error) {
     console.error('[Segments] get error:', error);
-    res.status(500).json({ error: '세그먼트를 불러오지 못했습니다.' });
+    res.status(500).json({ error: '고객 그룹를 불러오지 못했습니다.' });
   }
 });
 
@@ -78,7 +78,7 @@ router.post('/', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
     const name = sanitizeName(req.body?.name);
-    if (!name) return res.status(400).json({ error: '세그먼트 이름을 입력해주세요.' });
+    if (!name) return res.status(400).json({ error: '고객 그룹 이름을 입력해주세요.' });
 
     const conditions = sanitizeConditions(req.body?.conditions);
     if (Object.keys(conditions).length === 0) {
@@ -87,7 +87,7 @@ router.post('/', async (req: AuthRequest, res) => {
 
     const count = await prisma.customerSegment.count({ where: { storeId } });
     if (count >= MAX_SEGMENTS_PER_STORE) {
-      return res.status(400).json({ error: `세그먼트는 최대 ${MAX_SEGMENTS_PER_STORE}개까지 저장할 수 있습니다.` });
+      return res.status(400).json({ error: `고객 그룹는 최대 ${MAX_SEGMENTS_PER_STORE}개까지 저장할 수 있습니다.` });
     }
 
     const segment = await prisma.customerSegment.create({
@@ -96,7 +96,7 @@ router.post('/', async (req: AuthRequest, res) => {
     res.status(201).json({ segment });
   } catch (error) {
     console.error('[Segments] create error:', error);
-    res.status(500).json({ error: '세그먼트를 저장하지 못했습니다.' });
+    res.status(500).json({ error: '고객 그룹를 저장하지 못했습니다.' });
   }
 });
 
@@ -105,12 +105,12 @@ router.put('/:id', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
     const existing = await prisma.customerSegment.findFirst({ where: { id: req.params.id, storeId } });
-    if (!existing) return res.status(404).json({ error: '세그먼트를 찾을 수 없습니다.' });
+    if (!existing) return res.status(404).json({ error: '고객 그룹를 찾을 수 없습니다.' });
 
     const data: Prisma.CustomerSegmentUpdateInput = {};
     if (req.body?.name !== undefined) {
       const name = sanitizeName(req.body.name);
-      if (!name) return res.status(400).json({ error: '세그먼트 이름을 입력해주세요.' });
+      if (!name) return res.status(400).json({ error: '고객 그룹 이름을 입력해주세요.' });
       data.name = name;
     }
     if (req.body?.conditions !== undefined) {
@@ -125,7 +125,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
     res.json({ segment });
   } catch (error) {
     console.error('[Segments] update error:', error);
-    res.status(500).json({ error: '세그먼트를 수정하지 못했습니다.' });
+    res.status(500).json({ error: '고객 그룹를 수정하지 못했습니다.' });
   }
 });
 
@@ -134,11 +134,11 @@ router.delete('/:id', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
     const deleted = await prisma.customerSegment.deleteMany({ where: { id: req.params.id, storeId } });
-    if (deleted.count === 0) return res.status(404).json({ error: '세그먼트를 찾을 수 없습니다.' });
+    if (deleted.count === 0) return res.status(404).json({ error: '고객 그룹를 찾을 수 없습니다.' });
     res.json({ success: true });
   } catch (error) {
     console.error('[Segments] delete error:', error);
-    res.status(500).json({ error: '세그먼트를 삭제하지 못했습니다.' });
+    res.status(500).json({ error: '고객 그룹를 삭제하지 못했습니다.' });
   }
 });
 

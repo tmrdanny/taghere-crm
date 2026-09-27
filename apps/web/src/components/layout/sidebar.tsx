@@ -74,7 +74,8 @@ const navGroups: NavGroup[] = [
     title: '매장 운영',
     icon: Store,
     items: [
-      // 주문/결제: 메뉴에서 숨김 (외부 링크)
+      // QR오더: 메뉴에서 숨김 — 다시 열 때 아래 줄 주석 해제 (외부 링크, 버전별 주소는 buildNavGroups 에서 치환)
+      // { href: 'https://admin.tag-here.com', label: 'QR오더', icon: QrCode, isExternal: true },
       { href: '/waiting', label: '웨이팅', icon: ListOrdered },
       { href: '/points', label: '포인트 적립', icon: HandCoins },
       { href: '/stamp-settings', label: '스탬프 설정', icon: Stamp },
@@ -113,14 +114,14 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-// 매장 버전에 따라 "주문/결제" 링크를 결정
+// 매장 버전에 따라 "QR오더" 링크를 결정
 function getOrderPaymentHref(taghereVersion?: string): string {
   return taghereVersion === 'v2'
     ? 'https://hub.tag-here.com/'
     : 'https://admin.tag-here.com';
 }
 
-// navGroups 에서 "매장 운영 > 주문/결제" 항목의 href 를 버전에 맞게 치환
+// navGroups 에서 "매장 운영 > QR오더" 항목의 href 를 버전에 맞게 치환
 // stampEnabled(스탬프 적립 활성화 매장)이면 "포인트 적립" 탭 숨김
 function buildNavGroups(taghereVersion?: string, stampEnabled?: boolean): NavGroup[] {
   const orderPaymentHref = getOrderPaymentHref(taghereVersion);
@@ -132,7 +133,7 @@ function buildNavGroups(taghereVersion?: string, stampEnabled?: boolean): NavGro
           items: g.items
             .filter((it) => !(stampEnabled && it.label === '포인트 적립'))
             .map((it) =>
-              it.label === '주문/결제' ? { ...it, href: orderPaymentHref } : it
+              it.label === 'QR오더' ? { ...it, href: orderPaymentHref } : it
             ),
         }
   );

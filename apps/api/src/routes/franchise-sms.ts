@@ -12,6 +12,7 @@ import { maskName, maskPhone } from '../utils/masking.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 import { getByteLength } from '../utils/byte-length.js';
 import { getAgeGroupBirthYearRange } from '../lib/customer-filters.js';
+import { countSegmentInStores, loadFranchiseSegment, resolveSegmentCustomersInStores } from '../services/segment-engine.js';
 import {
   mmsImageUpload as upload,
   franchiseMmsUploadDir as uploadDir,
@@ -150,7 +151,13 @@ router.get('/estimate', franchiseAuthMiddleware, async (req: FranchiseAuthReques
 
     let targetCount = 0;
 
-    if (targetType === 'CUSTOM' && customerIds) {
+    if (targetType === 'SEGMENT') {
+      // 고객 그룹: 수신 동의 + 전화번호 보유 고객 수 (전 가맹점 합산)
+      const { segmentId } = req.query;
+      const segment = segmentId ? await loadFranchiseSegment(franchiseId, String(segmentId)) : null;
+      if (!segment) return res.status(400).json({ error: '고객 그룹을 찾을 수 없습니다.' });
+      targetCount = (await countSegmentInStores(storeIds, segment.conditions)).reachable;
+    } else if (targetType === 'CUSTOM' && customerIds) {
       // 직접 선택한 고객
       const ids = (customerIds as string).split(',');
       targetCount = await prisma.customer.count({
@@ -638,11 +645,22 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       ageGroups,
       imageUrl,
       imageId,
-      isAdMessage
+      isAdMessage,
+      segmentId
     } = req.body;
 
     if (!content || !targetType) {
       return res.status(400).json({ error: '필수 정보가 누락되었습니다.' });
+    }
+
+    // 고객 그룹: 발송 시점에 조건을 다시 평가 (수신 동의 고객만). 무거운 조회라 트랜잭션 밖에서 먼저 한다.
+    let segmentCustomers: Array<{ id: string; phone: string | null }> | null = null;
+    if (targetType === 'SEGMENT') {
+      const segment = segmentId ? await loadFranchiseSegment(franchiseId, String(segmentId)) : null;
+      if (!segment) return res.status(400).json({ error: '고객 그룹을 찾을 수 없습니다.' });
+      const segStores = await prisma.store.findMany({ where: { franchiseId }, select: { id: true } });
+      segmentCustomers = (await resolveSegmentCustomersInStores(segStores.map((s) => s.id), segment.conditions))
+        .map((c) => ({ id: c.id, phone: c.phone }));
     }
 
     // 광고 메시지 형식 적용
@@ -681,7 +699,7 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
         whereCondition.createdAt = { gte: thirtyDaysAgo };
       }
 
-      const customers = await tx.customer.findMany({
+      const customers = segmentCustomers ?? await tx.customer.findMany({
         where: whereCondition,
         select: { id: true, phone: true }
       });

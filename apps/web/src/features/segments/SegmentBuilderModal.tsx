@@ -27,7 +27,6 @@ const PERIOD_OPTIONS = [
   { value: '365', label: '최근 1년' },
 ];
 
-const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('token') || ''}` });
 
 function toNum(value: string): number | undefined {
   if (value.trim() === '') return undefined;
@@ -194,12 +193,22 @@ export function SegmentBuilderModal({
   onOpenChange,
   initial,
   onSaved,
+  apiPath = '/api/segments',
+  tokenKey = 'token',
+  scopeLabel,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initial: SavedSegment | null;
-  onSaved: () => void;
+  /** 저장된 고객 그룹을 넘겨준다 (새로 만든 그룹을 바로 선택할 때 사용) */
+  onSaved: (segment?: SavedSegment) => void;
+  /** 사장님: /api/segments, 프랜차이즈: /api/franchise/segments */
+  apiPath?: string;
+  tokenKey?: string;
+  /** 대상 범위 안내 (예: '전 가맹점 고객 기준') */
+  scopeLabel?: string;
 }) {
+  const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem(tokenKey) || ''}` });
   const [name, setName] = useState('');
   const [cond, setCond] = useState<SegmentConditions>({});
   const [menus, setMenus] = useState<Array<{ name: string; orderCount: number }>>([]);
@@ -221,7 +230,7 @@ export function SegmentBuilderModal({
   // 메뉴 목록 (최근 1년 주문 기준)
   useEffect(() => {
     if (!open || menus.length > 0) return;
-    fetch(`${API_BASE}/api/segments/menus?days=365`, { headers: authHeader() })
+    fetch(`${API_BASE}${apiPath}/menus?days=365`, { headers: authHeader() })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => data?.menus && setMenus(data.menus))
       .catch(() => {});
@@ -234,7 +243,7 @@ export function SegmentBuilderModal({
     setCounting(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/segments/preview`, {
+        const res = await fetch(`${API_BASE}${apiPath}/preview`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeader() },
           body: JSON.stringify({ conditions: cond }),
@@ -268,7 +277,7 @@ export function SegmentBuilderModal({
 
   const handleSave = async () => {
     setError('');
-    if (!name.trim()) return setError('세그먼트 이름을 입력해주세요.');
+    if (!name.trim()) return setError('고객 그룹 이름을 입력해주세요.');
     const cleaned: SegmentConditions = {
       ...cond,
       menus: cond.menus?.filter((m) => m.names.length > 0),
@@ -278,14 +287,14 @@ export function SegmentBuilderModal({
 
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE}/api/segments${initial ? `/${initial.id}` : ''}`, {
+      const res = await fetch(`${API_BASE}${apiPath}${initial ? `/${initial.id}` : ''}`, {
         method: initial ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ name: name.trim(), conditions: cleaned }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || '저장하지 못했습니다.');
-      onSaved();
+      onSaved(data.segment);
       onOpenChange(false);
     } catch (e: any) {
       setError(e.message);
@@ -300,13 +309,13 @@ export function SegmentBuilderModal({
     <Modal open={open} onOpenChange={onOpenChange}>
       <ModalContent className="rounded-[20px] border-0 shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] sm:max-w-2xl">
         <ModalHeader>
-          <ModalTitle className="text-[17px] font-semibold text-[color:var(--ad-ink)]">{initial ? '세그먼트 수정' : '세그먼트 만들기'}</ModalTitle>
+          <ModalTitle className="text-[17px] font-semibold text-[color:var(--ad-ink)]">{initial ? '고객 그룹 수정' : '고객 그룹 만들기'}</ModalTitle>
         </ModalHeader>
 
         <div className="p-4 space-y-5 max-h-[70vh] overflow-y-auto">
           <div>
             <label className="text-[13px] font-medium text-[#383c40]">이름</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 아메리카노 단골" className="mt-1.5" maxLength={50} />
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 아메리카노 단골, 두 달째 안 온 손님" className="mt-1.5" maxLength={50} />
           </div>
 
           {!initial && (
@@ -422,7 +431,10 @@ export function SegmentBuilderModal({
 
         {/* 미리보기 */}
         <div className="px-4 py-3 border-t border-[#ebeced] bg-[#f8f9fa]">
-          <p className="text-[12px] text-[#55595e] min-h-[1rem]">{summary.length ? summary.join(' · ') : '조건을 선택하세요 (조건 없음 = 전체 고객)'}</p>
+          <p className="text-[12px] text-[#55595e] min-h-[1rem]">
+            {summary.length ? summary.join(' · ') : '조건을 선택하세요 (조건 없음 = 전체 고객)'}
+            {scopeLabel && <span className="text-[#91959a]"> · {scopeLabel}</span>}
+          </p>
           <p className="mt-1 text-[13px] text-[#1d2022]">
             {counts ? (
               <>

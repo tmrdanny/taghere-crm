@@ -113,9 +113,12 @@ function daysAgoSql(days: number) {
  * 결제액·메뉴 조건은 고객별 상관 서브쿼리로 쓰면 플래너가 고객마다 주문 테이블을 훑어
  * 5만 명 매장에서 수십 초가 걸렸다. 매장 단위로 한 번 집계한 결과를 LEFT JOIN 한다.
  */
-function buildQuery(storeId: string, cond: SegmentConditions): { from: Prisma.Sql; where: Prisma.Sql } {
+function buildQuery(storeIds: string[], cond: SegmentConditions): { from: Prisma.Sql; where: Prisma.Sql } {
   const joins: Prisma.Sql[] = [];
-  const parts: Prisma.Sql[] = [Prisma.sql`c."storeId" = ${storeId}`];
+  // 매장 1곳(사장님) 또는 여러 곳(프랜차이즈 전 가맹점)
+  const inStores = (col: Prisma.Sql) =>
+    storeIds.length === 1 ? Prisma.sql`${col} = ${storeIds[0]}` : Prisma.sql`${col} IN (${Prisma.join(storeIds)})`;
+  const parts: Prisma.Sql[] = [inStores(Prisma.sql`c."storeId"`)];
 
   if (cond.visitCountMin !== undefined) parts.push(Prisma.sql`c."visitCount" >= ${cond.visitCountMin}`);
   if (cond.visitCountMax !== undefined) parts.push(Prisma.sql`c."visitCount" <= ${cond.visitCountMax}`);
@@ -151,7 +154,7 @@ function buildQuery(storeId: string, cond: SegmentConditions): { from: Prisma.Sq
     joins.push(Prisma.sql`LEFT JOIN (
       SELECT v."customerId", SUM(v."totalAmount") AS total, AVG(v."totalAmount") AS avg
       FROM visits_orders v
-      WHERE v."storeId" = ${storeId}
+      WHERE ${inStores(Prisma.sql`v."storeId"`)}
       GROUP BY v."customerId"
     ) sp ON sp."customerId" = c.id`);
     if (cond.totalSpentMin !== undefined) parts.push(Prisma.sql`COALESCE(sp.total, 0) >= ${cond.totalSpentMin}`);
@@ -166,7 +169,7 @@ function buildQuery(storeId: string, cond: SegmentConditions): { from: Prisma.Sq
       SELECT v."customerId", COUNT(DISTINCT v.id) AS n
       FROM visits_orders v
       CROSS JOIN LATERAL jsonb_array_elements(${ITEMS_ARRAY_SQL}) AS e
-      WHERE v."storeId" = ${storeId} ${within}
+      WHERE ${inStores(Prisma.sql`v."storeId"`)} ${within}
         AND btrim(e ->> 'name') IN (${Prisma.join(menu.names)})
       GROUP BY v."customerId"
     ) ${alias} ON ${alias}."customerId" = c.id`);
@@ -185,9 +188,13 @@ function buildQuery(storeId: string, cond: SegmentConditions): { from: Prisma.Sq
 
 const REACHABLE_SQL = Prisma.sql`c."consentMarketing" = true AND c.phone IS NOT NULL`;
 
-/** 조건에 맞는 전체 고객 수와, 그중 발송 가능한(수신 동의 + 전화번호) 고객 수 */
-export async function countSegment(storeId: string, cond: SegmentConditions): Promise<{ total: number; reachable: number }> {
-  const { from, where } = buildQuery(storeId, cond);
+/** 조건에 맞는 전체 고객 수와, 그중 발송 가능한(수신 동의 + 전화번호) 고객 수 — 여러 매장 합산 */
+export async function countSegmentInStores(
+  storeIds: string[],
+  cond: SegmentConditions,
+): Promise<{ total: number; reachable: number }> {
+  if (storeIds.length === 0) return { total: 0, reachable: 0 };
+  const { from, where } = buildQuery(storeIds, cond);
   const rows = await prisma.$queryRaw<Array<{ total: bigint; reachable: bigint }>>`
     SELECT COUNT(*) AS total,
            COUNT(*) FILTER (WHERE ${REACHABLE_SQL}) AS reachable
@@ -196,17 +203,26 @@ export async function countSegment(storeId: string, cond: SegmentConditions): Pr
   return { total: Number(rows[0]?.total ?? 0), reachable: Number(rows[0]?.reachable ?? 0) };
 }
 
-/** 발송 대상 — 수신 동의 + 전화번호 보유 고객만 */
-export async function resolveSegmentCustomers(
-  storeId: string,
+export function countSegment(storeId: string, cond: SegmentConditions) {
+  return countSegmentInStores([storeId], cond);
+}
+
+/** 발송 대상 — 수신 동의 + 전화번호 보유 고객만 (여러 매장 합산, 고객 소속 매장 포함) */
+export async function resolveSegmentCustomersInStores(
+  storeIds: string[],
   cond: SegmentConditions,
-): Promise<Array<{ id: string; name: string | null; phone: string }>> {
-  const { from, where } = buildQuery(storeId, cond);
-  return prisma.$queryRaw<Array<{ id: string; name: string | null; phone: string }>>`
-    SELECT c.id, c.name, c.phone
+): Promise<Array<{ id: string; name: string | null; phone: string; storeId: string }>> {
+  if (storeIds.length === 0) return [];
+  const { from, where } = buildQuery(storeIds, cond);
+  return prisma.$queryRaw<Array<{ id: string; name: string | null; phone: string; storeId: string }>>`
+    SELECT c.id, c.name, c.phone, c."storeId"
     FROM ${from}
     WHERE ${where} AND ${REACHABLE_SQL}
     ORDER BY c."createdAt" ASC`;
+}
+
+export function resolveSegmentCustomers(storeId: string, cond: SegmentConditions) {
+  return resolveSegmentCustomersInStores([storeId], cond);
 }
 
 /** 저장된 세그먼트를 매장 소유 확인 후 조건과 함께 반환 */
@@ -217,18 +233,31 @@ export async function loadStoreSegment(storeId: string, segmentId: string) {
 }
 
 /** 매장 주문 메뉴 목록 (메뉴 조건 선택용) — 주문 수 많은 순 */
-export async function listStoreMenus(
-  storeId: string,
+/** 저장된 프랜차이즈 고객 그룹을 소유 확인 후 조건과 함께 반환 */
+export async function loadFranchiseSegment(franchiseId: string, segmentId: string) {
+  const segment = await prisma.franchiseSegment.findFirst({ where: { id: segmentId, franchiseId } });
+  if (!segment) return null;
+  return { ...segment, conditions: sanitizeConditions(segment.conditions) };
+}
+
+export function listStoreMenus(storeId: string, days: number, limit = 300) {
+  return listMenusInStores([storeId], days, limit);
+}
+
+/** 여러 매장 주문 메뉴 목록 (프랜차이즈 전 가맹점 합산) */
+export async function listMenusInStores(
+  storeIds: string[],
   days: number,
   limit = 300,
 ): Promise<Array<{ name: string; orderCount: number; customerCount: number }>> {
+  if (storeIds.length === 0) return [];
   const rows = await prisma.$queryRaw<Array<{ name: string; order_count: bigint; customer_count: bigint }>>`
     SELECT btrim(e ->> 'name') AS name,
            COUNT(DISTINCT v.id) AS order_count,
            COUNT(DISTINCT v."customerId") AS customer_count
     FROM visits_orders v
     CROSS JOIN LATERAL jsonb_array_elements(${ITEMS_ARRAY_SQL}) AS e
-    WHERE v."storeId" = ${storeId}
+    WHERE v."storeId" IN (${Prisma.join(storeIds)})
       AND v."visitedAt" >= ${daysAgoSql(days)}
       AND NULLIF(btrim(e ->> 'name'), '') IS NOT NULL
     GROUP BY 1

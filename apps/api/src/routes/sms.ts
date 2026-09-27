@@ -149,7 +149,7 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
     if (targetType === 'SEGMENT') {
       // 세그먼트: 수신 동의 + 전화번호 보유 고객 수
       const segment = segmentId ? await loadStoreSegment(storeId, String(segmentId)) : null;
-      if (!segment) return res.status(400).json({ error: '세그먼트를 찾을 수 없습니다.' });
+      if (!segment) return res.status(400).json({ error: '고객 그룹을 찾을 수 없습니다.' });
       targetCount = (await countSegment(storeId, segment.conditions)).reachable;
     } else if (targetType === 'CUSTOM' && customerIds) {
       // 직접 선택한 고객 (필터는 이미 선택된 고객에게 적용하지 않음)
@@ -298,7 +298,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     if (targetType === 'SEGMENT') {
       // 세그먼트: 저장된 조건을 발송 시점에 다시 평가 (수신 동의 고객만)
       const segment = segmentId ? await loadStoreSegment(storeId, String(segmentId)) : null;
-      if (!segment) return res.status(400).json({ error: '세그먼트를 찾을 수 없습니다.' });
+      if (!segment) return res.status(400).json({ error: '고객 그룹을 찾을 수 없습니다.' });
       customers = await resolveSegmentCustomers(storeId, segment.conditions);
     } else {
       customers = await prisma.customer.findMany({

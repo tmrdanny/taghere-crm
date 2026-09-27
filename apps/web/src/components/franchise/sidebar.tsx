@@ -65,7 +65,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
   {
     title: '캠페인',
     items: [
-      { href: '/franchise/campaigns/retarget', label: '리타겟', icon: MessageSquare },
+      { href: '/franchise/campaigns/retarget', label: '메시지 발송', icon: MessageSquare },
       { href: '/franchise/campaigns/acquisition', label: '신규 고객 타겟', icon: UserPlus },
       { href: '/franchise/campaigns/place-booster', label: '플레이스 부스터', icon: Rocket },
       { href: '/franchise/campaigns/automation', label: '자동 마케팅', icon: Zap },

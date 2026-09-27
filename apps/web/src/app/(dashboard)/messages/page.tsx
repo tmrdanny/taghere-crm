@@ -23,9 +23,10 @@ import {
   Link,
   Clock,
   TrendingUp,
-  Wallet, Plus } from 'lucide-react';
+  Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChargeModal } from '@/components/ChargeModal';
+import { SegmentPicker } from '@/features/segments/SegmentPicker';
 
 
 import {
@@ -81,8 +82,7 @@ export default function MessagesPage() {
   // Target counts
   const [targetCounts, setTargetCounts] = useState<TargetCounts>({ all: 0, revisit: 0, new: 0 });
   const [selectedTarget, setSelectedTarget] = useState<'ALL' | 'REVISIT' | 'NEW' | 'CUSTOM' | 'SEGMENT'>('ALL');
-  // 저장된 세그먼트로 발송 — reachable 은 수신 동의 + 전화번호 보유 고객 수
-  const [savedSegments, setSavedSegments] = useState<Array<{ id: string; name: string }>>([]);
+  // 고객 그룹(저장된 세그먼트)으로 발송 — reachable 은 수신 동의 + 전화번호 보유 고객 수
   const [selectedSegment, setSelectedSegment] = useState<{ id: string; name: string; reachable: number } | null>(null);
 
   // Custom selected customers (from customer list page)
@@ -162,17 +162,7 @@ export default function MessagesPage() {
     return localStorage.getItem('token') || 'dev-token';
   };
 
-  // 저장된 세그먼트 목록
-  useEffect(() => {
-    fetch(`${API_BASE}/api/segments`, { headers: { Authorization: `Bearer ${getAuthToken()}` } })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.segments) setSavedSegments(data.segments.map((sg: any) => ({ id: sg.id, name: sg.name })));
-      })
-      .catch(() => {});
-  }, []);
-
-  // 세그먼트 선택 → 현재 발송 가능 인원 조회
+  // 고객 그룹 선택 → 현재 발송 가능 인원 조회
   const selectSegment = useCallback(async (segmentId: string) => {
     if (!segmentId) {
       setSelectedSegment(null);
@@ -189,11 +179,11 @@ export default function MessagesPage() {
       setSelectedCustomers([]);
       setSelectedTarget('SEGMENT');
     } catch {
-      showToast('세그먼트를 불러오지 못했습니다.', 'error');
+      showToast('고객 그룹을 불러오지 못했습니다.', 'error');
     }
   }, [showToast]);
 
-  // /messages?segmentId=... (세그먼트 페이지에서 "보내기")
+  // /messages?segmentId=... (고객 그룹 페이지에서 "보내기")
   useEffect(() => {
     const segmentId = searchParams.get('segmentId');
     if (segmentId) selectSegment(segmentId);
@@ -1042,7 +1032,7 @@ export default function MessagesPage() {
       }
       if (selectedTarget === 'SEGMENT') {
         if (!selectedSegment) {
-          showToast('세그먼트를 선택해주세요.', 'error');
+          showToast('고객 그룹을 선택해주세요.', 'error');
           return;
         }
         body.segmentId = selectedSegment.id;
@@ -1179,44 +1169,13 @@ export default function MessagesPage() {
             </button>
           </div>
 
-          {/* 저장된 세그먼트로 보내기 */}
-          <div
-            className={cn(
-              'mt-3 p-2.5 rounded-[12px] border transition-all',
-              selectedTarget === 'SEGMENT' ? 'border-[color:var(--ad-ink)] bg-white shadow-[0_0_0_1px_var(--ad-ink)]' : 'border-[color:var(--ad-line)] bg-white'
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedTarget === 'SEGMENT' && selectedSegment ? selectedSegment.id : ''}
-                onChange={(e) => selectSegment(e.target.value)}
-                className="flex-1 min-w-0 h-10 px-3 text-[13.5px] rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[color:var(--ad-ink)] focus:border-[color:var(--ad-navy)] focus:outline-none"
-              >
-                <option value="">
-                  {savedSegments.length > 0 ? '저장된 세그먼트로 보내기' : '저장된 세그먼트가 없습니다'}
-                </option>
-                {savedSegments.map((sg) => (
-                  <option key={sg.id} value={sg.id}>{sg.name}</option>
-                ))}
-              </select>
-              <a
-                href="/segments"
-                className="ad-press inline-flex h-10 shrink-0 items-center gap-1 whitespace-nowrap rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
-              >
-                <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-                세그먼트 만들기
-              </a>
-            </div>
-            {selectedTarget === 'SEGMENT' && selectedSegment && (
-              <p className="mt-2 text-[12px] text-[color:var(--ad-ink-2)]">
-                <span className="font-semibold text-[color:var(--ad-ink)]">{selectedSegment.name}</span> · 발송 가능{' '}
-                <span className="font-semibold text-[color:var(--ad-ink)] ad-tnum">{formatNumber(selectedSegment.reachable)}명</span>
-                <span className="block text-[color:var(--ad-faint)] mt-0.5">
-                  마케팅 수신 동의 고객에게만 발송되며, 성별/연령대 필터 대신 세그먼트 조건이 적용됩니다.
-                </span>
-              </p>
-            )}
-          </div>
+          {/* 고객 그룹으로 보내기 */}
+          <SegmentPicker
+            active={selectedTarget === 'SEGMENT'}
+            selected={selectedSegment}
+            onSelect={selectSegment}
+            manageHref="/segments"
+          />
 
           {/* Advanced Settings (collapsed by default) */}
           {showAdvancedSettings && (
@@ -1681,8 +1640,8 @@ export default function MessagesPage() {
 
               {/* 1회 발송 한도 안내 */}
               <div className="mb-3 text-[12px] text-[color:var(--ad-muted)] text-center px-2">
-                1회 발송 최대 <span className="font-semibold text-[color:var(--ad-ink)]">3,000명</span>까지 가능합니다.
-                {getCurrentTargetCount() > 3000 && (
+                1회 발송 최대 <span className="font-semibold text-[color:var(--ad-ink)]">50,000명</span>까지 가능합니다.
+                {getCurrentTargetCount() > 50000 && (
                   <div className="mt-1 text-[color:var(--ad-neg)]">
                     현재 {formatNumber(getCurrentTargetCount())}명 → 필터를 좁히거나 나눠 발송해 주세요.
                   </div>
@@ -1695,7 +1654,7 @@ export default function MessagesPage() {
                   !couponContent.trim() ||
                   !couponExpiryDate.trim() ||
                   getCurrentTargetCount() === 0 ||
-                  getCurrentTargetCount() > 3000 ||
+                  getCurrentTargetCount() > 50000 ||
                   isCouponSending
                 }
                 onClick={async () => {
@@ -1708,8 +1667,8 @@ export default function MessagesPage() {
                     return;
                   }
                   // 1회 발송 최대 인원 안내 (서버 캡과 동일)
-                  if (getCurrentTargetCount() > 3000) {
-                    showToast('1회 발송 최대 3,000명입니다. 필터를 좁히거나 나눠 발송해 주세요.', 'error');
+                  if (getCurrentTargetCount() > 50000) {
+                    showToast('1회 발송 최대 50,000명입니다. 필터를 좁히거나 나눠 발송해 주세요.', 'error');
                     return;
                   }
 
@@ -1736,7 +1695,7 @@ export default function MessagesPage() {
                     }
                     if (selectedTarget === 'SEGMENT') {
                       if (!selectedSegment) {
-                        showToast('세그먼트를 선택해주세요.', 'error');
+                        showToast('고객 그룹을 선택해주세요.', 'error');
                         return;
                       }
                       body.segmentId = selectedSegment.id;

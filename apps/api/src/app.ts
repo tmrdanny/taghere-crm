@@ -49,6 +49,7 @@ import monthlyCreditRoutes from './routes/monthly-credit.js';
 import visitSourceSettingsRoutes from './routes/visit-source-settings.js';
 import insightsRoutes from './routes/insights.js';
 import segmentsRoutes from './routes/segments.js';
+import franchiseSegmentsRoutes from './routes/franchise-segments.js';
 import retargetCouponRoutes from './routes/retarget-coupon.js';
 import couponFormRoutes from './routes/coupon-form.js';
 import automationRoutes from './routes/automation.js';
@@ -302,6 +303,7 @@ app.use('/api/v1', v1YahwaRoutes);
 
 // Franchise routes
 app.use('/api/franchise/auth', franchiseAuthRoutes);
+app.use('/api/franchise/segments', franchiseSegmentsRoutes);
 app.use('/api/franchise/sms', franchiseSmsRoutes);
 app.use('/api/franchise/retarget-coupon', franchiseRetargetCouponRoutes);
 app.use('/api/franchise/place-booster', franchisePlaceBoosterRoutes);

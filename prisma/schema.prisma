@@ -570,6 +570,8 @@ model AlimTalkOutbox {
   sentAt        DateTime?          // 실제 발송 시간
   franchiseId   String?            // 프랜차이즈 캠페인 과금 주체 (환불 라우팅용, null = 매장 지갑)
   sentViaGroup  Boolean            @default(false) // 솔라피 그룹 발송으로 접수됨 — 워커 건별 발송 대상 아님, 그룹 단위 상태 조회로 확정
+  billing       String?            // 그룹 발송 과금 방식 — FRANCHISE_WALLET | STORE_WALLET | STORE_CREDIT (실패 시 환불 경로)
+  unitCost      Int?               // 그룹 발송 건당 과금액 (환불 금액)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
@@ -1163,6 +1165,7 @@ model Franchise {
   franchiseStampLedger   FranchiseStampLedger[]
   franchisePointLedger   FranchisePointLedger[]
   rewardClaims           RewardClaim[]
+  segments               FranchiseSegment[]
 
   @@map("franchises")
 }
@@ -2477,4 +2480,18 @@ model CustomerSegment {
 
   @@index([storeId])
   @@map("customer_segments")
+}
+
+// 프랜차이즈 고객 그룹 — 전 가맹점 고객을 같은 조건(SegmentConditions)으로 묶는다
+model FranchiseSegment {
+  id          String    @id @default(cuid())
+  franchiseId String
+  franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  name        String
+  conditions  Json      // SegmentConditions
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([franchiseId])
+  @@map("franchise_segments")
 }
