@@ -642,3 +642,110 @@ export async function fetchDailyVisitorStatsFromV2(params: {
     unmatchedStoreIds: succeeded.flatMap((result) => result.unmatchedStoreIds),
   };
 }
+
+// ── 테이블 체류 시간 (후불 POS 매장 전용) ──
+// V2 가 세션(첫 태그)부터 POS 결제완료까지를 분 단위로 계산해 준다. 미지원 매장은 supported=false.
+
+export interface OrderStayTimesResult {
+  supported: boolean;
+  orders: { orderId: string; stayMinutes: number | null }[];
+}
+
+export interface StayTimeStatsResult {
+  stores: {
+    storeId: string;
+    supported: boolean;
+    averageStayMinutes: number | null;
+    sessionCount: number;
+  }[];
+  unmatchedStoreIds: string[];
+}
+
+// 고객 모달 열림에 얹히는 호출이라 다른 V2 통계보다 짧게 끊는다
+const ORDER_STAY_TIMES_TIMEOUT_MS = 3000;
+// V2 요청 DTO 의 orderIds 상한
+const ORDER_STAY_TIMES_MAX_ORDER_IDS = 100;
+const STAY_TIME_STATS_TIMEOUT_MS = 5000;
+
+/**
+ * 주문 ID 목록의 체류 시간(분)을 V2 에서 가져온다. 같은 세션의 주문은 같은 값이다.
+ * 고객 모달이 V2 장애에 묶이지 않도록 throw 하지 않고, 실패는 전부 null 로 반환한다.
+ */
+export async function fetchOrderStayTimesFromV2(params: {
+  v2StoreId: string;
+  orderIds: string[];
+}): Promise<OrderStayTimesResult | null> {
+  if (!V2_API_URL || !V2_API_TOKEN) return null;
+  const orderIds = params.orderIds.slice(0, ORDER_STAY_TIMES_MAX_ORDER_IDS);
+  if (orderIds.length === 0) return null;
+
+  try {
+    const response = await fetch(`${V2_API_URL}/api/v2/internal/crm/order-stay-times`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${V2_API_TOKEN}`,
+      },
+      body: JSON.stringify({ storeId: params.v2StoreId, orderIds }),
+      signal: AbortSignal.timeout(ORDER_STAY_TIMES_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      console.error('[TagHere V2] order stay times failed:', response.status, text);
+      return null;
+    }
+
+    const json: any = await response.json().catch(() => ({}));
+    const data = json?.result ?? json;
+    if (typeof data?.supported !== 'boolean' || !Array.isArray(data?.orders)) {
+      console.error('[TagHere V2] order stay times: 예상과 다른 응답 형태');
+      return null;
+    }
+    return data as OrderStayTimesResult;
+  } catch (error) {
+    console.error('[TagHere V2] order stay times error:', error);
+    return null;
+  }
+}
+
+/**
+ * 매장의 기간 평균 체류 시간을 V2 에서 가져온다. from 을 생략하면 전체 기간이다.
+ * 데이터 분석 페이지가 V2 장애에 묶이지 않도록 throw 하지 않고, 실패는 전부 null 로 반환한다.
+ */
+export async function fetchStayTimeStatsFromV2(params: {
+  v2StoreId: string;
+  from?: string;
+  to: string;
+}): Promise<StayTimeStatsResult | null> {
+  if (!V2_API_URL || !V2_API_TOKEN) return null;
+
+  try {
+    const response = await fetch(`${V2_API_URL}/api/v2/internal/crm/stay-time-stats`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${V2_API_TOKEN}`,
+      },
+      body: JSON.stringify({ storeIds: [params.v2StoreId], from: params.from ?? null, to: params.to }),
+      signal: AbortSignal.timeout(STAY_TIME_STATS_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      console.error('[TagHere V2] stay time stats failed:', response.status, text);
+      return null;
+    }
+
+    const json: any = await response.json().catch(() => ({}));
+    const data = json?.result ?? json;
+    if (!Array.isArray(data?.stores) || !Array.isArray(data?.unmatchedStoreIds)) {
+      console.error('[TagHere V2] stay time stats: 예상과 다른 응답 형태');
+      return null;
+    }
+    return data as StayTimeStatsResult;
+  } catch (error) {
+    console.error('[TagHere V2] stay time stats error:', error);
+    return null;
+  }
+}

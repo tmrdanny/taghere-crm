@@ -83,6 +83,7 @@ export interface VisitOrOrderEntry {
   items: OrderItem[] | null;
   totalAmount: number | null;
   tableNumber: string | null;
+  stayMinutes?: number | null;  // 테이블 체류 시간(분). 후불 POS 매장의 V2 주문만 값이 있음
 }
 
 // 주문 아이템 배열을 안전하게 가져오는 헬퍼 함수

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { formatNumber, formatDate } from '@/lib/utils';
+import { formatNumber, formatDate, formatDurationMinutes } from '@/lib/utils';
 import { Calendar, X } from 'lucide-react';
 import { OrderItem, VisitOrOrderEntry, getOrderItems, formatOrderItemOption } from '../types';
 
@@ -123,6 +123,11 @@ export function OrderHistoryTab({
                     {order.tableNumber && (
                       <span className="text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
                         {order.tableNumber}
+                      </span>
+                    )}
+                    {typeof order.stayMinutes === 'number' && (
+                      <span className="text-xs text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                        체류 {formatDurationMinutes(order.stayMinutes)}
                       </span>
                     )}
                   </div>

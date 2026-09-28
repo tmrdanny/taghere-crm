@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { sidoToShort } from '../utils/address-parser.js';
 import { PointsError, reverseOrderItemAccrual } from '../services/points.js';
+import { attachStayMinutes } from '../services/stay-time.js';
 
 const router = Router();
 
@@ -355,9 +356,16 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
       };
     });
 
+    // 후불 POS 매장(V2)만 세션 체류 시간이 붙는다. 실패/미지원은 null 로 내려가고 응답을 막지 않는다
+    const stayTimeStore = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { v1StoreId: true, v2StoreId: true, taghereVersion: true },
+    });
+    const visitsOrOrdersWithStay = await attachStayMinutes(stayTimeStore, normalizedVisitsOrOrders);
+
     res.json({
       ...customer,
-      visitsOrOrders: normalizedVisitsOrOrders,
+      visitsOrOrders: visitsOrOrdersWithStay,
       isVip: customer.visitCount >= 20 || customer.totalPoints >= 5000,
       isNew: customer.visitCount <= 1,
     });
@@ -1115,8 +1123,15 @@ router.get('/:id/orders', authMiddleware, async (req: AuthRequest, res) => {
       };
     });
 
+    // 후불 POS 매장(V2)만 세션 체류 시간이 붙는다. 실패/미지원은 null 로 내려가고 응답을 막지 않는다
+    const stayTimeStore = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { v1StoreId: true, v2StoreId: true, taghereVersion: true },
+    });
+    const ordersWithStay = await attachStayMinutes(stayTimeStore, normalizedOrders);
+
     res.json({
-      orders: normalizedOrders,
+      orders: ordersWithStay,
       pagination: {
         page: pageNum,
         limit: limitNum,

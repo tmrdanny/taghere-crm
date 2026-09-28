@@ -15,7 +15,7 @@ import {
 } from 'recharts';
 import { RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
+import { cn, formatDurationMinutes } from '@/lib/utils';
 
 // 데이터 분석 탭 공용 대시보드 (매장 / 프랜차이즈)
 // 데이터는 부모가 fetch해서 내려준다.
@@ -41,6 +41,14 @@ export interface AnalyticsData {
   visitFrequency: { bucket: string; customers: number }[];
   newVsReturning: { label: string; visits: number; revenue: number }[];
   segmentRevisit: { segment: string; base: number; rate30: number }[];
+}
+
+// 평균 테이블 체류 시간 (첫 태그 → POS 결제완료). 후불 POS 매장(V2)만 supported=true
+export interface StayTimeSummary {
+  supported: boolean;
+  available: boolean;
+  averageStayMinutes: number | null;
+  sessionCount: number;
 }
 
 // 차트 상단 핵심 인사이트 (점주가 차트를 해석하지 않아도 되도록 한 줄 요약)
@@ -83,12 +91,14 @@ export function AnalyticsDashboard({
   days,
   onChangeDays,
   headerRight,
+  stayTime,
 }: {
   data: AnalyticsData | null;
   isLoading: boolean;
   days: number;
   onChangeDays: (d: number) => void;
   headerRight?: React.ReactNode;
+  stayTime?: StayTimeSummary | null;  // 매장 페이지만 전달. 없거나 미지원이면 카드를 그리지 않는다
 }) {
   const [selectedMenu, setSelectedMenu] = useState<string>('__all__');
   const [ticketMode, setTicketMode] = useState<'age' | 'gender'>('age');
@@ -249,6 +259,28 @@ export function AnalyticsDashboard({
         </div>
       ) : (
         <>
+          {/* ⓪ 평균 체류 시간 — 후불 POS 매장만 */}
+          {stayTime?.supported && (
+            <Card>
+              <CardContent className="p-5">
+                <h3 className="font-semibold text-neutral-900 mb-1">평균 체류 시간</h3>
+                <p className="text-xs text-neutral-500 mb-3">첫 태그부터 POS 결제완료까지 · 후불 POS 매장 기준</p>
+                {!stayTime.available ? (
+                  <p className="text-sm text-neutral-400">데이터를 불러오지 못했습니다</p>
+                ) : stayTime.averageStayMinutes === null ? (
+                  <p className="text-sm text-neutral-400">데이터 없음</p>
+                ) : (
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-3xl font-bold text-neutral-900">
+                      {formatDurationMinutes(stayTime.averageStayMinutes)}
+                    </span>
+                    <span className="text-sm text-neutral-500">세션 {stayTime.sessionCount.toLocaleString('ko-KR')}건</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* ① 시간대별 메뉴 판매량 */}
           <Card>
             <CardContent className="p-5">

@@ -2,8 +2,9 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { computeAnalytics } from '../services/analytics.js';
-import { fetchOrderLanguageStatsFromV2 } from '../services/taghere-api.js';
+import { fetchOrderLanguageStatsFromV2, fetchStayTimeStatsFromV2 } from '../services/taghere-api.js';
 import { resolveVersion } from '../services/taghere-version.js';
+import { todayKstString } from '../services/visitor-stats.js';
 
 const router = Router();
 
@@ -774,6 +775,54 @@ router.get('/revenue', async (req: AuthRequest, res) => {
 });
 
 // GET /api/insights/analytics?days=90 - 데이터 분석 (시간대별 메뉴/객단가/재방문 주기 등)
+// 평균 테이블 체류 시간 (첫 태그 → POS 결제완료). V2 후불 POS 매장만 지원한다.
+// V2 장애가 데이터 분석 페이지 전체를 막지 않도록, 실패해도 200 + available:false 로 응답한다
+router.get('/stay-time', async (req: AuthRequest, res) => {
+  const unsupported = { supported: false, available: false, averageStayMinutes: null, sessionCount: 0 };
+  try {
+    const storeId = req.user!.storeId;
+    const daysParam = parseInt((req.query.days as string) || '90', 10);
+    const days = [30, 90, 180, 365].includes(daysParam) ? daysParam : daysParam === 0 ? null : 90;
+
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { taghereVersion: true, v1StoreId: true, v2StoreId: true },
+    });
+
+    // V1 매장과 V2 매장 ID 미연결 매장은 세션 데이터가 없다
+    if (!store?.v2StoreId || resolveVersion(store) !== 'v2') {
+      return res.json(unsupported);
+    }
+
+    // V2 의 기간은 KST 날짜 기준이라 서버 UTC 날짜를 쓰면 00~09시에 하루가 어긋난다
+    const to = todayKstString();
+    const from = days ? new Date(Date.parse(to) - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) : undefined;
+
+    const stats = await fetchStayTimeStatsFromV2({ v2StoreId: store.v2StoreId, from, to });
+
+    if (!stats) {
+      return res.json({ supported: true, available: false, averageStayMinutes: null, sessionCount: 0 });
+    }
+
+    const storeStats = stats.stores.find((s) => s.storeId === store.v2StoreId) ?? stats.stores[0];
+    if (!storeStats) {
+      console.warn('[Stay time] 태그히어에 연결되지 않은 매장 ID:', storeId, stats.unmatchedStoreIds);
+      return res.json({ supported: true, available: true, linked: false, averageStayMinutes: null, sessionCount: 0 });
+    }
+
+    res.json({
+      supported: storeStats.supported,
+      available: true,
+      linked: true,
+      averageStayMinutes: storeStats.averageStayMinutes,
+      sessionCount: storeStats.sessionCount,
+    });
+  } catch (error) {
+    console.error('Stay time insights error:', error);
+    res.json({ supported: true, available: false, averageStayMinutes: null, sessionCount: 0 });
+  }
+});
+
 router.get('/analytics', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;

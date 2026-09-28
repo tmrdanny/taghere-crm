@@ -392,6 +392,7 @@ MOUNT ^\\/api\\/insights\\/?(?=\\/|$)
   ROUTE GET /segments handlers=1
   ROUTE GET /visit-cycle handlers=1
   ROUTE GET /revenue handlers=1
+  ROUTE GET /stay-time handlers=1
   ROUTE GET /analytics handlers=1
 MOUNT ^\\/api\\/retarget-coupon\\/?(?=\\/|$)
   ROUTE GET /settings handlers=2

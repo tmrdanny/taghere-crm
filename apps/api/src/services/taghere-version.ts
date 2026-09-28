@@ -18,6 +18,11 @@ const V2_ORDER_ID = /^OR[0-9A-Z]{20,}$/i;
 /** V1 주문(ordersheet) ID: MongoDB ObjectId 24-hex */
 const V1_ORDER_ID = /^[0-9a-f]{24}$/i;
 
+/** V2 주문 ID 형식인지 (체류 시간 등 V2 전용 조회의 대상 선별용) */
+export function isV2OrderId(orderId: string | null | undefined): orderId is string {
+  return !!orderId && V2_ORDER_ID.test(orderId);
+}
+
 export function resolveVersion(store: VersionSource): 'v1' | 'v2' {
   if (store.v2StoreId && !store.v1StoreId) return 'v2';
   if (store.v1StoreId && !store.v2StoreId) return 'v1';

@@ -66,6 +66,16 @@ export function formatPoints(points: number): string {
   return `${formatNumber(points)} p`;
 }
 
+// 분 → "45분" / "1시간" / "1시간 20분" (체류 시간 표시용)
+export function formatDurationMinutes(minutes: number): string {
+  const total = Math.max(0, Math.round(minutes));
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+  if (hours === 0) return `${mins}분`;
+  if (mins === 0) return `${hours}시간`;
+  return `${hours}시간 ${mins}분`;
+}
+
 export function formatDate(date: Date | string): string {
   const d = new Date(date);
   return d.toLocaleDateString('ko-KR', {
