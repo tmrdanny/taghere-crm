@@ -3,8 +3,6 @@
 import { API_BASE } from '@/lib/api-config';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { XCircle, Loader2 } from 'lucide-react';
 
 
@@ -90,48 +88,48 @@ function BillingFailContent() {
   // 확인 중
   if (isChecking) {
     return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-8 text-center">
-            <Loader2 className="w-12 h-12 animate-spin text-brand-800 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold text-neutral-900 mb-2">
-              결제 상태 확인 중...
-            </h2>
-            <p className="text-sm text-neutral-500">
-              잠시만 기다려주세요.
-            </p>
-          </CardContent>
-        </Card>
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-6">
+        <div className="ad-card w-full max-w-md p-8 text-center">
+          <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-[color:var(--ad-faint)]" />
+          <h2 className="mb-1.5 text-[17px] font-semibold text-[color:var(--ad-ink)]">
+            결제 상태 확인 중...
+          </h2>
+          <p className="text-[13px] text-[color:var(--ad-muted)]">
+            잠시만 기다려주세요.
+          </p>
+        </div>
       </div>
     );
   }
 
   // 실제 실패인 경우
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6">
-      <Card className="w-full max-w-md">
-        <CardContent className="p-8 text-center">
-          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <XCircle className="w-10 h-10 text-red-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-neutral-900 mb-2">
-            결제 실패
-          </h2>
-          <p className="text-sm text-neutral-500 mb-2">
-            {getErrorMessage()}
+    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-6">
+      <div className="ad-card w-full max-w-md p-8 text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--ad-bg)]">
+          <XCircle className="h-6 w-6 text-[color:var(--ad-neg)]" strokeWidth={1.7} />
+        </div>
+        <h2 className="mb-1.5 text-[17px] font-semibold text-[color:var(--ad-ink)]">
+          결제 실패
+        </h2>
+        <p className="mb-2 text-[13px] text-[color:var(--ad-muted)]">
+          {getErrorMessage()}
+        </p>
+        {errorCode && (
+          <p className="mb-6 text-[12px] text-[color:var(--ad-faint)]">
+            오류 코드: {errorCode}
           </p>
-          {errorCode && (
-            <p className="text-xs text-neutral-400 mb-6">
-              오류 코드: {errorCode}
-            </p>
-          )}
-          <div className="space-y-3">
-            <Button onClick={() => router.push('/billing')} className="w-full">
-              충전 페이지로 돌아가기
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        )}
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => router.push('/billing')}
+            className="ad-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+          >
+            충전 페이지로 돌아가기
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -141,7 +139,7 @@ export default function BillingFailPage() {
     <Suspense
       fallback={
         <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-800" />
+          <Loader2 className="h-8 w-8 animate-spin text-[color:var(--ad-faint)]" />
         </div>
       }
     >

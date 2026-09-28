@@ -15,6 +15,7 @@ import {
 import { DEFAULT_PRICES, alimtalkCategory } from '../services/pricing-service.js';
 import { classifyWalletTx, describeWalletTx, WALLET_USAGE_LABELS } from '../utils/wallet-usage.js';
 import { computeAnalytics } from '../services/analytics.js';
+import { computeSurveyResults } from '../services/survey-results.js';
 import {
   computeDailyVisitorSeries,
   parseDateRange,
@@ -447,6 +448,9 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
           kakaoId: true,
           naverId: true,
           visitSource: true,
+          regionSido: true,
+          regionSigungu: true,
+          consentMarketing: true,
           store: {
             select: {
               id: true,
@@ -584,6 +588,9 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
         store: customer.store,
         visitSource: customer.visitSource || null,
         lastTableLabel: tableLabelsMap.get(customer.id) || null,
+        regionSido: customer.regionSido,
+        regionSigungu: customer.regionSigungu,
+        consentMarketing: customer.consentMarketing,
       };
     });
 
@@ -2784,6 +2791,27 @@ router.get('/insights/analytics', async (req: FranchiseAuthRequest, res) => {
   } catch (error) {
     console.error('Franchise analytics error:', error);
     res.status(500).json({ error: '데이터 분석 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/franchise/insights/survey-results?startDate=&endDate=&storeId= - 고객 설문 결과 지표 (본사 전체 또는 특정 가맹점)
+router.get('/insights/survey-results', async (req: FranchiseAuthRequest, res) => {
+  try {
+    const franchiseId = req.franchiseUser!.franchiseId;
+    const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+    const storeIdFilter = (req.query.storeId as string) || '';
+
+    const stores = await prisma.store.findMany({
+      where: { franchiseId, ...(storeIdFilter ? { id: storeIdFilter } : {}) },
+      select: { id: true },
+    });
+    if (stores.length === 0) {
+      return res.status(404).json({ error: '가맹점을 찾을 수 없습니다.' });
+    }
+    res.json(await computeSurveyResults(stores.map((s) => s.id), { startDate, endDate }));
+  } catch (error) {
+    console.error('Franchise survey results error:', error);
+    res.status(500).json({ error: '고객 설문 결과 조회 중 오류가 발생했습니다.' });
   }
 });
 

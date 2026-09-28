@@ -12,6 +12,10 @@ import { maskName, maskPhone } from '../utils/masking.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 import { getByteLength } from '../utils/byte-length.js';
 import { getAgeGroupBirthYearRange } from '../lib/customer-filters.js';
+import { countSegmentInStores, loadFranchiseSegment, resolveSegmentCustomersInStores } from '../services/segment-engine.js';
+import { recordMarketingCampaign, updateMarketingCampaign, createStaffCoupons, parseStaffVerify, smsCouponFooter } from '../services/marketing/tracker.js';
+import { targetLabelOf } from '../services/marketing/labels.js';
+import { resolveSendTime, formatKst } from '../utils/send-window.js';
 import {
   mmsImageUpload as upload,
   franchiseMmsUploadDir as uploadDir,
@@ -150,7 +154,13 @@ router.get('/estimate', franchiseAuthMiddleware, async (req: FranchiseAuthReques
 
     let targetCount = 0;
 
-    if (targetType === 'CUSTOM' && customerIds) {
+    if (targetType === 'SEGMENT') {
+      // 고객 그룹: 수신 동의 + 전화번호 보유 고객 수 (전 가맹점 합산)
+      const { segmentId } = req.query;
+      const segment = segmentId ? await loadFranchiseSegment(franchiseId, String(segmentId)) : null;
+      if (!segment) return res.status(400).json({ error: '고객 그룹을 찾을 수 없습니다.' });
+      targetCount = (await countSegmentInStores(storeIds, segment.conditions)).reachable;
+    } else if (targetType === 'CUSTOM' && customerIds) {
       // 직접 선택한 고객
       const ids = (customerIds as string).split(',');
       targetCount = await prisma.customer.count({
@@ -179,8 +189,11 @@ router.get('/estimate', franchiseAuthMiddleware, async (req: FranchiseAuthReques
       targetCount = await prisma.customer.count({ where });
     }
 
-    // 비용 계산
-    const byteLength = getByteLength((content as string) || '');
+    // 비용 계산 (직원 확인 쿠폰을 붙이면 고객별 링크까지 포함한 길이)
+    const verifyFooter = req.query.staffVerify === 'true'
+      ? smsCouponFooter({ enabled: true, couponContent: String(req.query.couponContent || '쿠폰'), expiryDate: String(req.query.expiryDate || '0000-00-00') }, 'XXXXXXXXXX')
+      : '';
+    const byteLength = getByteLength(((content as string) || '') + verifyFooter);
     const isImageAttached = hasImage === 'true';
     const costPerMessage = isImageAttached ? MMS_COST : (byteLength > 90 ? SMS_COST_LONG : SMS_COST_SHORT);
     const messageType = isImageAttached ? 'MMS' : (byteLength > 90 ? 'LMS' : 'SMS');
@@ -638,11 +651,28 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       ageGroups,
       imageUrl,
       imageId,
-      isAdMessage
+      isAdMessage,
+      segmentId
     } = req.body;
+    // 직원 확인 쿠폰 (선택) — 고객마다 쿠폰 링크를 본문 끝에 붙이고 사용 여부를 캠페인별로 센다
+    const staffVerify = parseStaffVerify(req.body.staffVerify);
+    // 발송 시각 — 예약 요청이 있으면 그 시각, 광고 문자인데 발송 불가 시간이면 다음 오전 8시
+    const sendTime = resolveSendTime(req.body.scheduledAt, { adWindow: !!isAdMessage });
+    if (sendTime.error) return res.status(400).json({ error: sendTime.error });
+    const scheduledAt = sendTime.at;
 
     if (!content || !targetType) {
       return res.status(400).json({ error: '필수 정보가 누락되었습니다.' });
+    }
+
+    // 고객 그룹: 발송 시점에 조건을 다시 평가 (수신 동의 고객만). 무거운 조회라 트랜잭션 밖에서 먼저 한다.
+    let segmentCustomers: Array<{ id: string; phone: string | null; storeId: string }> | null = null;
+    if (targetType === 'SEGMENT') {
+      const segment = segmentId ? await loadFranchiseSegment(franchiseId, String(segmentId)) : null;
+      if (!segment) return res.status(400).json({ error: '고객 그룹을 찾을 수 없습니다.' });
+      const segStores = await prisma.store.findMany({ where: { franchiseId }, select: { id: true } });
+      segmentCustomers = (await resolveSegmentCustomersInStores(segStores.map((s) => s.id), segment.conditions))
+        .map((c) => ({ id: c.id, phone: c.phone, storeId: c.storeId }));
     }
 
     // 광고 메시지 형식 적용
@@ -681,17 +711,40 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
         whereCondition.createdAt = { gte: thirtyDaysAgo };
       }
 
-      const customers = await tx.customer.findMany({
+      const customers = segmentCustomers ?? await tx.customer.findMany({
         where: whereCondition,
-        select: { id: true, phone: true }
+        select: { id: true, phone: true, storeId: true }
       });
 
       if (customers.length === 0) {
         throw new Error('발송 대상이 없습니다.');
       }
 
-      // 2. 비용 계산
-      const bytes = getByteLength(content);
+      // 마케팅 성과 추적 캠페인 + 직원 확인 쿠폰 (고객별 고유 코드)
+      const marketingCampaignId = await recordMarketingCampaign({
+        franchiseId,
+        channel: 'SMS',
+        title: String(content).trim().split('\n')[0].slice(0, 60) || '문자 발송',
+        content,
+        targetLabel: targetLabelOf(targetType, segmentId),
+        couponContent: staffVerify?.couponContent ?? null,
+        recipients: customers.map((c) => ({ customerId: c.id, storeId: c.storeId })),
+        sentAt: scheduledAt,
+      });
+      const couponCodes = staffVerify
+        ? await createStaffCoupons({
+            campaignId: marketingCampaignId,
+            opt: staffVerify,
+            recipients: customers.map((c) => ({ customerId: c.id, phone: normalizePhoneNumber(c.phone!), storeId: c.storeId })),
+          })
+        : null;
+      const textFor = (index: number) => {
+        const body = content + (couponCodes ? smsCouponFooter(staffVerify!, couponCodes[index]) : '');
+        return isAdMessage ? `(광고)\n${body}\n무료수신거부 080-500-4233` : body;
+      };
+
+      // 2. 비용 계산 (직원 확인 쿠폰을 붙이면 링크까지 포함한 길이)
+      const bytes = getByteLength(content + (staffVerify ? smsCouponFooter(staffVerify, 'XXXXXXXXXX') : ''));
       const messageType = imageUrl ? 'MMS' : (bytes <= 90 ? 'SMS' : 'LMS');
       const costPerMessage = messageType === 'MMS' ? MMS_COST : SMS_COST_SHORT;
       const totalCost = customers.length * costPerMessage;
@@ -724,9 +777,12 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
           genderFilter: genderFilter || null,
           ageGroups: ageGroupList.length > 0 ? JSON.stringify(ageGroupList) : null,
           imageUrl: imageUrl || null,
-          status: 'PENDING'
+          status: 'PENDING',
+          scheduledAt: scheduledAt ?? null,
         }
       });
+
+      await updateMarketingCampaign(marketingCampaignId, { cost: totalCost, sourceId: campaign.id });
 
       // 5. SOLAPI 벌크 발송 (비동기)
       setImmediate(async () => {
@@ -740,20 +796,22 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
           }
 
           const solapiService = new SolapiService(apiKey, apiSecret);
-          const bytes = getByteLength(content);
-          const msgType = imageId ? 'MMS' : (bytes <= 90 ? 'SMS' : 'LMS');
+          // 직원 확인 링크까지 포함해 위에서 정한 유형을 그대로 쓴다
+          const msgType = imageId ? 'MMS' : messageType;
 
           // 벌크 메시지 배열 구성
-          const bulkMessages = customers.map((customer) => ({
+          const bulkMessages = customers.map((customer, index) => ({
             to: normalizePhoneNumber(customer.phone!),
-            text: formattedContent,
+            text: textFor(index),
             type: msgType as 'SMS' | 'LMS' | 'MMS',
             ...(imageId ? { imageId } : {}),
           }));
 
           // 그룹 메시지 벌크 발송
-          const batchResults = await solapiService.sendBulkSms(bulkMessages);
+          const batchResults = await solapiService.sendBulkSms(bulkMessages, scheduledAt);
           const { successGroupIds, failureMap } = buildPhoneResultMap(batchResults);
+          // 예약 취소 때 쓸 그룹 ID 저장
+          await prisma.franchiseSmsCampaign.update({ where: { id: campaign.id }, data: { solapiGroupIds: successGroupIds } });
           const groupId = successGroupIds[0] || null;
 
           console.log(`[Franchise SMS] Bulk send complete: ${successGroupIds.length} groups, ${failureMap.size} failed phones`);
@@ -762,7 +820,7 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
           let sentCount = 0;
           let failedCount = 0;
 
-          for (const customer of customers) {
+          for (const [index, customer] of customers.entries()) {
             const normalizedPhone = normalizePhoneNumber(customer.phone!);
             const isFailed = failureMap.has(normalizedPhone);
 
@@ -771,7 +829,7 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
                 campaignId: campaign.id,
                 customerId: customer.id,
                 phone: customer.phone!,
-                content: formattedContent,
+                content: textFor(index),
                 messageType,
                 cost: isFailed ? 0 : costPerMessage,
                 status: isFailed ? 'FAILED' : 'PENDING',
@@ -802,7 +860,9 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       res.json({
         success: true,
         campaignId: campaign.id,
-        targetCount: customers.length
+        targetCount: customers.length,
+        scheduledAt: scheduledAt?.toISOString() ?? null,
+        message: scheduledAt ? `${formatKst(scheduledAt)}에 보내도록 예약했어요.` : undefined,
       });
     });
   } catch (error: any) {

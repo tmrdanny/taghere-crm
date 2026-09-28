@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { computeAnalytics } from '../services/analytics.js';
+import { computeSurveyResults } from '../services/survey-results.js';
 import { fetchOrderLanguageStatsFromV2, fetchStayTimeStatsFromV2 } from '../services/taghere-api.js';
 import { resolveVersion } from '../services/taghere-version.js';
 import { todayKstString } from '../services/visitor-stats.js';
@@ -820,6 +821,18 @@ router.get('/stay-time', async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Stay time insights error:', error);
     res.json({ supported: true, available: false, averageStayMinutes: null, sessionCount: 0 });
+  }
+});
+
+// GET /api/insights/survey-results?startDate=&endDate= - 고객 설문 결과 지표 (질문별 요약 + 응답 목록)
+router.get('/survey-results', async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+    res.json(await computeSurveyResults([storeId], { startDate, endDate }));
+  } catch (error) {
+    console.error('Survey results error:', error);
+    res.status(500).json({ error: '고객 설문 결과 조회 중 오류가 발생했습니다.' });
   }
 });
 

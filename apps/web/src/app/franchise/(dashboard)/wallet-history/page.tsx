@@ -2,7 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect, useCallback } from 'react';
-import { MessagesSquare, RefreshCw, X, ChevronRight } from 'lucide-react';
+import { MessagesSquare, Megaphone, Send, Wallet, RefreshCw, X, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ChannelStat {
@@ -104,16 +104,16 @@ export default function FranchiseWalletHistoryPage() {
   const cell = (c: ChannelStat) => (c.count > 0 ? `${won(c.amount)} · ${c.count}건` : '-');
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="mx-auto w-full max-w-[1200px] space-y-5 px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">사용내역</h1>
-          <p className="text-sm text-slate-500 mt-1">가맹점별 알림톡·광고톡·문자메시지 등 누적 사용 내역을 확인합니다.</p>
+          <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">사용내역</h1>
+          <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">가맹점별 알림톡·광고톡·문자메시지 등 누적 사용 내역을 확인합니다.</p>
         </div>
         <div className="flex items-center gap-2">
           <select
-            className="border border-slate-200 rounded-lg text-sm text-slate-700 px-3 py-2 bg-white"
+            className="h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13px] text-[color:var(--ad-ink-2)] focus:border-[color:var(--ad-ink)] focus:outline-none"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
           >
@@ -122,62 +122,78 @@ export default function FranchiseWalletHistoryPage() {
             ))}
           </select>
           <button
+            type="button"
+            aria-label="새로고침"
             onClick={fetchSummary}
-            className="p-2 border border-slate-200 rounded-lg bg-white hover:bg-slate-50"
+            className="ad-press inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
           >
-            <RefreshCw className={cn('w-4 h-4 text-slate-500', isLoading && 'animate-spin')} />
+            <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
           </button>
         </div>
       </div>
 
       {/* Totals */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="ad-card grid grid-cols-2 md:grid-cols-4">
         {[
-          { label: '알림톡', stat: totals?.alimtalk, color: 'text-blue-600' },
-          { label: '광고톡', stat: totals?.brandMessage, color: 'text-pink-600' },
-          { label: '문자메시지', stat: totals?.sms, color: 'text-orange-600' },
-          { label: '총 사용', stat: totals?.total, color: 'text-slate-900' },
-        ].map((c) => (
-          <div key={c.label} className="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
-            <p className="text-xs text-slate-500 mb-1">{c.label}</p>
-            <p className={cn('text-xl font-bold', c.color)}>{won(c.stat?.amount ?? 0)}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{(c.stat?.count ?? 0).toLocaleString()}건</p>
-          </div>
-        ))}
+          { label: '알림톡', stat: totals?.alimtalk, icon: MessagesSquare },
+          { label: '광고톡', stat: totals?.brandMessage, icon: Megaphone },
+          { label: '문자메시지', stat: totals?.sms, icon: Send },
+          { label: '총 사용', stat: totals?.total, icon: Wallet },
+        ].map((c, i) => {
+          const Icon = c.icon;
+          return (
+            <div
+              key={c.label}
+              className={cn(
+                'p-5',
+                i % 2 === 1 && 'border-l border-[color:var(--ad-line)]',
+                i >= 2 && 'border-t border-[color:var(--ad-line)] md:border-t-0',
+                i === 2 && 'md:border-l'
+              )}
+            >
+              <div className="mb-2 flex items-center gap-1.5">
+                <Icon className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.7} />
+                <span className="text-[12px] text-[color:var(--ad-muted)]">{c.label}</span>
+              </div>
+              <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{won(c.stat?.amount ?? 0)}</p>
+              <p className="ad-tnum mt-1 text-[12px] text-[color:var(--ad-faint)]">{(c.stat?.count ?? 0).toLocaleString()}건</p>
+            </div>
+          );
+        })}
       </div>
 
       {/* Per-store table */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="ad-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase">가맹점명</th>
-                <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">알림톡</th>
-                <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">광고톡</th>
-                <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">문자메시지</th>
-                <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">총 사용</th>
-                <th className="px-5 py-3 w-10" />
+              <tr className="border-b border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] text-left text-[11.5px] text-[color:var(--ad-muted)]">
+                <th className="px-4 py-2.5 font-medium">가맹점명</th>
+                <th className="px-4 py-2.5 text-right font-medium">알림톡</th>
+                <th className="px-4 py-2.5 text-right font-medium">광고톡</th>
+                <th className="px-4 py-2.5 text-right font-medium">문자메시지</th>
+                <th className="px-4 py-2.5 text-right font-medium">총 사용</th>
+                <th className="w-10 px-4 py-2.5" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[color:var(--ad-line)] text-[13px]">
               {isLoading ? (
-                <tr><td colSpan={6} className="p-8 text-center text-slate-400">불러오는 중...</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-[13px] text-[color:var(--ad-faint)]">불러오는 중...</td></tr>
               ) : stores.length === 0 ? (
-                <tr><td colSpan={6} className="p-8 text-center text-slate-400">가맹점이 없습니다.</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-[13px] text-[color:var(--ad-faint)]">가맹점이 없습니다.</td></tr>
               ) : (
                 stores.map((s) => (
                   <tr
                     key={s.storeId}
-                    className="hover:bg-slate-50 cursor-pointer transition-colors"
+                    className="cursor-pointer transition-colors hover:bg-[color:var(--ad-bg-alt)]"
                     onClick={() => openDetail(s)}
                   >
-                    <td className="px-5 py-3 text-sm font-medium text-slate-900">{s.storeName}</td>
-                    <td className="px-5 py-3 text-sm text-right text-slate-700">{cell(s.alimtalk)}</td>
-                    <td className="px-5 py-3 text-sm text-right text-slate-700">{cell(s.brandMessage)}</td>
-                    <td className="px-5 py-3 text-sm text-right text-slate-700">{cell(s.sms)}</td>
-                    <td className="px-5 py-3 text-sm text-right font-semibold text-slate-900">{cell(s.total)}</td>
-                    <td className="px-5 py-3"><ChevronRight className="w-4 h-4 text-slate-300" /></td>
+                    <td className="px-4 py-3 font-medium text-[color:var(--ad-ink)]">{s.storeName}</td>
+                    <td className="ad-tnum px-4 py-3 text-right text-[color:var(--ad-ink-2)]">{cell(s.alimtalk)}</td>
+                    <td className="ad-tnum px-4 py-3 text-right text-[color:var(--ad-ink-2)]">{cell(s.brandMessage)}</td>
+                    <td className="ad-tnum px-4 py-3 text-right text-[color:var(--ad-ink-2)]">{cell(s.sms)}</td>
+                    <td className="ad-tnum px-4 py-3 text-right font-medium text-[color:var(--ad-ink)]">{cell(s.total)}</td>
+                    <td className="px-4 py-3"><ChevronRight className="h-4 w-4 text-[color:var(--ad-faint)]" /></td>
                   </tr>
                 ))
               )}
@@ -188,41 +204,41 @@ export default function FranchiseWalletHistoryPage() {
 
       {/* Store Detail Modal */}
       {detailStore && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setDetailStore(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.4)] p-4 backdrop-blur-sm" onClick={() => setDetailStore(null)}>
           <div
-            className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] flex flex-col"
+            className="flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(0,0,0,0.35)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-              <div className="flex items-center gap-2">
-                <MessagesSquare className="w-5 h-5 text-franchise-600" />
-                <h2 className="text-lg font-bold text-slate-900">{detailStore.storeName}</h2>
-                <span className="text-sm text-slate-500">총 사용 {cell(detailStore.total)}</span>
+            <div className="flex items-center justify-between border-b border-[color:var(--ad-line)] px-5 py-4">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <MessagesSquare className="h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                <h2 className="text-[17px] font-semibold text-[color:var(--ad-ink)]">{detailStore.storeName}</h2>
+                <span className="ad-tnum text-[13px] text-[color:var(--ad-muted)]">총 사용 {cell(detailStore.total)}</span>
               </div>
-              <button onClick={() => setDetailStore(null)} className="p-1 text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
+              <button onClick={() => setDetailStore(null)} className="ad-press rounded-[8px] p-1 text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]">
+                <X className="h-5 w-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto">
               {isLoadingDetail ? (
-                <p className="p-8 text-center text-slate-400">불러오는 중...</p>
+                <p className="p-8 text-center text-[13px] text-[color:var(--ad-faint)]">불러오는 중...</p>
               ) : detailTxs.length === 0 ? (
-                <p className="p-8 text-center text-slate-400">해당 기간에 내역이 없습니다.</p>
+                <p className="p-8 text-center text-[13px] text-[color:var(--ad-faint)]">해당 기간에 내역이 없습니다.</p>
               ) : (
                 <table className="w-full">
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-[color:var(--ad-line)] text-[13px]">
                     {detailTxs.map((tx) => (
                       <tr key={tx.id}>
-                        <td className="px-6 py-3 text-sm text-slate-500 whitespace-nowrap">
+                        <td className="ad-tnum whitespace-nowrap px-5 py-3 text-[color:var(--ad-ink-2)]">
                           {new Date(tx.createdAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         </td>
                         <td className="px-3 py-3">
-                          <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                          <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">
                             {tx.categoryLabel}
                           </span>
                         </td>
-                        <td className="px-3 py-3 text-xs text-slate-400">{tx.description || ''}</td>
-                        <td className={cn('px-6 py-3 text-sm font-semibold text-right whitespace-nowrap', tx.amount > 0 ? 'text-emerald-600' : 'text-slate-900')}>
+                        <td className="px-3 py-3 text-[12px] text-[color:var(--ad-faint)]">{tx.description || ''}</td>
+                        <td className={cn('ad-tnum whitespace-nowrap px-5 py-3 text-right font-medium', tx.amount > 0 ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-ink)]')}>
                           {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString()}원
                         </td>
                       </tr>
@@ -231,7 +247,7 @@ export default function FranchiseWalletHistoryPage() {
                 </table>
               )}
             </div>
-            <p className="px-6 py-3 text-xs text-slate-400 border-t border-slate-100">최근 200건까지 표시됩니다.</p>
+            <p className="border-t border-[color:var(--ad-line)] px-5 py-3 text-[12px] text-[color:var(--ad-faint)]">최근 200건까지 표시됩니다.</p>
           </div>
         </div>
       )}

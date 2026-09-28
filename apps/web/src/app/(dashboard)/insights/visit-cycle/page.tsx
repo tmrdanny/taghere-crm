@@ -3,7 +3,6 @@
 import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect } from 'react';
 import { Clock, Users, AlertCircle, TrendingDown, RefreshCw, ArrowRight } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
@@ -56,16 +55,16 @@ export default function VisitCyclePage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 lg:p-8 max-w-4xl mx-auto">
-        <div className="text-center py-12 text-neutral-500">불러오는 중...</div>
+      <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
+        <div className="py-12 text-center text-[13px] text-[color:var(--ad-faint)]">불러오는 중...</div>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="p-6 lg:p-8 max-w-4xl mx-auto">
-        <div className="text-center py-12 text-neutral-500">데이터를 불러올 수 없습니다.</div>
+      <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
+        <div className="py-12 text-center text-[13px] text-[color:var(--ad-faint)]">데이터를 불러올 수 없습니다.</div>
       </div>
     );
   }
@@ -75,86 +74,82 @@ export default function VisitCyclePage() {
   const totalNudge = data.nudgeTargets.stage1 + data.nudgeTargets.stage2 + data.nudgeTargets.stage3;
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {/* 헤더 */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">방문 주기 분석</h1>
-          <p className="text-neutral-500 mt-1">
+          <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">방문 주기 분석</h1>
+          <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
             고객별 평균 방문 주기를 분석하여 최적의 마케팅 타이밍을 파악합니다
           </p>
         </div>
         <button
           onClick={fetchData}
-          className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-600 hover:text-neutral-900 border rounded-lg hover:bg-neutral-50 transition-colors"
+          className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.8} />
           새로고침
         </button>
       </div>
 
-      {/* 핵심 지표 */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <Card>
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-2 text-neutral-500 text-sm mb-2">
-              <Clock className="w-4 h-4" />
+      <div className="space-y-4">
+        {/* 핵심 지표 */}
+        <div className="ad-card grid grid-cols-2">
+          <div className="p-5">
+            <div className="mb-1 flex items-center gap-1.5 text-[12px] text-[color:var(--ad-muted)]">
+              <Clock className="h-3.5 w-3.5" />
               <span>매장 평균 방문 주기</span>
             </div>
-            <div className="text-3xl font-bold text-neutral-900">
+            <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
               {data.avgCycleDays > 0 ? `${data.avgCycleDays}일` : '-'}
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-2 text-neutral-500 text-sm mb-2">
-              <Users className="w-4 h-4" />
+          </div>
+          <div className="border-l border-[color:var(--ad-line)] p-5">
+            <div className="mb-1 flex items-center gap-1.5 text-[12px] text-[color:var(--ad-muted)]">
+              <Users className="h-3.5 w-3.5" />
               <span>분석 가능 고객</span>
             </div>
-            <div className="text-3xl font-bold text-neutral-900">
+            <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
               {data.analyzableCount}명
-              <span className="text-sm font-normal text-neutral-500 ml-1">
+              <span className="ml-1 text-[13px] font-normal tracking-normal text-[color:var(--ad-muted)]">
                 / {data.totalCustomers}명
               </span>
             </div>
-            <div className="text-xs text-neutral-400 mt-1">3회 이상 방문 고객 기준</div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="mt-0.5 text-[12px] text-[color:var(--ad-faint)]">3회 이상 방문 고객 기준</div>
+          </div>
+        </div>
 
-      {/* 방문 주기 분포 히스토그램 */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <h3 className="font-medium text-neutral-900 mb-1">방문 주기 분포</h3>
-          <p className="text-sm text-neutral-500 mb-6">
-            가장 많은 고객의 방문 주기: <span className="font-medium text-neutral-700">{data.peakRange}</span> ({data.peakCount}명)
+        {/* 방문 주기 분포 히스토그램 */}
+        <div className="ad-card p-5">
+          <h3 className="mb-1 text-[14px] font-semibold text-[color:var(--ad-ink)]">방문 주기 분포</h3>
+          <p className="mb-5 text-[12.5px] text-[color:var(--ad-muted)]">
+            가장 많은 고객의 방문 주기: <span className="font-medium text-[color:var(--ad-ink-2)]">{data.peakRange}</span> ({data.peakCount}명)
           </p>
 
           {data.analyzableCount === 0 ? (
-            <div className="text-center py-8 text-neutral-400">
+            <div className="py-8 text-center text-[13px] text-[color:var(--ad-faint)]">
               분석 가능한 고객이 없습니다. 3회 이상 방문한 고객이 있어야 분석이 가능합니다.
             </div>
           ) : (
             <div className="space-y-2">
               {data.distribution.map((d) => (
                 <div key={d.label} className="flex items-center gap-3">
-                  <div className="w-16 text-right text-sm text-neutral-600 flex-shrink-0">
+                  <div className="w-16 flex-shrink-0 text-right text-[12.5px] text-[color:var(--ad-ink-2)]">
                     {d.label}
                   </div>
-                  <div className="flex-1 h-8 bg-neutral-100 rounded-md overflow-hidden relative">
+                  <div className="relative h-7 flex-1 overflow-hidden rounded-md bg-[color:var(--ad-bg)]">
                     <div
-                      className="h-full bg-brand-500 rounded-md transition-all duration-500"
+                      className="h-full rounded-md bg-[#6eadff] transition-all duration-500"
                       style={{
                         width: `${Math.max((d.count / maxCount) * 100, d.count > 0 ? 2 : 0)}%`,
                       }}
                     />
                     {d.count > 0 && (
                       <span className={cn(
-                        'absolute top-1/2 -translate-y-1/2 text-xs font-medium',
+                        'ad-tnum absolute top-1/2 -translate-y-1/2 text-[11.5px] font-medium',
                         (d.count / maxCount) > 0.3
-                          ? 'text-white left-2'
-                          : 'text-neutral-600 left-[calc(100%+8px)]'
+                          ? 'text-[color:var(--ad-ink)] left-2'
+                          : 'text-[color:var(--ad-ink-2)] left-[calc(100%+8px)]'
                       )} style={{
                         left: (d.count / maxCount) > 0.3 ? '8px' : `${Math.max((d.count / maxCount) * 100, 2) + 1}%`,
                       }}>
@@ -166,76 +161,68 @@ export default function VisitCyclePage() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* 넛지 대상 현황 */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-neutral-900">재방문 유도 대상 현황</h3>
+        {/* 넛지 대상 현황 */}
+        <div className="ad-card p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">재방문 유도 대상 현황</h3>
             {totalNudge > 0 && (
-              <span className="text-sm text-neutral-500">총 {totalNudge}명</span>
+              <span className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">총 {totalNudge}명</span>
             )}
           </div>
 
-          <div className="space-y-3">
+          <div className="divide-y divide-[color:var(--ad-line)] rounded-[12px] border border-[color:var(--ad-line)]">
             {/* 1단계 */}
-            <div className="flex items-center gap-4 p-3 rounded-lg bg-blue-50">
-              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="w-5 h-5 text-blue-600" />
-              </div>
+            <div className="flex items-center gap-4 p-4">
+              <AlertCircle className="h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
               <div className="flex-1">
-                <div className="font-medium text-neutral-900">1단계: 가벼운 리마인드</div>
-                <div className="text-sm text-neutral-500">
+                <div className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">1단계: 가벼운 리마인드</div>
+                <div className="text-[12.5px] text-[color:var(--ad-muted)]">
                   평균 방문 주기 경과 (쿠폰 없이 안부 메시지)
                 </div>
               </div>
-              <div className="text-xl font-bold text-blue-600">{data.nudgeTargets.stage1}명</div>
+              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{data.nudgeTargets.stage1}명</div>
             </div>
 
             {/* 2단계 */}
-            <div className="flex items-center gap-4 p-3 rounded-lg bg-orange-50">
-              <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                <TrendingDown className="w-5 h-5 text-orange-600" />
-              </div>
+            <div className="flex items-center gap-4 p-4">
+              <TrendingDown className="h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
               <div className="flex-1">
-                <div className="font-medium text-neutral-900">2단계: 쿠폰 유도</div>
-                <div className="text-sm text-neutral-500">
+                <div className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">2단계: 쿠폰 유도</div>
+                <div className="text-[12.5px] text-[color:var(--ad-muted)]">
                   평균 주기 x1.5 경과 (재방문 쿠폰 포함)
                 </div>
               </div>
-              <div className="text-xl font-bold text-orange-600">{data.nudgeTargets.stage2}명</div>
+              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{data.nudgeTargets.stage2}명</div>
             </div>
 
             {/* 3단계 */}
-            <div className="flex items-center gap-4 p-3 rounded-lg bg-red-50">
-              <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="w-5 h-5 text-red-600" />
-              </div>
+            <div className="flex items-center gap-4 p-4">
+              <AlertCircle className="h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
               <div className="flex-1">
-                <div className="font-medium text-neutral-900">3단계: 최종 윈백</div>
-                <div className="text-sm text-neutral-500">
+                <div className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">3단계: 최종 윈백</div>
+                <div className="text-[12.5px] text-[color:var(--ad-muted)]">
                   평균 주기 x3 또는 90일+ 경과 (특별 할인 쿠폰)
                 </div>
               </div>
-              <div className="text-xl font-bold text-red-600">{data.nudgeTargets.stage3}명</div>
+              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{data.nudgeTargets.stage3}명</div>
             </div>
           </div>
 
           {/* 자동화 연결 안내 */}
           <button
             onClick={() => router.push('/automation')}
-            className="mt-4 w-full flex items-center justify-center gap-2 py-3 text-sm text-brand-600 hover:text-brand-700 border border-brand-200 rounded-lg hover:bg-brand-50 transition-colors"
+            className="ad-press mt-4 flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
           >
             자동 마케팅 설정으로 이동
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="h-4 w-4" />
           </button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* 안내 */}
-      <div className="mt-6 text-xs text-neutral-400 text-center">
+      <div className="mt-6 text-center text-[12px] text-[color:var(--ad-faint)]">
         방문 주기는 포인트 적립 기록 기반으로 계산됩니다. 같은 날 중복 방문은 1회로 처리됩니다.
       </div>
     </div>

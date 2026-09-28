@@ -41,52 +41,52 @@ export default function AdminLoginPage() {
     }
   };
 
+  const inputCls =
+    'h-11 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3.5 text-[14px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] transition-colors focus:border-[color:var(--ad-navy)] focus:outline-none';
+
   return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <Image
-            src="/Taghere-logo.png"
-            alt="태그히어"
-            width={80}
-            height={80}
-            className="mx-auto mb-4 rounded-xl"
-          />
-          <h1 className="text-xl font-semibold text-white">Admin Console</h1>
-          <p className="text-sm text-neutral-500 mt-1">TagHere 관리자 전용</p>
+    <div className="ad flex items-center justify-center p-4">
+      <div className="ad-sky" aria-hidden>
+        <span className="ad-cloud" />
+        <span className="ad-cloud" />
+        <span className="ad-cloud" />
+        <span className="ad-cloud" />
+      </div>
+
+      <div className="ad-rise relative w-full max-w-[380px] rounded-[24px] border border-white/70 bg-white/70 p-8 shadow-[0_30px_80px_-30px_rgba(19,22,81,0.35)] backdrop-blur-2xl">
+        <div className="mb-7 text-center">
+          <Image src="/Taghere-logo.png" alt="태그히어" width={48} height={48} className="mx-auto mb-4 h-12 w-12" priority />
+          <h1 className="text-[20px] font-bold tracking-[-0.4px]">TagHere Admin</h1>
+          <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">태그히어 관리자 전용</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
-              {error}
-            </div>
+            <div className="rounded-[10px] bg-[#fff2f5] px-3.5 py-2.5 text-[13px] text-[color:var(--ad-neg)]">{error}</div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-              아이디
-            </label>
+            <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">아이디</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full h-11 px-3 bg-neutral-900 border border-neutral-800 rounded-lg text-white placeholder-neutral-600 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-transparent transition-all"
+              className={inputCls}
               placeholder="admin"
+              autoComplete="username"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-              비밀번호
-            </label>
+            <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">비밀번호</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full h-11 px-3 bg-neutral-900 border border-neutral-800 rounded-lg text-white placeholder-neutral-600 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-transparent transition-all"
-              placeholder="••••••••"
+              className={inputCls}
+              placeholder="비밀번호"
+              autoComplete="current-password"
               required
             />
           </div>
@@ -94,7 +94,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-11 bg-white hover:bg-neutral-200 disabled:bg-neutral-700 text-neutral-900 disabled:text-neutral-500 font-medium rounded-lg transition-colors"
+            className="ad-press h-11 w-full rounded-[10px] bg-[color:var(--ad-yellow)] text-[14px] font-semibold text-[color:var(--ad-ink)] transition-colors hover:bg-[color:var(--ad-yellow-strong)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? '로그인 중...' : '로그인'}
           </button>

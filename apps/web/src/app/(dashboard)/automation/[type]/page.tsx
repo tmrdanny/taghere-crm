@@ -3,8 +3,6 @@
 import { API_BASE } from '@/lib/api-config';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -316,8 +314,8 @@ export default function AutomationSettingPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 lg:p-8 max-w-4xl mx-auto">
-        <div className="text-center py-12 text-neutral-500">불러오는 중...</div>
+      <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
+        <div className="py-12 text-center text-[13px] text-[color:var(--ad-faint)]">불러오는 중...</div>
       </div>
     );
   }
@@ -325,26 +323,25 @@ export default function AutomationSettingPage() {
   const Icon = meta.icon;
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {ToastComponent}
 
       {/* 헤더 */}
-      <div className="mb-8">
+      <div className="mb-5">
         <button
           onClick={() => router.push('/automation')}
-          className="flex items-center gap-1 text-neutral-500 hover:text-neutral-700 text-sm mb-3 transition-colors"
+          className="mb-3 inline-flex items-center gap-1 text-[13px] text-[color:var(--ad-muted)] transition-colors hover:text-[color:var(--ad-ink)]"
         >
           <ArrowLeft className="w-4 h-4" />
           자동 마케팅
         </button>
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-            enabled ? 'bg-brand-100 text-brand-700' : 'bg-neutral-100 text-neutral-500'
-          }`}>
-            <Icon className="w-5 h-5" />
-          </div>
+          <Icon
+            className={`h-4 w-4 flex-shrink-0 ${enabled ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-faint)]'}`}
+            strokeWidth={1.8}
+          />
           <div className="flex-1">
-            <h1 className="text-2xl font-semibold text-neutral-900">
+            <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">
               {meta.label} 설정
             </h1>
           </div>
@@ -361,23 +358,23 @@ export default function AutomationSettingPage() {
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* 발송 조건 */}
-        <Card>
-          <CardHeader className="pb-4">
+        <div className="ad-card">
+          <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
             <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-neutral-600" />
-              <CardTitle className="text-lg">발송 조건</CardTitle>
+              <Clock className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">발송 조건</h2>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          </div>
+          <div className="space-y-4 p-5">
             {type === 'BIRTHDAY' && (
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   발송 시점
                 </label>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-neutral-600">생일</span>
+                  <span className="text-[13px] text-[color:var(--ad-ink-2)]">생일</span>
                   <Input
                     type="number"
                     min={1}
@@ -386,18 +383,18 @@ export default function AutomationSettingPage() {
                     onChange={(e) => setDaysBefore(parseInt(e.target.value) || 3)}
                     className="w-20 text-center"
                   />
-                  <span className="text-sm text-neutral-600">일 전</span>
+                  <span className="text-[13px] text-[color:var(--ad-ink-2)]">일 전</span>
                 </div>
               </div>
             )}
 
             {type === 'CHURN_PREVENTION' && (
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   미방문 기간
                 </label>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-neutral-600">마지막 방문 후</span>
+                  <span className="text-[13px] text-[color:var(--ad-ink-2)]">마지막 방문 후</span>
                   <Input
                     type="number"
                     min={7}
@@ -406,18 +403,18 @@ export default function AutomationSettingPage() {
                     onChange={(e) => setDaysInactive(parseInt(e.target.value) || 30)}
                     className="w-20 text-center"
                   />
-                  <span className="text-sm text-neutral-600">일 이상 미방문 시</span>
+                  <span className="text-[13px] text-[color:var(--ad-ink-2)]">일 이상 미방문 시</span>
                 </div>
               </div>
             )}
 
             {type === 'ANNIVERSARY' && (
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   발송 시점
                 </label>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-neutral-600">가입 기념일</span>
+                  <span className="text-[13px] text-[color:var(--ad-ink-2)]">가입 기념일</span>
                   <Input
                     type="number"
                     min={1}
@@ -426,19 +423,19 @@ export default function AutomationSettingPage() {
                     onChange={(e) => setDaysBefore(parseInt(e.target.value) || 3)}
                     className="w-20 text-center"
                   />
-                  <span className="text-sm text-neutral-600">일 전</span>
+                  <span className="text-[13px] text-[color:var(--ad-ink-2)]">일 전</span>
                 </div>
-                <p className="text-xs text-neutral-400 mt-1">고객의 첫 등록일을 기준으로 매년 기념일 쿠폰을 보냅니다</p>
+                <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">고객의 첫 등록일을 기준으로 매년 기념일 쿠폰을 보냅니다</p>
               </div>
             )}
 
             {type === 'FIRST_VISIT_FOLLOWUP' && (
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   발송 시점
                 </label>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-neutral-600">첫 방문</span>
+                  <span className="text-[13px] text-[color:var(--ad-ink-2)]">첫 방문</span>
                   <Input
                     type="number"
                     min={1}
@@ -447,15 +444,15 @@ export default function AutomationSettingPage() {
                     onChange={(e) => setDaysAfterFirstVisit(parseInt(e.target.value) || 3)}
                     className="w-20 text-center"
                   />
-                  <span className="text-sm text-neutral-600">일 후</span>
+                  <span className="text-[13px] text-[color:var(--ad-ink-2)]">일 후</span>
                 </div>
-                <p className="text-xs text-neutral-400 mt-1">첫 방문 고객에게 감사 메시지와 재방문 쿠폰을 보냅니다</p>
+                <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">첫 방문 고객에게 감사 메시지와 재방문 쿠폰을 보냅니다</p>
               </div>
             )}
 
             {type === 'VIP_MILESTONE' && (
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   마일스톤 설정
                 </label>
                 <Input
@@ -463,17 +460,17 @@ export default function AutomationSettingPage() {
                   onChange={(e) => setMilestones(e.target.value)}
                   placeholder="10, 20, 30, 50, 100"
                 />
-                <p className="text-xs text-neutral-400 mt-1">방문 횟수가 해당 숫자에 도달하면 감사 쿠폰을 발송합니다 (쉼표로 구분)</p>
+                <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">방문 횟수가 해당 숫자에 도달하면 감사 쿠폰을 발송합니다 (쉼표로 구분)</p>
               </div>
             )}
 
             {type === 'WINBACK' && (
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   미방문 기간
                 </label>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-neutral-600">마지막 방문 후</span>
+                  <span className="text-[13px] text-[color:var(--ad-ink-2)]">마지막 방문 후</span>
                   <Input
                     type="number"
                     min={60}
@@ -482,15 +479,15 @@ export default function AutomationSettingPage() {
                     onChange={(e) => setWinbackDaysInactive(parseInt(e.target.value) || 90)}
                     className="w-20 text-center"
                   />
-                  <span className="text-sm text-neutral-600">일 이상 미방문 시</span>
+                  <span className="text-[13px] text-[color:var(--ad-ink-2)]">일 이상 미방문 시</span>
                 </div>
-                <p className="text-xs text-neutral-400 mt-1">이탈 방지보다 긴 기간 미방문 고객에게 특별 할인을 보냅니다</p>
+                <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">이탈 방지보다 긴 기간 미방문 고객에게 특별 할인을 보냅니다</p>
               </div>
             )}
 
             {type === 'SLOW_DAY' && (
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   비수기 요일
                 </label>
                 <div className="flex gap-2 flex-wrap">
@@ -505,30 +502,30 @@ export default function AutomationSettingPage() {
                             : [...prev, idx].sort()
                         );
                       }}
-                      className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
+                      className={`ad-press h-10 w-10 rounded-[10px] text-[13px] font-medium transition-colors ${
                         slowDays.includes(idx)
-                          ? 'bg-brand-500 text-white'
-                          : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                          ? 'bg-[color:var(--ad-ink)] text-white'
+                          : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-line)]'
                       }`}
                     >
                       {day}
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-neutral-400 mt-1">선택한 요일에 방문 이력 있는 고객에게 프로모션을 발송합니다</p>
+                <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">선택한 요일에 방문 이력 있는 고객에게 프로모션을 발송합니다</p>
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
+              <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                 발송 시각
               </label>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-neutral-600">매일 오전/오후</span>
+                <span className="text-[13px] text-[color:var(--ad-ink-2)]">매일 오전/오후</span>
                 <select
                   value={sendTimeHour}
                   onChange={(e) => setSendTimeHour(parseInt(e.target.value))}
-                  className="border border-neutral-300 rounded-md px-3 py-1.5 text-sm"
+                  className="h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] focus:border-[color:var(--ad-ink)] focus:outline-none"
                 >
                   {Array.from({ length: 24 }, (_, i) => (
                     <option key={i} value={i}>
@@ -538,27 +535,27 @@ export default function AutomationSettingPage() {
                 </select>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* 쿠폰 설정 */}
-        <Card>
-          <CardHeader className="pb-4">
+        <div className="ad-card">
+          <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Gift className="w-5 h-5 text-neutral-600" />
-                <CardTitle className="text-lg">쿠폰 내용</CardTitle>
+                <Gift className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">쿠폰 내용</h2>
               </div>
               <Switch
                 checked={couponEnabled}
                 onCheckedChange={setCouponEnabled}
               />
             </div>
-          </CardHeader>
+          </div>
           {couponEnabled && (
-            <CardContent className="space-y-4">
+            <div className="space-y-4 p-5">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   쿠폰 내용
                 </label>
                 <Textarea
@@ -577,13 +574,13 @@ export default function AutomationSettingPage() {
                   rows={3}
                   className="resize-y"
                 />
-                <p className="text-xs text-neutral-400 mt-1">
+                <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
                   고객에게 표시되는 쿠폰 혜택 내용입니다 · 엔터로 줄바꿈할 수 있어요 (최대 100자)
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   유효기간
                 </label>
                 <div className="flex items-center gap-2">
@@ -595,40 +592,40 @@ export default function AutomationSettingPage() {
                     onChange={(e) => setCouponValidDays(parseInt(e.target.value) || 14)}
                     className="w-20 text-center"
                   />
-                  <span className="text-sm text-neutral-600">일</span>
+                  <span className="text-[13px] text-[color:var(--ad-ink-2)]">일</span>
                 </div>
               </div>
 
               {/* 네이버 플레이스 링크 */}
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   네이버 플레이스 링크
                 </label>
                 {naverPlaceUrl ? (
-                  <div className="flex items-center gap-2 p-2.5 bg-neutral-50 rounded-lg">
-                    <span className="text-sm text-neutral-700 truncate flex-1">{naverPlaceUrl}</span>
+                  <div className="flex items-center gap-2 rounded-[10px] bg-[color:var(--ad-bg-alt)] p-2.5">
+                    <span className="flex-1 truncate text-[13px] text-[color:var(--ad-ink-2)]">{naverPlaceUrl}</span>
                     <a
                       href={naverPlaceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-brand-600 hover:text-brand-700 flex-shrink-0"
+                      className="flex-shrink-0 text-[color:var(--ad-link)] hover:opacity-80"
                     >
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   </div>
                 ) : (
-                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <div className="flex items-start gap-2 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                     <div>
-                      <p className="text-sm text-amber-800">
+                      <p className="text-[13px] text-[color:var(--ad-ink-2)]">
                         네이버 플레이스 링크가 설정되지 않았습니다
                       </p>
-                      <p className="text-xs text-amber-600 mt-0.5">
+                      <p className="mt-0.5 text-[12px] text-[color:var(--ad-muted)]">
                         링크가 없으면 알림톡의 &quot;네이버 길찾기&quot; 버튼이 작동하지 않습니다
                       </p>
                       <button
                         onClick={() => router.push('/settings')}
-                        className="text-xs text-brand-600 hover:text-brand-700 font-medium mt-1.5 inline-flex items-center gap-1"
+                        className="mt-1.5 inline-flex items-center gap-1 text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
                       >
                         매장 설정에서 입력하기
                         <ExternalLink className="w-3 h-3" />
@@ -636,24 +633,24 @@ export default function AutomationSettingPage() {
                     </div>
                   </div>
                 )}
-                <p className="text-xs text-neutral-400 mt-1">
+                <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
                   알림톡에 포함되는 네이버 길찾기 링크입니다. 매장 설정에서 변경할 수 있습니다.
                 </p>
               </div>
-            </CardContent>
+            </div>
           )}
-        </Card>
+        </div>
 
         {/* 카카오톡 메시지 미리보기 */}
         {couponEnabled && (
-          <Card>
-            <CardHeader className="pb-4">
+          <div className="ad-card">
+            <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
               <div className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-neutral-600" />
-                <CardTitle className="text-lg">메시지 미리보기</CardTitle>
+                <MessageSquare className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">메시지 미리보기</h2>
               </div>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-5">
               <div className="flex justify-center">
                 {/* 폰 프레임 */}
                 <div className="w-56 h-[440px] bg-neutral-800 rounded-[2rem] p-1.5 shadow-xl">
@@ -773,26 +770,26 @@ export default function AutomationSettingPage() {
                   </div>
                 </div>
               </div>
-              <p className="text-xs text-neutral-400 text-center mt-3">
+              <p className="mt-3 text-center text-[12px] text-[color:var(--ad-faint)]">
                 실제 고객에게 발송되는 카카오 알림톡 형태입니다
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* 대상 미리보기 */}
         {preview && (
-          <Card>
-            <CardHeader className="pb-4">
+          <div className="ad-card">
+            <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
               <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-neutral-600" />
-                <CardTitle className="text-lg">현재 대상 미리보기</CardTitle>
+                <Users className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">현재 대상 미리보기</h2>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-neutral-50 rounded-lg p-3">
-                  <div className="text-sm text-neutral-500">
+            </div>
+            <div className="p-5">
+              <div className="grid grid-cols-2 rounded-[12px] border border-[color:var(--ad-line)]">
+                <div className="p-4">
+                  <div className="text-[12px] text-[color:var(--ad-muted)]">
                     {type === 'BIRTHDAY' ? '생일 정보가 있는 고객' :
                      type === 'CHURN_PREVENTION' ? '재방문 가능 고객' :
                      type === 'ANNIVERSARY' ? '등록 고객' :
@@ -801,72 +798,72 @@ export default function AutomationSettingPage() {
                      type === 'WINBACK' ? '장기 미방문 고객' :
                      '프로모션 대상 고객'}
                   </div>
-                  <div className="text-xl font-bold text-neutral-900 mt-1">
+                  <div className="ad-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                     {preview.totalEligible}명
                   </div>
                 </div>
-                <div className="bg-neutral-50 rounded-lg p-3">
-                  <div className="text-sm text-neutral-500">
+                <div className="border-l border-[color:var(--ad-line)] p-4">
+                  <div className="text-[12px] text-[color:var(--ad-muted)]">
                     {(type === 'CHURN_PREVENTION' || type === 'WINBACK') ? '현재 대상' : '이번 달 예상 발송'}
                   </div>
-                  <div className="text-xl font-bold text-neutral-900 mt-1">
+                  <div className="ad-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                     ~{(type === 'CHURN_PREVENTION' || type === 'WINBACK')
                       ? preview.currentChurnRisk
                       : preview.thisMonthEstimate}건
                   </div>
                 </div>
               </div>
-              <p className="text-xs text-neutral-400 mt-3">
+              <p className="mt-3 text-[12px] text-[color:var(--ad-faint)]">
                 예상 비용: ~{preview.estimatedMonthlyCost.toLocaleString()}원/월 (무료 크레딧 적용 전)
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* 최근 발송 이력 */}
         {logs.length > 0 && (
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">최근 발송 이력</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
+          <div className="ad-card">
+            <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
+              <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">최근 발송 이력</h2>
+            </div>
+            <div className="p-5">
+              <div className="divide-y divide-[color:var(--ad-line)]">
                 {logs.map((log) => (
                   <div
                     key={log.id}
-                    className="flex items-center gap-3 text-sm py-2 border-b border-neutral-100 last:border-0"
+                    className="flex items-center gap-3 py-2.5 text-[13px]"
                   >
-                    <span className="text-neutral-400 w-16 flex-shrink-0">
+                    <span className="ad-tnum w-16 flex-shrink-0 text-[color:var(--ad-faint)]">
                       {new Date(log.sentAt).toLocaleDateString('ko-KR', {
                         month: 'numeric',
                         day: 'numeric',
                       })}
                     </span>
-                    <span className="text-neutral-700 flex-1 truncate">
+                    <span className="flex-1 truncate text-[color:var(--ad-ink-2)]">
                       {log.customer.name
                         ? `${log.customer.name.charAt(0)}${'O'.repeat(log.customer.name.length - 1)}`
                         : '고객'}
                     </span>
-                    <span className="text-neutral-500 flex-shrink-0">
+                    <span className="flex-shrink-0 text-[color:var(--ad-muted)]">
                       쿠폰 발송
                     </span>
                     {log.couponUsed ? (
-                      <span className="flex items-center gap-1 text-green-600 flex-shrink-0">
+                      <span className="flex flex-shrink-0 items-center gap-1 text-[color:var(--ad-pos)]">
                         <Check className="w-3.5 h-3.5" />
                         사용
                         {log.resultAmount && (
-                          <span className="text-neutral-500">
+                          <span className="ad-tnum text-[color:var(--ad-muted)]">
                             ({log.resultAmount.toLocaleString()}원)
                           </span>
                         )}
                       </span>
                     ) : (
-                      <span className="text-neutral-400 flex-shrink-0">미사용</span>
+                      <span className="flex-shrink-0 text-[color:var(--ad-faint)]">미사용</span>
                     )}
                     <button
                       onClick={() => handleResend(log.id)}
                       disabled={resendingLogId === log.id}
-                      className="flex-shrink-0 px-2.5 py-1 text-xs font-medium text-neutral-600 border border-neutral-200 rounded-lg hover:bg-neutral-50 hover:border-neutral-400 transition-colors disabled:opacity-50"
+                      className="ad-press inline-flex h-8 flex-shrink-0 items-center justify-center rounded-[10px] bg-white px-2.5 text-[12px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
                       title="현재 저장된 쿠폰 문구로 이 고객에게 다시 발송합니다"
                     >
                       {resendingLogId === log.id ? '발송 중...' : '문구 재발송'}
@@ -874,31 +871,31 @@ export default function AutomationSettingPage() {
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* 저장 상태 (자동 저장) */}
-        <div className="flex justify-end items-center gap-3 pt-2 pb-8">
+        <div className="flex items-center justify-end gap-3 pt-2">
           {saveState === 'saving' && (
-            <span className="text-sm text-neutral-500">저장 중...</span>
+            <span className="text-[13px] text-[color:var(--ad-muted)]">저장 중...</span>
           )}
           {saveState === 'saved' && (
-            <span className="flex items-center gap-1.5 text-sm text-green-600">
+            <span className="flex items-center gap-1.5 text-[13px] text-[color:var(--ad-pos)]">
               <Check className="w-4 h-4" />
               변경사항이 자동 저장되었습니다
             </span>
           )}
           {saveState === 'error' && (
             <>
-              <span className="text-sm text-red-500">저장에 실패했습니다</span>
-              <Button onClick={() => handleSave(false)} disabled={isSaving} variant="outline" className="px-5">
+              <span className="text-[13px] text-[color:var(--ad-neg)]">저장에 실패했습니다</span>
+              <button onClick={() => handleSave(false)} disabled={isSaving} className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
                 다시 저장
-              </Button>
+              </button>
             </>
           )}
           {saveState === 'idle' && (
-            <span className="text-sm text-neutral-400">변경하면 자동으로 저장됩니다</span>
+            <span className="text-[13px] text-[color:var(--ad-faint)]">변경하면 자동으로 저장됩니다</span>
           )}
         </div>
       </div>

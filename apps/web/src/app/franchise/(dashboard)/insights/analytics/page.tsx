@@ -50,11 +50,10 @@ export default function FranchiseAnalyticsPage() {
   }, [days, storeId, fetchData]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+    <div className="mx-auto w-full max-w-[1200px] space-y-6 px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">데이터 분석</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">데이터 분석</h1>
+        <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
           전 가맹점 합산 또는 가맹점별로 시간대별 메뉴 판매량, 세그먼트별 객단가, 재방문 주기를 분석합니다.
         </p>
       </div>
@@ -67,7 +66,7 @@ export default function FranchiseAnalyticsPage() {
           <select
             value={storeId}
             onChange={(e) => setStoreId(e.target.value)}
-            className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-sm focus:outline-none"
+            className="h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13px] text-[color:var(--ad-ink)] focus:border-[color:var(--ad-ink)] focus:outline-none"
           >
             <option value="">전체 가맹점 합산</option>
             {stores.map((s) => (
@@ -76,7 +75,6 @@ export default function FranchiseAnalyticsPage() {
           </select>
         }
       />
-      </div>
     </div>
   );
 }

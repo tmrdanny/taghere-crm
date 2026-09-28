@@ -3,12 +3,12 @@
 import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Modal, ModalContent } from '@/components/ui/modal';
-import { formatNumber, formatCurrency } from '@/lib/utils';
+import { formatNumber } from '@/lib/utils';
+import { CountUp, Empty, Skel, rise } from '@/features/admin-ui';
+import { Ring } from './_components/Ring';
 import { fetchJsonCached, readCache, writeCache, cacheKeyFor, invalidateCacheByUrlPart } from '@/lib/swr-cache';
-import { Users, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin, Mail, Zap, Bell, Cake, UserPlus, ArrowRight, Pencil, X, Download } from 'lucide-react';
+import { Users, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin, Zap, Cake, UserPlus, UserMinus, ArrowRight, ChevronRight, Pencil, X, Download } from 'lucide-react';
 import DateRangeFilter, { type DateRange } from '@/components/DateRangeFilter';
 import { exportDailyVisitors, periodLabel } from '@/lib/insights-export';
 import {
@@ -391,8 +391,8 @@ export default function HomePage() {
   const StarDisplay = ({ rating, size = 'md' }: { rating: number; size?: 'sm' | 'md' | 'lg' }) => {
     const sizeClasses = {
       sm: 'w-3 h-3',
-      md: 'w-5 h-5',
-      lg: 'w-6 h-6',
+      md: 'w-4 h-4',
+      lg: 'w-[18px] h-[18px]',
     };
 
     return (
@@ -404,19 +404,10 @@ export default function HomePage() {
 
           return (
             <div key={star} className="relative">
-              <Star
-                className={`${sizeClasses[size]} text-neutral-200`}
-                fill="#e5e7eb"
-              />
+              <Star className={`${sizeClasses[size]} text-[#e4e6e8]`} fill="#e4e6e8" strokeWidth={0} />
               {(filled || partial) && (
-                <div
-                  className="absolute inset-0 overflow-hidden"
-                  style={{ width: filled ? '100%' : partialWidth }}
-                >
-                  <Star
-                    className={`${sizeClasses[size]} text-yellow-400`}
-                    fill="#facc15"
-                  />
+                <div className="absolute inset-0 overflow-hidden" style={{ width: filled ? '100%' : partialWidth }}>
+                  <Star className={`${sizeClasses[size]} text-[#ffc21a]`} fill="#ffc21a" strokeWidth={0} />
                 </div>
               )}
             </div>
@@ -426,93 +417,53 @@ export default function HomePage() {
     );
   };
 
-  // 방문 경로 파이차트 색상
-  const visitSourceColors = [
-    '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6',
-    '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#94a3b8',
-  ];
+  // 방문 경로 색상 (v2 팔레트)
+  const visitSourceColors = ['#6eadff', '#a5ccff', '#a5ccff', '#a5ccff', '#a5ccff', '#a5ccff'];
 
-  // 방문 경로 파이차트 렌더링
-  const renderVisitSourcePie = () => {
+  // 방문 경로: 비율(%) + 고객 수를 한 줄 가로 막대로
+  const renderVisitSourceBars = () => {
     // none 제외
     const filteredData = visitSourceData.filter((item) => item.source !== 'none');
     if (filteredData.length === 0) {
       return (
-        <div className="flex items-center justify-center h-32 text-neutral-400 text-sm">
-          데이터가 없습니다
+        <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-[color:var(--ad-bg)]">
+            <MapPin className="h-4 w-4 text-[color:var(--ad-faint)]" />
+          </span>
+          <p className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">아직 모인 응답이 없어요</p>
+          <p className="text-[12px] text-[color:var(--ad-faint)]">적립 시 방문 경로 응답이 쌓이면 여기에 정리돼요</p>
         </div>
       );
     }
 
     const totalCount = filteredData.reduce((sum, item) => sum + item.count, 0);
-    let cumulative = 0;
-    const gradientParts = filteredData.map((item, idx) => {
-      const start = cumulative;
-      const pct = totalCount > 0 ? Math.round((item.count / totalCount) * 100) : 0;
-      cumulative += pct;
-      return `${visitSourceColors[idx % visitSourceColors.length]} ${start}% ${cumulative}%`;
-    });
-
-    return (
-      <div className="flex items-center gap-6">
-        <div
-          className="relative w-28 h-28 rounded-full flex-shrink-0"
-          style={{
-            background: `conic-gradient(${gradientParts.join(', ')})`,
-          }}
-        >
-          <div className="absolute inset-3 bg-white rounded-full flex items-center justify-center">
-            <span className="text-xs font-medium text-neutral-600 text-center">방문<br />경로</span>
-          </div>
-        </div>
-        <div className="space-y-1.5 flex-1 min-w-0">
-          {filteredData.slice(0, 5).map((item, idx) => {
-            const pct = totalCount > 0 ? Math.round((item.count / totalCount) * 100) : 0;
-            return (
-              <div key={item.source} className="flex items-center gap-2">
-                <div
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: visitSourceColors[idx % visitSourceColors.length] }}
-                />
-                <span className="text-sm text-neutral-700 truncate">{item.label}</span>
-                <span className="text-xs text-neutral-400 ml-auto">({pct}%)</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  // 방문 경로 막대차트 렌더링
-  const renderVisitSourceBarChart = () => {
-    // none 제외
-    const filteredData = visitSourceData.filter((item) => item.source !== 'none');
-    if (filteredData.length === 0) {
-      return (
-        <div className="flex items-center justify-center h-32 text-neutral-400 text-sm">
-          데이터가 없습니다
-        </div>
-      );
-    }
-
     const maxCount = Math.max(...filteredData.map((d) => d.count));
 
     return (
-      <div className="space-y-2.5">
-        {filteredData.slice(0, 5).map((item) => (
-          <div key={item.source} className="flex items-center gap-3">
-            <span className="text-sm text-neutral-600 w-20 truncate">{item.label}</span>
-            <div className="flex-1 h-5 bg-neutral-100 rounded overflow-hidden">
-              <div
-                className="h-full bg-emerald-500 rounded transition-all duration-500"
-                style={{ width: maxCount > 0 ? `${(item.count / maxCount) * 100}%` : '0%' }}
-              />
-            </div>
-            <span className="text-sm text-neutral-600 w-12 text-right">{item.count}명</span>
-          </div>
-        ))}
-      </div>
+      <ul className="mt-5 grid gap-x-12 gap-y-3.5 lg:grid-cols-2">
+        {filteredData.slice(0, 6).map((item, idx) => {
+          const pct = totalCount > 0 ? Math.round((item.count / totalCount) * 100) : 0;
+          const color = visitSourceColors[idx % visitSourceColors.length];
+          return (
+            <li key={item.source} className="grid grid-cols-[96px_minmax(0,1fr)_auto] items-center gap-3">
+              <span className="flex min-w-0 items-center gap-2 text-[13px] text-[color:var(--ad-ink-2)]">
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+                <span className="truncate">{item.label}</span>
+              </span>
+              <div className="h-2 overflow-hidden rounded-full bg-[rgba(29,32,34,0.05)]">
+                <div
+                  className="ad-grow-x h-full rounded-full"
+                  style={{ ...rise(idx), backgroundColor: color, width: maxCount > 0 ? `${(item.count / maxCount) * 100}%` : '0%' }}
+                />
+              </div>
+              <span className="ad-tnum whitespace-nowrap text-right text-[12.5px]">
+                <span className="font-semibold text-[color:var(--ad-ink)]">{pct}%</span>
+                <span className="ml-1.5 text-[color:var(--ad-faint)]">{formatNumber(item.count)}명</span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     );
   };
 
@@ -520,503 +471,633 @@ export default function HomePage() {
   const renderGrowthIndicator = (growth: number, prefix: string, suffix: string = '%') => {
     if (growth >= 0) {
       return (
-        <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
-          <TrendingUp className="w-4 h-4" />
-          {prefix} +{growth}{suffix}
+        <p className="mt-2 flex items-center gap-1 text-[12.5px] text-[color:var(--ad-muted)]">
+          <span className="inline-flex items-center gap-0.5 font-semibold text-[color:var(--ad-pos)]">
+            <TrendingUp className="h-3.5 w-3.5" />+{growth}{suffix}
+          </span>
+          {prefix}
         </p>
       );
     } else {
       return (
-        <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
-          <TrendingDown className="w-4 h-4" />
-          {prefix} {growth}{suffix}
+        <p className="mt-2 flex items-center gap-1 text-[12.5px] text-[color:var(--ad-muted)]">
+          <span className="inline-flex items-center gap-0.5 font-semibold text-[color:var(--ad-neg)]">
+            <TrendingDown className="h-3.5 w-3.5" />{growth}{suffix}
+          </span>
+          {prefix}
         </p>
       );
     }
   };
 
+  const todayLabel = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' });
+  const automationTargets = [
+    {
+      key: 'CHURN_PREVENTION',
+      label: '이탈 위험 고객',
+      detail: '30일 이상 미방문',
+      icon: UserMinus,
+      tone: 'text-[color:var(--ad-faint)]',
+      count: automationStatus?.previews?.CHURN_PREVENTION?.thisMonthEstimate ?? 0,
+    },
+    {
+      key: 'BIRTHDAY',
+      label: '이번 달 생일',
+      detail: '축하 쿠폰 자동 발송',
+      icon: Cake,
+      tone: 'text-[color:var(--ad-faint)]',
+      count: automationStatus?.previews?.BIRTHDAY?.thisMonthEstimate ?? 0,
+    },
+    {
+      key: 'FIRST_VISIT_FOLLOWUP',
+      label: '첫 방문 고객',
+      detail: '재방문 쿠폰 자동 발송',
+      icon: UserPlus,
+      tone: 'text-[color:var(--ad-faint)]',
+      count: automationStatus?.previews?.FIRST_VISIT_FOLLOWUP?.thisMonthEstimate ?? 0,
+    },
+  ];
+  const automationTotal = automationTargets.reduce((sum, t) => sum + t.count, 0);
+  const iconBtn =
+    'ad-press grid h-8 w-8 place-items-center rounded-[10px] text-[color:var(--ad-muted)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink)] disabled:opacity-50';
+  const ghostBtn =
+    'ad-press inline-flex h-8 items-center gap-1.5 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 disabled:hover:bg-white';
+
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto">
-      {/* 가맹점 상호명 */}
-      {storeName && (
-        <h1 className="text-xl md:text-2xl font-bold text-neutral-900 mb-4">{storeName}</h1>
-      )}
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
+      {/* 헤더: 오늘 날짜 + 가맹점 상호명 */}
+      <header className="ad-rise" style={rise(0)}>
+        <p className="text-[12.5px] font-medium text-[color:var(--ad-muted)]" suppressHydrationWarning>
+          {todayLabel}
+        </p>
+        {storeName && (
+          <h1 className="mt-0.5 text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">{storeName}</h1>
+        )}
+      </header>
 
       {/* Announcements */}
       {announcements.length > 0 && (
-        <div className="mb-6 space-y-3">
+        <div className="ad-rise mt-4 flex flex-col gap-2" style={rise(1)}>
           {announcements.map((announcement) => (
             <div
               key={announcement.id}
-              className="flex items-start gap-3 p-4 bg-brand-50 border border-brand-200 rounded-lg"
+              className="flex items-start gap-2.5 rounded-[14px] bg-white px-3.5 py-2.5 shadow-[inset_0_0_0_1px_var(--ad-line)]"
             >
-              <div className="flex-shrink-0 mt-0.5">
-                <Megaphone className="w-5 h-5 text-brand-700" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="info" className="text-xs">공지</Badge>
-                  <span className="font-medium text-neutral-900">{announcement.title}</span>
+              <span className="mt-px grid h-4 w-4 shrink-0 place-items-center text-[color:var(--ad-faint)]">
+                <Megaphone className="h-3 w-3 text-[color:var(--ad-muted)]" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">
+                    공지
+                  </span>
+                  <span className="text-[13px] font-semibold text-[color:var(--ad-ink)]">{announcement.title}</span>
                 </div>
-                <p className="text-sm text-neutral-700 whitespace-pre-wrap">{announcement.content}</p>
+                <p className="mt-1 whitespace-pre-wrap text-[12.5px] leading-[19px] text-[color:var(--ad-muted)]">
+                  {announcement.content}
+                </p>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {/* Total Customers */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-neutral-500 mb-1">총 고객 수</p>
-                <p className="text-3xl font-bold text-neutral-900">
-                  {formatNumber(stats?.totalCustomers ?? 0)}
-                </p>
-                {renderGrowthIndicator(stats?.customerGrowth ?? 0, '지난달 대비')}
-              </div>
-              <div className="p-3 bg-brand-50 rounded-lg">
-                <Users className="w-6 h-6 text-brand-800" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Retarget Message Credits */}
-        <Card
-          className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => router.push('/messages')}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-neutral-500 mb-1">[무료 지원]리타겟 메시지 잔여 발송 수</p>
-                <p className="text-3xl font-bold text-neutral-900">
-                  {formatNumber(retargetCredits?.remainingCredits ?? 0)}
-                </p>
-                <p className="text-sm text-neutral-400 mt-2">
-                  이번 달 {retargetCredits?.totalCredits ?? 30}건 중 잔여
-                </p>
-              </div>
-              <div className="p-3 bg-emerald-50 rounded-lg">
-                <Mail className="w-6 h-6 text-emerald-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Review Balance */}
-        <Card
-          className="border-brand-200 bg-brand-50/30 cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => router.push('/billing')}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-neutral-500 mb-1">알림톡 발송 가능액</p>
-                <p className="text-3xl font-bold text-neutral-900">
-                  {formatCurrency(stats?.reviewBalance ?? 0)}
-                </p>
-                <p className="text-sm text-neutral-500 mt-2">
-                  충전이 필요하면 클릭하세요
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                {(stats?.reviewBalance ?? 0) < 1000 && (
-                  <Badge variant="error" className="flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" />
-                    잔액 부족
-                  </Badge>
-                )}
-                <div className="p-3 bg-brand-100 rounded-lg">
-                  <Wallet className="w-6 h-6 text-brand-800" />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Automation Marketing CTA */}
-      {automationStatus && !automationStatus.hasActiveRules && (
-        <div
-          className="mb-8 border border-brand-200 rounded-2xl bg-gradient-to-r from-brand-50 to-white p-6 cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => router.push('/automation')}
-        >
-          <div className="flex items-center gap-2 mb-1">
-            <Zap className="w-5 h-5 text-brand-700" />
-            <h3 className="text-lg font-bold text-neutral-900">자동 마케팅이 꺼져 있습니다</h3>
-          </div>
-          <p className="text-sm text-neutral-600 mb-5">
-            지금 이 고객들에게 자동으로 쿠폰을 보낼 수 있습니다
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-            {/* 이탈 위험 고객 */}
-            <div className="bg-white border border-neutral-100 rounded-xl p-4 text-center">
-              <div className="flex justify-center mb-2">
-                <div className="p-2 bg-red-50 rounded-lg">
-                  <Bell className="w-5 h-5 text-red-500" />
-                </div>
-              </div>
-              <p className="text-sm font-medium text-neutral-700 mb-1">이탈 위험 고객</p>
-              <p className="text-2xl font-bold text-brand-700">
-                {automationStatus.previews?.CHURN_PREVENTION?.thisMonthEstimate ?? 0}명
-              </p>
-              <p className="text-xs text-neutral-400 mt-1">30일 이상 미방문</p>
-            </div>
-
-            {/* 이번 달 생일 */}
-            <div className="bg-white border border-neutral-100 rounded-xl p-4 text-center">
-              <div className="flex justify-center mb-2">
-                <div className="p-2 bg-pink-50 rounded-lg">
-                  <Cake className="w-5 h-5 text-pink-500" />
-                </div>
-              </div>
-              <p className="text-sm font-medium text-neutral-700 mb-1">이번 달 생일</p>
-              <p className="text-2xl font-bold text-brand-700">
-                {automationStatus.previews?.BIRTHDAY?.thisMonthEstimate ?? 0}명
-              </p>
-              <p className="text-xs text-neutral-400 mt-1">축하 쿠폰 자동 발송</p>
-            </div>
-
-            {/* 첫 방문 고객 */}
-            <div className="bg-white border border-neutral-100 rounded-xl p-4 text-center">
-              <div className="flex justify-center mb-2">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <UserPlus className="w-5 h-5 text-blue-500" />
-                </div>
-              </div>
-              <p className="text-sm font-medium text-neutral-700 mb-1">첫 방문 고객</p>
-              <p className="text-2xl font-bold text-brand-700">
-                {automationStatus.previews?.FIRST_VISIT_FOLLOWUP?.thisMonthEstimate ?? 0}명
-              </p>
-              <p className="text-xs text-neutral-400 mt-1">재방문 쿠폰 자동 발송</p>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-neutral-500">
-              <span className="font-medium text-neutral-700">월 30건까지 무료!</span>
-              {' · '}태그히어 평균 쿠폰 사용률 38%
-            </p>
-            <div className="flex items-center gap-1 text-sm font-semibold text-brand-700 hover:text-brand-800">
-              자동 마케팅 시작하기
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Automation Active Banner (State C) */}
-      {automationStatus && automationStatus.hasActiveRules && automationStatus.dashboard && automationStatus.dashboard.totalSent > 0 && (
-        <div
-          className="mb-8 flex items-center justify-between border border-neutral-200 rounded-xl bg-neutral-50 px-5 py-3.5 cursor-pointer hover:shadow-sm transition-shadow"
-          onClick={() => router.push('/automation')}
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-emerald-100 rounded-lg">
-              <Zap className="w-4 h-4 text-emerald-600" />
-            </div>
-            <span className="text-sm text-neutral-700">
-              이번 달 자동 마케팅:{' '}
-              <span className="font-semibold text-neutral-900">{automationStatus.dashboard.totalSent}건 발송</span>
-              {automationStatus.dashboard.totalCouponUsed > 0 && (
-                <>
-                  , <span className="font-semibold text-emerald-600">{automationStatus.dashboard.totalCouponUsed}건 사용 ({Math.round(automationStatus.dashboard.usageRate)}%)</span>
-                </>
-              )}
-            </span>
-          </div>
-          <div className="flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-700">
-            성과 보기
-            <ArrowRight className="w-3.5 h-3.5" />
-          </div>
-        </div>
-      )}
-
-      {/* Visit Source Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* 방문 경로 분포 - 파이차트 */}
-        <Card
-          className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => router.push('/insights/customers')}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <MapPin className="w-4 h-4 text-neutral-400" />
-              <span className="text-sm font-medium text-neutral-900">방문 경로 분포</span>
-            </div>
-            {renderVisitSourcePie()}
-          </CardContent>
-        </Card>
-
-        {/* 방문 경로별 고객 수 - 막대차트 */}
-        <Card
-          className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => router.push('/insights/customers')}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <MapPin className="w-4 h-4 text-neutral-400" />
-              <span className="text-sm font-medium text-neutral-900">방문 경로별 고객 수</span>
-            </div>
-            {renderVisitSourceBarChart()}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Visitor Chart */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-lg font-semibold">
-                일자별 방문자 수 추이
-              </CardTitle>
-              <button
-                onClick={handleRefreshVisitorChart}
-                disabled={isRefreshingChart}
-                className="p-1.5 rounded-md hover:bg-neutral-100 transition-colors disabled:opacity-50"
-                title="새로고침"
-              >
-                <RefreshCw className={`w-4 h-4 text-neutral-500 ${isRefreshingChart ? 'animate-spin' : ''}`} />
-              </button>
-              <button
-                onClick={() => {
-                  setOverrideError(null);
-                  setShowVisitorEdit(true);
-                }}
-                className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-neutral-500 rounded-md hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
-                title="방문객 수 직접 수정"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-                방문객 수정
-              </button>
-            </div>
-            <div className="flex gap-1 p-1 bg-neutral-100 rounded-lg">
-              {(['7일', '30일', '90일', '전체'] as PeriodKey[]).map((period) => (
-                <button
-                  key={period}
-                  onClick={() => setChartPeriod(period)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    chartPeriod === period
-                      ? 'bg-white text-neutral-900 shadow-sm'
-                      : 'text-neutral-500 hover:text-neutral-700'
-                  }`}
-                >
-                  {period}
-                </button>
-              ))}
-            </div>
-            <DateRangeFilter
-              days={visitorChartDays}
-              onDaysChange={() => {}}
-              dayOptions={[]}
-              range={visitorRange}
-              onRangeChange={setVisitorRange}
-            />
-            <button
-              onClick={() =>
-                exportDailyVisitors(
-                  visitorChartData,
-                  periodLabel(visitorRange, visitorChartDays),
-                  '내매장'
-                )
-              }
-              disabled={visitorChartData.length === 0}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:hover:bg-white"
-            >
-              <Download className="w-3.5 h-3.5" />
-              엑셀
-            </button>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={visitorChartData}>
-                  <defs>
-                    <linearGradient id="colorVisitors" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1E3A5F" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#1E3A5F" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                  <XAxis
-                    dataKey="day"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#64748B', fontSize: 12 }}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#64748B', fontSize: 12 }}
-                    tickFormatter={(value) => formatNumber(value)}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                    }}
-                    formatter={(value: number, _name, item) => [
-                      formatNumber(value),
-                      item?.payload?.overridden ? '방문자 수 (직접입력)' : '방문자 수',
-                    ]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="visitors"
-                    stroke="#1E3A5F"
-                    strokeWidth={2}
-                    fill="url(#colorVisitors)"
-                    dot={(props: { cx?: number; cy?: number; payload?: { overridden?: boolean }; index?: number }) =>
-                      props.payload?.overridden && props.cx !== undefined && props.cy !== undefined ? (
-                        <circle key={props.index} cx={props.cx} cy={props.cy} r={3.5} fill="#1E3A5F" />
-                      ) : (
-                        <g key={props.index} />
-                      )
-                    }
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex items-center justify-center gap-2 mt-4 text-sm text-neutral-500">
-              <div className="w-3 h-3 rounded-full bg-brand-800" />
-              일자별 방문자 수
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Customer Feedback */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/feedback')}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-medium text-neutral-900">
-                고객 피드백
+      <div className="mt-6 space-y-4">
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {/* Total Customers */}
+          <section className="ad-card ad-rise p-5" style={rise(2)}>
+            <p className="flex items-center gap-2 text-[12.5px] font-medium text-[color:var(--ad-muted)]">
+              <span className="grid h-4 w-4 place-items-center text-[color:var(--ad-faint)]">
+                <Users className="h-3 w-3 text-[color:var(--ad-link)]" />
               </span>
+              총 고객 수
+            </p>
+            {stats ? (
+              <>
+                <p className="mt-2 text-[24px] font-medium leading-none tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                  <CountUp value={stats.totalCustomers ?? 0} />
+                  <span className="ml-0.5 text-[14px] font-medium text-[color:var(--ad-muted)]">명</span>
+                </p>
+                {renderGrowthIndicator(stats.customerGrowth ?? 0, '지난달 대비')}
+              </>
+            ) : (
+              <>
+                <Skel className="mt-2 h-[26px] w-28" />
+                <Skel className="mt-3 h-3.5 w-24" />
+              </>
+            )}
+          </section>
+
+          {/* Retarget Message Credits */}
+          <section
+            className="ad-card ad-lift ad-rise flex cursor-pointer items-center gap-4 p-5"
+            style={rise(3)}
+            onClick={() => router.push('/messages')}
+          >
+            <div className="relative shrink-0">
+              <Ring value={retargetCredits?.remainingCredits ?? 0} total={retargetCredits?.totalCredits ?? 30} />
+              <span className="ad-tnum absolute inset-0 grid place-items-center text-[16px] font-semibold text-[color:var(--ad-ink)]">
+                {formatNumber(retargetCredits?.remainingCredits ?? 0)}
+              </span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[12.5px] font-medium text-[color:var(--ad-muted)]">[무료 지원] 리타겟 메시지 잔여</p>
+              <p className="mt-1 text-[14px] font-medium text-[color:var(--ad-ink)]">
+                이번 달 <span className="ad-tnum">{retargetCredits?.totalCredits ?? 30}</span>건 중{' '}
+                <span className="ad-tnum">{formatNumber(retargetCredits?.remainingCredits ?? 0)}</span>건 남았어요
+              </p>
+              <span className="mt-1.5 inline-flex items-center gap-0.5 text-[12.5px] font-medium text-[color:var(--ad-link)]">
+                지금 보내기
+                <ChevronRight className="h-3.5 w-3.5" />
+              </span>
+            </div>
+          </section>
+
+          {/* Review Balance */}
+          <section
+            className="ad-card ad-lift ad-rise cursor-pointer p-5 md:col-span-2 lg:col-span-1"
+            style={rise(4)}
+            onClick={() => router.push('/billing')}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <p className="flex items-center gap-2 text-[12.5px] font-medium text-[color:var(--ad-muted)]">
+                <span className="grid h-4 w-4 place-items-center text-[color:var(--ad-faint)]">
+                  <Wallet className="h-3 w-3 text-[color:var(--ad-muted)]" />
+                </span>
+                알림톡 발송 가능액
+              </p>
+              {(stats?.reviewBalance ?? 0) < 1000 && stats && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">
+                  <AlertTriangle className="h-3 w-3" />
+                  잔액 부족
+                </span>
+              )}
+            </div>
+            {stats ? (
+              <p className="mt-2 text-[24px] font-medium leading-none tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                <CountUp value={stats.reviewBalance ?? 0} />
+                <span className="ml-0.5 text-[14px] font-medium text-[color:var(--ad-muted)]">원</span>
+              </p>
+            ) : (
+              <Skel className="mt-2 h-[26px] w-32" />
+            )}
+            <p
+              className={`mt-2 flex items-center gap-1 text-[12.5px] ${
+                stats && (stats.reviewBalance ?? 0) < 1000
+                  ? 'font-medium text-[color:var(--ad-neg)]'
+                  : 'text-[color:var(--ad-muted)]'
+              }`}
+            >
+              충전이 필요하면 클릭하세요
+              <ChevronRight className="h-3.5 w-3.5" />
+            </p>
+          </section>
+        </div>
+
+        {/* Automation Marketing CTA — 목적: 자동 마케팅을 켜게 하기. 결과 한 문장 + 단 하나의 주요 버튼, 대상 구성은 보조 정보로 */}
+        {automationStatus && !automationStatus.hasActiveRules && (
+          <section
+            className="ad-card ad-rise cursor-pointer p-6 sm:p-7"
+            style={rise(5)}
+            onClick={() => router.push('/automation')}
+          >
+            <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
+              <div className="min-w-0">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--ad-bg)] px-2.5 py-1 text-[12px] font-medium text-[color:var(--ad-muted)]">
+                  <Zap className="h-3 w-3" strokeWidth={2} />
+                  자동 마케팅 꺼짐
+                </span>
+                <h2 className="mt-3 text-[22px] font-semibold leading-[31px] tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                  이번 달{' '}
+                  <span className="ad-tnum">
+                    <CountUp value={automationTotal} />명
+                  </span>
+                  에게 쿠폰을 자동으로 보낼 수 있어요
+                </h2>
+                <p className="mt-1.5 text-[13.5px] leading-[21px] text-[color:var(--ad-muted)]">
+                  한 번 켜 두면 아래 고객에게 알아서 발송돼요. 월 30건까지 무료예요.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+                <span className="ad-press inline-flex h-11 items-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-5 text-[14px] font-semibold text-white hover:bg-[#383c40]">
+                  자동 마케팅 켜기
+                  <ArrowRight className="h-4 w-4" />
+                </span>
+                <span className="text-[12px] text-[color:var(--ad-faint)]">태그히어 평균 쿠폰 사용률 38%</span>
+              </div>
+            </div>
+
+            {/* 대상 구성 — 비율 막대 + 범례 (선 대신 여백으로 묶음) */}
+            <div className="mt-7">
+              <div className="flex h-1.5 gap-[3px] overflow-hidden rounded-full bg-[color:var(--ad-bg)]">
+                {automationTotal > 0 &&
+                  automationTargets.map((t, k) =>
+                    t.count > 0 ? (
+                      <span
+                        key={t.key}
+                        className="ad-grow-x h-full rounded-full"
+                        style={{ ...rise(k), width: `${(t.count / automationTotal) * 100}%`, background: ['#1d2022', '#91959a', '#d1d3d6'][k] }}
+                      />
+                    ) : null
+                  )}
+              </div>
+              <ul className="mt-4 grid gap-x-8 gap-y-3 sm:grid-cols-3">
+                {automationTargets.map((t, k) => {
+                  const Icon = t.icon;
+                  return (
+                    <li key={t.key} className="flex items-start gap-2.5">
+                      <span className="mt-[7px] h-2 w-2 shrink-0 rounded-full" style={{ background: ['#1d2022', '#91959a', '#d1d3d6'][k] }} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <p className="flex items-center gap-1.5 text-[13.5px] text-[color:var(--ad-ink-2)]">
+                            <Icon className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                            {t.label}
+                          </p>
+                          <p className="ad-tnum text-[17px] font-semibold tracking-[-0.02em] text-[color:var(--ad-ink)]">
+                            <CountUp value={t.count} />
+                            <span className="ml-0.5 text-[12.5px] font-medium text-[color:var(--ad-muted)]">명</span>
+                          </p>
+                        </div>
+                        <p className="mt-0.5 text-[12px] text-[color:var(--ad-faint)]">{t.detail}</p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </section>
+        )}
+
+        {/* Automation Active Banner (State C) */}
+        {automationStatus && automationStatus.hasActiveRules && automationStatus.dashboard && automationStatus.dashboard.totalSent > 0 && (
+          <section
+            className="ad-card ad-lift ad-rise flex cursor-pointer flex-wrap items-center justify-between gap-4 p-5"
+            style={rise(5)}
+            onClick={() => router.push('/automation')}
+          >
+            <div className="flex items-center gap-3">
+              <span className="grid h-4 w-4 place-items-center text-[color:var(--ad-pos)]">
+                <Zap className="h-4 w-4 text-[color:var(--ad-pos)]" />
+              </span>
+              <div>
+                <p className="flex items-center gap-2 text-[14px] font-semibold text-[color:var(--ad-ink)]">
+                  이번 달 자동 마케팅
+                  <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">
+                    켜짐
+                  </span>
+                </p>
+                <p className="mt-0.5 text-[12.5px] text-[color:var(--ad-muted)]">자동으로 나간 쿠폰과 사용 현황이에요</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-6">
+              <div>
+                <p className="text-[12px] text-[color:var(--ad-muted)]">발송</p>
+                <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                  {automationStatus.dashboard.totalSent}
+                  <span className="ml-0.5 text-[13px] font-medium text-[color:var(--ad-muted)]">건</span>
+                </p>
+              </div>
+              {automationStatus.dashboard.totalCouponUsed > 0 && (
+                <div className="border-l border-[color:var(--ad-line)] pl-6">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">쿠폰 사용</p>
+                  <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-pos)]">
+                    {automationStatus.dashboard.totalCouponUsed}
+                    <span className="ml-0.5 text-[13px] font-medium">건 ({Math.round(automationStatus.dashboard.usageRate)}%)</span>
+                  </p>
+                </div>
+              )}
+              <span className="inline-flex items-center gap-0.5 text-[12.5px] font-medium text-[color:var(--ad-link)]">
+                성과 보기
+                <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </div>
+          </section>
+        )}
+
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)]">
+          {/* Visitor Chart */}
+          <section className="ad-card ad-rise flex min-w-0 flex-col p-5" style={rise(6)}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="mr-0.5 grid h-4 w-4 place-items-center text-[color:var(--ad-faint)]">
+                  <TrendingUp className="h-3.5 w-3.5 text-[color:var(--ad-link)]" />
+                </span>
+                <h2 className="text-[14px] font-semibold tracking-[-0.015em] text-[color:var(--ad-ink)]">일자별 방문자 수 추이</h2>
+                <button
+                  onClick={handleRefreshVisitorChart}
+                  disabled={isRefreshingChart}
+                  className={iconBtn}
+                  title="새로고침"
+                  aria-label="새로고침"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingChart ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div role="tablist" aria-label="기간" className="flex items-center rounded-[10px] bg-[rgba(29,32,34,0.045)] p-[3px]">
+                  {(['7일', '30일', '90일', '전체'] as PeriodKey[]).map((period) => (
+                    <button
+                      key={period}
+                      role="tab"
+                      aria-selected={chartPeriod === period}
+                      onClick={() => setChartPeriod(period)}
+                      className={`ad-press whitespace-nowrap rounded-[8px] px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
+                        chartPeriod === period
+                          ? 'bg-white text-[color:var(--ad-ink)] shadow-[0_1px_2px_rgba(29,32,34,0.08),0_0_0_1px_rgba(29,32,34,0.04)]'
+                          : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink-2)]'
+                      }`}
+                    >
+                      {period}
+                    </button>
+                  ))}
+                </div>
+                <DateRangeFilter
+                  days={visitorChartDays}
+                  onDaysChange={() => {}}
+                  dayOptions={[]}
+                  range={visitorRange}
+                  onRangeChange={setVisitorRange}
+                />
+                <button
+                  onClick={() => {
+                    setOverrideError(null);
+                    setShowVisitorEdit(true);
+                  }}
+                  className={ghostBtn}
+                  title="방문객 수 직접 수정"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  방문객 수정
+                </button>
+                <button
+                  onClick={() =>
+                    exportDailyVisitors(
+                      visitorChartData,
+                      periodLabel(visitorRange, visitorChartDays),
+                      '내매장'
+                    )
+                  }
+                  disabled={visitorChartData.length === 0}
+                  className={ghostBtn}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  엑셀
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-5 h-[272px]">
+              {visitorStats === null ? (
+                <Skel className="h-full w-full !rounded-[14px]" />
+              ) : visitorChartData.length === 0 ? (
+                <Empty className="h-full flex-col gap-1">
+                  <span className="font-medium text-[color:var(--ad-ink-2)]">아직 쌓인 방문 기록이 없어요</span>
+                  <span className="text-[12px]">포인트 적립이나 주문이 들어오면 날짜별로 그려져요</span>
+                </Empty>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={visitorChartData} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+                    <defs>
+                      <linearGradient id="colorVisitors" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6eadff" stopOpacity={0.28} />
+                        <stop offset="100%" stopColor="#6eadff" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} stroke="#ebeced" strokeDasharray="2 4" />
+                    <XAxis
+                      dataKey="day"
+                      axisLine={false}
+                      tickLine={false}
+                      minTickGap={24}
+                      dy={6}
+                      tick={{ fill: '#91959a', fontSize: 11.5 }}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      width={48}
+                      tick={{ fill: '#91959a', fontSize: 11.5 }}
+                      tickFormatter={(value) => formatNumber(value)}
+                    />
+                    <Tooltip
+                      cursor={{ stroke: 'rgba(29,32,34,0.12)', strokeWidth: 1 }}
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        padding: '8px 12px',
+                        fontSize: '12.5px',
+                        boxShadow: '0 0 0 1px rgba(29,32,34,0.06), 0 12px 24px -12px rgba(19,22,81,0.3)',
+                      }}
+                      labelStyle={{ color: '#55595e', fontSize: '11.5px' }}
+                      itemStyle={{ color: '#1d2022', fontWeight: 600 }}
+                      formatter={(value: number, _name, item) => [
+                        formatNumber(value),
+                        item?.payload?.overridden ? '방문자 수 (직접입력)' : '방문자 수',
+                      ]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="visitors"
+                      stroke="#6eadff"
+                      strokeWidth={2}
+                      fill="url(#colorVisitors)"
+                      activeDot={{ r: 4, fill: '#fff', stroke: '#2a2d62', strokeWidth: 2 }}
+                      dot={(props: { cx?: number; cy?: number; payload?: { overridden?: boolean }; index?: number }) =>
+                        props.payload?.overridden && props.cx !== undefined && props.cy !== undefined ? (
+                          <circle key={props.index} cx={props.cx} cy={props.cy} r={3.5} fill="#2a2d62" />
+                        ) : (
+                          <g key={props.index} />
+                        )
+                      }
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            <div className="mt-3 flex items-center justify-center gap-4 text-[12px] text-[color:var(--ad-muted)]">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[color:var(--ad-blue)]" />
+                일자별 방문자 수
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[color:var(--ad-link)]" />
+                직접 입력한 날
+              </span>
+            </div>
+          </section>
+
+          {/* Customer Feedback */}
+          <section
+            className="ad-card ad-lift ad-rise flex cursor-pointer flex-col p-5"
+            style={rise(7)}
+            onClick={() => router.push('/feedback')}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="grid h-4 w-4 place-items-center text-[color:var(--ad-faint)]">
+                  <Star className="h-3.5 w-3.5 text-[color:var(--ad-muted)]" fill="currentColor" />
+                </span>
+                <h2 className="text-[14px] font-semibold tracking-[-0.015em] text-[color:var(--ad-ink)]">고객 피드백</h2>
+              </div>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleRefreshFeedback();
                 }}
                 disabled={isRefreshingFeedback}
-                className="p-1.5 rounded-md hover:bg-neutral-100 transition-colors disabled:opacity-50"
+                className={iconBtn}
                 title="새로고침"
+                aria-label="새로고침"
               >
-                <RefreshCw className={`w-4 h-4 text-neutral-500 ${isRefreshingFeedback ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingFeedback ? 'animate-spin' : ''}`} />
               </button>
             </div>
 
             {/* Average Rating */}
-            <div className="flex items-center gap-3 mb-2">
-              <StarDisplay rating={feedbackSummary?.averageRating ?? 0} size="lg" />
-              <span className="text-2xl font-bold text-neutral-900">
-                {feedbackSummary?.averageRating?.toFixed(1) ?? '0.0'}
-              </span>
-            </div>
-            <p className="text-sm text-neutral-500 mb-4">
-              총 {formatNumber(feedbackSummary?.totalFeedbackCount ?? 0)}개 피드백
-            </p>
+            {feedbackSummary ? (
+              <div className="mt-4 flex items-end gap-3">
+                <p className="ad-tnum text-[24px] font-medium leading-none tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                  {feedbackSummary?.averageRating?.toFixed(1) ?? '0.0'}
+                </p>
+                <div className="flex flex-col gap-0.5 pb-0.5">
+                  <StarDisplay rating={feedbackSummary?.averageRating ?? 0} size="md" />
+                  <span className="ad-tnum text-[12px] text-[color:var(--ad-muted)]">
+                    총 {formatNumber(feedbackSummary?.totalFeedbackCount ?? 0)}개 피드백
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <Skel className="mt-4 h-8 w-40" />
+            )}
 
             {/* Low Rating Warning */}
             {(feedbackSummary?.lowRatingCount ?? 0) > 0 && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg mb-4">
-                <AlertTriangle className="w-4 h-4 text-orange-600 flex-shrink-0" />
-                <span className="text-sm text-orange-700">
-                  개선 필요 피드백 {feedbackSummary?.lowRatingCount}개
-                </span>
-              </div>
+              <p className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-[color:var(--ad-bg)] px-2.5 py-1 text-[12px] font-medium text-[color:var(--ad-muted)]">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                개선 필요 피드백 {feedbackSummary?.lowRatingCount}개
+              </p>
             )}
 
             {/* Feedback List */}
-            <div className="space-y-3">
-              {feedbackSummary?.feedbacks && feedbackSummary.feedbacks.length > 0 ? (
+            <div className="mt-4 flex-1 divide-y divide-[color:var(--ad-line)] border-t border-[color:var(--ad-line)]">
+              {feedbackSummary === null ? (
+                [0, 1, 2].map((k) => (
+                  <div key={k} className="py-3.5">
+                    <Skel className="h-3 w-24" />
+                    <Skel className="mt-2 h-3.5 w-full" />
+                  </div>
+                ))
+              ) : feedbackSummary?.feedbacks && feedbackSummary.feedbacks.length > 0 ? (
                 feedbackSummary.feedbacks.map((feedback) => (
-                  <div
-                    key={feedback.id}
-                    className={`p-3 rounded-lg ${
-                      feedback.rating < 3
-                        ? 'bg-red-50 border border-red-200'
-                        : 'bg-neutral-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <StarDisplay rating={feedback.rating} size="sm" />
-                        <span className="text-xs text-neutral-600">
-                          {feedback.customerName || '익명'}
+                  <div key={feedback.id} className="py-3">
+                    <div className="flex items-center gap-2">
+                      <StarDisplay rating={feedback.rating} size="sm" />
+                      <span className="text-[12px] font-medium text-[color:var(--ad-ink-2)]">
+                        {feedback.customerName || '익명'}
+                      </span>
+                      {feedback.rating < 3 && (
+                        <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-1.5 py-px text-[10.5px] font-medium text-[color:var(--ad-muted)]">
+                          확인 필요
                         </span>
-                      </div>
-                      <span className="text-xs text-neutral-400">
+                      )}
+                      <span className="ad-tnum ml-auto text-[11.5px] text-[color:var(--ad-faint)]">
                         {new Date(feedback.createdAt).toLocaleDateString('ko-KR')}
                       </span>
                     </div>
                     {feedback.text && (
-                      <p className={`text-sm mt-1 line-clamp-2 ${
-                        feedback.rating < 3 ? 'text-red-700' : 'text-neutral-700'
-                      }`}>
+                      <p
+                        className={`mt-1.5 line-clamp-2 text-[13px] leading-[19px] ${
+                          feedback.rating < 3 ? 'text-[color:var(--ad-neg)]' : 'text-[color:var(--ad-ink-2)]'
+                        }`}
+                      >
                         {feedback.text}
                       </p>
                     )}
                   </div>
                 ))
               ) : (
-                <div className="p-4 bg-neutral-50 rounded-lg text-center">
-                  <MessageSquare className="w-8 h-8 text-neutral-300 mx-auto mb-2" />
-                  <p className="text-sm text-neutral-500">아직 피드백이 없습니다</p>
+                <div className="flex flex-col items-center gap-2 py-8 text-center">
+                  <span className="grid h-10 w-10 place-items-center rounded-full bg-[color:var(--ad-bg)]">
+                    <MessageSquare className="h-4 w-4 text-[color:var(--ad-faint)]" />
+                  </span>
+                  <p className="text-[13px] text-[color:var(--ad-muted)]">아직 피드백이 없습니다</p>
                 </div>
               )}
             </div>
 
             {/* Info */}
-            <div className="mt-4 p-3 bg-neutral-50 rounded-lg">
-              <p className="text-xs text-neutral-500">
-                고객이 포인트 적립 시 남긴 피드백이 표시됩니다.
-              </p>
+            <p className="mt-3 rounded-[10px] bg-[color:var(--ad-bg-alt)] px-3 py-2 text-[11.5px] text-[color:var(--ad-muted)]">
+              고객이 포인트 적립 시 남긴 피드백이 표시됩니다.
+            </p>
+          </section>
+        </div>
+
+        {/* Visit Source */}
+        <section className="ad-card ad-rise p-5" style={rise(8)}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="grid h-4 w-4 place-items-center text-[color:var(--ad-faint)]">
+                <MapPin className="h-3.5 w-3.5 text-[color:var(--ad-pos)]" />
+              </span>
+              <div>
+                <h2 className="text-[14px] font-semibold tracking-[-0.015em] text-[color:var(--ad-ink)]">방문 경로</h2>
+                <p className="text-[12px] text-[color:var(--ad-faint)]">
+                  고객이 어떻게 알고 왔는지 · 비율과 고객 수
+                </p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+            <button
+              onClick={() => router.push('/insights/customers')}
+              className="ad-press inline-flex items-center gap-0.5 text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
+            >
+              고객 통계
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="cursor-pointer" onClick={() => router.push('/insights/customers')}>
+            {renderVisitSourceBars()}
+          </div>
+        </section>
       </div>
 
       {/* Promo Popup */}
       <Modal open={showPromoPopup} onOpenChange={(open) => !open && handleClosePromoPopup()}>
-        <ModalContent className="max-w-[800px] p-0 overflow-hidden">
+        <ModalContent className="max-w-[760px] overflow-hidden rounded-[20px] p-0 shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)]">
           <div className="flex flex-col md:flex-row">
             {/* Left: Phone mockup image */}
-            <div className="w-full md:w-1/2 bg-[#f1f5f9] p-6 md:p-8 flex items-center justify-center">
+            <div className="flex w-full items-center justify-center bg-[color:var(--ad-bg-alt)] p-6 md:w-1/2 md:p-8">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/images/sms-mockup.png"
                 alt="SMS 메시지 미리보기"
-                className="max-h-[300px] md:max-h-[400px] object-contain"
+                className="max-h-[280px] object-contain drop-shadow-[0_16px_28px_rgba(19,22,81,0.18)] md:max-h-[380px]"
               />
             </div>
 
             {/* Right: Text content */}
-            <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col justify-center">
-              <h2 className="text-xl md:text-2xl font-bold text-neutral-900 mb-3 md:mb-4">
+            <div className="flex w-full flex-col justify-center p-6 md:w-1/2 md:p-8">
+              <span className="inline-flex w-fit rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--ad-muted)]">
+                매월 무료
+              </span>
+              <h2 className="mt-3 text-[20px] font-bold leading-[28px] tracking-[-0.03em] text-[color:var(--ad-ink)]">
                 매월 고객 30명에게 무료로 문자 메시지를 보낼 수 있어요
               </h2>
-              <p className="text-sm md:text-base text-neutral-600 mb-6 md:mb-8">
+              <p className="mb-6 mt-2 text-[13.5px] leading-[21px] text-[color:var(--ad-muted)]">
                 태그히어 리타겟 마케팅을 통해 매월 30명에게 무료로 발송해 보세요!
               </p>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
                 <button
                   onClick={handleGoToMessages}
-                  className="w-full py-3 px-4 bg-neutral-900 text-white font-semibold rounded-lg hover:bg-neutral-800 transition-colors"
+                  className="ad-press inline-flex h-11 w-full items-center justify-center rounded-[10px] bg-[color:var(--ad-navy)] px-4 text-[14px] font-semibold text-white hover:bg-[#2a2d62]"
                 >
                   30명에게 무료로 메시지 보내기
                 </button>
                 <button
                   onClick={handleClosePromoPopup}
-                  className="w-full py-2 px-4 text-neutral-500 font-medium hover:text-neutral-700 transition-colors"
+                  className="ad-press h-10 w-full rounded-[10px] text-[13px] font-medium text-[color:var(--ad-muted)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]"
                 >
                   다음에 할게요
                 </button>
@@ -1028,27 +1109,27 @@ export default function HomePage() {
 
       {/* Visitor Override Edit Modal */}
       <Modal open={showVisitorEdit} onOpenChange={setShowVisitorEdit}>
-        <ModalContent className="max-w-[480px]">
+        <ModalContent className="max-w-[480px] rounded-[20px] shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)]">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-neutral-900">방문객 수 직접 수정</h2>
-            <p className="text-sm text-neutral-500 mt-1">
+            <h2 className="text-[17px] font-bold text-[color:var(--ad-ink)]">방문객 수 직접 수정</h2>
+            <p className="mt-1 text-[13px] leading-[20px] text-[color:var(--ad-muted)]">
               {visitorStats?.countingMode === 'customer_size'
                 ? '주문 시 입력된 인원 수를 기준으로 집계됩니다. 직접 입력한 날짜는 입력값이 최종 방문객 수로 표시됩니다.'
                 : '태그히어로 집계되지 않은 손님까지 포함한 총 방문객 수를 입력하세요. 입력한 날짜는 입력값이 최종 방문객 수로 표시됩니다.'}
             </p>
           </div>
           {overrideError && (
-            <div className="mb-3 px-3 py-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+            <div className="mb-3 rounded-[10px] bg-[#ffe3e9] px-3 py-2 text-[13px] text-[color:var(--ad-neg)]">
               {overrideError}
             </div>
           )}
-          <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3 gap-y-1 text-sm">
-            <div className="text-xs font-medium text-neutral-500 py-1">날짜</div>
-            <div className="text-xs font-medium text-neutral-500 py-1 text-right">
+          <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3 gap-y-0.5 text-[13px]">
+            <div className="border-b border-[color:var(--ad-line)] py-2 text-[11.5px] font-medium text-[color:var(--ad-muted)]">날짜</div>
+            <div className="border-b border-[color:var(--ad-line)] py-2 text-right text-[11.5px] font-medium text-[color:var(--ad-muted)]">
               {visitorStats?.countingMode === 'customer_size' ? '주문 인원' : '자동 집계'}
             </div>
-            <div className="text-xs font-medium text-neutral-500 py-1 text-center">직접 입력</div>
-            <div />
+            <div className="border-b border-[color:var(--ad-line)] py-2 text-center text-[11.5px] font-medium text-[color:var(--ad-muted)]">직접 입력</div>
+            <div className="self-stretch border-b border-[color:var(--ad-line)]" />
             {visitorStats &&
               [...visitorStats.chartData].reverse().map((item) => {
                 const draft = draftOverrides[item.date];
@@ -1059,10 +1140,10 @@ export default function HomePage() {
                 const weekday = ['일', '월', '화', '수', '목', '금', '토'][dateObj.getDay()];
                 return (
                   <div key={item.date} className="contents">
-                    <div className="py-1.5 text-neutral-700">
+                    <div className="py-1.5 text-[color:var(--ad-ink-2)]">
                       {item.date.slice(5).replace('-', '/')} ({weekday})
                     </div>
-                    <div className="py-1.5 text-right text-neutral-400 tabular-nums">
+                    <div className="ad-tnum py-1.5 text-right text-[color:var(--ad-faint)]">
                       {formatNumber(item.autoVisitors)}
                     </div>
                     <div className="py-1.5">
@@ -1074,15 +1155,15 @@ export default function HomePage() {
                         onChange={(e) =>
                           setDraftOverrides((prev) => ({ ...prev, [item.date]: e.target.value }))
                         }
-                        className="w-20 px-2 py-1 text-right text-sm border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-brand-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="ad-tnum h-8 w-20 rounded-[8px] border border-[color:var(--ad-line-strong)] bg-white px-2 text-right text-[13px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       />
                     </div>
-                    <div className="py-1.5 flex items-center gap-1 min-w-[52px]">
+                    <div className="flex min-w-[52px] items-center gap-1 py-1.5">
                       {isChanged && (
                         <button
                           onClick={() => handleSaveOverride(item.date)}
                           disabled={savingDate !== null}
-                          className="px-2 py-1 text-xs font-medium text-white bg-brand-800 rounded-md hover:bg-brand-700 disabled:opacity-50"
+                          className="ad-press h-7 rounded-[8px] bg-[color:var(--ad-navy)] px-2.5 text-[12px] font-semibold text-white hover:bg-[#2a2d62] disabled:opacity-50"
                         >
                           저장
                         </button>
@@ -1091,14 +1172,14 @@ export default function HomePage() {
                         <button
                           onClick={() => handleDeleteOverride(item.date)}
                           disabled={savingDate !== null}
-                          className="p-1 text-neutral-400 hover:text-red-500 rounded-md hover:bg-neutral-100 disabled:opacity-50"
+                          className="ad-press grid h-7 w-7 place-items-center rounded-[8px] text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)] disabled:opacity-50"
                           title={
                             visitorStats?.countingMode === 'customer_size'
                               ? '직접입력 삭제 (주문 인원으로 복귀)'
                               : '직접입력 삭제 (자동 집계로 복귀)'
                           }
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <X className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </div>

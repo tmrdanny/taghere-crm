@@ -2,10 +2,9 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Fragment, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Modal,
   ModalContent,
@@ -15,6 +14,15 @@ import {
 } from '@/components/ui/modal';
 import { formatNumber, formatPhone, maskNickname } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
+import { SegmentPicker, type PickedSegment } from '@/features/segments/SegmentPicker';
+import { PremiumKakaoComposer } from '@/features/premium-kakao/PremiumKakaoComposer';
+import { AlimtalkSamples } from '@/features/premium-kakao/AlimtalkSamples';
+import { MobilePreviewSheet } from '@/features/messages/MobilePreviewSheet';
+import { ReservationsPanel } from '@/features/messages/ReservationsPanel';
+import { SendTimePicker, SendTimeValue, defaultSendTime, formatSendTime, sendTimeError, sendTimeToIso } from '@/features/messages/SendTimePicker';
+import { PremiumKakaoPreview } from '@/features/premium-kakao/PremiumKakaoPreview';
+import { BubbleType, PkContent, emptyContent } from '@/features/premium-kakao/spec';
+import { StaffVerifyField, StaffVerifyValue, emptyStaffVerify, smsCouponPreview, staffVerifyPayload } from '@/features/marketing-performance/StaffVerifyField';
 import {
   Send,
   Users,
@@ -59,6 +67,7 @@ import {
   KakaoTestModal,
 } from '@/features/messages';
 import { CouponAlimtalkPreview } from '@/features/kakao-composer';
+import { IPhoneFrame } from '@/components/ui/iphone-frame';
 
 
 // 연령대 옵션 (local-customers와 동일)
@@ -119,11 +128,31 @@ export default function MessagesPage() {
   const { showToast, ToastComponent } = useToast();
 
   // Tab state (문자 우선 - 카카오톡 임시 비활성화)
-  const [activeTab, setActiveTab] = useState<'sms' | 'kakao'>('sms');
+  const [activeTab, setActiveTab] = useState<'sms' | 'kakao'>('kakao');
+  // 카카오톡 탭 형태: 템플릿 기본형(쿠폰 알림톡) / 브랜드 메시지(premiumType)
+  // 진입 시 기본 형태는 이미지형
+  const [kakaoMode, setKakaoMode] = useState<'ALIMTALK' | 'BMS'>('BMS');
+  // 프리미엄 카카오톡 (브랜드 메시지 — 전 가맹점 고객, 프랜차이즈 지갑 과금)
+  const [premiumType, setPremiumType] = useState<BubbleType>('IMAGE');
+  const [premiumContents, setPremiumContents] = useState<Partial<Record<BubbleType, PkContent>>>({});
+  const premiumContent = premiumContents[premiumType] ?? emptyContent(premiumType);
+  const [premiumVerify, setPremiumVerify] = useState<StaffVerifyValue>(emptyStaffVerify);
+  // 발송 매장 안내 미리보기 — 실제로는 손님마다 소속 가맹점 이름이 들어간다
+  const [premiumFooterName, setPremiumFooterName] = useState('');
+  // 발송 시간 (지금 / 예약) — 문자, 템플릿 기본형(쿠폰 알림톡)
+  const [smsSendTime, setSmsSendTime] = useState<SendTimeValue>(defaultSendTime);
+  // 새로 예약하면 “예약된 발송” 목록을 다시 불러온다
+  const [reservationKey, setReservationKey] = useState(0);
+  const bumpReservations = () => setReservationKey((k) => k + 1);
+  const [couponSendTime, setCouponSendTime] = useState<SendTimeValue>(defaultSendTime);
+  // 문자 직원 확인 쿠폰 (선택)
+  const [smsVerify, setSmsVerify] = useState<StaffVerifyValue>(emptyStaffVerify);
 
   // Target counts
   const [targetCounts, setTargetCounts] = useState<TargetCounts>({ all: 0, revisit: 0, new: 0 });
-  const [selectedTarget, setSelectedTarget] = useState<'ALL' | 'REVISIT' | 'NEW' | 'CUSTOM'>('ALL');
+  const [selectedTarget, setSelectedTarget] = useState<'ALL' | 'REVISIT' | 'NEW' | 'CUSTOM' | 'SEGMENT'>('ALL');
+  // 고객 그룹으로 발송 — reachable 은 전 가맹점 수신 동의 + 전화번호 보유 고객 수
+  const [selectedSegment, setSelectedSegment] = useState<PickedSegment | null>(null);
 
   // Custom selected customers (from customer list page)
   const [selectedCustomers, setSelectedCustomers] = useState<SelectedCustomer[]>([]);
@@ -211,6 +240,28 @@ export default function MessagesPage() {
     return localStorage.getItem('franchiseToken') || 'dev-token';
   };
 
+  // 고객 그룹 선택 → 현재 발송 가능 인원 조회
+  const selectSegment = useCallback(async (segmentId: string) => {
+    if (!segmentId) {
+      setSelectedSegment(null);
+      setSelectedTarget('ALL');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/franchise/segments/${segmentId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('franchiseToken') || ''}` },
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setSelectedSegment({ id: data.segment.id, name: data.segment.name, reachable: data.reachable });
+      setSelectedCustomers([]);
+      setSelectedTarget('SEGMENT');
+    } catch {
+      showToast('고객 그룹을 불러오지 못했습니다.', 'error');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Parse selected customers from URL params
   useEffect(() => {
     const customersParam = searchParams.get('customers');
@@ -267,6 +318,9 @@ export default function MessagesPage() {
       if (selectedTarget === 'CUSTOM' && selectedCustomers.length > 0) {
         params.set('customerIds', selectedCustomers.map(c => c.id).join(','));
       }
+      if (selectedTarget === 'SEGMENT' && selectedSegment) {
+        params.set('segmentId', selectedSegment.id);
+      }
 
       // 필터 추가
       if (genderFilter !== 'all') {
@@ -280,6 +334,12 @@ export default function MessagesPage() {
       if (uploadedImage) {
         params.set('hasImage', 'true');
       }
+      // 직원 확인 쿠폰 링크까지 포함한 길이로 비용 계산
+      if (smsVerify.enabled) {
+        params.set('staffVerify', 'true');
+        params.set('couponContent', smsVerify.couponContent);
+        params.set('expiryDate', smsVerify.expiryDate);
+      }
 
       const res = await fetch(`${API_BASE}/api/franchise/sms/estimate?${params}`, {
         headers: { Authorization: `Bearer ${getAuthToken()}` },
@@ -292,7 +352,7 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Failed to fetch estimate:', error);
     }
-  }, [messageContent, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, uploadedImage]);
+  }, [messageContent, selectedTarget, selectedCustomers, selectedSegment, genderFilter, selectedAgeGroups, uploadedImage, smsVerify]);
 
   // Fetch test count
   const fetchTestCount = useCallback(async () => {
@@ -593,6 +653,7 @@ export default function MessagesPage() {
       try {
         const count =
           selectedTarget === 'CUSTOM' ? selectedCustomers.length
+          : selectedTarget === 'SEGMENT' ? selectedSegment?.reachable ?? 0
           : selectedTarget === 'ALL' ? targetCounts.all
           : selectedTarget === 'REVISIT' ? targetCounts.revisit
           : targetCounts.new;
@@ -618,7 +679,7 @@ export default function MessagesPage() {
     const debounce = setTimeout(run, 300);
     return () => { cancelled = true; clearTimeout(debounce); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, targetCounts]);
+  }, [activeTab, selectedTarget, selectedCustomers, selectedSegment, genderFilter, selectedAgeGroups, targetCounts]);
 
   // Update target counts when filters change
   useEffect(() => {
@@ -640,12 +701,13 @@ export default function MessagesPage() {
     return byteLength;
   };
 
-  const byteLength = getByteLength(messageContent);
+  const byteLength = getByteLength(messageContent + smsCouponPreview(smsVerify));
   const isLongMessage = byteLength > 90;
 
   // Get current target count
   const getCurrentTargetCount = () => {
     if (selectedTarget === 'CUSTOM') return selectedCustomers.length;
+    if (selectedTarget === 'SEGMENT') return selectedSegment?.reachable ?? 0;
     if (selectedTarget === 'ALL') return targetCounts.all;
     if (selectedTarget === 'REVISIT') return targetCounts.revisit;
     return targetCounts.new;
@@ -1007,10 +1069,25 @@ export default function MessagesPage() {
         imageUrl: uploadedImage?.imageUrl || undefined,
         imageId: uploadedImage?.imageId || undefined, // SOLAPI 이미지 ID 전달
         isAdMessage,
+        staffVerify: staffVerifyPayload(smsVerify),
+        scheduledAt: sendTimeToIso(smsSendTime),
       };
+      if (smsVerify.enabled && !smsVerify.couponContent.trim()) {
+        showToast('직원 확인 쿠폰 내용을 입력해주세요.', 'error');
+        setIsSending(false);
+        return;
+      }
 
       if (selectedTarget === 'CUSTOM') {
         body.customerIds = selectedCustomers.map(c => c.id);
+      }
+      if (selectedTarget === 'SEGMENT') {
+        if (!selectedSegment) {
+          showToast('고객 그룹을 선택해주세요.', 'error');
+          setIsSending(false);
+          return;
+        }
+        body.segmentId = selectedSegment.id;
       }
 
       const res = await fetch(`${API_BASE}/api/franchise/sms/send`, {
@@ -1028,7 +1105,8 @@ export default function MessagesPage() {
         const sentOrPending = data.sentCount || data.pendingCount || 0;
         const failedMsg = data.failedCount > 0 ? `, ${data.failedCount}건 실패` : '';
         const costMsg = data.totalCost ? ` (비용: ${formatNumber(data.totalCost)}원)` : '';
-        showToast(`${sentOrPending}건 발송 요청 완료${failedMsg}${costMsg}`, 'success');
+        showToast(data.message || `${sentOrPending}건 발송 요청 완료${failedMsg}${costMsg}`, 'success');
+        bumpReservations();
         setMessageContent('');
         setUploadedImage(null);
         setImageError(null);
@@ -1057,8 +1135,8 @@ export default function MessagesPage() {
       showToast('발송 대상을 선택해주세요.', 'error');
       return;
     }
-    if (getCurrentTargetCount() > 3000) {
-      showToast('1회 발송 최대 3,000명입니다. 필터를 좁히거나 나눠 발송해 주세요.', 'error');
+    if (getCurrentTargetCount() > 50000) {
+      showToast('1회 발송 최대 50,000명입니다. 필터를 좁히거나 나눠 발송해 주세요.', 'error');
       return;
     }
 
@@ -1067,6 +1145,7 @@ export default function MessagesPage() {
       const body: any = {
         couponContent: couponContent.trim(),
         expiryDate: couponExpiryDate.trim(),
+        scheduledAt: sendTimeToIso(couponSendTime),
         targetType: selectedTarget,
         genderFilter: genderFilter !== 'all' ? genderFilter : undefined,
         ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : undefined,
@@ -1078,6 +1157,9 @@ export default function MessagesPage() {
           setIsCouponSending(false);
           return;
         }
+      }
+      if (selectedTarget === 'SEGMENT' && selectedSegment) {
+        body.segmentId = selectedSegment.id;
       }
 
       const res = await fetch(`${API_BASE}/api/franchise/retarget-coupon/send`, {
@@ -1092,6 +1174,7 @@ export default function MessagesPage() {
 
       if (res.ok) {
         showToast(data.message || '쿠폰 알림톡이 발송되었습니다.', 'success');
+        bumpReservations();
         setCouponContent('');
         setCouponExpiryDate('');
         fetchTargetCounts();
@@ -1108,64 +1191,62 @@ export default function MessagesPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-[color:var(--ad-faint)]" />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row lg:items-start p-4 md:p-6 gap-6 max-w-[1200px] mx-auto w-full lg:justify-center">
+    <div className="flex-1 flex flex-col lg:flex-row lg:items-start gap-6 mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8 lg:justify-center">
       {ToastComponent}
 
       {/* Left Panel - Settings */}
-      <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6">
+      <div className="ad-card flex-1 lg:max-w-[720px] p-5 md:p-6 flex flex-col gap-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e5e7eb]">
-          <h1 className="text-lg sm:text-xl font-bold text-[#1e293b]">캠페인 메시지 만들기</h1>
-          <div className="flex bg-[#f1f5f9] rounded-lg p-1 self-start sm:self-auto">
-            <button
-              onClick={() => setActiveTab('kakao')}
-              className={cn(
-                'px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all',
-                activeTab === 'kakao'
-                  ? 'bg-white shadow-sm text-[#1e293b]'
-                  : 'text-[#64748b] hover:text-[#1e293b]'
-              )}
-            >
-              카카오톡
-            </button>
-            <button
-              onClick={() => setActiveTab('sms')}
-              className={cn(
-                'px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-md transition-all',
-                activeTab === 'sms'
-                  ? 'bg-white shadow-sm text-[#1e293b]'
-                  : 'text-[#64748b] hover:text-[#1e293b]'
-              )}
-            >
-              문자 (SMS/LMS)
-            </button>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pb-5 border-b border-[color:var(--ad-line)]">
+          <h1 className="whitespace-nowrap text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">캠페인 메시지 만들기</h1>
+          <div className="flex max-w-full overflow-x-auto rounded-[10px] bg-[rgba(29,32,34,0.045)] p-[3px]">
+            {([
+              ['kakao', '카카오톡'],
+              ['sms', '문자 (SMS/LMS)'],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={cn(
+                  'h-8 whitespace-nowrap px-3 sm:px-4 text-[13px] font-medium rounded-[8px] transition-all',
+                  activeTab === key
+                    ? 'bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] text-[color:var(--ad-ink)]'
+                    : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'
+                )}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
+        {/* 예약된 발송 — 발송 2분 전까지 취소·환불 */}
+        <ReservationsPanel apiUrl="/api/franchise/marketing-performance" tokenKey="franchiseToken" refreshKey={reservationKey} showToast={showToast} />
+
         {/* Target Selection */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-medium text-[#64748b]">발송 대상 선택</label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div className="flex flex-col gap-3">
+          <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">발송 대상 선택</label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               onClick={() => {
                 setSelectedTarget('ALL');
                 setSelectedCustomers([]);
               }}
               className={cn(
-                'p-3 rounded-lg border text-left transition-all',
+                'p-4 rounded-[12px] border text-left transition-all',
                 selectedTarget === 'ALL'
-                  ? 'border-[#3b82f6] bg-[#eff6ff]'
-                  : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
+                  ? 'border-[color:var(--ad-ink)] bg-white shadow-[0_0_0_1px_var(--ad-ink)]'
+                  : 'border-[color:var(--ad-line)] bg-white hover:border-[color:var(--ad-line-strong)]'
               )}
             >
-              <span className="text-xs text-[#64748b]">전체 고객</span>
-              <div className="text-base font-bold text-[#1e293b] mt-0.5">
+              <span className="text-[12px] text-[color:var(--ad-muted)]">전체 고객</span>
+              <div className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                 {formatNumber(targetCounts.all)}명
               </div>
             </button>
@@ -1176,14 +1257,14 @@ export default function MessagesPage() {
                 setSelectedCustomers([]);
               }}
               className={cn(
-                'p-3 rounded-lg border text-left transition-all',
+                'p-4 rounded-[12px] border text-left transition-all',
                 selectedTarget === 'REVISIT'
-                  ? 'border-[#3b82f6] bg-[#eff6ff]'
-                  : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
+                  ? 'border-[color:var(--ad-ink)] bg-white shadow-[0_0_0_1px_var(--ad-ink)]'
+                  : 'border-[color:var(--ad-line)] bg-white hover:border-[color:var(--ad-line-strong)]'
               )}
             >
-              <span className="text-xs text-[#64748b]">재방문 고객 (2회 이상)</span>
-              <div className="text-base font-bold text-[#1e293b] mt-0.5">
+              <span className="text-[12px] text-[color:var(--ad-muted)]">재방문 고객 (2회 이상)</span>
+              <div className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                 {formatNumber(targetCounts.revisit)}명
               </div>
             </button>
@@ -1194,14 +1275,14 @@ export default function MessagesPage() {
                 setSelectedCustomers([]);
               }}
               className={cn(
-                'p-3 rounded-lg border text-left transition-all',
+                'p-4 rounded-[12px] border text-left transition-all',
                 selectedTarget === 'NEW'
-                  ? 'border-[#3b82f6] bg-[#eff6ff]'
-                  : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
+                  ? 'border-[color:var(--ad-ink)] bg-white shadow-[0_0_0_1px_var(--ad-ink)]'
+                  : 'border-[color:var(--ad-line)] bg-white hover:border-[color:var(--ad-line-strong)]'
               )}
             >
-              <span className="text-xs text-[#64748b]">신규 고객 (최근 30일)</span>
-              <div className="text-base font-bold text-[#1e293b] mt-0.5">
+              <span className="text-[12px] text-[color:var(--ad-muted)]">신규 고객 (최근 30일)</span>
+              <div className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                 {formatNumber(targetCounts.new)}명
               </div>
             </button>
@@ -1211,18 +1292,18 @@ export default function MessagesPage() {
           <button
             onClick={openCustomerModal}
             className={cn(
-              'p-3 rounded-lg border text-left transition-all flex items-center gap-2',
+              'p-3 rounded-[12px] border text-left transition-all flex items-center gap-2',
               selectedStore && selectedCustomers.length > 0
-                ? 'border-[#3b82f6] bg-[#eff6ff]'
-                : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
+                ? 'border-[color:var(--ad-ink)] bg-white shadow-[0_0_0_1px_var(--ad-ink)]'
+                : 'border-[color:var(--ad-line)] bg-white hover:border-[color:var(--ad-line-strong)]'
             )}
           >
-            <div className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center flex-shrink-0">
-              <UserPlus className="w-4 h-4 text-[#64748b]" />
+            <div className="w-8 h-8 rounded-full bg-[color:var(--ad-bg)] flex items-center justify-center flex-shrink-0">
+              <UserPlus className="w-4 h-4 text-[color:var(--ad-muted)]" />
             </div>
             <div className="flex-1">
-              <span className="text-xs text-[#64748b]">가맹점별 고객 선택</span>
-              <div className="text-base font-bold text-[#1e293b]">
+              <span className="text-[12px] text-[color:var(--ad-muted)]">가맹점별 고객 선택</span>
+              <div className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">
                 {selectedStore && selectedCustomers.length > 0
                   ? `${selectedStore.name} · ${formatNumber(selectedCustomers.length)}명`
                   : '가맹점 선택하기'}
@@ -1242,9 +1323,20 @@ export default function MessagesPage() {
             )}
           </button>
 
-          {/* Filters */}
+          {/* 고객 그룹으로 보내기 (전 가맹점 고객 기준) */}
+          <SegmentPicker
+            active={selectedTarget === 'SEGMENT'}
+            selected={selectedSegment}
+            onSelect={selectSegment}
+            apiPath="/api/franchise/segments"
+            tokenKey="franchiseToken"
+            scopeLabel="전 가맹점 고객 기준"
+          />
+
+          {/* Filters — 고객 그룹 발송 시에는 그룹 조건이 대신 적용된다 */}
+          {selectedTarget !== 'SEGMENT' && (
           <div className="mt-2">
-            <label className="text-xs font-medium text-[#64748b] mb-2 block">상세 필터</label>
+            <label className="text-[12px] font-medium text-[color:var(--ad-muted)] mb-2 block">상세 필터</label>
             <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
               <div className="flex flex-wrap gap-1.5">
                 {['all', 'FEMALE', 'MALE'].map((gender) => (
@@ -1252,10 +1344,10 @@ export default function MessagesPage() {
                     key={gender}
                     onClick={() => setGenderFilter(gender as any)}
                     className={cn(
-                      'px-3 py-1.5 rounded-full text-xs border transition-all',
+                      'px-3 py-1.5 rounded-full text-[12px] border transition-all',
                       genderFilter === gender
-                        ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
-                        : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
+                        ? 'bg-[color:var(--ad-ink)] border-[color:var(--ad-ink)] text-white font-medium'
+                        : 'border-[color:var(--ad-line-strong)] bg-white text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]'
                     )}
                   >
                     {gender === 'all' ? '전체 성별' : gender === 'FEMALE' ? '여성' : '남성'}
@@ -1263,7 +1355,7 @@ export default function MessagesPage() {
                 ))}
               </div>
 
-              <div className="hidden sm:block w-px bg-[#e5e7eb] mx-1" />
+              <div className="hidden sm:block w-px bg-[color:var(--ad-line)] mx-1" />
 
               <div className="flex flex-wrap gap-1.5">
                 {AGE_GROUP_OPTIONS.map((option) => (
@@ -1271,10 +1363,10 @@ export default function MessagesPage() {
                     key={option.value}
                     onClick={() => toggleAgeGroup(option.value)}
                     className={cn(
-                      'px-3 py-1.5 rounded-full text-xs border transition-all',
+                      'px-3 py-1.5 rounded-full text-[12px] border transition-all',
                       selectedAgeGroups.includes(option.value)
-                        ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
-                        : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
+                        ? 'bg-[color:var(--ad-ink)] border-[color:var(--ad-ink)] text-white font-medium'
+                        : 'border-[color:var(--ad-line-strong)] bg-white text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]'
                     )}
                   >
                     {option.label}
@@ -1283,9 +1375,10 @@ export default function MessagesPage() {
               </div>
             </div>
             {selectedAgeGroups.length === 0 && (
-              <p className="text-xs text-[#64748b] mt-1.5">연령대 미선택 시 전체 연령대로 발송됩니다</p>
+              <p className="text-[12px] text-[color:var(--ad-faint)] mt-1.5">연령대 미선택 시 전체 연령대로 발송됩니다</p>
             )}
           </div>
+          )}
         </div>
 
         {/* SMS 탭 콘텐츠 */}
@@ -1293,9 +1386,9 @@ export default function MessagesPage() {
           <>
             {/* Message Content */}
             <div className="flex flex-col gap-3 flex-1">
-              <label className="text-sm font-semibold text-[#1e293b]">
+              <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">
                 메시지 내용 입력
-                <span className="font-normal text-[#64748b] text-xs ml-1">(단문/장문 자동 전환)</span>
+                <span className="font-normal text-[color:var(--ad-muted)] text-[12px] ml-1">(단문/장문 자동 전환)</span>
               </label>
               <textarea
                 value={messageContent}
@@ -1310,14 +1403,14 @@ export default function MessagesPage() {
 
 - 기간: 4/1 ~ 4/30
 - 문의: 02-555-1234`}
-                className="w-full h-[160px] p-4 border border-[#e5e7eb] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent text-sm leading-relaxed"
+                className="w-full h-[160px] px-3 py-2.5 border border-[color:var(--ad-line-strong)] bg-white rounded-[10px] resize-none focus:outline-none focus:border-[color:var(--ad-navy)] text-[13.5px] leading-relaxed placeholder:text-[color:var(--ad-faint)]"
               />
 
               {/* Image Upload */}
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-semibold text-[#1e293b]">이미지 첨부</label>
-                  <span className="text-xs text-[#64748b]">(JPG, 최대 200KB, 1500×1440px 이하)</span>
+                  <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">이미지 첨부</label>
+                  <span className="text-[12px] text-[color:var(--ad-muted)]">(JPG, 최대 200KB, 1500×1440px 이하)</span>
                 </div>
 
                 {!uploadedImage ? (
@@ -1331,7 +1424,7 @@ export default function MessagesPage() {
                         disabled={isUploading}
                       />
                       <div className={cn(
-                        "flex items-center gap-2 px-4 py-2.5 border border-dashed border-[#d1d5db] rounded-xl text-sm text-[#64748b] hover:border-[#3b82f6] hover:text-[#3b82f6] transition-colors",
+                        "flex items-center gap-2 h-9 px-3.5 border border-dashed border-[color:var(--ad-line-strong)] rounded-[10px] text-[13px] text-[color:var(--ad-ink-2)] hover:border-[color:var(--ad-ink)] hover:text-[color:var(--ad-ink)] transition-colors",
                         isUploading && "opacity-50 cursor-not-allowed"
                       )}>
                         {isUploading ? (
@@ -1342,25 +1435,25 @@ export default function MessagesPage() {
                         <span>{isUploading ? '업로드 중...' : '이미지 추가'}</span>
                       </div>
                     </label>
-                    <span className="text-xs text-[#94a3b8]">이미지 첨부 시 MMS로 발송 (건당 120원)</span>
+                    <span className="text-[12px] text-[color:var(--ad-faint)]">이미지 첨부 시 MMS로 발송 (건당 120원)</span>
                   </div>
                 ) : (
-                  <div className="flex items-start gap-3 p-3 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
+                  <div className="flex items-start gap-3 p-3 bg-[color:var(--ad-bg-alt)] rounded-[12px] border border-[color:var(--ad-line)]">
                     <img
                       src={`${API_BASE}${uploadedImage.imageUrl}`}
                       alt="첨부 이미지"
-                      className="w-16 h-16 object-cover rounded-lg"
+                      className="w-16 h-16 object-cover rounded-[8px]"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#1e293b] truncate">{uploadedImage.filename}</p>
-                      <p className="text-xs text-[#64748b] mt-1">
+                      <p className="text-[13px] font-medium text-[color:var(--ad-ink)] truncate">{uploadedImage.filename}</p>
+                      <p className="text-[12px] text-[color:var(--ad-muted)] mt-1">
                         {uploadedImage.width} × {uploadedImage.height}px · {Math.round(uploadedImage.size / 1024)}KB
                       </p>
-                      <Badge variant="secondary" className="mt-1.5">MMS (120원/건)</Badge>
+                      <span className="mt-1.5 inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">MMS (120원/건)</span>
                     </div>
                     <button
                       onClick={handleImageDelete}
-                      className="p-1.5 text-[#94a3b8] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-1.5 text-[color:var(--ad-faint)] hover:text-[color:var(--ad-neg)] hover:bg-[#fff2f5] rounded-[8px] transition-colors"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -1368,37 +1461,43 @@ export default function MessagesPage() {
                 )}
 
                 {imageError && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+                  <div className="flex items-center gap-2 rounded-[12px] bg-[#fff2f5] px-4 py-3 text-[13px] text-[color:var(--ad-neg)]">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
                     <span>{imageError}</span>
                   </div>
                 )}
               </div>
+
+              {/* 직원 확인 쿠폰 (마케팅 성과 추적) */}
+              <StaffVerifyField value={smsVerify} onChange={setSmsVerify} />
             </div>
 
             {/* Cost Summary */}
-            <div className="p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
+            <div className="p-5 bg-[color:var(--ad-bg-alt)] rounded-[16px] border border-[color:var(--ad-line)]">
               {/* 예상 비용 + 현재 잔액 */}
               <div className="flex items-center justify-between gap-4 mb-4">
                 <div>
-                  <p className="text-xs sm:text-sm text-[#64748b]">예상 비용</p>
-                  <p className="text-lg sm:text-xl font-bold text-[#1e293b]">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">예상 비용</p>
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(estimate?.targetCount || getCurrentTargetCount())}명 × {formatNumber(estimate?.costPerMessage || (uploadedImage ? 110 : 50))}원 ={' '}
-                    <span className="text-[#3b82f6]">{formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원</span>
+                    <span className="text-[color:var(--ad-ink)]">{formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원</span>
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs sm:text-sm text-[#64748b]">현재 잔액</p>
-                  <p className={`text-lg sm:text-xl font-bold ${estimate?.canSend !== false ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">현재 잔액</p>
+                  <p className={`mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum ${estimate?.canSend !== false ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
                     {formatNumber(estimate?.walletBalance || 0)}원
                   </p>
                 </div>
+              </div>
+              <div className="mb-3">
+                <SendTimePicker value={smsSendTime} onChange={setSmsSendTime} adWindow={isAdMessage} />
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2 w-full sm:w-auto">
                   <button
                     disabled={!messageContent.trim()}
                     onClick={() => setShowTestModal(true)}
-                    className="w-full sm:w-auto px-4 py-3 sm:py-3.5 border border-[#3b82f6] text-[#3b82f6] bg-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#eff6ff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="ad-press inline-flex h-10 w-full sm:w-auto items-center justify-center gap-1.5 rounded-[12px] bg-white px-4 text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg)] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     테스트 발송
                   </button>
@@ -1406,33 +1505,34 @@ export default function MessagesPage() {
                     disabled={
                       !messageContent.trim() ||
                       getCurrentTargetCount() === 0 ||
-                      (estimate !== null && !estimate.canSend)
+                      (estimate !== null && !estimate.canSend) ||
+                      !!sendTimeError(smsSendTime, isAdMessage)
                     }
                     onClick={() => setShowConfirmModal(true)}
-                    className="w-full sm:w-auto px-6 py-3 sm:py-3.5 bg-[#2a2d62] text-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="ad-press inline-flex h-10 w-full sm:w-auto items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    메시지 발송하기
+                    {smsSendTime.mode === 'schedule' ? `${formatSendTime(smsSendTime)} 예약하기` : '메시지 발송하기'}
                   </button>
               </div>
 
               {/* 광고 메시지 여부 체크박스 */}
-              <div className="mt-4 pt-4 border-t border-[#e5e7eb]">
+              <div className="mt-4 pt-4 border-t border-[color:var(--ad-line)]">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={isAdMessage}
                     onChange={(e) => setIsAdMessage(e.target.checked)}
-                    className="w-4 h-4 rounded border-[#d1d5db] text-[#3b82f6] focus:ring-[#3b82f6]"
+                    className="w-4 h-4 rounded border-[color:var(--ad-line-strong)] text-[color:var(--ad-ink)] accent-[color:var(--ad-ink)] focus:ring-[color:var(--ad-ink)]"
                   />
-                  <span className="text-sm text-[#64748b]">
+                  <span className="text-[13px] text-[color:var(--ad-ink-2)]">
                     광고 메시지로 발송 (체크 시 (광고) 표기 및 무료수신거부 자동 추가)
                   </span>
                 </label>
                 {!isAdMessage && (
-                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <div className="flex items-start gap-2 text-amber-700">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs">
+                  <div className="mt-3 rounded-[12px] bg-[color:var(--ad-bg)] px-4 py-3">
+                    <div className="flex items-start gap-2 text-[color:var(--ad-muted)]">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                      <p className="text-[12.5px] leading-relaxed">
                         광고 문자임에도 광고 표기 가이드라인을 지키지 않은 경우, 이용 약관에 의거해 예고 없이 계정이 차단될 수 있으며, 환불 또한 불가능합니다.
                       </p>
                     </div>
@@ -1442,30 +1542,30 @@ export default function MessagesPage() {
 
               {/* 예상 마케팅 효과 */}
               {(estimate?.targetCount || getCurrentTargetCount()) > 0 && (
-                <div className="mt-4 pt-4 border-t border-[#e5e7eb]">
+                <div className="mt-4 pt-4 border-t border-[color:var(--ad-line)]">
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-5 h-5 text-green-600" />
-                    <span className="text-base font-semibold text-green-700">예상 마케팅 효과</span>
+                    <TrendingUp className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                    <span className="text-[14px] font-semibold text-[color:var(--ad-ink)]">예상 마케팅 효과</span>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <p className="text-sm text-[#64748b]">예상 방문율</p>
-                      <p className="text-base font-bold text-green-700">3.2%</p>
+                      <p className="text-[12px] text-[color:var(--ad-muted)]">예상 방문율</p>
+                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">3.2%</p>
                     </div>
                     <div>
-                      <p className="text-sm text-[#64748b]">예상 방문</p>
-                      <p className="text-base font-bold text-green-700">
+                      <p className="text-[12px] text-[color:var(--ad-muted)]">예상 방문</p>
+                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">
                         {Math.round((estimate?.targetCount || getCurrentTargetCount()) * 0.032).toLocaleString()}명
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-[#64748b]">예상 매출</p>
-                      <p className="text-base font-bold text-green-700">
+                      <p className="text-[12px] text-[color:var(--ad-muted)]">예상 매출</p>
+                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">
                         {(Math.round((estimate?.targetCount || getCurrentTargetCount()) * 0.032) * (estimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원
                       </p>
                     </div>
                   </div>
-                  <p className="text-xs text-[#94a3b8] mt-2">
+                  <p className="text-[12px] text-[color:var(--ad-faint)] mt-2">
                     * 업계 평균 방문율 3.2% 및 매장 평균 객단가 {(estimate?.estimatedRevenue?.avgOrderValue || 25000).toLocaleString()}원 기준
                   </p>
                 </div>
@@ -1473,7 +1573,7 @@ export default function MessagesPage() {
             </div>
 
             {estimate && !estimate.canSend && (
-              <p className="text-sm text-red-600 text-center -mt-2">
+              <p className="text-[13px] text-[color:var(--ad-neg)] text-center -mt-2">
                 충전금이 부족합니다. 충전 후 발송해주세요.
               </p>
             )}
@@ -1481,122 +1581,171 @@ export default function MessagesPage() {
         )}
 
         {/* 카카오톡 탭 콘텐츠 (쿠폰 알림톡 — messages 페이지와 동일) */}
+        {/* 카카오톡 — 형태 선택: 템플릿 기본형(쿠폰 알림톡) + 브랜드 메시지 8종 (전 가맹점 고객) */}
         {activeTab === 'kakao' && (
-          <>
+          <PremiumKakaoComposer
+            leadingType={{
+              name: '템플릿 기본형',
+              tip: '쿠폰 알림톡',
+              priceLabel: '건당 50원',
+              selected: kakaoMode === 'ALIMTALK',
+              onSelect: () => setKakaoMode('ALIMTALK'),
+              content: (
+                <>
             {/* Step 2: 쿠폰 정보 입력 */}
             <div className="flex flex-col gap-4">
-              <label className="text-sm font-semibold text-[#1e293b]">2. 어떤 쿠폰을 보낼까요?</label>
+              <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">3. 어떤 쿠폰을 보낼까요?</label>
+
+              <AlimtalkSamples
+                onPick={(content, expiry) => {
+                  setCouponContent(content);
+                  setCouponExpiryDate(expiry);
+                }}
+              />
 
               <div>
-                <label className="text-xs text-[#64748b] mb-1.5 block">쿠폰 내용</label>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">쿠폰 내용</label>
                 <input
                   type="text"
                   value={couponContent}
                   onChange={(e) => setCouponContent(e.target.value)}
                   placeholder="예: 아메리카노 1잔 무료"
-                  className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                  className="w-full h-10 px-3 border border-[color:var(--ad-line-strong)] bg-white rounded-[10px] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:outline-none focus:border-[color:var(--ad-navy)]"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-[#64748b] mb-1.5 block">유효기간</label>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">유효기간</label>
                 <input
                   type="text"
                   value={couponExpiryDate}
                   onChange={(e) => setCouponExpiryDate(e.target.value)}
                   placeholder="예: 2025년 2월 28일까지"
-                  className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                  className="w-full h-10 px-3 border border-[color:var(--ad-line-strong)] bg-white rounded-[10px] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:outline-none focus:border-[color:var(--ad-navy)]"
                 />
               </div>
 
-              <p className="text-xs text-[#94a3b8]">
+              <p className="text-[12px] text-[color:var(--ad-faint)]">
                 * 네이버 길찾기 버튼은 각 매장에 등록된 네이버 플레이스 URL로 자동 연결됩니다.
               </p>
             </div>
 
             {/* Step 3: Expected Effect & CTA */}
-            <div className="p-5 bg-neutral-50 rounded-2xl border border-neutral-200">
+            <div className="p-5 bg-[color:var(--ad-bg-alt)] rounded-[16px] border border-[color:var(--ad-line)]">
               <div className="mb-4">
-                <span className="text-base font-semibold text-neutral-800">3. 쿠폰을 보내면 이런 효과가 예상돼요</span>
+                <span className="text-[14px] font-semibold text-[color:var(--ad-ink)]">4. 쿠폰을 보내면 이런 효과가 예상돼요</span>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="bg-white rounded-xl p-3 text-center border border-neutral-100">
-                  <p className="text-xs text-[#64748b]">발송 비용</p>
-                  <p className="text-lg font-bold text-[#1e293b]">
+              <div className="ad-card grid grid-cols-3 divide-x divide-[color:var(--ad-line)] mb-4 overflow-hidden">
+                <div className="p-3 text-center">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">발송 비용</p>
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원
                   </p>
-                  <p className="text-[10px] text-[#94a3b8]">
+                  <p className="text-[11px] text-[color:var(--ad-faint)]">
                     {formatNumber(getCurrentTargetCount())}명 × 50원
                   </p>
                 </div>
-                <div className="bg-white rounded-xl p-3 text-center border border-neutral-100">
-                  <p className="text-xs text-[#64748b]">예상 사용</p>
-                  <p className="text-lg font-bold text-brand-600">
+                <div className="p-3 text-center">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">예상 사용</p>
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                     {Math.max(1, Math.round(getCurrentTargetCount() * 0.05))}명
                   </p>
-                  <p className="text-[10px] text-[#94a3b8]">사용율 5%</p>
+                  <p className="text-[11px] text-[color:var(--ad-faint)]">사용율 5%</p>
                 </div>
-                <div className="bg-white rounded-xl p-3 text-center border border-neutral-100">
-                  <p className="text-xs text-[#64748b]">예상 매출</p>
-                  <p className="text-lg font-bold text-brand-600">
+                <div className="p-3 text-center">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">예상 매출</p>
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(Math.max(1, Math.round(getCurrentTargetCount() * 0.05)) * 25000)}원
                   </p>
-                  <p className="text-[10px] text-[#94a3b8]">객단가 2.5만원</p>
+                  <p className="text-[11px] text-[color:var(--ad-faint)]">객단가 2.5만원</p>
                 </div>
               </div>
 
-              <div className="bg-brand-50 rounded-lg px-4 py-2 mb-4 text-center">
-                <p className="text-sm text-brand-700">
-                  <span className="font-bold">1명만 사용해도</span> 투자 대비{' '}
-                  <span className="font-bold text-brand-600">
+              <div className="mb-4 rounded-[12px] bg-[color:var(--ad-bg)] px-4 py-3 text-center">
+                <p className="text-[13px] text-[color:var(--ad-ink)]">
+                  <span className="font-semibold">1명만 사용해도</span> 투자 대비{' '}
+                  <span className="font-semibold text-[color:var(--ad-ink)]">
                     {Math.round(25000 / Math.max(1, couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)))}배
                   </span>{' '}
                   효과!
                 </p>
               </div>
 
-              <div className="flex items-center justify-between mb-4 text-sm">
-                <span className="text-[#64748b]">현재 잔액</span>
-                <span className={`font-bold ${(couponEstimate?.walletBalance ?? 0) >= (couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)) ? 'text-brand-600' : 'text-red-600'}`}>
+              <div className="flex items-center justify-between mb-4 text-[13px]">
+                <span className="text-[color:var(--ad-muted)]">현재 잔액</span>
+                <span className={`font-semibold ad-tnum ${(couponEstimate?.walletBalance ?? 0) >= (couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)) ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
                   {formatNumber(couponEstimate?.walletBalance ?? 0)}원
                 </span>
               </div>
 
-              <div className="text-xs text-[#64748b] text-center px-2 mb-4">
-                1회 발송 최대 <span className="font-semibold text-[#1e293b]">3,000명</span>까지 가능합니다.
-                {getCurrentTargetCount() > 3000 && (
-                  <div className="mt-1 text-[#ef4444]">
+              <div className="mb-4 text-[12px] text-[color:var(--ad-muted)] text-center px-2">
+                1회 발송 최대 <span className="text-[13.5px] font-semibold text-[color:var(--ad-ink)]">50,000명</span>까지 가능합니다.
+                {getCurrentTargetCount() > 50000 && (
+                  <div className="mt-1 text-[color:var(--ad-neg)]">
                     현재 {formatNumber(getCurrentTargetCount())}명 → 필터를 좁히거나 나눠 발송해 주세요.
                   </div>
                 )}
               </div>
 
+              <div className="mb-3">
+                <SendTimePicker value={couponSendTime} onChange={setCouponSendTime} />
+              </div>
               <button
                 disabled={
                   !couponContent.trim() ||
                   !couponExpiryDate.trim() ||
                   getCurrentTargetCount() === 0 ||
-                  getCurrentTargetCount() > 3000 ||
-                  isCouponSending
+                  getCurrentTargetCount() > 50000 ||
+                  isCouponSending ||
+                  !!sendTimeError(couponSendTime, true)
                 }
                 onClick={handleCouponSend}
-                className="w-full py-4 bg-[#2a2d62] text-white rounded-xl text-lg font-bold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="ad-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isCouponSending ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     발송 중...
                   </>
                 ) : (
                   <>
-                    <Send className="w-5 h-5" />
-                    쿠폰 알림톡 발송하기 ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
+                    <Send className="h-4 w-4" />
+                    {couponSendTime.mode === 'schedule' ? `${formatSendTime(couponSendTime)} 예약하기` : '쿠폰 알림톡 발송하기'} ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
                   </>
                 )}
               </button>
             </div>
-          </>
+                </>
+              ),
+            }}
+            type={premiumType}
+            onTypeChange={(t) => {
+              setPremiumType(t);
+              setKakaoMode('BMS');
+            }}
+            content={premiumContent}
+            onContentChange={(c) => setPremiumContents((prev) => ({ ...prev, [premiumType]: c }))}
+            target={{
+              targetType: selectedTarget,
+              customerIds: selectedTarget === 'CUSTOM' ? selectedCustomers.map((c) => c.id) : undefined,
+              segmentId: selectedTarget === 'SEGMENT' ? selectedSegment?.id : undefined,
+              genderFilter: selectedTarget !== 'SEGMENT' && genderFilter !== 'all' ? genderFilter : undefined,
+              ageGroups: selectedTarget !== 'SEGMENT' && selectedAgeGroups.length > 0 ? selectedAgeGroups : undefined,
+            }}
+            targetReady={(selectedTarget !== 'CUSTOM' || selectedCustomers.length > 0) && (selectedTarget !== 'SEGMENT' || !!selectedSegment)}
+            showToast={showToast}
+            onNeedCharge={() => router.push('/franchise/billing')}
+            onSent={() => {
+              setPremiumContents((prev) => ({ ...prev, [premiumType]: emptyContent(premiumType) }));
+              bumpReservations();
+            }}
+            staffVerify={premiumVerify}
+            onStaffVerifyChange={setPremiumVerify}
+            onFooterName={setPremiumFooterName}
+            apiBase="/api/franchise/premium-kakao"
+            tokenKey="franchiseToken"
+          />
         )}
 
         {/* (구) 브랜드 메시지 카카오 콘텐츠 — 비활성 (messages 페이지와 동일하게 쿠폰 알림톡 사용) */}
@@ -1604,7 +1753,7 @@ export default function MessagesPage() {
           <>
             {/* 메시지 타입 선택 */}
             <div className="flex flex-col gap-3">
-              <label className="text-sm font-semibold text-[#1e293b]">메시지 타입</label>
+              <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">메시지 타입</label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => {
@@ -1612,32 +1761,32 @@ export default function MessagesPage() {
                     setKakaoUploadedImage(null);
                   }}
                   className={cn(
-                    'p-4 rounded-xl border-2 text-left transition-all',
+                    'p-4 rounded-[12px] border text-left transition-all',
                     kakaoMessageType === 'TEXT'
-                      ? 'border-[#3b82f6] bg-[#eff6ff]'
-                      : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
+                      ? 'border-[color:var(--ad-ink)] bg-white shadow-[0_0_0_1px_var(--ad-ink)]'
+                      : 'border-[color:var(--ad-line)] bg-white hover:border-[color:var(--ad-line-strong)]'
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-[#64748b]" />
-                    <span className="text-sm text-[#1e293b]">텍스트형</span>
+                    <MessageSquare className="w-4 h-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                    <span className="text-[13px] text-[color:var(--ad-ink)]">텍스트형</span>
                   </div>
-                  <p className="text-base font-medium text-[#1e293b] mt-2">200원/건</p>
+                  <p className="mt-2 text-[14px] font-medium ad-tnum text-[color:var(--ad-ink)]">200원/건</p>
                 </button>
                 <button
                   onClick={() => setKakaoMessageType('IMAGE')}
                   className={cn(
-                    'p-4 rounded-xl border-2 text-left transition-all',
+                    'p-4 rounded-[12px] border text-left transition-all',
                     kakaoMessageType === 'IMAGE'
-                      ? 'border-[#3b82f6] bg-[#eff6ff]'
-                      : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
+                      ? 'border-[color:var(--ad-ink)] bg-white shadow-[0_0_0_1px_var(--ad-ink)]'
+                      : 'border-[color:var(--ad-line)] bg-white hover:border-[color:var(--ad-line-strong)]'
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <ImagePlus className="w-5 h-5 text-[#64748b]" />
-                    <span className="text-sm text-[#1e293b]">이미지형</span>
+                    <ImagePlus className="w-4 h-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                    <span className="text-[13px] text-[color:var(--ad-ink)]">이미지형</span>
                   </div>
-                  <p className="text-base font-medium text-[#1e293b] mt-2">230원/건</p>
+                  <p className="mt-2 text-[14px] font-medium ad-tnum text-[color:var(--ad-ink)]">230원/건</p>
                 </button>
               </div>
             </div>
@@ -1646,13 +1795,13 @@ export default function MessagesPage() {
             {kakaoMessageType === 'IMAGE' && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-semibold text-[#1e293b]">이미지 첨부</label>
+                  <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">이미지 첨부</label>
                 </div>
 
                 {/* 이미지 규격 안내 */}
-                <div className="p-3 bg-[#f0f9ff] rounded-lg border border-[#bae6fd]">
-                  <p className="text-xs font-medium text-[#0369a1] mb-1.5">이미지 규격 안내</p>
-                  <ul className="text-xs text-[#0c4a6e] space-y-0.5">
+                <div className="rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3">
+                  <p className="text-[12px] font-medium text-[color:var(--ad-ink-2)] mb-1.5">이미지 규격 안내</p>
+                  <ul className="text-[12px] text-[color:var(--ad-muted)] space-y-0.5">
                     <li>• 가로 너비: 500px 이상</li>
                     <li>• 세로 높이: 250px 이상</li>
                     <li>• 가로:세로 비율: 2:1 ~ 3:4</li>
@@ -1672,7 +1821,7 @@ export default function MessagesPage() {
                         disabled={isKakaoUploading}
                       />
                       <div className={cn(
-                        "flex items-center gap-2 px-4 py-2.5 border border-dashed border-[#d1d5db] rounded-xl text-sm text-[#64748b] hover:border-[#3b82f6] hover:text-[#3b82f6] transition-colors",
+                        "flex items-center gap-2 h-9 px-3.5 border border-dashed border-[color:var(--ad-line-strong)] rounded-[10px] text-[13px] text-[color:var(--ad-ink-2)] hover:border-[color:var(--ad-ink)] hover:text-[color:var(--ad-ink)] transition-colors",
                         isKakaoUploading && "opacity-50 cursor-not-allowed"
                       )}>
                         {isKakaoUploading ? (
@@ -1685,19 +1834,19 @@ export default function MessagesPage() {
                     </label>
                   </div>
                 ) : (
-                  <div className="flex items-start gap-3 p-3 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
+                  <div className="flex items-start gap-3 p-3 bg-[color:var(--ad-bg-alt)] rounded-[12px] border border-[color:var(--ad-line)]">
                     <img
                       src={`${API_BASE}${kakaoUploadedImage.imageUrl}`}
                       alt="첨부 이미지"
-                      className="w-16 h-16 object-cover rounded-lg"
+                      className="w-16 h-16 object-cover rounded-[8px]"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#1e293b] truncate">{kakaoUploadedImage.filename}</p>
-                      <Badge variant="secondary" className="mt-1.5">이미지형 (230원/건)</Badge>
+                      <p className="text-[13px] font-medium text-[color:var(--ad-ink)] truncate">{kakaoUploadedImage.filename}</p>
+                      <span className="mt-1.5 inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">이미지형 (230원/건)</span>
                     </div>
                     <button
                       onClick={handleKakaoImageDelete}
-                      className="p-1.5 text-[#94a3b8] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-1.5 text-[color:var(--ad-faint)] hover:text-[color:var(--ad-neg)] hover:bg-[#fff2f5] rounded-[8px] transition-colors"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -1705,7 +1854,7 @@ export default function MessagesPage() {
                 )}
 
                 {kakaoImageError && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+                  <div className="flex items-center gap-2 rounded-[12px] bg-[#fff2f5] px-4 py-3 text-[13px] text-[color:var(--ad-neg)]">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
                     <span>{kakaoImageError}</span>
                   </div>
@@ -1715,9 +1864,9 @@ export default function MessagesPage() {
 
             {/* 메시지 내용 */}
             <div className="flex flex-col gap-3 flex-1">
-              <label className="text-sm font-semibold text-[#1e293b]">
+              <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">
                 메시지 내용 입력
-                <span className="font-normal text-[#64748b] text-xs ml-1">({'{고객명}'} 사용 시 자동 치환)</span>
+                <span className="font-normal text-[color:var(--ad-muted)] text-[12px] ml-1">({'{고객명}'} 사용 시 자동 치환)</span>
               </label>
               <textarea
                 value={kakaoContent}
@@ -1731,7 +1880,7 @@ export default function MessagesPage() {
 
 - 기간: 4/1 ~ 4/30
 - 문의: 02-555-1234`}
-                className="w-full h-[140px] p-4 border border-[#e5e7eb] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent text-sm leading-relaxed"
+                className="w-full h-[140px] px-3 py-2.5 border border-[color:var(--ad-line-strong)] bg-white rounded-[10px] resize-none focus:outline-none focus:border-[color:var(--ad-navy)] text-[13.5px] leading-relaxed placeholder:text-[color:var(--ad-faint)]"
               />
 
               {/* 템플릿 선택 버튼 */}
@@ -1751,7 +1900,7 @@ export default function MessagesPage() {
                     { type: 'WL', name: '예약하기', linkMo: '' },
                   ]);
                 }}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#fee500] to-[#ffd000] text-[#3c1e1e] rounded-xl text-sm font-medium hover:shadow-md transition-all self-start"
+                className="ad-press inline-flex h-9 items-center gap-1.5 self-start rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 <MessageSquare className="w-4 h-4" />
                 단골 고객 혜택 템플릿 사용하기
@@ -1761,14 +1910,14 @@ export default function MessagesPage() {
             {/* 버튼 추가 */}
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-[#1e293b]">
+                <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">
                   버튼 추가
-                  <span className="font-normal text-[#64748b] text-xs ml-1">(최대 5개, 웹링크만)</span>
+                  <span className="font-normal text-[color:var(--ad-muted)] text-[12px] ml-1">(최대 5개, 웹링크만)</span>
                 </label>
                 <button
                   onClick={addKakaoButton}
                   disabled={kakaoButtons.length >= 5}
-                  className="flex items-center gap-1 text-sm text-[#3b82f6] hover:text-[#2563eb] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-4 h-4" />
                   버튼 추가
@@ -1778,12 +1927,12 @@ export default function MessagesPage() {
               {kakaoButtons.length > 0 && (
                 <div className="space-y-3">
                   {kakaoButtons.map((button, index) => (
-                    <div key={index} className="p-4 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
+                    <div key={index} className="p-4 bg-[color:var(--ad-bg-alt)] rounded-[12px] border border-[color:var(--ad-line)]">
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-xs font-medium text-[#64748b]">버튼 {index + 1}</span>
+                        <span className="text-[12px] font-medium text-[color:var(--ad-muted)]">버튼 {index + 1}</span>
                         <button
                           onClick={() => removeKakaoButton(index)}
-                          className="p-1 text-[#94a3b8] hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                          className="p-1 text-[color:var(--ad-faint)] hover:text-[color:var(--ad-neg)] hover:bg-[#fff2f5] rounded-[6px] transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -1795,16 +1944,16 @@ export default function MessagesPage() {
                           onChange={(e) => updateKakaoButton(index, 'name', e.target.value)}
                           placeholder="버튼명 (최대 14자)"
                           maxLength={14}
-                          className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                          className="w-full h-10 px-3 border border-[color:var(--ad-line-strong)] bg-white rounded-[10px] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:outline-none focus:border-[color:var(--ad-navy)]"
                         />
                         <div className="flex items-center gap-2">
-                          <Link className="w-4 h-4 text-[#64748b] flex-shrink-0" />
+                          <Link className="w-4 h-4 text-[color:var(--ad-faint)] flex-shrink-0" />
                           <input
                             type="url"
                             value={button.linkMo}
                             onChange={(e) => updateKakaoButton(index, 'linkMo', e.target.value)}
                             placeholder="https://example.com"
-                            className="flex-1 px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                            className="flex-1 h-10 px-3 border border-[color:var(--ad-line-strong)] bg-white rounded-[10px] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:outline-none focus:border-[color:var(--ad-navy)]"
                           />
                         </div>
                       </div>
@@ -1815,19 +1964,19 @@ export default function MessagesPage() {
             </div>
 
             {/* Cost Summary */}
-            <div className="p-4 sm:p-5 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
+            <div className="p-5 bg-[color:var(--ad-bg-alt)] rounded-[16px] border border-[color:var(--ad-line)]">
               {/* 예상 비용 + 현재 잔액 */}
               <div className="flex items-center justify-between gap-4 mb-4">
                 <div>
-                  <p className="text-xs sm:text-sm text-[#64748b]">예상 비용</p>
-                  <p className="text-lg sm:text-xl font-bold text-[#1e293b]">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">예상 비용</p>
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명 × {kakaoMessageType === 'IMAGE' ? '230' : '200'}원 ={' '}
-                    <span className="text-[#3b82f6]">{formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 230 : 200)))}원</span>
+                    <span className="text-[color:var(--ad-ink)]">{formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 230 : 200)))}원</span>
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs sm:text-sm text-[#64748b]">현재 잔액</p>
-                  <p className={`text-lg sm:text-xl font-bold ${kakaoEstimate?.canSend !== false ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">현재 잔액</p>
+                  <p className={`mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum ${kakaoEstimate?.canSend !== false ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
                     {formatNumber(kakaoEstimate?.walletBalance || 0)}원
                   </p>
                 </div>
@@ -1836,7 +1985,7 @@ export default function MessagesPage() {
                   <button
                     disabled={!kakaoContent.trim()}
                     onClick={() => setShowKakaoTestModal(true)}
-                    className="w-full sm:w-auto px-4 py-3 sm:py-3.5 border border-[#3b82f6] text-[#3b82f6] bg-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#eff6ff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="ad-press inline-flex h-10 w-full sm:w-auto items-center justify-center gap-1.5 rounded-[12px] bg-white px-4 text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg)] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     테스트 발송
                   </button>
@@ -1848,43 +1997,43 @@ export default function MessagesPage() {
                       (kakaoEstimate !== null && !kakaoEstimate.canSend)
                     }
                     onClick={() => setShowKakaoConfirmModal(true)}
-                    className="w-full sm:w-auto px-6 py-3 sm:py-3.5 bg-[#2a2d62] text-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="ad-press inline-flex h-10 w-full sm:w-auto items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     메시지 발송하기
                   </button>
               </div>
 
               {/* 야간 발송 안내 */}
-              <p className="text-xs text-neutral-500 text-center mt-2">
+              <p className="text-[12px] text-[color:var(--ad-faint)] text-center mt-2">
                 * KST 기준 20:50 이후 발송 시, 다음날 08:00에 발송됩니다.
               </p>
 
               {/* 예상 마케팅 효과 */}
               {(kakaoEstimate?.targetCount || getCurrentTargetCount()) > 0 && (
-                <div className="mt-4 pt-4 border-t border-[#e5e7eb]">
+                <div className="mt-4 pt-4 border-t border-[color:var(--ad-line)]">
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-5 h-5 text-green-600" />
-                    <span className="text-base font-semibold text-green-700">예상 마케팅 효과</span>
+                    <TrendingUp className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                    <span className="text-[14px] font-semibold text-[color:var(--ad-ink)]">예상 마케팅 효과</span>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <p className="text-sm text-[#64748b]">예상 방문율</p>
-                      <p className="text-base font-bold text-green-700">4.6%</p>
+                      <p className="text-[12px] text-[color:var(--ad-muted)]">예상 방문율</p>
+                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">4.6%</p>
                     </div>
                     <div>
-                      <p className="text-sm text-[#64748b]">예상 방문</p>
-                      <p className="text-base font-bold text-green-700">
+                      <p className="text-[12px] text-[color:var(--ad-muted)]">예상 방문</p>
+                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">
                         {Math.round((kakaoEstimate?.targetCount || getCurrentTargetCount()) * 0.046).toLocaleString()}명
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-[#64748b]">예상 매출</p>
-                      <p className="text-base font-bold text-green-700">
+                      <p className="text-[12px] text-[color:var(--ad-muted)]">예상 매출</p>
+                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">
                         {(Math.round((kakaoEstimate?.targetCount || getCurrentTargetCount()) * 0.046) * (kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원
                       </p>
                     </div>
                   </div>
-                  <p className="text-xs text-[#94a3b8] mt-2">
+                  <p className="text-[12px] text-[color:var(--ad-faint)] mt-2">
                     * 업계 평균 방문율 4.6% 및 매장 평균 객단가 {(kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000).toLocaleString()}원 기준
                   </p>
                 </div>
@@ -1892,7 +2041,7 @@ export default function MessagesPage() {
             </div>
 
             {kakaoEstimate && !kakaoEstimate.canSend && (
-              <p className="text-sm text-red-600 text-center -mt-2">
+              <p className="text-[13px] text-[color:var(--ad-neg)] text-center -mt-2">
                 충전금이 부족합니다. 충전 후 발송해주세요.
               </p>
             )}
@@ -1900,192 +2049,190 @@ export default function MessagesPage() {
         )}
       </div>
 
-      {/* Right Panel - Preview (hidden on mobile) */}
-      <div className="hidden lg:block flex-none w-[360px] self-start">
-        <div className="bg-[#e2e8f0] rounded-3xl p-5">
-          <p className="text-center text-[#64748b] mb-4">발송 메시지 미리보기</p>
-          <div className="flex justify-center">
-            {/* Phone Frame */}
-            <div className="relative w-72 h-[580px] bg-neutral-800 rounded-[2.5rem] p-2 shadow-2xl">
-              {/* Inner bezel */}
-              <div className="w-full h-full bg-neutral-900 rounded-[2rem] p-1 overflow-hidden">
-                {/* Screen */}
-                <div className={cn(
-                  "w-full h-full rounded-[1.75rem] overflow-hidden flex flex-col relative",
-                  activeTab === 'sms' ? 'bg-white' : 'bg-[#B2C7D9]'
-                )}>
-                  {/* Dynamic Island / Notch */}
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-neutral-900 rounded-full z-10" />
+      {/* Right Panel - Preview (데스크톱: 오른쪽 패널 / 모바일: 아래 “미리보기” 버튼 → 시트) */}
+      {(['aside', 'sheet'] as const).map((mode) => {
+        const inline = mode === 'sheet';
+        const preview =
+          activeTab === 'kakao' && kakaoMode === 'BMS' ? (
+            <PremiumKakaoPreview type={premiumType} content={premiumContent} verifyButton={premiumVerify.enabled} footerName={premiumFooterName} inline={inline} />
+          ) : (
+            <div className={inline ? 'mx-auto w-full max-w-[360px]' : 'hidden flex-none w-[360px] self-start lg:block'}>
+            <div className="rounded-[20px] bg-[color:var(--ad-bg)] p-5">
+              <p className="text-center text-[13px] font-medium text-[color:var(--ad-muted)] mb-4">발송 메시지 미리보기</p>
+              <div className="flex justify-center">
+                {/* Phone Frame */}
+                <IPhoneFrame screenClassName={activeTab === 'sms' ? 'bg-white' : 'bg-[#B2C7D9]'}>
 
-                  {/* SMS Preview */}
-                  {activeTab === 'sms' && (
-                    <>
-                      {/* iOS Header */}
-                      <div className="flex items-center justify-between px-4 pt-10 pb-2 border-b border-[#e5e5ea]">
-                        <ChevronLeft className="w-5 h-5 text-[#007aff]" />
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="w-8 h-8 bg-[#9ca3af] rounded-full flex items-center justify-center text-white">
-                            <Users className="w-4 h-4" />
-                          </div>
-                          <span className="text-[11px] font-medium text-[#1e293b]">태그히어 CRM</span>
-                        </div>
-                        <div className="w-5" />
-                      </div>
-
-                      {/* Date badge */}
-                      <div className="flex justify-center my-3">
-                        <span className="text-[10px] bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full">
-                          오늘 오후 12:30
-                        </span>
-                      </div>
-
-                      {/* Message Body */}
-                      <div className="flex-1 px-3 overflow-y-auto">
-                        <div className="flex justify-start">
-                          <div className="bg-[#e5e5ea] text-[#1e293b] py-2.5 px-3 rounded-2xl rounded-bl-sm max-w-[85%] text-[12px] leading-[1.5]">
-                            {/* 이미지 미리보기 */}
-                            {uploadedImage && (
-                              <div className="mb-2 -mx-1 -mt-1">
-                                <img
-                                  src={`${API_BASE}${uploadedImage.imageUrl}`}
-                                  alt="첨부 이미지"
-                                  className="w-full max-w-[180px] rounded-lg"
-                                />
+                      {/* SMS Preview */}
+                      {activeTab === 'sms' && (
+                        <>
+                          {/* iOS Header */}
+                          <div className="flex items-center justify-between px-4 pt-1 pb-2 border-b border-[#e5e5ea]">
+                            <ChevronLeft className="w-5 h-5 text-[#007aff]" />
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="w-8 h-8 bg-[#9ca3af] rounded-full flex items-center justify-center text-white">
+                                <Users className="w-4 h-4" />
                               </div>
-                            )}
-                            {messageContent ? (
-                              <span className="whitespace-pre-wrap break-words">
-                                {messageContent.replace(/{고객명}/g, '{고객명}')}
-                              </span>
-                            ) : (
-                              <span className="text-[#94a3b8]">메시지 미리보기</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Input Bar */}
-                      <div className="py-2 px-3 bg-white border-t border-[#e5e5ea] flex items-center gap-2">
-                        <Camera className="w-5 h-5 text-[#c7c7cc]" />
-                        <div className="flex-1 h-8 border border-[#c7c7cc] rounded-full px-3 flex items-center text-[12px] text-[#c7c7cc]">
-                          iMessage
-                        </div>
-                        <div className="w-6 h-6 bg-[#007aff] rounded-full flex items-center justify-center text-white">
-                          <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Kakao Preview - 쿠폰 알림톡 (messages 페이지와 동일) */}
-                  {activeTab === 'kakao' && (
-                    <CouponAlimtalkPreview
-                      couponStoreName={couponStoreName}
-                      couponContent={couponContent}
-                      couponExpiryDate={couponExpiryDate}
-                    />
-                  )}
-
-                  {/* (구) 브랜드 메시지 미리보기 — 비활성 */}
-                  {SHOW_LEGACY_KAKAO_UI && activeTab === 'kakao' && (
-                    <>
-                      {/* KakaoTalk header */}
-                      <div className="flex items-center justify-between px-4 pt-10 pb-2">
-                        <ChevronLeft className="w-4 h-4 text-neutral-700" />
-                        <span className="font-medium text-xs text-neutral-800">태그히어</span>
-                        <div className="w-4" />
-                      </div>
-
-                      {/* Date badge */}
-                      <div className="flex justify-center mb-3">
-                        <span className="text-[10px] bg-neutral-500/30 text-neutral-700 px-2 py-0.5 rounded-full">
-                          {new Date().toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </span>
-                      </div>
-
-                      {/* Message area */}
-                      <div className="flex-1 pl-2 pr-4 overflow-auto">
-                        <div className="flex gap-1.5">
-                          {/* Profile icon */}
-                          <div className="flex-shrink-0">
-                            <div className="w-7 h-7 rounded-full bg-neutral-300" />
+                              <span className="text-[11px] font-medium text-[#1e293b]">태그히어 CRM</span>
+                            </div>
+                            <div className="w-5" />
                           </div>
 
-                          {/* Message content */}
-                          <div className="flex-1 min-w-0 mr-4">
-                            <p className="text-[10px] text-neutral-600 mb-0.5">태그히어</p>
+                          {/* Date badge */}
+                          <div className="flex justify-center my-3">
+                            <span className="text-[10px] bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full">
+                              오늘 오후 12:30
+                            </span>
+                          </div>
 
-                            {/* Message bubble - KakaoTalk style */}
-                            <div className="relative">
-                              {/* Kakao badge */}
-                              <div className="absolute -top-1 -right-1 z-10">
-                                <span className="bg-neutral-700 text-white text-[8px] px-1 py-0.5 rounded-full font-medium">
-                                  kakao
-                                </span>
-                              </div>
-
-                              <div className="bg-[#FEE500] rounded-t-md px-2 py-1.5">
-                                <span className="text-[10px] font-medium text-neutral-800">브랜드 메시지</span>
-                              </div>
-                              <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
-                                {/* 이미지 */}
-                                {kakaoMessageType === 'IMAGE' && kakaoUploadedImage && (
-                                  <img
-                                    src={`${API_BASE}${kakaoUploadedImage.imageUrl}`}
-                                    alt="첨부 이미지"
-                                    className="w-full h-auto"
-                                  />
-                                )}
-
-                                {/* Message body */}
-                                <div className="p-3">
-                                  {kakaoContent ? (
-                                    <p className="text-[11px] text-neutral-800 whitespace-pre-wrap break-words leading-[1.5]">
-                                      {kakaoContent.replace(/{고객명}/g, '{고객명}')}
-                                    </p>
-                                  ) : (
-                                    <p className="text-[11px] text-[#94a3b8]">메시지 미리보기</p>
-                                  )}
-                                </div>
-
-                                {/* 버튼 */}
-                                {kakaoButtons.filter(b => b.name.trim()).length > 0 && (
-                                  <div className="border-t border-neutral-200">
-                                    {kakaoButtons.filter(b => b.name.trim()).map((button, index) => (
-                                      <button
-                                        key={index}
-                                        className="w-full py-2 text-center text-[10px] font-medium text-neutral-800 bg-white hover:bg-neutral-50 transition-colors border-b border-neutral-200 last:border-b-0"
-                                      >
-                                        {button.name || '버튼'}
-                                      </button>
-                                    ))}
+                          {/* Message Body */}
+                          <div className="flex-1 px-3 overflow-y-auto">
+                            <div className="flex justify-start">
+                              <div className="bg-[#e5e5ea] text-[#1e293b] py-2.5 px-3 rounded-2xl rounded-bl-sm max-w-[85%] text-[12px] leading-[1.5]">
+                                {/* 이미지 미리보기 */}
+                                {uploadedImage && (
+                                  <div className="mb-2 -mx-1 -mt-1">
+                                    <img
+                                      src={`${API_BASE}${uploadedImage.imageUrl}`}
+                                      alt="첨부 이미지"
+                                      className="w-full max-w-[180px] rounded-lg"
+                                    />
                                   </div>
+                                )}
+                                {messageContent ? (
+                                  <span className="whitespace-pre-wrap break-words">
+                                    {messageContent.replace(/{고객명}/g, '{고객명}') + smsCouponPreview(smsVerify)}
+                                  </span>
+                                ) : (
+                                  <span className="text-[#94a3b8]">메시지 미리보기</span>
                                 )}
                               </div>
                             </div>
-
-                            {/* Time */}
-                            <p className="text-[8px] text-neutral-500 mt-0.5 text-right">
-                              오후 12:30
-                            </p>
                           </div>
-                        </div>
-                      </div>
 
-                      {/* Bottom safe area */}
-                      <div className="h-6" />
-                    </>
-                  )}
-                </div>
+                          {/* Input Bar */}
+                          <div className="py-2 px-3 bg-white border-t border-[#e5e5ea] flex items-center gap-2">
+                            <Camera className="w-5 h-5 text-[#c7c7cc]" />
+                            <div className="flex-1 h-8 border border-[#c7c7cc] rounded-full px-3 flex items-center text-[12px] text-[#c7c7cc]">
+                              iMessage
+                            </div>
+                            <div className="w-6 h-6 bg-[#007aff] rounded-full flex items-center justify-center text-white">
+                              <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Kakao Preview - 쿠폰 알림톡 (messages 페이지와 동일) */}
+                      {activeTab === 'kakao' && (
+                        <CouponAlimtalkPreview
+                          couponStoreName={couponStoreName}
+                          couponContent={couponContent}
+                          couponExpiryDate={couponExpiryDate}
+                        />
+                      )}
+
+                      {/* (구) 브랜드 메시지 미리보기 — 비활성 */}
+                      {SHOW_LEGACY_KAKAO_UI && activeTab === 'kakao' && (
+                        <>
+                          {/* KakaoTalk header */}
+                          <div className="flex items-center justify-between px-4 pt-1 pb-2">
+                            <ChevronLeft className="w-4 h-4 text-neutral-700" />
+                            <span className="font-medium text-xs text-neutral-800">태그히어</span>
+                            <div className="w-4" />
+                          </div>
+
+                          {/* Date badge */}
+                          <div className="flex justify-center mb-3">
+                            <span className="text-[10px] bg-neutral-500/30 text-neutral-700 px-2 py-0.5 rounded-full">
+                              {new Date().toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                              })}
+                            </span>
+                          </div>
+
+                          {/* Message area */}
+                          <div className="flex-1 pl-2 pr-4 overflow-auto">
+                            <div className="flex gap-1.5">
+                              {/* Profile icon */}
+                              <div className="flex-shrink-0">
+                                <div className="w-7 h-7 rounded-full bg-neutral-300" />
+                              </div>
+
+                              {/* Message content */}
+                              <div className="flex-1 min-w-0 mr-4">
+                                <p className="text-[10px] text-neutral-600 mb-0.5">태그히어</p>
+
+                                {/* Message bubble - KakaoTalk style */}
+                                <div className="relative">
+                                  {/* Kakao badge */}
+                                  <div className="absolute -top-1 -right-1 z-10">
+                                    <span className="bg-neutral-700 text-white text-[8px] px-1 py-0.5 rounded-full font-medium">
+                                      kakao
+                                    </span>
+                                  </div>
+
+                                  <div className="bg-[#FEE500] rounded-t-md px-2 py-1.5">
+                                    <span className="text-[10px] font-medium text-neutral-800">브랜드 메시지</span>
+                                  </div>
+                                  <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
+                                    {/* 이미지 */}
+                                    {kakaoMessageType === 'IMAGE' && kakaoUploadedImage && (
+                                      <img
+                                        src={`${API_BASE}${kakaoUploadedImage.imageUrl}`}
+                                        alt="첨부 이미지"
+                                        className="w-full h-auto"
+                                      />
+                                    )}
+
+                                    {/* Message body */}
+                                    <div className="p-3">
+                                      {kakaoContent ? (
+                                        <p className="text-[11px] text-neutral-800 whitespace-pre-wrap break-words leading-[1.5]">
+                                          {kakaoContent.replace(/{고객명}/g, '{고객명}')}
+                                        </p>
+                                      ) : (
+                                        <p className="text-[11px] text-[#94a3b8]">메시지 미리보기</p>
+                                      )}
+                                    </div>
+
+                                    {/* 버튼 */}
+                                    {kakaoButtons.filter(b => b.name.trim()).length > 0 && (
+                                      <div className="border-t border-neutral-200">
+                                        {kakaoButtons.filter(b => b.name.trim()).map((button, index) => (
+                                          <button
+                                            key={index}
+                                            className="w-full py-2 text-center text-[10px] font-medium text-neutral-800 bg-white hover:bg-neutral-50 transition-colors border-b border-neutral-200 last:border-b-0"
+                                          >
+                                            {button.name || '버튼'}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Time */}
+                                <p className="text-[8px] text-neutral-500 mt-0.5 text-right">
+                                  오후 12:30
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Bottom safe area */}
+                          <div className="h-6" />
+                        </>
+                      )}
+                </IPhoneFrame>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
+            </div>
+          );
+        return inline ? <MobilePreviewSheet key={mode}>{preview}</MobilePreviewSheet> : <Fragment key={mode}>{preview}</Fragment>;
+      })}
 
       {/* Confirm Modal */}
       <SendConfirmModal
@@ -2103,7 +2250,7 @@ export default function MessagesPage() {
         <ModalContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
           <ModalHeader>
             <ModalTitle>가맹점 선택</ModalTitle>
-            <p className="text-sm text-[#64748b] mt-1">
+            <p className="text-[13px] text-[color:var(--ad-muted)] mt-1">
               SMS를 발송할 가맹점을 선택해주세요
             </p>
           </ModalHeader>
@@ -2111,62 +2258,62 @@ export default function MessagesPage() {
           <div className="flex flex-col gap-4 flex-1 min-h-0">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--ad-faint)]" />
               <input
                 type="text"
                 value={storeSearch}
                 onChange={(e) => setStoreSearch(e.target.value)}
                 placeholder="가맹점명으로 검색..."
-                className="w-full pl-10 pr-4 py-2.5 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                className="w-full h-10 pl-10 pr-3 border border-[color:var(--ad-line-strong)] bg-white rounded-[10px] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:outline-none focus:border-[color:var(--ad-navy)]"
               />
             </div>
 
             {/* Store list */}
-            <div className="flex-1 overflow-y-auto border border-[#e5e7eb] rounded-xl min-h-[300px]">
+            <div className="flex-1 overflow-y-auto border border-[color:var(--ad-line)] rounded-[12px] min-h-[300px]">
               {isLoadingStores ? (
                 <div className="flex items-center justify-center h-full">
-                  <Loader2 className="w-6 h-6 animate-spin text-[#3b82f6]" />
+                  <Loader2 className="w-6 h-6 animate-spin text-[color:var(--ad-faint)]" />
                 </div>
               ) : storeList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-[#94a3b8]">
-                  <Store className="w-12 h-12 mb-2" />
+                <div className="flex flex-col items-center justify-center h-full text-[13px] text-[color:var(--ad-faint)]">
+                  <Store className="w-10 h-10 mb-2" strokeWidth={1.5} />
                   <p>가맹점이 없습니다.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-[#e5e7eb]">
+                <div className="divide-y divide-[color:var(--ad-line)]">
                   {storeList.map((store) => (
                     <button
                       key={store.id}
                       onClick={() => selectStoreAndOpenCustomerModal(store)}
-                      className="w-full px-4 py-4 flex items-center gap-3 text-left transition-colors hover:bg-[#f8fafc]"
+                      className="w-full px-4 py-3.5 flex items-center gap-3 text-left transition-colors hover:bg-[color:var(--ad-bg-alt)]"
                     >
-                      <div className="w-10 h-10 rounded-lg bg-[#f1f5f9] flex items-center justify-center flex-shrink-0">
-                        <Store className="w-5 h-5 text-[#64748b]" />
+                      <div className="w-9 h-9 rounded-[10px] bg-[color:var(--ad-bg)] flex items-center justify-center flex-shrink-0">
+                        <Store className="w-4 h-4 text-[color:var(--ad-muted)]" strokeWidth={1.8} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-[#1e293b]">
+                          <span className="text-[13.5px] font-semibold text-[color:var(--ad-ink)]">
                             {store.name}
                           </span>
                           {store.category && (
-                            <Badge variant="secondary" className="text-xs">
+                            <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">
                               {getCategoryLabel(store.category)}
-                            </Badge>
+                            </span>
                           )}
                         </div>
                         {store.address && (
-                          <div className="text-sm text-[#64748b]">
+                          <div className="text-[12.5px] text-[color:var(--ad-muted)]">
                             {store.address}
                           </div>
                         )}
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <div className="text-sm text-[#64748b]">고객 수</div>
-                        <div className="text-lg font-bold text-[#3b82f6]">
+                        <div className="text-[12px] text-[color:var(--ad-muted)]">고객 수</div>
+                        <div className="text-[15px] font-medium ad-tnum text-[color:var(--ad-ink)]">
                           {formatNumber(store.customerCount)}명
                         </div>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-[#94a3b8]" />
+                      <ChevronRight className="w-4 h-4 text-[color:var(--ad-faint)]" />
                     </button>
                   ))}
                 </div>
@@ -2188,7 +2335,7 @@ export default function MessagesPage() {
           <ModalHeader>
             <ModalTitle>고객 선택</ModalTitle>
             {selectedStore && (
-              <p className="text-sm text-[#64748b] mt-1">
+              <p className="text-[13px] text-[color:var(--ad-muted)] mt-1">
                 {selectedStore.name} · 총 {selectedStore.customerCount}명
               </p>
             )}
@@ -2197,13 +2344,13 @@ export default function MessagesPage() {
           <div className="flex flex-col gap-4 flex-1 min-h-0">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--ad-faint)]" />
               <input
                 type="text"
                 value={customerSearch}
                 onChange={(e) => setCustomerSearch(e.target.value)}
                 placeholder="이름 또는 전화번호로 검색..."
-                className="w-full pl-10 pr-4 py-2.5 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                className="w-full h-10 pl-10 pr-3 border border-[color:var(--ad-line-strong)] bg-white rounded-[10px] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:outline-none focus:border-[color:var(--ad-navy)]"
               />
             </div>
 
@@ -2234,7 +2381,7 @@ export default function MessagesPage() {
                   전체 해제
                 </Button>
               </div>
-              <span className="text-sm text-[#64748b]">
+              <span className="text-[13px] text-[color:var(--ad-muted)]">
                 {tempSelectedCustomers.length}명 선택됨
                 {selectedStore && tempSelectedCustomers.length > 0 && (
                   <> / 총 {selectedStore.customerCount}명</>
@@ -2243,18 +2390,18 @@ export default function MessagesPage() {
             </div>
 
             {/* Customer list */}
-            <div className="flex-1 overflow-y-auto border border-[#e5e7eb] rounded-xl min-h-[300px]">
+            <div className="flex-1 overflow-y-auto border border-[color:var(--ad-line)] rounded-[12px] min-h-[300px]">
               {isLoadingCustomers ? (
                 <div className="flex items-center justify-center h-full">
-                  <Loader2 className="w-6 h-6 animate-spin text-[#3b82f6]" />
+                  <Loader2 className="w-6 h-6 animate-spin text-[color:var(--ad-faint)]" />
                 </div>
               ) : customerList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-[#94a3b8]">
-                  <Users className="w-12 h-12 mb-2" />
+                <div className="flex flex-col items-center justify-center h-full text-[13px] text-[color:var(--ad-faint)]">
+                  <Users className="w-10 h-10 mb-2" strokeWidth={1.5} />
                   <p>검색 결과가 없습니다.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-[#e5e7eb]">
+                <div className="divide-y divide-[color:var(--ad-line)]">
                   {customerList.map((customer) => {
                     const isSelected = tempSelectedCustomers.some(c => c.id === customer.id);
                     return (
@@ -2263,40 +2410,40 @@ export default function MessagesPage() {
                         onClick={() => toggleCustomerSelection(customer)}
                         className={cn(
                           'w-full px-4 py-3 flex items-center gap-3 text-left transition-colors',
-                          isSelected ? 'bg-[#eff6ff]' : 'hover:bg-[#f8fafc]'
+                          isSelected ? 'bg-[color:var(--ad-bg)]' : 'hover:bg-[color:var(--ad-bg-alt)]'
                         )}
                       >
                         <div className={cn(
-                          'w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+                          'w-[18px] h-[18px] rounded-[5px] border-[1.5px] flex items-center justify-center flex-shrink-0 transition-colors',
                           isSelected
-                            ? 'bg-[#3b82f6] border-[#3b82f6]'
-                            : 'border-[#d1d5db]'
+                            ? 'bg-[color:var(--ad-ink)] border-[color:var(--ad-ink)]'
+                            : 'border-[color:var(--ad-line-strong)] bg-white'
                         )}>
                           {isSelected && <Check className="w-3 h-3 text-white" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-[#1e293b]">
+                            <span className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">
                               {maskNickname(customer.name)}
                             </span>
                             {customer.gender && (
-                              <Badge variant="secondary" className="text-xs">
+                              <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">
                                 {customer.gender === 'MALE' ? '남' : '여'}
-                              </Badge>
+                              </span>
                             )}
                           </div>
-                          <div className="text-sm text-[#64748b]">
+                          <div className="text-[12.5px] text-[color:var(--ad-muted)] ad-tnum">
                             {customer.phone ? formatPhone(customer.phone) : ''}
                           </div>
                         </div>
-                        <div className="text-right text-sm flex-shrink-0">
-                          <div className="text-[#64748b]">
+                        <div className="text-right text-[12.5px] flex-shrink-0">
+                          <div className="text-[color:var(--ad-muted)]">
                             방문 {customer.visitCount}회
                             {(customer.messageCount || 0) > 0 && (
-                              <span className="ml-1 text-green-600">· 수신 {customer.messageCount}회</span>
+                              <span className="ml-1 text-[color:var(--ad-faint)]">· 수신 {customer.messageCount}회</span>
                             )}
                           </div>
-                          <div className="text-[#3b82f6] font-medium">{formatNumber(customer.totalPoints)}P</div>
+                          <div className="font-medium ad-tnum text-[color:var(--ad-ink)]">{formatNumber(customer.totalPoints)}P</div>
                         </div>
                       </button>
                     );

@@ -4,8 +4,10 @@ import { API_BASE } from '@/lib/api-config';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Eye, EyeOff, Mail, Lock, Building2, User, Phone } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import '@/app/admin/admin-theme.css';
 
 
 export default function FranchiseRegisterPage() {
@@ -91,265 +93,206 @@ export default function FranchiseRegisterPage() {
     }
   };
 
+  const inputCls =
+    'h-11 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[14px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] transition-colors focus:border-[color:var(--ad-ink)] focus:outline-none';
+
   return (
-    <div className="min-h-screen flex">
+    <div className="ad ad-crm flex items-center justify-center px-4 py-10">
       {ToastComponent}
-
-      {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-franchise-500 via-franchise-700 to-franchise-900 p-12 flex-col justify-between">
-        <div>
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <span className="text-2xl font-bold text-white">TagHere CRM</span>
-            <span className="px-2 py-1 bg-white/20 text-white text-xs font-medium rounded-md backdrop-blur-sm">
-              Franchise
-            </span>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="space-y-6">
-          <h1 className="text-4xl font-bold text-white leading-tight">
-            프랜차이즈 본부를<br />시작하세요
-          </h1>
-          <p className="text-lg text-franchise-100 leading-relaxed">
-            TagHere CRM으로 프랜차이즈 가맹점들을 효율적으로 관리하고,
-            통합된 고객 데이터를 활용한 마케팅을 시작하세요.
-          </p>
-          <div className="flex flex-col gap-4 pt-4">
-            <div className="flex items-center gap-3 text-franchise-100">
-              <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <span>무료 가입, 무료 시작</span>
-            </div>
-            <div className="flex items-center gap-3 text-franchise-100">
-              <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <span>기존 태그히어 CRM 가맹점 연동</span>
-            </div>
-            <div className="flex items-center gap-3 text-franchise-100">
-              <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <span>데이터 기반 마케팅 자동화</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="text-franchise-200 text-sm">
-          &copy; 2024 TagHere. All rights reserved.
-        </div>
+      <div className="ad-sky" aria-hidden>
+        <span className="ad-cloud" />
       </div>
 
-      {/* Right Side - Register Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-slate-50">
-        <div className="w-full max-w-md">
-          {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <span className="text-2xl font-bold text-slate-900">TagHere CRM</span>
-            <span className="px-2 py-1 bg-franchise-100 text-franchise-700 text-xs font-medium rounded-md">
+      <div className="ad-rise relative w-full max-w-[420px] rounded-[24px] border border-white/70 bg-white/70 p-8 shadow-[0_30px_80px_-30px_rgba(19,22,81,0.25)] backdrop-blur-2xl">
+        <div className="mb-7 text-center">
+          <Image src="/Taghere-logo.png" alt="태그히어" width={48} height={48} className="mx-auto mb-4 h-12 w-12" priority />
+          <div className="flex items-center justify-center gap-2">
+            <h1 className="text-[20px] font-semibold tracking-[-0.4px]">회원가입</h1>
+            <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">
               Franchise
             </span>
           </div>
+          <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">프랜차이즈 본부 계정을 생성하세요</p>
+        </div>
 
-          {/* Form Card */}
-          <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-semibold text-slate-900">회원가입</h2>
-              <p className="text-slate-500 mt-2">
-                프랜차이즈 본부 계정을 생성하세요
-              </p>
-            </div>
-
-            <form onSubmit={handleRegister} className="space-y-5">
-              {/* Brand Name */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">
-                  브랜드명 <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Building2 className="h-5 w-5 text-slate-400" />
-                  </div>
-                  <input
-                    type="text"
-                    name="brandName"
-                    placeholder="브랜드명을 입력하세요"
-                    value={formData.brandName}
-                    onChange={handleChange}
-                    required
-                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
-                  />
-                </div>
+        <form onSubmit={handleRegister} className="space-y-4">
+          {/* Brand Name */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+              브랜드명 <span className="text-[color:var(--ad-neg)]">*</span>
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                <Building2 className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
               </div>
-
-              {/* Owner Name */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">
-                  대표자명 <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-slate-400" />
-                  </div>
-                  <input
-                    type="text"
-                    name="ownerName"
-                    placeholder="대표자명을 입력하세요"
-                    value={formData.ownerName}
-                    onChange={handleChange}
-                    required
-                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Email */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">
-                  이메일 <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-slate-400" />
-                  </div>
-                  <input
-                    type="email"
-                    name="email"
-                    placeholder="franchise@example.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Password */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">
-                  비밀번호 <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-slate-400" />
-                  </div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    placeholder="8자 이상"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    minLength={8}
-                    className="w-full pl-12 pr-12 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-600" />
-                    ) : (
-                      <Eye className="h-5 w-5 text-slate-400 hover:text-slate-600" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Confirm Password */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">
-                  비밀번호 확인 <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-slate-400" />
-                  </div>
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    name="confirmPassword"
-                    placeholder="비밀번호 재입력"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required
-                    minLength={8}
-                    className="w-full pl-12 pr-12 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-600" />
-                    ) : (
-                      <Eye className="h-5 w-5 text-slate-400 hover:text-slate-600" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Phone (Optional) */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">
-                  연락처 <span className="text-slate-400 text-xs">(선택)</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Phone className="h-5 w-5 text-slate-400" />
-                  </div>
-                  <input
-                    type="tel"
-                    name="phone"
-                    placeholder="010-1234-5678"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-franchise-500 text-white hover:bg-franchise-700 px-4 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    가입 중...
-                  </>
-                ) : (
-                  '회원가입'
-                )}
-              </button>
-            </form>
-
-            {/* Login Link */}
-            <div className="mt-6 pt-6 border-t border-slate-200 text-center">
-              <p className="text-sm text-slate-600">
-                이미 계정이 있으신가요?{' '}
-                <Link
-                  href="/franchise/login"
-                  className="text-franchise-600 hover:text-franchise-700 font-medium hover:underline"
-                >
-                  로그인
-                </Link>
-              </p>
+              <input
+                type="text"
+                name="brandName"
+                placeholder="브랜드명을 입력하세요"
+                value={formData.brandName}
+                onChange={handleChange}
+                required
+                className={`${inputCls} pl-10 pr-3.5`}
+              />
             </div>
           </div>
+
+          {/* Owner Name */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+              대표자명 <span className="text-[color:var(--ad-neg)]">*</span>
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                <User className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              </div>
+              <input
+                type="text"
+                name="ownerName"
+                placeholder="대표자명을 입력하세요"
+                value={formData.ownerName}
+                onChange={handleChange}
+                required
+                className={`${inputCls} pl-10 pr-3.5`}
+              />
+            </div>
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+              이메일 <span className="text-[color:var(--ad-neg)]">*</span>
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                <Mail className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              </div>
+              <input
+                type="email"
+                name="email"
+                placeholder="franchise@example.com"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className={`${inputCls} pl-10 pr-3.5`}
+              />
+            </div>
+          </div>
+
+          {/* Password */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+              비밀번호 <span className="text-[color:var(--ad-neg)]">*</span>
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                <Lock className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              </div>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                placeholder="8자 이상"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                minLength={8}
+                className={`${inputCls} pl-10 pr-11`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-[color:var(--ad-faint)] hover:text-[color:var(--ad-ink-2)]"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" strokeWidth={1.8} />
+                ) : (
+                  <Eye className="h-4 w-4" strokeWidth={1.8} />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+              비밀번호 확인 <span className="text-[color:var(--ad-neg)]">*</span>
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                <Lock className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              </div>
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                name="confirmPassword"
+                placeholder="비밀번호 재입력"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+                minLength={8}
+                className={`${inputCls} pl-10 pr-11`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-[color:var(--ad-faint)] hover:text-[color:var(--ad-ink-2)]"
+              >
+                {showConfirmPassword ? (
+                  <EyeOff className="h-4 w-4" strokeWidth={1.8} />
+                ) : (
+                  <Eye className="h-4 w-4" strokeWidth={1.8} />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Phone (Optional) */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+              연락처 <span className="text-[12px] font-normal text-[color:var(--ad-faint)]">(선택)</span>
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                <Phone className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              </div>
+              <input
+                type="tel"
+                name="phone"
+                placeholder="010-1234-5678"
+                value={formData.phone}
+                onChange={handleChange}
+                className={`${inputCls} pl-10 pr-3.5`}
+              />
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="ad-press flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-[color:var(--ad-ink)] text-[14px] font-semibold text-white transition-colors hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isLoading ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                가입 중...
+              </>
+            ) : (
+              '회원가입'
+            )}
+          </button>
+        </form>
+
+        {/* Login Link */}
+        <div className="mt-6 border-t border-[color:var(--ad-line)] pt-5 text-center">
+          <p className="text-[13px] text-[color:var(--ad-muted)]">
+            이미 계정이 있으신가요?{' '}
+            <Link
+              href="/franchise/login"
+              className="font-medium text-[color:var(--ad-ink)] hover:underline"
+            >
+              로그인
+            </Link>
+          </p>
         </div>
       </div>
     </div>

@@ -140,16 +140,7 @@ export async function registerWaiting(
       return { success: false, error: '현재 바로 입장 가능합니다. 웨이팅이 필요하지 않습니다.' };
     }
 
-    const currentWaitingCount = await prisma.waitingList.count({
-      where: {
-        storeId: params.storeId,
-        status: { in: ['WAITING', 'CALLED'] },
-      },
-    });
-
-    if (currentWaitingCount >= setting.maxWaitingCount) {
-      return { success: false, error: '최대 대기 인원을 초과했습니다.' };
-    }
+    // 정원(최대 대기 인원) 제한 없음 — 운영 중이면 웨이팅은 항상 접수한다.
 
     const waitingType = await prisma.waitingType.findFirst({
       where: { id: params.waitingTypeId, storeId: params.storeId, isActive: true },

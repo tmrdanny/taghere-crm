@@ -2,7 +2,6 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ClipboardList, GripVertical, Plus, Trash2, Calendar, Type, ListChecks, X } from 'lucide-react';
@@ -26,9 +25,9 @@ interface SurveyQuestion {
 const MAX_QUESTIONS = 10;
 
 const TYPE_CONFIG: Record<QuestionType, { label: string; icon: typeof Calendar; color: string; bgColor: string }> = {
-  DATE: { label: '날짜', icon: Calendar, color: 'text-blue-600', bgColor: 'bg-blue-50' },
-  TEXT: { label: '텍스트', icon: Type, color: 'text-green-600', bgColor: 'bg-green-50' },
-  CHOICE: { label: '선택', icon: ListChecks, color: 'text-purple-600', bgColor: 'bg-purple-50' },
+  DATE: { label: '날짜', icon: Calendar, color: 'text-[color:var(--ad-muted)]', bgColor: 'bg-[color:var(--ad-bg)]' },
+  TEXT: { label: '텍스트', icon: Type, color: 'text-[color:var(--ad-muted)]', bgColor: 'bg-[color:var(--ad-bg)]' },
+  CHOICE: { label: '선택', icon: ListChecks, color: 'text-[color:var(--ad-muted)]', bgColor: 'bg-[color:var(--ad-bg)]' },
 };
 
 export default function SurveyPage() {
@@ -275,8 +274,8 @@ export default function SurveyPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 lg:p-8 max-w-4xl mx-auto">
-        <div className="text-center py-12 text-neutral-500">불러오는 중...</div>
+      <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
+        <div className="py-12 text-center text-[13px] text-[color:var(--ad-faint)]">불러오는 중...</div>
       </div>
     );
   }
@@ -285,84 +284,84 @@ export default function SurveyPage() {
     const config = TYPE_CONFIG[type];
     const Icon = config.icon;
     return (
-      <div className={`flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-md ${config.bgColor}`}>
-        <Icon className={`w-3.5 h-3.5 ${config.color}`} />
-        <span className={`text-xs font-medium ${config.color}`}>{config.label}</span>
+      <div className={`mt-1.5 inline-flex items-center gap-1 shrink-0 rounded-full px-2 py-0.5 ${config.bgColor}`}>
+        <Icon className={`w-3 h-3 ${config.color}`} strokeWidth={1.8} />
+        <span className={`text-[11px] font-medium ${config.color}`}>{config.label}</span>
       </div>
     );
   };
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {ToastComponent}
 
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Left Panel - Settings */}
         <div className="flex-1 lg:max-w-3xl">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-semibold text-neutral-900">고객 설문</h1>
-            <p className="text-neutral-500 mt-1">
+          <div className="mb-6">
+            <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">고객 설문</h1>
+            <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
               고객 등록 시 추가로 수집할 정보를 설정합니다. (예: 생년월일, 기념일)
             </p>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
         {/* 안내 카드 */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg">💡 고객 설문 안내</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3 text-sm text-neutral-600">
+        <div className="ad-card">
+          <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
+            <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">고객 설문 안내</h3>
+          </div>
+          <div className="space-y-4 p-5">
+            <div className="space-y-3 text-[13px] text-[color:var(--ad-ink-2)]">
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-xs font-medium">1</span>
+                <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]">
+                  <span className="ad-tnum text-[11.5px] font-medium">1</span>
                 </div>
                 <p>
                   질문을 추가하면 고객이 포인트/스탬프 적립 시 해당 질문이 표시됩니다.
                 </p>
               </div>
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-xs font-medium">2</span>
+                <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]">
+                  <span className="ad-tnum text-[11.5px] font-medium">2</span>
                 </div>
                 <p>
                   <strong>날짜</strong>, <strong>텍스트</strong>, <strong>선택형</strong> 질문을 지원합니다.
                 </p>
               </div>
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-xs font-medium">3</span>
+                <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]">
+                  <span className="ad-tnum text-[11.5px] font-medium">3</span>
                 </div>
                 <p>
                   수집된 응답은 <strong>고객 리스트</strong>에서 확인할 수 있습니다.
                 </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* 질문 관리 카드 */}
-        <Card>
-          <CardHeader className="pb-4">
+        <div className="ad-card">
+          <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ClipboardList className="w-5 h-5 text-neutral-600" />
-                <CardTitle className="text-lg">설문 질문 관리</CardTitle>
+                <ClipboardList className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">설문 질문 관리</h3>
               </div>
-              <span className="text-sm text-neutral-500">
+              <span className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">
                 {questions.length} / {MAX_QUESTIONS}
               </span>
             </div>
-            <p className="text-sm text-neutral-500 mt-1">
+            <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
               고객에게 보여줄 설문 질문을 관리합니다. 드래그하여 순서를 변경할 수 있습니다.
             </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          </div>
+          <div className="space-y-4 p-5">
             {/* 질문 목록 */}
             {questions.length === 0 ? (
-              <div className="text-center py-8 text-neutral-400">
+              <div className="py-8 text-center text-[13px] text-[color:var(--ad-faint)]">
                 아직 설문 질문이 없습니다. 아래에서 추가해주세요.
               </div>
             ) : (
@@ -376,12 +375,12 @@ export default function SurveyPage() {
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, question.id)}
                     onDragEnd={handleDragEnd}
-                    className={`p-3 bg-neutral-50 rounded-lg transition-all
+                    className={`rounded-[12px] border border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] p-3 transition-all
                       ${draggedId === question.id ? 'opacity-50' : ''}
-                      ${dragOverId === question.id ? 'border-2 border-primary border-dashed' : ''}`}
+                      ${dragOverId === question.id ? 'border-2 border-dashed border-[color:var(--ad-ink)]' : ''}`}
                   >
                     <div className="flex items-start gap-3">
-                      <GripVertical className="w-4 h-4 text-neutral-400 cursor-grab active:cursor-grabbing shrink-0 mt-2" />
+                      <GripVertical className="w-4 h-4 text-[color:var(--ad-faint)] cursor-grab active:cursor-grabbing shrink-0 mt-2" />
                       <TypeBadge type={question.type} />
                       <textarea
                         value={question.label}
@@ -392,7 +391,7 @@ export default function SurveyPage() {
                         }
                         onBlur={(e) => handleLabelBlur(question.id, e.target.value)}
                         rows={2}
-                        className="flex-1 bg-white rounded-md border border-input px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="flex-1 resize-none rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 py-2.5 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)] focus:outline-none"
                       />
                       <Switch
                         checked={question.enabled}
@@ -404,7 +403,7 @@ export default function SurveyPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteQuestion(question.id)}
-                        className="text-neutral-400 hover:text-red-500 shrink-0"
+                        className="text-[color:var(--ad-faint)] hover:text-[color:var(--ad-neg)] shrink-0"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -422,10 +421,10 @@ export default function SurveyPage() {
             )}
 
             {/* 새 질문 추가 */}
-            <div className="border-t border-neutral-200 pt-4 space-y-3">
+            <div className="space-y-3 border-t border-[color:var(--ad-line)] pt-4">
               {/* 타입 선택 */}
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-neutral-600">타입:</span>
+                <span className="text-[13px] font-medium text-[color:var(--ad-muted)]">타입:</span>
                 {(Object.keys(TYPE_CONFIG) as QuestionType[]).map((type) => {
                   const config = TYPE_CONFIG[type];
                   const Icon = config.icon;
@@ -433,13 +432,13 @@ export default function SurveyPage() {
                     <button
                       key={type}
                       onClick={() => setNewType(type)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      className={`flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-medium transition-colors ${
                         newType === type
-                          ? `${config.bgColor} ${config.color} ring-2 ring-offset-1 ring-current`
-                          : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'
+                          ? 'bg-[color:var(--ad-ink)] text-white'
+                          : 'bg-white text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'
                       }`}
                     >
-                      <Icon className="w-3.5 h-3.5" />
+                      <Icon className="w-3.5 h-3.5" strokeWidth={1.8} />
                       {config.label}
                     </button>
                   );
@@ -458,14 +457,15 @@ export default function SurveyPage() {
                   }
                   disabled={questions.length >= MAX_QUESTIONS}
                   rows={2}
-                  className="flex-1 bg-white rounded-md border border-input px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  className="flex-1 resize-none rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 py-2.5 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)] focus:outline-none disabled:opacity-50"
                 />
                 <Button
                   onClick={handleAddQuestion}
                   disabled={isSaving || questions.length >= MAX_QUESTIONS}
                   variant="outline"
+                  className="ad-press inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[12px] border-0 bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
                 >
-                  <Plus className="w-4 h-4 mr-1" />
+                  <Plus className="w-3.5 h-3.5" strokeWidth={2} />
                   추가
                 </Button>
               </div>
@@ -473,10 +473,10 @@ export default function SurveyPage() {
               {/* CHOICE 선택지 입력 */}
               {newType === 'CHOICE' && (
                 <div className="ml-0 space-y-2">
-                  <p className="text-xs text-neutral-500">선택지를 입력하세요 (최소 2개)</p>
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">선택지를 입력하세요 (최소 2개)</p>
                   {newChoiceOptions.map((opt, idx) => (
                     <div key={idx} className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full border-2 border-neutral-300 shrink-0" />
+                      <div className="w-4 h-4 rounded-full border-2 border-[color:var(--ad-line-strong)] shrink-0" />
                       <input
                         value={opt}
                         onChange={(e) => {
@@ -485,12 +485,12 @@ export default function SurveyPage() {
                           setNewChoiceOptions(updated);
                         }}
                         placeholder={`선택지 ${idx + 1}`}
-                        className="flex-1 bg-white rounded-md border border-input px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="h-9 flex-1 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)] focus:outline-none"
                       />
                       {newChoiceOptions.length > 2 && (
                         <button
                           onClick={() => setNewChoiceOptions(newChoiceOptions.filter((_, i) => i !== idx))}
-                          className="text-neutral-400 hover:text-red-500"
+                          className="text-[color:var(--ad-faint)] hover:text-[color:var(--ad-neg)]"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -500,7 +500,7 @@ export default function SurveyPage() {
                   {newChoiceOptions.length < 10 && (
                     <button
                       onClick={() => setNewChoiceOptions([...newChoiceOptions, ''])}
-                      className="text-xs text-neutral-500 hover:text-neutral-700 flex items-center gap-1"
+                      className="flex items-center gap-1 text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
                     >
                       <Plus className="w-3 h-3" />
                       선택지 추가
@@ -511,12 +511,12 @@ export default function SurveyPage() {
             </div>
 
             {questions.length >= MAX_QUESTIONS && (
-              <p className="text-sm text-amber-600">
+              <p className="text-[12.5px] text-[color:var(--ad-muted)]">
                 최대 {MAX_QUESTIONS}개까지만 추가할 수 있습니다.
               </p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
           </div>
         </div>
 
@@ -526,10 +526,10 @@ export default function SurveyPage() {
             <img
               src="/images/고객설문.png"
               alt="고객 설문 미리보기"
-              className="w-full shadow-lg"
+              className="w-full shadow-[0_24px_60px_-20px_rgba(29,32,34,0.3)]"
               style={{ borderRadius: 20 }}
             />
-            <p className="text-xs text-neutral-400">미리보기</p>
+            <p className="text-[12px] text-[color:var(--ad-faint)]">미리보기</p>
           </div>
         </div>
       </div>
@@ -560,10 +560,10 @@ function ChoiceOptionsEditor({
 
   return (
     <div className="ml-8 mt-2 space-y-1.5">
-      <p className="text-xs text-neutral-400">선택지</p>
+      <p className="text-[12px] text-[color:var(--ad-faint)]">선택지</p>
       {localOptions.map((opt, idx) => (
         <div key={idx} className="flex items-center gap-2">
-          <div className="w-3.5 h-3.5 rounded-full border-2 border-neutral-300 shrink-0" />
+          <div className="w-3.5 h-3.5 rounded-full border-2 border-[color:var(--ad-line-strong)] shrink-0" />
           <input
             value={opt}
             onChange={(e) => {
@@ -573,7 +573,7 @@ function ChoiceOptionsEditor({
               saveOptions(updated);
             }}
             placeholder={`선택지 ${idx + 1}`}
-            className="flex-1 bg-white rounded-md border border-input px-2.5 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-8 flex-1 rounded-[8px] border border-[color:var(--ad-line-strong)] bg-white px-2.5 text-[12.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)] focus:outline-none"
           />
           {localOptions.length > 2 && (
             <button
@@ -583,7 +583,7 @@ function ChoiceOptionsEditor({
                 const valid = updated.filter((o) => o.trim());
                 if (valid.length >= 2) onChange(valid);
               }}
-              className="text-neutral-400 hover:text-red-500"
+              className="text-[color:var(--ad-faint)] hover:text-[color:var(--ad-neg)]"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -593,7 +593,7 @@ function ChoiceOptionsEditor({
       {localOptions.length < 10 && (
         <button
           onClick={() => setLocalOptions([...localOptions, ''])}
-          className="text-xs text-neutral-500 hover:text-neutral-700 flex items-center gap-1"
+          className="flex items-center gap-1 text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
         >
           <Plus className="w-3 h-3" />
           선택지 추가

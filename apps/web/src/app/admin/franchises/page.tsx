@@ -524,7 +524,7 @@ export default function FranchisesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 border-2 border-neutral-900 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -532,57 +532,54 @@ export default function FranchisesPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">프랜차이즈 관리</h1>
-          <p className="text-sm text-neutral-500 mt-1">
-            프랜차이즈를 등록하고 산하 매장을 관리할 수 있습니다.
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <p className="text-[13px] text-[color:var(--ad-muted)]">
+          프랜차이즈를 등록하고 산하 매장을 관리할 수 있습니다.
+        </p>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors text-sm font-medium"
+          className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
         >
           + 프랜차이즈 추가
         </button>
       </div>
 
       {/* 프랜차이즈 목록 */}
-      <div className="bg-white rounded-lg border border-[#EAEAEA]">
+      <div className="ad-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[#EAEAEA]">
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+              <tr className="border-b border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] text-left text-[11.5px] text-[color:var(--ad-muted)]">
+                <th className="px-4 py-2.5 font-medium">
                   프랜차이즈명
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium">
                   Slug
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium">
                   매장 수
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium">
                   사용자 수
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium">
                   지갑 잔액
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium">
                   관리자
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium">
                   생성일
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium">
                   작업
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#EAEAEA]">
+            <tbody className="divide-y divide-[color:var(--ad-line)] text-[13px]">
               {franchises.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-neutral-500">
+                  <td colSpan={8} className="px-4 py-12 text-center text-[13px] text-[color:var(--ad-faint)]">
                     등록된 프랜차이즈가 없습니다.
                   </td>
                 </tr>
@@ -590,34 +587,34 @@ export default function FranchisesPage() {
                 franchises.map((franchise) => {
                   const owner = franchise.users.find((u) => u.role === 'OWNER');
                   return (
-                    <tr key={franchise.id} className="hover:bg-neutral-50 transition-colors cursor-pointer" onClick={() => handleOpenEditModal(franchise)}>
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-neutral-900">{franchise.name}</div>
+                    <tr key={franchise.id} className="hover:bg-[rgba(110,173,255,0.05)] transition-colors cursor-pointer" onClick={() => handleOpenEditModal(franchise)}>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-[color:var(--ad-ink)]">{franchise.name}</div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-neutral-600">{franchise.slug}</td>
-                      <td className="px-6 py-4 text-sm text-neutral-900 font-medium">
+                      <td className="px-4 py-3 text-[color:var(--ad-muted)]">{franchise.slug}</td>
+                      <td className="px-4 py-3 font-medium text-[color:var(--ad-ink)] ad-tnum">
                         {franchise._count.stores}개
                       </td>
-                      <td className="px-6 py-4 text-sm text-neutral-900">
+                      <td className="px-4 py-3 text-[color:var(--ad-ink)] ad-tnum">
                         {franchise._count.users}명
                       </td>
-                      <td className="px-6 py-4 text-sm text-neutral-900">
+                      <td className="px-4 py-3 text-[color:var(--ad-ink)] ad-tnum">
                         {formatCurrency(franchise.wallet?.balance || 0)}원
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         {owner ? (
-                          <div className="text-sm">
-                            <div className="font-medium text-neutral-900">{owner.name}</div>
-                            <div className="text-neutral-500">{owner.email}</div>
+                          <div>
+                            <div className="font-medium text-[color:var(--ad-ink)]">{owner.name}</div>
+                            <div className="text-[12px] text-[color:var(--ad-muted)]">{owner.email}</div>
                           </div>
                         ) : (
-                          <span className="text-neutral-400">-</span>
+                          <span className="text-[color:var(--ad-faint)]">-</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm text-neutral-600">
+                      <td className="px-4 py-3 text-[color:var(--ad-muted)] ad-tnum">
                         {formatDate(franchise.createdAt)}
                       </td>
-                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-3">
                           <button
                             onClick={() => {
@@ -625,7 +622,7 @@ export default function FranchisesPage() {
                               setWalletAction('topup');
                               setShowWalletModal(true);
                             }}
-                            className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+                            className="text-[12.5px] font-medium text-[color:var(--ad-pos)] hover:underline"
                           >
                             충전
                           </button>
@@ -635,7 +632,7 @@ export default function FranchisesPage() {
                               setWalletAction('deduct');
                               setShowWalletModal(true);
                             }}
-                            className="text-sm text-red-600 hover:text-red-700 font-medium"
+                            className="text-[12.5px] font-medium text-[color:var(--ad-neg)] hover:underline"
                           >
                             차감
                           </button>
@@ -644,13 +641,13 @@ export default function FranchisesPage() {
                               setSelectedFranchise(franchise);
                               setShowAddStoreModal(true);
                             }}
-                            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                            className="text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
                           >
                             매장 추가
                           </button>
                           <button
                             onClick={() => handleOpenPricingModal(franchise)}
-                            className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                            className="text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
                           >
                             단가
                           </button>
@@ -659,7 +656,7 @@ export default function FranchisesPage() {
                               setSelectedFranchise(franchise);
                               setShowLogoUploadModal(true);
                             }}
-                            className="text-sm text-neutral-600 hover:text-neutral-700 font-medium"
+                            className="text-[12.5px] font-medium text-[color:var(--ad-muted)] hover:underline"
                           >
                             로고
                           </button>
@@ -676,84 +673,84 @@ export default function FranchisesPage() {
 
       {/* 프랜차이즈 생성 모달 */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-neutral-900 mb-4">프랜차이즈 추가</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] max-w-md w-full p-6">
+            <h2 className="text-[17px] font-bold text-[color:var(--ad-ink)] mb-4">프랜차이즈 추가</h2>
             <form onSubmit={handleCreateFranchise} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  프랜차이즈명 <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  프랜차이즈명 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                   placeholder="예: 맘스터치"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Slug (영문, 숫자, 하이픈만) <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  Slug (영문, 숫자, 하이픈만) <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.slug}
                   onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                   placeholder="예: momstouch"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  관리자 이름 <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  관리자 이름 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.userName}
                   onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                   placeholder="홍길동"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  관리자 이메일 <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  관리자 이메일 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                   placeholder="admin@momstouch.com"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  비밀번호 <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  비밀번호 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <input
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                   placeholder="8자 이상"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   전화번호 (선택)
                 </label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                   placeholder="010-1234-5678"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   로고 파일 (선택)
                 </label>
                 <input
@@ -770,10 +767,10 @@ export default function FranchisesPage() {
                       setLogoFile(file);
                     }
                   }}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-neutral-50 file:text-neutral-700 hover:file:bg-neutral-100"
+                  className="w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 py-2 text-[13px] text-[color:var(--ad-ink-2)] focus:border-[color:var(--ad-navy)] focus:outline-none file:mr-4 file:py-1 file:px-3 file:rounded-[8px] file:border-0 file:text-[12.5px] file:font-medium file:bg-[color:var(--ad-bg)] file:text-[color:var(--ad-ink-2)] hover:file:bg-[color:var(--ad-line)]"
                 />
                 {logoFile && (
-                  <p className="mt-1 text-xs text-neutral-500">
+                  <p className="mt-1 text-[12px] text-[color:var(--ad-muted)]">
                     선택된 파일: {logoFile.name}
                   </p>
                 )}
@@ -794,13 +791,13 @@ export default function FranchisesPage() {
                     });
                     setLogoFile(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-[#EAEAEA] rounded-lg hover:bg-neutral-50 transition-colors text-sm font-medium"
+                  className="flex-1 ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium disabled:opacity-50"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors text-sm font-medium"
+                  className="ad-press flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   생성하기
                 </button>
@@ -812,31 +809,31 @@ export default function FranchisesPage() {
 
       {/* 매장 추가 모달 */}
       {showAddStoreModal && selectedFranchise && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-neutral-900 mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto">
+            <h2 className="text-[17px] font-bold text-[color:var(--ad-ink)] mb-4">
               {selectedFranchise.name}에 매장 추가
             </h2>
-            <p className="text-sm text-neutral-600 mb-4">
+            <p className="text-[13px] text-[color:var(--ad-muted)] mb-4">
               프랜차이즈에 연결되지 않은 매장 목록입니다. 체크박스로 여러 매장을 선택한 후 일괄 연결할 수 있습니다.
             </p>
 
             {availableStores.length === 0 ? (
-              <div className="py-12 text-center text-neutral-500">
+              <div className="py-12 text-center text-[13px] text-[color:var(--ad-faint)]">
                 연결 가능한 매장이 없습니다.
               </div>
             ) : (
               <>
                 {/* 전체 선택 + 일괄 연결 바 */}
-                <div className="flex items-center justify-between mb-3 p-3 bg-neutral-50 rounded-lg">
+                <div className="flex items-center justify-between mb-3 p-3 bg-[color:var(--ad-bg-alt)] rounded-[12px]">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={selectedStoreIds.size === availableStores.length && availableStores.length > 0}
                       onChange={toggleSelectAll}
-                      className="w-4 h-4 rounded border-neutral-300"
+                      className="w-4 h-4 rounded border-[color:var(--ad-line-strong)] accent-[#131651]"
                     />
-                    <span className="text-sm font-medium text-neutral-700">
+                    <span className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                       전체 선택 ({selectedStoreIds.size}/{availableStores.length})
                     </span>
                   </label>
@@ -844,7 +841,7 @@ export default function FranchisesPage() {
                     <button
                       onClick={handleBulkLinkStores}
                       disabled={bulkLinking}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
+                      className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
                     >
                       {bulkLinking ? '연결 중...' : `${selectedStoreIds.size}개 매장 일괄 연결`}
                     </button>
@@ -856,10 +853,10 @@ export default function FranchisesPage() {
                     <div
                       key={store.id}
                       onClick={() => toggleStoreSelection(store.id)}
-                      className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
+                      className={`flex items-center gap-3 p-4 border rounded-[12px] cursor-pointer transition-colors ${
                         selectedStoreIds.has(store.id)
-                          ? 'border-blue-400 bg-blue-50'
-                          : 'border-[#EAEAEA] hover:bg-neutral-50'
+                          ? 'border-[color:var(--ad-blue)] bg-[color:var(--ad-blue-soft)]'
+                          : 'border-[color:var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)]'
                       }`}
                     >
                       <input
@@ -867,16 +864,16 @@ export default function FranchisesPage() {
                         checked={selectedStoreIds.has(store.id)}
                         onChange={() => toggleStoreSelection(store.id)}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-4 h-4 rounded border-neutral-300 flex-shrink-0"
+                        className="w-4 h-4 rounded border-[color:var(--ad-line-strong)] accent-[#131651] flex-shrink-0"
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-neutral-900">{store.name}</div>
-                        <div className="text-sm text-neutral-600 mt-1">
+                        <div className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">{store.name}</div>
+                        <div className="text-[12.5px] text-[color:var(--ad-muted)] mt-1">
                           {store.ownerName && `${store.ownerName} · `}
                           {store.address || '주소 없음'} · 고객 {store._count.customers}명
                         </div>
                         {store.slug && (
-                          <div className="text-xs text-neutral-400 mt-1">Slug: {store.slug}</div>
+                          <div className="text-[11.5px] text-[color:var(--ad-faint)] mt-1">Slug: {store.slug}</div>
                         )}
                       </div>
                     </div>
@@ -892,7 +889,7 @@ export default function FranchisesPage() {
                   setSelectedFranchise(null);
                   setSelectedStoreIds(new Set());
                 }}
-                className="w-full px-4 py-2 border border-[#EAEAEA] rounded-lg hover:bg-neutral-50 transition-colors text-sm font-medium"
+                className="w-full ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium"
               >
                 닫기
               </button>
@@ -903,54 +900,54 @@ export default function FranchisesPage() {
 
       {/* 충전/차감 모달 */}
       {showWalletModal && selectedFranchise && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-neutral-900 mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] max-w-md w-full p-6">
+            <h2 className="text-[17px] font-bold text-[color:var(--ad-ink)] mb-4">
               {selectedFranchise.name} 충전금 {walletAction === 'topup' ? '충전' : '차감'}
             </h2>
-            <div className="mb-4 p-3 bg-neutral-50 rounded-lg">
-              <div className="text-sm text-neutral-600">현재 잔액</div>
-              <div className="text-lg font-bold text-neutral-900">
+            <div className="mb-4 p-3 bg-[color:var(--ad-bg-alt)] rounded-[12px]">
+              <div className="text-[12px] text-[color:var(--ad-muted)]">현재 잔액</div>
+              <div className="text-[20px] font-semibold tracking-[-0.03em] text-[color:var(--ad-ink)] ad-tnum">
                 {formatCurrency(selectedFranchise.wallet?.balance || 0)}원
               </div>
             </div>
             <form onSubmit={handleWalletAction} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  {walletAction === 'topup' ? '충전' : '차감'} 금액 <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  {walletAction === 'topup' ? '충전' : '차감'} 금액 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     value={walletAmount}
                     onChange={(e) => setWalletAmount(formatNumberInput(e.target.value))}
-                    className="w-full px-3 py-2 pr-8 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 text-right"
+                    className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 pr-8 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none text-right ad-tnum"
                     placeholder="0"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-500">원</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-[color:var(--ad-muted)]">원</span>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   사유 (선택)
                 </label>
                 <input
                   type="text"
                   value={walletReason}
                   onChange={(e) => setWalletReason(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                   placeholder={walletAction === 'topup' ? '예: 프로모션 지원금' : '예: 환불 처리'}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  관리자 비밀번호 <span className="text-red-500">*</span>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                  관리자 비밀번호 <span className="text-[color:var(--ad-neg)]">*</span>
                 </label>
                 <input
                   type="password"
                   value={walletPassword}
                   onChange={(e) => setWalletPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                   placeholder="관리자 비밀번호 입력"
                 />
               </div>
@@ -964,17 +961,17 @@ export default function FranchisesPage() {
                     setWalletPassword('');
                     setSelectedFranchise(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-[#EAEAEA] rounded-lg hover:bg-neutral-50 transition-colors text-sm font-medium"
+                  className="flex-1 ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium disabled:opacity-50"
                   disabled={walletLoading}
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className={`flex-1 px-4 py-2 rounded-lg transition-colors text-sm font-medium text-white disabled:cursor-not-allowed ${
+                  className={`ad-press flex-1 inline-flex items-center justify-center h-9 px-4 rounded-[10px] text-[13px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed ${
                     walletAction === 'topup'
-                      ? 'bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400'
-                      : 'bg-red-600 hover:bg-red-700 disabled:bg-red-400'
+                      ? 'bg-[color:var(--ad-yellow)] text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)]'
+                      : 'bg-[#cc0832] text-white hover:bg-[#b0072b]'
                   }`}
                   disabled={walletLoading || !walletAmount || !walletPassword}
                 >
@@ -988,14 +985,14 @@ export default function FranchisesPage() {
 
       {/* 로고 업로드 모달 */}
       {showLogoUploadModal && selectedFranchise && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-neutral-900 mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] max-w-md w-full p-6">
+            <h2 className="text-[17px] font-bold text-[color:var(--ad-ink)] mb-4">
               {selectedFranchise.name} 로고 업로드
             </h2>
             <form onSubmit={handleLogoUpload} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   로고 파일 선택 (최대 2MB)
                 </label>
                 <input
@@ -1013,10 +1010,10 @@ export default function FranchisesPage() {
                     }
                   }}
                   required
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-neutral-50 file:text-neutral-700 hover:file:bg-neutral-100"
+                  className="w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 py-2 text-[13px] text-[color:var(--ad-ink-2)] focus:border-[color:var(--ad-navy)] focus:outline-none file:mr-4 file:py-1 file:px-3 file:rounded-[8px] file:border-0 file:text-[12.5px] file:font-medium file:bg-[color:var(--ad-bg)] file:text-[color:var(--ad-ink-2)] hover:file:bg-[color:var(--ad-line)]"
                 />
                 {logoFile && (
-                  <p className="mt-2 text-sm text-neutral-600">
+                  <p className="mt-2 text-[12.5px] text-[color:var(--ad-muted)]">
                     선택된 파일: {logoFile.name} ({(logoFile.size / 1024).toFixed(1)}KB)
                   </p>
                 )}
@@ -1029,14 +1026,14 @@ export default function FranchisesPage() {
                     setSelectedFranchise(null);
                     setLogoFile(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-[#EAEAEA] rounded-lg hover:bg-neutral-50 transition-colors text-sm font-medium"
+                  className="flex-1 ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium disabled:opacity-50"
                   disabled={uploadingLogo}
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors text-sm font-medium disabled:bg-neutral-400 disabled:cursor-not-allowed"
+                  className="ad-press flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={uploadingLogo || !logoFile}
                 >
                   {uploadingLogo ? '업로드 중...' : '업로드'}
@@ -1049,10 +1046,10 @@ export default function FranchisesPage() {
 
       {/* 메시지 단가 설정 모달 */}
       {showPricingModal && selectedFranchise && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-neutral-900 mb-1">메시지 단가 설정</h2>
-            <p className="text-sm text-neutral-500 mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] max-w-md w-full p-6">
+            <h2 className="text-[17px] font-bold text-[color:var(--ad-ink)] mb-1">메시지 단가 설정</h2>
+            <p className="text-[13px] text-[color:var(--ad-muted)] mb-4">
               {selectedFranchise.name} · 저장 시 산하 <b>{selectedFranchise._count.stores}개 매장</b>에 동일하게 적용됩니다.
               비워두면 기본 단가가 적용됩니다.
             </p>
@@ -1064,8 +1061,8 @@ export default function FranchisesPage() {
                 { key: 'priceWaitingAlimtalk', label: '웨이팅 알림톡', desc: '등록/호출/취소 알림' },
               ] as const).map((f) => (
                 <div key={f.key}>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">
-                    {f.label} <span className="text-xs text-neutral-400 font-normal">· {f.desc}</span>
+                  <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                    {f.label} <span className="text-[12px] text-[color:var(--ad-faint)] font-normal">· {f.desc}</span>
                   </label>
                   <div className="relative">
                     <input
@@ -1074,9 +1071,9 @@ export default function FranchisesPage() {
                       value={pricingForm[f.key]}
                       onChange={(e) => setPricingForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
                       placeholder={`기본 ${DEFAULT_PRICES[f.key]}원`}
-                      className="w-full px-3 py-2 pr-10 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 pr-10 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">원</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--ad-faint)] text-[13px]">원</span>
                   </div>
                 </div>
               ))}
@@ -1084,14 +1081,14 @@ export default function FranchisesPage() {
                 <button
                   type="button"
                   onClick={() => { setShowPricingModal(false); setSelectedFranchise(null); }}
-                  className="flex-1 px-4 py-2 border border-neutral-300 rounded-lg text-neutral-700 hover:bg-neutral-50"
+                  className="flex-1 ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
                   disabled={pricingLoading}
-                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                  className="ad-press flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {pricingLoading ? '저장 중...' : '단가 저장'}
                 </button>
@@ -1103,75 +1100,75 @@ export default function FranchisesPage() {
 
       {/* 프랜차이즈 편집 모달 */}
       {showEditModal && selectedFranchise && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-neutral-900 mb-4">프랜차이즈 정보 수정</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] max-w-md w-full p-6">
+            <h2 className="text-[17px] font-bold text-[color:var(--ad-ink)] mb-4">프랜차이즈 정보 수정</h2>
             <form onSubmit={handleEditFranchise} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   프랜차이즈명
                 </label>
                 <input
                   type="text"
                   value={editFormData.name}
                   onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   Slug
                 </label>
                 <input
                   type="text"
                   value={selectedFranchise.slug}
                   readOnly
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg bg-neutral-50 text-neutral-500 cursor-not-allowed"
+                  className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] px-3 text-[13.5px] text-[color:var(--ad-muted)] cursor-not-allowed"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   관리자 이름
                 </label>
                 <input
                   type="text"
                   value={editFormData.ownerName}
                   onChange={(e) => setEditFormData({ ...editFormData, ownerName: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   관리자 이메일
                 </label>
                 <input
                   type="email"
                   value={editFormData.ownerEmail}
                   onChange={(e) => setEditFormData({ ...editFormData, ownerEmail: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   관리자 전화번호
                 </label>
                 <input
                   type="tel"
                   value={editFormData.ownerPhone}
                   onChange={(e) => setEditFormData({ ...editFormData, ownerPhone: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                   placeholder="010-1234-5678"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                   새 비밀번호
                 </label>
                 <input
                   type="password"
                   value={editFormData.ownerPassword}
                   onChange={(e) => setEditFormData({ ...editFormData, ownerPassword: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                   placeholder="변경 시에만 입력"
                 />
               </div>
@@ -1182,14 +1179,14 @@ export default function FranchisesPage() {
                     setShowEditModal(false);
                     setSelectedFranchise(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-[#EAEAEA] rounded-lg hover:bg-neutral-50 transition-colors text-sm font-medium"
+                  className="flex-1 ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium disabled:opacity-50"
                   disabled={editLoading}
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors text-sm font-medium disabled:bg-neutral-400 disabled:cursor-not-allowed"
+                  className="ad-press flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={editLoading}
                 >
                   {editLoading ? '저장 중...' : '저장'}

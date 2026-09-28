@@ -1,17 +1,18 @@
-import { env } from '../config/env.js';
 import { Router, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { customAlphabet } from 'nanoid';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
 import { getAgeGroupBirthYearRange } from '../lib/customer-filters.js';
+import { loadFranchiseSegment, resolveSegmentCustomersInStores } from '../services/segment-engine.js';
+import { sendRetargetCouponGroup } from '../services/retarget-coupon-group.js';
+import { recordMarketingCampaign, updateMarketingCampaign } from '../services/marketing/tracker.js';
+import { targetLabelOf } from '../services/marketing/labels.js';
+import { resolveSendTime, formatKst } from '../utils/send-window.js';
 
 const router = Router();
 
 const COUPON_COST_PER_MESSAGE = 50; // 건당 50원
-const MAX_RECIPIENTS_PER_SEND = 3000;
-const INSERT_CHUNK_SIZE = 500;
-
-const generateCouponCode = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 10);
+// 1회 발송 최대 인원 — 그룹 발송(10,000건/요청)이라 속도 제한은 없고, 실수 방지용 상한만 둔다
+const MAX_RECIPIENTS_PER_SEND = 50000;
 
 // 성별/연령대 필터 조건 빌더 (franchise-sms 와 동일 규칙)
 function buildFilterConditions(genderFilter?: string, ageGroups?: string[]): any {
@@ -123,10 +124,18 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
     }
 
     // 대상 고객 조회 (매장 정보를 위해 storeId 포함)
-    const resolved = await prisma.customer.findMany({
-      where: buildTargetWhere(storeIds, req.body),
-      select: { id: true, phone: true, storeId: true },
-    });
+    let resolved: Array<{ id: string; phone: string | null; storeId: string }>;
+    if (targetType === 'SEGMENT') {
+      // 고객 그룹: 발송 시점에 조건을 다시 평가 (수신 동의 고객만)
+      const segment = req.body.segmentId ? await loadFranchiseSegment(franchiseId, String(req.body.segmentId)) : null;
+      if (!segment) return res.status(400).json({ error: '고객 그룹을 찾을 수 없습니다.' });
+      resolved = await resolveSegmentCustomersInStores(storeIds, segment.conditions);
+    } else {
+      resolved = await prisma.customer.findMany({
+        where: buildTargetWhere(storeIds, req.body),
+        select: { id: true, phone: true, storeId: true },
+      });
+    }
 
     if (resolved.length === 0) {
       return res.status(400).json({ error: '발송 가능한 고객이 없습니다.' });
@@ -149,112 +158,59 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
       });
     }
 
-    const appUrl = env.PUBLIC_APP_URL || 'http://localhost:3999';
-    const domain = appUrl.replace(/^https?:\/\//, '');
+    // 발송 시각 — 예약 요청이 있으면 그 시각, 발송 불가 시간이면 다음 오전 8시
+    const sendTime = resolveSendTime(req.body.scheduledAt, { adWindow: true });
+    if (sendTime.error) return res.status(400).json({ error: sendTime.error });
+    const scheduledAt = sendTime.at;
 
-    const templateId = env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON;
-    if (!templateId) {
-      return res.status(500).json({ error: '알림톡 템플릿이 설정되지 않았습니다.' });
-    }
-    const pfId = env.SOLAPI_PF_ID;
-    if (!pfId) {
-      return res.status(500).json({ error: 'SOLAPI 채널이 설정되지 않았습니다.' });
-    }
+    // 마케팅 성과 추적 캠페인 (쿠폰 사용·재방문을 캠페인별로 집계)
+    const campaignId = await recordMarketingCampaign({
+      franchiseId,
+      channel: 'KAKAO_COUPON',
+      title: couponContent.trim(),
+      content: `${couponContent.trim()} · ${expiryDate.trim()}까지`,
+      targetLabel: targetLabelOf(targetType, req.body.segmentId),
+      couponContent: couponContent.trim(),
+      sentAt: scheduledAt,
+      recipients: resolved.map((c) => ({ customerId: c.id, storeId: c.storeId })),
+    });
 
+    // 솔라피 그룹 발송 (10,000건/1회) — 각 고객의 소속 매장 정보로 보내고, 접수된 건만 프랜차이즈 지갑에서 과금
     const overrideNaver = (naverPlaceUrl || '').trim();
-    const codePoolDedup = new Set<string>();
-    let queued = 0;
-    let dropped = 0;
-
-    for (let i = 0; i < resolved.length; i += INSERT_CHUNK_SIZE) {
-      const slice = resolved.slice(i, i + INSERT_CHUNK_SIZE);
-
-      const couponRows = slice.map((c) => {
-        let code = generateCouponCode();
-        let guard = 0;
-        while (codePoolDedup.has(code) && guard < 5) {
-          code = generateCouponCode();
-          guard++;
-        }
-        codePoolDedup.add(code);
-        const store = storeMap.get(c.storeId);
-        const effectiveNaver = overrideNaver || store?.naverPlaceUrl || '';
-        return {
-          code,
-          storeId: c.storeId,
-          customerId: c.id,
-          phone: c.phone!,
-          storeName: store?.name || '',
-          naverPlaceUrl: effectiveNaver || null,
-        };
-      });
-
-      const retargetRows = couponRows.map((cr) => ({
-        code: cr.code,
-        storeId: cr.storeId,
-        customerId: cr.customerId,
-        phone: cr.phone,
-        couponContent: couponContent.trim(),
-        expiryDate: expiryDate.trim(),
-        naverPlaceUrl: cr.naverPlaceUrl,
-      }));
-
-      const outboxRows = couponRows.map((cr) => ({
-        storeId: cr.storeId,
-        customerId: cr.customerId,
-        phone: cr.phone,
-        messageType: 'RETARGET_COUPON' as const,
-        templateId,
-        variables: {
-          '#{상호}': cr.storeName,
-          '#{쿠폰내용}': couponContent.trim(),
-          '#{유효기간}': expiryDate.trim(),
-          '#{네이버플레이스}': (cr.naverPlaceUrl || '').replace(/^https?:\/\//, ''),
-          '#{직원확인}': `${domain}/coupon/verify/${cr.code}`,
-        } as any,
-        idempotencyKey: `retarget-coupon-${cr.code}`,
-        status: 'PENDING' as const,
-      }));
-
-      const chunkCost = slice.length * COUPON_COST_PER_MESSAGE;
-
-      try {
-        await prisma.$transaction(async (tx) => {
-          const couponInsert = await (tx as any).retargetCoupon.createMany({
-            data: retargetRows,
-            skipDuplicates: true,
-          });
-          const outboxInsert = await tx.alimTalkOutbox.createMany({
-            data: outboxRows,
-            skipDuplicates: true,
-          });
-          const ok = Math.min(couponInsert.count, outboxInsert.count);
-          queued += ok;
-          dropped += slice.length - ok;
-
-          const effectiveCost = ok * COUPON_COST_PER_MESSAGE;
-          if (effectiveCost > 0) {
-            await tx.franchiseWallet.update({
-              where: { franchiseId },
-              data: { balance: { decrement: effectiveCost } },
-            });
-          }
-        });
-      } catch (chunkErr) {
-        console.error(`[FranchiseRetargetCoupon] chunk ${i}-${i + slice.length} failed:`, chunkErr);
-        dropped += slice.length;
-      }
-    }
+    const result = await sendRetargetCouponGroup({
+      campaignId,
+      scheduledAt,
+      recipients: resolved
+        .filter((c) => c.phone)
+        .map((c) => {
+          const store = storeMap.get(c.storeId);
+          return {
+            customerId: c.id,
+            phone: c.phone!,
+            storeId: c.storeId,
+            storeName: store?.name || '',
+            naverPlaceUrl: overrideNaver || store?.naverPlaceUrl || null,
+          };
+        }),
+      couponContent: couponContent.trim(),
+      expiryDate: expiryDate.trim(),
+      billing: { kind: 'FRANCHISE', franchiseId, unitCost: COUPON_COST_PER_MESSAGE, description: '메시지 발송 쿠폰 알림톡' },
+      logTag: '[FranchiseRetargetCoupon]',
+    });
+    const { queued, dropped } = result;
+    await updateMarketingCampaign(campaignId, { cost: result.totalCost });
 
     console.log(`[FranchiseRetargetCoupon] franchiseId=${franchiseId} resolved=${resolved.length} queued=${queued} dropped=${dropped}`);
 
     res.json({
       success: true,
-      message: `${queued.toLocaleString()}명에게 쿠폰 알림톡 발송이 예약되었습니다.${dropped > 0 ? ` (${dropped}명은 일시적 충돌로 제외)` : ''}`,
+      scheduledAt: scheduledAt?.toISOString() ?? null,
+      message: `${queued.toLocaleString()}명에게 쿠폰 알림톡을 ${scheduledAt ? `${formatKst(scheduledAt)}에 보내도록 예약했어요` : '보냈습니다'}.${dropped > 0 ? ` (${dropped.toLocaleString()}명은 접수 실패로 제외, 비용 미청구)` : ''}`,
       count: queued,
       resolved: resolved.length,
       queued,
       dropped,
+      totalCost: result.totalCost,
       maxRecipients: MAX_RECIPIENTS_PER_SEND,
     });
   } catch (error) {

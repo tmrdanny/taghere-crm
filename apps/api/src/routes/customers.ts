@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { sidoToShort } from '../utils/address-parser.js';
+import { sidoToShort, normalizeSidoInput } from '../utils/address-parser.js';
 import { PointsError, reverseOrderItemAccrual } from '../services/points.js';
 import { attachStayMinutes } from '../services/stay-time.js';
 
@@ -413,18 +413,48 @@ router.get('/search/phone/:digits', authMiddleware, async (req: AuthRequest, res
   }
 });
 
-// POST /api/customers/bulk - Bulk create customers
+// POST /api/customers/bulk - Bulk create customers (청크 단위)
+//
+// 5만 건 이상 업로드는 클라이언트가 BULK_CHUNK_MAX 이하로 나눠 순차 호출한다.
+// - 청크 하나는 트랜잭션 하나로 처리해 중간 실패 시 부분 반영이 남지 않는다.
+// - (storeId, phoneLastDigits) 유니크 + skipDuplicates 라 같은 청크를 재전송해도 중복 생성되지 않고,
+//   초기 포인트/스탬프 원장은 "이번 호출에서 새로 생성된 고객"에게만 기록해 재시도 시 이중 지급되지 않는다.
+// - 각 row 는 엑셀 행 번호(row)를 들고 와 오류 행 번호가 파일 전체 기준으로 맞는다.
+const BULK_CHUNK_MAX = 2000;
+
+// 마케팅 수신 동의 값 파싱. 태그히어 고객은 기본적으로 수신 동의 상태이므로 빈 값은 동의(true)로 본다.
+// 동의/Y/O/true/1 → true, 미동의/N/X/false/0 → false, 그 외 알 수 없는 값은 보수적으로 미동의.
+const CONSENT_TRUE_VALUES = ['Y', 'YES', 'O', 'TRUE', '1', '동의', '예', '동의함'];
+const CONSENT_FALSE_VALUES = ['N', 'NO', 'X', 'FALSE', '0', '미동의', '아니오', '아니요', '거부', '비동의'];
+function parseConsentValue(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  const v = String(value ?? '').trim().toUpperCase();
+  if (!v) return true;
+  if (CONSENT_TRUE_VALUES.includes(v)) return true;
+  if (CONSENT_FALSE_VALUES.includes(v)) return false;
+  return false;
+}
+
+// 지역 입력값 정규화 (시/도는 Customer.regionSido 저장 형식인 줄임말로)
+function parseRegionInput(sido: unknown, sigungu: unknown): { regionSido: string | null; regionSigungu: string | null } {
+  const sg = String(sigungu ?? '').trim();
+  return { regionSido: normalizeSidoInput(sido), regionSigungu: sg || null };
+}
+
 router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { customers } = req.body;
+    const { customers, consentAttested } = req.body;
 
     if (!Array.isArray(customers) || customers.length === 0) {
       return res.status(400).json({ error: '등록할 고객 데이터가 없습니다.' });
     }
-    if (customers.length > 10000) {
-      return res.status(400).json({ error: '한 번에 최대 10,000건까지 등록할 수 있습니다.' });
+    if (customers.length > BULK_CHUNK_MAX) {
+      return res.status(400).json({ error: `한 번에 최대 ${BULK_CHUNK_MAX.toLocaleString()}건씩 나눠 등록해주세요.` });
     }
+
+    // 마케팅 수신 동의는 업로더가 "동의를 받은 고객"임을 확인한 경우에만 반영한다
+    const allowConsent = consentAttested === true;
 
     const errors: Array<{ row: number; phone: string; reason: string }> = [];
     const validRows: Array<{
@@ -438,21 +468,28 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
       memo: string | null;
       initialPoints: number;
       initialStamps: number;
+      consentMarketing: boolean;
+      regionSido: string | null;
+      regionSigungu: string | null;
     }> = [];
 
     // 1. 각 row 검증 + 정규화
     const seenPhoneLastDigits = new Set<string>();
 
     for (let i = 0; i < customers.length; i++) {
-      const row = customers[i];
-      const rowNum = i + 2; // 엑셀 기준 (헤더=1행, 데이터=2행부터)
+      const row = customers[i] || {};
+      const rowNum = Number.isInteger(row.row) ? row.row : i + 2; // 엑셀 기준 (헤더=1행, 데이터=2행부터)
 
       if (!row.phone) {
         errors.push({ row: rowNum, phone: '', reason: '전화번호가 없습니다.' });
         continue;
       }
 
-      const normalizedPhone = String(row.phone).replace(/[^0-9]/g, '');
+      let normalizedPhone = String(row.phone).replace(/[^0-9]/g, '');
+      // 엑셀에서 숫자 서식 셀은 앞자리 0이 빠진다 (01012345678 → 1012345678)
+      if (normalizedPhone.length === 10 && normalizedPhone.startsWith('1')) {
+        normalizedPhone = `0${normalizedPhone}`;
+      }
       if (normalizedPhone.length < 8) {
         errors.push({ row: rowNum, phone: String(row.phone), reason: '전화번호가 너무 짧습니다.' });
         continue;
@@ -501,36 +538,35 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
         birthYear,
         birthday,
         memo: row.memo ? String(row.memo).trim() : null,
-        initialPoints: parseInt(String(row.initialPoints || 0), 10) || 0,
-        initialStamps: parseInt(String(row.initialStamps || 0), 10) || 0,
+        initialPoints: Math.max(0, parseInt(String(row.initialPoints || 0), 10) || 0),
+        initialStamps: Math.max(0, parseInt(String(row.initialStamps || 0), 10) || 0),
+        consentMarketing: allowConsent && parseConsentValue(row.consentMarketing),
+        ...parseRegionInput(row.regionSido, row.regionSigungu),
       });
     }
 
-    // 2. DB 기존 phoneLastDigits 조회
-    let skipped = 0;
-    if (validRows.length > 0) {
-      const allPhoneLastDigits = validRows.map(r => r.phoneLastDigits);
-      const existing = await prisma.customer.findMany({
-        where: {
-          storeId,
-          phoneLastDigits: { in: allPhoneLastDigits },
-        },
-        select: { phoneLastDigits: true },
-      });
-      const existingSet = new Set(existing.map(e => e.phoneLastDigits).filter(Boolean));
+    if (validRows.length === 0) {
+      return res.json({ created: 0, skipped: 0, errors, total: customers.length });
+    }
 
-      const toCreate = validRows.filter(r => {
-        if (existingSet.has(r.phoneLastDigits)) {
-          skipped++;
-          return false;
-        }
-        return true;
-      });
+    const now = new Date();
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // 2. DB 기존 phoneLastDigits 조회
+        const allPhoneLastDigits = validRows.map((r) => r.phoneLastDigits);
+        const existing = await tx.customer.findMany({
+          where: { storeId, phoneLastDigits: { in: allPhoneLastDigits } },
+          select: { phoneLastDigits: true },
+        });
+        const existingSet = new Set(existing.map((e) => e.phoneLastDigits).filter(Boolean));
+        const toCreate = validRows.filter((r) => !existingSet.has(r.phoneLastDigits));
+        const skipped = validRows.length - toCreate.length;
 
-      // 3. 일괄 생성
-      if (toCreate.length > 0) {
-        await prisma.customer.createMany({
-          data: toCreate.map(r => ({
+        if (toCreate.length === 0) return { created: 0, skipped };
+
+        // 3. 일괄 생성 (동시 요청과 겹쳐도 유니크 제약으로 건너뜀)
+        const created = await tx.customer.createMany({
+          data: toCreate.map((r) => ({
             storeId,
             phone: r.phone,
             phoneLastDigits: r.phoneLastDigits,
@@ -540,77 +576,62 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
             birthday: r.birthday,
             memo: r.memo,
             totalPoints: r.initialPoints,
+            totalStamps: r.initialStamps,
             visitCount: 0,
             lastVisitAt: null,
+            consentMarketing: r.consentMarketing,
+            consentAt: r.consentMarketing ? now : null,
+            regionSido: r.regionSido,
+            regionSigungu: r.regionSigungu,
+            createdAt: now, // 아래에서 "이번 호출로 생성된 행"을 정확히 식별하기 위한 표식
           })),
+          skipDuplicates: true,
         });
 
-        // 포인트 적립 내역 생성 (initialPoints > 0인 고객만)
-        const pointRows = toCreate.filter(r => r.initialPoints > 0);
-        if (pointRows.length > 0) {
-          const createdCustomers = await prisma.customer.findMany({
-            where: { storeId, phoneLastDigits: { in: pointRows.map(r => r.phoneLastDigits) } },
-            select: { id: true, phoneLastDigits: true, totalPoints: true },
-          });
-          const phoneToCustomer = new Map(createdCustomers.map(c => [c.phoneLastDigits, c]));
-          await prisma.pointLedger.createMany({
-            data: pointRows
-              .filter(r => phoneToCustomer.has(r.phoneLastDigits))
-              .map(r => {
-                const c = phoneToCustomer.get(r.phoneLastDigits)!;
-                return {
-                  storeId,
-                  customerId: c.id,
-                  delta: r.initialPoints,
-                  balance: r.initialPoints,
-                  type: 'EARN' as const,
-                  reason: '엑셀 대량 등록 초기 포인트',
-                };
-              }),
-          });
-        }
-
-        // 스탬프 적립 내역 생성 (initialStamps > 0인 고객만)
-        const stampRows = toCreate.filter(r => r.initialStamps > 0);
-        if (stampRows.length > 0) {
-          const createdCustomers = await prisma.customer.findMany({
-            where: { storeId, phoneLastDigits: { in: stampRows.map(r => r.phoneLastDigits) } },
+        // 4. 초기 포인트/스탬프 원장 — 이번에 새로 만든 고객에게만
+        const ledgerRows = toCreate.filter((r) => r.initialPoints > 0 || r.initialStamps > 0);
+        if (ledgerRows.length > 0) {
+          const createdCustomers = await tx.customer.findMany({
+            where: {
+              storeId,
+              phoneLastDigits: { in: ledgerRows.map((r) => r.phoneLastDigits) },
+              createdAt: now,
+            },
             select: { id: true, phoneLastDigits: true },
           });
-          const phoneToCustomer = new Map(createdCustomers.map(c => [c.phoneLastDigits, c]));
+          const phoneToId = new Map(createdCustomers.map((c) => [c.phoneLastDigits, c.id]));
 
-          await prisma.stampLedger.createMany({
-            data: stampRows
-              .filter(r => phoneToCustomer.has(r.phoneLastDigits))
-              .map(r => {
-                const c = phoneToCustomer.get(r.phoneLastDigits)!;
-                return {
-                  storeId,
-                  customerId: c.id,
-                  delta: r.initialStamps,
-                  balance: r.initialStamps,
-                  type: 'EARN' as const,
-                  reason: '엑셀 대량 등록 초기 스탬프',
-                };
-              }),
-          });
+          const pointData = ledgerRows
+            .filter((r) => r.initialPoints > 0 && phoneToId.has(r.phoneLastDigits))
+            .map((r) => ({
+              storeId,
+              customerId: phoneToId.get(r.phoneLastDigits)!,
+              delta: r.initialPoints,
+              balance: r.initialPoints,
+              type: 'EARN' as const,
+              reason: '엑셀 대량 등록 초기 포인트',
+            }));
+          if (pointData.length > 0) await tx.pointLedger.createMany({ data: pointData });
+
+          const stampData = ledgerRows
+            .filter((r) => r.initialStamps > 0 && phoneToId.has(r.phoneLastDigits))
+            .map((r) => ({
+              storeId,
+              customerId: phoneToId.get(r.phoneLastDigits)!,
+              delta: r.initialStamps,
+              balance: r.initialStamps,
+              type: 'EARN' as const,
+              reason: '엑셀 대량 등록 초기 스탬프',
+            }));
+          if (stampData.length > 0) await tx.stampLedger.createMany({ data: stampData });
         }
-      }
 
-      res.json({
-        created: toCreate.length,
-        skipped,
-        errors,
-        total: customers.length,
-      });
-    } else {
-      res.json({
-        created: 0,
-        skipped: 0,
-        errors,
-        total: customers.length,
-      });
-    }
+        return { created: created.count, skipped: skipped + (toCreate.length - created.count) };
+      },
+      { timeout: 60_000 }
+    );
+
+    res.json({ ...result, errors, total: customers.length });
   } catch (error) {
     console.error('Bulk customer create error:', error);
     res.status(500).json({ error: '대량 고객 등록 중 오류가 발생했습니다.' });
@@ -621,7 +642,7 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { name, phone, gender, birthday, birthYear, memo, initialPoints, feedbackRating, feedbackText } = req.body;
+    const { name, phone, gender, birthday, birthYear, memo, initialPoints, feedbackRating, feedbackText, consentMarketing } = req.body;
 
     // 필수 필드 검증
     if (!phone) {
@@ -650,6 +671,14 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       select: { addressSido: true, addressSigungu: true },
     });
 
+    // 지역: 직접 입력값이 있으면 그 값, 없으면 매장 지역으로 채운다(기존 동작)
+    const inputRegion = parseRegionInput(req.body.regionSido, req.body.regionSigungu);
+    const hasInputRegion = !!(inputRegion.regionSido || inputRegion.regionSigungu);
+
+    // 마케팅 수신 동의: 값이 없으면 기본 동의(true)
+    const consent = consentMarketing === undefined || consentMarketing === null ? true : parseConsentValue(consentMarketing);
+    const now = new Date();
+
     // 고객 생성
     const customer = await prisma.customer.create({
       data: {
@@ -667,8 +696,10 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         feedbackRating: feedbackRating || null,
         feedbackText: feedbackText || null,
         feedbackAt: feedbackRating || feedbackText ? new Date() : null,
-        regionSido: sidoToShort(store?.addressSido ?? null),
-        regionSigungu: store?.addressSigungu || null,
+        regionSido: hasInputRegion ? inputRegion.regionSido : sidoToShort(store?.addressSido ?? null),
+        regionSigungu: hasInputRegion ? inputRegion.regionSigungu : store?.addressSigungu || null,
+        consentMarketing: consent,
+        consentAt: consent ? now : null,
       },
     });
 

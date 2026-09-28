@@ -277,7 +277,7 @@ export default function StoreListPage() {
   if (firstLoad) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -285,18 +285,17 @@ export default function StoreListPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white border border-[#EAEAEA] rounded-xl p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="ad-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-[16px] font-semibold text-neutral-900">매장 목록</h2>
-            <p className="text-[13px] text-neutral-500 mt-0.5">
+            <p className="text-[13px] text-[color:var(--ad-muted)] ad-tnum">
               {searchQuery || categoryFilter ? '검색 결과 ' : '총 '}{total.toLocaleString()}개 매장
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => { setBulkModal(true); setBulkParsedData([]); setBulkResult(null); setBulkEnrollmentMode('POINTS'); }}
-              className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-2"
+              className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)]"
             >
               <UploadIcon className="w-4 h-4" />
               매장 대량등록
@@ -304,7 +303,7 @@ export default function StoreListPage() {
             <button
               onClick={handleDownloadExcel}
               disabled={total === 0}
-              className="h-10 px-4 bg-green-600 hover:bg-green-700 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <DownloadIcon className="w-4 h-4" />
               Excel 다운로드
@@ -320,14 +319,14 @@ export default function StoreListPage() {
               placeholder="매장명, 대표자명, 사업자번호, 연락처 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 pl-10 pr-4 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+              className="w-full pl-10 pr-3 h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
             />
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--ad-faint)]" />
           </div>
           <select
             value={categoryFilter}
             onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
-            className="h-10 px-3 bg-white border border-[#EAEAEA] rounded-lg text-[14px] text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#FFD541]/50 focus:border-[#FFD541]"
+            className="px-3 h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
           >
             {CATEGORY_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -339,101 +338,101 @@ export default function StoreListPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-[#EAEAEA] rounded-xl overflow-hidden">
+      <div className="ad-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1200px]">
             <thead>
-              <tr className="bg-neutral-50 border-b border-[#EAEAEA]">
-                <th className="px-4 py-3 text-left text-[12px] font-semibold text-neutral-600 uppercase tracking-wider">
+              <tr className="border-b border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] text-left text-[11.5px] text-[color:var(--ad-muted)]">
+                <th className="px-4 py-2.5 font-medium text-left">
                   상호명
                 </th>
-                <th className="px-4 py-3 text-left text-[12px] font-semibold text-neutral-600 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium text-left">
                   대표자명
                 </th>
-                <th className="px-4 py-3 text-left text-[12px] font-semibold text-neutral-600 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium text-left">
                   연락처
                 </th>
-                <th className="px-4 py-3 text-left text-[12px] font-semibold text-neutral-600 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium text-left">
                   점주 이메일
                 </th>
-                <th className="px-4 py-3 text-left text-[12px] font-semibold text-neutral-600 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium text-left">
                   사업자번호
                 </th>
-                <th className="px-4 py-3 text-left text-[12px] font-semibold text-neutral-600 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium text-left">
                   주소
                 </th>
-                <th className="px-4 py-3 text-left text-[12px] font-semibold text-neutral-600 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium text-left">
                   업종
                 </th>
-                <th className="px-4 py-3 text-right text-[12px] font-semibold text-neutral-600 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium text-right">
                   고객 수
                 </th>
-                <th className="px-4 py-3 text-right text-[12px] font-semibold text-neutral-600 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium text-right">
                   충전금
                 </th>
-                <th className="px-4 py-3 text-right text-[12px] font-semibold text-neutral-600 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium text-right">
                   적립률
                 </th>
-                <th className="px-4 py-3 text-center text-[12px] font-semibold text-neutral-600 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium text-center">
                   CRM
                 </th>
-                <th className="px-4 py-3 text-left text-[12px] font-semibold text-neutral-600 uppercase tracking-wider">
+                <th className="px-4 py-2.5 font-medium text-left">
                   가입일
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#EAEAEA]">
+            <tbody className="divide-y divide-[color:var(--ad-line)] text-[13px]">
               {stores.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-4 py-12 text-center text-neutral-500 text-[14px]">
+                  <td colSpan={12} className="px-4 py-12 text-center text-[13px] text-[color:var(--ad-faint)]">
                     {searchQuery || categoryFilter ? '검색 결과가 없습니다.' : '등록된 매장이 없습니다.'}
                   </td>
                 </tr>
               ) : (
                 stores.map((store) => (
-                  <tr key={store.id} className="hover:bg-neutral-50 transition-colors">
-                    <td className="px-4 py-3 text-[13px] font-medium text-neutral-900">
+                  <tr key={store.id} className="hover:bg-[rgba(110,173,255,0.05)] transition-colors">
+                    <td className="px-4 py-3 text-[13px] font-medium text-[color:var(--ad-ink)]">
                       {store.name}
                     </td>
-                    <td className="px-4 py-3 text-[13px] text-neutral-700">
+                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink-2)]">
                       {store.ownerName || '-'}
                     </td>
-                    <td className="px-4 py-3 text-[13px] text-neutral-700">
+                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink-2)]">
                       {store.phone || '-'}
                     </td>
-                    <td className="px-4 py-3 text-[13px] text-neutral-700">
+                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink-2)]">
                       {store.ownerEmail || '-'}
                     </td>
-                    <td className="px-4 py-3 text-[13px] text-neutral-700 font-mono">
+                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink-2)] font-mono">
                       {store.businessRegNumber || '-'}
                     </td>
-                    <td className="px-4 py-3 text-[13px] text-neutral-700 max-w-[200px] truncate" title={store.address || undefined}>
+                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink-2)] max-w-[200px] truncate" title={store.address || undefined}>
                       {store.address || '-'}
                     </td>
-                    <td className="px-4 py-3 text-[13px] text-neutral-700">
+                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink-2)]">
                       {store.category ? STORE_CATEGORIES[store.category as keyof typeof STORE_CATEGORIES] || store.category : '-'}
                     </td>
-                    <td className="px-4 py-3 text-[13px] text-neutral-900 text-right font-medium">
+                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink)] text-right font-medium ad-tnum">
                       {formatNumber(store.customerCount)}
                     </td>
-                    <td className="px-4 py-3 text-[13px] text-neutral-900 text-right font-medium">
+                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink)] text-right font-medium ad-tnum">
                       {formatNumber(store.walletBalance)}원
                     </td>
-                    <td className="px-4 py-3 text-[13px] text-neutral-900 text-right">
+                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink)] text-right ad-tnum">
                       {store.pointRatePercent}%
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span
-                        className={`inline-block px-2 py-1 text-[11px] font-medium rounded ${
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
                           store.crmEnabled
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-neutral-100 text-neutral-500'
+                            ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]'
+                            : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]'
                         }`}
                       >
                         {store.crmEnabled ? 'ON' : 'OFF'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-[13px] text-neutral-600">
+                    <td className="px-4 py-3 text-[13px] ad-tnum text-[color:var(--ad-muted)]">
                       {new Date(store.createdAt).toLocaleDateString('ko-KR')}
                     </td>
                   </tr>
@@ -445,8 +444,8 @@ export default function StoreListPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-[#EAEAEA] bg-neutral-50">
-            <p className="text-[13px] text-neutral-500">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)]">
+            <p className="text-[12.5px] ad-tnum text-[color:var(--ad-muted)]">
               {(currentPage - 1) * ITEMS_PER_PAGE + 1}-
               {Math.min(currentPage * ITEMS_PER_PAGE, total)} / {total.toLocaleString()}개
             </p>
@@ -454,17 +453,17 @@ export default function StoreListPage() {
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-2 text-neutral-600 hover:bg-neutral-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="ad-press p-2 rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronLeftIcon className="w-4 h-4" />
               </button>
-              <span className="text-[13px] text-neutral-700 min-w-[80px] text-center">
+              <span className="text-[13px] ad-tnum text-[color:var(--ad-ink-2)] min-w-[80px] text-center">
                 {currentPage} / {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="p-2 text-neutral-600 hover:bg-neutral-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="ad-press p-2 rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronRightIcon className="w-4 h-4" />
               </button>
@@ -475,17 +474,17 @@ export default function StoreListPage() {
 
       {/* 대량등록 모달 */}
       {bulkModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#EAEAEA]">
-              <h3 className="text-[16px] font-semibold text-neutral-900">매장 대량등록</h3>
-              <button onClick={() => setBulkModal(false)} className="text-neutral-400 hover:text-neutral-600">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.4)] backdrop-blur-sm">
+          <div className="rounded-[20px] bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[color:var(--ad-line)]">
+              <h3 className="text-[17px] font-bold text-[color:var(--ad-ink)]">매장 대량등록</h3>
+              <button onClick={() => setBulkModal(false)} className="text-[color:var(--ad-faint)] hover:text-[color:var(--ad-ink-2)]">
                 <CloseIcon className="w-5 h-5" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-              <p className="text-[13px] text-neutral-600">
+              <p className="text-[13px] text-[color:var(--ad-muted)]">
                 엑셀 파일로 매장을 일괄 등록할 수 있습니다. (최대 500건)
                 <br />
                 초기 비밀번호: <span className="font-mono font-semibold">123456789a</span>
@@ -495,7 +494,7 @@ export default function StoreListPage() {
               <div className="flex gap-2">
                 <button
                   onClick={handleDownloadBulkSample}
-                  className="h-9 px-3 text-[13px] text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+                  className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium !text-[color:var(--ad-link)]"
                 >
                   샘플 다운로드
                 </button>
@@ -508,7 +507,7 @@ export default function StoreListPage() {
                 />
                 <button
                   onClick={() => bulkFileInputRef.current?.click()}
-                  className="h-9 px-3 text-[13px] text-neutral-700 border border-[#EAEAEA] rounded-lg hover:bg-neutral-50 transition-colors"
+                  className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                 >
                   {bulkParsedData.length > 0
                     ? `${bulkParsedData.length}건 로드됨 (다시 선택하려면 클릭)`
@@ -517,8 +516,8 @@ export default function StoreListPage() {
               </div>
 
               {/* 등록 모드 선택 */}
-              <div className="p-4 bg-neutral-50 rounded-xl">
-                <p className="text-[13px] font-medium text-neutral-700 mb-2">등록 모드</p>
+              <div className="p-4 bg-[color:var(--ad-bg-alt)] rounded-[14px]">
+                <p className="text-[13px] font-medium text-[color:var(--ad-ink-2)] mb-2">등록 모드</p>
                 <div className="grid grid-cols-3 gap-2">
                   {([
                     { value: 'POINTS' as const, label: '포인트 적립' },
@@ -529,10 +528,10 @@ export default function StoreListPage() {
                       key={mode.value}
                       type="button"
                       onClick={() => setBulkEnrollmentMode(mode.value)}
-                      className={`py-2.5 px-3 rounded-lg text-[13px] font-medium transition-colors ${
+                      className={`ad-press py-2.5 px-3 rounded-[10px] text-[13px] font-medium transition-colors ${
                         bulkEnrollmentMode === mode.value
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-300'
+                          ? 'bg-[color:var(--ad-navy)] text-white'
+                          : 'bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'
                       }`}
                     >
                       {mode.label}
@@ -543,39 +542,39 @@ export default function StoreListPage() {
 
               {/* 미리보기 테이블 */}
               {bulkParsedData.length > 0 && !bulkResult && (
-                <div className="border border-[#EAEAEA] rounded-lg overflow-hidden">
+                <div className="border border-[color:var(--ad-line)] rounded-[12px] overflow-hidden">
                   <div className="overflow-x-auto max-h-[300px]">
                     <table className="w-full min-w-[800px] text-[12px]">
-                      <thead className="bg-neutral-50 sticky top-0">
+                      <thead className="bg-[color:var(--ad-bg-alt)] sticky top-0 text-[color:var(--ad-muted)]">
                         <tr>
-                          <th className="px-3 py-2 text-left font-semibold text-neutral-600">#</th>
-                          <th className="px-3 py-2 text-left font-semibold text-neutral-600">상호명</th>
-                          <th className="px-3 py-2 text-left font-semibold text-neutral-600">대표자명</th>
-                          <th className="px-3 py-2 text-left font-semibold text-neutral-600">연락처</th>
-                          <th className="px-3 py-2 text-left font-semibold text-neutral-600">이메일</th>
-                          <th className="px-3 py-2 text-left font-semibold text-neutral-600">사업자번호</th>
-                          <th className="px-3 py-2 text-left font-semibold text-neutral-600">주소</th>
-                          <th className="px-3 py-2 text-left font-semibold text-neutral-600">업종</th>
+                          <th className="px-3 py-2 text-left font-medium">#</th>
+                          <th className="px-3 py-2 text-left font-medium">상호명</th>
+                          <th className="px-3 py-2 text-left font-medium">대표자명</th>
+                          <th className="px-3 py-2 text-left font-medium">연락처</th>
+                          <th className="px-3 py-2 text-left font-medium">이메일</th>
+                          <th className="px-3 py-2 text-left font-medium">사업자번호</th>
+                          <th className="px-3 py-2 text-left font-medium">주소</th>
+                          <th className="px-3 py-2 text-left font-medium">업종</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#EAEAEA]">
+                      <tbody className="divide-y divide-[color:var(--ad-line)]">
                         {bulkParsedData.slice(0, 20).map((row, idx) => (
-                          <tr key={idx} className="hover:bg-neutral-50">
-                            <td className="px-3 py-1.5 text-neutral-400">{idx + 1}</td>
-                            <td className="px-3 py-1.5 text-neutral-900 font-medium">{row.storeName}</td>
-                            <td className="px-3 py-1.5 text-neutral-700">{row.ownerName || '-'}</td>
-                            <td className="px-3 py-1.5 text-neutral-700">{row.phone || '-'}</td>
-                            <td className="px-3 py-1.5 text-neutral-700">{row.email || '-'}</td>
-                            <td className="px-3 py-1.5 text-neutral-700 font-mono">{row.businessRegNumber || '-'}</td>
-                            <td className="px-3 py-1.5 text-neutral-700 max-w-[150px] truncate">{row.address || '-'}</td>
-                            <td className="px-3 py-1.5 text-neutral-700">{STORE_CATEGORIES[row.category as keyof typeof STORE_CATEGORIES] || row.category || '-'}</td>
+                          <tr key={idx} className="hover:bg-[rgba(110,173,255,0.05)]">
+                            <td className="px-3 py-1.5 ad-tnum text-[color:var(--ad-faint)]">{idx + 1}</td>
+                            <td className="px-3 py-1.5 text-[color:var(--ad-ink)] font-medium">{row.storeName}</td>
+                            <td className="px-3 py-1.5 text-[color:var(--ad-ink-2)]">{row.ownerName || '-'}</td>
+                            <td className="px-3 py-1.5 text-[color:var(--ad-ink-2)]">{row.phone || '-'}</td>
+                            <td className="px-3 py-1.5 text-[color:var(--ad-ink-2)]">{row.email || '-'}</td>
+                            <td className="px-3 py-1.5 text-[color:var(--ad-ink-2)] font-mono">{row.businessRegNumber || '-'}</td>
+                            <td className="px-3 py-1.5 text-[color:var(--ad-ink-2)] max-w-[150px] truncate">{row.address || '-'}</td>
+                            <td className="px-3 py-1.5 text-[color:var(--ad-ink-2)]">{STORE_CATEGORIES[row.category as keyof typeof STORE_CATEGORIES] || row.category || '-'}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                   {bulkParsedData.length > 20 && (
-                    <p className="px-3 py-2 text-[12px] text-neutral-500 bg-neutral-50 border-t border-[#EAEAEA]">
+                    <p className="px-3 py-2 text-[12px] text-[color:var(--ad-muted)] bg-[color:var(--ad-bg-alt)] border-t border-[color:var(--ad-line)]">
                       외 {bulkParsedData.length - 20}건 더 있음
                     </p>
                   )}
@@ -585,32 +584,32 @@ export default function StoreListPage() {
               {/* 결과 */}
               {bulkResult && (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-green-50 rounded-lg p-3 text-center">
-                      <p className="text-[12px] text-green-600">등록 성공</p>
-                      <p className="text-2xl font-bold text-green-700">{bulkResult.created}</p>
+                  <div className="grid grid-cols-3 rounded-[12px] border border-[color:var(--ad-line)]">
+                    <div className="p-3 text-center">
+                      <p className="text-[12px] text-[color:var(--ad-muted)]">등록 성공</p>
+                      <p className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-pos)]">{bulkResult.created}</p>
                     </div>
-                    <div className="bg-red-50 rounded-lg p-3 text-center">
-                      <p className="text-[12px] text-red-600">등록 실패</p>
-                      <p className="text-2xl font-bold text-red-700">{bulkResult.errors.length}</p>
+                    <div className="p-3 text-center border-l border-[color:var(--ad-line)]">
+                      <p className="text-[12px] text-[color:var(--ad-muted)]">등록 실패</p>
+                      <p className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-neg)]">{bulkResult.errors.length}</p>
                     </div>
-                    <div className={`rounded-lg p-3 text-center ${
-                      bulkResult.crmOn && bulkResult.crmOn.failed > 0 ? 'bg-amber-50' : 'bg-blue-50'
+                    <div className={`p-3 text-center border-l border-[color:var(--ad-line)] ${
+                      bulkResult.crmOn && bulkResult.crmOn.failed > 0 ? 'bg-[#fff4ef]' : ''
                     }`}>
                       <p className={`text-[12px] ${
-                        bulkResult.crmOn && bulkResult.crmOn.failed > 0 ? 'text-amber-600' : 'text-blue-600'
+                        bulkResult.crmOn && bulkResult.crmOn.failed > 0 ? 'text-[#993d1f]' : 'text-[color:var(--ad-muted)]'
                       }`}>CRM ON</p>
-                      <p className={`text-2xl font-bold ${
-                        bulkResult.crmOn && bulkResult.crmOn.failed > 0 ? 'text-amber-700' : 'text-blue-700'
+                      <p className={`text-[22px] font-semibold tracking-[-0.03em] ad-tnum ${
+                        bulkResult.crmOn && bulkResult.crmOn.failed > 0 ? 'text-[#993d1f]' : 'text-[color:var(--ad-link)]'
                       }`}>
                         {bulkResult.crmOn ? `${bulkResult.crmOn.success}/${bulkResult.created}` : '-'}
                       </p>
                     </div>
                   </div>
                   {bulkResult.errors.length > 0 && (
-                    <div className="bg-red-50 rounded-lg p-3">
-                      <p className="text-[12px] font-semibold text-red-700 mb-1">등록 오류</p>
-                      <ul className="text-[12px] text-red-600 space-y-0.5">
+                    <div className="bg-[#fff0f3] rounded-[12px] p-3">
+                      <p className="text-[12px] font-semibold text-[color:var(--ad-neg)] mb-1">등록 오류</p>
+                      <ul className="text-[12px] text-[color:var(--ad-neg)] space-y-0.5">
                         {bulkResult.errors.slice(0, 15).map((err, i) => (
                           <li key={i}>{err.row}행 [{err.storeName}]: {err.reason}</li>
                         ))}
@@ -621,9 +620,9 @@ export default function StoreListPage() {
                     </div>
                   )}
                   {bulkResult.crmOn && bulkResult.crmOn.failed > 0 && (
-                    <div className="bg-amber-50 rounded-lg p-3">
-                      <p className="text-[12px] font-semibold text-amber-700 mb-1">CRM ON 실패 (수동 ON/OFF 필요)</p>
-                      <ul className="text-[12px] text-amber-600 space-y-0.5">
+                    <div className="bg-[#fff4ef] rounded-[12px] p-3">
+                      <p className="text-[12px] font-semibold text-[#993d1f] mb-1">CRM ON 실패 (수동 ON/OFF 필요)</p>
+                      <ul className="text-[12px] text-[#993d1f] space-y-0.5">
                         {bulkResult.crmOn.failures.map((f, i) => (
                           <li key={i}>[{f.storeName}]: {f.error || 'CRM ON 실패'}</li>
                         ))}
@@ -634,10 +633,10 @@ export default function StoreListPage() {
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#EAEAEA]">
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[color:var(--ad-line)]">
               <button
                 onClick={() => setBulkModal(false)}
-                className="h-9 px-4 text-[13px] text-neutral-600 border border-[#EAEAEA] rounded-lg hover:bg-neutral-50 transition-colors"
+                className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 {bulkResult ? '닫기' : '취소'}
               </button>
@@ -645,7 +644,7 @@ export default function StoreListPage() {
                 <button
                   onClick={handleBulkUpload}
                   disabled={bulkParsedData.length === 0 || bulkUploading}
-                  className="h-9 px-4 text-[13px] font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {bulkUploading ? '등록 중...' : `${bulkParsedData.length}건 등록하기`}
                 </button>

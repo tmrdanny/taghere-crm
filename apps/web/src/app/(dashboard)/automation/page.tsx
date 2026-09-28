@@ -4,10 +4,7 @@ import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Modal,
   ModalContent,
@@ -315,143 +312,140 @@ export default function AutomationPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 lg:p-8 max-w-4xl mx-auto">
-        <div className="text-center py-12 text-neutral-500">불러오는 중...</div>
+      <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
+        <div className="py-12 text-center text-[13px] text-[color:var(--ad-faint)]">불러오는 중...</div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {ToastComponent}
 
       {/* 헤더 */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-900">자동 마케팅</h1>
-        <p className="text-neutral-500 mt-1">
+      <div className="mb-5">
+        <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">자동 마케팅</h1>
+        <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
           ON/OFF만 설정하면, 고객에게 자동으로 쿠폰이 발송됩니다
         </p>
       </div>
 
       {/* 히어로 섹션 - 활성 룰이 없을 때만 */}
       {!hasActiveRules && (
-        <Card className="mb-6 border-brand-200 bg-gradient-to-br from-brand-50 to-white">
-          <CardContent className="pt-6 pb-6">
-            <div className="flex items-start gap-3 mb-5">
-              <div className="w-10 h-10 rounded-lg bg-brand-100 flex items-center justify-center flex-shrink-0">
-                <Zap className="w-5 h-5 text-brand-700" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-neutral-900">
-                  자동 마케팅으로 매출을 올려보세요
-                </h2>
-                <p className="text-sm text-neutral-500 mt-1">
-                  ON/OFF만 설정하면 끝! 고객에게 자동으로 쿠폰이 발송되어 재방문을 유도합니다.
-                </p>
+        <div className="ad-card mb-4 p-5">
+          <div className="mb-5">
+            <div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--ad-bg)] px-2.5 py-1 text-[12px] font-medium text-[color:var(--ad-muted)]">
+                <Zap className="h-3 w-3" strokeWidth={2} />
+                자동 마케팅 꺼짐
+              </span>
+              <h2 className="mt-3 text-[20px] font-semibold tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                자동 마케팅으로 매출을 올려보세요
+              </h2>
+              <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
+                ON/OFF만 설정하면 끝! 고객에게 자동으로 쿠폰이 발송되어 재방문을 유도합니다.
+              </p>
+            </div>
+          </div>
+
+          {/* 플랫폼 벤치마크 */}
+          <div className="mb-2 grid grid-cols-3 rounded-[12px] border border-[color:var(--ad-line)]">
+            <div className="p-4 text-center">
+              <div className="mb-1 text-[12px] text-[color:var(--ad-muted)]">쿠폰 사용률</div>
+              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                {PLATFORM_BENCHMARKS.couponUsageRate}%
               </div>
             </div>
-
-            {/* 플랫폼 벤치마크 */}
-            <div className="grid grid-cols-3 gap-3 mb-2">
-              <div className="bg-white rounded-lg p-3 text-center border border-neutral-100">
-                <div className="text-xs text-neutral-500 mb-1">쿠폰 사용률</div>
-                <div className="text-xl font-bold text-brand-700">
-                  {PLATFORM_BENCHMARKS.couponUsageRate}%
-                </div>
-              </div>
-              <div className="bg-white rounded-lg p-3 text-center border border-neutral-100">
-                <div className="text-xs text-neutral-500 mb-1">재방문 전환</div>
-                <div className="text-xl font-bold text-brand-700">
-                  {PLATFORM_BENCHMARKS.revisitConversion}%
-                </div>
-              </div>
-              <div className="bg-white rounded-lg p-3 text-center border border-neutral-100">
-                <div className="text-xs text-neutral-500 mb-1">투자 대비 효과</div>
-                <div className="text-xl font-bold text-brand-700">
-                  ROI {PLATFORM_BENCHMARKS.roiMultiplier}x
-                </div>
+            <div className="border-l border-[color:var(--ad-line)] p-4 text-center">
+              <div className="mb-1 text-[12px] text-[color:var(--ad-muted)]">재방문 전환</div>
+              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                {PLATFORM_BENCHMARKS.revisitConversion}%
               </div>
             </div>
-            <p className="text-[11px] text-neutral-400 text-center mb-5">
-              태그히어 플랫폼 평균 데이터
-            </p>
+            <div className="border-l border-[color:var(--ad-line)] p-4 text-center">
+              <div className="mb-1 text-[12px] text-[color:var(--ad-muted)]">투자 대비 효과</div>
+              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                ROI {PLATFORM_BENCHMARKS.roiMultiplier}x
+              </div>
+            </div>
+          </div>
+          <p className="mb-5 text-center text-[11px] text-[color:var(--ad-faint)]">
+            태그히어 플랫폼 평균 데이터
+          </p>
 
-            {/* 빠른 시작 CTA */}
-            <Button
-              onClick={() => setShowQuickStartModal(true)}
-              className="w-full"
-              size="lg"
-            >
-              <Zap className="w-4 h-4 mr-2" />
-              추천 시나리오 한번에 켜기
-            </Button>
-          </CardContent>
-        </Card>
+          {/* 빠른 시작 CTA */}
+          <button
+            onClick={() => setShowQuickStartModal(true)}
+            className="ad-press inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-5 text-[14px] font-semibold text-white hover:bg-[#383c40]"
+          >
+            <Zap className="h-4 w-4" />
+            추천 시나리오 한번에 켜기
+          </button>
+        </div>
       )}
 
       {/* 이번 달 성과 대시보드 - 활성 룰이 있을 때 */}
       {hasActiveRules && dashboard && (dashboard.totalSent > 0 || rules.some((r) => r.enabled)) && (
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="flex items-center justify-center gap-1.5 text-neutral-500 text-sm mb-1">
-                  <Send className="w-4 h-4" />
-                  <span>자동 발송</span>
-                </div>
-                <div className="text-2xl font-bold text-neutral-900">
-                  {dashboard.totalSent}건
-                </div>
+        <div className="ad-card mb-4">
+          <div className="grid grid-cols-3">
+            <div className="p-5">
+              <div className="mb-1 flex items-center gap-1.5 text-[12px] text-[color:var(--ad-muted)]">
+                <Send className="h-3.5 w-3.5" />
+                <span>자동 발송</span>
               </div>
-              <div>
-                <div className="flex items-center justify-center gap-1.5 text-neutral-500 text-sm mb-1">
-                  <Gift className="w-4 h-4" />
-                  <span>쿠폰 사용</span>
-                </div>
-                <div className="text-2xl font-bold text-neutral-900">
-                  {dashboard.totalCouponUsed}건
-                  <span className="text-sm font-normal text-neutral-500 ml-1">
-                    ({dashboard.usageRate}%)
-                  </span>
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-center gap-1.5 text-neutral-500 text-sm mb-1">
-                  <TrendingUp className="w-4 h-4" />
-                  <span>추정 매출</span>
-                </div>
-                <div className="text-2xl font-bold text-neutral-900">
-                  {dashboard.estimatedRevenue > 0
-                    ? `${dashboard.estimatedRevenue.toLocaleString()}원`
-                    : '-'}
-                </div>
+              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                {dashboard.totalSent}건
               </div>
             </div>
-
-            {/* 벤치마크 비교 */}
-            {dashboard.totalSent > 0 && (
-              <div className="mt-4 pt-3 border-t border-neutral-100 text-center">
-                <p className="text-sm text-neutral-600">
-                  이번 달 발송 {dashboard.totalSent}건 중 {dashboard.totalCouponUsed}건 사용
-                  ({dashboard.usageRate}%)
-                  <span className={`ml-1 font-medium ${
-                    dashboard.usageRate >= PLATFORM_BENCHMARKS.couponUsageRate
-                      ? 'text-green-600'
-                      : 'text-neutral-400'
-                  }`}>
-                    — 태그히어 평균 대비{' '}
-                    {dashboard.usageRate >= PLATFORM_BENCHMARKS.couponUsageRate ? '+' : ''}
-                    {dashboard.usageRate - PLATFORM_BENCHMARKS.couponUsageRate}%p
-                  </span>
-                </p>
+            <div className="border-l border-[color:var(--ad-line)] p-5">
+              <div className="mb-1 flex items-center gap-1.5 text-[12px] text-[color:var(--ad-muted)]">
+                <Gift className="h-3.5 w-3.5" />
+                <span>쿠폰 사용</span>
               </div>
-            )}
-          </CardContent>
-        </Card>
+              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                {dashboard.totalCouponUsed}건
+                <span className="ml-1 text-[13px] font-normal text-[color:var(--ad-muted)]">
+                  ({dashboard.usageRate}%)
+                </span>
+              </div>
+            </div>
+            <div className="border-l border-[color:var(--ad-line)] p-5">
+              <div className="mb-1 flex items-center gap-1.5 text-[12px] text-[color:var(--ad-muted)]">
+                <TrendingUp className="h-3.5 w-3.5" />
+                <span>추정 매출</span>
+              </div>
+              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                {dashboard.estimatedRevenue > 0
+                  ? `${dashboard.estimatedRevenue.toLocaleString()}원`
+                  : '-'}
+              </div>
+            </div>
+          </div>
+
+          {/* 벤치마크 비교 */}
+          {dashboard.totalSent > 0 && (
+            <div className="border-t border-[color:var(--ad-line)] px-5 py-3">
+              <p className="text-[13px] text-[color:var(--ad-ink-2)]">
+                이번 달 발송 {dashboard.totalSent}건 중 {dashboard.totalCouponUsed}건 사용
+                ({dashboard.usageRate}%)
+                <span className={`ml-1 font-medium ${
+                  dashboard.usageRate >= PLATFORM_BENCHMARKS.couponUsageRate
+                    ? 'text-[color:var(--ad-pos)]'
+                    : 'text-[color:var(--ad-faint)]'
+                }`}>
+                  — 태그히어 평균 대비{' '}
+                  {dashboard.usageRate >= PLATFORM_BENCHMARKS.couponUsageRate ? '+' : ''}
+                  {dashboard.usageRate - PLATFORM_BENCHMARKS.couponUsageRate}%p
+                </span>
+              </p>
+            </div>
+          )}
+        </div>
       )}
 
       {/* 시나리오 목록 */}
-      <div className="space-y-3">
+      <div className="ad-card overflow-hidden">
+        <div className="divide-y divide-[color:var(--ad-line)]">
         {SCENARIOS.map((scenario) => {
           const rule = getRuleByType(scenario.type);
           const stat = getStatByType(scenario.type);
@@ -459,45 +453,41 @@ export default function AutomationPage() {
           const Icon = scenario.icon;
 
           return (
-            <Card
+            <div
               key={scenario.type}
-              className={!scenario.available ? 'opacity-60' : ''}
+              className={`px-5 py-4 ${!scenario.available ? 'opacity-60' : ''}`}
             >
-              <CardContent className="py-4 px-5">
                 <div className="flex items-center gap-4">
                   {/* 아이콘 */}
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      rule?.enabled
-                        ? 'bg-brand-100 text-brand-700'
-                        : 'bg-neutral-100 text-neutral-500'
+                  <Icon
+                    className={`h-4 w-4 flex-shrink-0 ${
+                      rule?.enabled ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-faint)]'
                     }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                  </div>
+                    strokeWidth={1.8}
+                  />
 
                   {/* 내용 */}
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-neutral-900">
+                      <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">
                         {scenario.label}
                       </h3>
                       {scenario.best ? (
-                        <Badge className="bg-gradient-to-r from-amber-400 to-orange-400 text-white border-0 shadow-sm">Best</Badge>
+                        <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">Best</span>
                       ) : scenario.recommended ? (
-                        <Badge variant="success">추천</Badge>
+                        <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">추천</span>
                       ) : null}
                     </div>
-                    <p className="text-sm text-neutral-500 mt-0.5">
+                    <p className="mt-0.5 text-[13px] text-[color:var(--ad-muted)]">
                       {scenario.description}
                     </p>
 
                     {/* 비활성 상태: 대상 고객 수 표시 */}
                     {scenario.available && !rule?.enabled && preview && preview.thisMonthEstimate > 0 && (
-                      <p className="text-xs text-brand-600 mt-1 font-medium">
+                      <p className="mt-1 text-[12px] font-medium text-[color:var(--ad-ink-2)]">
                         내 매장 대상 고객 {preview.thisMonthEstimate}명
                         {preview.estimatedMonthlyCost > 0 && (
-                          <span className="text-neutral-400 font-normal">
+                          <span className="font-normal text-[color:var(--ad-faint)]">
                             {' '}· 예상 비용 ~{preview.estimatedMonthlyCost.toLocaleString()}원/월
                           </span>
                         )}
@@ -506,7 +496,7 @@ export default function AutomationPage() {
 
                     {/* 활성 상태: 이번 달 실적 */}
                     {scenario.available && rule?.enabled && stat && stat.monthlySent > 0 && (
-                      <p className="text-xs text-neutral-400 mt-1">
+                      <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
                         이번 달: {stat.monthlySent}건 발송, {stat.monthlyCouponUsed}건 사용 ({stat.usageRate}%)
                       </p>
                     )}
@@ -514,7 +504,7 @@ export default function AutomationPage() {
 
                   {/* ON/OFF 토글 또는 곧 출시 */}
                   {scenario.available ? (
-                    <div className="flex items-center gap-3 flex-shrink-0">
+                    <div className="flex flex-shrink-0 items-center gap-3">
                       <Switch
                         checked={rule?.enabled || false}
                         onCheckedChange={(checked) =>
@@ -526,28 +516,28 @@ export default function AutomationPage() {
                         onClick={() =>
                           router.push(`/automation/${scenario.type}`)
                         }
-                        className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-md hover:bg-neutral-50 transition-colors"
+                        className="ad-press rounded-[8px] p-1.5 text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]"
                       >
-                        <ChevronRight className="w-5 h-5" />
+                        <ChevronRight className="h-5 w-5" />
                       </button>
                     </div>
                   ) : (
-                    <span className="text-xs text-neutral-400 bg-neutral-100 px-2.5 py-1 rounded-full flex-shrink-0">
+                    <span className="inline-flex flex-shrink-0 rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">
                       곧 출시
                     </span>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+            </div>
           );
         })}
+        </div>
       </div>
 
       {/* 과금 안내 (리프레이밍) */}
-      <div className="mt-6 flex items-start gap-2 text-sm text-neutral-500 bg-neutral-50 rounded-lg p-4">
-        <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+      <div className="mt-4 flex items-start gap-2 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[13px] text-[color:var(--ad-muted)]">
+        <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
         <p>
-          <span className="font-medium text-neutral-700">월 30건까지 무료!</span>{' '}
+          <span className="font-medium text-[color:var(--ad-ink-2)]">월 30건까지 무료!</span>{' '}
           이후 건당 50원 (커피 한잔 가격으로 고객 한 명을 다시 모십니다).
           충전금이 부족하면 자동 발송이 일시 중단됩니다.
         </p>
@@ -563,22 +553,20 @@ export default function AutomationPage() {
             </ModalDescription>
           </ModalHeader>
 
-          <div className="space-y-3 py-2">
+          <div className="space-y-2 py-2">
             {QUICK_START_TYPES.map((type) => {
               const scenario = SCENARIOS.find((s) => s.type === type)!;
               const preview = previewAll?.previews[type];
               const ScenarioIcon = scenario.icon;
               return (
-                <div key={type} className="flex items-center gap-3 p-3 bg-neutral-50 rounded-lg">
-                  <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center flex-shrink-0">
-                    <ScenarioIcon className="w-4 h-4 text-brand-700" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm text-neutral-900">
+                <div key={type} className="flex items-center gap-3 rounded-[12px] bg-[color:var(--ad-bg-alt)] p-3">
+                  <ScenarioIcon className="h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">
                       {scenario.label}
                     </div>
                     {preview && (
-                      <div className="text-xs text-neutral-500">
+                      <div className="text-[12px] text-[color:var(--ad-muted)]">
                         대상 {preview.thisMonthEstimate}명 · ~{preview.estimatedMonthlyCost.toLocaleString()}원/월
                       </div>
                     )}
@@ -589,16 +577,16 @@ export default function AutomationPage() {
           </div>
 
           {quickStartEstimatedCost > 0 && (
-            <p className="text-xs text-neutral-400 text-center">
+            <p className="text-center text-[12px] text-[color:var(--ad-faint)]">
               예상 월 비용: ~{quickStartEstimatedCost.toLocaleString()}원 (무료 30건 적용 전)
             </p>
           )}
 
           {previewAll && !previewAll.hasNaverPlaceUrl && (
-            <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg mt-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+            <div className="mt-2 flex items-start gap-2 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
               <div>
-                <p className="text-sm text-amber-800">
+                <p className="text-[13px] text-[color:var(--ad-muted)]">
                   네이버 플레이스 링크가 설정되지 않았습니다
                 </p>
                 <button
@@ -606,7 +594,7 @@ export default function AutomationPage() {
                     setShowQuickStartModal(false);
                     router.push('/settings');
                   }}
-                  className="text-xs text-brand-600 hover:text-brand-700 font-medium mt-1"
+                  className="mt-1 text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
                 >
                   매장 설정에서 입력하기 →
                 </button>
@@ -615,18 +603,19 @@ export default function AutomationPage() {
           )}
 
           <ModalFooter>
-            <Button
-              variant="secondary"
+            <button
               onClick={() => setShowQuickStartModal(false)}
+              className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
             >
               취소
-            </Button>
-            <Button
+            </button>
+            <button
               onClick={handleQuickStart}
               disabled={quickStarting || !previewAll?.hasNaverPlaceUrl}
+              className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
             >
               {quickStarting ? '활성화 중...' : '3개 시나리오 켜기'}
-            </Button>
+            </button>
           </ModalFooter>
         </ModalContent>
       </Modal>

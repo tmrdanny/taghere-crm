@@ -250,52 +250,54 @@ export default function WaitingSettingsPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-brand-800 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-neutral-500">로딩 중...</p>
+          <div className="w-8 h-8 border-4 border-[color:var(--ad-ink)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[13px] text-[color:var(--ad-faint)]">로딩 중...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
+      <div className="mx-auto w-full max-w-4xl">
       {ToastComponent}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <Link href="/waiting">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="ad-press h-9 w-9 rounded-[10px] text-[color:var(--ad-ink-2)] hover:bg-[rgba(29,32,34,0.045)]">
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-neutral-900">웨이팅 설정</h1>
-            <p className="text-sm text-neutral-500 mt-0.5">
+            <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">웨이팅 설정</h1>
+            <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
               웨이팅 서비스의 기본 설정을 관리합니다.
             </p>
           </div>
         </div>
 
         <Button
+          className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 border-0"
           onClick={handleSaveSettings}
           disabled={isSaving || !hasChanges}
         >
           {isSaving ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
               저장 중...
             </>
           ) : (
             <>
-              <Save className="w-4 h-4 mr-2" />
+              <Save className="w-4 h-4" />
               설정 저장
             </>
           )}
         </Button>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* Type Manager */}
         <WaitingTypeManager
           types={types}
@@ -328,6 +330,7 @@ export default function WaitingSettingsPage() {
         isDeleting={isTypeDeleting}
         canDelete={canDeleteType()}
       />
+      </div>
     </div>
   );
 }

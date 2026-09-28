@@ -25,8 +25,10 @@ import {
   Check,
   Compass,
   ExternalLink,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Skel, rise } from '@/features/admin-ui';
 
 
 // Demo account email
@@ -736,17 +738,29 @@ export default function FranchiseStoresPage() {
     setTimeout(() => setSelectedStore(null), 300);
   };
 
+  // 공통 스타일 (표시 전용)
+  const primaryBtn =
+    'ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40';
+  const secondaryBtn =
+    'ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40';
+  const fieldCls =
+    'h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none';
+  const selectCls =
+    'h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13px] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)] focus:border-[color:var(--ad-navy)] focus:outline-none';
+  const thCls = 'whitespace-nowrap px-4 py-2.5 font-medium';
+  const checkboxCls = 'h-4 w-4 rounded border-[color:var(--ad-line-strong)] accent-[#1d2022]';
+
   // Loading skeleton
   const renderSkeleton = () => (
-    <div className="animate-pulse">
+    <div>
       {[...Array(8)].map((_, i) => (
-        <div key={i} className="flex items-center gap-4 px-6 py-4 border-b border-slate-100">
-          <div className="h-4 bg-slate-200 rounded w-48"></div>
-          <div className="h-4 bg-slate-200 rounded w-24"></div>
-          <div className="h-4 bg-slate-200 rounded w-20"></div>
-          <div className="h-4 bg-slate-200 rounded w-16"></div>
-          <div className="h-4 bg-slate-200 rounded w-16"></div>
-          <div className="h-4 bg-slate-200 rounded w-24"></div>
+        <div key={i} className="flex items-center gap-4 border-b border-[color:var(--ad-line)] px-4 py-3.5 last:border-b-0">
+          <Skel className="h-4 w-48" />
+          <Skel className="h-4 w-24" />
+          <Skel className="h-4 w-20" />
+          <Skel className="h-4 w-16" />
+          <Skel className="h-4 w-16" />
+          <Skel className="h-4 w-24" />
         </div>
       ))}
     </div>
@@ -754,40 +768,54 @@ export default function FranchiseStoresPage() {
 
   // Empty state
   const renderEmptyState = () => (
-    <div className="flex flex-col items-center justify-center py-16">
-      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-        <Store className="w-8 h-8 text-slate-400" />
-      </div>
-      <h3 className="text-lg font-medium text-slate-900 mb-1">가맹점이 없습니다</h3>
-      <p className="text-sm text-slate-500">검색 조건을 변경해보세요</p>
+    <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+      <span className="grid h-10 w-10 place-items-center rounded-full bg-[color:var(--ad-bg)]">
+        <Store className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+      </span>
+      <h3 className="mt-1 text-[14px] font-semibold text-[color:var(--ad-ink)]">가맹점이 없습니다</h3>
+      <p className="text-[13px] text-[color:var(--ad-muted)]">검색 조건을 변경해보세요</p>
     </div>
   );
 
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">가맹점</h1>
-            <p className="text-sm text-slate-500 mt-1">
-              전체 {stores.length}개 가맹점 중 {filteredStores.length}개 표시
-            </p>
-          </div>
-        </div>
+  // 토글 스위치 (on = 검정)
+  const switchCls = (on: boolean, size: 'sm' | 'md' = 'sm') =>
+    cn(
+      'relative shrink-0 rounded-full transition-colors',
+      size === 'md' ? 'h-6 w-11' : 'h-5 w-9',
+      on ? 'bg-[color:var(--ad-ink)]' : 'bg-[color:var(--ad-line-strong)]'
+    );
+  const knobCls = (on: boolean, size: 'sm' | 'md' = 'sm') =>
+    cn(
+      'absolute left-0.5 top-0.5 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-transform',
+      size === 'md' ? 'h-5 w-5' : 'h-4 w-4',
+      on && (size === 'md' ? 'translate-x-5' : 'translate-x-4')
+    );
 
+  return (
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
+      {/* Header */}
+      <header className="ad-rise mb-5 flex flex-wrap items-center justify-between gap-3" style={rise(0)}>
+        <div>
+          <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">가맹점</h1>
+          <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
+            전체 <span className="ad-tnum">{stores.length}</span>개 가맹점 중 <span className="ad-tnum">{filteredStores.length}</span>개 표시
+          </p>
+        </div>
+      </header>
+
+      <div className="space-y-4">
         {/* Search and Filters */}
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm mb-6">
-          <div className="p-4 flex flex-wrap items-center gap-3">
+        <section className="ad-card ad-rise" style={rise(1)}>
+          <div className="flex flex-wrap items-center gap-2 p-4">
             {/* Search */}
-            <div className="relative flex-1 min-w-[200px] max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <div className="relative min-w-[200px] max-w-md flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="가맹점명 또는 주소로 검색"
-                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent"
+                className={cn(fieldCls, 'h-9 w-full pl-9 pr-3 text-[13px]')}
               />
             </div>
 
@@ -795,16 +823,16 @@ export default function FranchiseStoresPage() {
             <div className="relative">
               <button
                 onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                className={secondaryBtn}
               >
-                <Filter className="w-4 h-4 text-slate-400" />
+                <Filter className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                 {CATEGORY_OPTIONS.find((c) => c.value === categoryFilter)?.label}
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+                <ChevronDown className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" />
               </button>
               {showCategoryDropdown && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowCategoryDropdown(false)} />
-                  <div className="absolute z-20 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                  <div className="absolute z-20 mt-1.5 max-h-80 w-48 overflow-y-auto rounded-[14px] bg-white p-1 shadow-[0_0_0_1px_var(--ad-line),0_16px_40px_-16px_rgba(19,22,81,0.3)]">
                     {CATEGORY_OPTIONS.map((option) => (
                       <button
                         key={option.value}
@@ -813,11 +841,14 @@ export default function FranchiseStoresPage() {
                           setShowCategoryDropdown(false);
                         }}
                         className={cn(
-                          'w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors',
-                          categoryFilter === option.value ? 'bg-franchise-50 text-franchise-700' : 'text-slate-700'
+                          'flex w-full items-center justify-between rounded-[10px] px-3 py-2 text-left text-[13px] transition-colors hover:bg-[color:var(--ad-bg-alt)]',
+                          categoryFilter === option.value
+                            ? 'bg-[color:var(--ad-bg)] font-medium text-[color:var(--ad-ink)]'
+                            : 'text-[color:var(--ad-ink-2)]'
                         )}
                       >
                         {option.label}
+                        {categoryFilter === option.value && <Check className="h-3.5 w-3.5 text-[color:var(--ad-ink)]" />}
                       </button>
                     ))}
                   </div>
@@ -832,7 +863,7 @@ export default function FranchiseStoresPage() {
                 setSidoFilter(e.target.value);
                 setSigunguFilter('all'); // 시/도 변경 시 세부지역 초기화
               }}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-franchise-600"
+              className={selectCls}
             >
               <option value="all">시 전체</option>
               {siOptions.map((r) => (
@@ -845,7 +876,7 @@ export default function FranchiseStoresPage() {
                 setSidoFilter(e.target.value);
                 setSigunguFilter('all'); // 시/도 변경 시 세부지역 초기화
               }}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-franchise-600"
+              className={selectCls}
             >
               <option value="all">도 전체</option>
               {doOptions.map((r) => (
@@ -855,7 +886,7 @@ export default function FranchiseStoresPage() {
             <select
               value={sigunguFilter}
               onChange={(e) => setSigunguFilter(e.target.value)}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-franchise-600"
+              className={selectCls}
             >
               <option value="all">시/군/구 전체</option>
               {sigunguOptions.map((r) => (
@@ -867,7 +898,7 @@ export default function FranchiseStoresPage() {
             <select
               value={managerFilter}
               onChange={(e) => setManagerFilter(e.target.value)}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-franchise-600"
+              className={selectCls}
             >
               <option value="all">담당자 전체</option>
               {managerOptions.map((m) => (
@@ -879,57 +910,68 @@ export default function FranchiseStoresPage() {
             {/* 엑셀 다운로드 */}
             <button
               onClick={handleExcelDownload}
-              className="ml-auto flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+              className={cn(secondaryBtn, 'ml-auto')}
             >
+              <Download className="h-3.5 w-3.5" strokeWidth={1.8} />
               엑셀 다운로드
             </button>
           </div>
 
           {/* 필터 결과 합계 */}
-          <div className="px-4 pb-4 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
-            <span className="text-slate-500">
-              필터 결과 <span className="font-semibold text-slate-900">{filteredStores.length.toLocaleString()}개</span> 매장
-            </span>
-            <span className="text-slate-500">
-              총 고객 수 <span className="font-semibold text-franchise-700">{filteredTotalCustomers.toLocaleString()}명</span>
-            </span>
-            <span className="text-slate-500">
-              스탬프 보상 수령 고객 <span className="font-semibold text-amber-600">{filteredTotalRewardCustomers.toLocaleString()}명</span>
-            </span>
+          <div className="grid grid-cols-1 border-t border-[color:var(--ad-line)] sm:grid-cols-3">
+            <div className="px-5 py-3.5">
+              <p className="text-[12px] text-[color:var(--ad-muted)]">필터 결과</p>
+              <p className="ad-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                {filteredStores.length.toLocaleString()}
+                <span className="ml-0.5 text-[13px] font-medium text-[color:var(--ad-muted)]">개 매장</span>
+              </p>
+            </div>
+            <div className="border-t border-[color:var(--ad-line)] px-5 py-3.5 sm:border-l sm:border-t-0">
+              <p className="text-[12px] text-[color:var(--ad-muted)]">총 고객 수</p>
+              <p className="ad-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                {filteredTotalCustomers.toLocaleString()}
+                <span className="ml-0.5 text-[13px] font-medium text-[color:var(--ad-muted)]">명</span>
+              </p>
+            </div>
+            <div className="border-t border-[color:var(--ad-line)] px-5 py-3.5 sm:border-l sm:border-t-0">
+              <p className="text-[12px] text-[color:var(--ad-muted)]">스탬프 보상 수령 고객</p>
+              <p className="ad-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                {filteredTotalRewardCustomers.toLocaleString()}
+                <span className="ml-0.5 text-[13px] font-medium text-[color:var(--ad-muted)]">명</span>
+              </p>
+            </div>
           </div>
-        </div>
+        </section>
 
         {/* Franchise Stamp Setting Section */}
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm mb-6">
+        <section className="ad-card ad-rise overflow-hidden" style={rise(2)}>
           <button
             onClick={() => setIsStampSettingOpen(!isStampSettingOpen)}
-            className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-[color:var(--ad-bg-alt)]"
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-franchise-100 rounded-lg flex items-center justify-center">
-                <Gift className="w-5 h-5 text-franchise-600" />
-              </div>
+              <Gift className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
               <div className="text-left">
-                <h3 className="text-sm font-semibold text-slate-900">통합 스탬프 보상 설정</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <h3 className="text-[14px] font-semibold tracking-[-0.015em] text-[color:var(--ad-ink)]">통합 스탬프 보상 설정</h3>
+                <p className="mt-0.5 text-[12px] text-[color:var(--ad-faint)]">
                   {stampSetting?.rewards && stampSetting.rewards.length > 0
                     ? `${stampSetting.rewards.length}개 보상 설정됨`
                     : '보상을 설정해주세요'}
                 </p>
               </div>
             </div>
-            <ChevronDown className={cn('w-5 h-5 text-slate-400 transition-transform', isStampSettingOpen && 'rotate-180')} />
+            <ChevronDown className={cn('h-4 w-4 text-[color:var(--ad-faint)] transition-transform', isStampSettingOpen && 'rotate-180')} />
           </button>
 
           {isStampSettingOpen && (
-            <div className="px-6 pb-6 border-t border-slate-100">
-              <div className="pt-4 space-y-4">
+            <div className="border-t border-[color:var(--ad-line)] px-5 pb-5">
+              <div className="space-y-4 pt-4">
                 {/* Reward Tiers */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">보상 목록</label>
-                  <div className="space-y-3">
+                  <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">보상 목록</label>
+                  <div className="space-y-2.5">
                     {stampSettingForm.map((reward, idx) => (
-                      <div key={idx} className="flex items-center gap-3">
+                      <div key={idx} className="flex items-center gap-2.5">
                         <div className="w-20">
                           <input
                             type="number"
@@ -937,22 +979,22 @@ export default function FranchiseStoresPage() {
                             max={50}
                             value={reward.tier}
                             onChange={(e) => handleUpdateRewardTier(idx, 'tier', parseInt(e.target.value) || 1)}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-franchise-600"
+                            className={cn(fieldCls, 'ad-tnum w-full text-center')}
                           />
-                          <span className="text-[10px] text-slate-400 block text-center mt-0.5">개 달성</span>
+                          <span className="mt-0.5 block text-center text-[10.5px] text-[color:var(--ad-faint)]">개 달성</span>
                         </div>
                         <input
                           type="text"
                           value={reward.description}
                           onChange={(e) => handleUpdateRewardTier(idx, 'description', e.target.value)}
                           placeholder="보상 내용 (예: 아메리카노 1잔)"
-                          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600"
+                          className={cn(fieldCls, 'min-w-0 flex-1 self-start')}
                         />
                         <button
                           onClick={() => handleRemoveRewardTier(idx)}
-                          className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                          className="ad-press grid h-8 w-8 shrink-0 place-items-center self-start rounded-[10px] text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)]"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="h-4 w-4" />
                         </button>
                       </div>
                     ))}
@@ -960,7 +1002,7 @@ export default function FranchiseStoresPage() {
                   {stampSettingForm.length < 10 && (
                     <button
                       onClick={handleAddRewardTier}
-                      className="mt-3 text-sm text-franchise-600 hover:text-franchise-700 font-medium"
+                      className="mt-3 text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
                     >
                       + 보상 추가
                     </button>
@@ -968,85 +1010,79 @@ export default function FranchiseStoresPage() {
                 </div>
 
                 {/* AlimTalk Toggle */}
-                <div className="flex items-center justify-between py-3 border-t border-slate-100">
+                <div className="flex items-center justify-between gap-4 border-t border-[color:var(--ad-line)] py-3">
                   <div>
-                    <span className="text-sm font-medium text-slate-700">알림톡 발송</span>
-                    <p className="text-xs text-slate-500 mt-0.5">스탬프 적립 시 고객에게 카카오 알림톡을 발송합니다</p>
+                    <span className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">알림톡 발송</span>
+                    <p className="mt-0.5 text-[12px] text-[color:var(--ad-muted)]">스탬프 적립 시 고객에게 카카오 알림톡을 발송합니다</p>
                   </div>
                   <button
                     onClick={() => setStampAlimtalk(!stampAlimtalk)}
-                    className={cn(
-                      'relative w-11 h-6 rounded-full transition-colors',
-                      stampAlimtalk ? 'bg-franchise-600' : 'bg-slate-200'
-                    )}
+                    className={switchCls(stampAlimtalk, 'md')}
                   >
-                    <div className={cn('absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform', stampAlimtalk && 'translate-x-5')} />
+                    <div className={knobCls(stampAlimtalk, 'md')} />
                   </button>
                 </div>
 
                 {/* 가맹점 수정 잠금 Toggle */}
-                <div className="flex items-center justify-between py-3 border-t border-slate-100">
+                <div className="flex items-center justify-between gap-4 border-t border-[color:var(--ad-line)] py-3">
                   <div>
-                    <span className="text-sm font-medium text-slate-700">가맹점 스탬프 설정 잠금</span>
-                    <p className="text-xs text-slate-500 mt-0.5">전 매장의 점주가 스탬프 보상·설정을 수정하지 못하도록 잠급니다</p>
+                    <span className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">가맹점 스탬프 설정 잠금</span>
+                    <p className="mt-0.5 text-[12px] text-[color:var(--ad-muted)]">전 매장의 점주가 스탬프 보상·설정을 수정하지 못하도록 잠급니다</p>
                   </div>
                   <button
                     onClick={() => setStampStoreEditLocked(!stampStoreEditLocked)}
-                    className={cn(
-                      'relative w-11 h-6 rounded-full transition-colors',
-                      stampStoreEditLocked ? 'bg-franchise-600' : 'bg-slate-200'
-                    )}
+                    className={switchCls(stampStoreEditLocked, 'md')}
                   >
-                    <div className={cn('absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform', stampStoreEditLocked && 'translate-x-5')} />
+                    <div className={knobCls(stampStoreEditLocked, 'md')} />
                   </button>
                 </div>
 
                 {/* 가맹점 일괄 적용 */}
-                <div className="py-3 border-t border-slate-100">
-                  <div className="flex items-center justify-between mb-1">
+                <div className="border-t border-[color:var(--ad-line)] py-3">
+                  <div className="mb-1 flex items-center justify-between gap-4">
                     <div>
-                      <span className="text-sm font-medium text-slate-700">가맹점에 공통 보상 일괄 적용</span>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <span className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">가맹점에 공통 보상 일괄 적용</span>
+                      <p className="mt-0.5 text-[12px] text-[color:var(--ad-muted)]">
                         선택한 가맹점의 개별 스탬프 보상을 위 공통 보상으로 덮어쓰고 스탬프를 활성화합니다
                       </p>
                     </div>
-                    <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer flex-shrink-0">
+                    <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[13px] text-[color:var(--ad-ink-2)]">
                       <input
                         type="checkbox"
                         checked={stores.length > 0 && applyStoreIds.size === stores.length}
                         onChange={toggleApplyAllStores}
-                        className="w-4 h-4 rounded border-slate-300 text-franchise-600 focus:ring-franchise-600"
+                        className={checkboxCls}
                       />
                       모두 선택
                     </label>
                   </div>
-                  <div className="mt-3 max-h-52 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100">
+                  <div className="mt-3 max-h-52 divide-y divide-[color:var(--ad-line)] overflow-y-auto rounded-[12px] border border-[color:var(--ad-line)]">
                     {stores.length === 0 ? (
-                      <p className="px-4 py-3 text-sm text-slate-400">가맹점이 없습니다.</p>
+                      <p className="px-4 py-3 text-[13px] text-[color:var(--ad-faint)]">가맹점이 없습니다.</p>
                     ) : (
                       stores.map((store) => (
                         <label
                           key={store.id}
-                          className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors"
+                          className="flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[color:var(--ad-bg-alt)]"
                         >
                           <input
                             type="checkbox"
                             checked={applyStoreIds.has(store.id)}
                             onChange={() => toggleApplyStore(store.id)}
-                            className="w-4 h-4 rounded border-slate-300 text-franchise-600 focus:ring-franchise-600"
+                            className={checkboxCls}
                           />
-                          <span className="text-sm text-slate-700 flex-1">{store.name}</span>
+                          <span className="flex-1 text-[13px] text-[color:var(--ad-ink-2)]">{store.name}</span>
                           {store.address && (
-                            <span className="text-xs text-slate-400 truncate max-w-[200px]">{store.address}</span>
+                            <span className="max-w-[200px] truncate text-[12px] text-[color:var(--ad-faint)]">{store.address}</span>
                           )}
                         </label>
                       ))
                     )}
                   </div>
-                  <div className="flex items-center justify-between mt-3">
+                  <div className="mt-3 flex items-center justify-between gap-3">
                     <p className={cn(
-                      'text-xs',
-                      applyMessage?.type === 'success' ? 'text-green-600' : applyMessage?.type === 'error' ? 'text-red-600' : 'text-slate-500'
+                      'text-[12px]',
+                      applyMessage?.type === 'success' ? 'text-[color:var(--ad-pos)]' : applyMessage?.type === 'error' ? 'text-[color:var(--ad-neg)]' : 'text-[color:var(--ad-muted)]'
                     )}>
                       {applyMessage
                         ? applyMessage.text
@@ -1057,96 +1093,80 @@ export default function FranchiseStoresPage() {
                     <button
                       onClick={handleApplyRewardsToStores}
                       disabled={isApplyingRewards || applyStoreIds.size === 0}
-                      className={cn(
-                        'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                        isApplyingRewards || applyStoreIds.size === 0
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : 'bg-franchise-600 text-white hover:bg-franchise-700'
-                      )}
+                      className={secondaryBtn}
                     >
                       {isApplyingRewards ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> 적용 중...</>
+                        <><Loader2 className="h-4 w-4 animate-spin" /> 적용 중...</>
                       ) : (
-                        <><Check className="w-4 h-4" /> 선택 가맹점에 적용</>
+                        <><Check className="h-4 w-4" /> 선택 가맹점에 적용</>
                       )}
                     </button>
                   </div>
                 </div>
 
                 {/* Save Button */}
-                <div className="flex justify-end pt-2">
+                <div className="flex justify-end border-t border-[color:var(--ad-line)] pt-4">
                   <button
                     onClick={handleSaveStampSetting}
                     disabled={isSavingStampSetting}
-                    className={cn(
-                      'flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                      isSavingStampSetting ? 'bg-slate-100 text-slate-400' : 'bg-franchise-600 text-white hover:bg-franchise-700'
-                    )}
+                    className={primaryBtn}
                   >
                     {isSavingStampSetting ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> 저장 중...</>
+                      <><Loader2 className="h-4 w-4 animate-spin" /> 저장 중...</>
                     ) : (
-                      <><Check className="w-4 h-4" /> 보상 설정 저장</>
+                      <><Check className="h-4 w-4" /> 보상 설정 저장</>
                     )}
                   </button>
                 </div>
               </div>
             </div>
           )}
-        </div>
+        </section>
 
         {/* 방문 경로 설정 (전 가맹점 일괄) */}
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm mb-6">
+        <section className="ad-card ad-rise overflow-hidden" style={rise(3)}>
           <button
             onClick={() => setIsVisitSourceOpen(!isVisitSourceOpen)}
-            className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-[color:var(--ad-bg-alt)]"
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-franchise-100 rounded-lg flex items-center justify-center">
-                <Compass className="w-5 h-5 text-franchise-600" />
-              </div>
+              <Compass className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
               <div className="text-left">
-                <h3 className="text-sm font-semibold text-slate-900">방문 경로 설정</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <h3 className="text-[14px] font-semibold tracking-[-0.015em] text-[color:var(--ad-ink)]">방문 경로 설정</h3>
+                <p className="mt-0.5 text-[12px] text-[color:var(--ad-faint)]">
                   고객 적립 시 묻는 방문 경로 선택지를 전 가맹점에 일괄 적용합니다
                 </p>
               </div>
             </div>
-            <ChevronDown className={cn('w-5 h-5 text-slate-400 transition-transform', isVisitSourceOpen && 'rotate-180')} />
+            <ChevronDown className={cn('h-4 w-4 text-[color:var(--ad-faint)] transition-transform', isVisitSourceOpen && 'rotate-180')} />
           </button>
 
           {isVisitSourceOpen && (
-            <div className="px-6 pb-6 border-t border-slate-100">
-              <div className="pt-4 space-y-4">
+            <div className="border-t border-[color:var(--ad-line)] px-5 pb-5">
+              <div className="space-y-4 pt-4">
                 {/* 전체 사용 여부 */}
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div className="flex items-center justify-between gap-4 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3">
                   <div>
-                    <p className="text-sm font-medium text-slate-900">방문 경로 질문 사용</p>
-                    <p className="text-xs text-slate-500 mt-0.5">끄면 전 가맹점에서 방문 경로를 묻지 않습니다</p>
+                    <p className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">방문 경로 질문 사용</p>
+                    <p className="mt-0.5 text-[12px] text-[color:var(--ad-muted)]">끄면 전 가맹점에서 방문 경로를 묻지 않습니다</p>
                   </div>
                   <button
                     onClick={() => setVisitSourceEnabled(!visitSourceEnabled)}
-                    className={cn(
-                      'relative w-9 h-5 rounded-full transition-colors',
-                      visitSourceEnabled ? 'bg-franchise-600' : 'bg-slate-200'
-                    )}
+                    className={switchCls(visitSourceEnabled)}
                   >
-                    <div className={cn(
-                      'absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                      visitSourceEnabled && 'translate-x-4'
-                    )} />
+                    <div className={knobCls(visitSourceEnabled)} />
                   </button>
                 </div>
 
                 {/* 옵션 목록 */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    선택지 목록 <span className="text-slate-400 font-normal">({visitSourceOptions.length}/12)</span>
+                  <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                    선택지 목록 <span className="ad-tnum font-normal text-[color:var(--ad-faint)]">({visitSourceOptions.length}/12)</span>
                   </label>
                   <div className="space-y-2">
                     {visitSourceOptions.map((opt, idx) => (
                       <div key={opt.id} className="flex items-center gap-2">
-                        <span className="w-6 text-center text-xs text-slate-400">{idx + 1}</span>
+                        <span className="ad-tnum w-6 text-center text-[12px] text-[color:var(--ad-faint)]">{idx + 1}</span>
                         <input
                           type="text"
                           value={opt.label}
@@ -1155,7 +1175,7 @@ export default function FranchiseStoresPage() {
                               prev.map((o) => (o.id === opt.id ? { ...o, label: e.target.value } : o))
                             )
                           }
-                          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600"
+                          className={cn(fieldCls, 'min-w-0 flex-1')}
                         />
                         <button
                           onClick={() =>
@@ -1164,38 +1184,38 @@ export default function FranchiseStoresPage() {
                             )
                           }
                           className={cn(
-                            'px-2.5 py-1.5 text-xs rounded-lg border transition-colors shrink-0',
+                            'ad-press h-8 shrink-0 rounded-full px-3 text-[12px] font-medium transition-colors',
                             opt.enabled
-                              ? 'bg-franchise-50 border-franchise-200 text-franchise-700'
-                              : 'bg-slate-50 border-slate-200 text-slate-400'
+                              ? 'bg-[color:var(--ad-ink)] text-white'
+                              : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-faint)]'
                           )}
                         >
                           {opt.enabled ? '노출' : '숨김'}
                         </button>
                         <button
                           onClick={() => setVisitSourceOptions((prev) => prev.filter((o) => o.id !== opt.id))}
-                          className="p-1.5 text-slate-400 hover:text-red-500 transition-colors shrink-0"
+                          className="ad-press grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)]"
                           title="삭제"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="h-4 w-4" />
                         </button>
                       </div>
                     ))}
                   </div>
 
                   {/* 옵션 추가 */}
-                  <div className="flex items-center gap-2 mt-3">
+                  <div className="mt-3 flex items-center gap-2 pl-8">
                     <input
                       type="text"
                       value={newVisitSourceLabel}
                       onChange={(e) => setNewVisitSourceLabel(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') addVisitSourceOption(); }}
                       placeholder="새 선택지 이름 (예: 틱톡)"
-                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600"
+                      className={cn(fieldCls, 'min-w-0 flex-1')}
                     />
                     <button
                       onClick={addVisitSourceOption}
-                      className="px-3 py-2 text-sm text-franchise-700 bg-franchise-50 hover:bg-franchise-100 rounded-lg transition-colors"
+                      className={secondaryBtn}
                     >
                       추가
                     </button>
@@ -1203,45 +1223,45 @@ export default function FranchiseStoresPage() {
                 </div>
 
                 {visitSourceMsg && (
-                  <p className={cn('text-sm', visitSourceMsg.type === 'success' ? 'text-emerald-600' : 'text-red-500')}>
+                  <p className={cn('text-[13px]', visitSourceMsg.type === 'success' ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-neg)]')}>
                     {visitSourceMsg.text}
                   </p>
                 )}
 
-                <div className="flex justify-end">
+                <div className="flex justify-end border-t border-[color:var(--ad-line)] pt-4">
                   <button
                     onClick={handleSaveVisitSource}
                     disabled={isSavingVisitSource}
-                    className="flex items-center gap-2 px-4 py-2 bg-franchise-600 hover:bg-franchise-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                    className={primaryBtn}
                   >
                     {isSavingVisitSource ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> 적용 중...</>
+                      <><Loader2 className="h-4 w-4 animate-spin" /> 적용 중...</>
                     ) : (
-                      <><Check className="w-4 h-4" /> 전 가맹점에 일괄 적용</>
+                      <><Check className="h-4 w-4" /> 전 가맹점에 일괄 적용</>
                     )}
                   </button>
                 </div>
               </div>
             </div>
           )}
-        </div>
+        </section>
 
         {/* Table */}
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <section className="ad-card ad-rise overflow-hidden" style={rise(4)}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[960px]">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap w-full">
+                <tr className="border-b border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] text-left text-[11.5px] text-[color:var(--ad-muted)]">
+                  <th className={cn(thCls, 'w-full')}>
                     가맹점명
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className={thCls}>
                     지역
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className={thCls}>
                     업종
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className={cn(thCls, 'text-center')}>
                     <div className="flex items-center justify-center gap-2">
                       <span>통합 스탬프</span>
                       <button
@@ -1251,51 +1271,47 @@ export default function FranchiseStoresPage() {
                         }}
                         disabled={isTogglingAll}
                         className={cn(
-                          'relative w-9 h-5 rounded-full transition-colors flex-shrink-0',
-                          isTogglingAll ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
-                          stores.length > 0 && stores.every((s) => s.franchiseStampEnabled) ? 'bg-franchise-600' : 'bg-slate-200'
+                          switchCls(stores.length > 0 && stores.every((s) => s.franchiseStampEnabled)),
+                          isTogglingAll ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
                         )}
                       >
-                        <div className={cn(
-                          'absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                          stores.length > 0 && stores.every((s) => s.franchiseStampEnabled) && 'translate-x-4'
-                        )} />
+                        <div className={knobCls(stores.length > 0 && stores.every((s) => s.franchiseStampEnabled))} />
                       </button>
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className={thCls}>
                     담당자
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className={cn(thCls, 'text-right')}>
                     <button
                       onClick={() => handleSortClick('customerCount')}
-                      className="inline-flex items-center gap-1 hover:text-slate-800 transition-colors uppercase"
+                      className="inline-flex items-center gap-1 transition-colors hover:text-[color:var(--ad-ink)]"
                       title="클릭하여 정렬 (많은 순 ↔ 적은 순)"
                     >
                       고객수
-                      <span className={cn('text-[10px]', sortKey === 'customerCount' ? 'text-franchise-600' : 'text-slate-300')}>
+                      <span className={cn('text-[10px]', sortKey === 'customerCount' ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-line-strong)]')}>
                         {sortKey === 'customerCount' ? (sortDir === 'desc' ? '▼' : '▲') : '▼'}
                       </span>
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className={cn(thCls, 'text-right')}>
                     <button
                       onClick={() => handleSortClick('stampRewardCustomers')}
-                      className="inline-flex items-center gap-1 hover:text-slate-800 transition-colors uppercase"
+                      className="inline-flex items-center gap-1 transition-colors hover:text-[color:var(--ad-ink)]"
                       title="클릭하여 정렬 (많은 순 ↔ 적은 순)"
                     >
                       스탬프 보상 수령
-                      <span className={cn('text-[10px]', sortKey === 'stampRewardCustomers' ? 'text-franchise-600' : 'text-slate-300')}>
+                      <span className={cn('text-[10px]', sortKey === 'stampRewardCustomers' ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-line-strong)]')}>
                         {sortKey === 'stampRewardCustomers' ? (sortDir === 'desc' ? '▼' : '▲') : '▼'}
                       </span>
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className={cn(thCls, 'text-center')}>
                     CRM
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[color:var(--ad-line)] text-[13px]">
                 {isLoading ? (
                   <tr>
                     <td colSpan={8}>{renderSkeleton()}</td>
@@ -1309,37 +1325,32 @@ export default function FranchiseStoresPage() {
                     <tr
                       key={store.id}
                       onClick={() => handleRowClick(store)}
-                      className="hover:bg-slate-50 transition-colors cursor-pointer"
+                      className="cursor-pointer transition-colors hover:bg-[rgba(110,173,255,0.05)]"
                     >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-franchise-100 rounded-lg flex items-center justify-center shrink-0">
-                            <Store className="w-4 h-4 text-franchise-600" />
-                          </div>
-                          <span className="text-sm font-medium text-slate-900 whitespace-nowrap">{store.name}</span>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <Store className="h-4 w-4 shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                          <span className="whitespace-nowrap font-medium text-[color:var(--ad-ink)]">{store.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">
+                      <td className="whitespace-nowrap px-4 py-3 text-[color:var(--ad-ink-2)]">
                         <span title={store.address || ''}>{getRegionLabel(store)}</span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">{store.category ? CATEGORY_LABELS[store.category] || store.category : '-'}</td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="whitespace-nowrap px-4 py-3 text-[color:var(--ad-ink-2)]">{store.category ? CATEGORY_LABELS[store.category] || store.category : '-'}</td>
+                      <td className="px-4 py-3 text-center">
                         <button
                           onClick={(e) => handleStampToggle(store.id, e)}
                           disabled={togglingStoreId === store.id}
                           className={cn(
-                            'relative w-9 h-5 rounded-full transition-colors inline-block',
-                            togglingStoreId === store.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
-                            store.franchiseStampEnabled ? 'bg-franchise-600' : 'bg-slate-200'
+                            switchCls(!!store.franchiseStampEnabled),
+                            'inline-block align-middle',
+                            togglingStoreId === store.id ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
                           )}
                         >
-                          <div className={cn(
-                            'absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                            store.franchiseStampEnabled && 'translate-x-4'
-                          )} />
+                          <div className={knobCls(!!store.franchiseStampEnabled)} />
                         </button>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="whitespace-nowrap px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         {editingManagerStoreId === store.id ? (
                           <input
                             autoFocus
@@ -1356,7 +1367,7 @@ export default function FranchiseStoresPage() {
                             }}
                             placeholder="담당자 이름"
                             disabled={savingManager}
-                            className="w-24 px-2 py-1 text-sm border border-franchise-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-franchise-600"
+                            className="h-8 w-24 rounded-[8px] border border-[color:var(--ad-navy)] bg-white px-2 text-[13px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:outline-none"
                           />
                         ) : (
                           <button
@@ -1365,10 +1376,10 @@ export default function FranchiseStoresPage() {
                               setManagerInput((store.managerName || '').trim());
                             }}
                             className={cn(
-                              'px-2 py-1 text-sm rounded-lg transition-colors whitespace-nowrap',
+                              'whitespace-nowrap rounded-[8px] px-2 py-1 text-[13px] transition-colors hover:bg-[color:var(--ad-bg)]',
                               (store.managerName || '').trim()
-                                ? 'text-slate-900 hover:bg-slate-100'
-                                : 'text-slate-400 hover:bg-slate-100 border border-dashed border-slate-300'
+                                ? 'text-[color:var(--ad-ink)]'
+                                : 'border border-dashed border-[color:var(--ad-line-strong)] text-[color:var(--ad-faint)]'
                             )}
                             title="클릭하여 담당자 입력"
                           >
@@ -1376,20 +1387,20 @@ export default function FranchiseStoresPage() {
                           </button>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-900 text-right font-medium whitespace-nowrap">
+                      <td className="ad-tnum whitespace-nowrap px-4 py-3 text-right font-medium text-[color:var(--ad-ink)]">
                         {store.customerCount.toLocaleString()}명
                       </td>
-                      <td className="px-6 py-4 text-sm text-amber-600 text-right font-medium whitespace-nowrap">
+                      <td className="ad-tnum whitespace-nowrap px-4 py-3 text-right text-[color:var(--ad-ink-2)]">
                         {(store.stampRewardCustomers || 0).toLocaleString()}명
                       </td>
-                      <td className="px-6 py-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="whitespace-nowrap px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={(e) => handleOpenStoreCrm(store.id, e)}
                           disabled={impersonatingStoreId === store.id}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-franchise-700 bg-franchise-50 border border-franchise-200 rounded-lg hover:bg-franchise-100 transition-colors disabled:opacity-50"
+                          className="ad-press inline-flex h-8 items-center gap-1 rounded-[10px] bg-white px-2.5 text-[12px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50"
                           title="이 가맹점의 CRM 대시보드를 새 탭에서 엽니다"
                         >
-                          <ExternalLink className="w-3.5 h-3.5" />
+                          <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.8} />
                           {impersonatingStoreId === store.id ? '접속 중...' : 'CRM 접속'}
                         </button>
                       </td>
@@ -1399,7 +1410,7 @@ export default function FranchiseStoresPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
       </div>
 
       {/* Slideover */}
@@ -1408,8 +1419,8 @@ export default function FranchiseStoresPage() {
           {/* Backdrop */}
           <div
             className={cn(
-              'fixed inset-0 bg-black/30 transition-opacity z-40',
-              isSlideoverOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              'fixed inset-0 z-40 bg-[rgba(0,0,0,0.4)] backdrop-blur-sm transition-opacity',
+              isSlideoverOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
             )}
             onClick={closeSlideover}
           />
@@ -1417,52 +1428,52 @@ export default function FranchiseStoresPage() {
           {/* Slideover Panel */}
           <div
             className={cn(
-              'fixed inset-y-0 right-0 w-full max-w-lg bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out',
+              'fixed inset-y-0 right-0 z-50 w-full max-w-lg transform bg-white shadow-[0_24px_60px_-20px_rgba(19,22,81,0.4)] transition-transform duration-300 ease-in-out',
               isSlideoverOpen ? 'translate-x-0' : 'translate-x-full'
             )}
           >
-            <div className="h-full flex flex-col">
+            <div className="flex h-full flex-col">
               {/* Header */}
-              <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">{selectedStore.name}</h2>
-                  <p className="text-sm text-slate-500">{selectedStore.address || '-'}</p>
+              <div className="flex items-center justify-between gap-3 border-b border-[color:var(--ad-line)] px-6 py-4">
+                <div className="min-w-0">
+                  <h2 className="truncate text-[17px] font-semibold tracking-[-0.02em] text-[color:var(--ad-ink)]">{selectedStore.name}</h2>
+                  <p className="mt-0.5 truncate text-[12.5px] text-[color:var(--ad-muted)]">{selectedStore.address || '-'}</p>
                 </div>
                 <button
                   onClick={closeSlideover}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                  className="ad-press grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-[color:var(--ad-muted)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink)]"
                 >
-                  <X className="w-5 h-5 text-slate-500" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
               {/* Content */}
-              <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex-1 space-y-6 overflow-y-auto p-6">
                 {/* Store Info */}
-                <div className="mb-6">
-                  <h3 className="text-sm font-medium text-slate-900 mb-3">매장 정보</h3>
-                  <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-500">업종</span>
-                      <span className="text-sm font-medium text-slate-900">
+                <div>
+                  <h3 className="mb-2.5 text-[14px] font-semibold text-[color:var(--ad-ink)]">매장 정보</h3>
+                  <div className="space-y-2.5 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3.5">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="shrink-0 text-[13px] text-[color:var(--ad-muted)]">업종</span>
+                      <span className="text-[13px] font-medium text-[color:var(--ad-ink)]">
                         {selectedStore.category ? CATEGORY_LABELS[selectedStore.category] || selectedStore.category : '-'}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-500">주소</span>
-                      <span className="text-sm font-medium text-slate-900">{selectedStore.address || '-'}</span>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="shrink-0 text-[13px] text-[color:var(--ad-muted)]">주소</span>
+                      <span className="text-right text-[13px] font-medium text-[color:var(--ad-ink)]">{selectedStore.address || '-'}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Franchise Stamp Toggle */}
-                <div className="mb-6">
-                  <h3 className="text-sm font-medium text-slate-900 mb-3">통합 스탬프</h3>
-                  <div className="bg-slate-50 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="mb-2.5 text-[14px] font-semibold text-[color:var(--ad-ink)]">통합 스탬프</h3>
+                  <div className="rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3.5">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="text-sm font-medium text-slate-700">통합 스탬프 참여</p>
-                        <p className="text-xs text-slate-500 mt-0.5">
+                        <p className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">통합 스탬프 참여</p>
+                        <p className="mt-0.5 text-[12px] text-[color:var(--ad-muted)]">
                           {selectedStore.franchiseStampEnabled
                             ? '이 매장의 스탬프가 프랜차이즈 통합으로 적립됩니다'
                             : '이 매장은 개별 스탬프를 사용합니다'}
@@ -1472,59 +1483,55 @@ export default function FranchiseStoresPage() {
                         onClick={(e) => handleStampToggle(selectedStore.id, e)}
                         disabled={togglingStoreId === selectedStore.id}
                         className={cn(
-                          'relative w-11 h-6 rounded-full transition-colors flex-shrink-0',
-                          togglingStoreId === selectedStore.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
-                          selectedStore.franchiseStampEnabled ? 'bg-franchise-600' : 'bg-slate-200'
+                          switchCls(!!selectedStore.franchiseStampEnabled, 'md'),
+                          togglingStoreId === selectedStore.id ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
                         )}
                       >
-                        <div className={cn(
-                          'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform',
-                          selectedStore.franchiseStampEnabled && 'translate-x-5'
-                        )} />
+                        <div className={knobCls(!!selectedStore.franchiseStampEnabled, 'md')} />
                       </button>
                     </div>
                   </div>
                 </div>
 
                 {/* Customer Stats */}
-                <div className="mb-6">
-                  <h3 className="text-sm font-medium text-slate-900 mb-3">고객 통계</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white border border-slate-200 rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Users className="w-4 h-4 text-franchise-600" />
-                        <span className="text-xs text-slate-500">총 고객 수</span>
+                <div>
+                  <h3 className="mb-2.5 text-[14px] font-semibold text-[color:var(--ad-ink)]">고객 통계</h3>
+                  <div className="ad-card grid grid-cols-2 overflow-hidden">
+                    <div className="p-4">
+                      <div className="mb-1.5 flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                        <span className="text-[12px] text-[color:var(--ad-muted)]">총 고객 수</span>
                       </div>
-                      <p className="text-xl font-bold text-slate-900">
+                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                         {storeDetail?.stats?.customerCount?.toLocaleString() || selectedStore.customerCount.toLocaleString()}명
                       </p>
                     </div>
-                    <div className="bg-white border border-slate-200 rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="w-4 h-4 text-emerald-600" />
-                        <span className="text-xs text-slate-500">총 주문</span>
+                    <div className="border-l border-[color:var(--ad-line)] p-4">
+                      <div className="mb-1.5 flex items-center gap-1.5">
+                        <TrendingUp className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                        <span className="text-[12px] text-[color:var(--ad-muted)]">총 주문</span>
                       </div>
-                      <p className="text-xl font-bold text-slate-900">
+                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                         {storeDetail?.stats?.totalOrders?.toLocaleString() || '-'}회
                       </p>
                     </div>
-                    <div className="bg-white border border-slate-200 rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Activity className="w-4 h-4 text-blue-600" />
-                        <span className="text-xs text-slate-500">재방문율</span>
+                    <div className="border-t border-[color:var(--ad-line)] p-4">
+                      <div className="mb-1.5 flex items-center gap-1.5">
+                        <Activity className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                        <span className="text-[12px] text-[color:var(--ad-muted)]">재방문율</span>
                       </div>
-                      <p className="text-xl font-bold text-slate-900">
+                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                         {storeDetail?.stats?.revisitRate !== undefined
                           ? `${Math.round(storeDetail.stats.revisitRate)}%`
                           : '-'}
                       </p>
                     </div>
-                    <div className="bg-white border border-slate-200 rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <BarChart3 className="w-4 h-4 text-amber-600" />
-                        <span className="text-xs text-slate-500">평균 방문</span>
+                    <div className="border-l border-t border-[color:var(--ad-line)] p-4">
+                      <div className="mb-1.5 flex items-center gap-1.5">
+                        <BarChart3 className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                        <span className="text-[12px] text-[color:var(--ad-muted)]">평균 방문</span>
                       </div>
-                      <p className="text-xl font-bold text-slate-900">
+                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                         {storeDetail?.stats?.averageVisits !== undefined
                           ? `${storeDetail.stats.averageVisits.toFixed(1)}회`
                           : '-'}
@@ -1534,23 +1541,23 @@ export default function FranchiseStoresPage() {
                 </div>
 
                 {/* Transfer Section */}
-                <div className="mb-6">
-                  <h3 className="text-sm font-medium text-slate-900 mb-3">충전금 관리</h3>
-                  <div className="bg-slate-50 rounded-xl p-4 space-y-4">
+                <div>
+                  <h3 className="mb-2.5 text-[14px] font-semibold text-[color:var(--ad-ink)]">충전금 관리</h3>
+                  <div className="ad-card space-y-4 p-4">
                     {/* Store Wallet Balance */}
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-500">가맹점 충전금 잔액</span>
-                      <span className="text-lg font-bold text-slate-900">
+                      <span className="text-[13px] text-[color:var(--ad-muted)]">가맹점 충전금 잔액</span>
+                      <span className="ad-tnum text-[18px] font-medium tracking-[-0.02em] text-[color:var(--ad-ink)]">
                         {storeDetail?.stats?.walletBalance !== undefined
                           ? `${storeDetail.stats.walletBalance.toLocaleString()}원`
                           : '-'}
                       </span>
                     </div>
 
-                    <div className="border-t border-slate-200 pt-4">
+                    <div className="border-t border-[color:var(--ad-line)] pt-4">
                       {/* Transfer Amount Input */}
                       <div className="mb-3">
-                        <label className="block text-xs text-slate-500 mb-1">이체 금액</label>
+                        <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">이체 금액</label>
                         <div className="relative">
                           <input
                             type="text"
@@ -1560,42 +1567,43 @@ export default function FranchiseStoresPage() {
                               setTransferError(null);
                             }}
                             placeholder="0"
-                            className="w-full px-3 py-2 pr-8 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent"
+                            className={cn(fieldCls, 'ad-tnum w-full pr-8 text-right')}
                           />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">원</span>
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-[color:var(--ad-muted)]">원</span>
                         </div>
                       </div>
 
                       {/* Memo Input */}
                       <div className="mb-3">
-                        <label className="block text-xs text-slate-500 mb-1">메모 (선택)</label>
+                        <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">메모 (선택)</label>
                         <input
                           type="text"
                           value={transferMemo}
                           onChange={(e) => setTransferMemo(e.target.value)}
                           placeholder="예: 1월 마케팅 지원금"
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-franchise-600 focus:border-transparent"
+                          className={cn(fieldCls, 'w-full')}
                         />
                       </div>
 
                       {/* Franchise Balance Display */}
-                      <div className="flex items-center justify-between mb-3 text-sm">
-                        <span className="text-slate-500">본사 잔액</span>
-                        <span className="font-medium text-slate-700">
+                      <div className="mb-3 flex items-center justify-between text-[13px]">
+                        <span className="text-[color:var(--ad-muted)]">본사 잔액</span>
+                        <span className="ad-tnum font-medium text-[color:var(--ad-ink-2)]">
                           {franchiseWalletBalance.toLocaleString()}원
                         </span>
                       </div>
 
                       {/* Error Message */}
                       {transferError && (
-                        <div className="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                        <div className="mb-3 rounded-[12px] bg-[#fff2f5] px-4 py-2.5 text-[13px] text-[color:var(--ad-neg)]">
                           {transferError}
                         </div>
                       )}
 
                       {/* Success Message */}
                       {transferSuccess && (
-                        <div className="mb-3 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-600">
+                        <div className="mb-3 flex items-center gap-2 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-2.5 text-[13px] text-[color:var(--ad-ink-2)]">
+                          <Check className="h-4 w-4 shrink-0 text-[color:var(--ad-pos)]" />
                           {transferSuccess}
                         </div>
                       )}
@@ -1604,21 +1612,16 @@ export default function FranchiseStoresPage() {
                       <button
                         onClick={handleTransfer}
                         disabled={isTransferring || !transferAmount}
-                        className={cn(
-                          'w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                          isTransferring || !transferAmount
-                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                            : 'bg-franchise-600 text-white hover:bg-franchise-700'
-                        )}
+                        className={cn(primaryBtn, 'w-full')}
                       >
                         {isTransferring ? (
                           <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <Loader2 className="h-4 w-4 animate-spin" />
                             이체 중...
                           </>
                         ) : (
                           <>
-                            <Send className="w-4 h-4" />
+                            <Send className="h-4 w-4" />
                             충전금 이체하기
                           </>
                         )}

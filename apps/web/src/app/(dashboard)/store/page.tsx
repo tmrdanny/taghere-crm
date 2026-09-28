@@ -4,8 +4,6 @@ import { API_BASE } from '@/lib/api-config';
 import { getStoreToken } from '@/lib/auth-token';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   ShoppingBag,
@@ -343,11 +341,19 @@ export default function StorePage() {
     }
   };
 
+  const primaryBtn =
+    'ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40';
+  const secondaryBtn =
+    'ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]';
+  const inputCls =
+    'h-10 rounded-[10px] border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)] focus:outline-none';
+  const labelCls = 'mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]';
+
   if (isLoading || isConfirmingPayment) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)]">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
-        <p className="mt-4 text-sm text-neutral-500">
+      <div className="flex h-[calc(100vh-4rem)] flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[color:var(--ad-faint)]" />
+        <p className="mt-4 text-[13px] text-[color:var(--ad-muted)]">
           {isConfirmingPayment ? '결제 처리 중...' : '상품 로딩 중...'}
         </p>
       </div>
@@ -356,172 +362,168 @@ export default function StorePage() {
 
   if (orderSuccess) {
     return (
-      <div className="p-4 lg:p-6 max-w-7xl mx-auto">
-        <div className="max-w-md mx-auto py-12">
-          <Card>
-            <CardContent className="pt-8 pb-8 text-center">
-              <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-semibold text-neutral-900 mb-2">
-                주문 완료
-              </h2>
-              <p className="text-neutral-600 mb-6">
-                주문이 성공적으로 완료되었습니다.<br />
-                담당자가 확인 후 연락드리겠습니다.
-              </p>
-              <Button
-                onClick={() => setOrderSuccess(false)}
-                className="w-full"
-              >
-                계속 쇼핑하기
-              </Button>
-            </CardContent>
-          </Card>
+      <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
+        <div className="mx-auto max-w-md py-12">
+          <div className="ad-card p-8 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--ad-bg)]">
+              <CheckCircle2 className="h-6 w-6 text-[color:var(--ad-ink-2)]" strokeWidth={1.7} />
+            </div>
+            <h2 className="mb-1.5 text-[17px] font-semibold text-[color:var(--ad-ink)]">
+              주문 완료
+            </h2>
+            <p className="mb-6 text-[13px] leading-relaxed text-[color:var(--ad-muted)]">
+              주문이 성공적으로 완료되었습니다.<br />
+              담당자가 확인 후 연락드리겠습니다.
+            </p>
+            <button
+              type="button"
+              onClick={() => setOrderSuccess(false)}
+              className={`${primaryBtn} w-full`}
+            >
+              계속 쇼핑하기
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 lg:p-6 max-w-7xl mx-auto">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {ToastComponent}
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-neutral-900 flex items-center gap-2">
-          <ShoppingBag className="w-6 h-6" />
+      <div className="mb-6">
+        <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">
           스토어
         </h1>
-        <p className="text-neutral-500 mt-1">태그히어 CRM에 필요한 장비를 구매하세요.</p>
+        <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">태그히어 CRM에 필요한 장비를 구매하세요.</p>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Product List */}
-        <div className="lg:col-span-2 space-y-6">
-          <h2 className="text-lg font-medium text-neutral-900">상품 목록</h2>
+        <div className="space-y-4 lg:col-span-2">
+          <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">상품 목록</h2>
 
           {products.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Package className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
-                <p className="text-neutral-500">등록된 상품이 없습니다.</p>
-              </CardContent>
-            </Card>
+            <div className="ad-card py-12 text-center">
+              <Package className="mx-auto mb-3 h-10 w-10 text-[color:var(--ad-line-strong)]" strokeWidth={1.5} />
+              <p className="text-[13px] text-[color:var(--ad-faint)]">등록된 상품이 없습니다.</p>
+            </div>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-6">
+            <div className="grid gap-4 sm:grid-cols-2">
               {products.map(product => (
-                <Card key={product.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                <div key={product.id} className="ad-card overflow-hidden transition-shadow hover:shadow-[0_8px_24px_-12px_rgba(29,32,34,0.18)]">
                   {/* 상품 이미지 또는 플레이스홀더 */}
-                  <div className="aspect-square bg-neutral-100 relative">
+                  <div className="relative aspect-square bg-[color:var(--ad-bg)]">
                     {product.imageUrl ? (
                       <img
                         src={product.imageUrl}
                         alt={product.name}
-                        className="w-full h-full object-cover"
+                        className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ImageIcon className="w-12 h-12 text-neutral-300" />
+                      <div className="flex h-full w-full items-center justify-center">
+                        <ImageIcon className="h-10 w-10 text-[color:var(--ad-line-strong)]" />
                       </div>
                     )}
                   </div>
-                  <CardContent className="p-4">
-                    <h3 className="font-medium text-neutral-900 mb-2 line-clamp-2">
+                  <div className="p-5">
+                    <h3 className="mb-1.5 line-clamp-2 text-[14px] font-semibold text-[color:var(--ad-ink)]">
                       {product.name}
                     </h3>
                     {product.description ? (
-                      <p className="text-sm text-neutral-500 mb-4 line-clamp-2">
+                      <p className="mb-4 line-clamp-2 text-[12.5px] text-[color:var(--ad-muted)]">
                         {product.description}
                       </p>
                     ) : (
                       <div className="mb-4" />
                     )}
                     <div className="flex items-center justify-between">
-                      <span className="text-lg font-bold text-neutral-900">
+                      <span className="ad-tnum text-[17px] font-semibold tracking-[-0.02em] text-[color:var(--ad-ink)]">
                         {formatPrice(product.price)}
                       </span>
-                      <Button
-                        size="sm"
+                      <button
+                        type="button"
                         onClick={() => addToCart(product)}
-                        className="gap-1"
+                        className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="h-4 w-4" />
                         담기
-                      </Button>
+                      </button>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               ))}
             </div>
           )}
         </div>
 
         {/* Cart & Checkout */}
-        <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5" />
-                장바구니
-                {cart.length > 0 && (
-                  <span className="ml-auto text-sm font-normal text-neutral-500">
-                    {cart.length}개 상품
-                  </span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+          <div className="ad-card p-5">
+            <h2 className="mb-4 flex items-center gap-2 text-[14px] font-semibold text-[color:var(--ad-ink)]">
+              <ShoppingBag className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              장바구니
+              {cart.length > 0 && (
+                <span className="ad-tnum ml-auto text-[12px] font-normal text-[color:var(--ad-muted)]">
+                  {cart.length}개 상품
+                </span>
+              )}
+            </h2>
+            <div className="space-y-4">
               {cart.length === 0 ? (
-                <p className="text-neutral-500 text-sm text-center py-4">
+                <p className="py-4 text-center text-[13px] text-[color:var(--ad-faint)]">
                   장바구니가 비어있습니다.
                 </p>
               ) : (
                 <>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {cart.map(item => (
                       <div
                         key={item.product.id}
-                        className="flex items-start gap-3 p-3 bg-neutral-50 rounded-lg"
+                        className="flex items-start gap-3 rounded-[12px] bg-[color:var(--ad-bg-alt)] p-3"
                       >
                         {/* 장바구니 아이템 이미지 또는 플레이스홀더 */}
                         {item.product.imageUrl ? (
                           <img
                             src={item.product.imageUrl}
                             alt={item.product.name}
-                            className="w-12 h-12 object-cover rounded flex-shrink-0"
+                            className="h-12 w-12 flex-shrink-0 rounded-[8px] object-cover"
                           />
                         ) : (
-                          <div className="w-12 h-12 bg-neutral-200 rounded flex items-center justify-center flex-shrink-0">
-                            <ImageIcon className="w-5 h-5 text-neutral-400" />
+                          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[8px] bg-[color:var(--ad-bg)]">
+                            <ImageIcon className="h-5 w-5 text-[color:var(--ad-faint)]" />
                           </div>
                         )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-neutral-900 truncate">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[13px] font-medium text-[color:var(--ad-ink)]">
                             {item.product.name}
                           </p>
-                          <p className="text-sm text-neutral-600">
+                          <p className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">
                             {formatPrice(item.product.price)}
                           </p>
-                          <div className="flex items-center gap-3 mt-2">
+                          <div className="mt-2 flex items-center gap-2">
                             <button
                               onClick={() => updateQuantity(item.product.id, -1)}
-                              className="p-1.5 hover:bg-neutral-200 rounded transition-colors"
+                              className="ad-press rounded-[8px] bg-white p-1.5 text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] transition-colors hover:bg-[color:var(--ad-bg-alt)]"
                             >
-                              <Minus className="w-4 h-4" />
+                              <Minus className="h-3.5 w-3.5" />
                             </button>
-                            <span className="text-sm font-medium w-6 text-center">
+                            <span className="ad-tnum w-6 text-center text-[13px] font-medium text-[color:var(--ad-ink)]">
                               {item.quantity}
                             </span>
                             <button
                               onClick={() => updateQuantity(item.product.id, 1)}
-                              className="p-1.5 hover:bg-neutral-200 rounded transition-colors"
+                              className="ad-press rounded-[8px] bg-white p-1.5 text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] transition-colors hover:bg-[color:var(--ad-bg-alt)]"
                             >
-                              <Plus className="w-4 h-4" />
+                              <Plus className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => removeFromCart(item.product.id)}
-                              className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded ml-auto transition-colors"
+                              className="ml-auto rounded-[8px] p-1.5 text-[color:var(--ad-faint)] transition-colors hover:bg-[#fff2f5] hover:text-[color:var(--ad-neg)]"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         </div>
@@ -529,48 +531,48 @@ export default function StorePage() {
                     ))}
                   </div>
 
-                  <div className="border-t pt-4">
-                    <div className="flex justify-between items-center p-3 bg-brand-50 rounded-lg">
-                      <span className="font-semibold text-neutral-700">총 결제금액</span>
-                      <span className="text-2xl font-bold text-brand-600">
+                  <div className="border-t border-[color:var(--ad-line)] pt-4">
+                    <div className="flex items-center justify-between rounded-[12px] bg-[color:var(--ad-bg-alt)] p-3">
+                      <span className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">총 결제금액</span>
+                      <span className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                         {formatPrice(totalAmount)}
                       </span>
                     </div>
                   </div>
                 </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Customer Info */}
           {cart.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">구매자 정보</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
+            <div className="ad-card p-5">
+              <h2 className="mb-4 text-[14px] font-semibold text-[color:var(--ad-ink)]">구매자 정보</h2>
+              <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium text-neutral-700 block mb-1">
-                    이름 <span className="text-red-500">*</span>
+                  <label className={labelCls}>
+                    이름 <span className="text-[color:var(--ad-neg)]">*</span>
                   </label>
                   <Input
                     value={customerInfo.name}
                     onChange={e => setCustomerInfo({ ...customerInfo, name: e.target.value })}
                     placeholder="홍길동"
+                    className={inputCls}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-neutral-700 block mb-1">
-                    연락처 <span className="text-red-500">*</span>
+                  <label className={labelCls}>
+                    연락처 <span className="text-[color:var(--ad-neg)]">*</span>
                   </label>
                   <Input
                     value={customerInfo.phone}
                     onChange={e => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
                     placeholder="01012345678"
+                    className={inputCls}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-neutral-700 block mb-1">
+                  <label className={labelCls}>
                     이메일 (선택)
                   </label>
                   <Input
@@ -578,34 +580,36 @@ export default function StorePage() {
                     value={customerInfo.email}
                     onChange={e => setCustomerInfo({ ...customerInfo, email: e.target.value })}
                     placeholder="example@email.com"
+                    className={inputCls}
                   />
                 </div>
-                <Button
-                  className="w-full mt-2"
+                <button
+                  type="button"
+                  className={`${primaryBtn} mt-2 w-full`}
                   onClick={proceedToPayment}
                   disabled={!customerInfo.name || !customerInfo.phone}
                 >
-                  <CreditCard className="w-4 h-4 mr-2" />
+                  <CreditCard className="h-4 w-4" />
                   결제하기
-                </Button>
-              </CardContent>
-            </Card>
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
       {/* Payment Modal */}
       {showPayment && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-neutral-900 mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.4)] backdrop-blur-sm">
+          <div className="mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[20px] bg-white p-6 shadow-[0_24px_60px_-20px_rgba(29,32,34,0.35)]">
+            <h3 className="mb-4 text-[17px] font-semibold text-[color:var(--ad-ink)]">
               결제하기
             </h3>
 
-            <div className="p-3 bg-neutral-50 rounded-lg mb-4">
-              <div className="flex justify-between items-center">
-                <span className="text-neutral-600">결제 금액</span>
-                <span className="text-xl font-bold text-brand-600">
+            <div className="mb-4 rounded-[12px] bg-[color:var(--ad-bg-alt)] p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-[color:var(--ad-muted)]">결제 금액</span>
+                <span className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                   {formatPrice(totalAmount)}
                 </span>
               </div>
@@ -616,36 +620,37 @@ export default function StorePage() {
               <div id="store-agreement" className="mb-3" />
             </div>
 
-            <div className="flex gap-3 mt-4">
-              <Button
-                variant="outline"
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
                 onClick={() => setShowPayment(false)}
-                className="flex-1"
+                className={`${secondaryBtn} flex-1`}
               >
                 취소
-              </Button>
-              <Button
+              </button>
+              <button
+                type="button"
                 onClick={handlePayment}
                 disabled={!isPaymentReady || isProcessing}
-                className="flex-1"
+                className={`${primaryBtn} flex-1`}
               >
                 {isProcessing ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     결제 중...
                   </>
                 ) : !isPaymentReady ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     준비 중...
                   </>
                 ) : (
                   <>
-                    <CreditCard className="w-4 h-4 mr-2" />
+                    <CreditCard className="h-4 w-4" />
                     결제하기
                   </>
                 )}
-              </Button>
+              </button>
             </div>
           </div>
         </div>

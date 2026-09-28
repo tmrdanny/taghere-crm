@@ -2,7 +2,6 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatDate, getRelativeTime } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Star, Filter, MessageSquare } from 'lucide-react';
@@ -24,7 +23,8 @@ function StarRating({ rating }: { rating: number }) {
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}
-          className={`w-4 h-4 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'fill-none text-neutral-300'}`}
+          className={`w-4 h-4 fill-none ${star <= rating ? 'text-[color:var(--ad-muted)]' : 'text-[color:var(--ad-line-strong)]'}`}
+          strokeWidth={1.8}
         />
       ))}
     </div>
@@ -112,30 +112,30 @@ export default function FeedbackPage() {
   };
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 pb-8">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8 space-y-5">
       {ToastComponent}
 
       {/* 헤더 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">고객 피드백</h1>
-          <p className="text-neutral-500 mt-1">고객들이 남긴 평점과 피드백을 확인하세요</p>
+          <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">고객 피드백</h1>
+          <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">고객들이 남긴 평점과 피드백을 확인하세요</p>
         </div>
       </div>
 
       {/* 통계 카드 */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="p-4">
-          <div className="text-sm text-neutral-500">전체 피드백</div>
-          <div className="text-2xl font-bold text-neutral-900 mt-1">{total}개</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-sm text-neutral-500">평균 평점</div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-2xl font-bold text-neutral-900">{stats.averageRating}</span>
-            <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+      <div className="ad-card grid grid-cols-2">
+        <div className="p-5">
+          <div className="text-[12px] text-[color:var(--ad-muted)]">전체 피드백</div>
+          <div className="ad-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{total}개</div>
+        </div>
+        <div className="border-l border-[color:var(--ad-line)] p-5">
+          <div className="text-[12px] text-[color:var(--ad-muted)]">평균 평점</div>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{stats.averageRating}</span>
+            <Star className="h-4 w-4 fill-none text-[color:var(--ad-faint)]" strokeWidth={1.8} />
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* 필터 */}
@@ -145,23 +145,23 @@ export default function FeedbackPage() {
             <Button
               variant="outline"
               onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-              className="flex items-center gap-2"
+              className="ad-press h-9 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] flex items-center gap-2"
             >
-              <Filter className="w-4 h-4" />
+              <Filter className="w-3.5 h-3.5" strokeWidth={1.8} />
               {ratingFilter !== null ? (
                 <div className="flex gap-0.5">
                   {[...Array(ratingFilter)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <Star key={i} className="w-3.5 h-3.5 fill-none text-[color:var(--ad-muted)]" strokeWidth={1.8} />
                   ))}
                 </div>
               ) : '전체 평점'}
             </Button>
 
             {showFilterDropdown && (
-              <div className="absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg z-10 min-w-[140px]">
+              <div className="absolute left-0 top-full z-10 mt-1 min-w-[140px] overflow-hidden rounded-[12px] border border-[color:var(--ad-line)] bg-white py-1 shadow-[0_16px_40px_-16px_rgba(29,32,34,0.25)]">
                 <button
                   onClick={() => handleRatingFilter(null)}
-                  className={`w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-50 ${ratingFilter === null ? 'bg-brand-50 text-brand-700' : ''}`}
+                  className={`w-full px-4 py-2.5 text-left text-[13px] hover:bg-[color:var(--ad-bg-alt)] ${ratingFilter === null ? 'bg-[color:var(--ad-bg)] font-medium text-[color:var(--ad-ink)]' : ''}`}
                 >
                   전체
                 </button>
@@ -169,11 +169,11 @@ export default function FeedbackPage() {
                   <button
                     key={rating}
                     onClick={() => handleRatingFilter(rating)}
-                    className={`w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-50 flex items-center ${ratingFilter === rating ? 'bg-brand-50 text-brand-700' : ''}`}
+                    className={`w-full px-4 py-2.5 text-left text-[13px] hover:bg-[color:var(--ad-bg-alt)] flex items-center ${ratingFilter === rating ? 'bg-[color:var(--ad-bg)] font-medium text-[color:var(--ad-ink)]' : ''}`}
                   >
                     <div className="flex gap-0.5">
                       {[...Array(rating)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        <Star key={i} className="w-3.5 h-3.5 fill-none text-[color:var(--ad-muted)]" strokeWidth={1.8} />
                       ))}
                     </div>
                   </button>
@@ -185,62 +185,62 @@ export default function FeedbackPage() {
           <Button
             variant={hasTextFilter ? 'default' : 'outline'}
             onClick={handleHasTextFilter}
-            className="flex items-center gap-2"
+            className={`ad-press flex h-9 items-center gap-2 rounded-[10px] px-3.5 text-[13px] ${hasTextFilter ? 'border-0 bg-[color:var(--ad-ink)] font-medium text-white hover:bg-[#383c40]' : 'border-0 bg-white font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'}`}
           >
-            <MessageSquare className="w-4 h-4" />
+            <MessageSquare className="w-3.5 h-3.5" strokeWidth={1.8} />
             텍스트 리뷰만
           </Button>
         </div>
 
-        <div className="text-sm text-neutral-500">
+        <div className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">
           총 {total}개의 피드백
         </div>
       </div>
 
       {/* 피드백 목록 */}
-      <Card className="overflow-hidden">
+      <div className="ad-card overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-neutral-500">
-            <div className="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full mx-auto mb-2" />
+          <div className="p-8 text-center text-[13px] text-[color:var(--ad-faint)]">
+            <div className="animate-spin w-8 h-8 border-2 border-[color:var(--ad-ink)] border-t-transparent rounded-full mx-auto mb-2" />
             로딩 중...
           </div>
         ) : feedbacks.length === 0 ? (
-          <div className="p-8 text-center text-neutral-500">
-            <MessageSquare className="w-12 h-12 mx-auto mb-2 text-neutral-300" />
+          <div className="p-8 text-center text-[13px] text-[color:var(--ad-faint)]">
+            <MessageSquare className="mx-auto mb-2 h-8 w-8 text-[color:var(--ad-line-strong)]" strokeWidth={1.7} />
             <p>아직 피드백이 없습니다</p>
           </div>
         ) : (
-          <div className="divide-y divide-neutral-100">
+          <div className="divide-y divide-[color:var(--ad-line)]">
             {feedbacks.map((feedback) => (
-              <div key={feedback.id} className="p-4 hover:bg-neutral-50 transition-colors">
+              <div key={feedback.id} className="px-5 py-4 transition-colors hover:bg-[color:var(--ad-bg-alt)]">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
                       <StarRating rating={feedback.rating} />
-                      <span className="text-sm font-medium text-neutral-900">
+                      <span className="text-[13px] font-medium text-[color:var(--ad-ink)]">
                         {feedback.customerName}
                       </span>
                       {feedback.customerPhone && (
-                        <span className="text-sm text-neutral-400">
+                        <span className="text-[13px] text-[color:var(--ad-faint)]">
                           {feedback.customerPhone}
                         </span>
                       )}
                     </div>
                     {feedback.text ? (
-                      <p className="text-sm text-neutral-700 whitespace-pre-wrap">
+                      <p className="text-[13px] text-[color:var(--ad-ink-2)] whitespace-pre-wrap">
                         {feedback.text}
                       </p>
                     ) : (
-                      <p className="text-sm text-neutral-400 italic">
+                      <p className="text-[13px] text-[color:var(--ad-faint)] italic">
                         작성된 피드백 없음
                       </p>
                     )}
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="text-xs text-neutral-400">
+                    <div className="text-[12px] text-[color:var(--ad-faint)]">
                       {getRelativeTime(feedback.createdAt)}
                     </div>
-                    <div className="text-xs text-neutral-400 mt-0.5">
+                    <div className="text-[12px] text-[color:var(--ad-faint)] mt-0.5">
                       {formatDate(feedback.createdAt)}
                     </div>
                   </div>
@@ -249,7 +249,7 @@ export default function FeedbackPage() {
             ))}
           </div>
         )}
-      </Card>
+      </div>
 
       {/* 페이지네이션 */}
       {totalPages > 1 && (
@@ -257,17 +257,19 @@ export default function FeedbackPage() {
           <Button
             variant="outline"
             size="sm"
+            className="ad-press h-9 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] px-2.5"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <span className="text-sm text-neutral-600">
+          <span className="ad-tnum text-[13px] text-[color:var(--ad-muted)]">
             {page} / {totalPages}
           </span>
           <Button
             variant="outline"
             size="sm"
+            className="ad-press h-9 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] px-2.5"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
           >

@@ -12,6 +12,7 @@ import { trackEvent } from '@/lib/analytics';
 import { Rocket, Ticket, Calendar, ChevronLeft, Loader2, ExternalLink, Store } from 'lucide-react';
 import { buildBoosterSearchUrl } from '@/lib/booster-link';
 import { Button } from '@/components/ui/button';
+import { IPhoneFrame } from '@/components/ui/iphone-frame';
 
 const KST_OFFSET = 9 * 60 * 60 * 1000;
 
@@ -47,11 +48,20 @@ export function fmtDate(d: Date | string) {
   return `${kst.getUTCMonth() + 1}/${kst.getUTCDate()}(${'일월화수목금토'[kst.getUTCDay()]})`;
 }
 
-/** DateTime(ISO) → 'YYYY-MM-DD' (KST 기준, date input 프리필용) */
-export function toDateInput(iso: string | null | undefined): string {
-  if (!iso) return '';
-  const kst = new Date(new Date(iso).getTime() + KST_OFFSET);
-  return kst.toISOString().slice(0, 10);
+/**
+ * 캠페인의 유효기간 표시/프리필 문구.
+ * 문구(couponValidUntilText)를 우선하고, 문구 입력 이전에 만들어진 캠페인은
+ * 날짜 컬럼을 'YYYY.MM.DD까지'로 바꿔 보여준다.
+ */
+export function validUntilText(
+  campaign: { couponValidUntilText?: string | null; couponValidUntil?: string | Date | null } | null | undefined
+): string {
+  const text = campaign?.couponValidUntilText?.trim();
+  if (text) return text;
+  const legacy = campaign?.couponValidUntil;
+  if (!legacy) return '';
+  const kst = new Date(new Date(legacy).getTime() + KST_OFFSET);
+  return `${kst.toISOString().slice(0, 10).replace(/-/g, '.')}까지`;
 }
 
 /** 발송일 + 시각 (KST) 예: 7/1(수) 18:00 */
@@ -79,7 +89,7 @@ export interface BoosterFormValues {
   couponContent: string;
   couponCode: string;
   couponAmount: string;
-  couponValidUntil: string; // 'YYYY-MM-DD'
+  couponValidUntilText: string; // 유효기간 문구 (자유 텍스트)
   ownerPhone: string;
   weekday: number;
   sendTime: string;
@@ -143,7 +153,10 @@ export function BoosterCreateForm({
   const [couponContent, setCouponContent] = useState(iv?.couponContent ?? '');
   const [couponCode, setCouponCode] = useState(iv?.couponCode ?? '');
   const [couponAmount, setCouponAmount] = useState(iv?.couponAmount ?? '');
-  const [couponValidUntil, setCouponValidUntil] = useState(iv?.couponValidUntil ?? '');
+  // 문구 입력 이전에 저장된 임시저장/캠페인은 날짜만 들고 있으므로 문구로 바꿔 채운다
+  const [couponValidUntilText, setCouponValidUntilText] = useState(
+    () => iv?.couponValidUntilText?.trim() || validUntilText(iv as { couponValidUntil?: string | null } | undefined)
+  );
   const [ownerPhone, setOwnerPhone] = useState(iv?.ownerPhone ?? '');
   const [preset, setPreset] = useState(
     () => PRESETS.find((p) => p.perBatchCount === iv?.perBatchCount && p.totalWeeks === iv?.totalWeeks) ?? PRESETS[0]
@@ -193,7 +206,7 @@ export function BoosterCreateForm({
     try {
       const res = await fetcher(`${apiPrefix}/test-send-preview`, {
         method: 'POST',
-        body: JSON.stringify({ phone: testPhone, keyword, naverPlaceUrl, couponContent, couponCode, couponAmount, couponValidUntil }),
+        body: JSON.stringify({ phone: testPhone, keyword, naverPlaceUrl, couponContent, couponCode, couponAmount, couponValidUntilText }),
       });
       const d = await res.json().catch(() => ({}));
       if (res.ok) trackEvent('owner_booster_test_send', { stage: 'preview' });
@@ -211,7 +224,7 @@ export function BoosterCreateForm({
       targetPayload = t.payload || {};
     }
     if (!placeInfo) { setError('매장 정보 확인을 먼저 해주세요.'); return; }
-    if (!keyword.trim() || !couponContent.trim() || !couponCode.trim() || !couponAmount.trim() || !couponValidUntil || !ownerPhone.trim()) {
+    if (!keyword.trim() || !couponContent.trim() || !couponCode.trim() || !couponAmount.trim() || !couponValidUntilText.trim() || !ownerPhone.trim()) {
       setError('키워드, 쿠폰 내용/코드/금액, 유효기간, 사장님 번호를 모두 입력해주세요.');
       return;
     }
@@ -229,7 +242,7 @@ export function BoosterCreateForm({
             couponContent,
             couponCode,
             couponAmount,
-            couponValidUntil,
+            couponValidUntilText,
             ownerPhone,
             weekday,
             sendTime,
@@ -261,7 +274,7 @@ export function BoosterCreateForm({
     couponContent,
     couponCode,
     couponAmount,
-    couponValidUntil,
+    couponValidUntilText,
     ownerPhone,
     weekday,
     sendTime,
@@ -347,14 +360,13 @@ export function BoosterCreateForm({
             <Field label="쿠폰 코드">
               <input className="input" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="예: 다주막 네이버 쿠폰" />
             </Field>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="쿠폰 금액">
-                <input className="input" value={couponAmount} onChange={(e) => setCouponAmount(e.target.value)} placeholder="예: 10% 할인" />
-              </Field>
-              <Field label="유효기간">
-                <input type="date" className="input cursor-pointer" value={couponValidUntil} onChange={(e) => setCouponValidUntil(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} />
-              </Field>
-            </div>
+            <Field label="쿠폰 금액">
+              <input className="input" value={couponAmount} onChange={(e) => setCouponAmount(e.target.value)} placeholder="예: 10% 할인" />
+            </Field>
+            {/* 유효기간은 여러 줄 입력이라 쿠폰 내용처럼 전체 너비를 쓴다 */}
+            <Field label="유효기간" hint="Enter 로 줄바꿈할 수 있어요">
+              <textarea className="input" rows={3} value={couponValidUntilText} onChange={(e) => setCouponValidUntilText(e.target.value)} placeholder={'예: 2026.04.30까지\n발급일로부터 30일 이내'} />
+            </Field>
             <Field label="사장님 번호" hint="발송 때마다 이 번호로도 동일 알림톡이 전송됩니다 (사장님 확인용)">
               <input className="input" value={ownerPhone} onChange={(e) => setOwnerPhone(e.target.value)} placeholder="예: 010-1234-5678" inputMode="tel" />
             </Field>
@@ -444,7 +456,7 @@ export function BoosterCreateForm({
 
         <div className="lg:sticky lg:top-6">
           <p className="text-center text-[15px] font-semibold text-neutral-500 mb-3">알림톡 미리보기</p>
-          <AlimtalkPreview couponContent={couponContent} couponCode={couponCode} couponAmount={couponAmount} couponValidUntil={couponValidUntil} />
+          <AlimtalkPreview couponContent={couponContent} couponCode={couponCode} couponAmount={couponAmount} couponValidUntilText={couponValidUntilText} />
           <p className="text-center text-xs text-neutral-400 mt-3">실제 발송되는 알림톡과 동일한 형식입니다.</p>
         </div>
       </div>
@@ -513,28 +525,24 @@ function AlimtalkPreview({
   couponContent,
   couponCode,
   couponAmount,
-  couponValidUntil,
+  couponValidUntilText,
 }: {
   couponContent: string;
   couponCode: string;
   couponAmount: string;
-  couponValidUntil: string;
+  couponValidUntilText: string;
 }) {
   const COUPON_GUIDE = '쿠폰 다운받기 > 네이버 길찾기 앱 진입 후 하단 스크롤 > 네이버 쿠폰 다운로드 > 매장 방문시 직원에게 보여주세요.';
   const contentText = couponContent.trim() || '{쿠폰 내용}';
   const codeText = couponCode.trim() || '{쿠폰 코드}';
   const amountText = couponAmount.trim() || '{쿠폰 금액}';
-  const validBase = couponValidUntil ? `${couponValidUntil.replace(/-/g, '.')}까지` : '{유효기간}';
+  const validBase = couponValidUntilText.trim() || '{유효기간}';
   const validText = `${validBase}\n\n${COUPON_GUIDE}`;
 
   const now = new Date();
   return (
-    <div className="flex justify-center">
-      <div className="relative w-72 h-[580px] bg-neutral-800 rounded-[2.5rem] p-2 shadow-2xl">
-        <div className="w-full h-full bg-neutral-900 rounded-[2rem] p-1 overflow-hidden">
-          <div className="w-full h-full bg-[#B2C7D9] rounded-[1.75rem] overflow-hidden flex flex-col relative">
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-neutral-900 rounded-full z-10" />
-            <div className="flex items-center justify-between px-4 pt-10 pb-2">
+    <IPhoneFrame screenClassName="bg-[#B2C7D9]">
+            <div className="flex items-center justify-between px-4 pt-1 pb-2">
               <ChevronLeft className="w-4 h-4 text-neutral-700" />
               <span className="font-medium text-xs text-neutral-800">태그히어 플레이스</span>
               <span className="text-base leading-none text-neutral-700">≡</span>
@@ -544,7 +552,7 @@ function AlimtalkPreview({
                 {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
               </span>
             </div>
-            <div className="flex-1 pl-2 pr-4 overflow-auto">
+            <div className="flex-1 pl-2 pr-4 pb-6 overflow-auto">
               <div className="flex gap-1.5">
                 <div className="flex-shrink-0">
                   <div className="w-7 h-7 rounded-full bg-neutral-300" />
@@ -584,9 +592,6 @@ function AlimtalkPreview({
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </IPhoneFrame>
   );
 }

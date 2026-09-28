@@ -394,6 +394,18 @@ export class SolapiService {
     }
   }
 
+  // 예약 발송 취소 — 예약된 그룹을 발송 전에 취소한다
+  async cancelReservation(groupId: string): Promise<{ success: boolean; error?: string }> {
+    if (!this.messageService) return { success: false, error: 'SOLAPI not configured' };
+    try {
+      await (this.messageService as any).removeReservationToGroup(groupId);
+      return { success: true };
+    } catch (error: any) {
+      console.error(`[SOLAPI] cancel reservation ${groupId} error:`, error?.message);
+      return { success: false, error: error?.message || 'Unknown error' };
+    }
+  }
+
   // 이미지 업로드 (브랜드 메시지용)
   async uploadImage(filePath: string): Promise<{ success: boolean; fileId?: string; error?: string }> {
     if (!this.messageService) {
@@ -424,7 +436,7 @@ export class SolapiService {
     text: string;
     type?: 'SMS' | 'LMS' | 'MMS';
     imageId?: string;
-  }>): Promise<BulkSendResult[]> {
+  }>, scheduledAt?: Date): Promise<BulkSendResult[]> {
     if (!this.messageService) {
       throw new Error('SOLAPI not configured');
     }
@@ -443,7 +455,7 @@ export class SolapiService {
       }));
 
       try {
-        const result = await this.messageService.send(chunk as any);
+        const result = await this.messageService.send(chunk as any, scheduledAt ? ({ scheduledDate: scheduledAt } as any) : undefined);
         const groupId = result.groupInfo?.groupId || '';
         const acceptedCount = result.groupInfo?.count?.total || chunk.length;
         const failedPhones = new Map<string, string>();
@@ -485,7 +497,7 @@ export class SolapiService {
       throw new Error('SOLAPI not configured');
     }
 
-    const CHUNK_SIZE = 1000;
+    const CHUNK_SIZE = 10000; // 솔라피 send() 1회 요청 최대 건수
     const CHUNK_DELAY_MS = 100;
     const results: BulkSendResult[] = [];
     const { messages, pfId, scheduledAt } = params;

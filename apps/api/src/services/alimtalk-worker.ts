@@ -6,6 +6,8 @@ import { tryConsumeOneCredit, releaseOneCredit } from './credit-service.js';
 import { sendAligoAlimtalk } from './aligo.js';
 import { resolveAlimtalkCost } from './pricing-service.js';
 import { refundAcquisitionCoupons } from './acquisition-coupon.js';
+import { refundGroupCouponFailures } from './retarget-coupon-group.js';
+import { finalizePremiumKakaoCampaigns } from './premium-kakao/send.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
 
 const BATCH_SIZE = 10;
@@ -512,6 +514,8 @@ export async function processBatch(): Promise<number> {
 
   // 그룹 발송분은 그룹 단위로 상태를 확정 (건별 경로와 별도)
   const reconciled = await reconcileGroupSentMessages();
+  // 프리미엄 카카오톡: 결과가 모두 확정된 캠페인 마감 (집계 + 브랜드 템플릿 삭제)
+  await finalizePremiumKakaoCampaigns().catch((e) => console.error('[Worker] premium kakao finalize failed:', e));
 
   // PENDING 또는 RETRY 상태의 메시지 조회 (그룹 발송 행 제외)
   const messages = await prisma.alimTalkOutbox.findMany({
@@ -545,7 +549,7 @@ const GROUP_DELIVERY_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 예약 발송 포함, 
 
 // 솔라피 그룹 발송으로 접수된 아웃박스 행의 최종 상태 확정.
 // 그룹 1개당 상태 조회 1회로 수백~수천 행을 한 번에 처리한다 (건별 경로의 10건/5초 병목 회피).
-// 실패분은 프랜차이즈 지갑으로 환불한다 (그룹 발송은 프랜차이즈 지갑에서만 선차감됨).
+// 실패분은 행에 남긴 과금 방식(프랜차이즈 지갑 / 매장 지갑 / 무료 크레딧)으로 환불한다.
 async function reconcileGroupSentMessages(): Promise<number> {
   const now = new Date();
   // RETRY 도 포함 — 배포 겹침 구간에 구버전 워커가 그룹 행을 건별 경로로 건드려 RETRY 로 남긴 행을 회수한다
@@ -572,7 +576,7 @@ async function reconcileGroupSentMessages(): Promise<number> {
     const groupId = g.solapiMessageId!;
     const rows = await prisma.alimTalkOutbox.findMany({
       where: { solapiMessageId: groupId, sentViaGroup: true, status: { in: RECONCILE_STATUSES } },
-      select: { id: true, phone: true, franchiseId: true, scheduledAt: true, createdAt: true },
+      select: { id: true, phone: true, storeId: true, franchiseId: true, billing: true, unitCost: true, scheduledAt: true, createdAt: true },
     });
     if (rows.length === 0) continue;
 
@@ -584,7 +588,8 @@ async function reconcileGroupSentMessages(): Promise<number> {
     }
 
     const sentIds: string[] = [];
-    const failed: Array<{ id: string; franchiseId: string | null; reason: string }> = [];
+    type FailedRow = { id: string; storeId: string; franchiseId: string | null; billing: string | null; unitCost: number | null; reason: string };
+    const failed: FailedRow[] = [];
     const stillPendingIds: string[] = [];
     for (const row of rows) {
       const found = statusResult.statuses.get(normalizePhoneNumber(row.phone));
@@ -592,9 +597,9 @@ async function reconcileGroupSentMessages(): Promise<number> {
       if (found?.status === 'SENT') {
         sentIds.push(row.id);
       } else if (found?.status === 'FAILED') {
-        failed.push({ id: row.id, franchiseId: row.franchiseId, reason: found.failReason || '발송 실패' });
+        failed.push({ ...row, reason: found.failReason || '발송 실패' });
       } else if (now.getTime() - dueAt.getTime() > GROUP_DELIVERY_TIMEOUT_MS) {
-        failed.push({ id: row.id, franchiseId: row.franchiseId, reason: 'Delivery timeout - no response from carrier' });
+        failed.push({ ...row, reason: 'Delivery timeout - no response from carrier' });
       } else {
         stillPendingIds.push(row.id);
       }
@@ -608,18 +613,26 @@ async function reconcileGroupSentMessages(): Promise<number> {
         data: { status: 'SENT', sentAt: now, updatedAt: now, failReason: null },
       });
     }
+    // billing 이 있는 행(리타겟 쿠폰)은 남긴 과금 방식대로, 없는 과거 행(신규 고객 타겟)은 프랜차이즈 지갑 기본 단가로 환불
     const refundByFranchise = new Map<string, number>();
+    const billedFailures: Array<{ billing: string; storeId: string; franchiseId: string | null; unitCost: number }> = [];
     for (const f of failed) {
       const transitioned = await prisma.alimTalkOutbox.updateMany({
         where: { id: f.id, status: { in: RECONCILE_STATUSES } },
         data: { status: 'FAILED', failReason: f.reason, updatedAt: now },
       });
-      if (transitioned.count === 1 && f.franchiseId) {
+      if (transitioned.count !== 1) continue;
+      if (f.billing) {
+        billedFailures.push({ billing: f.billing, storeId: f.storeId, franchiseId: f.franchiseId, unitCost: f.unitCost ?? 0 });
+      } else if (f.franchiseId) {
         refundByFranchise.set(f.franchiseId, (refundByFranchise.get(f.franchiseId) || 0) + 1);
       }
     }
     for (const [franchiseId, count] of refundByFranchise) {
       await refundAcquisitionCoupons(franchiseId, count, `group ${groupId}`);
+    }
+    if (billedFailures.length > 0) {
+      await refundGroupCouponFailures(billedFailures, `group ${groupId}`);
     }
     if (stillPendingIds.length > 0) {
       await prisma.alimTalkOutbox.updateMany({ where: { id: { in: stillPendingIds } }, data: { updatedAt: now } });

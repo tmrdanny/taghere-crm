@@ -24,6 +24,7 @@ import {
   Announcement,
   MessageHistoryEntry,
   BulkRow,
+  parseRegionText,
   AddCustomerModal,
   BulkUploadModal,
   CustomerTable,
@@ -50,11 +51,17 @@ const COLUMN_DEFINITIONS = [
   { id: 'visitSource', label: '방문 경로', required: false, defaultVisible: true },
   { id: 'tableLabel', label: '좌석', required: false, defaultVisible: true },
   { id: 'visitCount', label: '방문 횟수', required: false, defaultVisible: true },
+  { id: 'region', label: '지역', required: false, defaultVisible: false },
+  { id: 'consentMarketing', label: '마케팅 수신 동의', required: false, defaultVisible: false },
   { id: 'actions', label: '액션', required: true, defaultVisible: true },
 ] as const;
 
 const DEFAULT_VISIBLE_COLUMNS = COLUMN_DEFINITIONS.filter(c => c.defaultVisible).map(c => c.id);
 const COLUMN_STORAGE_KEY = 'taghere-customer-list-columns';
+
+// 엑셀 대량 등록 — 한 파일 최대 건수와 요청당 전송 건수 (API BULK_CHUNK_MAX=2,000 이하)
+const BULK_MAX_ROWS = 100_000;
+const BULK_CHUNK_SIZE = 1_000;
 
 export default function CustomersPage() {
   const router = useRouter();
@@ -127,6 +134,10 @@ export default function CustomersPage() {
   const [addBirthYear, setAddBirthYear] = useState('');  // YYYY 형식
   const [addMemo, setAddMemo] = useState('');
   const [addInitialPoints, setAddInitialPoints] = useState('');
+  const [addRegionSido, setAddRegionSido] = useState('');
+  const [addRegionSigungu, setAddRegionSigungu] = useState('');
+  // 태그히어 고객은 기본적으로 마케팅 수신에 동의한 상태 → 기본값 동의
+  const [addConsentMarketing, setAddConsentMarketing] = useState(true);
   const [submittingAdd, setSubmittingAdd] = useState(false);
 
   // Bulk upload modal states
@@ -134,6 +145,11 @@ export default function CustomersPage() {
   const [bulkParsedData, setBulkParsedData] = useState<BulkRow[]>([]);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ created: number; skipped: number; errors: Array<{ row: number; phone: string; reason: string }> } | null>(null);
+  // 파싱 단계에서 걸러진 행(파일 내 중복 등) — 업로드 결과 오류에 합쳐서 보여준다
+  const [bulkClientErrors, setBulkClientErrors] = useState<Array<{ row: number; phone: string; reason: string }>>([]);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  // 태그히어 고객은 기본적으로 수신 동의 상태 → 동의 확인 체크 기본값 true
+  const [bulkConsentAttested, setBulkConsentAttested] = useState(true);
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
   // Edit modal tab and feedback states
   const [editModalTab, setEditModalTab] = useState<'feedback' | 'history' | 'stamps' | 'orders' | 'messages'>('orders');
@@ -876,6 +892,9 @@ export default function CustomersPage() {
           birthYear: addBirthYear ? parseInt(addBirthYear, 10) : null,
           memo: addMemo || null,
           initialPoints: addInitialPoints ? parseInt(addInitialPoints, 10) : 0,
+          regionSido: addRegionSido || null,
+          regionSigungu: addRegionSigungu.trim() || null,
+          consentMarketing: addConsentMarketing,
         }),
       });
 
@@ -892,6 +911,9 @@ export default function CustomersPage() {
       setAddBirthYear('');
       setAddMemo('');
       setAddInitialPoints('');
+      setAddRegionSido('');
+      setAddRegionSigungu('');
+      setAddConsentMarketing(true);
       setPage(1);
       setRefreshKey((key) => key + 1);
       trackEvent('owner_customer_add');
@@ -905,13 +927,14 @@ export default function CustomersPage() {
 
   // 샘플 엑셀 다운로드
   const handleDownloadSampleExcel = () => {
-    const headers = ['전화번호', '이름', '성별', '생년(YYYY)', '생일(MM-DD)', '메모', '포인트 적립', '스탬프 적립'];
+    const headers = ['전화번호', '이름', '성별', '생년(YYYY)', '생일(MM-DD)', '메모', '포인트 적립', '스탬프 적립', '지역', '마케팅 수신 동의'];
     const sampleData = [
-      ['01012345678', '홍길동', '남', 1990, '03-15', 'VIP고객', 500, 3],
-      ['01098765432', '김영희', '여', 1985, '11-20', '', 0, 0],
+      ['01012345678', '홍길동', '남', 1990, '03-15', 'VIP고객', 500, 3, '서울 마포구', '동의'],
+      ['01098765432', '김영희', '여', 1985, '11-20', '', 0, 0, '경기도 성남시', '미동의'],
+      ['01055556666', '이철수', '', '', '', '', 0, 0, '', ''],
     ];
     const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
-    ws['!cols'] = [{ wch: 15 }, { wch: 12 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 12 }];
+    ws['!cols'] = [{ wch: 15 }, { wch: 12 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 16 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '고객목록');
     XLSX.writeFile(wb, '대량_고객등록_샘플.xlsx');
@@ -926,7 +949,20 @@ export default function CustomersPage() {
     reader.onload = (evt) => {
       try {
         const data = new Uint8Array(evt.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
+        // CSV 는 인코딩을 직접 풀어서 넘긴다 — 바이트 그대로 넘기면 한글 헤더가 깨져
+        // "전화번호 컬럼을 찾을 수 없습니다"로 실패했다. UTF-8 우선, 아니면 엑셀 저장 CSV(EUC-KR).
+        let workbook: XLSX.WorkBook;
+        if (file.name.toLowerCase().endsWith('.csv')) {
+          let text: string;
+          try {
+            text = new TextDecoder('utf-8', { fatal: true }).decode(data);
+          } catch {
+            text = new TextDecoder('euc-kr').decode(data);
+          }
+          workbook = XLSX.read(text.replace(/^\uFEFF/, ''), { type: 'string', raw: true });
+        } else {
+          workbook = XLSX.read(data, { type: 'array' });
+        }
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<any>(sheet, { header: 1 });
 
@@ -947,6 +983,8 @@ export default function CustomersPage() {
           else if (h.includes('메모') || h.includes('memo') || h.includes('Memo')) colMap.memo = idx;
           else if (h.includes('포인트') || h.includes('point') || h.includes('Point')) colMap.initialPoints = idx;
           else if (h.includes('스탬프') || h.includes('stamp') || h.includes('Stamp')) colMap.initialStamps = idx;
+          else if (h.includes('동의') || h.includes('consent') || h.includes('Consent')) colMap.consentMarketing = idx;
+          else if (h.includes('지역') || h.includes('region') || h.includes('Region')) colMap.region = idx;
         });
 
         if (colMap.phone === undefined) {
@@ -955,13 +993,28 @@ export default function CustomersPage() {
         }
 
         const parsed: BulkRow[] = [];
+        const clientErrors: Array<{ row: number; phone: string; reason: string }> = [];
+        // 파일 전체 기준 중복 제거 — 청크로 나눠 보내면 서버는 청크 안의 중복만 볼 수 있다
+        const seenLastDigits = new Set<string>();
         for (let i = 1; i < rows.length; i++) {
           const row = rows[i] as any[];
           if (!row || row.length === 0) continue;
           const phone = row[colMap.phone];
           if (!phone && !row[colMap.name ?? -1]) continue; // 완전 빈 행 스킵
 
+          const excelRow = i + 1; // 헤더 = 1행
+          const lastDigits = String(phone ?? '').replace(/[^0-9]/g, '').slice(-8);
+          if (lastDigits.length === 8) {
+            if (seenLastDigits.has(lastDigits)) {
+              clientErrors.push({ row: excelRow, phone: String(phone), reason: '파일 내 중복 전화번호입니다.' });
+              continue;
+            }
+            seenLastDigits.add(lastDigits);
+          }
+
           parsed.push({
+            row: excelRow,
+            consentMarketing: colMap.consentMarketing !== undefined ? (row[colMap.consentMarketing] != null ? String(row[colMap.consentMarketing]).trim() : undefined) : undefined,
             phone: phone ? String(phone).trim() : '',
             name: colMap.name !== undefined ? (row[colMap.name] ? String(row[colMap.name]).trim() : undefined) : undefined,
             gender: colMap.gender !== undefined ? (row[colMap.gender] ? String(row[colMap.gender]).trim() : undefined) : undefined,
@@ -970,6 +1023,8 @@ export default function CustomersPage() {
             memo: colMap.memo !== undefined ? (row[colMap.memo] ? String(row[colMap.memo]).trim() : undefined) : undefined,
             initialPoints: colMap.initialPoints !== undefined ? (parseInt(String(row[colMap.initialPoints] || 0), 10) || 0) : undefined,
             initialStamps: colMap.initialStamps !== undefined ? (parseInt(String(row[colMap.initialStamps] || 0), 10) || 0) : undefined,
+            // 지역: "서울 마포구" → 시/도(정식명칭) + 시/군/구. 빈 칸이면 보내지 않는다.
+            ...(colMap.region !== undefined ? parseRegionText(row[colMap.region]) : {}),
           });
         }
 
@@ -977,13 +1032,15 @@ export default function CustomersPage() {
           showToast('등록할 데이터가 없습니다.', 'error');
           return;
         }
-        if (parsed.length > 10000) {
-          showToast(`최대 10,000건까지 등록 가능합니다. (현재 ${parsed.length}건)`, 'error');
+        if (parsed.length > BULK_MAX_ROWS) {
+          showToast(`최대 ${BULK_MAX_ROWS.toLocaleString()}건까지 등록 가능합니다. (현재 ${parsed.length.toLocaleString()}건)`, 'error');
           return;
         }
 
         setBulkParsedData(parsed);
+        setBulkClientErrors(clientErrors);
         setBulkResult(null);
+        setBulkProgress(null);
       } catch {
         showToast('파일을 읽는 중 오류가 발생했습니다.', 'error');
       }
@@ -993,34 +1050,85 @@ export default function CustomersPage() {
     e.target.value = '';
   };
 
-  // 대량 등록 API 호출
+  // 대량 등록 API 호출 — BULK_CHUNK_SIZE 단위로 순차 전송, 청크별 재시도.
+  // 서버는 이미 등록된 전화번호를 건너뛰므로, 도중에 실패해도 같은 파일을 다시 올리면 이어서 등록된다.
   const handleBulkUpload = async () => {
     if (bulkParsedData.length === 0) return;
     setBulkUploading(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/customers/bulk`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
-        body: JSON.stringify({ customers: bulkParsedData }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || '대량 등록 중 오류가 발생했습니다.');
+
+    const total = bulkParsedData.length;
+    const totals = { created: 0, skipped: 0 };
+    const errors = [...bulkClientErrors];
+    setBulkProgress({ done: 0, total });
+
+    const sendChunk = async (chunk: BulkRow[]) => {
+      let lastError = '';
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const res = await fetch(`${API_BASE}/api/customers/bulk`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${getAuthToken()}`,
+            },
+            body: JSON.stringify({ customers: chunk, consentAttested: bulkConsentAttested }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) return data as { created: number; skipped: number; errors: typeof errors };
+          lastError = data.error || `서버 오류 (${res.status})`;
+          if (res.status >= 400 && res.status < 500 && res.status !== 429) break; // 재시도해도 같은 결과
+        } catch {
+          lastError = '네트워크 오류';
+        }
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
       }
-      trackEvent('owner_customer_bulk_upload', { count: data.created ?? bulkParsedData.length });
-      setBulkResult(data);
-      if (data.created > 0) {
+      throw new Error(lastError);
+    };
+
+    try {
+      for (let i = 0; i < total; i += BULK_CHUNK_SIZE) {
+        const chunk = bulkParsedData.slice(i, i + BULK_CHUNK_SIZE);
+        try {
+          const data = await sendChunk(chunk);
+          totals.created += data.created || 0;
+          totals.skipped += data.skipped || 0;
+          errors.push(...(data.errors || []));
+        } catch (err: any) {
+          // 이 청크만 실패로 기록하고 나머지는 계속 진행
+          for (const row of chunk) {
+            errors.push({
+              row: row.row ?? 0,
+              phone: row.phone,
+              reason: `전송 실패: ${err.message} (같은 파일을 다시 올리면 이어서 등록됩니다)`,
+            });
+          }
+        }
+        setBulkProgress({ done: Math.min(i + chunk.length, total), total });
+      }
+
+      errors.sort((a, b) => a.row - b.row);
+      trackEvent('owner_customer_bulk_upload', { count: totals.created });
+      setBulkResult({ ...totals, errors });
+      if (totals.created > 0) {
         setPage(1);
         setRefreshKey((key) => key + 1);
       }
-    } catch (err: any) {
-      showToast(err.message || '대량 등록 중 오류가 발생했습니다.', 'error');
     } finally {
       setBulkUploading(false);
     }
+  };
+
+  // 오류 행 엑셀 다운로드
+  const handleDownloadBulkErrors = () => {
+    if (!bulkResult || bulkResult.errors.length === 0) return;
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['행', '전화번호', '사유'],
+      ...bulkResult.errors.map((e) => [e.row, e.phone, e.reason]),
+    ]);
+    ws['!cols'] = [{ wch: 8 }, { wch: 16 }, { wch: 60 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '오류');
+    XLSX.writeFile(wb, '대량_고객등록_오류.xlsx');
   };
 
   const getVisitDescription = (customer: Customer) => {
@@ -1110,7 +1218,7 @@ export default function CustomersPage() {
   ];
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {ToastComponent}
 
       {/* Announcements */}
@@ -1132,6 +1240,9 @@ export default function CustomersPage() {
           setBulkModal(true);
           setBulkParsedData([]);
           setBulkResult(null);
+          setBulkClientErrors([]);
+          setBulkProgress(null);
+          setBulkConsentAttested(true);
         }}
       />
 
@@ -1422,6 +1533,12 @@ export default function CustomersPage() {
         onInitialPointsChange={setAddInitialPoints}
         memo={addMemo}
         onMemoChange={setAddMemo}
+        regionSido={addRegionSido}
+        onRegionSidoChange={setAddRegionSido}
+        regionSigungu={addRegionSigungu}
+        onRegionSigunguChange={setAddRegionSigungu}
+        consentMarketing={addConsentMarketing}
+        onConsentMarketingChange={setAddConsentMarketing}
         submitting={submittingAdd}
         onSubmit={handleAddCustomer}
       />
@@ -1434,6 +1551,12 @@ export default function CustomersPage() {
         parsedData={bulkParsedData}
         result={bulkResult}
         uploading={bulkUploading}
+        progress={bulkProgress}
+        maxRows={BULK_MAX_ROWS}
+        clientErrorCount={bulkClientErrors.length}
+        consentAttested={bulkConsentAttested}
+        onConsentAttestedChange={setBulkConsentAttested}
+        onDownloadErrors={handleDownloadBulkErrors}
         onDownloadSample={handleDownloadSampleExcel}
         onFileChange={handleBulkFileChange}
         onUpload={handleBulkUpload}

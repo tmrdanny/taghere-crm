@@ -20,6 +20,49 @@ export function getAgeGroupBirthYearRange(ageGroup: string): { gte: number; lte:
   }
 }
 
+// ---------- 신규 고객 타겟(지역 고객) 연령 필터 ----------
+// “전체 연령”(아무것도 안 고르거나 20대~60대 이상을 모두 고름)은 필터를 걸지 않는다.
+// 걸어 버리면 연령대가 비어 있는 고객(카카오 가입 고객은 출생연도만 있고 ageGroup 이 비어 있는 경우가 많다)이
+// 전부 빠져서 발송 가능 인원이 크게 줄어든다.
+const ALL_ADULT_AGE_GROUPS = ['TWENTIES', 'THIRTIES', 'FORTIES', 'FIFTIES', 'SIXTY_PLUS'];
+
+/** 연령대 입력(콤마 문자열 또는 배열) → 적용할 목록. null 이면 연령 필터 없음 */
+export function normalizeAgeGroupFilter(input: unknown): string[] | null {
+  const list = (Array.isArray(input) ? input : typeof input === 'string' ? input.split(',') : [])
+    .map((v) => String(v).trim())
+    .filter(Boolean);
+  if (list.length === 0) return null;
+  if (ALL_ADULT_AGE_GROUPS.every((g) => list.includes(g))) return null;
+  return [...new Set(list)];
+}
+
+/** ExternalCustomer 연령 조건 (ageGroup 필수 컬럼) — where 에 펼쳐 넣는다 */
+export function externalAgeCondition(list: string[] | null): Record<string, unknown> {
+  return list ? { ageGroup: { in: list } } : {};
+}
+
+/**
+ * Customer 연령 조건 — 출생연도가 있으면 출생연도 기준, 없으면 수집된 연령대 기준
+ * (고객 그룹 엔진과 같은 규칙). 지역 OR 와 겹치지 않도록 where.AND 에 넣는다.
+ */
+export function customerAgeCondition(list: string[] | null): Record<string, unknown> | null {
+  if (!list) return null;
+  const ors: any[] = [];
+  for (const g of list) {
+    const range = getAgeGroupBirthYearRange(g);
+    if (range) ors.push({ birthYear: range });
+  }
+  ors.push({ birthYear: null, ageGroup: { in: list } });
+  return { OR: ors };
+}
+
+/** Customer where 에 연령 조건을 AND 로 추가 */
+export function applyCustomerAge(where: any, list: string[] | null) {
+  const cond = customerAgeCondition(list);
+  if (cond) where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), cond];
+  return where;
+}
+
 // 지역 필터를 Prisma where 조건 배열로 변환
 // regionSigungus: ["서울/강남구", "서울/송파구"] 형태
 export function buildRegionConditions(regionSidos?: string[], regionSigungus?: string[]): any[] {

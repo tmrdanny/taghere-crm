@@ -83,19 +83,19 @@ export function CustomerFilters({
   onResetColumns: () => void;
 }) {
   return (
-    <Card className="p-4 mb-6">
-      <div className="flex flex-col lg:flex-row gap-4">
+    <Card className="ad-card mb-4 p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[color:var(--ad-faint)]" />
           <Input
             placeholder="이름, 전화번호, 메모 검색"
             value={searchInput}
             onChange={(e) => onSearchInputChange(e.target.value)}
-            className="pl-10"
+            className="h-10 rounded-[10px] border-[color:var(--ad-line-strong)] pl-10 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus-visible:ring-0"
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" size="sm" onClick={onResetFilters}>
+          <Button variant="secondary" size="sm" onClick={onResetFilters} className="ad-press flex h-9 items-center gap-1 rounded-[10px] border-0 bg-white px-3 text-[13px] font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]">
             전체 보기
           </Button>
 
@@ -107,7 +107,7 @@ export function CustomerFilters({
             open={genderDropdownOpen}
             onToggle={onGenderToggle}
             onSelect={onGenderSelect}
-            menuClassName="absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 min-w-[120px] z-50"
+            menuClassName="absolute top-full left-0 mt-1 rounded-[12px] border border-[color:var(--ad-line)] bg-white py-1 shadow-[0_12px_32px_-12px_rgba(19,22,81,0.25)] z-50 min-w-[120px]"
           />
 
           {/* Visit Count Filter Dropdown */}
@@ -118,7 +118,7 @@ export function CustomerFilters({
             open={visitDropdownOpen}
             onToggle={onVisitToggle}
             onSelect={onVisitSelect}
-            menuClassName="absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 min-w-[140px] z-50"
+            menuClassName="absolute top-full left-0 mt-1 rounded-[12px] border border-[color:var(--ad-line)] bg-white py-1 shadow-[0_12px_32px_-12px_rgba(19,22,81,0.25)] z-50 min-w-[140px]"
           />
 
           {/* Last Visit Filter Dropdown */}
@@ -129,7 +129,7 @@ export function CustomerFilters({
             open={lastVisitDropdownOpen}
             onToggle={onLastVisitToggle}
             onSelect={onLastVisitSelect}
-            menuClassName="absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 min-w-[140px] z-50"
+            menuClassName="absolute top-full left-0 mt-1 rounded-[12px] border border-[color:var(--ad-line)] bg-white py-1 shadow-[0_12px_32px_-12px_rgba(19,22,81,0.25)] z-50 min-w-[140px]"
           />
 
           {/* Date Range Filter Dropdown */}
@@ -141,11 +141,13 @@ export function CustomerFilters({
                 e.stopPropagation();
                 onDateRangeToggle();
               }}
-              className="flex items-center gap-1"
+              className={(startDate || endDate)
+                ? 'ad-press flex h-9 items-center gap-1 rounded-[10px] border-0 bg-white px-3 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-ink)] hover:bg-[color:var(--ad-bg-alt)]'
+                : 'ad-press flex h-9 items-center gap-1 rounded-[10px] border-0 bg-white px-3 text-[13px] font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'}
             >
               <Calendar className="w-3.5 h-3.5" />
               {(startDate || endDate) ? (
-                <span className="text-xs">
+                <span className="ad-tnum text-[12.5px]">
                   {startDate && endDate ? `${startDate.slice(5)} ~ ${endDate.slice(5)}` : startDate ? `${startDate.slice(5)} ~` : `~ ${endDate.slice(5)}`}
                 </span>
               ) : (
@@ -155,7 +157,7 @@ export function CustomerFilters({
             </Button>
             {dateRangeDropdownOpen && (
               <div
-                className="absolute top-full right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg p-3 min-w-[240px] z-50"
+                className="absolute top-full right-0 z-50 mt-1 min-w-[240px] rounded-[12px] border border-[color:var(--ad-line)] bg-white p-3 shadow-[0_12px_32px_-12px_rgba(19,22,81,0.25)]"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Date type selector */}
@@ -166,9 +168,9 @@ export function CustomerFilters({
                       name="dateType"
                       checked={dateFilterType === 'lastVisit'}
                       onChange={() => onDateFilterTypeChange('lastVisit')}
-                      className="text-brand-800 focus:ring-brand-800"
+                      className="accent-[#131651]"
                     />
-                    <span className="text-sm text-neutral-700">마지막 방문일</span>
+                    <span className="text-[13px] text-[color:var(--ad-ink-2)]">마지막 방문일</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
                     <input
@@ -176,34 +178,34 @@ export function CustomerFilters({
                       name="dateType"
                       checked={dateFilterType === 'created'}
                       onChange={() => onDateFilterTypeChange('created')}
-                      className="text-brand-800 focus:ring-brand-800"
+                      className="accent-[#131651]"
                     />
-                    <span className="text-sm text-neutral-700">가입일</span>
+                    <span className="text-[13px] text-[color:var(--ad-ink-2)]">가입일</span>
                   </label>
                 </div>
 
                 {/* Date inputs */}
                 <div className="space-y-2 mb-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-neutral-500 w-12">시작일</span>
+                    <span className="w-12 text-[12px] text-[color:var(--ad-muted)]">시작일</span>
                     <input
                       type="date"
                       value={startDate}
                       onChange={(e) => onStartDateChange(e.target.value)}
                       onClick={(e) => e.stopPropagation()}
                       onFocus={(e) => e.stopPropagation()}
-                      className="flex-1 px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800"
+                      className="h-9 flex-1 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-2 text-[13px] focus:border-[color:var(--ad-navy)] focus:outline-none"
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-neutral-500 w-12">종료일</span>
+                    <span className="w-12 text-[12px] text-[color:var(--ad-muted)]">종료일</span>
                     <input
                       type="date"
                       value={endDate}
                       onChange={(e) => onEndDateChange(e.target.value)}
                       onClick={(e) => e.stopPropagation()}
                       onFocus={(e) => e.stopPropagation()}
-                      className="flex-1 px-2 py-1.5 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-800"
+                      className="h-9 flex-1 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-2 text-[13px] focus:border-[color:var(--ad-navy)] focus:outline-none"
                     />
                   </div>
                 </div>
@@ -217,7 +219,7 @@ export function CustomerFilters({
                       e.stopPropagation();
                       onDateRangeReset();
                     }}
-                    className="flex-1 text-sm"
+                    className="ad-press h-9 flex-1 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                   >
                     초기화
                   </Button>
@@ -227,7 +229,7 @@ export function CustomerFilters({
                       e.stopPropagation();
                       onDateRangeApply();
                     }}
-                    className="flex-1 text-sm"
+                    className="ad-press h-9 flex-1 rounded-[10px] bg-[color:var(--ad-ink)] text-[13px] font-semibold text-white hover:bg-[#383c40]"
                   >
                     적용
                   </Button>
@@ -245,7 +247,7 @@ export function CustomerFilters({
                 e.stopPropagation();
                 onColumnSettingsToggle();
               }}
-              className="flex items-center gap-1"
+              className="ad-press flex h-9 items-center gap-1 rounded-[10px] border-0 bg-white px-3 text-[13px] font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
             >
               <Settings2 className="w-3.5 h-3.5" />
               컬럼
@@ -253,32 +255,32 @@ export function CustomerFilters({
             </Button>
             {columnSettingsOpen && (
               <div
-                className="absolute top-full right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-2 min-w-[180px] z-50"
+                className="absolute top-full right-0 z-50 mt-1 min-w-[180px] rounded-[12px] border border-[color:var(--ad-line)] bg-white py-2 shadow-[0_12px_32px_-12px_rgba(19,22,81,0.25)]"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="px-3 pb-2 border-b border-neutral-100 mb-2">
-                  <span className="text-xs font-medium text-neutral-500">표시할 컬럼</span>
+                <div className="mb-2 border-b border-[color:var(--ad-line)] px-3 pb-2">
+                  <span className="text-[11.5px] font-medium text-[color:var(--ad-muted)]">표시할 컬럼</span>
                 </div>
                 {columnDefinitions.map((column) => (
                   <label
                     key={column.id}
-                    className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-neutral-50 ${column.required ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-[color:var(--ad-bg-alt)] ${column.required ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <input
                       type="checkbox"
                       checked={visibleColumns.includes(column.id)}
                       disabled={column.required}
                       onChange={() => onToggleColumn(column.id)}
-                      className="rounded border-neutral-300"
+                      className="rounded border-[color:var(--ad-line-strong)] accent-[#131651]"
                     />
-                    <span className="text-sm text-neutral-700">{column.label}</span>
-                    {column.required && <span className="text-xs text-neutral-400">(필수)</span>}
+                    <span className="text-[13px] text-[color:var(--ad-ink-2)]">{column.label}</span>
+                    {column.required && <span className="text-[11px] text-[color:var(--ad-faint)]">(필수)</span>}
                   </label>
                 ))}
-                <div className="px-3 pt-2 mt-2 border-t border-neutral-100">
+                <div className="mt-2 border-t border-[color:var(--ad-line)] px-3 pt-2">
                   <button
                     onClick={onResetColumns}
-                    className="text-xs text-neutral-500 hover:text-neutral-700"
+                    className="text-[12px] font-medium text-[color:var(--ad-link)] hover:underline"
                   >
                     기본값으로 초기화
                   </button>

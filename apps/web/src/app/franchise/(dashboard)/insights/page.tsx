@@ -3,6 +3,7 @@
 import { API_BASE } from '@/lib/api-config';
 import { getFranchiseToken } from '@/lib/auth-token';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { SurveyResults } from '@/components/insights/SurveyResults';
 import {
   Users,
   TrendingUp,
@@ -23,6 +24,7 @@ import {
   Check,
   Globe,
   Download,
+  type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import DateRangeFilter, { type DateRange } from '@/components/DateRangeFilter';
@@ -39,6 +41,9 @@ import {
   ResponsiveContainer,
   Area,
   AreaChart,
+  BarChart,
+  Bar,
+  Cell,
 } from 'recharts';
 
 
@@ -118,7 +123,126 @@ const ORDER_LANGUAGE_LABELS: Record<string, string> = {
   mn: '몽골어',
 };
 
-const ORDER_LANGUAGE_COLORS = ['#4A90FF', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6', '#14b8a6'];
+// ── 차트 공통 스타일 (사장님 CRM 고객 통계·데이터 분석과 같은 톤) ──
+// 순차 파랑 → 무채색 순서. 도넛·범례·막대가 같은 순서를 쓴다.
+const RAMP = ['#2a2d62', '#6eadff', '#a5ccff', '#dcebff', '#91959a', '#d1d3d6'];
+const rampColor = (idx: number) => RAMP[idx] ?? '#ebeced';
+const MALE_COLOR = '#2a2d62';
+const FEMALE_COLOR = '#a5ccff';
+const TICK = { fill: '#91959a', fontSize: 11 };
+const GRID = { vertical: false, stroke: 'rgba(29,32,34,0.06)', strokeDasharray: '2 4' } as const;
+const BAR_CURSOR = { fill: 'rgba(110,173,255,0.08)' };
+const LINE_CURSOR = { stroke: 'rgba(29,32,34,0.12)', strokeWidth: 1 };
+const BAR_RADIUS: [number, number, number, number] = [6, 6, 2, 2];
+const TOOLTIP_STYLE = {
+  backgroundColor: 'white',
+  border: 'none',
+  borderRadius: '12px',
+  padding: '8px 12px',
+  fontSize: '12.5px',
+  boxShadow: '0 0 0 1px rgba(29,32,34,0.06), 0 12px 24px -12px rgba(19,22,81,0.3)',
+};
+
+// ── 버튼·메뉴 공통 클래스 (무채색) ──
+const SECONDARY_BTN =
+  'ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]';
+const FILTER_BTN =
+  'ad-press inline-flex h-8 items-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]';
+const FILTER_BTN_ON = 'shadow-[inset_0_0_0_1px_var(--ad-ink)]';
+const RANGE_ACCENT = 'bg-white border-[color:var(--ad-ink)] text-[color:var(--ad-ink)]';
+const MENU =
+  'absolute top-full mt-1 rounded-[12px] border border-[color:var(--ad-line)] bg-white py-1 shadow-[0_16px_40px_-16px_rgba(29,32,34,0.25)]';
+const MENU_ITEM =
+  'flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] text-[color:var(--ad-ink-2)] transition-colors hover:bg-[color:var(--ad-bg-alt)]';
+const MENU_ITEM_ON = 'font-medium text-[color:var(--ad-ink)]';
+const DATE_INPUT =
+  'h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] focus:border-[color:var(--ad-ink)] focus:outline-none';
+const PAGE_BTN =
+  'ad-press inline-flex h-8 w-8 items-center justify-center rounded-[10px] text-[color:var(--ad-muted)] hover:bg-[color:var(--ad-bg)] disabled:cursor-not-allowed disabled:opacity-40';
+
+// 카드 제목 (회색 선 아이콘 + 제목 + 설명)
+function CardTitle({
+  icon: Icon,
+  title,
+  desc,
+  className,
+}: {
+  icon: LucideIcon;
+  title: string;
+  desc?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('mb-5 flex min-w-0 items-start gap-2', className)}>
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+      <div className="min-w-0">
+        <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">{title}</h3>
+        {desc && <p className="mt-0.5 text-[12px] text-[color:var(--ad-faint)]">{desc}</p>}
+      </div>
+    </div>
+  );
+}
+
+// 얇은 링 도넛 (conic-gradient)
+function Donut({ gradient, center, sub }: { gradient: string; center: React.ReactNode; sub?: string }) {
+  return (
+    <div className="relative h-32 w-32 shrink-0 rounded-full" style={{ background: gradient }}>
+      <div className="absolute inset-[19px] flex flex-col items-center justify-center rounded-full bg-white">
+        <span className="ad-tnum text-[15px] font-medium tracking-[-0.02em] text-[color:var(--ad-ink)]">{center}</span>
+        {sub && <span className="text-[11px] text-[color:var(--ad-faint)]">{sub}</span>}
+      </div>
+    </div>
+  );
+}
+
+// 범례 한 줄: 점 · 라벨 · 비율 · 건수
+function LegendRow({ color, label, pct, count }: { color: string; label: string; pct: string; count: string }) {
+  return (
+    <div className="grid grid-cols-[8px_minmax(0,1fr)_auto_auto] items-center gap-x-2.5 text-[12.5px]">
+      <span className="h-2 w-2 rounded-full" style={{ background: color }} />
+      <span className="truncate text-[color:var(--ad-ink-2)]">{label}</span>
+      <span className="ad-tnum text-right font-medium text-[color:var(--ad-ink)]">{pct}</span>
+      <span className="ad-tnum min-w-[44px] text-right text-[12px] text-[color:var(--ad-faint)]">{count}</span>
+    </div>
+  );
+}
+
+// 가로 막대 한 줄 (얇은 트랙)
+function ThinBar({ pct, color }: { pct: number; color: string }) {
+  return (
+    <div className="h-2 overflow-hidden rounded-full bg-[rgba(29,32,34,0.05)]">
+      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
+    </div>
+  );
+}
+
+// 흰 카드 툴팁
+function ChartTip({
+  active,
+  payload,
+  label,
+  format,
+}: {
+  active?: boolean;
+  payload?: { name?: string; value?: number; fill?: string; color?: string }[];
+  label?: string;
+  format: (v: number) => string;
+}) {
+  if (!active || !payload?.length) return null;
+  const items = payload.filter((p) => p.value !== undefined && p.value !== null);
+  if (items.length === 0) return null;
+  return (
+    <div className="rounded-[10px] bg-white/95 px-3 py-2 text-[12px] shadow-[0_0_0_1px_rgba(29,32,34,0.06),0_12px_24px_-12px_rgba(19,22,81,0.3)] backdrop-blur">
+      <p className="mb-1 text-[color:var(--ad-muted)]">{label}</p>
+      {items.map((p) => (
+        <p key={p.name} className="ad-tnum flex items-center gap-1.5 font-medium text-[color:var(--ad-ink)]">
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: '#6eadff' }} />
+          {format(Number(p.value))}
+        </p>
+      ))}
+    </div>
+  );
+}
 
 interface TopStore {
   name: string;
@@ -222,6 +346,17 @@ export default function FranchiseInsightsPage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // 고객 설문 결과 조회 범위 (상단 기간 필터 기준, KST 날짜)
+  const surveyRange: Record<string, string> = (() => {
+    if (dateFilterMode === 'range') {
+      return { ...(startDate ? { startDate } : {}), ...(endDate ? { endDate } : {}) };
+    }
+    const days = selectedPeriod === '7days' ? 7 : selectedPeriod === '30days' ? 30 : selectedPeriod === '90days' ? 90 : 0;
+    if (!days) return {};
+    const from = new Date(Date.now() + 9 * 3600 * 1000 - (days - 1) * 86400000).toISOString().slice(0, 10);
+    return { startDate: from };
+  })();
 
   // 가맹점 목록 (일별 방문객 필터용)
   useEffect(() => {
@@ -439,14 +574,14 @@ export default function FranchiseInsightsPage() {
     return '전체 기간';
   };
 
-  // Render bar chart (simple CSS-based)
+  // 연령대 막대 (얇은 트랙, 최댓값만 진한 파랑)
   const renderBarChart = (data: AgeDistribution[]) => {
     if (!data || data.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <BarChart3 className="w-12 h-12 text-slate-300 mb-3" />
-          <p className="text-sm text-slate-500">연령대별 데이터가 없습니다</p>
-          <p className="text-xs text-slate-400 mt-1">
+          <BarChart3 className="mb-3 h-8 w-8 text-[color:var(--ad-line-strong)]" strokeWidth={1.5} />
+          <p className="text-[13px] text-[color:var(--ad-muted)]">연령대별 데이터가 없습니다</p>
+          <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
             고객 정보에 생년월일이 등록되면 자동으로 집계됩니다
           </p>
         </div>
@@ -455,27 +590,25 @@ export default function FranchiseInsightsPage() {
 
     const maxCount = Math.max(...data.map((d) => d.count));
     return (
-      <div className="space-y-3">
+      <div className="space-y-3.5">
         {data.map((item) => (
-          <div key={item.age} className="flex items-center gap-3">
-            <span className="text-sm text-slate-600 w-20">{item.age}</span>
-            <div className="flex-1 h-8 bg-slate-100 rounded-lg overflow-hidden">
-              <div
-                className="h-full bg-franchise-500 rounded-lg transition-all duration-500"
-                style={{ width: `${(item.count / maxCount) * 100}%` }}
-              />
-            </div>
-            <span className="text-sm font-medium text-slate-900 w-16 text-right">
-              {item.count.toLocaleString()}
+          <div key={item.age} className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-3 text-[12.5px]">
+            <span className="truncate text-[color:var(--ad-ink-2)]">{item.age}</span>
+            <ThinBar
+              pct={maxCount > 0 ? (item.count / maxCount) * 100 : 0}
+              color={maxCount > 0 && item.count === maxCount ? '#6eadff' : '#a5ccff'}
+            />
+            <span className="ad-tnum min-w-[92px] text-right">
+              <span className="font-medium text-[color:var(--ad-ink)]">{item.percentage}%</span>
+              <span className="ml-1.5 text-[12px] text-[color:var(--ad-faint)]">{item.count.toLocaleString()}명</span>
             </span>
-            <span className="text-xs text-slate-500 w-12 text-right">{item.percentage}%</span>
           </div>
         ))}
       </div>
     );
   };
 
-  // Render pie chart (simple CSS-based)
+  // 성별 도넛
   const renderGenderPie = () => {
     const { male, female, total } = insights.genderDistribution;
     const malePercentage = Math.round((male / total) * 100);
@@ -483,46 +616,33 @@ export default function FranchiseInsightsPage() {
 
     return (
       <div className="flex items-center gap-8">
-        <div
-          className="relative w-32 h-32 rounded-full"
-          style={{
-            background: `conic-gradient(#6366f1 0% ${malePercentage}%, #ec4899 ${malePercentage}% 100%)`,
-          }}
-        >
-          <div className="absolute inset-3 bg-white rounded-full flex items-center justify-center">
-            <span className="text-lg font-bold text-slate-900">{total.toLocaleString()}</span>
-          </div>
-        </div>
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-4 h-4 rounded-full bg-franchise-500" />
-            <span className="text-sm text-slate-600">남성</span>
-            <span className="text-sm font-medium text-slate-900">{male.toLocaleString()}명 ({malePercentage}%)</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-4 h-4 rounded-full bg-pink-500" />
-            <span className="text-sm text-slate-600">여성</span>
-            <span className="text-sm font-medium text-slate-900">{female.toLocaleString()}명 ({femalePercentage}%)</span>
-          </div>
+        <Donut
+          gradient={`conic-gradient(${MALE_COLOR} 0% ${malePercentage}%, ${FEMALE_COLOR} ${malePercentage}% 100%)`}
+          center={`${total.toLocaleString()}명`}
+          sub="전체 고객"
+        />
+        <div className="min-w-0 flex-1 space-y-2.5">
+          <LegendRow color={MALE_COLOR} label="남성" pct={`${malePercentage}%`} count={`${male.toLocaleString()}명`} />
+          <LegendRow color={FEMALE_COLOR} label="여성" pct={`${femalePercentage}%`} count={`${female.toLocaleString()}명`} />
         </div>
       </div>
     );
   };
 
-  // Render mini trend chart
+  // 월별 신규 고객 막대 (최댓값만 진한 파랑)
   const renderTrendChart = () => {
     if (isMonthlyLoading) {
       return (
-        <div className="flex items-center justify-center py-8">
-          <RefreshCw className="w-5 h-5 text-slate-400 animate-spin" />
+        <div className="flex h-48 items-center justify-center">
+          <RefreshCw className="h-5 w-5 animate-spin text-[color:var(--ad-faint)]" />
         </div>
       );
     }
 
     if (monthlyTrend.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-8 text-center">
-          <p className="text-sm text-slate-500">월별 추이 데이터가 없습니다</p>
+        <div className="flex h-48 flex-col items-center justify-center text-center">
+          <p className="text-[13px] text-[color:var(--ad-faint)]">월별 추이 데이터가 없습니다</p>
         </div>
       );
     }
@@ -530,51 +650,42 @@ export default function FranchiseInsightsPage() {
     const maxCustomers = Math.max(...monthlyTrend.map((d) => d.customers), 1); // 최소값 1로 설정
 
     return (
-      <div className="flex items-end gap-2 h-32">
-        {monthlyTrend.map((item) => {
-          const heightPercentage = maxCustomers > 0 ? (item.customers / maxCustomers) * 100 : 0;
-          const minVisibleHeight = item.customers > 0 ? 8 : 0; // 값이 있으면 최소 8px
-          const barHeight = item.customers > 0 ? Math.max(heightPercentage, minVisibleHeight) : 0;
-
-          return (
-            <div key={item.month} className="flex-1 flex flex-col items-center gap-2">
-              <div className="relative w-full flex items-end justify-center" style={{ height: '96px' }}>
-                {item.customers > 0 && (
-                  <div
-                    className="w-full bg-franchise-500 rounded-t-sm transition-all duration-500"
-                    style={{ height: `${barHeight}%` }}
-                  />
-                )}
-              </div>
-              <span className="text-[10px] text-slate-500">{item.month}</span>
-            </div>
-          );
-        })}
+      <div className="h-48">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={monthlyTrend} margin={{ top: 6, right: 4, left: 0, bottom: 0 }}>
+            <CartesianGrid {...GRID} />
+            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={TICK} dy={6} />
+            <YAxis
+              allowDecimals={false}
+              axisLine={false}
+              tickLine={false}
+              tick={TICK}
+              width={44}
+              tickFormatter={(v: number) => v.toLocaleString()}
+            />
+            <Tooltip cursor={BAR_CURSOR} content={<ChartTip format={(v) => `신규 고객 ${v.toLocaleString()}명`} />} />
+            <Bar dataKey="customers" name="신규 고객" radius={BAR_RADIUS} maxBarSize={40} fill="#a5ccff">
+              {monthlyTrend.map((item) => (
+                <Cell
+                  key={item.month}
+                  fill={item.customers > 0 && item.customers === maxCustomers ? '#6eadff' : '#a5ccff'}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     );
   };
 
-  // 방문경로 색상 매핑
-  const visitSourceColors: Record<string, string> = {
-    naver: '#03C75A',      // 네이버 초록
-    instagram: '#E4405F',  // 인스타그램 핑크
-    friend: '#6366f1',     // 지인 추천 보라
-    revisit: '#64748b',    // 단순 재방문 회색
-    passby: '#f59e0b',     // 지나가다 주황
-    kakao: '#FEE500',      // 카카오 노랑
-    youtube: '#FF0000',    // 유튜브 빨강
-    daangn: '#FF6F0F',     // 당근 주황
-    sms: '#0EA5E9',        // 문자 파랑
-  };
-
-  // 방문경로 막대 그래프 렌더링
+  // 방문경로 막대 (얇은 트랙, 최댓값만 진한 파랑)
   const renderVisitSourceBarChart = (data: VisitSourceData[]) => {
     if (!data || data.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <BarChart3 className="w-12 h-12 text-slate-300 mb-3" />
-          <p className="text-sm text-slate-500">방문경로 데이터가 없습니다</p>
-          <p className="text-xs text-slate-400 mt-1">
+          <BarChart3 className="mb-3 h-8 w-8 text-[color:var(--ad-line-strong)]" strokeWidth={1.5} />
+          <p className="text-[13px] text-[color:var(--ad-muted)]">방문경로 데이터가 없습니다</p>
+          <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">
             고객 등록 시 방문경로가 수집되면 자동으로 집계됩니다
           </p>
         </div>
@@ -583,23 +694,19 @@ export default function FranchiseInsightsPage() {
 
     const maxCount = Math.max(...data.map((d) => d.count));
     return (
-      <div className="space-y-3">
-        {data.slice(0, 7).map((item) => (
-          <div key={item.source} className="flex items-center gap-3">
-            <span className="text-sm text-slate-600 w-24 truncate">{item.label}</span>
-            <div className="flex-1 h-8 bg-slate-100 rounded-lg overflow-hidden">
-              <div
-                className="h-full rounded-lg transition-all duration-500"
-                style={{
-                  width: `${(item.count / maxCount) * 100}%`,
-                  backgroundColor: visitSourceColors[item.source] || '#6366f1'
-                }}
-              />
-            </div>
-            <span className="text-sm font-medium text-slate-900 w-16 text-right">
-              {item.count.toLocaleString()}
+      <div className="space-y-3.5">
+        {data.slice(0, 7).map((item, idx) => (
+          <div key={item.source} className="grid grid-cols-[8px_88px_minmax(0,1fr)_auto] items-center gap-2.5 text-[12.5px]">
+            <span className="h-2 w-2 rounded-full" style={{ background: rampColor(idx) }} />
+            <span className="truncate text-[color:var(--ad-ink-2)]">{item.label}</span>
+            <ThinBar
+              pct={maxCount > 0 ? (item.count / maxCount) * 100 : 0}
+              color={maxCount > 0 && item.count === maxCount ? '#6eadff' : '#a5ccff'}
+            />
+            <span className="ad-tnum min-w-[92px] text-right">
+              <span className="font-medium text-[color:var(--ad-ink)]">{item.count.toLocaleString()}명</span>
+              <span className="ml-1.5 text-[12px] text-[color:var(--ad-faint)]">{item.percentage}%</span>
             </span>
-            <span className="text-xs text-slate-500 w-12 text-right">{item.percentage}%</span>
           </div>
         ))}
       </div>
@@ -610,15 +717,15 @@ export default function FranchiseInsightsPage() {
   const renderOrderLanguageChart = () => {
     if (isLangLoading) {
       return (
-        <div className="h-40 flex items-center justify-center">
-          <RefreshCw className="w-5 h-5 text-slate-400 animate-spin" />
+        <div className="flex h-40 items-center justify-center">
+          <RefreshCw className="h-5 w-5 animate-spin text-[color:var(--ad-faint)]" />
         </div>
       );
     }
     if (!langStats?.available) {
       return (
-        <div className="h-40 flex items-center justify-center">
-          <p className="text-sm text-slate-500">일시적으로 데이터를 불러오지 못했습니다</p>
+        <div className="flex h-40 items-center justify-center">
+          <p className="text-[13px] text-[color:var(--ad-muted)]">일시적으로 데이터를 불러오지 못했습니다</p>
         </div>
       );
     }
@@ -626,11 +733,11 @@ export default function FranchiseInsightsPage() {
     const breakdown = langStats.breakdown;
     if (!breakdown || breakdown.identifiedOrders === 0) {
       return (
-        <div className="h-40 flex flex-col items-center justify-center text-center">
-          <Globe className="w-12 h-12 text-slate-300 mb-3" />
-          <p className="text-sm text-slate-500">아직 집계된 주문 언어가 없습니다</p>
+        <div className="flex h-40 flex-col items-center justify-center text-center">
+          <Globe className="mb-3 h-8 w-8 text-[color:var(--ad-line-strong)]" strokeWidth={1.5} />
+          <p className="text-[13px] text-[color:var(--ad-muted)]">아직 집계된 주문 언어가 없습니다</p>
           {(langStats.excludedV1Count > 0 || langStats.unlinkedCount > 0) && (
-            <p className="mt-2 text-xs text-slate-400">
+            <p className="mt-2 text-[12px] text-[color:var(--ad-faint)]">
               {langStats.excludedV1Count > 0 && `언어 데이터가 없는 가맹점 ${langStats.excludedV1Count}곳`}
               {langStats.excludedV1Count > 0 && langStats.unlinkedCount > 0 && ', '}
               {langStats.unlinkedCount > 0 && `태그히어 연동 확인이 필요한 가맹점 ${langStats.unlinkedCount}곳`}
@@ -645,10 +752,10 @@ export default function FranchiseInsightsPage() {
     const gradientParts = breakdown.languages.map((item, idx) => {
       const start = cumulative;
       cumulative += item.percentage;
-      return `${ORDER_LANGUAGE_COLORS[idx % ORDER_LANGUAGE_COLORS.length]} ${start}% ${cumulative}%`;
+      return `${rampColor(idx)} ${start}% ${cumulative}%`;
     });
     if (cumulative < 100) {
-      gradientParts.push(`#e2e8f0 ${cumulative}% 100%`);
+      gradientParts.push(`#ebeced ${cumulative}% 100%`);
     }
 
     const foreignCount = breakdown.languages
@@ -659,46 +766,32 @@ export default function FranchiseInsightsPage() {
     return (
       <div>
         <div className="mb-5">
-          <p className="text-3xl font-bold text-slate-900">외국어 주문 {foreignPercentage}%</p>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">외국어 주문 {foreignPercentage}%</p>
+          <p className="mt-0.5 text-[13px] text-[color:var(--ad-muted)]">
             {breakdown.identifiedOrders.toLocaleString()}건 중 {foreignCount.toLocaleString()}건
             {langStats.storeCount > 0 && ` · 가맹점 ${langStats.storeCount}곳`}
           </p>
         </div>
-        <div className="flex items-center gap-6">
-          <div
-            className="relative w-36 h-36 rounded-full shrink-0"
-            style={{
-              background: `conic-gradient(${gradientParts.join(', ')})`,
-            }}
-          >
-            <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center">
-              <div className="text-center">
-                <span className="text-lg font-bold text-slate-900">
-                  {breakdown.identifiedOrders.toLocaleString()}
-                </span>
-                <p className="text-[10px] text-slate-500">언어 확인</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex-1 space-y-2">
+        <div className="flex items-center gap-8">
+          <Donut
+            gradient={`conic-gradient(${gradientParts.join(', ')})`}
+            center={`${breakdown.identifiedOrders.toLocaleString()}건`}
+            sub="언어 확인"
+          />
+          <div className="min-w-0 max-w-[360px] flex-1 space-y-2.5">
             {breakdown.languages.map((item, idx) => (
-              <div key={item.language} className="flex items-center gap-2">
-                <div
-                  className="w-3 h-3 rounded-full shrink-0"
-                  style={{ backgroundColor: ORDER_LANGUAGE_COLORS[idx % ORDER_LANGUAGE_COLORS.length] }}
-                />
-                <span className="text-sm text-slate-600 w-20">
-                  {ORDER_LANGUAGE_LABELS[item.language] || item.language}
-                </span>
-                <span className="text-sm font-medium text-slate-900">{item.count.toLocaleString()}건</span>
-                <span className="text-xs text-slate-400">({item.percentage}%)</span>
-              </div>
+              <LegendRow
+                key={item.language}
+                color={rampColor(idx)}
+                label={ORDER_LANGUAGE_LABELS[item.language] || item.language}
+                pct={`${item.percentage}%`}
+                count={`${item.count.toLocaleString()}건`}
+              />
             ))}
           </div>
         </div>
         {(breakdown.unknownCount > 0 || langStats.excludedV1Count > 0 || langStats.unlinkedCount > 0) && (
-          <p className="mt-4 text-xs text-slate-400">
+          <p className="mt-4 text-[12px] text-[color:var(--ad-faint)]">
             {[
               breakdown.unknownCount > 0 && `언어 미기록 ${breakdown.unknownCount.toLocaleString()}건 제외`,
               langStats.excludedV1Count > 0 && `언어 데이터 없는 가맹점 ${langStats.excludedV1Count}곳 제외`,
@@ -712,13 +805,13 @@ export default function FranchiseInsightsPage() {
     );
   };
 
-  // 방문경로 파이 차트 렌더링
+  // 방문경로 도넛
   const renderVisitSourcePieChart = (data: VisitSourceData[]) => {
     if (!data || data.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <PieChart className="w-12 h-12 text-slate-300 mb-3" />
-          <p className="text-sm text-slate-500">방문경로 데이터가 없습니다</p>
+          <PieChart className="mb-3 h-8 w-8 text-[color:var(--ad-line-strong)]" strokeWidth={1.5} />
+          <p className="text-[13px] text-[color:var(--ad-muted)]">방문경로 데이터가 없습니다</p>
         </div>
       );
     }
@@ -729,47 +822,38 @@ export default function FranchiseInsightsPage() {
     let gradientParts: string[] = [];
     let currentPercent = 0;
 
-    data.forEach((item) => {
+    data.forEach((item, idx) => {
       const startPercent = currentPercent;
       const endPercent = currentPercent + item.percentage;
-      const color = visitSourceColors[item.source] || '#6366f1';
+      const color = rampColor(idx);
       gradientParts.push(`${color} ${startPercent}% ${endPercent}%`);
       currentPercent = endPercent;
     });
 
     // 나머지 부분 채우기 (100%까지)
     if (currentPercent < 100) {
-      gradientParts.push(`#e2e8f0 ${currentPercent}% 100%`);
+      gradientParts.push(`#ebeced ${currentPercent}% 100%`);
     }
 
     return (
-      <div className="flex items-center gap-6">
-        <div
-          className="relative w-36 h-36 rounded-full shrink-0"
-          style={{
-            background: `conic-gradient(${gradientParts.join(', ')})`,
-          }}
-        >
-          <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center">
-            <div className="text-center">
-              <span className="text-lg font-bold text-slate-900">{total.toLocaleString()}</span>
-              <p className="text-[10px] text-slate-500">총 응답</p>
-            </div>
-          </div>
-        </div>
-        <div className="space-y-2 flex-1 min-w-0">
-          {data.slice(0, 5).map((item) => (
-            <div key={item.source} className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full shrink-0"
-                style={{ backgroundColor: visitSourceColors[item.source] || '#6366f1' }}
-              />
-              <span className="text-sm text-slate-600 truncate">{item.label}</span>
-              <span className="text-xs text-slate-500 ml-auto">{item.percentage}%</span>
-            </div>
+      <div className="flex items-center gap-8">
+        <Donut
+          gradient={`conic-gradient(${gradientParts.join(', ')})`}
+          center={`${total.toLocaleString()}명`}
+          sub="총 응답"
+        />
+        <div className="min-w-0 flex-1 space-y-2.5">
+          {data.slice(0, 5).map((item, idx) => (
+            <LegendRow
+              key={item.source}
+              color={rampColor(idx)}
+              label={item.label}
+              pct={`${item.percentage}%`}
+              count={`${item.count.toLocaleString()}명`}
+            />
           ))}
           {data.length > 5 && (
-            <p className="text-xs text-slate-400">외 {data.length - 5}개</p>
+            <p className="pl-[18px] text-[12px] text-[color:var(--ad-faint)]">외 {data.length - 5}개</p>
           )}
         </div>
       </div>
@@ -778,699 +862,671 @@ export default function FranchiseInsightsPage() {
 
   // Loading skeleton
   const renderSkeleton = () => (
-    <div className="animate-pulse space-y-6">
-      <div className="grid grid-cols-3 gap-4">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="h-32 bg-slate-200 rounded-xl" />
+    <div className="space-y-4">
+      <div className="ad-card h-28 animate-pulse" />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="ad-card animate-pulse p-5">
+            <div className="mb-4 h-5 w-1/3 rounded bg-[color:var(--ad-bg)]" />
+            <div className="h-40 rounded bg-[color:var(--ad-bg-alt)]" />
+          </div>
         ))}
-      </div>
-      <div className="grid grid-cols-2 gap-6">
-        <div className="h-64 bg-slate-200 rounded-xl" />
-        <div className="h-64 bg-slate-200 rounded-xl" />
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">인사이트</h1>
-            <p className="text-sm text-slate-500 mt-1">
-              고객 및 캠페인 분석 데이터를 확인합니다
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Period Selector (프리셋) */}
-            <div className="relative">
-              <button
-                onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-colors',
-                  dateFilterMode === 'period'
-                    ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                )}
-              >
-                <Calendar className="w-4 h-4" />
-                {dateFilterMode === 'period'
-                  ? periodOptions.find((p) => p.value === selectedPeriod)?.label
-                  : '기간 선택'}
-                <ChevronDown className="w-4 h-4" />
-              </button>
-              {showPeriodDropdown && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowPeriodDropdown(false)} />
-                  <div className="absolute z-20 mt-1 right-0 w-40 bg-white border border-slate-200 rounded-lg shadow-lg">
-                    {periodOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => {
-                          setSelectedPeriod(option.value);
-                          setDateFilterMode('period');
-                          setStartDate('');
-                          setEndDate('');
-                          setShowPeriodDropdown(false);
-                        }}
-                        className={cn(
-                          'w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors',
-                          dateFilterMode === 'period' && selectedPeriod === option.value
-                            ? 'bg-franchise-50 text-franchise-700'
-                            : 'text-slate-700'
-                        )}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Date Range Picker */}
-            <div className="relative" ref={datePickerRef}>
-              <button
-                onClick={() => {
-                  setTempStartDate(startDate);
-                  setTempEndDate(endDate);
-                  setShowDatePicker(!showDatePicker);
-                }}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-colors',
-                  dateFilterMode === 'range'
-                    ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                )}
-              >
-                <Calendar className="w-4 h-4" />
-                {dateFilterMode === 'range' ? formatDateRange() : '날짜 지정'}
-              </button>
-
-              {showDatePicker && (
-                <div className="absolute right-0 top-full mt-2 bg-white border border-slate-200 rounded-xl shadow-lg p-4 z-50 min-w-[280px]">
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">시작일</label>
-                      <input
-                        type="date"
-                        value={tempStartDate}
-                        onChange={(e) => setTempStartDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">종료일</label>
-                      <input
-                        type="date"
-                        value={tempEndDate}
-                        onChange={(e) => setTempEndDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
-                      />
-                    </div>
-                    <div className="flex gap-2 pt-2">
-                      <button
-                        onClick={resetDateRange}
-                        className="flex-1 px-3 py-2 text-sm text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-                      >
-                        초기화
-                      </button>
-                      <button
-                        onClick={applyDateRange}
-                        className="flex-1 px-3 py-2 text-sm text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors"
-                      >
-                        적용
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Refresh Button */}
-            <button
-              onClick={fetchInsights}
-              disabled={isLoading}
-              className="p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={cn('w-4 h-4', isLoading && 'animate-spin')} />
-            </button>
-          </div>
+    <div className="mx-auto w-full max-w-[1200px] space-y-5 px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">인사이트</h1>
+          <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
+            고객 및 캠페인 분석 데이터를 확인합니다
+          </p>
         </div>
-
-        {isLoading ? (
-          renderSkeleton()
-        ) : (
-          <>
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              {/* Retention Cards */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 bg-franchise-100 rounded-lg">
-                    <TrendingUp className="w-5 h-5 text-franchise-600" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">7일 재방문율</span>
+        <div className="flex items-center gap-2">
+          {/* Period Selector (프리셋) */}
+          <div className="relative">
+            <button
+              onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
+              className={cn(
+                SECONDARY_BTN,
+                dateFilterMode === 'period' && 'shadow-[inset_0_0_0_1px_var(--ad-ink)]'
+              )}
+            >
+              <Calendar className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              {dateFilterMode === 'period'
+                ? periodOptions.find((p) => p.value === selectedPeriod)?.label
+                : '기간 선택'}
+              <ChevronDown className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+            </button>
+            {showPeriodDropdown && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowPeriodDropdown(false)} />
+                <div className={cn(MENU, 'right-0 z-20 w-40')}>
+                  {periodOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        setSelectedPeriod(option.value);
+                        setDateFilterMode('period');
+                        setStartDate('');
+                        setEndDate('');
+                        setShowPeriodDropdown(false);
+                      }}
+                      className={cn(
+                        MENU_ITEM,
+                        dateFilterMode === 'period' && selectedPeriod === option.value && MENU_ITEM_ON
+                      )}
+                    >
+                      {option.label}
+                      {dateFilterMode === 'period' && selectedPeriod === option.value && (
+                        <Check className="h-4 w-4 text-[color:var(--ad-ink)]" strokeWidth={1.8} />
+                      )}
+                    </button>
+                  ))}
                 </div>
-                <p className="text-3xl font-bold text-slate-900">{insights.retention.day7}%</p>
-                <p className="text-xs text-slate-500 mt-1">최근 7일 내 재방문한 고객 비율</p>
-              </div>
+              </>
+            )}
+          </div>
 
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 bg-emerald-100 rounded-lg">
-                    <TrendingUp className="w-5 h-5 text-emerald-600" />
+          {/* Date Range Picker */}
+          <div className="relative" ref={datePickerRef}>
+            <button
+              onClick={() => {
+                setTempStartDate(startDate);
+                setTempEndDate(endDate);
+                setShowDatePicker(!showDatePicker);
+              }}
+              className={cn(
+                SECONDARY_BTN,
+                dateFilterMode === 'range' && 'shadow-[inset_0_0_0_1px_var(--ad-ink)]'
+              )}
+            >
+              <Calendar className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+              {dateFilterMode === 'range' ? formatDateRange() : '날짜 지정'}
+            </button>
+
+            {showDatePicker && (
+              <div className="absolute right-0 top-full z-50 mt-2 min-w-[280px] rounded-[14px] border border-[color:var(--ad-line)] bg-white p-4 shadow-[0_16px_40px_-16px_rgba(29,32,34,0.25)]">
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">시작일</label>
+                    <input
+                      type="date"
+                      value={tempStartDate}
+                      onChange={(e) => setTempStartDate(e.target.value)}
+                      className={DATE_INPUT}
+                    />
                   </div>
-                  <span className="text-sm font-medium text-slate-700">30일 재방문율</span>
+                  <div>
+                    <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">종료일</label>
+                    <input
+                      type="date"
+                      value={tempEndDate}
+                      onChange={(e) => setTempEndDate(e.target.value)}
+                      className={DATE_INPUT}
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button onClick={resetDateRange} className={cn(SECONDARY_BTN, 'flex-1')}>
+                      초기화
+                    </button>
+                    <button
+                      onClick={applyDateRange}
+                      className="ad-press inline-flex h-9 flex-1 items-center justify-center rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+                    >
+                      적용
+                    </button>
+                  </div>
                 </div>
-                <p className="text-3xl font-bold text-slate-900">{insights.retention.day30}%</p>
-                <p className="text-xs text-slate-500 mt-1">최근 30일 내 재방문한 고객 비율</p>
               </div>
+            )}
+          </div>
+
+          {/* Refresh Button */}
+          <button
+            onClick={fetchInsights}
+            disabled={isLoading}
+            aria-label="새로고침"
+            className="ad-press inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:bg-[color:var(--ad-bg)] disabled:text-[color:var(--ad-faint)]"
+          >
+            <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+          </button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        renderSkeleton()
+      ) : (
+        <>
+          {/* Summary: 재방문율 */}
+          <div className="ad-card grid grid-cols-1 md:grid-cols-2">
+            <div className="p-5">
+              <div className="mb-4 flex items-start gap-2">
+                <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                <div>
+                  <h3 className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">7일 재방문율</h3>
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">최근 7일 내 재방문한 고객 비율</p>
+                </div>
+              </div>
+              <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{insights.retention.day7}%</div>
             </div>
-
-            {/* 알림톡 발송 통계 + 스탬프 보상 수령 고객 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {/* 적립 알림톡 */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <MessageSquare className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">적립 알림톡 발송</span>
+            <div className="border-t border-[color:var(--ad-line)] p-5 md:border-l md:border-t-0">
+              <div className="mb-4 flex items-start gap-2">
+                <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                <div>
+                  <h3 className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">30일 재방문율</h3>
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">최근 30일 내 재방문한 고객 비율</p>
                 </div>
-                <p className="text-3xl font-bold text-slate-900">
+              </div>
+              <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{insights.retention.day30}%</div>
+            </div>
+          </div>
+
+          {/* 알림톡 발송 통계 + 스탬프 보상 수령 고객 */}
+          <div>
+            <div className="ad-card grid grid-cols-1 md:grid-cols-3">
+              {/* 적립 알림톡 */}
+              <div className="p-5">
+                <div className="mb-4 flex items-start gap-2">
+                  <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                  <h3 className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">적립 알림톡 발송</h3>
+                </div>
+                <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                   {(insights.messageStats?.earn.count ?? 0).toLocaleString()}
-                  <span className="text-lg font-medium text-slate-500 ml-1">건</span>
-                </p>
-                <p className="text-sm text-slate-600 mt-1">
+                  <span className="ml-0.5 text-[14px] text-[color:var(--ad-muted)]">건</span>
+                </div>
+                <p className="ad-tnum mt-1 text-[12.5px] text-[color:var(--ad-ink-2)]">
                   {(insights.messageStats?.earn.amount ?? 0).toLocaleString()}원
-                  <span className="text-xs text-slate-400 ml-1">
+                  <span className="ml-1 text-[12px] text-[color:var(--ad-faint)]">
                     (건당 {(insights.messageStats?.earn.unitPrice ?? 0).toLocaleString()}원)
                   </span>
                 </p>
               </div>
 
               {/* 마케팅 알림톡 */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <Send className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">마케팅 알림톡 발송</span>
+              <div className="border-t border-[color:var(--ad-line)] p-5 md:border-l md:border-t-0">
+                <div className="mb-4 flex items-start gap-2">
+                  <Send className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                  <h3 className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">마케팅 알림톡 발송</h3>
                 </div>
-                <p className="text-3xl font-bold text-slate-900">
+                <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                   {(insights.messageStats?.marketing.count ?? 0).toLocaleString()}
-                  <span className="text-lg font-medium text-slate-500 ml-1">건</span>
-                </p>
-                <p className="text-sm text-slate-600 mt-1">
+                  <span className="ml-0.5 text-[14px] text-[color:var(--ad-muted)]">건</span>
+                </div>
+                <p className="ad-tnum mt-1 text-[12.5px] text-[color:var(--ad-ink-2)]">
                   {(insights.messageStats?.marketing.amount ?? 0).toLocaleString()}원
-                  <span className="text-xs text-slate-400 ml-1">
+                  <span className="ml-1 text-[12px] text-[color:var(--ad-faint)]">
                     (건당 {(insights.messageStats?.marketing.unitPrice ?? 0).toLocaleString()}원)
                   </span>
                 </p>
               </div>
 
               {/* 스탬프 보상 수령 고객 */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 bg-amber-100 rounded-lg">
-                    <Gift className="w-5 h-5 text-amber-600" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">스탬프 보상 수령 고객</span>
+              <div className="border-t border-[color:var(--ad-line)] p-5 md:border-l md:border-t-0">
+                <div className="mb-4 flex items-start gap-2">
+                  <Gift className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                  <h3 className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">스탬프 보상 수령 고객</h3>
                 </div>
-                <p className="text-3xl font-bold text-slate-900">
+                <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                   {(insights.stampRewardCustomers ?? 0).toLocaleString()}
-                  <span className="text-lg font-medium text-slate-500 ml-1">명</span>
-                </p>
-                <p className="text-xs text-slate-500 mt-1">전 가맹점 · 기간 내 보상 받은 고객 수</p>
+                  <span className="ml-0.5 text-[14px] text-[color:var(--ad-muted)]">명</span>
+                </div>
+                <p className="mt-1 text-[12px] text-[color:var(--ad-muted)]">전 가맹점 · 기간 내 보상 받은 고객 수</p>
               </div>
             </div>
-            <p className="text-xs text-slate-400 -mt-4 mb-6">
+            <p className="mt-2 text-[12px] text-[color:var(--ad-faint)]">
               * 알림톡 금액은 현재 단가 기준 추정치이며 무료 발송분은 포함하지 않습니다.
             </p>
+          </div>
 
-            {/* Charts Row 1 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              {/* Age Distribution */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <BarChart3 className="w-5 h-5 text-franchise-600" />
-                  <h3 className="text-lg font-semibold text-slate-900">연령대별 고객 분포</h3>
-                </div>
-                <p className="text-sm text-slate-500 mb-4">전체 고객의 연령대별 분포를 보여줍니다</p>
-                {renderBarChart(insights.ageDistribution)}
-              </div>
-
-              {/* Gender Distribution */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <PieChart className="w-5 h-5 text-pink-600" />
-                  <h3 className="text-lg font-semibold text-slate-900">성별 분포</h3>
-                </div>
-                <p className="text-sm text-slate-500 mb-4">전체 고객의 성별 비율을 보여줍니다</p>
-                {renderGenderPie()}
-              </div>
+          {/* Charts Row 1 */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {/* Age Distribution */}
+            <div className="ad-card p-5">
+              <CardTitle icon={BarChart3} title="연령대별 고객 분포" desc="전체 고객의 연령대별 분포를 보여줍니다" />
+              {renderBarChart(insights.ageDistribution)}
             </div>
 
-            {/* Visit Source Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              {/* Visit Source Pie Chart */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Compass className="w-5 h-5 text-emerald-600" />
-                  <h3 className="text-lg font-semibold text-slate-900">방문경로 분포</h3>
-                </div>
-                <p className="text-sm text-slate-500 mb-4">고객이 매장을 알게 된 경로입니다</p>
-                {renderVisitSourcePieChart(insights.visitSourceDistribution)}
-              </div>
+            {/* Gender Distribution */}
+            <div className="ad-card p-5">
+              <CardTitle icon={PieChart} title="성별 분포" desc="전체 고객의 성별 비율을 보여줍니다" />
+              {renderGenderPie()}
+            </div>
+          </div>
 
-              {/* Visit Source Bar Chart */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <BarChart3 className="w-5 h-5 text-emerald-600" />
-                  <h3 className="text-lg font-semibold text-slate-900">방문경로별 고객 수</h3>
-                </div>
-                <p className="text-sm text-slate-500 mb-4">방문경로별 고객 수를 비교합니다</p>
-                {renderVisitSourceBarChart(insights.visitSourceDistribution)}
-              </div>
+          {/* Visit Source Charts */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {/* Visit Source Pie Chart */}
+            <div className="ad-card p-5">
+              <CardTitle icon={Compass} title="방문경로 분포" desc="고객이 매장을 알게 된 경로입니다" />
+              {renderVisitSourcePieChart(insights.visitSourceDistribution)}
             </div>
 
-            {/* Daily Visitors - Full Width */}
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-franchise-600" />
-                  <h3 className="text-lg font-semibold text-slate-900">일별 방문객 추이</h3>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {/* Store Filter */}
-                  <div className="relative" ref={storeDropdownRef}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setStoreDropdownOpen(!storeDropdownOpen);
-                      }}
-                      className={cn(
-                        'flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border transition-colors',
-                        dailyStoreFilter === 'all'
-                          ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                          : 'bg-franchise-50 border-franchise-200 text-franchise-700'
-                      )}
-                    >
-                      <Building2 className="w-3.5 h-3.5" />
-                      {dailyStoreFilter === 'all'
-                        ? '전체 가맹점'
-                        : storeOptions.find((s) => s.id === dailyStoreFilter)?.name || '가맹점'}
-                      <ChevronDown className="w-3.5 h-3.5" />
-                    </button>
-                    {storeDropdownOpen && (
-                      <div
-                        className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[180px] max-h-[300px] overflow-y-auto z-50"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between"
-                          onClick={() => {
-                            setDailyStoreFilter('all');
-                            setStoreDropdownOpen(false);
-                          }}
-                        >
-                          전체 가맹점
-                          {dailyStoreFilter === 'all' && <Check className="w-4 h-4 text-franchise-600" />}
-                        </button>
-                        {storeOptions.map((store) => (
-                          <button
-                            key={store.id}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between"
-                            onClick={() => {
-                              setDailyStoreFilter(store.id);
-                              setStoreDropdownOpen(false);
-                            }}
-                          >
-                            {store.name}
-                            {dailyStoreFilter === store.id && <Check className="w-4 h-4 text-franchise-600" />}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {/* 기간: 프리셋 + 직접 선택 */}
-                  <DateRangeFilter
-                    days={dailyDays}
-                    onDaysChange={setDailyDays}
-                    range={dailyRange}
-                    onRangeChange={setDailyRange}
-                    accentClass="bg-franchise-50 border-franchise-200 text-franchise-700"
-                  />
-                  <button
-                    onClick={() =>
-                      exportDailyVisitors(
-                        dailyChart,
-                        periodLabel(dailyRange, dailyDays),
-                        dailyStoreFilter === 'all'
-                          ? '전체가맹점'
-                          : storeOptions.find((s) => s.id === dailyStoreFilter)?.name || '가맹점'
-                      )
-                    }
-                    disabled={dailyChart.length === 0}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    엑셀
-                  </button>
-                </div>
-              </div>
-              <p className="text-sm text-slate-500 mb-4">
-                {dailyStoreFilter === 'all'
-                  ? '전체 가맹점 합산 일별 방문객 수입니다 (가맹점이 직접 입력한 값 반영)'
-                  : '선택한 가맹점의 일별 방문객 수입니다 (가맹점이 직접 입력한 값 반영)'}
-              </p>
-              {isDailyLoading ? (
-                <div className="h-64 flex items-center justify-center">
-                  <RefreshCw className="w-5 h-5 text-slate-400 animate-spin" />
-                </div>
-              ) : dailyChart.length === 0 ? (
-                <div className="h-64 flex items-center justify-center">
-                  <p className="text-sm text-slate-500">일별 방문객 데이터가 없습니다</p>
-                </div>
-              ) : (
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={dailyChart}>
-                      <defs>
-                        <linearGradient id="colorDailyVisitors" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#4A90FF" stopOpacity={0.2} />
-                          <stop offset="95%" stopColor="#4A90FF" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                      <XAxis
-                        dataKey="day"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: '#64748B', fontSize: 12 }}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: '#64748B', fontSize: 12 }}
-                        tickFormatter={(value) => value.toLocaleString()}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'white',
-                          border: '1px solid #E2E8F0',
-                          borderRadius: '8px',
-                          padding: '8px 12px',
-                        }}
-                        formatter={(value: number, _name, item) => [
-                          value.toLocaleString(),
-                          item?.payload?.overridden ? '방문객 수 (직접입력 포함)' : '방문객 수',
-                        ]}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="visitors"
-                        stroke="#4A90FF"
-                        strokeWidth={2}
-                        fill="url(#colorDailyVisitors)"
-                        dot={(props: { cx?: number; cy?: number; payload?: { overridden?: boolean }; index?: number }) =>
-                          props.payload?.overridden && props.cx !== undefined && props.cy !== undefined ? (
-                            <circle key={props.index} cx={props.cx} cy={props.cy} r={3.5} fill="#4A90FF" />
-                          ) : (
-                            <g key={props.index} />
-                          )
-                        }
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
+            {/* Visit Source Bar Chart */}
+            <div className="ad-card p-5">
+              <CardTitle icon={BarChart3} title="방문경로별 고객 수" desc="방문경로별 고객 수를 비교합니다" />
+              {renderVisitSourceBarChart(insights.visitSourceDistribution)}
             </div>
+          </div>
 
-            {/* Order Languages - Full Width */}
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <Globe className="w-5 h-5 text-franchise-600" />
-                  <h3 className="text-lg font-semibold text-slate-900">주문 언어 분포</h3>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {/* Store Filter */}
-                  <div className="relative" ref={langDropdownRef}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setLangDropdownOpen(!langDropdownOpen);
-                      }}
-                      className={cn(
-                        'flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border transition-colors',
-                        langStoreFilter === 'all'
-                          ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                          : 'bg-franchise-50 border-franchise-200 text-franchise-700'
-                      )}
-                    >
-                      <Building2 className="w-3.5 h-3.5" />
-                      {langStoreFilter === 'all'
-                        ? '전체 가맹점'
-                        : storeOptions.find((s) => s.id === langStoreFilter)?.name || '가맹점'}
-                      <ChevronDown className="w-3.5 h-3.5" />
-                    </button>
-                    {langDropdownOpen && (
-                      <div
-                        className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[180px] max-h-[300px] overflow-y-auto z-50"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between"
-                          onClick={() => {
-                            setLangStoreFilter('all');
-                            setLangDropdownOpen(false);
-                          }}
-                        >
-                          전체 가맹점
-                          {langStoreFilter === 'all' && <Check className="w-4 h-4 text-franchise-600" />}
-                        </button>
-                        {storeOptions.map((store) => (
-                          <button
-                            key={store.id}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between"
-                            onClick={() => {
-                              setLangStoreFilter(store.id);
-                              setLangDropdownOpen(false);
-                            }}
-                          >
-                            {store.name}
-                            {langStoreFilter === store.id && <Check className="w-4 h-4 text-franchise-600" />}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {/* 기간: 프리셋 + 직접 선택 */}
-                  <DateRangeFilter
-                    days={langDays}
-                    onDaysChange={setLangDays}
-                    range={langRange}
-                    onRangeChange={setLangRange}
-                    accentClass="bg-franchise-50 border-franchise-200 text-franchise-700"
-                  />
-                  <button
-                    onClick={() => {
-                      if (!langStats?.breakdown) return;
-                      exportOrderLanguages(
-                        langStats.breakdown.languages,
-                        (code) => ORDER_LANGUAGE_LABELS[code] || code,
-                        langStats.breakdown,
-                        periodLabel(langRange, langDays),
-                        langStoreFilter === 'all'
-                          ? '전체가맹점'
-                          : storeOptions.find((s) => s.id === langStoreFilter)?.name || '가맹점'
-                      );
-                    }}
-                    disabled={!langStats?.breakdown || langStats.breakdown.languages.length === 0}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    엑셀
-                  </button>
-                </div>
-              </div>
-              <p className="text-sm text-slate-500 mb-4">
-                고객이 메뉴판에서 선택한 언어 기준입니다 (한국어 외 = 외국어 주문)
-              </p>
-              {renderOrderLanguageChart()}
-            </div>
-
-            {/* Monthly Trend - Full Width */}
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-blue-600" />
-                  <h3 className="text-lg font-semibold text-slate-900">월별 고객 추이</h3>
-                </div>
+          {/* Daily Visitors - Full Width */}
+          <div className="ad-card p-5">
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+              <CardTitle
+                icon={Users}
+                title="일별 방문객 추이"
+                desc={
+                  dailyStoreFilter === 'all'
+                    ? '전체 가맹점 합산 일별 방문객 수입니다 (가맹점이 직접 입력한 값 반영)'
+                    : '선택한 가맹점의 일별 방문객 수입니다 (가맹점이 직접 입력한 값 반영)'
+                }
+                className="mb-0"
+              />
+              <div className="flex flex-wrap items-center gap-2">
                 {/* Store Filter */}
-                <div className="relative" ref={monthlyDropdownRef}>
+                <div className="relative" ref={storeDropdownRef}>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setMonthlyDropdownOpen(!monthlyDropdownOpen);
+                      setStoreDropdownOpen(!storeDropdownOpen);
                     }}
-                    className={cn(
-                      'flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border transition-colors',
-                      monthlyStoreFilter === 'all'
-                        ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                        : 'bg-franchise-50 border-franchise-200 text-franchise-700'
-                    )}
+                    className={cn(FILTER_BTN, dailyStoreFilter !== 'all' && FILTER_BTN_ON)}
                   >
-                    <Building2 className="w-3.5 h-3.5" />
-                    {monthlyStoreFilter === 'all'
+                    <Building2 className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                    {dailyStoreFilter === 'all'
                       ? '전체 가맹점'
-                      : storeOptions.find((s) => s.id === monthlyStoreFilter)?.name || '가맹점'}
-                    <ChevronDown className="w-3.5 h-3.5" />
+                      : storeOptions.find((s) => s.id === dailyStoreFilter)?.name || '가맹점'}
+                    <ChevronDown className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                   </button>
-                  {monthlyDropdownOpen && (
+                  {storeDropdownOpen && (
                     <div
-                      className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[180px] max-h-[300px] overflow-y-auto z-50"
+                      className={cn(MENU, 'right-0 z-50 max-h-[300px] min-w-[180px] overflow-y-auto')}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between"
+                        className={cn(MENU_ITEM, dailyStoreFilter === 'all' && MENU_ITEM_ON)}
                         onClick={() => {
-                          setMonthlyStoreFilter('all');
-                          setMonthlyDropdownOpen(false);
+                          setDailyStoreFilter('all');
+                          setStoreDropdownOpen(false);
                         }}
                       >
                         전체 가맹점
-                        {monthlyStoreFilter === 'all' && <Check className="w-4 h-4 text-franchise-600" />}
+                        {dailyStoreFilter === 'all' && <Check className="h-4 w-4 text-[color:var(--ad-ink)]" strokeWidth={1.8} />}
                       </button>
                       {storeOptions.map((store) => (
                         <button
                           key={store.id}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center justify-between"
+                          className={cn(MENU_ITEM, dailyStoreFilter === store.id && MENU_ITEM_ON)}
                           onClick={() => {
-                            setMonthlyStoreFilter(store.id);
-                            setMonthlyDropdownOpen(false);
+                            setDailyStoreFilter(store.id);
+                            setStoreDropdownOpen(false);
                           }}
                         >
                           {store.name}
-                          {monthlyStoreFilter === store.id && <Check className="w-4 h-4 text-franchise-600" />}
+                          {dailyStoreFilter === store.id && <Check className="h-4 w-4 text-[color:var(--ad-ink)]" strokeWidth={1.8} />}
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
-              </div>
-              <p className="text-sm text-slate-500 mb-4">
-                {monthlyStoreFilter === 'all'
-                  ? '전체 가맹점 합산 최근 6개월간 신규 고객 수 변화입니다'
-                  : '선택한 가맹점의 최근 6개월간 신규 고객 수 변화입니다'}
-              </p>
-              {renderTrendChart()}
-              <div className="mt-4 grid grid-cols-3 gap-4">
-                {monthlyTrend.slice(-3).map((item) => (
-                  <div key={item.month} className="text-center">
-                    <p className="text-xs text-slate-500">{item.month}</p>
-                    <p className="text-sm font-medium text-slate-900">{item.customers.toLocaleString()}</p>
-                  </div>
-                ))}
+                {/* 기간: 프리셋 + 직접 선택 */}
+                <DateRangeFilter
+                  days={dailyDays}
+                  onDaysChange={setDailyDays}
+                  range={dailyRange}
+                  onRangeChange={setDailyRange}
+                  accentClass={RANGE_ACCENT}
+                />
+                <button
+                  onClick={() =>
+                    exportDailyVisitors(
+                      dailyChart,
+                      periodLabel(dailyRange, dailyDays),
+                      dailyStoreFilter === 'all'
+                        ? '전체가맹점'
+                        : storeOptions.find((s) => s.id === dailyStoreFilter)?.name || '가맹점'
+                    )
+                  }
+                  disabled={dailyChart.length === 0}
+                  className={cn(FILTER_BTN, 'disabled:opacity-40 disabled:hover:bg-white')}
+                >
+                  <Download className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                  엑셀
+                </button>
               </div>
             </div>
-
-            {/* Top Stores */}
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Users className="w-5 h-5 text-slate-600" />
-                <h3 className="text-lg font-semibold text-slate-900">가맹점별 고객 현황</h3>
+            {isDailyLoading ? (
+              <div className="flex h-64 items-center justify-center">
+                <RefreshCw className="h-5 w-5 animate-spin text-[color:var(--ad-faint)]" />
               </div>
-              <p className="text-sm text-slate-500 mb-4">
-                전체 {insights.topStores.length.toLocaleString()}개 가맹점을 고객 수 순으로 보여줍니다
-              </p>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-200">
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">가맹점명</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">고객 수</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {insights.topStores
-                      .slice((storesPage - 1) * STORES_PER_PAGE, storesPage * STORES_PER_PAGE)
-                      .map((store, i) => {
-                        const rank = (storesPage - 1) * STORES_PER_PAGE + i;
-                        return (
-                          <tr key={`${store.name}-${rank}`} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-3">
-                                <span className={cn(
-                                  'w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-medium',
-                                  rank === 0 ? 'bg-amber-100 text-amber-700' :
-                                    rank === 1 ? 'bg-slate-200 text-slate-600' :
-                                      rank === 2 ? 'bg-orange-100 text-orange-700' :
-                                        'bg-slate-100 text-slate-500'
-                                )}>
-                                  {rank + 1}
-                                </span>
-                                <span className="text-sm font-medium text-slate-900">{store.name}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-right text-sm font-medium text-slate-900">
-                              {store.customers.toLocaleString()}명
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    {insights.topStores.length === 0 && (
-                      <tr>
-                        <td colSpan={2} className="px-4 py-8 text-center text-sm text-slate-400">
-                          표시할 가맹점이 없습니다
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+            ) : dailyChart.length === 0 ? (
+              <div className="flex h-64 items-center justify-center">
+                <p className="text-[13px] text-[color:var(--ad-faint)]">일별 방문객 데이터가 없습니다</p>
               </div>
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={dailyChart} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+                    <defs>
+                      <linearGradient id="colorDailyVisitors" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6eadff" stopOpacity={0.28} />
+                        <stop offset="100%" stopColor="#6eadff" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid {...GRID} />
+                    <XAxis
+                      dataKey="day"
+                      axisLine={false}
+                      tickLine={false}
+                      minTickGap={24}
+                      dy={6}
+                      tick={TICK}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      width={48}
+                      tick={TICK}
+                      tickFormatter={(value) => value.toLocaleString()}
+                    />
+                    <Tooltip
+                      cursor={LINE_CURSOR}
+                      contentStyle={TOOLTIP_STYLE}
+                      labelStyle={{ color: '#55595e', fontSize: '11.5px' }}
+                      itemStyle={{ color: '#1d2022', fontWeight: 600 }}
+                      formatter={(value: number, _name, item) => [
+                        value.toLocaleString(),
+                        item?.payload?.overridden ? '방문객 수 (직접입력 포함)' : '방문객 수',
+                      ]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="visitors"
+                      stroke="#6eadff"
+                      strokeWidth={2}
+                      fill="url(#colorDailyVisitors)"
+                      activeDot={{ r: 4, fill: '#fff', stroke: '#2a2d62', strokeWidth: 2 }}
+                      dot={(props: { cx?: number; cy?: number; payload?: { overridden?: boolean }; index?: number }) =>
+                        props.payload?.overridden && props.cx !== undefined && props.cy !== undefined ? (
+                          <circle key={props.index} cx={props.cx} cy={props.cy} r={3.5} fill="#2a2d62" />
+                        ) : (
+                          <g key={props.index} />
+                        )
+                      }
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
 
-              {/* 페이지네이션 */}
-              {insights.topStores.length > STORES_PER_PAGE && (() => {
-                const totalPages = Math.ceil(insights.topStores.length / STORES_PER_PAGE);
-                const rangeStart = (storesPage - 1) * STORES_PER_PAGE + 1;
-                const rangeEnd = Math.min(storesPage * STORES_PER_PAGE, insights.topStores.length);
-                return (
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
-                    <p className="text-xs text-slate-500">
-                      {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} / {insights.topStores.length.toLocaleString()}개
-                    </p>
-                    <div className="flex items-center gap-1">
+          {/* Order Languages - Full Width */}
+          <div className="ad-card p-5">
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+              <CardTitle
+                icon={Globe}
+                title="주문 언어 분포"
+                desc="고객이 메뉴판에서 선택한 언어 기준입니다 (한국어 외 = 외국어 주문)"
+                className="mb-0"
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Store Filter */}
+                <div className="relative" ref={langDropdownRef}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLangDropdownOpen(!langDropdownOpen);
+                    }}
+                    className={cn(FILTER_BTN, langStoreFilter !== 'all' && FILTER_BTN_ON)}
+                  >
+                    <Building2 className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                    {langStoreFilter === 'all'
+                      ? '전체 가맹점'
+                      : storeOptions.find((s) => s.id === langStoreFilter)?.name || '가맹점'}
+                    <ChevronDown className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                  </button>
+                  {langDropdownOpen && (
+                    <div
+                      className={cn(MENU, 'right-0 z-50 max-h-[300px] min-w-[180px] overflow-y-auto')}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button
-                        onClick={() => setStoresPage((p) => Math.max(1, p - 1))}
-                        disabled={storesPage === 1}
-                        className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        aria-label="이전 페이지"
+                        className={cn(MENU_ITEM, langStoreFilter === 'all' && MENU_ITEM_ON)}
+                        onClick={() => {
+                          setLangStoreFilter('all');
+                          setLangDropdownOpen(false);
+                        }}
                       >
-                        <ChevronLeft className="w-4 h-4" />
+                        전체 가맹점
+                        {langStoreFilter === 'all' && <Check className="h-4 w-4 text-[color:var(--ad-ink)]" strokeWidth={1.8} />}
                       </button>
-                      <span className="px-3 text-sm font-medium text-slate-700 tabular-nums">
-                        {storesPage} / {totalPages}
-                      </span>
-                      <button
-                        onClick={() => setStoresPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={storesPage === totalPages}
-                        className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        aria-label="다음 페이지"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
+                      {storeOptions.map((store) => (
+                        <button
+                          key={store.id}
+                          className={cn(MENU_ITEM, langStoreFilter === store.id && MENU_ITEM_ON)}
+                          onClick={() => {
+                            setLangStoreFilter(store.id);
+                            setLangDropdownOpen(false);
+                          }}
+                        >
+                          {store.name}
+                          {langStoreFilter === store.id && <Check className="h-4 w-4 text-[color:var(--ad-ink)]" strokeWidth={1.8} />}
+                        </button>
+                      ))}
                     </div>
-                  </div>
-                );
-              })()}
+                  )}
+                </div>
+                {/* 기간: 프리셋 + 직접 선택 */}
+                <DateRangeFilter
+                  days={langDays}
+                  onDaysChange={setLangDays}
+                  range={langRange}
+                  onRangeChange={setLangRange}
+                  accentClass={RANGE_ACCENT}
+                />
+                <button
+                  onClick={() => {
+                    if (!langStats?.breakdown) return;
+                    exportOrderLanguages(
+                      langStats.breakdown.languages,
+                      (code) => ORDER_LANGUAGE_LABELS[code] || code,
+                      langStats.breakdown,
+                      periodLabel(langRange, langDays),
+                      langStoreFilter === 'all'
+                        ? '전체가맹점'
+                        : storeOptions.find((s) => s.id === langStoreFilter)?.name || '가맹점'
+                    );
+                  }}
+                  disabled={!langStats?.breakdown || langStats.breakdown.languages.length === 0}
+                  className={cn(FILTER_BTN, 'disabled:opacity-40 disabled:hover:bg-white')}
+                >
+                  <Download className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                  엑셀
+                </button>
+              </div>
             </div>
-          </>
-        )}
-      </div>
+            {renderOrderLanguageChart()}
+          </div>
+
+          {/* Monthly Trend - Full Width */}
+          <div className="ad-card p-5">
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+              <CardTitle
+                icon={TrendingUp}
+                title="월별 고객 추이"
+                desc={
+                  monthlyStoreFilter === 'all'
+                    ? '전체 가맹점 합산 최근 6개월간 신규 고객 수 변화입니다'
+                    : '선택한 가맹점의 최근 6개월간 신규 고객 수 변화입니다'
+                }
+                className="mb-0"
+              />
+              {/* Store Filter */}
+              <div className="relative" ref={monthlyDropdownRef}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMonthlyDropdownOpen(!monthlyDropdownOpen);
+                  }}
+                  className={cn(FILTER_BTN, monthlyStoreFilter !== 'all' && FILTER_BTN_ON)}
+                >
+                  <Building2 className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                  {monthlyStoreFilter === 'all'
+                    ? '전체 가맹점'
+                    : storeOptions.find((s) => s.id === monthlyStoreFilter)?.name || '가맹점'}
+                  <ChevronDown className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                </button>
+                {monthlyDropdownOpen && (
+                  <div
+                    className={cn(MENU, 'right-0 z-50 max-h-[300px] min-w-[180px] overflow-y-auto')}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      className={cn(MENU_ITEM, monthlyStoreFilter === 'all' && MENU_ITEM_ON)}
+                      onClick={() => {
+                        setMonthlyStoreFilter('all');
+                        setMonthlyDropdownOpen(false);
+                      }}
+                    >
+                      전체 가맹점
+                      {monthlyStoreFilter === 'all' && <Check className="h-4 w-4 text-[color:var(--ad-ink)]" strokeWidth={1.8} />}
+                    </button>
+                    {storeOptions.map((store) => (
+                      <button
+                        key={store.id}
+                        className={cn(MENU_ITEM, monthlyStoreFilter === store.id && MENU_ITEM_ON)}
+                        onClick={() => {
+                          setMonthlyStoreFilter(store.id);
+                          setMonthlyDropdownOpen(false);
+                        }}
+                      >
+                        {store.name}
+                        {monthlyStoreFilter === store.id && <Check className="h-4 w-4 text-[color:var(--ad-ink)]" strokeWidth={1.8} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            {renderTrendChart()}
+            <div className="mt-4 grid grid-cols-3 border-t border-[color:var(--ad-line)] pt-4">
+              {monthlyTrend.slice(-3).map((item, i) => (
+                <div
+                  key={item.month}
+                  className={cn('text-center', i > 0 && 'border-l border-[color:var(--ad-line)]')}
+                >
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">{item.month}</p>
+                  <p className="ad-tnum mt-0.5 text-[15px] font-medium text-[color:var(--ad-ink)]">{item.customers.toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Top Stores */}
+          <div className="ad-card overflow-hidden">
+            <div className="p-5 pb-4">
+              <CardTitle
+                icon={Users}
+                title="가맹점별 고객 현황"
+                desc={`전체 ${insights.topStores.length.toLocaleString()}개 가맹점을 고객 수 순으로 보여줍니다`}
+                className="mb-0"
+              />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-y border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] text-left text-[11.5px] text-[color:var(--ad-muted)]">
+                    <th className="px-5 py-2.5 font-medium">가맹점명</th>
+                    <th className="px-5 py-2.5 text-right font-medium">고객 수</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[color:var(--ad-line)] text-[13px]">
+                  {insights.topStores
+                    .slice((storesPage - 1) * STORES_PER_PAGE, storesPage * STORES_PER_PAGE)
+                    .map((store, i) => {
+                      const rank = (storesPage - 1) * STORES_PER_PAGE + i;
+                      return (
+                        <tr key={`${store.name}-${rank}`} className="transition-colors hover:bg-[rgba(110,173,255,0.05)]">
+                          <td className="px-5 py-3">
+                            <div className="flex items-center gap-3">
+                              <span className={cn(
+                                'ad-tnum flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11.5px]',
+                                rank < 3
+                                  ? 'bg-[color:var(--ad-bg)] font-semibold text-[color:var(--ad-ink)]'
+                                  : 'font-medium text-[color:var(--ad-faint)]'
+                              )}>
+                                {rank + 1}
+                              </span>
+                              <span className="font-medium text-[color:var(--ad-ink)]">{store.name}</span>
+                            </div>
+                          </td>
+                          <td className="ad-tnum px-5 py-3 text-right font-medium text-[color:var(--ad-ink)]">
+                            {store.customers.toLocaleString()}명
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  {insights.topStores.length === 0 && (
+                    <tr>
+                      <td colSpan={2} className="px-5 py-10 text-center text-[13px] text-[color:var(--ad-faint)]">
+                        표시할 가맹점이 없습니다
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* 페이지네이션 */}
+            {insights.topStores.length > STORES_PER_PAGE && (() => {
+              const totalPages = Math.ceil(insights.topStores.length / STORES_PER_PAGE);
+              const rangeStart = (storesPage - 1) * STORES_PER_PAGE + 1;
+              const rangeEnd = Math.min(storesPage * STORES_PER_PAGE, insights.topStores.length);
+              return (
+                <div className="flex items-center justify-between border-t border-[color:var(--ad-line)] px-5 py-3">
+                  <p className="ad-tnum text-[12px] text-[color:var(--ad-muted)]">
+                    {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} / {insights.topStores.length.toLocaleString()}개
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setStoresPage((p) => Math.max(1, p - 1))}
+                      disabled={storesPage === 1}
+                      className={PAGE_BTN}
+                      aria-label="이전 페이지"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <span className="ad-tnum px-3 text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                      {storesPage} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setStoresPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={storesPage === totalPages}
+                      className={PAGE_BTN}
+                      aria-label="다음 페이지"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* 고객 설문 결과 지표 — 페이지 상단 기간 필터와 같은 기간 (가맹점별 질문·답변) */}
+          <div className="mt-6">
+            <SurveyResults
+              url={`${API_BASE}/api/franchise/insights/survey-results?${new URLSearchParams(surveyRange).toString()}`}
+              tokenKey="franchiseToken"
+              showStore
+              fileLabel={surveyRange.startDate || surveyRange.endDate ? `${surveyRange.startDate || '처음'}_${surveyRange.endDate || '오늘'}` : '전체기간'}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }

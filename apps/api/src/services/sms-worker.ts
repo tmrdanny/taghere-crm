@@ -136,6 +136,8 @@ async function processBatch(): Promise<number> {
       status: 'PENDING',
       solapiGroupId: { not: null },
       createdAt: { lte: minCreatedAt },
+      // 예약 발송은 예약 시각이 지난 뒤부터 결과를 확인한다
+      campaign: { OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }] },
     },
     orderBy: { createdAt: 'asc' },
     take: BATCH_SIZE,
@@ -193,6 +195,8 @@ async function expireStuckPendingMessages(): Promise<void> {
     where: {
       status: 'PENDING',
       createdAt: { lt: cutoff },
+      // 예약 발송은 예약 시각 기준으로 1시간을 센다
+      campaign: { OR: [{ scheduledAt: null }, { scheduledAt: { lt: cutoff } }] },
     },
     take: BATCH_SIZE,
     select: { id: true, campaignId: true, storeId: true, cost: true },

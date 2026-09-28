@@ -2,7 +2,7 @@
 
 import { API_BASE } from '@/lib/api-config';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
-import { useState, useEffect, useCallback } from 'react';
+import { Fragment, useState, useEffect, useCallback } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -23,10 +23,18 @@ import {
   Link,
   Clock,
   TrendingUp,
-  Wallet,
-} from 'lucide-react';
+  Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChargeModal } from '@/components/ChargeModal';
+import { SegmentPicker } from '@/features/segments/SegmentPicker';
+import { PremiumKakaoComposer } from '@/features/premium-kakao/PremiumKakaoComposer';
+import { AlimtalkSamples } from '@/features/premium-kakao/AlimtalkSamples';
+import { MobilePreviewSheet } from '@/features/messages/MobilePreviewSheet';
+import { ReservationsPanel } from '@/features/messages/ReservationsPanel';
+import { SendTimePicker, SendTimeValue, defaultSendTime, formatSendTime, sendTimeError, sendTimeToIso } from '@/features/messages/SendTimePicker';
+import { PremiumKakaoPreview } from '@/features/premium-kakao/PremiumKakaoPreview';
+import { BubbleType, PkContent, emptyContent } from '@/features/premium-kakao/spec';
+import { StaffVerifyField, StaffVerifyValue, emptyStaffVerify, smsCouponPreview, staffVerifyPayload } from '@/features/marketing-performance/StaffVerifyField';
 
 
 import {
@@ -64,6 +72,27 @@ export default function MessagesPage() {
 
   // Tab state (카카오톡 우선)
   const [activeTab, setActiveTab] = useState<'sms' | 'kakao'>('kakao');
+  // 프리미엄 카카오톡(브랜드 메시지) 작성 상태 — 탭을 오가도 유지되고 브라우저에 임시 저장된다
+  const [premiumType, setPremiumType] = useState<BubbleType>('IMAGE');
+  // 카카오톡 탭 형태: 템플릿 기본형(쿠폰 알림톡) / 브랜드 메시지(premiumType)
+  // 진입 시 기본 형태는 이미지형
+  const [kakaoMode, setKakaoMode] = useState<'ALIMTALK' | 'BMS'>('BMS');
+  const [premiumContents, setPremiumContents] = useState<Partial<Record<BubbleType, PkContent>>>({});
+  // 버튼·목록 링크 기본값은 매장 네이버 플레이스 (쿠폰 설정에서 불러옴)
+  const [storeNaverUrl, setStoreNaverUrl] = useState('');
+  const [premiumFooterName, setPremiumFooterName] = useState('');
+  const premiumContent = premiumContents[premiumType] ?? emptyContent(premiumType, storeNaverUrl);
+  // 발송 시간 (지금 / 예약) — 문자, 템플릿 기본형(쿠폰 알림톡)
+  const [smsSendTime, setSmsSendTime] = useState<SendTimeValue>(defaultSendTime);
+  // 새로 예약하면 “예약된 발송” 목록을 다시 불러온다
+  const [reservationKey, setReservationKey] = useState(0);
+  const bumpReservations = () => setReservationKey((k) => k + 1);
+  const [couponSendTime, setCouponSendTime] = useState<SendTimeValue>(defaultSendTime);
+  // 문자 직원 확인 쿠폰 (선택)
+  const [smsVerify, setSmsVerify] = useState<StaffVerifyValue>(emptyStaffVerify);
+  // 프리미엄 카카오톡 직원 확인 (쿠폰의 “받기”가 직원 확인 화면으로)
+  const [premiumVerify, setPremiumVerify] = useState<StaffVerifyValue>(emptyStaffVerify);
+  const [chargeOverride, setChargeOverride] = useState<{ required: number; balance: number } | null>(null);
 
   // 리타겟 쿠폰 상태
   const [couponContent, setCouponContent] = useState('');
@@ -81,7 +110,9 @@ export default function MessagesPage() {
 
   // Target counts
   const [targetCounts, setTargetCounts] = useState<TargetCounts>({ all: 0, revisit: 0, new: 0 });
-  const [selectedTarget, setSelectedTarget] = useState<'ALL' | 'REVISIT' | 'NEW' | 'CUSTOM'>('ALL');
+  const [selectedTarget, setSelectedTarget] = useState<'ALL' | 'REVISIT' | 'NEW' | 'CUSTOM' | 'SEGMENT'>('ALL');
+  // 고객 그룹(저장된 세그먼트)으로 발송 — reachable 은 수신 동의 + 전화번호 보유 고객 수
+  const [selectedSegment, setSelectedSegment] = useState<{ id: string; name: string; reachable: number } | null>(null);
 
   // Custom selected customers (from customer list page)
   const [selectedCustomers, setSelectedCustomers] = useState<SelectedCustomer[]>([]);
@@ -160,6 +191,33 @@ export default function MessagesPage() {
     return localStorage.getItem('token') || 'dev-token';
   };
 
+  // 고객 그룹 선택 → 현재 발송 가능 인원 조회
+  const selectSegment = useCallback(async (segmentId: string) => {
+    if (!segmentId) {
+      setSelectedSegment(null);
+      setSelectedTarget('ALL');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/segments/${segmentId}`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setSelectedSegment({ id: data.segment.id, name: data.segment.name, reachable: data.reachable });
+      setSelectedCustomers([]);
+      setSelectedTarget('SEGMENT');
+    } catch {
+      showToast('고객 그룹을 불러오지 못했습니다.', 'error');
+    }
+  }, [showToast]);
+
+  // /messages?segmentId=... (고객 그룹 페이지에서 "보내기")
+  useEffect(() => {
+    const segmentId = searchParams.get('segmentId');
+    if (segmentId) selectSegment(segmentId);
+  }, [searchParams, selectSegment]);
+
   // Parse selected customers from URL params
   useEffect(() => {
     const customersParam = searchParams.get('customers');
@@ -224,8 +282,9 @@ export default function MessagesPage() {
         const draft = JSON.parse(savedDraft);
         if (draft.messageContent) setMessageContent(draft.messageContent);
         if (draft.kakaoContent) setKakaoContent(draft.kakaoContent);
-        if (draft.activeTab) setActiveTab(draft.activeTab);
-        if (draft.selectedTarget && !searchParams.get('customers')) {
+        // 탭·형태는 복원하지 않는다 — 진입 시 항상 카카오톡 · 이미지형
+        if (draft.premiumContents) setPremiumContents(draft.premiumContents);
+        if (draft.selectedTarget && draft.selectedTarget !== 'SEGMENT' && !searchParams.get('customers') && !searchParams.get('segmentId')) {
           setSelectedTarget(draft.selectedTarget);
         }
         if (draft.genderFilter) setGenderFilter(draft.genderFilter);
@@ -252,11 +311,14 @@ export default function MessagesPage() {
         isAdMessage,
         kakaoMessageType,
         kakaoButtons,
+        premiumType,
+        premiumContents,
+        kakaoMode,
       };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     }, 500);
     return () => clearTimeout(timer);
-  }, [messageContent, kakaoContent, activeTab, selectedTarget, genderFilter, selectedAgeGroups, isAdMessage, kakaoMessageType, kakaoButtons]);
+  }, [messageContent, kakaoContent, activeTab, selectedTarget, genderFilter, selectedAgeGroups, isAdMessage, kakaoMessageType, kakaoButtons, premiumType, premiumContents, kakaoMode]);
 
   // Draft 삭제 함수
   const clearDraft = () => {
@@ -274,6 +336,7 @@ export default function MessagesPage() {
           const data = await res.json();
           setCouponStoreName(data.storeName || '');
           setCouponNaverPlaceUrl(data.naverPlaceUrl || '');
+          setStoreNaverUrl(data.naverPlaceUrl || '');
         }
       } catch (error) {
         console.error('Failed to fetch coupon settings:', error);
@@ -322,6 +385,9 @@ export default function MessagesPage() {
       if (selectedTarget === 'CUSTOM' && selectedCustomers.length > 0) {
         params.set('customerIds', selectedCustomers.map(c => c.id).join(','));
       }
+      if (selectedTarget === 'SEGMENT' && selectedSegment) {
+        params.set('segmentId', selectedSegment.id);
+      }
 
       // 필터 추가
       if (genderFilter !== 'all') {
@@ -335,6 +401,12 @@ export default function MessagesPage() {
       if (uploadedImage) {
         params.set('hasImage', 'true');
       }
+      // 직원 확인 쿠폰 링크까지 포함한 길이로 비용 계산
+      if (smsVerify.enabled) {
+        params.set('staffVerify', 'true');
+        params.set('couponContent', smsVerify.couponContent);
+        params.set('expiryDate', smsVerify.expiryDate);
+      }
 
       const res = await fetch(`${API_BASE}/api/sms/estimate?${params}`, {
         headers: { Authorization: `Bearer ${getAuthToken()}` },
@@ -347,7 +419,7 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Failed to fetch estimate:', error);
     }
-  }, [messageContent, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, uploadedImage]);
+  }, [messageContent, selectedTarget, selectedCustomers, genderFilter, selectedAgeGroups, uploadedImage, smsVerify]);
 
   // Fetch test count
   const fetchTestCount = useCallback(async () => {
@@ -439,7 +511,7 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Failed to fetch coupon estimate:', error);
     }
-  }, [selectedTarget, selectedCustomers, targetCounts, genderFilter, selectedAgeGroups]);
+  }, [selectedTarget, selectedCustomers, selectedSegment, targetCounts, genderFilter, selectedAgeGroups]);
 
   // 쿠폰 탭에서 타겟 변경 시 estimate 조회
   useEffect(() => {
@@ -692,12 +764,13 @@ export default function MessagesPage() {
     return byteLength;
   };
 
-  const byteLength = getByteLength(messageContent);
+  const byteLength = getByteLength(messageContent + smsCouponPreview(smsVerify));
   const isLongMessage = byteLength > 90;
 
   // Get current target count
   const getCurrentTargetCount = () => {
     if (selectedTarget === 'CUSTOM') return selectedCustomers.length;
+    if (selectedTarget === 'SEGMENT') return selectedSegment?.reachable ?? 0;
     if (selectedTarget === 'ALL') return targetCounts.all;
     if (selectedTarget === 'REVISIT') return targetCounts.revisit;
     return targetCounts.new;
@@ -992,10 +1065,23 @@ export default function MessagesPage() {
         imageUrl: uploadedImage?.imageUrl || undefined,
         imageId: uploadedImage?.imageId || undefined, // SOLAPI 이미지 ID 전달
         isAdMessage,
+        staffVerify: staffVerifyPayload(smsVerify),
+        scheduledAt: sendTimeToIso(smsSendTime),
       };
+      if (smsVerify.enabled && !smsVerify.couponContent.trim()) {
+        showToast('직원 확인 쿠폰 내용을 입력해주세요.', 'error');
+        return;
+      }
 
       if (selectedTarget === 'CUSTOM') {
         body.customerIds = selectedCustomers.map(c => c.id);
+      }
+      if (selectedTarget === 'SEGMENT') {
+        if (!selectedSegment) {
+          showToast('고객 그룹을 선택해주세요.', 'error');
+          return;
+        }
+        body.segmentId = selectedSegment.id;
       }
 
       const res = await fetch(`${API_BASE}/api/sms/send`, {
@@ -1014,7 +1100,8 @@ export default function MessagesPage() {
         trackEvent('owner_message_send', { channel: 'sms', target_type: selectedTarget, target_count: sentOrPending, has_image: !!uploadedImage });
         const failedMsg = data.failedCount > 0 ? `, ${data.failedCount}건 실패` : '';
         const costMsg = data.totalCost ? ` (비용: ${formatNumber(data.totalCost)}원)` : '';
-        showToast(`${sentOrPending}건 발송 요청 완료${failedMsg}${costMsg}`, 'success');
+        showToast(data.scheduledAt ? data.message : `${sentOrPending}건 발송 요청 완료${failedMsg}${costMsg}`, 'success');
+        bumpReservations();
         setMessageContent('');
         setUploadedImage(null);
         setImageError(null);
@@ -1037,17 +1124,17 @@ export default function MessagesPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-[color:var(--ad-faint)]" />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row lg:items-start p-4 md:p-6 gap-6 max-w-[1200px] mx-auto w-full lg:justify-center">
+    <div className="flex-1 flex flex-col lg:flex-row lg:items-start gap-6 mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8 lg:justify-center">
       {ToastComponent}
 
       {/* Left Panel - Settings */}
-      <div className="flex-1 lg:max-w-[720px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 md:p-6 flex flex-col gap-6">
+      <div className="ad-card flex-1 lg:max-w-[720px] p-5 md:p-6 flex flex-col gap-6">
         {/* Header */}
         <MessageHeader
           activeTab={activeTab}
@@ -1056,13 +1143,16 @@ export default function MessagesPage() {
           freeCreditsRemaining={estimate?.freeCredits?.remaining}
         />
 
+        {/* 예약된 발송 — 발송 2분 전까지 취소·환불 */}
+        <ReservationsPanel apiUrl="/api/marketing-performance" refreshKey={reservationKey} showToast={showToast} />
+
         {/* Step 1: Target Selection */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-semibold text-[#1e293b]">1. 누구에게 보낼까요?</label>
+            <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">1. 누구에게 보낼까요?</label>
             <button
               onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-              className="flex items-center gap-1 text-xs text-[#64748b] hover:text-[#3b82f6] transition-colors"
+              className="flex items-center gap-1 text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline transition-colors"
             >
               고급 설정
               {showAdvancedSettings ? (
@@ -1080,16 +1170,16 @@ export default function MessagesPage() {
                 setSelectedCustomers([]);
               }}
               className={cn(
-                'p-4 rounded-xl border-2 text-center transition-all',
+                'p-4 rounded-[12px] border text-center transition-all',
                 selectedTarget === 'ALL'
-                  ? 'border-[#3b82f6] bg-[#eff6ff]'
-                  : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
+                  ? 'border-[color:var(--ad-ink)] bg-white shadow-[0_0_0_1px_var(--ad-ink)]'
+                  : 'border-[color:var(--ad-line)] bg-white hover:border-[color:var(--ad-line-strong)]'
               )}
             >
-              <div className="text-2xl font-bold text-[#1e293b]">
+              <div className="text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                 {formatNumber(targetCounts.all)}
               </div>
-              <span className="text-xs text-[#64748b]">전체</span>
+              <span className="text-[12px] text-[color:var(--ad-muted)]">전체</span>
             </button>
 
             <button
@@ -1098,16 +1188,16 @@ export default function MessagesPage() {
                 setSelectedCustomers([]);
               }}
               className={cn(
-                'p-4 rounded-xl border-2 text-center transition-all',
+                'p-4 rounded-[12px] border text-center transition-all',
                 selectedTarget === 'REVISIT'
-                  ? 'border-[#3b82f6] bg-[#eff6ff]'
-                  : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
+                  ? 'border-[color:var(--ad-ink)] bg-white shadow-[0_0_0_1px_var(--ad-ink)]'
+                  : 'border-[color:var(--ad-line)] bg-white hover:border-[color:var(--ad-line-strong)]'
               )}
             >
-              <div className="text-2xl font-bold text-[#1e293b]">
+              <div className="text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                 {formatNumber(targetCounts.revisit)}
               </div>
-              <span className="text-xs text-[#64748b]">재방문</span>
+              <span className="text-[12px] text-[color:var(--ad-muted)]">재방문</span>
             </button>
 
             <button
@@ -1116,39 +1206,47 @@ export default function MessagesPage() {
                 setSelectedCustomers([]);
               }}
               className={cn(
-                'p-4 rounded-xl border-2 text-center transition-all',
+                'p-4 rounded-[12px] border text-center transition-all',
                 selectedTarget === 'NEW'
-                  ? 'border-[#3b82f6] bg-[#eff6ff]'
-                  : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
+                  ? 'border-[color:var(--ad-ink)] bg-white shadow-[0_0_0_1px_var(--ad-ink)]'
+                  : 'border-[color:var(--ad-line)] bg-white hover:border-[color:var(--ad-line-strong)]'
               )}
             >
-              <div className="text-2xl font-bold text-[#1e293b]">
+              <div className="text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                 {formatNumber(targetCounts.new)}
               </div>
-              <span className="text-xs text-[#64748b]">신규</span>
+              <span className="text-[12px] text-[color:var(--ad-muted)]">신규</span>
             </button>
           </div>
 
+          {/* 고객 그룹으로 보내기 */}
+          <SegmentPicker
+            active={selectedTarget === 'SEGMENT'}
+            selected={selectedSegment}
+            onSelect={selectSegment}
+            manageHref="/segments"
+          />
+
           {/* Advanced Settings (collapsed by default) */}
           {showAdvancedSettings && (
-            <div className="mt-3 p-4 bg-[#f8fafc] rounded-xl border border-[#e5e7eb] space-y-4">
+            <div className="mt-3 p-4 bg-[color:var(--ad-bg-alt)] rounded-[12px] border border-[color:var(--ad-line)] space-y-4">
               {/* Custom selection button */}
               <div>
-                <label className="text-xs font-medium text-[#64748b] mb-2 block">고객 직접 선택</label>
+                <label className="text-[12px] font-medium text-[color:var(--ad-muted)] mb-2 block">고객 직접 선택</label>
                 <button
                   onClick={openCustomerModal}
                   className={cn(
-                    'w-full p-3 rounded-lg border text-left transition-all flex items-center gap-2',
+                    'w-full p-3 rounded-[10px] border text-left transition-all flex items-center gap-2',
                     selectedTarget === 'CUSTOM' && selectedCustomers.length > 0
-                      ? 'border-[#3b82f6] bg-[#eff6ff]'
-                      : 'border-[#e5e7eb] bg-white hover:border-[#d1d5db]'
+                      ? 'border-[color:var(--ad-ink)] bg-white shadow-[0_0_0_1px_var(--ad-ink)]'
+                      : 'border-[color:var(--ad-line)] bg-white hover:border-[color:var(--ad-line-strong)]'
                   )}
                 >
-                  <div className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center flex-shrink-0">
-                    <UserPlus className="w-4 h-4 text-[#64748b]" />
+                  <div className="w-8 h-8 rounded-full bg-[color:var(--ad-bg)] flex items-center justify-center flex-shrink-0">
+                    <UserPlus className="w-4 h-4 text-[color:var(--ad-muted)]" />
                   </div>
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-[#1e293b]">
+                    <div className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">
                       {selectedTarget === 'CUSTOM' && selectedCustomers.length > 0
                         ? `${formatNumber(selectedCustomers.length)}명 선택됨`
                         : '고객 선택하기'}
@@ -1173,7 +1271,7 @@ export default function MessagesPage() {
 
               {/* Filters */}
               <div>
-                <label className="text-xs font-medium text-[#64748b] mb-2 block">성별/연령대 필터</label>
+                <label className="text-[12px] font-medium text-[color:var(--ad-muted)] mb-2 block">성별/연령대 필터</label>
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-wrap gap-1.5">
                     {['all', 'FEMALE', 'MALE'].map((gender) => (
@@ -1181,10 +1279,10 @@ export default function MessagesPage() {
                         key={gender}
                         onClick={() => setGenderFilter(gender as any)}
                         className={cn(
-                          'px-3 py-1.5 rounded-full text-xs border transition-all',
+                          'px-3 py-1.5 rounded-full text-[12px] border transition-all',
                           genderFilter === gender
-                            ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
-                            : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
+                            ? 'bg-[color:var(--ad-ink)] border-[color:var(--ad-ink)] text-white font-medium'
+                            : 'border-[color:var(--ad-line-strong)] bg-white text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]'
                         )}
                       >
                         {gender === 'all' ? '전체' : gender === 'FEMALE' ? '여성' : '남성'}
@@ -1197,10 +1295,10 @@ export default function MessagesPage() {
                         key={option.value}
                         onClick={() => toggleAgeGroup(option.value)}
                         className={cn(
-                          'px-3 py-1.5 rounded-full text-xs border transition-all',
+                          'px-3 py-1.5 rounded-full text-[12px] border transition-all',
                           selectedAgeGroups.includes(option.value)
-                            ? 'bg-[#eff6ff] border-[#3b82f6] text-[#3b82f6] font-semibold'
-                            : 'border-[#e5e7eb] bg-white text-[#1e293b] hover:border-[#d1d5db]'
+                            ? 'bg-[color:var(--ad-ink)] border-[color:var(--ad-ink)] text-white font-medium'
+                            : 'border-[color:var(--ad-line-strong)] bg-white text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]'
                         )}
                       >
                         {option.label}
@@ -1218,7 +1316,7 @@ export default function MessagesPage() {
           <>
             {/* Step 2: Message Content */}
             <div className="flex flex-col gap-4">
-              <label className="text-sm font-semibold text-[#1e293b]">2. 어떤 메시지를 보낼까요?</label>
+              <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">2. 어떤 메시지를 보낼까요?</label>
 
               {/* Template Selection - More Prominent */}
               <div className="grid grid-cols-3 gap-3">
@@ -1232,14 +1330,14 @@ export default function MessagesPage() {
 
 길찾기: #{길찾기링크}`)}
                   className={cn(
-                    'p-4 rounded-xl border-2 text-center transition-all hover:border-[#3b82f6] hover:bg-[#eff6ff]',
+                    'p-4 rounded-[12px] border text-center transition-all hover:border-[color:var(--ad-line-strong)]',
                     messageContent.includes('재방문 혜택')
-                      ? 'border-[#3b82f6] bg-[#eff6ff]'
-                      : 'border-[#e5e7eb] bg-white'
+                      ? 'border-[color:var(--ad-ink)] bg-white shadow-[0_0_0_1px_var(--ad-ink)]'
+                      : 'border-[color:var(--ad-line)] bg-white'
                   )}
                 >
-                  <div className="text-sm font-semibold text-[#1e293b]">재방문</div>
-                  <div className="text-xs text-[#64748b]">이벤트</div>
+                  <div className="text-[13.5px] font-semibold text-[color:var(--ad-ink)]">재방문</div>
+                  <div className="text-[12px] text-[color:var(--ad-muted)]">이벤트</div>
                 </button>
                 <button
                   type="button"
@@ -1251,14 +1349,14 @@ export default function MessagesPage() {
 
 길찾기: #{길찾기링크}`)}
                   className={cn(
-                    'p-4 rounded-xl border-2 text-center transition-all hover:border-[#3b82f6] hover:bg-[#eff6ff]',
+                    'p-4 rounded-[12px] border text-center transition-all hover:border-[color:var(--ad-line-strong)]',
                     messageContent.includes('신메뉴')
-                      ? 'border-[#3b82f6] bg-[#eff6ff]'
-                      : 'border-[#e5e7eb] bg-white'
+                      ? 'border-[color:var(--ad-ink)] bg-white shadow-[0_0_0_1px_var(--ad-ink)]'
+                      : 'border-[color:var(--ad-line)] bg-white'
                   )}
                 >
-                  <div className="text-sm font-semibold text-[#1e293b]">신메뉴</div>
-                  <div className="text-xs text-[#64748b]">안내</div>
+                  <div className="text-[13.5px] font-semibold text-[color:var(--ad-ink)]">신메뉴</div>
+                  <div className="text-[12px] text-[color:var(--ad-muted)]">안내</div>
                 </button>
                 <button
                   type="button"
@@ -1270,22 +1368,22 @@ export default function MessagesPage() {
 
 길찾기: #{길찾기링크}`)}
                   className={cn(
-                    'p-4 rounded-xl border-2 text-center transition-all hover:border-[#3b82f6] hover:bg-[#eff6ff]',
+                    'p-4 rounded-[12px] border text-center transition-all hover:border-[color:var(--ad-line-strong)]',
                     messageContent.includes('새 매장 오픈')
-                      ? 'border-[#3b82f6] bg-[#eff6ff]'
-                      : 'border-[#e5e7eb] bg-white'
+                      ? 'border-[color:var(--ad-ink)] bg-white shadow-[0_0_0_1px_var(--ad-ink)]'
+                      : 'border-[color:var(--ad-line)] bg-white'
                   )}
                 >
-                  <div className="text-sm font-semibold text-[#1e293b]">오픈</div>
-                  <div className="text-xs text-[#64748b]">알림</div>
+                  <div className="text-[13.5px] font-semibold text-[color:var(--ad-ink)]">오픈</div>
+                  <div className="text-[12px] text-[color:var(--ad-muted)]">알림</div>
                 </button>
               </div>
 
               {/* Direct Input */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-[#64748b]">또는 직접 작성</span>
-                  <span className="text-xs text-[#94a3b8]">
+                  <span className="text-[12px] text-[color:var(--ad-muted)]">또는 직접 작성</span>
+                  <span className="text-[12px] text-[color:var(--ad-faint)]">
                     {messageContent.length > 0 && (uploadedImage ? 'MMS' : messageContent.length > 90 ? 'LMS' : 'SMS')}
                   </span>
                 </div>
@@ -1293,7 +1391,7 @@ export default function MessagesPage() {
                   value={messageContent}
                   onChange={(e) => setMessageContent(e.target.value)}
                   placeholder="메시지를 입력하세요..."
-                  className="w-full h-[120px] p-4 border border-[#e5e7eb] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent text-sm leading-relaxed"
+                  className="w-full h-[120px] px-3 py-2.5 border border-[color:var(--ad-line-strong)] bg-white rounded-[10px] resize-none focus:outline-none focus:border-[color:var(--ad-navy)] text-[13.5px] leading-relaxed placeholder:text-[color:var(--ad-faint)]"
                 />
               </div>
 
@@ -1309,7 +1407,7 @@ export default function MessagesPage() {
                       disabled={isUploading}
                     />
                     <div className={cn(
-                      "flex items-center gap-2 px-4 py-2.5 border border-dashed border-[#d1d5db] rounded-xl text-sm text-[#64748b] hover:border-[#3b82f6] hover:text-[#3b82f6] transition-colors",
+                      "flex items-center gap-2 h-9 px-3.5 border border-dashed border-[color:var(--ad-line-strong)] rounded-[10px] text-[13px] text-[color:var(--ad-ink-2)] hover:border-[color:var(--ad-ink)] hover:text-[color:var(--ad-ink)] transition-colors",
                       isUploading && "opacity-50 cursor-not-allowed"
                     )}>
                       {isUploading ? (
@@ -1321,80 +1419,83 @@ export default function MessagesPage() {
                     </div>
                   </label>
                 ) : (
-                  <div className="flex items-center gap-3 p-2 bg-[#f8fafc] rounded-xl border border-[#e5e7eb]">
+                  <div className="flex items-center gap-3 p-2 bg-[color:var(--ad-bg-alt)] rounded-[12px] border border-[color:var(--ad-line)]">
                     <img
                       src={`${API_BASE}${uploadedImage.imageUrl}`}
                       alt="첨부 이미지"
-                      className="w-10 h-10 object-cover rounded-lg"
+                      className="w-10 h-10 object-cover rounded-[8px]"
                     />
-                    <span className="text-sm text-[#1e293b]">이미지 첨부됨</span>
+                    <span className="text-[13px] text-[color:var(--ad-ink)]">이미지 첨부됨</span>
                     <button
                       onClick={handleImageDelete}
-                      className="p-1 text-[#94a3b8] hover:text-red-500 transition-colors"
+                      className="p-1 text-[color:var(--ad-faint)] hover:text-[color:var(--ad-neg)] transition-colors"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                 )}
                 {uploadedImage && (
-                  <span className="text-xs text-[#64748b]">MMS로 발송됩니다</span>
+                  <span className="text-[12px] text-[color:var(--ad-muted)]">MMS로 발송됩니다</span>
                 )}
               </div>
 
               {imageError && (
-                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+                <div className="flex items-center gap-2 rounded-[12px] bg-[#fff2f5] px-4 py-3 text-[13px] text-[color:var(--ad-neg)]">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   <span>{imageError}</span>
                 </div>
               )}
+
+              {/* 직원 확인 쿠폰 (마케팅 성과 추적) */}
+              <StaffVerifyField value={smsVerify} onChange={setSmsVerify} />
             </div>
 
             {/* Step 3: Expected Effect & CTA */}
-            <div className="p-5 bg-gradient-to-br from-emerald-50 to-blue-50 rounded-2xl border border-emerald-100">
+            <div className="p-5 bg-[color:var(--ad-bg-alt)] rounded-[16px] border border-[color:var(--ad-line)]">
               {/* ROI 강조 메시지 */}
               <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="w-5 h-5 text-emerald-600" />
-                <span className="text-base font-bold text-emerald-800">3. 발송하면 이런 효과가 예상돼요</span>
+                <TrendingUp className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
+                <span className="text-[14px] font-semibold text-[color:var(--ad-ink)]">3. 발송하면 이런 효과가 예상돼요</span>
               </div>
 
               {/* 효과 예측 카드 */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="bg-white/80 rounded-xl p-3 text-center">
-                  <p className="text-xs text-[#64748b]">발송 비용</p>
-                  <p className="text-lg font-bold text-[#1e293b]">
+              <div className="ad-card grid grid-cols-3 divide-x divide-[color:var(--ad-line)] mb-4 overflow-hidden">
+                <div className="p-3 text-center">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">발송 비용</p>
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원
                   </p>
                   {estimate?.freeCredits && estimate.freeCredits.freeCount > 0 ? (
-                    <p className="text-[10px] text-emerald-600 font-medium">
+                    <p className="text-[11px] text-[color:var(--ad-pos)] font-medium">
                       무료 {estimate.freeCredits.freeCount}건 + 유료 {estimate.freeCredits.paidCount}건
                     </p>
                   ) : (
-                    <p className="text-[10px] text-[#94a3b8]">
+                    <p className="text-[11px] text-[color:var(--ad-faint)]">
                       {formatNumber(getCurrentTargetCount())}명 × {uploadedImage ? 110 : 50}원
                     </p>
                   )}
                 </div>
-                <div className="bg-white/80 rounded-xl p-3 text-center">
-                  <p className="text-xs text-[#64748b]">예상 방문</p>
-                  <p className="text-lg font-bold text-emerald-600">
+                <div className="p-3 text-center">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">예상 방문</p>
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                     {Math.max(1, Math.round(getCurrentTargetCount() * 0.032))}명
                   </p>
-                  <p className="text-[10px] text-[#94a3b8]">방문율 3.2%</p>
+                  <p className="text-[11px] text-[color:var(--ad-faint)]">방문율 3.2%</p>
                 </div>
-                <div className="bg-white/80 rounded-xl p-3 text-center">
-                  <p className="text-xs text-[#64748b]">예상 매출</p>
-                  <p className="text-lg font-bold text-emerald-600">
+                <div className="p-3 text-center">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">예상 매출</p>
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(Math.max(1, Math.round(getCurrentTargetCount() * 0.032)) * 25000)}원
                   </p>
-                  <p className="text-[10px] text-[#94a3b8]">객단가 2.5만원</p>
+                  <p className="text-[11px] text-[color:var(--ad-faint)]">객단가 2.5만원</p>
                 </div>
               </div>
 
               {/* ROI 강조 */}
-              <div className="bg-emerald-100/50 rounded-lg px-4 py-2 mb-4 text-center">
-                <p className="text-sm text-emerald-800">
-                  <span className="font-bold">1명만 방문해도</span> 투자 대비{' '}
-                  <span className="font-bold text-emerald-700">
+              <div className="mb-4 rounded-[12px] bg-[color:var(--ad-bg)] px-4 py-3 text-center">
+                <p className="text-[13px] text-[color:var(--ad-ink)]">
+                  <span className="font-semibold">1명만 방문해도</span> 투자 대비{' '}
+                  <span className="font-semibold text-[color:var(--ad-ink)]">
                     {Math.round(25000 / Math.max(1, (estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))))}배
                   </span>{' '}
                   효과!
@@ -1402,16 +1503,16 @@ export default function MessagesPage() {
               </div>
 
               {/* 잔액 + 충전 */}
-              <div className="flex items-center justify-between mb-4 text-sm">
-                <span className="text-[#64748b]">현재 잔액</span>
+              <div className="flex items-center justify-between mb-4 text-[13px]">
+                <span className="text-[color:var(--ad-muted)]">현재 잔액</span>
                 <div className="flex items-center gap-2">
-                  <span className={`font-bold ${(estimate?.walletBalance || 0) >= (estimate?.totalCost || 0) ? 'text-emerald-600' : 'text-red-600'}`}>
+                  <span className={`font-semibold ad-tnum ${(estimate?.walletBalance || 0) >= (estimate?.totalCost || 0) ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
                     {formatNumber(estimate?.walletBalance || 0)}원
                   </span>
                   {(estimate?.walletBalance || 0) < (estimate?.totalCost || (getCurrentTargetCount() * 50)) && (
                     <button
                       onClick={() => setIsChargeModalOpen(true)}
-                      className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
                     >
                       충전하기
                     </button>
@@ -1421,33 +1522,35 @@ export default function MessagesPage() {
 
               {SMS_SENDING_PAUSED ? (
                 /* 문자 발송 일시 중단 안내 */
-                <div className="w-full py-5 px-4 bg-amber-50 border border-amber-200 rounded-xl text-center">
-                  <p className="text-base font-semibold text-amber-800">{SMS_PAUSED_NOTICE}</p>
-                  <p className="mt-1.5 text-sm text-amber-700">
+                <div className="w-full rounded-[12px] bg-[color:var(--ad-bg)] px-4 py-5 text-center">
+                  <p className="text-[14px] font-semibold text-[color:var(--ad-ink)]">{SMS_PAUSED_NOTICE}</p>
+                  <p className="mt-1.5 text-[13px] text-[color:var(--ad-muted)]">
                     카카오톡 발송은 정상 이용하실 수 있습니다.
                   </p>
                 </div>
               ) : (
                 <>
+                  <SendTimePicker value={smsSendTime} onChange={setSmsSendTime} adWindow={isAdMessage} />
                   {/* CTA 버튼 */}
                   <button
                     disabled={
                       !messageContent.trim() ||
                       getCurrentTargetCount() === 0 ||
-                      (estimate !== null && !estimate.canSend)
+                      (estimate !== null && !estimate.canSend) ||
+                      !!sendTimeError(smsSendTime, isAdMessage)
                     }
                     onClick={() => setShowConfirmModal(true)}
-                    className="w-full py-4 bg-[#2a2d62] text-white rounded-xl text-lg font-bold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="ad-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <Send className="w-5 h-5" />
-                    메시지 발송하기 ({formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원)
+                    <Send className="h-4 w-4" />
+                    {smsSendTime.mode === 'schedule' ? `${formatSendTime(smsSendTime)} 예약하기` : '메시지 발송하기'} ({formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원)
                   </button>
 
                   {/* 테스트 발송 링크 */}
                   <button
                     disabled={!messageContent.trim()}
                     onClick={() => setShowTestModal(true)}
-                    className="w-full mt-2 py-2 text-sm text-[#64748b] hover:text-[#3b82f6] transition-colors disabled:opacity-50"
+                    className="w-full mt-2 py-2 text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline transition-colors disabled:opacity-50"
                   >
                     내 번호로 테스트 발송해보기
                   </button>
@@ -1455,13 +1558,13 @@ export default function MessagesPage() {
               )}
 
               {/* 광고 메시지 체크박스 - 간소화 */}
-              <div className="mt-4 pt-4 border-t border-emerald-200/50">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-[#64748b]">
+              <div className="mt-4 pt-4 border-t border-[color:var(--ad-line)]">
+                <label className="flex items-center gap-2 cursor-pointer text-[13px] text-[color:var(--ad-ink-2)]">
                   <input
                     type="checkbox"
                     checked={isAdMessage}
                     onChange={(e) => setIsAdMessage(e.target.checked)}
-                    className="w-4 h-4 rounded border-[#d1d5db] text-[#3b82f6] focus:ring-[#3b82f6]"
+                    className="w-4 h-4 rounded border-[color:var(--ad-line-strong)] text-[color:var(--ad-ink)] accent-[color:var(--ad-ink)] focus:ring-[color:var(--ad-ink)]"
                   />
                   광고 메시지로 발송 (자동 표기 추가)
                 </label>
@@ -1470,41 +1573,56 @@ export default function MessagesPage() {
           </>
         )}
 
-        {/* 카카오톡 탭 콘텐츠 - 쿠폰 알림톡 */}
+        {/* 카카오톡 탭 — 형태 선택: 템플릿 기본형(쿠폰 알림톡) + 브랜드 메시지 8종 */}
         {activeTab === 'kakao' && (
-          <>
+          <PremiumKakaoComposer
+            leadingType={{
+              name: '템플릿 기본형',
+              tip: '쿠폰 알림톡',
+              priceLabel: '건당 50원',
+              selected: kakaoMode === 'ALIMTALK',
+              onSelect: () => setKakaoMode('ALIMTALK'),
+              content: (
+                <>
             {/* Step 2: 쿠폰 정보 입력 */}
             <div className="flex flex-col gap-4">
-              <label className="text-sm font-semibold text-[#1e293b]">2. 어떤 쿠폰을 보낼까요?</label>
+              <label className="text-[14px] font-semibold text-[color:var(--ad-ink)]">3. 어떤 쿠폰을 보낼까요?</label>
+
+              <AlimtalkSamples
+                onPick={(content, expiry) => {
+                  setCouponContent(content);
+                  setCouponExpiryDate(expiry);
+                }}
+              />
 
               {/* 쿠폰 내용 */}
               <div>
-                <label className="text-xs text-[#64748b] mb-1.5 block">쿠폰 내용</label>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">쿠폰 내용</label>
                 <input
                   type="text"
                   value={couponContent}
                   onChange={(e) => setCouponContent(e.target.value)}
                   placeholder="예: 아메리카노 1잔 무료"
-                  className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                  className="w-full h-10 px-3 border border-[color:var(--ad-line-strong)] bg-white rounded-[10px] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:outline-none focus:border-[color:var(--ad-navy)]"
                 />
               </div>
 
               {/* 유효기간 */}
               <div>
-                <label className="text-xs text-[#64748b] mb-1.5 block">유효기간</label>
+                <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">유효기간</label>
                 <input
                   type="text"
                   value={couponExpiryDate}
                   onChange={(e) => setCouponExpiryDate(e.target.value)}
                   placeholder="예: 2025년 2월 28일까지"
-                  className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                  className="w-full h-10 px-3 border border-[color:var(--ad-line-strong)] bg-white rounded-[10px] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:outline-none focus:border-[color:var(--ad-navy)]"
                 />
               </div>
 
               {/* 네이버 플레이스 URL - 선택사항 표시 */}
               {showAdvancedSettings && (
                 <div>
-                  <label className="text-xs text-[#64748b] mb-1.5 block">
+                  <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                     네이버 플레이스 URL (선택)
                   </label>
                   <input
@@ -1512,9 +1630,9 @@ export default function MessagesPage() {
                     value={couponNaverPlaceUrl}
                     onChange={(e) => setCouponNaverPlaceUrl(e.target.value)}
                     placeholder="https://naver.me/..."
-                    className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                    className="w-full h-10 px-3 border border-[color:var(--ad-line-strong)] bg-white rounded-[10px] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:outline-none focus:border-[color:var(--ad-navy)]"
                   />
-                  <p className="text-xs text-[#94a3b8] mt-1">
+                  <p className="text-[12px] text-[color:var(--ad-faint)] mt-1">
                     설정 페이지에서 등록한 URL이 자동으로 사용됩니다
                   </p>
                 </div>
@@ -1522,50 +1640,50 @@ export default function MessagesPage() {
             </div>
 
             {/* Step 3: Expected Effect & CTA */}
-            <div className="p-5 bg-neutral-50 rounded-2xl border border-neutral-200">
+            <div className="p-5 bg-[color:var(--ad-bg-alt)] rounded-[16px] border border-[color:var(--ad-line)]">
               {/* ROI 강조 메시지 */}
               <div className="mb-4">
-                <span className="text-base font-semibold text-neutral-800">3. 쿠폰을 보내면 이런 효과가 예상돼요</span>
+                <span className="text-[14px] font-semibold text-[color:var(--ad-ink)]">4. 쿠폰을 보내면 이런 효과가 예상돼요</span>
               </div>
 
               {/* 효과 예측 카드 */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="bg-white rounded-xl p-3 text-center border border-neutral-100">
-                  <p className="text-xs text-[#64748b]">발송 비용</p>
-                  <p className="text-lg font-bold text-[#1e293b]">
+              <div className="ad-card grid grid-cols-3 divide-x divide-[color:var(--ad-line)] mb-4 overflow-hidden">
+                <div className="p-3 text-center">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">발송 비용</p>
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원
                   </p>
                   {couponEstimate?.freeCredits && couponEstimate.freeCredits.freeCount > 0 ? (
-                    <p className="text-[10px] text-emerald-600 font-medium">
+                    <p className="text-[11px] text-[color:var(--ad-pos)] font-medium">
                       무료 {couponEstimate.freeCredits.freeCount}건 + 유료 {couponEstimate.freeCredits.paidCount}건
                     </p>
                   ) : (
-                    <p className="text-[10px] text-[#94a3b8]">
+                    <p className="text-[11px] text-[color:var(--ad-faint)]">
                       {formatNumber(getCurrentTargetCount())}명 × 50원
                     </p>
                   )}
                 </div>
-                <div className="bg-white rounded-xl p-3 text-center border border-neutral-100">
-                  <p className="text-xs text-[#64748b]">예상 사용</p>
-                  <p className="text-lg font-bold text-brand-600">
+                <div className="p-3 text-center">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">예상 사용</p>
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                     {Math.max(1, Math.round(getCurrentTargetCount() * 0.05))}명
                   </p>
-                  <p className="text-[10px] text-[#94a3b8]">사용율 5%</p>
+                  <p className="text-[11px] text-[color:var(--ad-faint)]">사용율 5%</p>
                 </div>
-                <div className="bg-white rounded-xl p-3 text-center border border-neutral-100">
-                  <p className="text-xs text-[#64748b]">예상 매출</p>
-                  <p className="text-lg font-bold text-brand-600">
+                <div className="p-3 text-center">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">예상 매출</p>
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(Math.max(1, Math.round(getCurrentTargetCount() * 0.05)) * 25000)}원
                   </p>
-                  <p className="text-[10px] text-[#94a3b8]">객단가 2.5만원</p>
+                  <p className="text-[11px] text-[color:var(--ad-faint)]">객단가 2.5만원</p>
                 </div>
               </div>
 
               {/* ROI 강조 */}
-              <div className="bg-brand-50 rounded-lg px-4 py-2 mb-4 text-center">
-                <p className="text-sm text-brand-700">
-                  <span className="font-bold">1명만 사용해도</span> 투자 대비{' '}
-                  <span className="font-bold text-brand-600">
+              <div className="mb-4 rounded-[12px] bg-[color:var(--ad-bg)] px-4 py-3 text-center">
+                <p className="text-[13px] text-[color:var(--ad-ink)]">
+                  <span className="font-semibold">1명만 사용해도</span> 투자 대비{' '}
+                  <span className="font-semibold text-[color:var(--ad-ink)]">
                     {Math.round(25000 / Math.max(1, couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)))}배
                   </span>{' '}
                   효과!
@@ -1573,16 +1691,16 @@ export default function MessagesPage() {
               </div>
 
               {/* 잔액 + 충전 */}
-              <div className="flex items-center justify-between mb-4 text-sm">
-                <span className="text-[#64748b]">현재 잔액</span>
+              <div className="flex items-center justify-between mb-4 text-[13px]">
+                <span className="text-[color:var(--ad-muted)]">현재 잔액</span>
                 <div className="flex items-center gap-2">
-                  <span className={`font-bold ${(couponEstimate?.walletBalance ?? estimate?.walletBalance ?? 0) >= (couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)) ? 'text-brand-600' : 'text-red-600'}`}>
+                  <span className={`font-semibold ad-tnum ${(couponEstimate?.walletBalance ?? estimate?.walletBalance ?? 0) >= (couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)) ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
                     {formatNumber(couponEstimate?.walletBalance ?? estimate?.walletBalance ?? 0)}원
                   </span>
                   {(couponEstimate?.walletBalance ?? estimate?.walletBalance ?? 0) < (couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)) && (
                     <button
                       onClick={() => setIsChargeModalOpen(true)}
-                      className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
                     >
                       충전하기
                     </button>
@@ -1591,23 +1709,25 @@ export default function MessagesPage() {
               </div>
 
               {/* 1회 발송 한도 안내 */}
-              <div className="text-xs text-[#64748b] text-center px-2">
-                1회 발송 최대 <span className="font-semibold text-[#1e293b]">3,000명</span>까지 가능합니다.
-                {getCurrentTargetCount() > 3000 && (
-                  <div className="mt-1 text-[#ef4444]">
+              <div className="mb-3 text-[12px] text-[color:var(--ad-muted)] text-center px-2">
+                1회 발송 최대 <span className="font-semibold text-[color:var(--ad-ink)]">50,000명</span>까지 가능합니다.
+                {getCurrentTargetCount() > 50000 && (
+                  <div className="mt-1 text-[color:var(--ad-neg)]">
                     현재 {formatNumber(getCurrentTargetCount())}명 → 필터를 좁히거나 나눠 발송해 주세요.
                   </div>
                 )}
               </div>
 
+              <SendTimePicker value={couponSendTime} onChange={setCouponSendTime} />
               {/* CTA 버튼 */}
               <button
                 disabled={
                   !couponContent.trim() ||
                   !couponExpiryDate.trim() ||
                   getCurrentTargetCount() === 0 ||
-                  getCurrentTargetCount() > 3000 ||
-                  isCouponSending
+                  getCurrentTargetCount() > 50000 ||
+                  isCouponSending ||
+                  !!sendTimeError(couponSendTime, true)
                 }
                 onClick={async () => {
                   if (!couponContent.trim() || !couponExpiryDate.trim()) {
@@ -1619,8 +1739,8 @@ export default function MessagesPage() {
                     return;
                   }
                   // 1회 발송 최대 인원 안내 (서버 캡과 동일)
-                  if (getCurrentTargetCount() > 3000) {
-                    showToast('1회 발송 최대 3,000명입니다. 필터를 좁히거나 나눠 발송해 주세요.', 'error');
+                  if (getCurrentTargetCount() > 50000) {
+                    showToast('1회 발송 최대 50,000명입니다. 필터를 좁히거나 나눠 발송해 주세요.', 'error');
                     return;
                   }
 
@@ -1637,6 +1757,7 @@ export default function MessagesPage() {
                       targetType: selectedTarget,
                       genderFilter: genderFilter !== 'all' ? genderFilter : undefined,
                       ageGroups: selectedAgeGroups.length > 0 ? selectedAgeGroups : undefined,
+                      scheduledAt: sendTimeToIso(couponSendTime),
                     };
                     if (selectedTarget === 'CUSTOM') {
                       body.customerIds = selectedCustomers.map(c => c.id);
@@ -1644,6 +1765,13 @@ export default function MessagesPage() {
                         showToast('발송할 고객이 없습니다.', 'error');
                         return;
                       }
+                    }
+                    if (selectedTarget === 'SEGMENT') {
+                      if (!selectedSegment) {
+                        showToast('고객 그룹을 선택해주세요.', 'error');
+                        return;
+                      }
+                      body.segmentId = selectedSegment.id;
                     }
 
                     const sendRes = await fetch(`${API_BASE}/api/retarget-coupon/send`, {
@@ -1658,6 +1786,7 @@ export default function MessagesPage() {
                     const result = await sendRes.json();
                     if (sendRes.ok) {
                       showToast(result.message || '쿠폰 알림톡이 발송되었습니다.', 'success');
+                      bumpReservations();
                       setCouponContent('');
                       setCouponExpiryDate('');
                     } else {
@@ -1670,35 +1799,79 @@ export default function MessagesPage() {
                     setIsCouponSending(false);
                   }
                 }}
-                className="w-full py-4 bg-[#2a2d62] text-white rounded-xl text-lg font-bold hover:bg-[#1d1f45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="ad-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isCouponSending ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     발송 중...
                   </>
                 ) : (
                   <>
-                    <Send className="w-5 h-5" />
-                    쿠폰 알림톡 발송하기 ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
+                    <Send className="h-4 w-4" />
+                    {couponSendTime.mode === 'schedule' ? `${formatSendTime(couponSendTime)} 예약하기` : '쿠폰 알림톡 발송하기'} ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
                   </>
                 )}
               </button>
             </div>
-          </>
+                </>
+              ),
+            }}
+            type={premiumType}
+            onTypeChange={(t) => {
+              setPremiumType(t);
+              setKakaoMode('BMS');
+            }}
+            content={premiumContent}
+            onContentChange={(c) => setPremiumContents((prev) => ({ ...prev, [premiumType]: c }))}
+            target={{
+              targetType: selectedTarget,
+              customerIds: selectedTarget === 'CUSTOM' ? selectedCustomers.map((c) => c.id) : undefined,
+              segmentId: selectedTarget === 'SEGMENT' ? selectedSegment?.id : undefined,
+              genderFilter: selectedTarget !== 'SEGMENT' && genderFilter !== 'all' ? genderFilter : undefined,
+              ageGroups: selectedTarget !== 'SEGMENT' && selectedAgeGroups.length > 0 ? selectedAgeGroups : undefined,
+            }}
+            targetReady={
+              (selectedTarget !== 'CUSTOM' || selectedCustomers.length > 0) && (selectedTarget !== 'SEGMENT' || !!selectedSegment)
+            }
+            showToast={showToast}
+            onNeedCharge={(required, balance) => {
+              setChargeOverride({ required, balance });
+              setIsChargeModalOpen(true);
+            }}
+            onSent={() => {
+              setPremiumContents((prev) => ({ ...prev, [premiumType]: emptyContent(premiumType, storeNaverUrl) }));
+              bumpReservations();
+            }}
+            staffVerify={premiumVerify}
+            onStaffVerifyChange={setPremiumVerify}
+            defaultLink={storeNaverUrl}
+            onFooterName={setPremiumFooterName}
+          />
         )}
+
       </div>
 
-      {/* Right Panel - Preview (hidden on mobile) */}
-      <MessagePreview
-        activeTab={activeTab}
-        uploadedImage={uploadedImage}
-        messageContent={messageContent}
-        isAdMessage={isAdMessage}
-        couponStoreName={couponStoreName}
-        couponContent={couponContent}
-        couponExpiryDate={couponExpiryDate}
-      />
+      {/* Right Panel - Preview (데스크톱: 오른쪽 패널 / 모바일: 아래 “미리보기” 버튼 → 시트) */}
+      {(['aside', 'sheet'] as const).map((mode) => {
+        const inline = mode === 'sheet';
+        const preview =
+          activeTab === 'kakao' && kakaoMode === 'BMS' ? (
+            <PremiumKakaoPreview type={premiumType} content={premiumContent} verifyButton={premiumVerify.enabled} footerName={premiumFooterName || couponStoreName} inline={inline} />
+          ) : (
+            <MessagePreview
+              activeTab={activeTab}
+              uploadedImage={uploadedImage}
+              messageContent={messageContent + smsCouponPreview(smsVerify)}
+              isAdMessage={isAdMessage}
+              couponStoreName={couponStoreName}
+              couponContent={couponContent}
+              couponExpiryDate={couponExpiryDate}
+              inline={inline}
+            />
+          );
+        return inline ? <MobilePreviewSheet key={mode}>{preview}</MobilePreviewSheet> : <Fragment key={mode}>{preview}</Fragment>;
+      })}
 
       {/* Confirm Modal */}
       <SendConfirmModal
@@ -1772,12 +1945,16 @@ export default function MessagesPage() {
       {/* 충전 모달 */}
       <ChargeModal
         isOpen={isChargeModalOpen}
-        onClose={() => setIsChargeModalOpen(false)}
+        onClose={() => {
+          setIsChargeModalOpen(false);
+          setChargeOverride(null);
+        }}
         onSuccess={() => {
           setIsChargeModalOpen(false);
+          setChargeOverride(null);
         }}
-        currentBalance={activeTab === 'kakao' ? (kakaoEstimate?.walletBalance || 0) : (estimate?.walletBalance || 0)}
-        requiredAmount={activeTab === 'kakao' ? (kakaoEstimate?.totalCost || 0) : (estimate?.totalCost || 0)}
+        currentBalance={chargeOverride ? chargeOverride.balance : activeTab === 'kakao' ? (kakaoEstimate?.walletBalance || 0) : (estimate?.walletBalance || 0)}
+        requiredAmount={chargeOverride ? chargeOverride.required : activeTab === 'kakao' ? (kakaoEstimate?.totalCost || 0) : (estimate?.totalCost || 0)}
         successRedirectPath="/messages"
       />
     </div>

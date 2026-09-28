@@ -48,6 +48,10 @@ import stampsRoutes from './routes/stamps.js';
 import monthlyCreditRoutes from './routes/monthly-credit.js';
 import visitSourceSettingsRoutes from './routes/visit-source-settings.js';
 import insightsRoutes from './routes/insights.js';
+import segmentsRoutes from './routes/segments.js';
+import franchiseSegmentsRoutes from './routes/franchise-segments.js';
+import premiumKakaoRoutes, { franchisePremiumKakaoRoutes } from './routes/premium-kakao.js';
+import { ownerRouter as marketingPerformanceRoutes, franchiseRouter as franchiseMarketingPerformanceRoutes } from './routes/marketing-performance.js';
 import retargetCouponRoutes from './routes/retarget-coupon.js';
 import couponFormRoutes from './routes/coupon-form.js';
 import automationRoutes from './routes/automation.js';
@@ -122,6 +126,9 @@ app.use(cors({
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 86400, // Preflight 캐시 24시간
 }));
+// 고객 대량 등록은 청크(최대 2,000행)당 수백 KB — 기본 100KB 한도에 걸려 ~500행에서 413이 나던 문제.
+// 이 경로만 한도를 올리고, 먼저 파싱된 body 는 아래 전역 파서가 건너뛴다.
+app.use('/api/customers/bulk', express.json({ limit: '5mb' }));
 app.use(express.json());
 
 // Rate Limiting - 일반 API (15분에 5000요청)
@@ -173,6 +180,8 @@ app.use('/api/taghere/auto-earn', earnLimiter);
 
 // Static file serving for uploads (MMS images)
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+// 프리미엄 카카오톡 공용 샘플 이미지 (미리보기용)
+app.use('/premium-stock', express.static(path.join(process.cwd(), 'assets', 'premium-stock'), { maxAge: '7d' }));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -271,6 +280,9 @@ app.use('/api/visit-source-settings', visitSourceSettingsRoutes);
 
 // Insights routes
 app.use('/api/insights', insightsRoutes);
+app.use('/api/segments', segmentsRoutes);
+app.use('/api/premium-kakao', premiumKakaoRoutes);
+app.use('/api/marketing-performance', marketingPerformanceRoutes);
 
 // Retarget coupon routes
 app.use('/api/retarget-coupon', retargetCouponRoutes);
@@ -297,6 +309,9 @@ app.use('/api/v1', v1YahwaRoutes);
 
 // Franchise routes
 app.use('/api/franchise/auth', franchiseAuthRoutes);
+app.use('/api/franchise/segments', franchiseSegmentsRoutes);
+app.use('/api/franchise/premium-kakao', franchisePremiumKakaoRoutes);
+app.use('/api/franchise/marketing-performance', franchiseMarketingPerformanceRoutes);
 app.use('/api/franchise/sms', franchiseSmsRoutes);
 app.use('/api/franchise/retarget-coupon', franchiseRetargetCouponRoutes);
 app.use('/api/franchise/place-booster', franchisePlaceBoosterRoutes);
