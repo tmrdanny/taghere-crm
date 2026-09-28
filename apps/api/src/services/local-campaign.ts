@@ -4,6 +4,7 @@
 // Wallet vs FranchiseWallet, 캠페인/메시지 행의 storeId vs franchiseId 등)는
 // 현행 동작 그대로 유지한다 — 통일하지 말 것 (특성화 테스트로 고정됨).
 import { env } from '../config/env.js';
+import { normalizeAgeGroupFilter, externalAgeCondition, applyCustomerAge } from '../lib/customer-filters.js';
 import { SolapiMessageService } from 'solapi';
 import { prisma } from '../lib/prisma.js';
 import { SolapiService, BrandMessageButton, buildPhoneResultMap } from './solapi.js';
@@ -38,6 +39,18 @@ async function findWallet(scope: LocalCampaignScope) {
     : prisma.franchiseWallet.findUnique({ where: { franchiseId: scope.franchiseId } });
 }
 
+// 시/도는 줄임말(서울)과 전체 이름(서울특별시)이 섞여 저장돼 있다 — 둘 다 같은 지역으로 매칭한다.
+export function sidoMatch(sido: string) {
+  const short = SIDO_FULL_TO_SHORT[sido] || sido;
+  const full = SIDO_SHORT_TO_FULL[short];
+  return full ? { in: [short, full] } : sido;
+}
+
+// 집계·목록용 시/도 키 — 전체 이름을 줄임말로 맞춘다
+function sidoKey(regionSido: string) {
+  return SIDO_FULL_TO_SHORT[regionSido] || regionSido;
+}
+
 // 지역 필터 조건 빌드 헬퍼
 // ExternalCustomer용 (regionSido: String, non-nullable) — store 스코프: '미지정' → '' 매칭
 export function buildExternalRegionOrConditions(regionFilters: Array<{ sido: string; sigungu?: string }>) {
@@ -46,9 +59,9 @@ export function buildExternalRegionOrConditions(regionFilters: Array<{ sido: str
       return { regionSido: '' };
     }
     if (r.sigungu) {
-      return { regionSido: r.sido, regionSigungu: r.sigungu };
+      return { regionSido: sidoMatch(r.sido), regionSigungu: r.sigungu };
     }
-    return { regionSido: r.sido };
+    return { regionSido: sidoMatch(r.sido) };
   });
 }
 
@@ -59,9 +72,9 @@ export function buildCustomerRegionOrConditions(regionFilters: Array<{ sido: str
       return { OR: [{ regionSido: null }, { regionSido: '' }] } as any;
     }
     if (r.sigungu) {
-      return { regionSido: r.sido, regionSigungu: r.sigungu };
+      return { regionSido: sidoMatch(r.sido), regionSigungu: r.sigungu };
     }
-    return { regionSido: r.sido };
+    return { regionSido: sidoMatch(r.sido) };
   });
 }
 
@@ -69,9 +82,9 @@ export function buildCustomerRegionOrConditions(regionFilters: Array<{ sido: str
 function buildLiteralRegionOrConditions(regionFilters: Array<{ sido: string; sigungu?: string }>) {
   return regionFilters.map((r) => {
     if (r.sigungu) {
-      return { regionSido: r.sido, regionSigungu: r.sigungu };
+      return { regionSido: sidoMatch(r.sido), regionSigungu: r.sigungu };
     } else {
-      return { regionSido: r.sido };
+      return { regionSido: sidoMatch(r.sido) };
     }
   });
 }
@@ -117,12 +130,6 @@ const SIDO_FULL_TO_SHORT: Record<string, string> = Object.fromEntries(
   Object.entries(SIDO_SHORT_TO_FULL).map(([short, full]) => [full, short])
 );
 
-// store 스코프는 Customer 의 전체 이름(예: 서울특별시)을 줄임말(서울)로 변환해 합산한다.
-// franchise 스코프는 변환 없이 그대로 사용한다 (현행 동작 보존).
-function toCustomerSidoKey(scope: LocalCampaignScope, regionSido: string) {
-  return scope.kind === 'store' ? SIDO_FULL_TO_SHORT[regionSido] || regionSido : regionSido;
-}
-
 // GET /regions - 지역 목록 조회 (ExternalCustomer 기반)
 export async function getRegions(query: Record<string, any>): Promise<LocalCampaignResult> {
   const { sido } = query;
@@ -138,7 +145,7 @@ export async function getRegions(query: Record<string, any>): Promise<LocalCampa
     return {
       status: 200,
       body: {
-        sidos: sidos.map((r) => r.regionSido),
+        sidos: [...new Set(sidos.map((r) => sidoKey(r.regionSido)))].sort(),
         sigungus: [],
       },
     };
@@ -146,7 +153,7 @@ export async function getRegions(query: Record<string, any>): Promise<LocalCampa
 
   // 특정 시/도의 시/군/구 목록 조회
   const sigungus = await prisma.externalCustomer.findMany({
-    where: { regionSido: sido as string },
+    where: { regionSido: sidoMatch(sido as string) },
     select: { regionSigungu: true },
     distinct: ['regionSigungu'],
     orderBy: { regionSigungu: 'asc' },
@@ -221,17 +228,18 @@ export async function getRegionCounts(scope: LocalCampaignScope): Promise<LocalC
   // 시/도별 통합 카운트 계산
   const sidoCountMap: Record<string, number> = {};
 
-  // ExternalCustomer 카운트 (이미 줄임말 사용)
+  // ExternalCustomer 카운트 (전체 이름으로 저장된 행도 줄임말로 합산)
   externalSidoCounts.forEach((item) => {
     if (item.regionSido) {
-      sidoCountMap[item.regionSido] = (sidoCountMap[item.regionSido] || 0) + (item._count?._all || 0);
+      const key = sidoKey(item.regionSido);
+      sidoCountMap[key] = (sidoCountMap[key] || 0) + (item._count?._all || 0);
     }
   });
 
-  // Customer 카운트 (store: 전체 이름을 줄임말로 변환하여 합산 / franchise: 그대로)
+  // Customer 카운트 (전체 이름을 줄임말로 변환하여 합산)
   customerSidoCounts.forEach((item) => {
     if (item.regionSido) {
-      const key = toCustomerSidoKey(scope, item.regionSido);
+      const key = sidoKey(item.regionSido);
       sidoCountMap[key] = (sidoCountMap[key] || 0) + (item._count?._all || 0);
     }
   });
@@ -239,10 +247,10 @@ export async function getRegionCounts(scope: LocalCampaignScope): Promise<LocalC
   // 시/군/구별 카운트 (Customer + ExternalCustomer 통합)
   const sigunguCountMap: Record<string, Record<string, number>> = {};
 
-  // Customer 시/군/구 카운트 (store: 전체 이름을 줄임말로 변환 / franchise: 그대로)
+  // Customer 시/군/구 카운트 (전체 이름을 줄임말로 변환)
   customerSigunguCounts.forEach((item) => {
     if (item.regionSido && item.regionSigungu) {
-      const key = toCustomerSidoKey(scope, item.regionSido);
+      const key = sidoKey(item.regionSido);
       if (!sigunguCountMap[key]) {
         sigunguCountMap[key] = {};
       }
@@ -250,13 +258,14 @@ export async function getRegionCounts(scope: LocalCampaignScope): Promise<LocalC
     }
   });
 
-  // ExternalCustomer 시/군/구 카운트 합산 (이미 줄임말 사용)
+  // ExternalCustomer 시/군/구 카운트 합산 (전체 이름을 줄임말로 변환)
   externalSigunguCounts.forEach((item) => {
     if (item.regionSido && item.regionSigungu) {
-      if (!sigunguCountMap[item.regionSido]) {
-        sigunguCountMap[item.regionSido] = {};
+      const key = sidoKey(item.regionSido);
+      if (!sigunguCountMap[key]) {
+        sigunguCountMap[key] = {};
       }
-      sigunguCountMap[item.regionSido][item.regionSigungu] = (sigunguCountMap[item.regionSido][item.regionSigungu] || 0) + (item._count?._all || 0);
+      sigunguCountMap[key][item.regionSigungu] = (sigunguCountMap[key][item.regionSigungu] || 0) + (item._count?._all || 0);
     }
   });
 
@@ -339,10 +348,7 @@ export async function getFilteredCount(
     };
 
     // 연령대 필터
-    if (ageGroups) {
-      const ageGroupList = (ageGroups as string).split(',');
-      externalWhere.ageGroup = { in: ageGroupList };
-    }
+    Object.assign(externalWhere, externalAgeCondition(normalizeAgeGroupFilter(ageGroups)));
 
     // 성별 필터
     if (gender && gender !== 'all') {
@@ -360,10 +366,7 @@ export async function getFilteredCount(
     };
 
     // 연령대 필터
-    if (ageGroups) {
-      const ageGroupList = (ageGroups as string).split(',');
-      externalWhere.ageGroup = { in: ageGroupList };
-    }
+    Object.assign(externalWhere, externalAgeCondition(normalizeAgeGroupFilter(ageGroups)));
 
     // 성별 필터
     if (gender && gender !== 'all') {
@@ -397,10 +400,7 @@ export async function getFilteredCount(
   };
 
   // 연령대 필터
-  if (ageGroups) {
-    const ageGroupList = (ageGroups as string).split(',');
-    customerWhere.ageGroup = { in: ageGroupList };
-  }
+  applyCustomerAge(customerWhere, normalizeAgeGroupFilter(ageGroups));
 
   // 성별 필터
   if (gender && gender !== 'all') {
@@ -524,9 +524,7 @@ export async function sendCampaignSms(
       consentMarketing: true,
     };
 
-    if (ageGroups && ageGroups.length > 0) {
-      externalWhere.ageGroup = { in: ageGroups };
-    }
+    Object.assign(externalWhere, externalAgeCondition(normalizeAgeGroupFilter(ageGroups)));
 
     if (gender && gender !== 'all') {
       externalWhere.gender = gender;
@@ -549,9 +547,7 @@ export async function sendCampaignSms(
       consentMarketing: true,
     };
 
-    if (ageGroups && ageGroups.length > 0) {
-      externalWhere.ageGroup = { in: ageGroups };
-    }
+    Object.assign(externalWhere, externalAgeCondition(normalizeAgeGroupFilter(ageGroups)));
 
     if (gender && gender !== 'all') {
       externalWhere.gender = gender;
@@ -589,9 +585,7 @@ export async function sendCampaignSms(
     phone: { not: null }, // 전화번호 있는 고객만
   };
 
-  if (ageGroups && ageGroups.length > 0) {
-    customerWhere.ageGroup = { in: ageGroups };
-  }
+  applyCustomerAge(customerWhere, normalizeAgeGroupFilter(ageGroups));
 
   if (gender && gender !== 'all') {
     customerWhere.gender = gender;
@@ -936,9 +930,7 @@ export async function sendKakaoBrandMessage(
     consentMarketing: true,
   };
 
-  if (ageGroups && ageGroups.length > 0) {
-    where.ageGroup = { in: ageGroups };
-  }
+  Object.assign(where, externalAgeCondition(normalizeAgeGroupFilter(ageGroups)));
 
   if (gender && gender !== 'all') {
     where.gender = gender;

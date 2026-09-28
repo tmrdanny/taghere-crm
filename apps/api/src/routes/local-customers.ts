@@ -1,4 +1,5 @@
 import { env } from '../config/env.js';
+import { normalizeAgeGroupFilter, externalAgeCondition, applyCustomerAge } from '../lib/customer-filters.js';
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
@@ -191,9 +192,7 @@ router.post('/coupon-alimtalk/send', authMiddleware, async (req: AuthRequest, re
       consentMarketing: true,
     };
 
-    if (ageGroups && ageGroups.length > 0) {
-      externalWhere.ageGroup = { in: ageGroups };
-    }
+    Object.assign(externalWhere, externalAgeCondition(normalizeAgeGroupFilter(ageGroups)));
     if (gender && gender !== 'all') {
       externalWhere.gender = gender;
     }
@@ -211,9 +210,7 @@ router.post('/coupon-alimtalk/send', authMiddleware, async (req: AuthRequest, re
       consentMarketing: true,
       phone: { not: null },
     };
-    if (ageGroups && ageGroups.length > 0) {
-      customerWhere.ageGroup = { in: ageGroups };
-    }
+    applyCustomerAge(customerWhere, normalizeAgeGroupFilter(ageGroups));
     if (gender && gender !== 'all') {
       customerWhere.gender = gender;
     }

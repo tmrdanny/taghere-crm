@@ -1,4 +1,5 @@
 import { env } from '../config/env.js';
+import { normalizeAgeGroupFilter, externalAgeCondition, applyCustomerAge } from '../lib/customer-filters.js';
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
@@ -16,6 +17,7 @@ import {
   sendKakaoBrandMessage,
   getCampaigns,
   dedupeTargetsByPhone,
+  sidoMatch,
 } from '../services/local-campaign.js';
 import { isSendableTime, getNextSendableTime } from '../utils/send-window.js';
 import { sendAcquisitionCouponAlimtalk, ACQUISITION_COUPON_COST } from '../services/acquisition-coupon.js';
@@ -214,10 +216,10 @@ router.post('/kakao/coupon-send', franchiseAuthMiddleware, async (req: Franchise
 
     // 대상 외부 고객 조회 (브랜드 메시지 발송과 동일 필터)
     const regionOrConditions = regionFilters.map((r) =>
-      r.sigungu ? { regionSido: r.sido, regionSigungu: r.sigungu } : { regionSido: r.sido }
+      r.sigungu ? { regionSido: sidoMatch(r.sido), regionSigungu: r.sigungu } : { regionSido: sidoMatch(r.sido) }
     );
     const where: any = { OR: regionOrConditions, consentMarketing: true };
-    if (ageGroups && ageGroups.length > 0) where.ageGroup = { in: ageGroups };
+    Object.assign(where, externalAgeCondition(normalizeAgeGroupFilter(ageGroups)));
     if (gender && gender !== 'all') where.gender = gender;
     if (categories && categories.length > 0) {
       where.OR = categories.map((cat: string) => ({ preferredCategories: { contains: cat } }));
@@ -229,7 +231,7 @@ router.post('/kakao/coupon-send', franchiseAuthMiddleware, async (req: Franchise
       consentMarketing: true,
       phone: { not: null },
     };
-    if (ageGroups && ageGroups.length > 0) customerWhere.ageGroup = { in: ageGroups };
+    applyCustomerAge(customerWhere, normalizeAgeGroupFilter(ageGroups));
     if (gender && gender !== 'all') customerWhere.gender = gender;
 
     // 전화번호 고유 기준으로 대상 확정 (Customer 는 매장별 행이라 같은 번호가 여러 개 — /count 와 동일 규칙)
