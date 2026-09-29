@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowUpRight, Check, Copy, Sparkles } from 'lucide-react';
 import { API_BASE } from '@/lib/api-config';
 import { cn } from '@/lib/utils';
+import { BoosterPerformanceSection } from './BoosterPerformanceSection';
 
 // 마케팅 성과 — 사장님 CRM / 프랜차이즈 CRM 공용 화면
 interface Campaign {
@@ -90,7 +91,21 @@ function Bar({ value, max }: { value: number | null; max: number }) {
   );
 }
 
-export function MarketingPerformanceView({ apiUrl, tokenKey = 'token', sendHref }: { apiUrl: string; tokenKey?: string; sendHref: string }) {
+export function MarketingPerformanceView({
+  apiUrl,
+  tokenKey = 'token',
+  sendHref,
+  boosterHref,
+  franchise = false,
+}: {
+  apiUrl: string;
+  tokenKey?: string;
+  sendHref: string;
+  /** 플레이스 부스터 관리 화면 */
+  boosterHref: string;
+  /** 프랜차이즈: 부스터 캠페인에 매장명 표시 */
+  franchise?: boolean;
+}) {
   const [days, setDays] = useState(90);
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState('');
@@ -325,6 +340,8 @@ export function MarketingPerformanceView({ apiUrl, tokenKey = 'token', sendHref 
               </table>
             </div>
           </section>
+
+          <BoosterPerformanceSection apiUrl={apiUrl} tokenKey={tokenKey} manageHref={boosterHref} showStore={franchise} />
 
           <p className="text-[12px] leading-[1.6] text-[color:var(--ad-faint)]">
             재방문은 메시지를 받은 손님이 발송 후 {data.windowDays}일 안에 방문(주문)한 경우예요. 쿠폰 사용은 매장 직원이 직원 확인 화면에서 “사용 완료”를 누른 건수예요.
