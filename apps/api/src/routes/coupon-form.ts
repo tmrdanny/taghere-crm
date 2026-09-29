@@ -177,7 +177,7 @@ router.post('/public/:slug/submit', async (req, res) => {
       where: { formId_phone: { formId: form.id, phone } },
     });
     if (existing) {
-      return res.status(400).json({ error: 'already_submitted', message: '이미 참여하셨어요. 쿠폰은 카카오톡을 확인해주세요.' });
+      return res.status(400).json({ error: 'already_submitted', message: '이미 참여하셨어요. 쿠폰은 문자 메시지를 확인해주세요.' });
     }
 
     // 알림톡 템플릿 설정 확인
@@ -241,11 +241,11 @@ router.post('/public/:slug/submit', async (req, res) => {
       });
     });
 
-    res.json({ success: true, message: '쿠폰이 카카오톡으로 발송돼요!' });
+    res.json({ success: true, message: '쿠폰이 문자로 발송돼요!' });
   } catch (error: any) {
     // 동시 제출 경합으로 unique 충돌 시 중복 안내
     if (error?.code === 'P2002') {
-      return res.status(400).json({ error: 'already_submitted', message: '이미 참여하셨어요. 쿠폰은 카카오톡을 확인해주세요.' });
+      return res.status(400).json({ error: 'already_submitted', message: '이미 참여하셨어요. 쿠폰은 문자 메시지를 확인해주세요.' });
     }
     console.error('[CouponForm] submit error:', error);
     res.status(500).json({ error: '제출 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' });

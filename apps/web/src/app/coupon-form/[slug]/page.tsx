@@ -133,12 +133,12 @@ function CouponFormContent() {
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <div className="text-5xl mb-4">{isDone ? '🎉' : '💌'}</div>
           <h1 className="text-[18px] font-bold text-neutral-900 mb-2">
-            {isDone ? '쿠폰이 카카오톡으로 발송돼요!' : '이미 참여하셨어요'}
+            {isDone ? '쿠폰이 문자로 발송돼요!' : '이미 참여하셨어요'}
           </h1>
           <p className="text-neutral-500 text-sm leading-relaxed">
             {isDone
-              ? '잠시 후 카카오톡에서 쿠폰을 확인해주세요.'
-              : '쿠폰은 카카오톡 메시지를 확인해주세요.'}
+              ? '잠시 후 문자 메시지에서 쿠폰을 확인해주세요.'
+              : '쿠폰은 문자 메시지를 확인해주세요.'}
           </p>
           <div className="mt-6 w-full max-w-xs bg-neutral-50 border border-neutral-200 rounded-xl p-4 text-left">
             <p className="text-[12px] text-neutral-400 mb-1">{form.storeName}</p>
@@ -192,7 +192,7 @@ function CouponFormContent() {
               placeholder="010-0000-0000"
               className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-lg text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
             />
-            <p className="text-[12px] text-neutral-400 mt-1.5">쿠폰이 카카오톡으로 발송돼요</p>
+            <p className="text-[12px] text-neutral-400 mt-1.5">쿠폰이 문자로 발송돼요</p>
           </div>
 
           {/* 커스텀 필드 */}

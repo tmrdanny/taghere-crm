@@ -4,9 +4,11 @@
 // 알림톡 템플릿은 채널마다 따로 승인받아야 해서, 같은 내용으로 "태그히어" 채널에 새로 승인받은 템플릿으로 바꿔 보낸다.
 // 발송 채널(pfId)이 "태그히어"일 때만 바뀌므로, 플레이스 채널로 되돌리면 원래 템플릿을 그대로 쓴다.
 //
-// 리타겟 쿠폰·자동 마케팅(KA01TP260106051853547CuShejvkmsu)은 일부러 넣지 않았다 — 기존 템플릿 그대로 둔다.
+// 리타겟 쿠폰·자동 마케팅(KA01TP260106051853547CuShejvkmsu)은 치환하지 않고 광고 문자로 보낸다 (아래).
 // 기업 광고 세븐일레븐 v3 · 처갓집 v7 은 심사 중이라 승인되면 추가한다
 // (세븐일레븐 v3 는 변수명 공백 제거: #{쿠폰 내용} → #{쿠폰내용} 등, 광고별 변수 설정도 함께 바꿔야 한다).
+import { env } from '../config/env.js';
+
 export const TAGHERE_PF_ID = 'KA01PF240519021055559bK17Af2bhY4';
 
 const TAGHERE_CHANNEL_TEMPLATES: Record<string, string> = {
@@ -29,4 +31,38 @@ const TAGHERE_CHANNEL_TEMPLATES: Record<string, string> = {
 export function templateForChannel(pfId: string, templateId: string): string {
   if (pfId !== TAGHERE_PF_ID) return templateId;
   return TAGHERE_CHANNEL_TEMPLATES[templateId] ?? templateId;
+}
+
+// ---------- 리타겟 쿠폰·자동 마케팅 → 광고 문자(LMS) ----------
+//
+// 주류를 보상으로 주는 매장의 리타겟 쿠폰 때문에 "태그히어플레이스" 채널이 정지됐다.
+// 이를 막을 정책이 나올 때까지 리타겟 쿠폰 템플릿으로 보내는 메시지는 알림톡 대신 광고 문자(LMS)로 보낸다.
+// (사장님·프랜차이즈 리타겟 쿠폰, 신규 고객 쿠폰, 쿠폰 폼, 자동 마케팅 모두 이 템플릿을 쓴다)
+// 광고 문자이므로 (광고) 표기·무료수신거부를 붙이고, 발송은 KST 08:00~20:50 에만 한다 (야간분은 워커가 오전 8시로 미룬다).
+const RETARGET_COUPON_TEMPLATES = new Set(['KA01TP260106051853547CuShejvkmsu']);
+const AD_OPT_OUT = '무료수신거부 080-500-4233';
+
+/** 알림톡 대신 문자로 보내는 템플릿인지 */
+export function isSmsOnlyTemplate(templateId: string): boolean {
+  return RETARGET_COUPON_TEMPLATES.has(templateId) || (!!env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON && templateId === env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON);
+}
+
+const withHttps = (v: string) => (/^https?:\/\//.test(v) ? v : `https://${v}`);
+
+/** 리타겟 쿠폰 알림톡 변수 → 광고 문자 본문 */
+export function renderRetargetCouponSms(variables: Record<string, string>): string {
+  const v = (k: string) => (variables[`#{${k}}`] ?? '').trim();
+  const lines = [
+    '(광고)',
+    `[${v('상호') || '태그히어'}] 쿠폰이 도착했어요!`,
+    '',
+    '태그히어 이용 고객에게만 드리는 쿠폰이에요.',
+    '',
+    `▶ 쿠폰: ${v('쿠폰내용')}`,
+    `▶ 유효기간: ${v('유효기간')}`,
+  ];
+  if (v('직원확인')) lines.push('', '결제할 때 아래 링크를 직원에게 보여주세요.', withHttps(v('직원확인')));
+  if (v('네이버플레이스')) lines.push('', '매장 길찾기', withHttps(v('네이버플레이스')));
+  lines.push('', AD_OPT_OUT);
+  return lines.join('\n');
 }
