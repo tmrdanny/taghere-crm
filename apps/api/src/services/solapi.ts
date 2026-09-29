@@ -1,6 +1,7 @@
 import { SolapiMessageService } from 'solapi';
 import * as crypto from 'crypto';
 import { normalizePhoneNumber } from '../utils/phone.js';
+import { templateForChannel } from './kakao-channel-templates.js';
 
 // 알림톡 템플릿/enqueue 함수는 alimtalk-templates.ts 로 이동됨.
 // 기존 import 경로('./solapi.js') 호환을 위해 그대로 재-export 한다.
@@ -76,7 +77,7 @@ export class SolapiService {
         type: 'ATA', // 알림톡 타입 명시
         kakaoOptions: {
           pfId: params.pfId,
-          templateId: params.templateId,
+          templateId: templateForChannel(params.pfId, params.templateId),
           variables: params.variables,
         },
       };
@@ -509,7 +510,7 @@ export class SolapiService {
         type: 'ATA',
         kakaoOptions: {
           pfId,
-          templateId: msg.templateId,
+          templateId: templateForChannel(pfId, msg.templateId),
           variables: msg.variables,
         },
       }));
