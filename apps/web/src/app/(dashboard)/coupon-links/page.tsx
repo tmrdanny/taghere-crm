@@ -309,7 +309,7 @@ export default function CouponLinksPage() {
       <div className="mb-4 flex items-start gap-2 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-4 py-3 text-[13px] text-[color:var(--ad-muted)]">
         <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
         <p>
-        설문이 제출될 때마다 쿠폰 알림톡이 자동 발송되며 <span className="font-medium text-[color:var(--ad-ink-2)]">건당 50원</span>이 차감돼요. (월 무료 발송 건수가 남아있으면 무료로 발송)
+        설문이 제출될 때마다 쿠폰 문자가 자동 발송되며 <span className="font-medium text-[color:var(--ad-ink-2)]">건당 50원</span>이 차감돼요. (월 무료 발송 건수가 남아있으면 무료로 발송)
         </p>
       </div>
 
@@ -489,7 +489,7 @@ export default function CouponLinksPage() {
                 placeholder="예: https://naver.me/xxxxx 또는 네이버 플레이스 공유 링크"
               />
               <p className="text-[12px] text-[color:var(--ad-faint)]">
-                쿠폰 알림톡의 길찾기 버튼에 사용돼요. 매장 정보에 함께 저장됩니다.
+                쿠폰 문자의 길찾기 링크에 사용돼요. 매장 정보에 함께 저장됩니다.
               </p>
             </div>
 

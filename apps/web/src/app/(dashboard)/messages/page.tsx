@@ -1578,7 +1578,7 @@ export default function MessagesPage() {
           <PremiumKakaoComposer
             leadingType={{
               name: '템플릿 기본형',
-              tip: '쿠폰 알림톡',
+              tip: '쿠폰 문자로 발송',
               priceLabel: '건당 50원',
               selected: kakaoMode === 'ALIMTALK',
               onSelect: () => setKakaoMode('ALIMTALK'),
@@ -1785,7 +1785,7 @@ export default function MessagesPage() {
 
                     const result = await sendRes.json();
                     if (sendRes.ok) {
-                      showToast(result.message || '쿠폰 알림톡이 발송되었습니다.', 'success');
+                      showToast(result.message || '쿠폰 문자가 발송되었습니다.', 'success');
                       bumpReservations();
                       setCouponContent('');
                       setCouponExpiryDate('');
@@ -1809,7 +1809,7 @@ export default function MessagesPage() {
                 ) : (
                   <>
                     <Send className="h-4 w-4" />
-                    {couponSendTime.mode === 'schedule' ? `${formatSendTime(couponSendTime)} 예약하기` : '쿠폰 알림톡 발송하기'} ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
+                    {couponSendTime.mode === 'schedule' ? `${formatSendTime(couponSendTime)} 예약하기` : '쿠폰 문자 발송하기'} ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
                   </>
                 )}
               </button>

@@ -66,7 +66,7 @@ import {
   KakaoConfirmModal,
   KakaoTestModal,
 } from '@/features/messages';
-import { CouponAlimtalkPreview } from '@/features/kakao-composer';
+import { CouponSmsPreview } from '@/features/kakao-composer';
 import { IPhoneFrame } from '@/components/ui/iphone-frame';
 
 
@@ -1173,7 +1173,7 @@ export default function MessagesPage() {
       const data = await res.json();
 
       if (res.ok) {
-        showToast(data.message || '쿠폰 알림톡이 발송되었습니다.', 'success');
+        showToast(data.message || '쿠폰 문자가 발송되었습니다.', 'success');
         bumpReservations();
         setCouponContent('');
         setCouponExpiryDate('');
@@ -1586,7 +1586,7 @@ export default function MessagesPage() {
           <PremiumKakaoComposer
             leadingType={{
               name: '템플릿 기본형',
-              tip: '쿠폰 알림톡',
+              tip: '쿠폰 문자로 발송',
               priceLabel: '건당 50원',
               selected: kakaoMode === 'ALIMTALK',
               onSelect: () => setKakaoMode('ALIMTALK'),
@@ -1711,7 +1711,7 @@ export default function MessagesPage() {
                 ) : (
                   <>
                     <Send className="h-4 w-4" />
-                    {couponSendTime.mode === 'schedule' ? `${formatSendTime(couponSendTime)} 예약하기` : '쿠폰 알림톡 발송하기'} ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
+                    {couponSendTime.mode === 'schedule' ? `${formatSendTime(couponSendTime)} 예약하기` : '쿠폰 문자 발송하기'} ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
                   </>
                 )}
               </button>
@@ -2125,7 +2125,7 @@ export default function MessagesPage() {
 
                       {/* Kakao Preview - 쿠폰 알림톡 (messages 페이지와 동일) */}
                       {activeTab === 'kakao' && (
-                        <CouponAlimtalkPreview
+                        <CouponSmsPreview
                           couponStoreName={couponStoreName}
                           couponContent={couponContent}
                           couponExpiryDate={couponExpiryDate}

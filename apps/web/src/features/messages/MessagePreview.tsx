@@ -1,7 +1,7 @@
 import { ChevronLeft, Users, Camera, ArrowUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { API_BASE } from '@/lib/api-config';
-import { CouponAlimtalkPreview } from '@/features/kakao-composer';
+import { CouponSmsPreview } from '@/features/kakao-composer';
 import { UploadedImage } from './types';
 import { IPhoneFrame } from '@/components/ui/iphone-frame';
 
@@ -99,7 +99,7 @@ export function MessagePreview({
 
                 {/* Kakao Preview - 쿠폰 알림톡 */}
                 {activeTab === 'kakao' && (
-                  <CouponAlimtalkPreview
+                  <CouponSmsPreview
                     couponStoreName={couponStoreName}
                     couponContent={couponContent}
                     couponExpiryDate={couponExpiryDate}
