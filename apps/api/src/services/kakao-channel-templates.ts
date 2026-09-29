@@ -49,18 +49,36 @@ export function isSmsOnlyTemplate(templateId: string): boolean {
 
 const withHttps = (v: string) => (/^https?:\/\//.test(v) ? v : `https://${v}`);
 
-/** 리타겟 쿠폰 알림톡 변수 → 광고 문자 본문 */
+/** 매장이 직접 쓴 문자 본문을 담는 변수 — 없으면 기본 문구 */
+export const SMS_BODY_VAR = '#{문자본문}';
+export const SMS_BODY_MAX = 1000;
+
+/** 직접 쓴 본문 정리 — 빈 값이면 null(기본 문구), 너무 길면 자른다 */
+export function normalizeSmsBody(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const t = raw.replace(/\r\n/g, '\n').trim();
+  return t ? t.slice(0, SMS_BODY_MAX) : null;
+}
+
+/**
+ * 리타겟 쿠폰 알림톡 변수 → 광고 문자 본문.
+ * 본문: 매장이 쓴 문구({매장명} {쿠폰내용} {유효기간} 치환) 또는 기본 문구.
+ * (광고) 표기 · 직원 확인 링크 · 길찾기 링크 · 무료수신거부는 항상 자동으로 붙는다.
+ */
 export function renderRetargetCouponSms(variables: Record<string, string>): string {
   const v = (k: string) => (variables[`#{${k}}`] ?? '').trim();
-  const lines = [
-    '(광고)',
-    `[${v('상호') || '태그히어'}] 쿠폰이 도착했어요!`,
-    '',
-    '태그히어 이용 고객에게만 드리는 쿠폰이에요.',
-    '',
-    `▶ 쿠폰: ${v('쿠폰내용')}`,
-    `▶ 유효기간: ${v('유효기간')}`,
-  ];
+  const custom = v('문자본문');
+  const body = custom
+    ? custom.replace(/\{매장명\}/g, v('상호') || '매장').replace(/\{쿠폰내용\}/g, v('쿠폰내용')).replace(/\{유효기간\}/g, v('유효기간'))
+    : [
+        `[${v('상호') || '태그히어'}] 쿠폰이 도착했어요!`,
+        '',
+        '태그히어 이용 고객에게만 드리는 쿠폰이에요.',
+        '',
+        `▶ 쿠폰: ${v('쿠폰내용')}`,
+        `▶ 유효기간: ${v('유효기간')}`,
+      ].join('\n');
+  const lines = ['(광고)', body];
   if (v('직원확인')) lines.push('', '결제할 때 아래 링크를 직원에게 보여주세요.', withHttps(v('직원확인')));
   if (v('네이버플레이스')) lines.push('', '매장 길찾기', withHttps(v('네이버플레이스')));
   lines.push('', AD_OPT_OUT);

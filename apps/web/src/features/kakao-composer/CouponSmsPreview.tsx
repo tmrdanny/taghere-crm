@@ -10,14 +10,17 @@ export function CouponSmsPreview({
   couponContent,
   couponExpiryDate,
   showNaverLink = true,
+  customBody,
 }: {
   couponStoreName: string;
   couponContent: string;
   couponExpiryDate: string;
   /** 매장 네이버 플레이스 링크가 있을 때만 길찾기 줄이 붙는다 */
   showNaverLink?: boolean;
+  /** 매장이 직접 쓴 문자 본문 (없으면 기본 문구) */
+  customBody?: string | null;
 }) {
-  const text = buildCouponSmsText({ storeName: couponStoreName, couponContent, expiryDate: couponExpiryDate, withNaverLink: showNaverLink });
+  const text = buildCouponSmsText({ storeName: couponStoreName, couponContent, expiryDate: couponExpiryDate, withNaverLink: showNaverLink, customBody });
   return (
     <div className="absolute inset-0 flex flex-col bg-white" style={{ paddingTop: '13cqw' }}>
       {/* iOS 메시지 헤더 */}

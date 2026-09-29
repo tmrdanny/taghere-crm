@@ -66,7 +66,7 @@ import {
   KakaoConfirmModal,
   KakaoTestModal,
 } from '@/features/messages';
-import { CouponSmsPreview } from '@/features/kakao-composer';
+import { CouponSmsBodyField, CouponSmsPreview } from '@/features/kakao-composer';
 import { IPhoneFrame } from '@/components/ui/iphone-frame';
 
 
@@ -226,6 +226,8 @@ export default function MessagesPage() {
   // 카카오톡 쿠폰 알림톡 상태 (messages 페이지와 동일한 템플릿)
   const [couponContent, setCouponContent] = useState('');
   const [couponExpiryDate, setCouponExpiryDate] = useState('');
+  // 쿠폰 문자 본문 — null 이면 기본 문구 (리타겟 쿠폰은 광고 문자로 나간다)
+  const [couponSmsBody, setCouponSmsBody] = useState<string | null>(null);
   const [couponStoreName, setCouponStoreName] = useState('');
   const [couponEstimate, setCouponEstimate] = useState<{ totalCost: number; walletBalance: number; canSend: boolean } | null>(null);
   const [isCouponSending, setIsCouponSending] = useState(false);
@@ -1145,6 +1147,7 @@ export default function MessagesPage() {
       const body: any = {
         couponContent: couponContent.trim(),
         expiryDate: couponExpiryDate.trim(),
+        smsBody: couponSmsBody,
         scheduledAt: sendTimeToIso(couponSendTime),
         targetType: selectedTarget,
         genderFilter: genderFilter !== 'all' ? genderFilter : undefined,
@@ -1625,8 +1628,11 @@ export default function MessagesPage() {
                 />
               </div>
 
+              {/* 문자 내용 — 기본 문구 / 직접 쓰기 ({매장명}은 고객마다 소속 매장명) */}
+              <CouponSmsBodyField value={couponSmsBody} onChange={setCouponSmsBody} />
+
               <p className="text-[12px] text-[color:var(--ad-faint)]">
-                * 네이버 길찾기 버튼은 각 매장에 등록된 네이버 플레이스 URL로 자동 연결됩니다.
+                * 길찾기 링크는 각 매장에 등록된 네이버 플레이스 URL로 자동 연결됩니다.
               </p>
             </div>
 
@@ -2129,6 +2135,7 @@ export default function MessagesPage() {
                           couponStoreName={couponStoreName}
                           couponContent={couponContent}
                           couponExpiryDate={couponExpiryDate}
+                          customBody={couponSmsBody}
                         />
                       )}
 

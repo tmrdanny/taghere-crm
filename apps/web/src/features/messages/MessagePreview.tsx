@@ -15,6 +15,7 @@ export function MessagePreview({
   couponStoreName,
   couponContent,
   couponExpiryDate,
+  couponSmsBody = null,
   inline = false,
 }: {
   activeTab: 'sms' | 'kakao';
@@ -24,6 +25,8 @@ export function MessagePreview({
   couponStoreName: string;
   couponContent: string;
   couponExpiryDate: string;
+  /** 쿠폰 문자 본문 (null 이면 기본 문구) */
+  couponSmsBody?: string | null;
   /** 모바일 시트 안에서 쓸 때 — 데스크톱 전용 숨김 없이 그린다 */
   inline?: boolean;
 }) {
@@ -103,6 +106,7 @@ export function MessagePreview({
                     couponStoreName={couponStoreName}
                     couponContent={couponContent}
                     couponExpiryDate={couponExpiryDate}
+                    customBody={couponSmsBody}
                   />
                 )}
           </IPhoneFrame>

@@ -1,6 +1,6 @@
 'use client';
 
-import { CouponSmsPreview } from '@/features/kakao-composer';
+import { CouponSmsBodyField, CouponSmsPreview } from '@/features/kakao-composer';
 import { IPhoneFrame } from '@/components/ui/iphone-frame';
 import { API_BASE } from '@/lib/api-config';
 import { useEffect, useRef, useState } from 'react';
@@ -103,6 +103,8 @@ export default function AutomationSettingPage() {
   const [couponEnabled, setCouponEnabled] = useState(true);
   const [couponContent, setCouponContent] = useState('');
   const [couponValidDays, setCouponValidDays] = useState(14);
+  // 쿠폰 문자 본문 — null 이면 기본 문구 (자동 마케팅은 광고 문자로 나간다)
+  const [smsBody, setSmsBody] = useState<string | null>(null);
   const [storeName, setStoreName] = useState('');
   const [naverPlaceUrl, setNaverPlaceUrl] = useState('');
 
@@ -137,6 +139,7 @@ export default function AutomationSettingPage() {
           setCouponEnabled(r.couponEnabled);
           setCouponContent(r.couponContent || '');
           setCouponValidDays(r.couponValidDays);
+          setSmsBody(r.messageTemplate ?? null);
           setSendTimeHour(r.sendTimeHour);
           if (type === 'BIRTHDAY' && r.triggerConfig?.daysBefore) {
             setDaysBefore(r.triggerConfig.daysBefore);
@@ -253,6 +256,7 @@ export default function AutomationSettingPage() {
           couponEnabled,
           couponContent: couponContent.trim() || null,
           couponValidDays,
+          messageTemplate: smsBody?.trim() ? smsBody : null,
           sendTimeHour,
         }),
       });
@@ -299,7 +303,7 @@ export default function AutomationSettingPage() {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, couponEnabled, couponContent, couponValidDays, sendTimeHour,
+  }, [enabled, couponEnabled, couponContent, couponValidDays, smsBody, sendTimeHour,
       daysBefore, daysInactive, daysAfterFirstVisit, milestones, winbackDaysInactive, slowDays, isLoading]);
 
   // 페이지를 떠날 때 대기 중인 변경사항 즉시 저장
@@ -598,6 +602,9 @@ export default function AutomationSettingPage() {
                 </div>
               </div>
 
+              {/* 문자 내용 — 기본 문구 / 직접 쓰기 */}
+              <CouponSmsBodyField value={smsBody} onChange={setSmsBody} />
+
               {/* 네이버 플레이스 링크 */}
               <div>
                 <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
@@ -673,6 +680,7 @@ export default function AutomationSettingPage() {
                       return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}까지`;
                     })()}
                     showNaverLink={!!naverPlaceUrl}
+                    customBody={smsBody}
                   />
                 </IPhoneFrame>
               </div>

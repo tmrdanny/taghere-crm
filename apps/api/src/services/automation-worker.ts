@@ -8,6 +8,7 @@
  * 실제 발송은 AlimTalkOutbox 큐에 위임 (기존 alimtalk-worker가 처리)
  */
 
+import { SMS_BODY_VAR, normalizeSmsBody } from './kakao-channel-templates.js';
 import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { customAlphabet } from 'nanoid';
@@ -563,6 +564,8 @@ export async function sendAutomationMessages(
             '#{유효기간}': expiryStr,
             '#{네이버플레이스}': (store.naverPlaceUrl || '').replace(/^https?:\/\//, ''),
             '#{직원확인}': verifyUrl,
+            // 매장이 직접 쓴 문자 본문 (없으면 기본 문구) — 리타겟 쿠폰은 광고 문자로 나간다
+            ...(normalizeSmsBody(rule.messageTemplate) ? { [SMS_BODY_VAR]: normalizeSmsBody(rule.messageTemplate)! } : {}),
           },
           idempotencyKey,
           status: 'PENDING',

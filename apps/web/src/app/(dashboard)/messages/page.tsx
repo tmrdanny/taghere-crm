@@ -1,5 +1,6 @@
 'use client';
 
+import { CouponSmsBodyField } from '@/features/kakao-composer';
 import { API_BASE } from '@/lib/api-config';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { Fragment, useState, useEffect, useCallback } from 'react';
@@ -97,6 +98,8 @@ export default function MessagesPage() {
   // 리타겟 쿠폰 상태
   const [couponContent, setCouponContent] = useState('');
   const [couponExpiryDate, setCouponExpiryDate] = useState('');
+  // 쿠폰 문자 본문 — null 이면 기본 문구 (리타겟 쿠폰은 광고 문자로 나간다)
+  const [couponSmsBody, setCouponSmsBody] = useState<string | null>(null);
   const [couponNaverPlaceUrl, setCouponNaverPlaceUrl] = useState('');
   const [couponStoreName, setCouponStoreName] = useState('');
   const [isCouponSending, setIsCouponSending] = useState(false);
@@ -1619,6 +1622,9 @@ export default function MessagesPage() {
                 />
               </div>
 
+              {/* 문자 내용 — 기본 문구 / 직접 쓰기 */}
+              <CouponSmsBodyField value={couponSmsBody} onChange={setCouponSmsBody} />
+
               {/* 네이버 플레이스 URL - 선택사항 표시 */}
               {showAdvancedSettings && (
                 <div>
@@ -1753,6 +1759,7 @@ export default function MessagesPage() {
                     const body: any = {
                       couponContent: couponContent.trim(),
                       expiryDate: couponExpiryDate.trim(),
+                      smsBody: couponSmsBody,
                       naverPlaceUrl: couponNaverPlaceUrl.trim() || null,
                       targetType: selectedTarget,
                       genderFilter: genderFilter !== 'all' ? genderFilter : undefined,
@@ -1867,6 +1874,7 @@ export default function MessagesPage() {
               couponStoreName={couponStoreName}
               couponContent={couponContent}
               couponExpiryDate={couponExpiryDate}
+              couponSmsBody={couponSmsBody}
               inline={inline}
             />
           );

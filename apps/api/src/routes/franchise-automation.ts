@@ -1,3 +1,4 @@
+import { normalizeSmsBody } from '../services/kakao-channel-templates.js';
 import { Router, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
@@ -145,6 +146,7 @@ router.put('/stores/:storeId/rules/:type', franchiseAuthMiddleware, async (req: 
     if (triggerConfig !== undefined) updateData.triggerConfig = triggerConfig;
     if (couponEnabled !== undefined) updateData.couponEnabled = couponEnabled;
     if (couponContent !== undefined) updateData.couponContent = couponContent;
+    if (req.body.messageTemplate !== undefined) updateData.messageTemplate = normalizeSmsBody(req.body.messageTemplate);
     if (couponValidDays !== undefined) updateData.couponValidDays = couponValidDays;
     if (sendTimeHour !== undefined) {
       if (sendTimeHour < 0 || sendTimeHour > 23) {
@@ -359,6 +361,7 @@ router.put('/bulk/rules/:type', franchiseAuthMiddleware, async (req: FranchiseAu
     if (triggerConfig !== undefined) updateData.triggerConfig = triggerConfig;
     if (couponEnabled !== undefined) updateData.couponEnabled = couponEnabled;
     if (couponContent !== undefined) updateData.couponContent = couponContent;
+    if (req.body.messageTemplate !== undefined) updateData.messageTemplate = normalizeSmsBody(req.body.messageTemplate);
     if (couponValidDays !== undefined) updateData.couponValidDays = couponValidDays;
     if (sendTimeHour !== undefined) {
       if (sendTimeHour < 0 || sendTimeHour > 23) {

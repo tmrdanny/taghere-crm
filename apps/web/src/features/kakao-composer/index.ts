@@ -1,2 +1,3 @@
 export { CouponSmsPreview } from './CouponSmsPreview';
-export { buildCouponSmsText } from './coupon-sms';
+export { CouponSmsBodyField } from './CouponSmsBodyField';
+export { buildCouponSmsText, DEFAULT_COUPON_SMS_BODY } from './coupon-sms';

@@ -1,6 +1,6 @@
 'use client';
 
-import { CouponSmsPreview } from '@/features/kakao-composer';
+import { CouponSmsBodyField, CouponSmsPreview } from '@/features/kakao-composer';
 import { IPhoneFrame } from '@/components/ui/iphone-frame';
 import { API_BASE } from '@/lib/api-config';
 import { useEffect, useRef, useState } from 'react';
@@ -104,6 +104,14 @@ export default function FranchiseAutomationSettingPage() {
   const [couponEnabled, setCouponEnabled] = useState(true);
   const [couponContent, setCouponContent] = useState('');
   const [couponValidDays, setCouponValidDays] = useState(14);
+  // 쿠폰 문자 본문 — null 이면 기본 문구 (자동 마케팅은 광고 문자로 나간다).
+  // 전 매장 일괄 설정은 문구를 직접 바꿨을 때만 보낸다 (다른 설정 저장이 매장별 문구를 덮지 않게)
+  const [smsBody, setSmsBodyState] = useState<string | null>(null);
+  const smsBodyTouched = useRef(false);
+  const setSmsBody = (v: string | null) => {
+    smsBodyTouched.current = true;
+    setSmsBodyState(v);
+  };
   const [storeName, setStoreName] = useState('');
   const [naverPlaceUrl, setNaverPlaceUrl] = useState('');
   const [naverPlaceUrlInput, setNaverPlaceUrlInput] = useState('');
@@ -154,6 +162,7 @@ export default function FranchiseAutomationSettingPage() {
           setCouponEnabled(r.couponEnabled);
           setCouponContent(r.couponContent || '');
           setCouponValidDays(r.couponValidDays);
+          setSmsBodyState(r.messageTemplate ?? null);
           setSendTimeHour(r.sendTimeHour);
           if (type === 'BIRTHDAY' && r.triggerConfig?.daysBefore) setDaysBefore(r.triggerConfig.daysBefore);
           if (type === 'CHURN_PREVENTION' && r.triggerConfig?.daysInactive) setDaysInactive(r.triggerConfig.daysInactive);
@@ -262,6 +271,7 @@ export default function FranchiseAutomationSettingPage() {
         couponContent: couponContent.trim() || null,
         couponValidDays,
         sendTimeHour,
+        ...(!isBulk || smsBodyTouched.current ? { messageTemplate: smsBody?.trim() ? smsBody : null } : {}),
       };
 
       const url = isBulk
@@ -323,7 +333,7 @@ export default function FranchiseAutomationSettingPage() {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, couponEnabled, couponContent, couponValidDays, sendTimeHour,
+  }, [enabled, couponEnabled, couponContent, couponValidDays, smsBody, sendTimeHour,
       daysBefore, daysInactive, daysAfterFirstVisit, milestones, winbackDaysInactive, slowDays, isLoading, isBulk]);
 
   // 이탈 시 대기 중 변경사항 즉시 저장
@@ -552,6 +562,9 @@ export default function FranchiseAutomationSettingPage() {
                 </div>
               </div>
 
+              {/* 문자 내용 — 기본 문구 / 직접 쓰기 */}
+              <CouponSmsBodyField value={smsBody} onChange={setSmsBody} label={isBulk ? '문자 내용 (전 매장)' : '문자 내용'} />
+
               {/* 네이버 플레이스 링크 */}
               {!isBulk && (
                 <div>
@@ -625,6 +638,7 @@ export default function FranchiseAutomationSettingPage() {
                       return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}까지`;
                     })()}
                     showNaverLink={!!naverPlaceUrl}
+                    customBody={smsBody}
                   />
                 </IPhoneFrame>
               </div>

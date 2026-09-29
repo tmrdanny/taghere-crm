@@ -1,3 +1,4 @@
+import { normalizeSmsBody } from '../services/kakao-channel-templates.js';
 import { Router, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { sendAutomationMessages } from '../services/automation-worker.js';
@@ -253,7 +254,7 @@ router.put('/rules/:type', authMiddleware, async (req: AuthRequest, res: Respons
     if (couponDiscountType !== undefined) updateData.couponDiscountType = couponDiscountType;
     if (couponDiscountValue !== undefined) updateData.couponDiscountValue = couponDiscountValue;
     if (couponValidDays !== undefined) updateData.couponValidDays = couponValidDays;
-    if (messageTemplate !== undefined) updateData.messageTemplate = messageTemplate;
+    if (messageTemplate !== undefined) updateData.messageTemplate = normalizeSmsBody(messageTemplate);
     if (cooldownDays !== undefined) updateData.cooldownDays = cooldownDays;
     if (monthlyMaxSends !== undefined) updateData.monthlyMaxSends = monthlyMaxSends;
     if (sendTimeHour !== undefined) {

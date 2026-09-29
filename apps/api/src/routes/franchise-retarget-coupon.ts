@@ -180,6 +180,7 @@ router.post('/send', franchiseAuthMiddleware, async (req: FranchiseAuthRequest, 
     const result = await sendRetargetCouponGroup({
       campaignId,
       scheduledAt,
+      smsBody: req.body.smsBody,
       recipients: resolved
         .filter((c) => c.phone)
         .map((c) => {
