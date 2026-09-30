@@ -1,7 +1,7 @@
 import { SolapiMessageService } from 'solapi';
 import * as crypto from 'crypto';
 import { normalizePhoneNumber } from '../utils/phone.js';
-import { isSmsOnlyTemplate, renderRetargetCouponSms, templateForChannel } from './kakao-channel-templates.js';
+import { isSmsOnlyTemplate, renderRetargetCouponSms, templateForChannel, variablesForChannel } from './kakao-channel-templates.js';
 
 // 알림톡 템플릿/enqueue 함수는 alimtalk-templates.ts 로 이동됨.
 // 기존 import 경로('./solapi.js') 호환을 위해 그대로 재-export 한다.
@@ -80,7 +80,7 @@ export class SolapiService {
             kakaoOptions: {
               pfId: params.pfId,
               templateId: templateForChannel(params.pfId, params.templateId),
-              variables: params.variables,
+              variables: variablesForChannel(params.pfId, params.templateId, params.variables),
             },
           };
 
@@ -517,7 +517,7 @@ export class SolapiService {
               kakaoOptions: {
                 pfId,
                 templateId: templateForChannel(pfId, msg.templateId),
-                variables: msg.variables,
+                variables: variablesForChannel(pfId, msg.templateId, msg.variables),
               },
             }
       );

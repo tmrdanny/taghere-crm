@@ -5,8 +5,7 @@
 // 발송 채널(pfId)이 "태그히어"일 때만 바뀌므로, 플레이스 채널로 되돌리면 원래 템플릿을 그대로 쓴다.
 //
 // 리타겟 쿠폰·자동 마케팅(KA01TP260106051853547CuShejvkmsu)은 치환하지 않고 광고 문자로 보낸다 (아래).
-// 기업 광고 세븐일레븐 v3 · 처갓집 v7 은 심사 중이라 승인되면 추가한다
-// (세븐일레븐 v3 는 변수명 공백 제거: #{쿠폰 내용} → #{쿠폰내용} 등, 광고별 변수 설정도 함께 바꿔야 한다).
+// "태그히어" 채널 템플릿은 변수명에 공백을 쓸 수 없어(#{쿠폰 내용} → #{쿠폰내용}) 치환할 때 변수명 공백도 지운다.
 import { env } from '../config/env.js';
 
 export const TAGHERE_PF_ID = 'KA01PF240519021055559bK17Af2bhY4';
@@ -23,6 +22,8 @@ const TAGHERE_CHANNEL_TEMPLATES: Record<string, string> = {
   KA01TP2601191332468781c1Cka1rvpu: 'KA01TP260928100842542TupizY36vVs', // 웨이팅 취소 (고객 사정)
   KA01TP260119133405443pTObWsUFGd9: 'KA01TP26092810084350127guA2mk6GQ', // 웨이팅 취소 (지각)
   KA01TP260416033744340o9K4J8oA1kK: 'KA01TP260928100912252qTj7SaWXp8L', // 기업 광고 · 피자헛
+  KA01TP250930075547299ikOWJ6bArTY: 'KA01TP2609281009110424FlHxjGwaug', // 기업 광고 · 세븐일레븐 v3 (변수명 공백 제거)
+  KA01TP2512111453192340aUumS8xmld: 'KA01TP260928100913141Yx11tyhSxoH', // 기업 광고 · 처갓집 v7
   KA01TP26010513462218279L5IthM7TY: 'KA01TP260928100845204ntf4O05YiBX', // 발송 잔액 부족 (어드민)
   KA01TP260318032138795sPQKm0yXShn: 'KA01TP260928100846187GyTkctJBsCn', // 통계 자료 전달 (어드민)
 };
@@ -31,6 +32,12 @@ const TAGHERE_CHANNEL_TEMPLATES: Record<string, string> = {
 export function templateForChannel(pfId: string, templateId: string): string {
   if (pfId !== TAGHERE_PF_ID) return templateId;
   return TAGHERE_CHANNEL_TEMPLATES[templateId] ?? templateId;
+}
+
+/** 치환된 템플릿이면 변수명의 공백을 지운다 (#{쿠폰 내용} → #{쿠폰내용}) — 기업 광고 변수 설정은 그대로 둔다 */
+export function variablesForChannel(pfId: string, templateId: string, variables: Record<string, string>): Record<string, string> {
+  if (pfId !== TAGHERE_PF_ID || !TAGHERE_CHANNEL_TEMPLATES[templateId]) return variables;
+  return Object.fromEntries(Object.entries(variables).map(([k, v]) => [k.replace(/\s+/g, ''), v]));
 }
 
 // ---------- 리타겟 쿠폰·자동 마케팅 → 광고 문자(LMS) ----------
