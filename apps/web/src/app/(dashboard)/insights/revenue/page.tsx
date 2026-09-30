@@ -110,7 +110,7 @@ export default function RevenuePage() {
         </div>
         <button
           onClick={fetchData}
-          className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+          className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
         >
           <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.8} />
           새로고침
@@ -118,7 +118,7 @@ export default function RevenuePage() {
       </div>
 
       {!hasData ? (
-        <div className="ad-card px-5 py-10">
+        <div className="adm-card px-5 py-10">
           <div className="text-center">
             <DollarSign className="mx-auto mb-3 h-8 w-8 text-[color:var(--ad-line-strong)]" strokeWidth={1.7} />
             <h3 className="mb-2 text-[14px] font-semibold text-[color:var(--ad-ink-2)]">아직 매출 데이터가 없습니다</h3>
@@ -131,13 +131,13 @@ export default function RevenuePage() {
       ) : (
         <div className="space-y-4">
           {/* 핵심 지표 카드 */}
-          <div className="ad-card grid grid-cols-2 md:grid-cols-4">
+          <div className="adm-card grid grid-cols-2 md:grid-cols-4">
             <div className="p-5">
               <div className="mb-1 flex items-center gap-1.5 text-[12px] text-[color:var(--ad-muted)]">
                 <DollarSign className="h-3.5 w-3.5" />
                 <span>CRM 추가 매출</span>
               </div>
-              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+              <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                 {data.totalRevenue > 0 ? `${data.totalRevenue.toLocaleString()}원` : '-'}
               </div>
             </div>
@@ -146,7 +146,7 @@ export default function RevenuePage() {
                 <TrendingUp className="h-3.5 w-3.5" />
                 <span>CRM ROI</span>
               </div>
-              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+              <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                 {data.roi > 0 ? `${data.roi}x` : '-'}
               </div>
               {data.roi > 0 && (
@@ -158,10 +158,10 @@ export default function RevenuePage() {
                 <Gift className="h-3.5 w-3.5" />
                 <span>쿠폰 사용률</span>
               </div>
-              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+              <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                 {data.couponUsageRate > 0 ? `${data.couponUsageRate}%` : '-'}
               </div>
-              <div className="ad-tnum mt-0.5 text-[12px] text-[color:var(--ad-faint)]">
+              <div className="adm-tnum mt-0.5 text-[12px] text-[color:var(--ad-faint)]">
                 {data.summary.couponsUsed}/{data.summary.couponsSent}건
               </div>
             </div>
@@ -170,14 +170,14 @@ export default function RevenuePage() {
                 <Users className="h-3.5 w-3.5" />
                 <span>활성 고객</span>
               </div>
-              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{data.activeCustomers}명</div>
+              <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{data.activeCustomers}명</div>
               <div className="mt-0.5 text-[12px] text-[color:var(--ad-faint)]">최근 30일 방문</div>
             </div>
           </div>
 
           {/* 채널별 매출 기여 */}
           {data.channels.length > 0 && (
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <h3 className="mb-4 text-[14px] font-semibold text-[color:var(--ad-ink)]">채널별 매출 기여</h3>
               <div className="space-y-3">
                 {data.channels.map((ch) => (
@@ -191,7 +191,7 @@ export default function RevenuePage() {
                         }}
                       />
                     </div>
-                    <div className="ad-tnum w-28 flex-shrink-0 text-right text-[13px] font-medium text-[color:var(--ad-ink)]">
+                    <div className="adm-tnum w-28 flex-shrink-0 text-right text-[13px] font-medium text-[color:var(--ad-ink)]">
                       {ch.revenue > 0 ? `${ch.revenue.toLocaleString()}원` : `${ch.couponsUsed}건 사용`}
                     </div>
                   </div>
@@ -201,7 +201,7 @@ export default function RevenuePage() {
           )}
 
           {/* 월별 매출 추이 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <h3 className="mb-4 text-[14px] font-semibold text-[color:var(--ad-ink)]">월별 CRM 매출 추이</h3>
             <div className="flex h-40 items-end gap-2">
               {data.monthlyTrend.map((m) => {
@@ -209,7 +209,7 @@ export default function RevenuePage() {
                 const monthLabel = m.month.split('-')[1] + '월';
                 return (
                   <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
-                    <div className="ad-tnum text-[11.5px] text-[color:var(--ad-muted)]">
+                    <div className="adm-tnum text-[11.5px] text-[color:var(--ad-muted)]">
                       {m.revenue > 0 ? `${(m.revenue / 10000).toFixed(0)}만` : '-'}
                     </div>
                     <div className="flex w-full items-end justify-center" style={{ height: '100px' }}>
@@ -229,7 +229,7 @@ export default function RevenuePage() {
           </div>
 
           {/* 비용 대비 효과 */}
-          <div className="ad-card overflow-hidden">
+          <div className="adm-card overflow-hidden">
             <div className="px-5 pb-3 pt-5">
               <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">비용 대비 효과</h3>
             </div>
@@ -247,13 +247,13 @@ export default function RevenuePage() {
                   {data.costEffectiveness.map((item) => (
                     <tr key={item.name} className="hover:bg-[color:var(--ad-bg-alt)]">
                       <td className="px-4 py-2.5 text-[color:var(--ad-ink)]">{item.name}</td>
-                      <td className="ad-tnum px-4 py-2.5 text-right text-[color:var(--ad-muted)]">
+                      <td className="adm-tnum px-4 py-2.5 text-right text-[color:var(--ad-muted)]">
                         {item.cost > 0 ? `${item.cost.toLocaleString()}원` : '-'}
                       </td>
-                      <td className="ad-tnum px-4 py-2.5 text-right text-[color:var(--ad-ink)]">
+                      <td className="adm-tnum px-4 py-2.5 text-right text-[color:var(--ad-ink)]">
                         {item.revenue > 0 ? `${item.revenue.toLocaleString()}원` : '-'}
                       </td>
-                      <td className="ad-tnum px-4 py-2.5 text-right font-medium">
+                      <td className="adm-tnum px-4 py-2.5 text-right font-medium">
                         {item.roi > 0 ? (
                           <span className="text-[color:var(--ad-pos)]">{item.roi}x</span>
                         ) : (
@@ -265,13 +265,13 @@ export default function RevenuePage() {
                   {/* 합계 */}
                   <tr className="bg-[color:var(--ad-bg-alt)] font-semibold">
                     <td className="px-4 py-2.5 text-[color:var(--ad-ink)]">합계</td>
-                    <td className="ad-tnum px-4 py-2.5 text-right text-[color:var(--ad-ink)]">
+                    <td className="adm-tnum px-4 py-2.5 text-right text-[color:var(--ad-ink)]">
                       {data.totalCost > 0 ? `${data.totalCost.toLocaleString()}원` : '-'}
                     </td>
-                    <td className="ad-tnum px-4 py-2.5 text-right text-[color:var(--ad-ink)]">
+                    <td className="adm-tnum px-4 py-2.5 text-right text-[color:var(--ad-ink)]">
                       {data.totalRevenue > 0 ? `${data.totalRevenue.toLocaleString()}원` : '-'}
                     </td>
-                    <td className="ad-tnum px-4 py-2.5 text-right">
+                    <td className="adm-tnum px-4 py-2.5 text-right">
                       {data.roi > 0 ? (
                         <span className="text-[color:var(--ad-pos)]">{data.roi}x</span>
                       ) : (

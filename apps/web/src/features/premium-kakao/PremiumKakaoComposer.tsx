@@ -158,7 +158,7 @@ function ImageField({ label, slot, image, onChange }: { label: string; slot: Ima
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="ad-press inline-flex h-8 flex-none items-center gap-1 rounded-[8px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] disabled:opacity-50"
+          className="adm-press inline-flex h-8 flex-none items-center gap-1 rounded-[8px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] disabled:opacity-50"
         >
           {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
           {image ? '바꾸기' : '올리기'}
@@ -487,7 +487,7 @@ export function PremiumKakaoComposer({
             >
               <span className="text-[13px] font-semibold text-[color:var(--ad-ink)]">{leadingType.name}</span>
               <span className="text-[11.5px] text-[color:var(--ad-faint)]">{leadingType.tip}</span>
-              <span className="mt-1 text-[12px] font-medium text-[color:var(--ad-ink-2)] ad-tnum">{leadingType.priceLabel}</span>
+              <span className="mt-1 text-[12px] font-medium text-[color:var(--ad-ink-2)] adm-tnum">{leadingType.priceLabel}</span>
             </button>
           )}
           {TYPE_SPECS.map((s) => (
@@ -504,7 +504,7 @@ export function PremiumKakaoComposer({
             >
               <span className="text-[13px] font-semibold text-[color:var(--ad-ink)]">{s.name}</span>
               <span className="text-[11.5px] text-[color:var(--ad-faint)]">{s.tip}</span>
-              <span className="mt-1 text-[12px] font-medium text-[color:var(--ad-ink-2)] ad-tnum">건당 {s.price}원</span>
+              <span className="mt-1 text-[12px] font-medium text-[color:var(--ad-ink-2)] adm-tnum">건당 {s.price}원</span>
             </button>
           ))}
         </div>
@@ -675,13 +675,13 @@ export function PremiumKakaoComposer({
       <div className="flex flex-col gap-3 rounded-[14px] border border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] p-4">
         <div className="flex items-baseline justify-between text-[13px] text-[color:var(--ad-muted)]">
           <span>
-            받는 사람 <b className="font-semibold text-[color:var(--ad-ink)] ad-tnum">{formatNumber(count)}명</b> × {spec.price}원
+            받는 사람 <b className="font-semibold text-[color:var(--ad-ink)] adm-tnum">{formatNumber(count)}명</b> × {spec.price}원
           </span>
-          <b className="text-[20px] font-semibold tracking-[-0.03em] text-[color:var(--ad-ink)] ad-tnum">{formatNumber(total)}원</b>
+          <b className="text-[20px] font-semibold tracking-[-0.03em] text-[color:var(--ad-ink)] adm-tnum">{formatNumber(total)}원</b>
         </div>
         {estimate && (
           <div className="flex items-center justify-between text-[12px] text-[color:var(--ad-muted)]">
-            <span>충전금 잔액 <span className="ad-tnum">{formatNumber(estimate.walletBalance)}원</span></span>
+            <span>충전금 잔액 <span className="adm-tnum">{formatNumber(estimate.walletBalance)}원</span></span>
             {insufficient && (
               <button type="button" onClick={() => onNeedCharge(total, estimate.walletBalance)} className="font-medium text-[color:var(--ad-ink)] underline">
                 충전하기
@@ -703,7 +703,7 @@ export function PremiumKakaoComposer({
             type="button"
             onClick={() => setTestOpen(true)}
             disabled={issues.length > 0}
-            className="ad-press h-11 rounded-[12px] bg-white px-4 text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
+            className="adm-press h-11 rounded-[12px] bg-white px-4 text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
           >
             테스트
           </button>
@@ -711,7 +711,7 @@ export function PremiumKakaoComposer({
             type="button"
             onClick={() => (insufficient && estimate ? onNeedCharge(total, estimate.walletBalance) : setConfirmOpen(true))}
             disabled={!canSend}
-            className="ad-press h-11 rounded-[12px] bg-[color:var(--ad-ink)] text-[14px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+            className="adm-press h-11 rounded-[12px] bg-[color:var(--ad-ink)] text-[14px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
           >
             {issues.length > 0 ? '고칠 곳이 있어요' : insufficient ? '충전 후 보내기' : sendTime.mode === 'schedule' ? `${formatNumber(count)}명에게 예약하기` : `${formatNumber(count)}명에게 보내기`}
           </button>
@@ -730,10 +730,10 @@ export function PremiumKakaoComposer({
             <p className="text-[12px] text-[color:var(--ad-muted)]">실제 발송과 똑같이 “태그히어 플레이스”로 가요. 무료이고 하루 5번까지 보낼 수 있어요.</p>
           </div>
           <ModalFooter>
-            <button type="button" onClick={() => setTestOpen(false)} className="ad-press h-10 flex-1 rounded-[12px] bg-white text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]">
+            <button type="button" onClick={() => setTestOpen(false)} className="adm-press h-10 flex-1 rounded-[12px] bg-white text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]">
               취소
             </button>
-            <button type="button" onClick={handleTest} disabled={busy === 'test' || testPhone.length < 10} className="ad-press h-10 flex-1 rounded-[12px] bg-[color:var(--ad-ink)] text-[13.5px] font-semibold text-white disabled:opacity-40">
+            <button type="button" onClick={handleTest} disabled={busy === 'test' || testPhone.length < 10} className="adm-press h-10 flex-1 rounded-[12px] bg-[color:var(--ad-ink)] text-[13.5px] font-semibold text-white disabled:opacity-40">
               {busy === 'test' ? '보내는 중...' : '테스트 보내기'}
             </button>
           </ModalFooter>
@@ -747,17 +747,17 @@ export function PremiumKakaoComposer({
             <ModalTitle className="text-[17px] font-semibold text-[color:var(--ad-ink)]">{spec.name}으로 {sendTime.mode === 'schedule' ? '예약할까요?' : '보낼까요?'}</ModalTitle>
           </ModalHeader>
           <div className="grid gap-2 p-4 text-[13.5px] text-[color:var(--ad-ink-2)]">
-            <div className="flex justify-between"><span>받는 사람</span><b className="ad-tnum">{formatNumber(count)}명</b></div>
-            <div className="flex justify-between"><span>건당</span><b className="ad-tnum">{spec.price}원</b></div>
-            <div className="flex justify-between border-t border-[color:var(--ad-line)] pt-2"><span>차감 예정</span><b className="ad-tnum text-[color:var(--ad-ink)]">{formatNumber(total)}원</b></div>
+            <div className="flex justify-between"><span>받는 사람</span><b className="adm-tnum">{formatNumber(count)}명</b></div>
+            <div className="flex justify-between"><span>건당</span><b className="adm-tnum">{spec.price}원</b></div>
+            <div className="flex justify-between border-t border-[color:var(--ad-line)] pt-2"><span>차감 예정</span><b className="adm-tnum text-[color:var(--ad-ink)]">{formatNumber(total)}원</b></div>
             <div className="flex justify-between"><span>발송 시간</span><b>{sendTime.mode === 'schedule' ? `${formatSendTime(sendTime)} 예약` : '지금 바로'}</b></div>
             <p className="text-[12px] text-[color:var(--ad-muted)]">카카오톡이 접수한 건만 차감되고, 끝내 못 받은 건은 환불돼요.</p>
           </div>
           <ModalFooter>
-            <button type="button" onClick={() => setConfirmOpen(false)} className="ad-press h-10 flex-1 rounded-[12px] bg-white text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]">
+            <button type="button" onClick={() => setConfirmOpen(false)} className="adm-press h-10 flex-1 rounded-[12px] bg-white text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]">
               취소
             </button>
-            <button type="button" onClick={handleSend} disabled={busy === 'send'} className="ad-press h-10 flex-1 rounded-[12px] bg-[color:var(--ad-ink)] text-[13.5px] font-semibold text-white disabled:opacity-40">
+            <button type="button" onClick={handleSend} disabled={busy === 'send'} className="adm-press h-10 flex-1 rounded-[12px] bg-[color:var(--ad-ink)] text-[13.5px] font-semibold text-white disabled:opacity-40">
               {busy === 'send' ? '보내는 중...' : sendTime.mode === 'schedule' ? '예약하기' : '보내기'}
             </button>
           </ModalFooter>

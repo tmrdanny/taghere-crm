@@ -274,13 +274,13 @@ function ListView({
         <p className="text-[13px] leading-relaxed text-[color:var(--ad-muted)]">
           하위 매장을 선택해 인근 신규 고객에게 알림톡으로 쿠폰을 보내고 네이버 플레이스 유입을 높입니다.
         </p>
-        <button onClick={onCreate} className="shrink-0 ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
+        <button onClick={onCreate} className="shrink-0 adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
           <Rocket className="h-4 w-4" strokeWidth={1.8} /> 새 캠페인
         </button>
       </div>
       {loading && <p className="text-[13px] text-[color:var(--ad-faint)]">불러오는 중…</p>}
       {!loading && campaigns.length === 0 && (
-        <div className="ad-card p-12 text-center text-[13px] text-[color:var(--ad-faint)]">
+        <div className="adm-card p-12 text-center text-[13px] text-[color:var(--ad-faint)]">
           아직 캠페인이 없습니다. 첫 캠페인을 만들어보세요.
         </div>
       )}
@@ -293,7 +293,7 @@ function ListView({
               key={c.id}
               role="button"
               tabIndex={0}
-              className="ad-card flex cursor-pointer items-center justify-between gap-3 p-5 transition-colors hover:bg-[color:var(--ad-bg-alt)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ad-ink)]"
+              className="adm-card flex cursor-pointer items-center justify-between gap-3 p-5 transition-colors hover:bg-[color:var(--ad-bg-alt)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ad-ink)]"
               onClick={() => onOpen(c.id)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -376,19 +376,19 @@ function DetailView({
           <ChevronLeft className="h-4 w-4" /> 목록으로
         </button>
         {c.status === 'DRAFT' && (
-          <button onClick={onEdit} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40">
+          <button onClick={onEdit} className="adm-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40">
             수정
           </button>
         )}
       </div>
 
-      <div className="ad-card mb-4 p-5">
+      <div className="adm-card mb-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-[17px] font-semibold text-[color:var(--ad-ink)]">{c.keyword}</h2>
             {c.storeName && <p className="mt-0.5 text-[12.5px] text-[color:var(--ad-muted)]">{c.storeName}</p>}
             <p className="mt-1 text-[13.5px] text-[color:var(--ad-ink-2)]">{c.couponContent}</p>
-            <div className="ad-tnum mt-1 text-[12.5px] text-[color:var(--ad-faint)]">
+            <div className="adm-tnum mt-1 text-[12.5px] text-[color:var(--ad-faint)]">
               {c.perBatchCount.toLocaleString()}명 × {c.totalWeeks}주 (총 {c.totalTargetCount.toLocaleString()}명)
             </div>
           </div>
@@ -404,7 +404,7 @@ function DetailView({
               ? '계좌이체 입금 확인 후 담당자가 승인하면 발송이 시작됩니다.'
               : '결제가 완료되어야 발송이 시작됩니다.'}
             {c.status === 'DRAFT' && c.paymentStatus !== 'PENDING_APPROVAL' && (
-              <button onClick={() => setShowPay(true)} className="ml-auto ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
+              <button onClick={() => setShowPay(true)} className="ml-auto adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
                 결제하기
               </button>
             )}
@@ -425,7 +425,7 @@ function DetailView({
         }}
       />
 
-      <div className="ad-card mb-4 p-5">
+      <div className="adm-card mb-4 p-5">
         <div className="mb-1 text-[14px] font-semibold text-[color:var(--ad-ink)]">테스트 발송</div>
         <p className="mb-3 text-[12px] text-[color:var(--ad-faint)]">입력한 번호로 실제와 똑같은 알림톡 1건을 즉시 보냅니다. (발송 대상·회차·결제와 무관)</p>
         <div className="flex flex-col sm:flex-row gap-2">
@@ -436,7 +436,7 @@ function DetailView({
             placeholder="받을 휴대폰 번호 (예: 01012345678)"
             inputMode="numeric"
           />
-          <button type="button" onClick={sendTest} disabled={testSending} className="shrink-0 ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40">
+          <button type="button" onClick={sendTest} disabled={testSending} className="shrink-0 adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40">
             {testSending ? <Loader2 className="w-4 h-4 animate-spin" /> : '테스트 발송'}
           </button>
         </div>
@@ -563,7 +563,7 @@ function PayOption({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="ad-press flex w-full items-center gap-3 rounded-[14px] border border-[color:var(--ad-line-strong)] bg-white p-4 text-left transition-colors hover:border-[color:var(--ad-ink)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50"
+      className="adm-press flex w-full items-center gap-3 rounded-[14px] border border-[color:var(--ad-line-strong)] bg-white p-4 text-left transition-colors hover:border-[color:var(--ad-ink)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50"
     >
       <span className="text-[color:var(--ad-faint)]">{icon}</span>
       <span>

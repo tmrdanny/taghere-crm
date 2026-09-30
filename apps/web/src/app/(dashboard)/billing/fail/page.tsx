@@ -89,7 +89,7 @@ function BillingFailContent() {
   if (isChecking) {
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-6">
-        <div className="ad-card w-full max-w-md p-8 text-center">
+        <div className="adm-card w-full max-w-md p-8 text-center">
           <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-[color:var(--ad-faint)]" />
           <h2 className="mb-1.5 text-[17px] font-semibold text-[color:var(--ad-ink)]">
             결제 상태 확인 중...
@@ -105,7 +105,7 @@ function BillingFailContent() {
   // 실제 실패인 경우
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-6">
-      <div className="ad-card w-full max-w-md p-8 text-center">
+      <div className="adm-card w-full max-w-md p-8 text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--ad-bg)]">
           <XCircle className="h-6 w-6 text-[color:var(--ad-neg)]" strokeWidth={1.7} />
         </div>
@@ -124,7 +124,7 @@ function BillingFailContent() {
           <button
             type="button"
             onClick={() => router.push('/billing')}
-            className="ad-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+            className="adm-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
           >
             충전 페이지로 돌아가기
           </button>

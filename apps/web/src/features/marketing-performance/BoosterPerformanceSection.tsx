@@ -44,7 +44,7 @@ function Metric({ label, value, sub, className }: { label: string; value: string
   return (
     <div className={cn('grid content-start gap-0.5 rounded-[12px] bg-[color:var(--ad-bg-alt)] px-3.5 py-3', className)}>
       <span className="text-[12px] text-[color:var(--ad-muted)]">{label}</span>
-      <span className="ad-tnum text-[18px] font-medium tracking-[-0.02em] text-[color:var(--ad-ink)]">{value}</span>
+      <span className="adm-tnum text-[18px] font-medium tracking-[-0.02em] text-[color:var(--ad-ink)]">{value}</span>
       {sub && <span className="text-[11.5px] text-[color:var(--ad-faint)]">{sub}</span>}
     </div>
   );
@@ -70,7 +70,7 @@ function CampaignBlock({ c, showStore, manageHref }: { c: BoosterCampaign; showS
               {STATUS_LABEL[c.status] ?? c.status}
             </span>
           </div>
-          <p className="ad-tnum mt-0.5 text-[12px] text-[color:var(--ad-faint)]">
+          <p className="adm-tnum mt-0.5 text-[12px] text-[color:var(--ad-faint)]">
             {c.startAt && c.endAt ? `${md(c.startAt)} ~ ${md(c.endAt)} · ` : ''}
             {c.sentWeeks}/{c.totalWeeks}주차 발송
           </p>
@@ -128,13 +128,13 @@ function CampaignBlock({ c, showStore, manageHref }: { c: BoosterCampaign; showS
                     {w.weekNo}주차
                     <span className="ml-1.5 text-[11.5px] text-[color:var(--ad-faint)]">{WEEK_LABEL[w.status] ?? w.status}</span>
                   </td>
-                  <td className="ad-tnum whitespace-nowrap px-3 py-2.5 text-[color:var(--ad-muted)]">{mdhm(w.scheduledAt)}</td>
-                  <td className="ad-tnum px-3 py-2.5 text-right">{num(w.sentCount)}</td>
-                  <td className="ad-tnum px-3 py-2.5 text-right">{num(w.clickCount)}</td>
-                  <td className="ad-tnum px-3 py-2.5 text-right">{w.clickRate}%</td>
-                  <td className="ad-tnum px-3 py-2.5 text-right">{w.couponUsedCount == null ? '-' : num(w.couponUsedCount)}</td>
-                  <td className="ad-tnum px-3 py-2.5 text-right">{w.avgTicket == null ? '-' : won(w.avgTicket)}</td>
-                  <td className="ad-tnum px-5 py-2.5 text-right sm:px-6">{won(w.revenue)}</td>
+                  <td className="adm-tnum whitespace-nowrap px-3 py-2.5 text-[color:var(--ad-muted)]">{mdhm(w.scheduledAt)}</td>
+                  <td className="adm-tnum px-3 py-2.5 text-right">{num(w.sentCount)}</td>
+                  <td className="adm-tnum px-3 py-2.5 text-right">{num(w.clickCount)}</td>
+                  <td className="adm-tnum px-3 py-2.5 text-right">{w.clickRate}%</td>
+                  <td className="adm-tnum px-3 py-2.5 text-right">{w.couponUsedCount == null ? '-' : num(w.couponUsedCount)}</td>
+                  <td className="adm-tnum px-3 py-2.5 text-right">{w.avgTicket == null ? '-' : won(w.avgTicket)}</td>
+                  <td className="adm-tnum px-5 py-2.5 text-right sm:px-6">{won(w.revenue)}</td>
                 </tr>
               ))}
             </tbody>
@@ -176,7 +176,7 @@ export function BoosterPerformanceSection({
   }, [apiUrl, tokenKey]);
 
   return (
-    <section className="ad-card overflow-hidden" aria-labelledby="booster-perf-title">
+    <section className="adm-card overflow-hidden" aria-labelledby="booster-perf-title">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 pb-3 pt-5 sm:px-6">
         <div>
           <div className="flex items-center gap-2">

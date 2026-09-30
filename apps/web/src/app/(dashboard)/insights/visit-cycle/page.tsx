@@ -85,7 +85,7 @@ export default function VisitCyclePage() {
         </div>
         <button
           onClick={fetchData}
-          className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+          className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
         >
           <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.8} />
           새로고침
@@ -94,13 +94,13 @@ export default function VisitCyclePage() {
 
       <div className="space-y-4">
         {/* 핵심 지표 */}
-        <div className="ad-card grid grid-cols-2">
+        <div className="adm-card grid grid-cols-2">
           <div className="p-5">
             <div className="mb-1 flex items-center gap-1.5 text-[12px] text-[color:var(--ad-muted)]">
               <Clock className="h-3.5 w-3.5" />
               <span>매장 평균 방문 주기</span>
             </div>
-            <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+            <div className="adm-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
               {data.avgCycleDays > 0 ? `${data.avgCycleDays}일` : '-'}
             </div>
           </div>
@@ -109,7 +109,7 @@ export default function VisitCyclePage() {
               <Users className="h-3.5 w-3.5" />
               <span>분석 가능 고객</span>
             </div>
-            <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+            <div className="adm-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
               {data.analyzableCount}명
               <span className="ml-1 text-[13px] font-normal tracking-normal text-[color:var(--ad-muted)]">
                 / {data.totalCustomers}명
@@ -120,7 +120,7 @@ export default function VisitCyclePage() {
         </div>
 
         {/* 방문 주기 분포 히스토그램 */}
-        <div className="ad-card p-5">
+        <div className="adm-card p-5">
           <h3 className="mb-1 text-[14px] font-semibold text-[color:var(--ad-ink)]">방문 주기 분포</h3>
           <p className="mb-5 text-[12.5px] text-[color:var(--ad-muted)]">
             가장 많은 고객의 방문 주기: <span className="font-medium text-[color:var(--ad-ink-2)]">{data.peakRange}</span> ({data.peakCount}명)
@@ -146,7 +146,7 @@ export default function VisitCyclePage() {
                     />
                     {d.count > 0 && (
                       <span className={cn(
-                        'ad-tnum absolute top-1/2 -translate-y-1/2 text-[11.5px] font-medium',
+                        'adm-tnum absolute top-1/2 -translate-y-1/2 text-[11.5px] font-medium',
                         (d.count / maxCount) > 0.3
                           ? 'text-[color:var(--ad-ink)] left-2'
                           : 'text-[color:var(--ad-ink-2)] left-[calc(100%+8px)]'
@@ -164,11 +164,11 @@ export default function VisitCyclePage() {
         </div>
 
         {/* 넛지 대상 현황 */}
-        <div className="ad-card p-5">
+        <div className="adm-card p-5">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">재방문 유도 대상 현황</h3>
             {totalNudge > 0 && (
-              <span className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">총 {totalNudge}명</span>
+              <span className="adm-tnum text-[12.5px] text-[color:var(--ad-muted)]">총 {totalNudge}명</span>
             )}
           </div>
 
@@ -182,7 +182,7 @@ export default function VisitCyclePage() {
                   평균 방문 주기 경과 (쿠폰 없이 안부 메시지)
                 </div>
               </div>
-              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{data.nudgeTargets.stage1}명</div>
+              <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{data.nudgeTargets.stage1}명</div>
             </div>
 
             {/* 2단계 */}
@@ -194,7 +194,7 @@ export default function VisitCyclePage() {
                   평균 주기 x1.5 경과 (재방문 쿠폰 포함)
                 </div>
               </div>
-              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{data.nudgeTargets.stage2}명</div>
+              <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{data.nudgeTargets.stage2}명</div>
             </div>
 
             {/* 3단계 */}
@@ -206,14 +206,14 @@ export default function VisitCyclePage() {
                   평균 주기 x3 또는 90일+ 경과 (특별 할인 쿠폰)
                 </div>
               </div>
-              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{data.nudgeTargets.stage3}명</div>
+              <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{data.nudgeTargets.stage3}명</div>
             </div>
           </div>
 
           {/* 자동화 연결 안내 */}
           <button
             onClick={() => router.push('/automation')}
-            className="ad-press mt-4 flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+            className="adm-press mt-4 flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
           >
             자동 마케팅 설정으로 이동
             <ArrowRight className="h-4 w-4" />

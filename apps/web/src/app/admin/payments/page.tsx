@@ -169,24 +169,24 @@ export default function PaymentsPage() {
 
       {/* Summary Cards */}
       {summary && (
-        <div className="ad-card mb-4 grid grid-cols-1 md:grid-cols-3">
+        <div className="adm-card mb-4 grid grid-cols-1 md:grid-cols-3">
           <div className="p-5">
             <div className="text-[12px] text-[color:var(--ad-muted)] mb-1">최근 30일 충전</div>
-            <div className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-pos)]">
+            <div className="text-[22px] font-semibold tracking-[-0.03em] adm-tnum text-[color:var(--ad-pos)]">
               +{formatCurrency(summary.topup.totalAmount)}원
             </div>
             <div className="text-[12px] text-[color:var(--ad-faint)] mt-1">{summary.topup.count}건</div>
           </div>
           <div className="p-5 border-t md:border-t-0 md:border-l border-[color:var(--ad-line)]">
             <div className="text-[12px] text-[color:var(--ad-muted)] mb-1">최근 30일 차감</div>
-            <div className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-neg)]">
+            <div className="text-[22px] font-semibold tracking-[-0.03em] adm-tnum text-[color:var(--ad-neg)]">
               -{formatCurrency(summary.deduct.totalAmount)}원
             </div>
             <div className="text-[12px] text-[color:var(--ad-faint)] mt-1">{summary.deduct.count}건</div>
           </div>
           <div className="p-5 border-t md:border-t-0 md:border-l border-[color:var(--ad-line)]">
             <div className="text-[12px] text-[color:var(--ad-muted)] mb-1">최근 30일 순증감</div>
-            <div className={`text-[22px] font-semibold tracking-[-0.03em] ad-tnum ${summary.total.netAmount >= 0 ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-neg)]'}`}>
+            <div className={`text-[22px] font-semibold tracking-[-0.03em] adm-tnum ${summary.total.netAmount >= 0 ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-neg)]'}`}>
               {summary.total.netAmount >= 0 ? '+' : ''}{formatCurrency(summary.total.netAmount)}원
             </div>
             <div className="text-[12px] text-[color:var(--ad-faint)] mt-1">{summary.total.count}건</div>
@@ -195,7 +195,7 @@ export default function PaymentsPage() {
       )}
 
       {/* Filters */}
-      <div className="ad-card p-4 mb-4">
+      <div className="adm-card p-4 mb-4">
         <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
           <div className="relative flex-1 min-w-[200px] max-w-md">
@@ -216,7 +216,7 @@ export default function PaymentsPage() {
           <div className="relative">
             <button
               onClick={() => setShowTypeDropdown(!showTypeDropdown)}
-              className="ad-press flex items-center gap-2 h-10 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+              className="adm-press flex items-center gap-2 h-10 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
             >
               <Filter className="w-4 h-4 text-[color:var(--ad-faint)]" />
               {typeFilter === 'all' ? '전체 유형' : TYPE_LABELS[typeFilter]}
@@ -257,7 +257,7 @@ export default function PaymentsPage() {
           <div className="relative">
             <button
               onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-              className="ad-press flex items-center gap-2 h-10 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+              className="adm-press flex items-center gap-2 h-10 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
             >
               {statusFilter === 'all' ? '전체 상태' : STATUS_LABELS[statusFilter]}
               <ChevronDown className="w-4 h-4 text-[color:var(--ad-faint)]" />
@@ -317,7 +317,7 @@ export default function PaymentsPage() {
       </div>
 
       {/* Table */}
-      <div className="ad-card overflow-hidden">
+      <div className="adm-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -363,7 +363,7 @@ export default function PaymentsPage() {
               ) : (
                 transactions.map((transaction) => (
                   <tr key={transaction.id} className="hover:bg-[rgba(110,173,255,0.05)] transition-colors">
-                    <td className="px-4 py-3 ad-tnum text-[color:var(--ad-muted)]">
+                    <td className="px-4 py-3 adm-tnum text-[color:var(--ad-muted)]">
                       {formatDate(transaction.createdAt)}
                     </td>
                     <td className="px-4 py-3">
@@ -381,7 +381,7 @@ export default function PaymentsPage() {
                         {TYPE_LABELS[transaction.type] || transaction.type}
                       </span>
                     </td>
-                    <td className={`px-4 py-3 font-medium text-right ad-tnum ${
+                    <td className={`px-4 py-3 font-medium text-right adm-tnum ${
                       transaction.amount >= 0 ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-neg)]'
                     }`}>
                       {transaction.amount >= 0 ? '+' : ''}{formatCurrency(transaction.amount)}원
@@ -404,24 +404,24 @@ export default function PaymentsPage() {
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-[color:var(--ad-line)]">
-            <div className="text-[12.5px] text-[color:var(--ad-muted)] ad-tnum">
+            <div className="text-[12.5px] text-[color:var(--ad-muted)] adm-tnum">
               총 {total.toLocaleString()}건 중 {((page - 1) * limit + 1).toLocaleString()}-{Math.min(page * limit, total).toLocaleString()}건
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage(page - 1)}
                 disabled={page === 1}
-                className="ad-press p-2 rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="adm-press p-2 rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="px-3 py-1 text-[13px] ad-tnum text-[color:var(--ad-ink-2)]">
+              <span className="px-3 py-1 text-[13px] adm-tnum text-[color:var(--ad-ink-2)]">
                 {page} / {totalPages}
               </span>
               <button
                 onClick={() => setPage(page + 1)}
                 disabled={page === totalPages}
-                className="ad-press p-2 rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="adm-press p-2 rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>

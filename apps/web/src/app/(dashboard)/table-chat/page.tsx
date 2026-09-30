@@ -308,7 +308,7 @@ export default function TableChatPage() {
 
       <div className="space-y-5">
         {/* 섹션 1: 기본 설정 */}
-        <Card className="ad-card border-0">
+        <Card className="adm-card border-0">
           <CardHeader className="p-5 pb-3">
             <CardTitle className="text-[14px] font-semibold text-[color:var(--ad-ink)]">기본 설정</CardTitle>
           </CardHeader>
@@ -342,7 +342,7 @@ export default function TableChatPage() {
         </Card>
 
         {/* 섹션 2: 초기화 스케줄 */}
-        <Card className="ad-card border-0">
+        <Card className="adm-card border-0">
           <CardHeader className="p-5 pb-3">
             <CardTitle className="text-[14px] font-semibold text-[color:var(--ad-ink)]">채팅방 자동 초기화</CardTitle>
           </CardHeader>
@@ -394,10 +394,10 @@ export default function TableChatPage() {
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-[color:var(--ad-line)]">
-              <p className="text-[12.5px] text-[color:var(--ad-muted)] ad-tnum">
+              <p className="text-[12.5px] text-[color:var(--ad-muted)] adm-tnum">
                 마지막 초기화: {setting.lastResetAt ? new Date(setting.lastResetAt).toLocaleString('ko-KR') : '-'}
               </p>
-              <Button variant="outline" onClick={resetChat} className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0">
+              <Button variant="outline" onClick={resetChat} className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0">
                 <RefreshCw className="w-4 h-4" />
                 지금 초기화
               </Button>
@@ -406,7 +406,7 @@ export default function TableChatPage() {
         </Card>
 
         {/* 섹션 3: QR 코드 */}
-        <Card className="ad-card border-0">
+        <Card className="adm-card border-0">
           <CardHeader className="p-5 pb-3">
             <CardTitle className="text-[14px] font-semibold text-[color:var(--ad-ink)]">QR 코드</CardTitle>
           </CardHeader>
@@ -421,7 +421,7 @@ export default function TableChatPage() {
                   <p className="text-[12.5px] font-mono text-[color:var(--ad-ink-2)] bg-[color:var(--ad-bg-alt)] px-3 py-2 rounded-[10px] border border-[color:var(--ad-line)] break-all mb-3">
                     {chatUrl}
                   </p>
-                  <Button onClick={downloadQr} className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 border-0">
+                  <Button onClick={downloadQr} className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 border-0">
                     <Download className="w-4 h-4" />
                     QR 다운로드
                   </Button>
@@ -434,7 +434,7 @@ export default function TableChatPage() {
         </Card>
 
         {/* 섹션 4: 게시글 */}
-        <Card className="ad-card border-0">
+        <Card className="adm-card border-0">
           <CardHeader className="p-5 pb-3">
             <CardTitle className="text-[14px] font-semibold text-[color:var(--ad-ink)] flex items-center justify-between">
               게시글
@@ -469,7 +469,7 @@ export default function TableChatPage() {
                   />
                   상단 고정
                 </label>
-                <Button onClick={savePost} className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0">
+                <Button onClick={savePost} className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0">
                   {editingPost ? <Edit3 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                   {editingPost ? '수정' : '게시글 등록'}
                 </Button>
@@ -495,7 +495,7 @@ export default function TableChatPage() {
                           )}
                         </div>
                         <p className="text-[13px] text-[color:var(--ad-ink-2)] whitespace-pre-wrap">{post.content}</p>
-                        <p className="text-[11.5px] text-[color:var(--ad-faint)] mt-1 ad-tnum">
+                        <p className="text-[11.5px] text-[color:var(--ad-faint)] mt-1 adm-tnum">
                           {new Date(post.createdAt).toLocaleString('ko-KR')}
                         </p>
                       </div>
@@ -529,7 +529,7 @@ export default function TableChatPage() {
         </Card>
 
         {/* 섹션 5: 사장 직접 메시지 */}
-        <Card className="ad-card border-0">
+        <Card className="adm-card border-0">
           <CardHeader className="p-5 pb-3">
             <CardTitle className="text-[14px] font-semibold text-[color:var(--ad-ink)]">채팅방에 메시지 보내기</CardTitle>
           </CardHeader>
@@ -547,7 +547,7 @@ export default function TableChatPage() {
                 }}
                 maxLength={500}
               />
-              <Button onClick={sendStoreMessage} className="ad-press inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0 shrink-0 h-10">
+              <Button onClick={sendStoreMessage} className="adm-press inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0 shrink-0 h-10">
                 <Send className="w-4 h-4" />
                 보내기
               </Button>
@@ -556,7 +556,7 @@ export default function TableChatPage() {
         </Card>
 
         {/* 섹션 6: 최근 메시지 모니터 */}
-        <Card className="ad-card border-0">
+        <Card className="adm-card border-0">
           <CardHeader className="p-5 pb-3">
             <CardTitle className="text-[14px] font-semibold text-[color:var(--ad-ink)] flex items-center justify-between">
               최근 메시지
@@ -584,7 +584,7 @@ export default function TableChatPage() {
                       <span className={`font-medium ${msg.senderType === 'STORE' ? 'font-semibold text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-ink)]'}`}>
                         {msg.nickname}
                       </span>
-                      <span className="text-[color:var(--ad-faint)] text-[11.5px] ml-2 ad-tnum">
+                      <span className="text-[color:var(--ad-faint)] text-[11.5px] ml-2 adm-tnum">
                         {new Date(msg.createdAt).toLocaleTimeString('ko-KR')}
                       </span>
                       <p className="text-[color:var(--ad-ink-2)] mt-0.5 break-words">{msg.content}</p>

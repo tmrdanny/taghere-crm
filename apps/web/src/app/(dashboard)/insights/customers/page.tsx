@@ -22,7 +22,7 @@ function Donut({ gradient, center, sub }: { gradient: string; center: React.Reac
   return (
     <div className="relative h-32 w-32 shrink-0 rounded-full" style={{ background: gradient }}>
       <div className="absolute inset-[19px] flex flex-col items-center justify-center rounded-full bg-white">
-        <span className="ad-tnum text-[15px] font-medium tracking-[-0.02em] text-[color:var(--ad-ink)]">{center}</span>
+        <span className="adm-tnum text-[15px] font-medium tracking-[-0.02em] text-[color:var(--ad-ink)]">{center}</span>
         {sub && <span className="text-[11px] text-[color:var(--ad-faint)]">{sub}</span>}
       </div>
     </div>
@@ -35,8 +35,8 @@ function LegendRow({ color, label, pct, count }: { color: string; label: string;
     <div className="grid grid-cols-[8px_minmax(0,1fr)_auto_auto] items-center gap-x-2.5 text-[12.5px]">
       <span className="h-2 w-2 rounded-full" style={{ background: color }} />
       <span className="truncate text-[color:var(--ad-ink-2)]">{label}</span>
-      <span className="ad-tnum text-right font-medium text-[color:var(--ad-ink)]">{pct}</span>
-      <span className="ad-tnum min-w-[44px] text-right text-[12px] text-[color:var(--ad-faint)]">{count}</span>
+      <span className="adm-tnum text-right font-medium text-[color:var(--ad-ink)]">{pct}</span>
+      <span className="adm-tnum min-w-[44px] text-right text-[12px] text-[color:var(--ad-faint)]">{count}</span>
     </div>
   );
 }
@@ -67,7 +67,7 @@ function PointTip({
     <div className="rounded-[10px] bg-white/95 px-3 py-2 text-[12px] shadow-[0_0_0_1px_rgba(29,32,34,0.06),0_12px_24px_-12px_rgba(19,22,81,0.3)] backdrop-blur">
       <p className="mb-1 text-[color:var(--ad-muted)]">{label}</p>
       {items.map((p) => (
-        <p key={p.name} className="ad-tnum flex items-center gap-1.5 font-medium text-[color:var(--ad-ink)]">
+        <p key={p.name} className="adm-tnum flex items-center gap-1.5 font-medium text-[color:var(--ad-ink)]">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: p.fill || p.color }} />
           {p.name} {Number(p.value).toLocaleString()}P
         </p>
@@ -308,7 +308,7 @@ export default function CustomerInsightsPage() {
               pct={maxCount > 0 ? (item.count / maxCount) * 100 : 0}
               color={maxCount > 0 && item.count === maxCount ? '#6eadff' : '#a5ccff'}
             />
-            <span className="ad-tnum min-w-[92px] text-right">
+            <span className="adm-tnum min-w-[92px] text-right">
               <span className="font-medium text-[color:var(--ad-ink)]">{item.percentage}%</span>
               <span className="ml-1.5 text-[12px] text-[color:var(--ad-faint)]">{item.count.toLocaleString()}명</span>
             </span>
@@ -486,7 +486,7 @@ export default function CustomerInsightsPage() {
     return (
       <div>
         <div className="mb-5">
-          <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">외국어 주문 {foreignPercentage}%</p>
+          <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">외국어 주문 {foreignPercentage}%</p>
           <p className="text-[13px] text-[color:var(--ad-muted)]">
             {breakdown.identifiedOrders.toLocaleString()}건 중 {foreignCount.toLocaleString()}건
           </p>
@@ -540,7 +540,7 @@ export default function CustomerInsightsPage() {
               pct={maxCount > 0 ? (item.count / maxCount) * 100 : 0}
               color={maxCount > 0 && item.count === maxCount ? '#6eadff' : '#a5ccff'}
             />
-            <span className="ad-tnum min-w-[52px] text-right font-medium text-[color:var(--ad-ink)]">{item.count.toLocaleString()}명</span>
+            <span className="adm-tnum min-w-[52px] text-right font-medium text-[color:var(--ad-ink)]">{item.count.toLocaleString()}명</span>
           </div>
         ))}
       </div>
@@ -574,7 +574,7 @@ export default function CustomerInsightsPage() {
                 setTempEndDate(endDate);
                 setShowDatePicker(!showDatePicker);
               }}
-              className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+              className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
             >
               <Calendar className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
               <span>{formatDateRange()}</span>
@@ -606,13 +606,13 @@ export default function CustomerInsightsPage() {
                   <div className="flex gap-2 pt-2">
                     <button
                       onClick={resetDateRange}
-                      className="ad-press inline-flex h-9 flex-1 items-center justify-center rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                      className="adm-press inline-flex h-9 flex-1 items-center justify-center rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                     >
                       초기화
                     </button>
                     <button
                       onClick={applyDateRange}
-                      className="ad-press inline-flex h-9 flex-1 items-center justify-center rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+                      className="adm-press inline-flex h-9 flex-1 items-center justify-center rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
                     >
                       적용
                     </button>
@@ -630,7 +630,7 @@ export default function CustomerInsightsPage() {
             }}
             disabled={isLoading}
             className={cn(
-              'ad-press inline-flex h-9 w-9 items-center justify-center rounded-[10px] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]',
+              'adm-press inline-flex h-9 w-9 items-center justify-center rounded-[10px] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]',
               isLoading
                 ? 'bg-[color:var(--ad-bg)] text-[color:var(--ad-faint)] cursor-not-allowed'
                 : 'bg-white text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]'
@@ -644,7 +644,7 @@ export default function CustomerInsightsPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="ad-card p-5 animate-pulse">
+            <div key={i} className="adm-card p-5 animate-pulse">
               <div className="mb-4 h-5 w-1/3 rounded bg-[color:var(--ad-bg)]" />
               <div className="h-40 rounded bg-[color:var(--ad-bg-alt)]" />
             </div>
@@ -655,7 +655,7 @@ export default function CustomerInsightsPage() {
           {/* 방문경로 분석 */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* 방문경로 파이차트 */}
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <div className="mb-5 flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-[color:var(--ad-faint)]" />
                 <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">방문 경로 분포</h3>
@@ -664,7 +664,7 @@ export default function CustomerInsightsPage() {
             </div>
 
             {/* 방문경로 막대차트 */}
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <div className="mb-5 flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-[color:var(--ad-faint)]" />
                 <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">방문 경로별 고객 수</h3>
@@ -674,7 +674,7 @@ export default function CustomerInsightsPage() {
           </div>
 
           {/* 주문 언어 분포 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Globe className="h-4 w-4 text-[color:var(--ad-faint)]" />
@@ -693,7 +693,7 @@ export default function CustomerInsightsPage() {
                   );
                 }}
                 disabled={!orderLanguages?.breakdown || orderLanguages.breakdown.languages.length === 0}
-                className="ad-press inline-flex h-8 items-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 disabled:hover:bg-white"
+                className="adm-press inline-flex h-8 items-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 disabled:hover:bg-white"
               >
                 <Download className="w-3.5 h-3.5" />
                 엑셀
@@ -703,7 +703,7 @@ export default function CustomerInsightsPage() {
           </div>
 
           {/* 재방문율 + 스탬프 보상 카드 */}
-          <div className="ad-card grid grid-cols-1 md:grid-cols-3">
+          <div className="adm-card grid grid-cols-1 md:grid-cols-3">
             <div className="p-5">
               <div className="flex items-start gap-2 mb-4">
                 <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 self-start text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -712,7 +712,7 @@ export default function CustomerInsightsPage() {
                   <p className="text-[12px] text-[color:var(--ad-muted)]">최근 7일 내 2회 이상 방문</p>
                 </div>
               </div>
-              <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{insights.retention.day7}%</div>
+              <div className="adm-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{insights.retention.day7}%</div>
             </div>
             <div className="border-t border-[color:var(--ad-line)] p-5 md:border-l md:border-t-0">
               <div className="flex items-start gap-2 mb-4">
@@ -722,7 +722,7 @@ export default function CustomerInsightsPage() {
                   <p className="text-[12px] text-[color:var(--ad-muted)]">최근 30일 내 2회 이상 방문</p>
                 </div>
               </div>
-              <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{insights.retention.day30}%</div>
+              <div className="adm-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{insights.retention.day30}%</div>
             </div>
             <div className="border-t border-[color:var(--ad-line)] p-5 md:border-l md:border-t-0">
               <div className="flex items-start gap-2 mb-4">
@@ -732,7 +732,7 @@ export default function CustomerInsightsPage() {
                   <p className="text-[12px] text-[color:var(--ad-muted)]">기간 내 보상 받은 고객 수</p>
                 </div>
               </div>
-              <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+              <div className="adm-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                 {(insights.stampRewardCustomers ?? 0).toLocaleString()}명
               </div>
             </div>
@@ -741,7 +741,7 @@ export default function CustomerInsightsPage() {
           {/* 인구통계 분석 */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* 성별 분포 */}
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <div className="mb-5 flex items-center gap-2">
                 <Users className="h-4 w-4 text-[color:var(--ad-faint)]" />
                 <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">성별 분포</h3>
@@ -750,7 +750,7 @@ export default function CustomerInsightsPage() {
             </div>
 
             {/* 연령대 분포 */}
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <div className="mb-5 flex items-center gap-2">
                 <Users className="h-4 w-4 text-[color:var(--ad-faint)]" />
                 <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">연령대 분포</h3>
@@ -759,7 +759,7 @@ export default function CustomerInsightsPage() {
             </div>
 
             {/* 성별×연령대별 평균 포인트 */}
-            <div className="ad-card p-5 lg:col-span-2">
+            <div className="adm-card p-5 lg:col-span-2">
               <div className="mb-5 flex items-center gap-2">
                 <Users className="h-4 w-4 text-[color:var(--ad-faint)]" />
                 <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">성별 × 연령대별 평균 포인트</h3>

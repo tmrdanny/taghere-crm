@@ -1137,7 +1137,7 @@ export default function MessagesPage() {
       {ToastComponent}
 
       {/* Left Panel - Settings */}
-      <div className="ad-card flex-1 lg:max-w-[720px] p-5 md:p-6 flex flex-col gap-6">
+      <div className="adm-card flex-1 lg:max-w-[720px] p-5 md:p-6 flex flex-col gap-6">
         {/* Header */}
         <MessageHeader
           activeTab={activeTab}
@@ -1179,7 +1179,7 @@ export default function MessagesPage() {
                   : 'border-[color:var(--ad-line)] bg-white hover:border-[color:var(--ad-line-strong)]'
               )}
             >
-              <div className="text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+              <div className="text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                 {formatNumber(targetCounts.all)}
               </div>
               <span className="text-[12px] text-[color:var(--ad-muted)]">전체</span>
@@ -1197,7 +1197,7 @@ export default function MessagesPage() {
                   : 'border-[color:var(--ad-line)] bg-white hover:border-[color:var(--ad-line-strong)]'
               )}
             >
-              <div className="text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+              <div className="text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                 {formatNumber(targetCounts.revisit)}
               </div>
               <span className="text-[12px] text-[color:var(--ad-muted)]">재방문</span>
@@ -1215,7 +1215,7 @@ export default function MessagesPage() {
                   : 'border-[color:var(--ad-line)] bg-white hover:border-[color:var(--ad-line-strong)]'
               )}
             >
-              <div className="text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+              <div className="text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                 {formatNumber(targetCounts.new)}
               </div>
               <span className="text-[12px] text-[color:var(--ad-muted)]">신규</span>
@@ -1462,10 +1462,10 @@ export default function MessagesPage() {
               </div>
 
               {/* 효과 예측 카드 */}
-              <div className="ad-card grid grid-cols-3 divide-x divide-[color:var(--ad-line)] mb-4 overflow-hidden">
+              <div className="adm-card grid grid-cols-3 divide-x divide-[color:var(--ad-line)] mb-4 overflow-hidden">
                 <div className="p-3 text-center">
                   <p className="text-[12px] text-[color:var(--ad-muted)]">발송 비용</p>
-                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원
                   </p>
                   {estimate?.freeCredits && estimate.freeCredits.freeCount > 0 ? (
@@ -1480,14 +1480,14 @@ export default function MessagesPage() {
                 </div>
                 <div className="p-3 text-center">
                   <p className="text-[12px] text-[color:var(--ad-muted)]">예상 방문</p>
-                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {Math.max(1, Math.round(getCurrentTargetCount() * 0.032))}명
                   </p>
                   <p className="text-[11px] text-[color:var(--ad-faint)]">방문율 3.2%</p>
                 </div>
                 <div className="p-3 text-center">
                   <p className="text-[12px] text-[color:var(--ad-muted)]">예상 매출</p>
-                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(Math.max(1, Math.round(getCurrentTargetCount() * 0.032)) * 25000)}원
                   </p>
                   <p className="text-[11px] text-[color:var(--ad-faint)]">객단가 2.5만원</p>
@@ -1509,7 +1509,7 @@ export default function MessagesPage() {
               <div className="flex items-center justify-between mb-4 text-[13px]">
                 <span className="text-[color:var(--ad-muted)]">현재 잔액</span>
                 <div className="flex items-center gap-2">
-                  <span className={`font-semibold ad-tnum ${(estimate?.walletBalance || 0) >= (estimate?.totalCost || 0) ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
+                  <span className={`font-semibold adm-tnum ${(estimate?.walletBalance || 0) >= (estimate?.totalCost || 0) ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
                     {formatNumber(estimate?.walletBalance || 0)}원
                   </span>
                   {(estimate?.walletBalance || 0) < (estimate?.totalCost || (getCurrentTargetCount() * 50)) && (
@@ -1543,7 +1543,7 @@ export default function MessagesPage() {
                       !!sendTimeError(smsSendTime, isAdMessage)
                     }
                     onClick={() => setShowConfirmModal(true)}
-                    className="ad-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="adm-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Send className="h-4 w-4" />
                     {smsSendTime.mode === 'schedule' ? `${formatSendTime(smsSendTime)} 예약하기` : '메시지 발송하기'} ({formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원)
@@ -1653,10 +1653,10 @@ export default function MessagesPage() {
               </div>
 
               {/* 효과 예측 카드 */}
-              <div className="ad-card grid grid-cols-3 divide-x divide-[color:var(--ad-line)] mb-4 overflow-hidden">
+              <div className="adm-card grid grid-cols-3 divide-x divide-[color:var(--ad-line)] mb-4 overflow-hidden">
                 <div className="p-3 text-center">
                   <p className="text-[12px] text-[color:var(--ad-muted)]">발송 비용</p>
-                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원
                   </p>
                   {couponEstimate?.freeCredits && couponEstimate.freeCredits.freeCount > 0 ? (
@@ -1671,14 +1671,14 @@ export default function MessagesPage() {
                 </div>
                 <div className="p-3 text-center">
                   <p className="text-[12px] text-[color:var(--ad-muted)]">예상 사용</p>
-                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {Math.max(1, Math.round(getCurrentTargetCount() * 0.05))}명
                   </p>
                   <p className="text-[11px] text-[color:var(--ad-faint)]">사용율 5%</p>
                 </div>
                 <div className="p-3 text-center">
                   <p className="text-[12px] text-[color:var(--ad-muted)]">예상 매출</p>
-                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(Math.max(1, Math.round(getCurrentTargetCount() * 0.05)) * 25000)}원
                   </p>
                   <p className="text-[11px] text-[color:var(--ad-faint)]">객단가 2.5만원</p>
@@ -1700,7 +1700,7 @@ export default function MessagesPage() {
               <div className="flex items-center justify-between mb-4 text-[13px]">
                 <span className="text-[color:var(--ad-muted)]">현재 잔액</span>
                 <div className="flex items-center gap-2">
-                  <span className={`font-semibold ad-tnum ${(couponEstimate?.walletBalance ?? estimate?.walletBalance ?? 0) >= (couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)) ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
+                  <span className={`font-semibold adm-tnum ${(couponEstimate?.walletBalance ?? estimate?.walletBalance ?? 0) >= (couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)) ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
                     {formatNumber(couponEstimate?.walletBalance ?? estimate?.walletBalance ?? 0)}원
                   </span>
                   {(couponEstimate?.walletBalance ?? estimate?.walletBalance ?? 0) < (couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)) && (
@@ -1806,7 +1806,7 @@ export default function MessagesPage() {
                     setIsCouponSending(false);
                   }
                 }}
-                className="ad-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
+                className="adm-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isCouponSending ? (
                   <>

@@ -145,9 +145,9 @@ const TOOLTIP_STYLE = {
 
 // ── 버튼·메뉴 공통 클래스 (무채색) ──
 const SECONDARY_BTN =
-  'ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]';
+  'adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]';
 const FILTER_BTN =
-  'ad-press inline-flex h-8 items-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]';
+  'adm-press inline-flex h-8 items-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]';
 const FILTER_BTN_ON = 'shadow-[inset_0_0_0_1px_var(--ad-ink)]';
 const RANGE_ACCENT = 'bg-white border-[color:var(--ad-ink)] text-[color:var(--ad-ink)]';
 const MENU =
@@ -158,7 +158,7 @@ const MENU_ITEM_ON = 'font-medium text-[color:var(--ad-ink)]';
 const DATE_INPUT =
   'h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] focus:border-[color:var(--ad-ink)] focus:outline-none';
 const PAGE_BTN =
-  'ad-press inline-flex h-8 w-8 items-center justify-center rounded-[10px] text-[color:var(--ad-muted)] hover:bg-[color:var(--ad-bg)] disabled:cursor-not-allowed disabled:opacity-40';
+  'adm-press inline-flex h-8 w-8 items-center justify-center rounded-[10px] text-[color:var(--ad-muted)] hover:bg-[color:var(--ad-bg)] disabled:cursor-not-allowed disabled:opacity-40';
 
 // 카드 제목 (회색 선 아이콘 + 제목 + 설명)
 function CardTitle({
@@ -188,7 +188,7 @@ function Donut({ gradient, center, sub }: { gradient: string; center: React.Reac
   return (
     <div className="relative h-32 w-32 shrink-0 rounded-full" style={{ background: gradient }}>
       <div className="absolute inset-[19px] flex flex-col items-center justify-center rounded-full bg-white">
-        <span className="ad-tnum text-[15px] font-medium tracking-[-0.02em] text-[color:var(--ad-ink)]">{center}</span>
+        <span className="adm-tnum text-[15px] font-medium tracking-[-0.02em] text-[color:var(--ad-ink)]">{center}</span>
         {sub && <span className="text-[11px] text-[color:var(--ad-faint)]">{sub}</span>}
       </div>
     </div>
@@ -201,8 +201,8 @@ function LegendRow({ color, label, pct, count }: { color: string; label: string;
     <div className="grid grid-cols-[8px_minmax(0,1fr)_auto_auto] items-center gap-x-2.5 text-[12.5px]">
       <span className="h-2 w-2 rounded-full" style={{ background: color }} />
       <span className="truncate text-[color:var(--ad-ink-2)]">{label}</span>
-      <span className="ad-tnum text-right font-medium text-[color:var(--ad-ink)]">{pct}</span>
-      <span className="ad-tnum min-w-[44px] text-right text-[12px] text-[color:var(--ad-faint)]">{count}</span>
+      <span className="adm-tnum text-right font-medium text-[color:var(--ad-ink)]">{pct}</span>
+      <span className="adm-tnum min-w-[44px] text-right text-[12px] text-[color:var(--ad-faint)]">{count}</span>
     </div>
   );
 }
@@ -235,7 +235,7 @@ function ChartTip({
     <div className="rounded-[10px] bg-white/95 px-3 py-2 text-[12px] shadow-[0_0_0_1px_rgba(29,32,34,0.06),0_12px_24px_-12px_rgba(19,22,81,0.3)] backdrop-blur">
       <p className="mb-1 text-[color:var(--ad-muted)]">{label}</p>
       {items.map((p) => (
-        <p key={p.name} className="ad-tnum flex items-center gap-1.5 font-medium text-[color:var(--ad-ink)]">
+        <p key={p.name} className="adm-tnum flex items-center gap-1.5 font-medium text-[color:var(--ad-ink)]">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: '#6eadff' }} />
           {format(Number(p.value))}
         </p>
@@ -598,7 +598,7 @@ export default function FranchiseInsightsPage() {
               pct={maxCount > 0 ? (item.count / maxCount) * 100 : 0}
               color={maxCount > 0 && item.count === maxCount ? '#6eadff' : '#a5ccff'}
             />
-            <span className="ad-tnum min-w-[92px] text-right">
+            <span className="adm-tnum min-w-[92px] text-right">
               <span className="font-medium text-[color:var(--ad-ink)]">{item.percentage}%</span>
               <span className="ml-1.5 text-[12px] text-[color:var(--ad-faint)]">{item.count.toLocaleString()}명</span>
             </span>
@@ -703,7 +703,7 @@ export default function FranchiseInsightsPage() {
               pct={maxCount > 0 ? (item.count / maxCount) * 100 : 0}
               color={maxCount > 0 && item.count === maxCount ? '#6eadff' : '#a5ccff'}
             />
-            <span className="ad-tnum min-w-[92px] text-right">
+            <span className="adm-tnum min-w-[92px] text-right">
               <span className="font-medium text-[color:var(--ad-ink)]">{item.count.toLocaleString()}명</span>
               <span className="ml-1.5 text-[12px] text-[color:var(--ad-faint)]">{item.percentage}%</span>
             </span>
@@ -766,7 +766,7 @@ export default function FranchiseInsightsPage() {
     return (
       <div>
         <div className="mb-5">
-          <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">외국어 주문 {foreignPercentage}%</p>
+          <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">외국어 주문 {foreignPercentage}%</p>
           <p className="mt-0.5 text-[13px] text-[color:var(--ad-muted)]">
             {breakdown.identifiedOrders.toLocaleString()}건 중 {foreignCount.toLocaleString()}건
             {langStats.storeCount > 0 && ` · 가맹점 ${langStats.storeCount}곳`}
@@ -863,10 +863,10 @@ export default function FranchiseInsightsPage() {
   // Loading skeleton
   const renderSkeleton = () => (
     <div className="space-y-4">
-      <div className="ad-card h-28 animate-pulse" />
+      <div className="adm-card h-28 animate-pulse" />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="ad-card animate-pulse p-5">
+          <div key={i} className="adm-card animate-pulse p-5">
             <div className="mb-4 h-5 w-1/3 rounded bg-[color:var(--ad-bg)]" />
             <div className="h-40 rounded bg-[color:var(--ad-bg-alt)]" />
           </div>
@@ -975,7 +975,7 @@ export default function FranchiseInsightsPage() {
                     </button>
                     <button
                       onClick={applyDateRange}
-                      className="ad-press inline-flex h-9 flex-1 items-center justify-center rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+                      className="adm-press inline-flex h-9 flex-1 items-center justify-center rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
                     >
                       적용
                     </button>
@@ -990,7 +990,7 @@ export default function FranchiseInsightsPage() {
             onClick={fetchInsights}
             disabled={isLoading}
             aria-label="새로고침"
-            className="ad-press inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:bg-[color:var(--ad-bg)] disabled:text-[color:var(--ad-faint)]"
+            className="adm-press inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:bg-[color:var(--ad-bg)] disabled:text-[color:var(--ad-faint)]"
           >
             <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
           </button>
@@ -1002,7 +1002,7 @@ export default function FranchiseInsightsPage() {
       ) : (
         <>
           {/* Summary: 재방문율 */}
-          <div className="ad-card grid grid-cols-1 md:grid-cols-2">
+          <div className="adm-card grid grid-cols-1 md:grid-cols-2">
             <div className="p-5">
               <div className="mb-4 flex items-start gap-2">
                 <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -1011,7 +1011,7 @@ export default function FranchiseInsightsPage() {
                   <p className="text-[12px] text-[color:var(--ad-muted)]">최근 7일 내 재방문한 고객 비율</p>
                 </div>
               </div>
-              <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{insights.retention.day7}%</div>
+              <div className="adm-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{insights.retention.day7}%</div>
             </div>
             <div className="border-t border-[color:var(--ad-line)] p-5 md:border-l md:border-t-0">
               <div className="mb-4 flex items-start gap-2">
@@ -1021,24 +1021,24 @@ export default function FranchiseInsightsPage() {
                   <p className="text-[12px] text-[color:var(--ad-muted)]">최근 30일 내 재방문한 고객 비율</p>
                 </div>
               </div>
-              <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{insights.retention.day30}%</div>
+              <div className="adm-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{insights.retention.day30}%</div>
             </div>
           </div>
 
           {/* 알림톡 발송 통계 + 스탬프 보상 수령 고객 */}
           <div>
-            <div className="ad-card grid grid-cols-1 md:grid-cols-3">
+            <div className="adm-card grid grid-cols-1 md:grid-cols-3">
               {/* 적립 알림톡 */}
               <div className="p-5">
                 <div className="mb-4 flex items-start gap-2">
                   <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                   <h3 className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">적립 알림톡 발송</h3>
                 </div>
-                <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                <div className="adm-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                   {(insights.messageStats?.earn.count ?? 0).toLocaleString()}
                   <span className="ml-0.5 text-[14px] text-[color:var(--ad-muted)]">건</span>
                 </div>
-                <p className="ad-tnum mt-1 text-[12.5px] text-[color:var(--ad-ink-2)]">
+                <p className="adm-tnum mt-1 text-[12.5px] text-[color:var(--ad-ink-2)]">
                   {(insights.messageStats?.earn.amount ?? 0).toLocaleString()}원
                   <span className="ml-1 text-[12px] text-[color:var(--ad-faint)]">
                     (건당 {(insights.messageStats?.earn.unitPrice ?? 0).toLocaleString()}원)
@@ -1052,11 +1052,11 @@ export default function FranchiseInsightsPage() {
                   <Send className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                   <h3 className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">마케팅 알림톡 발송</h3>
                 </div>
-                <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                <div className="adm-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                   {(insights.messageStats?.marketing.count ?? 0).toLocaleString()}
                   <span className="ml-0.5 text-[14px] text-[color:var(--ad-muted)]">건</span>
                 </div>
-                <p className="ad-tnum mt-1 text-[12.5px] text-[color:var(--ad-ink-2)]">
+                <p className="adm-tnum mt-1 text-[12.5px] text-[color:var(--ad-ink-2)]">
                   {(insights.messageStats?.marketing.amount ?? 0).toLocaleString()}원
                   <span className="ml-1 text-[12px] text-[color:var(--ad-faint)]">
                     (건당 {(insights.messageStats?.marketing.unitPrice ?? 0).toLocaleString()}원)
@@ -1070,7 +1070,7 @@ export default function FranchiseInsightsPage() {
                   <Gift className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                   <h3 className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">스탬프 보상 수령 고객</h3>
                 </div>
-                <div className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                <div className="adm-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                   {(insights.stampRewardCustomers ?? 0).toLocaleString()}
                   <span className="ml-0.5 text-[14px] text-[color:var(--ad-muted)]">명</span>
                 </div>
@@ -1085,13 +1085,13 @@ export default function FranchiseInsightsPage() {
           {/* Charts Row 1 */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Age Distribution */}
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <CardTitle icon={BarChart3} title="연령대별 고객 분포" desc="전체 고객의 연령대별 분포를 보여줍니다" />
               {renderBarChart(insights.ageDistribution)}
             </div>
 
             {/* Gender Distribution */}
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <CardTitle icon={PieChart} title="성별 분포" desc="전체 고객의 성별 비율을 보여줍니다" />
               {renderGenderPie()}
             </div>
@@ -1100,20 +1100,20 @@ export default function FranchiseInsightsPage() {
           {/* Visit Source Charts */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Visit Source Pie Chart */}
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <CardTitle icon={Compass} title="방문경로 분포" desc="고객이 매장을 알게 된 경로입니다" />
               {renderVisitSourcePieChart(insights.visitSourceDistribution)}
             </div>
 
             {/* Visit Source Bar Chart */}
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <CardTitle icon={BarChart3} title="방문경로별 고객 수" desc="방문경로별 고객 수를 비교합니다" />
               {renderVisitSourceBarChart(insights.visitSourceDistribution)}
             </div>
           </div>
 
           {/* Daily Visitors - Full Width */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
               <CardTitle
                 icon={Users}
@@ -1264,7 +1264,7 @@ export default function FranchiseInsightsPage() {
           </div>
 
           {/* Order Languages - Full Width */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
               <CardTitle
                 icon={Globe}
@@ -1352,7 +1352,7 @@ export default function FranchiseInsightsPage() {
           </div>
 
           {/* Monthly Trend - Full Width */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
               <CardTitle
                 icon={TrendingUp}
@@ -1419,14 +1419,14 @@ export default function FranchiseInsightsPage() {
                   className={cn('text-center', i > 0 && 'border-l border-[color:var(--ad-line)]')}
                 >
                   <p className="text-[12px] text-[color:var(--ad-muted)]">{item.month}</p>
-                  <p className="ad-tnum mt-0.5 text-[15px] font-medium text-[color:var(--ad-ink)]">{item.customers.toLocaleString()}</p>
+                  <p className="adm-tnum mt-0.5 text-[15px] font-medium text-[color:var(--ad-ink)]">{item.customers.toLocaleString()}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Top Stores */}
-          <div className="ad-card overflow-hidden">
+          <div className="adm-card overflow-hidden">
             <div className="p-5 pb-4">
               <CardTitle
                 icon={Users}
@@ -1453,7 +1453,7 @@ export default function FranchiseInsightsPage() {
                           <td className="px-5 py-3">
                             <div className="flex items-center gap-3">
                               <span className={cn(
-                                'ad-tnum flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11.5px]',
+                                'adm-tnum flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11.5px]',
                                 rank < 3
                                   ? 'bg-[color:var(--ad-bg)] font-semibold text-[color:var(--ad-ink)]'
                                   : 'font-medium text-[color:var(--ad-faint)]'
@@ -1463,7 +1463,7 @@ export default function FranchiseInsightsPage() {
                               <span className="font-medium text-[color:var(--ad-ink)]">{store.name}</span>
                             </div>
                           </td>
-                          <td className="ad-tnum px-5 py-3 text-right font-medium text-[color:var(--ad-ink)]">
+                          <td className="adm-tnum px-5 py-3 text-right font-medium text-[color:var(--ad-ink)]">
                             {store.customers.toLocaleString()}명
                           </td>
                         </tr>
@@ -1487,7 +1487,7 @@ export default function FranchiseInsightsPage() {
               const rangeEnd = Math.min(storesPage * STORES_PER_PAGE, insights.topStores.length);
               return (
                 <div className="flex items-center justify-between border-t border-[color:var(--ad-line)] px-5 py-3">
-                  <p className="ad-tnum text-[12px] text-[color:var(--ad-muted)]">
+                  <p className="adm-tnum text-[12px] text-[color:var(--ad-muted)]">
                     {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} / {insights.topStores.length.toLocaleString()}개
                   </p>
                   <div className="flex items-center gap-1">
@@ -1499,7 +1499,7 @@ export default function FranchiseInsightsPage() {
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <span className="ad-tnum px-3 text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                    <span className="adm-tnum px-3 text-[13px] font-medium text-[color:var(--ad-ink-2)]">
                       {storesPage} / {totalPages}
                     </span>
                     <button

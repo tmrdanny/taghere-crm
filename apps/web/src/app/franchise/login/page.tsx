@@ -53,13 +53,13 @@ export default function FranchiseLoginPage() {
     'h-11 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[14px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] transition-colors focus:border-[color:var(--ad-ink)] focus:outline-none';
 
   return (
-    <div className="ad ad-crm flex items-center justify-center p-4">
+    <div className="adm adm-crm flex items-center justify-center p-4">
       {ToastComponent}
-      <div className="ad-sky" aria-hidden>
-        <span className="ad-cloud" />
+      <div className="adm-sky" aria-hidden>
+        <span className="adm-cloud" />
       </div>
 
-      <div className="ad-rise relative w-full max-w-[380px] rounded-[24px] border border-white/70 bg-white/70 p-8 shadow-[0_30px_80px_-30px_rgba(19,22,81,0.25)] backdrop-blur-2xl">
+      <div className="adm-rise relative w-full max-w-[380px] rounded-[24px] border border-white/70 bg-white/70 p-8 shadow-[0_30px_80px_-30px_rgba(19,22,81,0.25)] backdrop-blur-2xl">
         <div className="mb-7 text-center">
           <Image src="/Taghere-logo.png" alt="태그히어" width={48} height={48} className="mx-auto mb-4 h-12 w-12" priority />
           <div className="flex items-center justify-center gap-2">
@@ -123,7 +123,7 @@ export default function FranchiseLoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="ad-press flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-[color:var(--ad-ink)] text-[14px] font-semibold text-white transition-colors hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40"
+            className="adm-press flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-[color:var(--ad-ink)] text-[14px] font-semibold text-white transition-colors hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isLoading ? (
               <>

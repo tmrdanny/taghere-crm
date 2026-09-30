@@ -28,20 +28,20 @@ export function MainLayout({ children, taghereVersion, stampEnabled }: MainLayou
   };
 
   return (
-    // .ad: v2 토큰·글래스 배경, .ad-crm: 공용 컴포넌트의 기본 Tailwind 색을 v2 톤으로 재매핑
-    <div className="ad ad-crm">
-      <div className="ad-sky" aria-hidden>
-        <span className="ad-cloud" />
-        <span className="ad-cloud" />
-        <span className="ad-cloud" />
-        <span className="ad-cloud" />
+    // .adm: v2 토큰·글래스 배경, .adm-crm: 공용 컴포넌트의 기본 Tailwind 색을 v2 톤으로 재매핑
+    <div className="adm adm-crm">
+      <div className="adm-sky" aria-hidden>
+        <span className="adm-cloud" />
+        <span className="adm-cloud" />
+        <span className="adm-cloud" />
+        <span className="adm-cloud" />
       </div>
 
       {/* Mobile Header - Only visible on mobile/tablet */}
       <MobileHeader taghereVersion={taghereVersion} stampEnabled={stampEnabled} />
 
       {/* Main Layout with Sidebar */}
-      <div className="ad-shell">
+      <div className="adm-shell">
         {/* Sidebar - Only visible on desktop */}
         <Sidebar isCollapsed={isCollapsed} onToggleCollapse={handleToggleCollapse} taghereVersion={taghereVersion} stampEnabled={stampEnabled} />
 

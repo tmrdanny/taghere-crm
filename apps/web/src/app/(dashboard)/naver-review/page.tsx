@@ -163,7 +163,7 @@ export default function NaverReviewPage() {
             </div>
 
             {/* Benefit Text Input */}
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <div className="space-y-4">
                 <div>
                   <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
@@ -184,7 +184,7 @@ export default function NaverReviewPage() {
             </div>
 
             {/* Delay Settings */}
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Clock className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -249,7 +249,7 @@ export default function NaverReviewPage() {
               <Button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="ad-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+                className="adm-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
               >
                 {isSaving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

@@ -641,7 +641,7 @@ export default function FranchiseCustomersPage() {
         <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-end">
           <div>
             <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">고객 통합 DB</h1>
-            <p className="ad-tnum mt-1 text-[13px] text-[color:var(--ad-muted)]">
+            <p className="adm-tnum mt-1 text-[13px] text-[color:var(--ad-muted)]">
               {activeTab === 'store'
                 ? `전체 ${totalCustomers.toLocaleString()}명의 고객${totalPages > 1 ? ` (${currentPage}/${totalPages} 페이지)` : ''}`
                 : `통합 고객 ${franchiseTotalCustomers.toLocaleString()}명${franchiseTotalPages > 1 ? ` (${franchiseCurrentPage}/${franchiseTotalPages} 페이지)` : ''}`
@@ -682,7 +682,7 @@ export default function FranchiseCustomersPage() {
         {activeTab === 'store' && (
         <>
         {/* Search and Filters */}
-        <div className="ad-card mb-4 p-4">
+        <div className="adm-card mb-4 p-4">
           {/* Search bar */}
           <div className="flex items-center gap-3 mb-3">
             <div className="relative flex-1 max-w-md">
@@ -698,7 +698,7 @@ export default function FranchiseCustomersPage() {
             </div>
             <button
               onClick={handleSearch}
-              className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+              className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
             >
               검색
             </button>
@@ -718,7 +718,7 @@ export default function FranchiseCustomersPage() {
                   setDateRangeDropdownOpen(false);
                 }}
                 className={cn(
-                  'ad-press flex h-9 items-center gap-1 rounded-[10px] bg-white px-3 text-[13px] transition-colors hover:bg-[color:var(--ad-bg-alt)]',
+                  'adm-press flex h-9 items-center gap-1 rounded-[10px] bg-white px-3 text-[13px] transition-colors hover:bg-[color:var(--ad-bg-alt)]',
                   storeFilter === 'all'
                     ? 'font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]'
                     : 'font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-ink)]'
@@ -770,7 +770,7 @@ export default function FranchiseCustomersPage() {
                   setDateRangeDropdownOpen(false);
                 }}
                 className={cn(
-                  'ad-press flex h-9 items-center gap-1 rounded-[10px] bg-white px-3 text-[13px] transition-colors hover:bg-[color:var(--ad-bg-alt)]',
+                  'adm-press flex h-9 items-center gap-1 rounded-[10px] bg-white px-3 text-[13px] transition-colors hover:bg-[color:var(--ad-bg-alt)]',
                   genderFilter === 'all'
                     ? 'font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]'
                     : 'font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-ink)]'
@@ -812,7 +812,7 @@ export default function FranchiseCustomersPage() {
                   setDateRangeDropdownOpen(false);
                 }}
                 className={cn(
-                  'ad-press flex h-9 items-center gap-1 rounded-[10px] bg-white px-3 text-[13px] transition-colors hover:bg-[color:var(--ad-bg-alt)]',
+                  'adm-press flex h-9 items-center gap-1 rounded-[10px] bg-white px-3 text-[13px] transition-colors hover:bg-[color:var(--ad-bg-alt)]',
                   visitFilter === 'all'
                     ? 'font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]'
                     : 'font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-ink)]'
@@ -854,7 +854,7 @@ export default function FranchiseCustomersPage() {
                   setDateRangeDropdownOpen(false);
                 }}
                 className={cn(
-                  'ad-press flex h-9 items-center gap-1 rounded-[10px] bg-white px-3 text-[13px] transition-colors hover:bg-[color:var(--ad-bg-alt)]',
+                  'adm-press flex h-9 items-center gap-1 rounded-[10px] bg-white px-3 text-[13px] transition-colors hover:bg-[color:var(--ad-bg-alt)]',
                   lastVisitFilter === 'all'
                     ? 'font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]'
                     : 'font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-ink)]'
@@ -896,7 +896,7 @@ export default function FranchiseCustomersPage() {
                   setLastVisitDropdownOpen(false);
                 }}
                 className={cn(
-                  'ad-press flex h-9 items-center gap-1 rounded-[10px] bg-white px-3 text-[13px] transition-colors hover:bg-[color:var(--ad-bg-alt)]',
+                  'adm-press flex h-9 items-center gap-1 rounded-[10px] bg-white px-3 text-[13px] transition-colors hover:bg-[color:var(--ad-bg-alt)]',
                   (startDate || endDate)
                     ? 'font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-ink)]'
                     : 'font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]'
@@ -904,7 +904,7 @@ export default function FranchiseCustomersPage() {
               >
                 <Calendar className="w-3.5 h-3.5" />
                 {(startDate || endDate) ? (
-                  <span className="ad-tnum text-[12.5px]">
+                  <span className="adm-tnum text-[12.5px]">
                     {startDate && endDate ? `${startDate.slice(5)} ~ ${endDate.slice(5)}` : startDate ? `${startDate.slice(5)} ~` : `~ ${endDate.slice(5)}`}
                   </span>
                 ) : (
@@ -977,7 +977,7 @@ export default function FranchiseCustomersPage() {
                         setEndDate('');
                         setDateFilterType('lastVisit');
                       }}
-                      className="ad-press h-9 flex-1 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                      className="adm-press h-9 flex-1 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                     >
                       초기화
                     </button>
@@ -986,7 +986,7 @@ export default function FranchiseCustomersPage() {
                         e.stopPropagation();
                         setDateRangeDropdownOpen(false);
                       }}
-                      className="ad-press h-9 flex-1 rounded-[10px] bg-[color:var(--ad-ink)] text-[13px] font-semibold text-white hover:bg-[#383c40]"
+                      className="adm-press h-9 flex-1 rounded-[10px] bg-[color:var(--ad-ink)] text-[13px] font-semibold text-white hover:bg-[#383c40]"
                     >
                       적용
                     </button>
@@ -1007,7 +1007,7 @@ export default function FranchiseCustomersPage() {
                   setLastVisitDropdownOpen(false);
                   setDateRangeDropdownOpen(false);
                 }}
-                className="ad-press flex h-9 items-center gap-1 rounded-[10px] bg-white px-3 text-[13px] font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press flex h-9 items-center gap-1 rounded-[10px] bg-white px-3 text-[13px] font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 <Settings2 className="w-3.5 h-3.5" />
                 컬럼
@@ -1051,7 +1051,7 @@ export default function FranchiseCustomersPage() {
         </div>
 
         {/* Table */}
-        <div className="ad-card overflow-hidden">
+        <div className="adm-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead>
@@ -1150,18 +1150,18 @@ export default function FranchiseCustomersPage() {
                         </td>
                       )}
                       {isColumnVisible('phone') && (
-                        <td className="px-4 py-3 ad-tnum text-[color:var(--ad-ink-2)]">{customer.phone}</td>
+                        <td className="px-4 py-3 adm-tnum text-[color:var(--ad-ink-2)]">{customer.phone}</td>
                       )}
                       {isColumnVisible('store') && (
                         <td className="px-4 py-3 text-[color:var(--ad-ink-2)]">{customer.store.name}</td>
                       )}
                       {isColumnVisible('stamps') && (
-                        <td className="px-4 py-3 ad-tnum text-right font-medium text-[color:var(--ad-ink)]">
+                        <td className="px-4 py-3 adm-tnum text-right font-medium text-[color:var(--ad-ink)]">
                           {customer.totalStamps}개
                         </td>
                       )}
                       {isColumnVisible('points') && (
-                        <td className="px-4 py-3 ad-tnum text-right font-medium text-[color:var(--ad-ink)]">
+                        <td className="px-4 py-3 adm-tnum text-right font-medium text-[color:var(--ad-ink)]">
                           {customer.totalPoints.toLocaleString()}P
                         </td>
                       )}
@@ -1195,12 +1195,12 @@ export default function FranchiseCustomersPage() {
                         </td>
                       )}
                       {isColumnVisible('visitCount') && (
-                        <td className="px-4 py-3 ad-tnum text-right font-medium text-[color:var(--ad-ink)]">
+                        <td className="px-4 py-3 adm-tnum text-right font-medium text-[color:var(--ad-ink)]">
                           {customer.visitCount}회
                         </td>
                       )}
                       {isColumnVisible('lastVisit') && (
-                        <td className="px-4 py-3 ad-tnum text-[color:var(--ad-muted)]">
+                        <td className="px-4 py-3 adm-tnum text-[color:var(--ad-muted)]">
                           {customer.lastVisitAt ? formatDateTime(customer.lastVisitAt) : '-'}
                         </td>
                       )}
@@ -1232,7 +1232,7 @@ export default function FranchiseCustomersPage() {
           {/* Pagination */}
           {!isLoading && totalPages > 1 && (
             <div className="flex items-center justify-between border-t border-[color:var(--ad-line)] px-4 py-3">
-              <p className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">
+              <p className="adm-tnum text-[12.5px] text-[color:var(--ad-muted)]">
                 {totalCustomers.toLocaleString()}명 중 {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCustomers)}명 표시
               </p>
               <div className="flex items-center gap-2">
@@ -1267,7 +1267,7 @@ export default function FranchiseCustomersPage() {
                         key={pageNum}
                         onClick={() => setCurrentPage(pageNum)}
                         className={cn(
-                          'ad-tnum h-8 w-8 rounded-[8px] text-[12.5px] transition-colors',
+                          'adm-tnum h-8 w-8 rounded-[8px] text-[12.5px] transition-colors',
                           currentPage === pageNum
                             ? 'bg-[color:var(--ad-ink)] font-medium text-white'
                             : 'text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]'
@@ -1303,7 +1303,7 @@ export default function FranchiseCustomersPage() {
         {activeTab === 'franchise' && (
         <>
           {/* Search */}
-          <div className="ad-card mb-4 p-4">
+          <div className="adm-card mb-4 p-4">
             <div className="flex items-center gap-3">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--ad-faint)]" />
@@ -1318,7 +1318,7 @@ export default function FranchiseCustomersPage() {
               </div>
               <button
                 onClick={handleFranchiseSearch}
-                className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+                className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
               >
                 검색
               </button>
@@ -1326,7 +1326,7 @@ export default function FranchiseCustomersPage() {
           </div>
 
           {/* Franchise Customer Table */}
-          <div className="ad-card overflow-hidden">
+          <div className="adm-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-[13px]">
                 <thead>
@@ -1381,12 +1381,12 @@ export default function FranchiseCustomersPage() {
                         <td className="px-4 py-3">
                           <span className="font-medium text-[color:var(--ad-ink)]">{fc.name || '-'}</span>
                         </td>
-                        <td className="px-4 py-3 ad-tnum text-[color:var(--ad-ink-2)]">{fc.phone || '-'}</td>
-                        <td className="px-4 py-3 ad-tnum text-right font-medium text-[color:var(--ad-ink)]">{fc.totalStamps}개</td>
-                        <td className="px-4 py-3 ad-tnum text-right font-medium text-[color:var(--ad-ink)]">{fc.totalPoints.toLocaleString()}P</td>
-                        <td className="px-4 py-3 ad-tnum text-right font-medium text-[color:var(--ad-ink)]">{fc.visitCount}회</td>
+                        <td className="px-4 py-3 adm-tnum text-[color:var(--ad-ink-2)]">{fc.phone || '-'}</td>
+                        <td className="px-4 py-3 adm-tnum text-right font-medium text-[color:var(--ad-ink)]">{fc.totalStamps}개</td>
+                        <td className="px-4 py-3 adm-tnum text-right font-medium text-[color:var(--ad-ink)]">{fc.totalPoints.toLocaleString()}P</td>
+                        <td className="px-4 py-3 adm-tnum text-right font-medium text-[color:var(--ad-ink)]">{fc.visitCount}회</td>
                         <td className="px-4 py-3 text-[color:var(--ad-ink-2)]">{fc.lastStore?.name || '-'}</td>
-                        <td className="px-4 py-3 ad-tnum text-[color:var(--ad-muted)]">
+                        <td className="px-4 py-3 adm-tnum text-[color:var(--ad-muted)]">
                           {fc.lastVisitAt ? formatDateTime(fc.lastVisitAt) : '-'}
                         </td>
                       </tr>
@@ -1399,7 +1399,7 @@ export default function FranchiseCustomersPage() {
             {/* Franchise Pagination */}
             {!isFranchiseLoading && franchiseTotalPages > 1 && (
               <div className="flex items-center justify-between border-t border-[color:var(--ad-line)] px-4 py-3">
-                <p className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">
+                <p className="adm-tnum text-[12.5px] text-[color:var(--ad-muted)]">
                   {franchiseTotalCustomers.toLocaleString()}명 중 {((franchiseCurrentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(franchiseCurrentPage * ITEMS_PER_PAGE, franchiseTotalCustomers)}명 표시
                 </p>
                 <div className="flex items-center gap-2">
@@ -1434,7 +1434,7 @@ export default function FranchiseCustomersPage() {
                           key={pageNum}
                           onClick={() => setFranchiseCurrentPage(pageNum)}
                           className={cn(
-                            'ad-tnum h-8 w-8 rounded-[8px] text-[12.5px] transition-colors',
+                            'adm-tnum h-8 w-8 rounded-[8px] text-[12.5px] transition-colors',
                             franchiseCurrentPage === pageNum
                               ? 'bg-[color:var(--ad-ink)] font-medium text-white'
                               : 'text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]'
@@ -1509,7 +1509,7 @@ export default function FranchiseCustomersPage() {
                       </div>
                       <div>
                         <p className="mb-1 text-[12px] text-[color:var(--ad-muted)]">연락처</p>
-                        <p className="ad-tnum text-[13.5px] font-medium text-[color:var(--ad-ink)]">{selectedCustomer.phone}</p>
+                        <p className="adm-tnum text-[13.5px] font-medium text-[color:var(--ad-ink)]">{selectedCustomer.phone}</p>
                       </div>
                       <div>
                         <p className="mb-1 text-[12px] text-[color:var(--ad-muted)]">성별</p>
@@ -1562,7 +1562,7 @@ export default function FranchiseCustomersPage() {
                               <div key={order.id} className="rounded-[10px] bg-[color:var(--ad-bg-alt)] p-3">
                                 <div className="flex items-center justify-between mb-2">
                                   <p className="text-[12px] text-[color:var(--ad-muted)]">{formatDate(order.visitedAt)}</p>
-                                  <p className="ad-tnum text-[13.5px] font-semibold text-[color:var(--ad-ink)]">
+                                  <p className="adm-tnum text-[13.5px] font-semibold text-[color:var(--ad-ink)]">
                                     {order.totalAmount ? `${order.totalAmount.toLocaleString()}원` : '-'}
                                   </p>
                                 </div>
@@ -1573,7 +1573,7 @@ export default function FranchiseCustomersPage() {
                                         <span className="text-[color:var(--ad-ink-2)]">
                                           {item.name || '메뉴'} x{item.quantity || 1}
                                         </span>
-                                        <span className="ad-tnum text-[color:var(--ad-muted)]">{(item.price ?? 0).toLocaleString()}원</span>
+                                        <span className="adm-tnum text-[color:var(--ad-muted)]">{(item.price ?? 0).toLocaleString()}원</span>
                                       </div>
                                     ))}
                                   </div>
@@ -1632,7 +1632,7 @@ export default function FranchiseCustomersPage() {
                                   <p className="text-[12px] text-[color:var(--ad-muted)]">{formatDate(entry.createdAt)}</p>
                                 </div>
                                 <p className={cn(
-                                  'ad-tnum text-[13px] font-semibold',
+                                  'adm-tnum text-[13px] font-semibold',
                                   (entry.amount ?? 0) > 0 ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-muted)]'
                                 )}>
                                   {(entry.amount ?? 0) > 0 ? '+' : ''}{(entry.amount ?? 0).toLocaleString()}P
@@ -1652,7 +1652,7 @@ export default function FranchiseCustomersPage() {
             <div className="flex items-center justify-end gap-3 border-t border-[color:var(--ad-line)] px-6 py-4">
               <button
                 onClick={() => setSelectedCustomer(null)}
-                className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 닫기
               </button>
@@ -1701,7 +1701,7 @@ export default function FranchiseCustomersPage() {
                       </div>
                       <div>
                         <p className="mb-1 text-[12px] text-[color:var(--ad-muted)]">연락처</p>
-                        <p className="ad-tnum text-[13.5px] font-medium text-[color:var(--ad-ink)]">{selectedFranchiseCustomer.phone || '-'}</p>
+                        <p className="adm-tnum text-[13.5px] font-medium text-[color:var(--ad-ink)]">{selectedFranchiseCustomer.phone || '-'}</p>
                       </div>
                       <div>
                         <p className="mb-1 text-[12px] text-[color:var(--ad-muted)]">통합 스탬프</p>
@@ -1751,7 +1751,7 @@ export default function FranchiseCustomersPage() {
                                   </p>
                                 </div>
                                 <p className={cn(
-                                  'ad-tnum text-[13px] font-semibold',
+                                  'adm-tnum text-[13px] font-semibold',
                                   entry.delta > 0 ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-muted)]'
                                 )}>
                                   {entry.delta > 0 ? '+' : ''}{entry.delta}개
@@ -1782,7 +1782,7 @@ export default function FranchiseCustomersPage() {
                                   </p>
                                 </div>
                                 <p className={cn(
-                                  'ad-tnum text-[13px] font-semibold',
+                                  'adm-tnum text-[13px] font-semibold',
                                   entry.delta > 0 ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-muted)]'
                                 )}>
                                   {entry.delta > 0 ? '+' : ''}{entry.delta.toLocaleString()}P
@@ -1802,7 +1802,7 @@ export default function FranchiseCustomersPage() {
             <div className="flex items-center justify-end gap-3 border-t border-[color:var(--ad-line)] px-6 py-4">
               <button
                 onClick={() => setSelectedFranchiseCustomer(null)}
-                className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 닫기
               </button>

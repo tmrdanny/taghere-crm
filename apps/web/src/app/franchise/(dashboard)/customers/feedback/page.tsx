@@ -160,22 +160,22 @@ export default function FranchiseFeedbackPage() {
       </div>
 
       {/* 통계 카드 */}
-      <div className="ad-card mb-4 grid grid-cols-1 md:grid-cols-2">
+      <div className="adm-card mb-4 grid grid-cols-1 md:grid-cols-2">
         <div className="p-5">
           <p className="mb-1 text-[12px] text-[color:var(--ad-muted)]">총 피드백 수</p>
-          <p className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{totalCount.toLocaleString()}</p>
+          <p className="adm-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{totalCount.toLocaleString()}</p>
         </div>
         <div className="border-t border-[color:var(--ad-line)] p-5 md:border-l md:border-t-0">
           <p className="mb-1 text-[12px] text-[color:var(--ad-muted)]">평균 별점</p>
           <div className="flex items-center gap-2">
-            <p className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{averageRating.toFixed(1)}</p>
+            <p className="adm-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{averageRating.toFixed(1)}</p>
             <StarRating rating={Math.round(averageRating)} />
           </div>
         </div>
       </div>
 
       {/* 필터 & 다운로드 */}
-      <div className="ad-card mb-4 p-4">
+      <div className="adm-card mb-4 p-4">
         <div className="flex flex-wrap items-center gap-4">
           {/* 매장 필터 */}
           <div className="flex items-center gap-2">
@@ -234,7 +234,7 @@ export default function FranchiseFeedbackPage() {
           {/* 엑셀 다운로드 */}
           <button
             onClick={handleDownloadExcel}
-            className="ad-press ml-auto inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+            className="adm-press ml-auto inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
           >
             <Download className="h-4 w-4" strokeWidth={1.8} />
             엑셀 다운로드
@@ -243,7 +243,7 @@ export default function FranchiseFeedbackPage() {
       </div>
 
       {/* 피드백 테이블 */}
-      <div className="ad-card overflow-hidden">
+      <div className="adm-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-[13px]">
             <thead>
@@ -271,13 +271,13 @@ export default function FranchiseFeedbackPage() {
                       <StarRating rating={feedback.rating} />
                     </td>
                     <td className="px-4 py-3 text-[color:var(--ad-ink)]">{feedback.customerName}</td>
-                    <td className="ad-tnum px-4 py-3 text-[color:var(--ad-ink-2)]">{feedback.customerPhone || '-'}</td>
+                    <td className="adm-tnum px-4 py-3 text-[color:var(--ad-ink-2)]">{feedback.customerPhone || '-'}</td>
                     <td className="px-4 py-3 text-[color:var(--ad-ink-2)]">
                       {feedback.text || (
                         <span className="text-[color:var(--ad-faint)]">작성된 피드백 없음</span>
                       )}
                     </td>
-                    <td className="ad-tnum px-4 py-3 text-[color:var(--ad-muted)]">
+                    <td className="adm-tnum px-4 py-3 text-[color:var(--ad-muted)]">
                       {new Date(feedback.createdAt).toLocaleDateString('ko-KR')}
                     </td>
                   </tr>
@@ -290,24 +290,24 @@ export default function FranchiseFeedbackPage() {
         {/* 페이지네이션 */}
         {feedbacks.length > 0 && (
           <div className="flex items-center justify-between border-t border-[color:var(--ad-line)] px-4 py-3">
-            <p className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">
+            <p className="adm-tnum text-[12.5px] text-[color:var(--ad-muted)]">
               총 {totalCount.toLocaleString()}개의 피드백
             </p>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage(Math.max(1, page - 1))}
                 disabled={page === 1}
-                className="ad-press h-8 rounded-[8px] bg-white px-3 text-[12.5px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] transition-colors hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40"
+                className="adm-press h-8 rounded-[8px] bg-white px-3 text-[12.5px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] transition-colors hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 이전
               </button>
-              <span className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">
+              <span className="adm-tnum text-[12.5px] text-[color:var(--ad-muted)]">
                 {page} 페이지
               </span>
               <button
                 onClick={() => setPage(page + 1)}
                 disabled={feedbacks.length < limit}
-                className="ad-press h-8 rounded-[8px] bg-white px-3 text-[12.5px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] transition-colors hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40"
+                className="adm-press h-8 rounded-[8px] bg-white px-3 text-[12.5px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] transition-colors hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 다음
               </button>

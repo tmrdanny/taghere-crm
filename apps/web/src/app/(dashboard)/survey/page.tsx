@@ -308,7 +308,7 @@ export default function SurveyPage() {
 
           <div className="space-y-4">
         {/* 안내 카드 */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
             <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">고객 설문 안내</h3>
           </div>
@@ -316,7 +316,7 @@ export default function SurveyPage() {
             <div className="space-y-3 text-[13px] text-[color:var(--ad-ink-2)]">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]">
-                  <span className="ad-tnum text-[11.5px] font-medium">1</span>
+                  <span className="adm-tnum text-[11.5px] font-medium">1</span>
                 </div>
                 <p>
                   질문을 추가하면 고객이 포인트/스탬프 적립 시 해당 질문이 표시됩니다.
@@ -324,7 +324,7 @@ export default function SurveyPage() {
               </div>
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]">
-                  <span className="ad-tnum text-[11.5px] font-medium">2</span>
+                  <span className="adm-tnum text-[11.5px] font-medium">2</span>
                 </div>
                 <p>
                   <strong>날짜</strong>, <strong>텍스트</strong>, <strong>선택형</strong> 질문을 지원합니다.
@@ -332,7 +332,7 @@ export default function SurveyPage() {
               </div>
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]">
-                  <span className="ad-tnum text-[11.5px] font-medium">3</span>
+                  <span className="adm-tnum text-[11.5px] font-medium">3</span>
                 </div>
                 <p>
                   수집된 응답은 <strong>고객 리스트</strong>에서 확인할 수 있습니다.
@@ -343,14 +343,14 @@ export default function SurveyPage() {
         </div>
 
         {/* 질문 관리 카드 */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ClipboardList className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                 <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">설문 질문 관리</h3>
               </div>
-              <span className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">
+              <span className="adm-tnum text-[12.5px] text-[color:var(--ad-muted)]">
                 {questions.length} / {MAX_QUESTIONS}
               </span>
             </div>
@@ -463,7 +463,7 @@ export default function SurveyPage() {
                   onClick={handleAddQuestion}
                   disabled={isSaving || questions.length >= MAX_QUESTIONS}
                   variant="outline"
-                  className="ad-press inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[12px] border-0 bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+                  className="adm-press inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[12px] border-0 bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
                 >
                   <Plus className="w-3.5 h-3.5" strokeWidth={2} />
                   추가

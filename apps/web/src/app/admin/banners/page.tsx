@@ -416,7 +416,7 @@ export default function AdminBannersPage() {
         <p className="text-[13px] text-[color:var(--ad-muted)]">주문 완료 페이지에 표시되는 배너를 관리합니다 (이미지/영상)</p>
         <button
           onClick={openCreateModal}
-          className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
+          className="adm-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -426,7 +426,7 @@ export default function AdminBannersPage() {
       </div>
 
       {/* Banners List */}
-      <div className="ad-card overflow-hidden">
+      <div className="adm-card overflow-hidden">
         {banners.length === 0 ? (
           <div className="p-12 text-center text-[13px] text-[color:var(--ad-faint)]">
             등록된 배너가 없습니다.
@@ -505,7 +505,7 @@ export default function AdminBannersPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => toggleActive(banner)}
-                    className={`ad-press h-8 px-3 rounded-[10px] text-[12.5px] font-medium transition-colors ${
+                    className={`adm-press h-8 px-3 rounded-[10px] text-[12.5px] font-medium transition-colors ${
                       banner.isActive
                         ? 'bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'
                         : 'bg-[color:var(--ad-navy)] text-white hover:bg-[#2a2d62]'
@@ -515,13 +515,13 @@ export default function AdminBannersPage() {
                   </button>
                   <button
                     onClick={() => openEditModal(banner)}
-                    className="ad-press h-8 px-3 rounded-[10px] bg-white text-[12.5px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                    className="adm-press h-8 px-3 rounded-[10px] bg-white text-[12.5px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                   >
                     수정
                   </button>
                   <button
                     onClick={() => handleDelete(banner)}
-                    className="ad-press h-8 px-3 rounded-[10px] bg-white text-[12.5px] font-medium text-[color:var(--ad-neg)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                    className="adm-press h-8 px-3 rounded-[10px] bg-white text-[12.5px] font-medium text-[color:var(--ad-neg)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                   >
                     삭제
                   </button>
@@ -564,7 +564,7 @@ export default function AdminBannersPage() {
                       key={option.value}
                       type="button"
                       onClick={() => setFormAspectRatio(option.value)}
-                      className={`ad-press flex items-center gap-2 px-3 py-2 rounded-[10px] border text-left transition-colors ${
+                      className={`adm-press flex items-center gap-2 px-3 py-2 rounded-[10px] border text-left transition-colors ${
                         formAspectRatio === option.value
                           ? 'bg-[color:var(--ad-blue-soft)] border-[color:var(--ad-navy)] text-[color:var(--ad-link)]'
                           : 'bg-white border-[color:var(--ad-line-strong)] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]'
@@ -605,7 +605,7 @@ export default function AdminBannersPage() {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading}
-                    className="ad-press flex-1 h-10 px-3 bg-white border border-[color:var(--ad-line-strong)] border-dashed rounded-[10px] text-[13px] text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)] hover:border-[color:var(--ad-navy)] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="adm-press flex-1 h-10 px-3 bg-white border border-[color:var(--ad-line-strong)] border-dashed rounded-[10px] text-[13px] text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)] hover:border-[color:var(--ad-navy)] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {isUploading ? (
                       <>
@@ -856,14 +856,14 @@ export default function AdminBannersPage() {
             <div className="flex gap-2 mt-6">
               <button
                 onClick={() => setModal(null)}
-                className="ad-press flex-1 h-10 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press flex-1 h-10 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 취소
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || !formTitle || !formImageUrl}
-                className="ad-press flex-1 h-10 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                className="adm-press flex-1 h-10 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
               >
                 {isSubmitting ? (
                   <>

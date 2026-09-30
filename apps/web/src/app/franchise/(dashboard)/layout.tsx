@@ -76,15 +76,15 @@ export default function FranchiseDashboardLayout({
   }
 
   return (
-    // 사장님 CRM과 같은 테마: .ad(v2 토큰·차분한 배경) + .ad-crm(공용 컴포넌트 기본 색을 무채색으로 재매핑)
-    <div className="ad ad-crm">
-      <div className="ad-sky" aria-hidden>
-        <span className="ad-cloud" />
-        <span className="ad-cloud" />
-        <span className="ad-cloud" />
-        <span className="ad-cloud" />
+    // 사장님 CRM과 같은 테마: .adm(v2 토큰·차분한 배경) + .adm-crm(공용 컴포넌트 기본 색을 무채색으로 재매핑)
+    <div className="adm adm-crm">
+      <div className="adm-sky" aria-hidden>
+        <span className="adm-cloud" />
+        <span className="adm-cloud" />
+        <span className="adm-cloud" />
+        <span className="adm-cloud" />
       </div>
-      <div className="ad-shell">
+      <div className="adm-shell">
         <FranchiseSidebar user={user} />
         <main className="relative min-w-0 flex-1 overflow-x-clip pt-14 lg:pt-0">{children}</main>
       </div>

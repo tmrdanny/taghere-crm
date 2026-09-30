@@ -740,9 +740,9 @@ export default function FranchiseStoresPage() {
 
   // 공통 스타일 (표시 전용)
   const primaryBtn =
-    'ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40';
+    'adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40';
   const secondaryBtn =
-    'ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40';
+    'adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40';
   const fieldCls =
     'h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none';
   const selectCls =
@@ -794,18 +794,18 @@ export default function FranchiseStoresPage() {
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {/* Header */}
-      <header className="ad-rise mb-5 flex flex-wrap items-center justify-between gap-3" style={rise(0)}>
+      <header className="adm-rise mb-5 flex flex-wrap items-center justify-between gap-3" style={rise(0)}>
         <div>
           <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">가맹점</h1>
           <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
-            전체 <span className="ad-tnum">{stores.length}</span>개 가맹점 중 <span className="ad-tnum">{filteredStores.length}</span>개 표시
+            전체 <span className="adm-tnum">{stores.length}</span>개 가맹점 중 <span className="adm-tnum">{filteredStores.length}</span>개 표시
           </p>
         </div>
       </header>
 
       <div className="space-y-4">
         {/* Search and Filters */}
-        <section className="ad-card ad-rise" style={rise(1)}>
+        <section className="adm-card adm-rise" style={rise(1)}>
           <div className="flex flex-wrap items-center gap-2 p-4">
             {/* Search */}
             <div className="relative min-w-[200px] max-w-md flex-1">
@@ -921,21 +921,21 @@ export default function FranchiseStoresPage() {
           <div className="grid grid-cols-1 border-t border-[color:var(--ad-line)] sm:grid-cols-3">
             <div className="px-5 py-3.5">
               <p className="text-[12px] text-[color:var(--ad-muted)]">필터 결과</p>
-              <p className="ad-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+              <p className="adm-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                 {filteredStores.length.toLocaleString()}
                 <span className="ml-0.5 text-[13px] font-medium text-[color:var(--ad-muted)]">개 매장</span>
               </p>
             </div>
             <div className="border-t border-[color:var(--ad-line)] px-5 py-3.5 sm:border-l sm:border-t-0">
               <p className="text-[12px] text-[color:var(--ad-muted)]">총 고객 수</p>
-              <p className="ad-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+              <p className="adm-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                 {filteredTotalCustomers.toLocaleString()}
                 <span className="ml-0.5 text-[13px] font-medium text-[color:var(--ad-muted)]">명</span>
               </p>
             </div>
             <div className="border-t border-[color:var(--ad-line)] px-5 py-3.5 sm:border-l sm:border-t-0">
               <p className="text-[12px] text-[color:var(--ad-muted)]">스탬프 보상 수령 고객</p>
-              <p className="ad-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+              <p className="adm-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                 {filteredTotalRewardCustomers.toLocaleString()}
                 <span className="ml-0.5 text-[13px] font-medium text-[color:var(--ad-muted)]">명</span>
               </p>
@@ -944,7 +944,7 @@ export default function FranchiseStoresPage() {
         </section>
 
         {/* Franchise Stamp Setting Section */}
-        <section className="ad-card ad-rise overflow-hidden" style={rise(2)}>
+        <section className="adm-card adm-rise overflow-hidden" style={rise(2)}>
           <button
             onClick={() => setIsStampSettingOpen(!isStampSettingOpen)}
             className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-[color:var(--ad-bg-alt)]"
@@ -979,7 +979,7 @@ export default function FranchiseStoresPage() {
                             max={50}
                             value={reward.tier}
                             onChange={(e) => handleUpdateRewardTier(idx, 'tier', parseInt(e.target.value) || 1)}
-                            className={cn(fieldCls, 'ad-tnum w-full text-center')}
+                            className={cn(fieldCls, 'adm-tnum w-full text-center')}
                           />
                           <span className="mt-0.5 block text-center text-[10.5px] text-[color:var(--ad-faint)]">개 달성</span>
                         </div>
@@ -992,7 +992,7 @@ export default function FranchiseStoresPage() {
                         />
                         <button
                           onClick={() => handleRemoveRewardTier(idx)}
-                          className="ad-press grid h-8 w-8 shrink-0 place-items-center self-start rounded-[10px] text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)]"
+                          className="adm-press grid h-8 w-8 shrink-0 place-items-center self-start rounded-[10px] text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)]"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -1124,7 +1124,7 @@ export default function FranchiseStoresPage() {
         </section>
 
         {/* 방문 경로 설정 (전 가맹점 일괄) */}
-        <section className="ad-card ad-rise overflow-hidden" style={rise(3)}>
+        <section className="adm-card adm-rise overflow-hidden" style={rise(3)}>
           <button
             onClick={() => setIsVisitSourceOpen(!isVisitSourceOpen)}
             className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-[color:var(--ad-bg-alt)]"
@@ -1161,12 +1161,12 @@ export default function FranchiseStoresPage() {
                 {/* 옵션 목록 */}
                 <div>
                   <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
-                    선택지 목록 <span className="ad-tnum font-normal text-[color:var(--ad-faint)]">({visitSourceOptions.length}/12)</span>
+                    선택지 목록 <span className="adm-tnum font-normal text-[color:var(--ad-faint)]">({visitSourceOptions.length}/12)</span>
                   </label>
                   <div className="space-y-2">
                     {visitSourceOptions.map((opt, idx) => (
                       <div key={opt.id} className="flex items-center gap-2">
-                        <span className="ad-tnum w-6 text-center text-[12px] text-[color:var(--ad-faint)]">{idx + 1}</span>
+                        <span className="adm-tnum w-6 text-center text-[12px] text-[color:var(--ad-faint)]">{idx + 1}</span>
                         <input
                           type="text"
                           value={opt.label}
@@ -1184,7 +1184,7 @@ export default function FranchiseStoresPage() {
                             )
                           }
                           className={cn(
-                            'ad-press h-8 shrink-0 rounded-full px-3 text-[12px] font-medium transition-colors',
+                            'adm-press h-8 shrink-0 rounded-full px-3 text-[12px] font-medium transition-colors',
                             opt.enabled
                               ? 'bg-[color:var(--ad-ink)] text-white'
                               : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-faint)]'
@@ -1194,7 +1194,7 @@ export default function FranchiseStoresPage() {
                         </button>
                         <button
                           onClick={() => setVisitSourceOptions((prev) => prev.filter((o) => o.id !== opt.id))}
-                          className="ad-press grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)]"
+                          className="adm-press grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)]"
                           title="삭제"
                         >
                           <X className="h-4 w-4" />
@@ -1247,7 +1247,7 @@ export default function FranchiseStoresPage() {
         </section>
 
         {/* Table */}
-        <section className="ad-card ad-rise overflow-hidden" style={rise(4)}>
+        <section className="adm-card adm-rise overflow-hidden" style={rise(4)}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[960px]">
               <thead>
@@ -1387,17 +1387,17 @@ export default function FranchiseStoresPage() {
                           </button>
                         )}
                       </td>
-                      <td className="ad-tnum whitespace-nowrap px-4 py-3 text-right font-medium text-[color:var(--ad-ink)]">
+                      <td className="adm-tnum whitespace-nowrap px-4 py-3 text-right font-medium text-[color:var(--ad-ink)]">
                         {store.customerCount.toLocaleString()}명
                       </td>
-                      <td className="ad-tnum whitespace-nowrap px-4 py-3 text-right text-[color:var(--ad-ink-2)]">
+                      <td className="adm-tnum whitespace-nowrap px-4 py-3 text-right text-[color:var(--ad-ink-2)]">
                         {(store.stampRewardCustomers || 0).toLocaleString()}명
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={(e) => handleOpenStoreCrm(store.id, e)}
                           disabled={impersonatingStoreId === store.id}
-                          className="ad-press inline-flex h-8 items-center gap-1 rounded-[10px] bg-white px-2.5 text-[12px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50"
+                          className="adm-press inline-flex h-8 items-center gap-1 rounded-[10px] bg-white px-2.5 text-[12px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50"
                           title="이 가맹점의 CRM 대시보드를 새 탭에서 엽니다"
                         >
                           <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.8} />
@@ -1441,7 +1441,7 @@ export default function FranchiseStoresPage() {
                 </div>
                 <button
                   onClick={closeSlideover}
-                  className="ad-press grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-[color:var(--ad-muted)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink)]"
+                  className="adm-press grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-[color:var(--ad-muted)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink)]"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -1496,13 +1496,13 @@ export default function FranchiseStoresPage() {
                 {/* Customer Stats */}
                 <div>
                   <h3 className="mb-2.5 text-[14px] font-semibold text-[color:var(--ad-ink)]">고객 통계</h3>
-                  <div className="ad-card grid grid-cols-2 overflow-hidden">
+                  <div className="adm-card grid grid-cols-2 overflow-hidden">
                     <div className="p-4">
                       <div className="mb-1.5 flex items-center gap-1.5">
                         <Users className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                         <span className="text-[12px] text-[color:var(--ad-muted)]">총 고객 수</span>
                       </div>
-                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                      <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                         {storeDetail?.stats?.customerCount?.toLocaleString() || selectedStore.customerCount.toLocaleString()}명
                       </p>
                     </div>
@@ -1511,7 +1511,7 @@ export default function FranchiseStoresPage() {
                         <TrendingUp className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                         <span className="text-[12px] text-[color:var(--ad-muted)]">총 주문</span>
                       </div>
-                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                      <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                         {storeDetail?.stats?.totalOrders?.toLocaleString() || '-'}회
                       </p>
                     </div>
@@ -1520,7 +1520,7 @@ export default function FranchiseStoresPage() {
                         <Activity className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                         <span className="text-[12px] text-[color:var(--ad-muted)]">재방문율</span>
                       </div>
-                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                      <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                         {storeDetail?.stats?.revisitRate !== undefined
                           ? `${Math.round(storeDetail.stats.revisitRate)}%`
                           : '-'}
@@ -1531,7 +1531,7 @@ export default function FranchiseStoresPage() {
                         <BarChart3 className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                         <span className="text-[12px] text-[color:var(--ad-muted)]">평균 방문</span>
                       </div>
-                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                      <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                         {storeDetail?.stats?.averageVisits !== undefined
                           ? `${storeDetail.stats.averageVisits.toFixed(1)}회`
                           : '-'}
@@ -1543,11 +1543,11 @@ export default function FranchiseStoresPage() {
                 {/* Transfer Section */}
                 <div>
                   <h3 className="mb-2.5 text-[14px] font-semibold text-[color:var(--ad-ink)]">충전금 관리</h3>
-                  <div className="ad-card space-y-4 p-4">
+                  <div className="adm-card space-y-4 p-4">
                     {/* Store Wallet Balance */}
                     <div className="flex items-center justify-between">
                       <span className="text-[13px] text-[color:var(--ad-muted)]">가맹점 충전금 잔액</span>
-                      <span className="ad-tnum text-[18px] font-medium tracking-[-0.02em] text-[color:var(--ad-ink)]">
+                      <span className="adm-tnum text-[18px] font-medium tracking-[-0.02em] text-[color:var(--ad-ink)]">
                         {storeDetail?.stats?.walletBalance !== undefined
                           ? `${storeDetail.stats.walletBalance.toLocaleString()}원`
                           : '-'}
@@ -1567,7 +1567,7 @@ export default function FranchiseStoresPage() {
                               setTransferError(null);
                             }}
                             placeholder="0"
-                            className={cn(fieldCls, 'ad-tnum w-full pr-8 text-right')}
+                            className={cn(fieldCls, 'adm-tnum w-full pr-8 text-right')}
                           />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-[color:var(--ad-muted)]">원</span>
                         </div>
@@ -1588,7 +1588,7 @@ export default function FranchiseStoresPage() {
                       {/* Franchise Balance Display */}
                       <div className="mb-3 flex items-center justify-between text-[13px]">
                         <span className="text-[color:var(--ad-muted)]">본사 잔액</span>
-                        <span className="ad-tnum font-medium text-[color:var(--ad-ink-2)]">
+                        <span className="adm-tnum font-medium text-[color:var(--ad-ink-2)]">
                           {franchiseWalletBalance.toLocaleString()}원
                         </span>
                       </div>

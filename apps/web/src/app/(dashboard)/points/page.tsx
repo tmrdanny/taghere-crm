@@ -426,7 +426,7 @@ export default function PointsPage() {
           {/* Left Panel - Recent Transactions & Tablet Link */}
           <div className="lg:col-span-4 order-2 lg:order-1 flex flex-col gap-4">
             {/* Recent Transactions Card */}
-            <div className="ad-card flex-1">
+            <div className="adm-card flex-1">
               <div className="px-5 py-4 border-b border-[color:var(--ad-line)]">
                 <div className="flex items-center justify-between">
                   <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">
@@ -434,7 +434,7 @@ export default function PointsPage() {
                   </h2>
                   <button
                     onClick={fetchRecentTransactions}
-                    className="ad-press p-2 rounded-[10px] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
+                    className="adm-press p-2 rounded-[10px] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
                     title="새로고침"
                   >
                     <RefreshCw className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -466,11 +466,11 @@ export default function PointsPage() {
                             {tx.isVip && <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">VIP</span>}
                             {tx.isNew && <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">신규</span>}
                           </div>
-                          <span className="text-[12px] text-[color:var(--ad-faint)] ad-tnum">
+                          <span className="text-[12px] text-[color:var(--ad-faint)] adm-tnum">
                             {formatTime(tx.createdAt)}
                           </span>
                         </div>
-                        <span className="text-[13.5px] font-semibold text-[color:var(--ad-pos)] ad-tnum ml-2">
+                        <span className="text-[13.5px] font-semibold text-[color:var(--ad-pos)] adm-tnum ml-2">
                           +{formatNumber(tx.points)}P
                         </span>
                       </div>
@@ -484,7 +484,7 @@ export default function PointsPage() {
 
           {/* Right Panel - Point Input */}
           <div className="lg:col-span-8 order-1 lg:order-2">
-            <div className="ad-card">
+            <div className="adm-card">
               {/* Header */}
               <div className="p-5 border-b border-[color:var(--ad-line)]">
                 <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">
@@ -527,9 +527,9 @@ export default function PointsPage() {
                           hiddenInputRef.current?.focus();
                         }}
                       >
-                        <span className="text-[24px] font-medium ad-tnum text-[color:var(--ad-ink)]">010</span>
+                        <span className="text-[24px] font-medium adm-tnum text-[color:var(--ad-ink)]">010</span>
                         <span className="text-[24px] font-medium text-[color:var(--ad-line-strong)] mx-1">-</span>
-                        <span className="text-[24px] font-medium ad-tnum tracking-wider">
+                        <span className="text-[24px] font-medium adm-tnum tracking-wider">
                           {part1.split('').map((char, i) => (
                             <span key={i} className={char === '_' ? 'text-[color:var(--ad-line-strong)]' : 'text-[color:var(--ad-ink)]'}>
                               {char}
@@ -537,7 +537,7 @@ export default function PointsPage() {
                           ))}
                         </span>
                         <span className="text-[24px] font-medium text-[color:var(--ad-line-strong)] mx-1">-</span>
-                        <span className="text-[24px] font-medium ad-tnum tracking-wider">
+                        <span className="text-[24px] font-medium adm-tnum tracking-wider">
                           {part2.split('').map((char, i) => (
                             <span key={i} className={char === '_' ? 'text-[color:var(--ad-line-strong)]' : 'text-[color:var(--ad-ink)]'}>
                               {char}
@@ -563,7 +563,7 @@ export default function PointsPage() {
                         }
                       }}
                       disabled={phoneInput.length !== 8 || isSearching}
-                      className="ad-press hidden lg:flex h-11 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+                      className="adm-press hidden lg:flex h-11 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
                       size="lg"
                     >
                       다음
@@ -577,7 +577,7 @@ export default function PointsPage() {
                         <button
                           key={num}
                           onClick={() => handleKeypadPress(num.toString())}
-                          className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] ad-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
+                          className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] adm-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
                         >
                           {num}
                         </button>
@@ -590,7 +590,7 @@ export default function PointsPage() {
                       </button>
                       <button
                         onClick={() => handleKeypadPress('0')}
-                        className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] ad-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
+                        className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] adm-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
                       >
                         0
                       </button>
@@ -612,7 +612,7 @@ export default function PointsPage() {
                     }
                   }}
                   disabled={phoneInput.length !== 8 || isSearching}
-                  className="ad-press mt-4 flex h-11 w-full lg:hidden items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+                  className="adm-press mt-4 flex h-11 w-full lg:hidden items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
                   size="lg"
                 >
                   다음
@@ -657,7 +657,7 @@ export default function PointsPage() {
                 </span>
               </div>
               {customer && (
-                <p className="mt-1 text-[12px] text-[color:var(--ad-faint)] ad-tnum">
+                <p className="mt-1 text-[12px] text-[color:var(--ad-faint)] adm-tnum">
                   보유 포인트: {formatNumber(customer.totalPoints)}P · 방문 {customer.visitCount}회
                 </p>
               )}
@@ -672,7 +672,7 @@ export default function PointsPage() {
                   <button
                     onClick={() => handleSelectInputMethod('payment')}
                     disabled={!storeSettings.pointRateEnabled}
-                    className={`ad-press p-4 rounded-[12px] border text-left transition-all ${
+                    className={`adm-press p-4 rounded-[12px] border text-left transition-all ${
                       storeSettings.pointRateEnabled
                         ? 'border-[color:var(--ad-line-strong)] bg-white hover:border-[color:var(--ad-ink)] hover:bg-[color:var(--ad-bg-alt)]'
                         : 'border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] cursor-not-allowed'
@@ -692,7 +692,7 @@ export default function PointsPage() {
                   {/* Direct Input Option */}
                   <button
                     onClick={() => handleSelectInputMethod('direct')}
-                    className="ad-press p-4 rounded-[12px] border border-[color:var(--ad-line-strong)] bg-white hover:border-[color:var(--ad-ink)] hover:bg-[color:var(--ad-bg-alt)] text-left transition-all"
+                    className="adm-press p-4 rounded-[12px] border border-[color:var(--ad-line-strong)] bg-white hover:border-[color:var(--ad-ink)] hover:bg-[color:var(--ad-bg-alt)] text-left transition-all"
                   >
                     <Keyboard className="w-5 h-5 text-[color:var(--ad-muted)] mb-2" strokeWidth={1.8} />
                     <p className="text-[14px] font-semibold text-[color:var(--ad-ink)]">직접 입력</p>
@@ -718,7 +718,7 @@ export default function PointsPage() {
                       className="flex items-center justify-between px-4 py-3 border rounded-[12px] bg-white border-[color:var(--ad-ink)] ring-[3px] ring-[rgba(29,32,34,0.06)] cursor-text"
                       onClick={() => paymentInputRef.current?.focus()}
                     >
-                      <span className="text-[24px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                      <span className="text-[24px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                         {paymentInput ? formatNumber(parseInt(paymentInput)) : '0'}
                       </span>
                       <span className="text-[15px] text-[color:var(--ad-muted)]">원</span>
@@ -739,7 +739,7 @@ export default function PointsPage() {
                       <button
                         key={preset}
                         onClick={() => setPaymentInput(preset.toString())}
-                        className={`ad-press h-9 rounded-[10px] text-[13px] font-medium ad-tnum transition-all ${
+                        className={`adm-press h-9 rounded-[10px] text-[13px] font-medium adm-tnum transition-all ${
                           parseInt(paymentInput) === preset
                             ? 'bg-[color:var(--ad-ink)] text-white'
                             : 'bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'
@@ -753,7 +753,7 @@ export default function PointsPage() {
                   {/* Calculated Points Preview */}
                   <div className="bg-[color:var(--ad-bg-alt)] rounded-[12px] p-4 text-center">
                     <p className="text-[12px] text-[color:var(--ad-muted)]">적립 예정 포인트</p>
-                    <p className="text-[24px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)] mt-1">
+                    <p className="text-[24px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)] mt-1">
                       {formatNumber(calculatePointsFromPayment(parseInt(paymentInput) || 0))} P
                     </p>
                   </div>
@@ -773,7 +773,7 @@ export default function PointsPage() {
                       <button
                         key={num}
                         onClick={() => setPaymentInput(prev => prev + num.toString())}
-                        className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] ad-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
+                        className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] adm-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
                       >
                         {num}
                       </button>
@@ -786,7 +786,7 @@ export default function PointsPage() {
                     </button>
                     <button
                       onClick={() => setPaymentInput(prev => prev + '0')}
-                      className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] ad-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
+                      className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] adm-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
                     >
                       0
                     </button>
@@ -801,13 +801,13 @@ export default function PointsPage() {
                   <div className="grid grid-cols-2 gap-2 mt-3">
                     <button
                       onClick={() => setPaymentInput(prev => (parseInt(prev || '0') + 10000).toString())}
-                      className="ad-press h-11 rounded-[12px] bg-white text-[13px] font-medium ad-tnum text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
+                      className="adm-press h-11 rounded-[12px] bg-white text-[13px] font-medium adm-tnum text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
                     >
                       +1만
                     </button>
                     <button
                       onClick={() => setPaymentInput(prev => (parseInt(prev || '0') + 50000).toString())}
-                      className="ad-press h-11 rounded-[12px] bg-white text-[13px] font-medium ad-tnum text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
+                      className="adm-press h-11 rounded-[12px] bg-white text-[13px] font-medium adm-tnum text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
                     >
                       +5만
                     </button>
@@ -832,7 +832,7 @@ export default function PointsPage() {
                       className="flex items-center justify-between px-4 py-3 border rounded-[12px] bg-white border-[color:var(--ad-ink)] ring-[3px] ring-[rgba(29,32,34,0.06)] cursor-text"
                       onClick={() => pointsInputRef.current?.focus()}
                     >
-                      <span className="text-[24px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                      <span className="text-[24px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                         {pointsInput ? formatNumber(parseInt(pointsInput)) : '0'}
                       </span>
                       <span className="text-[15px] text-[color:var(--ad-muted)]">P</span>
@@ -853,7 +853,7 @@ export default function PointsPage() {
                       <button
                         key={preset}
                         onClick={() => setPointsInput(preset.toString())}
-                        className={`ad-press h-9 rounded-[10px] text-[13px] font-medium ad-tnum transition-all ${
+                        className={`adm-press h-9 rounded-[10px] text-[13px] font-medium adm-tnum transition-all ${
                           parseInt(pointsInput) === preset
                             ? 'bg-[color:var(--ad-ink)] text-white'
                             : 'bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'
@@ -879,7 +879,7 @@ export default function PointsPage() {
                       <button
                         key={num}
                         onClick={() => setPointsInput(prev => prev + num.toString())}
-                        className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] ad-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
+                        className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] adm-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
                       >
                         {num}
                       </button>
@@ -892,7 +892,7 @@ export default function PointsPage() {
                     </button>
                     <button
                       onClick={() => setPointsInput(prev => prev + '0')}
-                      className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] ad-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
+                      className="aspect-square flex items-center justify-center text-[20px] font-medium text-[color:var(--ad-ink)] adm-tnum bg-white rounded-[12px] shadow-[inset_0_0_0_1px_var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)] active:bg-[color:var(--ad-bg)] transition-colors"
                     >
                       0
                     </button>
@@ -907,13 +907,13 @@ export default function PointsPage() {
                   <div className="grid grid-cols-2 gap-2 mt-3">
                     <button
                       onClick={() => setPointsInput(prev => (parseInt(prev || '0') + 500).toString())}
-                      className="ad-press h-11 rounded-[12px] bg-white text-[13px] font-medium ad-tnum text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
+                      className="adm-press h-11 rounded-[12px] bg-white text-[13px] font-medium adm-tnum text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
                     >
                       +500P
                     </button>
                     <button
                       onClick={() => setPointsInput(prev => (parseInt(prev || '0') + 1000).toString())}
-                      className="ad-press h-11 rounded-[12px] bg-white text-[13px] font-medium ad-tnum text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
+                      className="adm-press h-11 rounded-[12px] bg-white text-[13px] font-medium adm-tnum text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors"
                     >
                       +1000P
                     </button>
@@ -926,7 +926,7 @@ export default function PointsPage() {
           <ModalFooter>
             <Button
               variant="outline"
-              className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+              className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               onClick={() => {
                 setShowInputMethodModal(false);
                 setInputMethod(null);
@@ -936,7 +936,7 @@ export default function PointsPage() {
             </Button>
             {inputMethod && (
               <Button
-                className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+                className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
                 onClick={handleInputMethodConfirm}
                 disabled={
                   (inputMethod === 'payment' && calculatePointsFromPayment(parseInt(paymentInput) || 0) <= 0) ||
@@ -982,7 +982,7 @@ export default function PointsPage() {
               {/* Points to earn */}
               <div className="flex items-center justify-between border-t border-[color:var(--ad-line)] pt-3">
                 <span className="text-[13px] text-[color:var(--ad-muted)]">적립 포인트</span>
-                <span className="text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                <span className="text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                   +{formatNumber(currentPoints)} P
                 </span>
               </div>
@@ -991,7 +991,7 @@ export default function PointsPage() {
               {customer && (
                 <div className="flex items-center justify-between">
                   <span className="text-[13px] text-[color:var(--ad-muted)]">적립 후 잔액</span>
-                  <span className="text-[13.5px] font-medium ad-tnum text-[color:var(--ad-pos)]">
+                  <span className="text-[13.5px] font-medium adm-tnum text-[color:var(--ad-pos)]">
                     {formatNumber(customer.totalPoints + currentPoints)} P
                   </span>
                 </div>
@@ -1002,7 +1002,7 @@ export default function PointsPage() {
           <ModalFooter>
             <Button
               variant="outline"
-              className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+              className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               onClick={() => setShowConfirmModal(false)}
               disabled={isSubmitting}
             >
@@ -1011,7 +1011,7 @@ export default function PointsPage() {
             <Button
               onClick={handleSubmitEarn}
               disabled={isSubmitting}
-              className="min-w-24 ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+              className="min-w-24 adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
             >
               {isSubmitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1045,14 +1045,14 @@ export default function PointsPage() {
             </h2>
             <p className="text-[13.5px] text-[color:var(--ad-ink-2)] mb-4">
               {successData?.customerName || '고객'}님에게<br />
-              <span className="text-[color:var(--ad-ink)] font-semibold text-[17px] ad-tnum">
+              <span className="text-[color:var(--ad-ink)] font-semibold text-[17px] adm-tnum">
                 {formatNumber(successData?.points || 0)}P
               </span>
               가 적립되었습니다.
             </p>
             <div className="bg-[color:var(--ad-bg-alt)] rounded-[12px] py-3 px-4 inline-block">
               <span className="text-[13px] text-[color:var(--ad-muted)]">현재 보유 포인트</span>
-              <p className="text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+              <p className="text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                 {formatNumber(successData?.totalPoints || 0)} P
               </p>
             </div>
@@ -1064,7 +1064,7 @@ export default function PointsPage() {
                 setShowSuccessModal(false);
                 handleReset();
               }}
-              className="min-w-32 ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+              className="min-w-32 adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
             >
               확인
             </Button>

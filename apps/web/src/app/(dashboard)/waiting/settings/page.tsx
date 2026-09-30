@@ -266,7 +266,7 @@ export default function WaitingSettingsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <Link href="/waiting">
-            <Button variant="ghost" size="icon" className="ad-press h-9 w-9 rounded-[10px] text-[color:var(--ad-ink-2)] hover:bg-[rgba(29,32,34,0.045)]">
+            <Button variant="ghost" size="icon" className="adm-press h-9 w-9 rounded-[10px] text-[color:var(--ad-ink-2)] hover:bg-[rgba(29,32,34,0.045)]">
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
@@ -279,7 +279,7 @@ export default function WaitingSettingsPage() {
         </div>
 
         <Button
-          className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 border-0"
+          className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 border-0"
           onClick={handleSaveSettings}
           disabled={isSaving || !hasChanges}
         >

@@ -501,7 +501,7 @@ export default function SettingsPage() {
 
       <div className="mx-auto max-w-4xl space-y-4">
         {/* Store Info Card */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
               <Store className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -611,7 +611,7 @@ export default function SettingsPage() {
                   </p>
                 </div>
                 <div className="flex justify-end pt-2">
-                  <button type="button" className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40" onClick={handleSaveStore} disabled={isSavingStore}>
+                  <button type="button" className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40" onClick={handleSaveStore} disabled={isSavingStore}>
                     {isSavingStore ? '저장 중...' : '저장하기'}
                   </button>
                 </div>
@@ -713,7 +713,7 @@ export default function SettingsPage() {
         */}
 
         {/* Alimtalk Settings Card */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -746,7 +746,7 @@ export default function SettingsPage() {
                   <p>
                     충전금이 {MIN_BALANCE_FOR_ALIMTALK}원 미만입니다. 알림톡을 발송하려면 먼저 충전해주세요.
                   </p>
-                  <p className="ad-tnum mt-1 text-[12px] text-[color:var(--ad-faint)]">
+                  <p className="adm-tnum mt-1 text-[12px] text-[color:var(--ad-faint)]">
                     현재 잔액: {walletBalance.toLocaleString()}원
                   </p>
                 </div>
@@ -819,7 +819,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Point Rate Settings Card */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
               <Percent className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -849,7 +849,7 @@ export default function SettingsPage() {
                       }
                     }}
                     placeholder="5"
-                    className="ad-tnum w-24 h-10 rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)]"
+                    className="adm-tnum w-24 h-10 rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)]"
                   />
                   <span className="text-[13px] text-[color:var(--ad-muted)]">%</span>
                 </div>
@@ -858,7 +858,7 @@ export default function SettingsPage() {
                 예: 5% 설정 시 10,000원 결제 → 500P 적립 (소수점 한 자리까지, 반올림 적용)
               </p>
               <div className="flex justify-end">
-                <button type="button" className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40" onClick={handleSavePointRate} disabled={isSavingPointRate}>
+                <button type="button" className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40" onClick={handleSavePointRate} disabled={isSavingPointRate}>
                   {isSavingPointRate ? '저장 중...' : '저장하기'}
                 </button>
               </div>
@@ -867,7 +867,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Point Usage Rule Settings Card */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -891,7 +891,7 @@ export default function SettingsPage() {
               </p>
             </div>
             <div className="flex justify-end">
-              <button type="button" className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40" onClick={handleSavePointUsageRule} disabled={isSavingPointUsageRule}>
+              <button type="button" className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40" onClick={handleSavePointUsageRule} disabled={isSavingPointUsageRule}>
                 {isSavingPointUsageRule ? '저장 중...' : '저장하기'}
               </button>
             </div>
@@ -899,7 +899,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Account Card */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -918,7 +918,7 @@ export default function SettingsPage() {
               </div>
               <button
                 type="button"
-                className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-neg)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-neg)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                 onClick={handleLogout}
               >
                 <LogOut className="h-4 w-4" />
@@ -930,7 +930,7 @@ export default function SettingsPage() {
 
         {/* Password Change Card — 일단 숨김 (SHOW_PASSWORD_CHANGE 로 재노출 가능) */}
         {SHOW_PASSWORD_CHANGE && (
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
               <Lock className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -980,7 +980,7 @@ export default function SettingsPage() {
             <div className="flex justify-end">
               <button
                 type="button"
-                className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40"
+                className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={handleChangePassword}
                 disabled={
                   isChangingPassword ||

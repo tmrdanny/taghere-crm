@@ -317,7 +317,7 @@ export default function AdminTableLinkPage() {
       {selectedStore && settings && !isLoadingSettings && (
         <div className="space-y-4">
           {/* 활성화 토글 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">서비스 활성화</h3>
@@ -363,7 +363,7 @@ export default function AdminTableLinkPage() {
 
           {/* 고객 페이지 URL */}
           {settings.customerPageUrl && (
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-1">고객 페이지 URL</h3>
               <p className="text-[12px] text-[color:var(--ad-faint)] mb-3">
                 이 URL로 QR코드를 생성하여 매장에 부착하세요.
@@ -377,7 +377,7 @@ export default function AdminTableLinkPage() {
                 />
                 <button
                   onClick={handleCopyUrl}
-                  className="ad-press h-10 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] whitespace-nowrap"
+                  className="adm-press h-10 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] whitespace-nowrap"
                 >
                   복사
                 </button>
@@ -386,7 +386,7 @@ export default function AdminTableLinkPage() {
           )}
 
           {/* 고객 안내 문구 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-1">고객 페이지 안내 문구</h3>
             <p className="text-[12px] text-[color:var(--ad-faint)] mb-4">
               비워두면 기본 문구가 사용됩니다.
@@ -416,7 +416,7 @@ export default function AdminTableLinkPage() {
           </div>
 
           {/* 일괄 추가 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-1">테이블 일괄 추가</h3>
             <p className="text-[12px] text-[color:var(--ad-faint)] mb-4">
               테이블 번호 범위와 URL 패턴을 지정하여 한 번에 추가합니다.
@@ -464,7 +464,7 @@ export default function AdminTableLinkPage() {
               <button
                 onClick={handleBulkAdd}
                 disabled={isBulkAdding || !bulkStartNumber || !bulkEndNumber || !bulkUrlTemplate}
-                className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
+                className="adm-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
               >
                 {isBulkAdding ? '추가 중...' : '일괄 추가'}
               </button>
@@ -472,7 +472,7 @@ export default function AdminTableLinkPage() {
           </div>
 
           {/* 테이블 목록 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">테이블 목록</h3>
@@ -482,7 +482,7 @@ export default function AdminTableLinkPage() {
               </div>
               <button
                 onClick={handleAddTable}
-                className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 + 추가
               </button>
@@ -508,7 +508,7 @@ export default function AdminTableLinkPage() {
                         value={table.tableNumber}
                         onChange={(e) => handleTableChange(index, 'tableNumber', e.target.value)}
                         placeholder="번호"
-                        className="h-9 px-2 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13px] text-center ad-tnum placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
+                        className="h-9 px-2 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13px] text-center adm-tnum placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                       />
                       <input
                         value={table.url}
@@ -536,7 +536,7 @@ export default function AdminTableLinkPage() {
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="ad-press inline-flex items-center justify-center gap-1.5 h-10 px-5 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
+              className="adm-press inline-flex items-center justify-center gap-1.5 h-10 px-5 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
             >
               {isSaving ? '저장 중...' : '저장하기'}
             </button>

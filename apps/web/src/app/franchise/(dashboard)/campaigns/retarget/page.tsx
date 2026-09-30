@@ -1204,7 +1204,7 @@ export default function MessagesPage() {
       {ToastComponent}
 
       {/* Left Panel - Settings */}
-      <div className="ad-card flex-1 lg:max-w-[720px] p-5 md:p-6 flex flex-col gap-6">
+      <div className="adm-card flex-1 lg:max-w-[720px] p-5 md:p-6 flex flex-col gap-6">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pb-5 border-b border-[color:var(--ad-line)]">
           <h1 className="whitespace-nowrap text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">캠페인 메시지 만들기</h1>
@@ -1249,7 +1249,7 @@ export default function MessagesPage() {
               )}
             >
               <span className="text-[12px] text-[color:var(--ad-muted)]">전체 고객</span>
-              <div className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+              <div className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                 {formatNumber(targetCounts.all)}명
               </div>
             </button>
@@ -1267,7 +1267,7 @@ export default function MessagesPage() {
               )}
             >
               <span className="text-[12px] text-[color:var(--ad-muted)]">재방문 고객 (2회 이상)</span>
-              <div className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+              <div className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                 {formatNumber(targetCounts.revisit)}명
               </div>
             </button>
@@ -1285,7 +1285,7 @@ export default function MessagesPage() {
               )}
             >
               <span className="text-[12px] text-[color:var(--ad-muted)]">신규 고객 (최근 30일)</span>
-              <div className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+              <div className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                 {formatNumber(targetCounts.new)}명
               </div>
             </button>
@@ -1481,14 +1481,14 @@ export default function MessagesPage() {
               <div className="flex items-center justify-between gap-4 mb-4">
                 <div>
                   <p className="text-[12px] text-[color:var(--ad-muted)]">예상 비용</p>
-                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(estimate?.targetCount || getCurrentTargetCount())}명 × {formatNumber(estimate?.costPerMessage || (uploadedImage ? 110 : 50))}원 ={' '}
                     <span className="text-[color:var(--ad-ink)]">{formatNumber(estimate?.totalCost || (getCurrentTargetCount() * (uploadedImage ? 110 : 50)))}원</span>
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-[12px] text-[color:var(--ad-muted)]">현재 잔액</p>
-                  <p className={`mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum ${estimate?.canSend !== false ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
+                  <p className={`mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum ${estimate?.canSend !== false ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
                     {formatNumber(estimate?.walletBalance || 0)}원
                   </p>
                 </div>
@@ -1500,7 +1500,7 @@ export default function MessagesPage() {
                   <button
                     disabled={!messageContent.trim()}
                     onClick={() => setShowTestModal(true)}
-                    className="ad-press inline-flex h-10 w-full sm:w-auto items-center justify-center gap-1.5 rounded-[12px] bg-white px-4 text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg)] disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="adm-press inline-flex h-10 w-full sm:w-auto items-center justify-center gap-1.5 rounded-[12px] bg-white px-4 text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg)] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     테스트 발송
                   </button>
@@ -1512,7 +1512,7 @@ export default function MessagesPage() {
                       !!sendTimeError(smsSendTime, isAdMessage)
                     }
                     onClick={() => setShowConfirmModal(true)}
-                    className="ad-press inline-flex h-10 w-full sm:w-auto items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="adm-press inline-flex h-10 w-full sm:w-auto items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {smsSendTime.mode === 'schedule' ? `${formatSendTime(smsSendTime)} 예약하기` : '메시지 발송하기'}
                   </button>
@@ -1553,17 +1553,17 @@ export default function MessagesPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <p className="text-[12px] text-[color:var(--ad-muted)]">예상 방문율</p>
-                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">3.2%</p>
+                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] adm-tnum text-[color:var(--ad-ink)]">3.2%</p>
                     </div>
                     <div>
                       <p className="text-[12px] text-[color:var(--ad-muted)]">예상 방문</p>
-                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">
+                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] adm-tnum text-[color:var(--ad-ink)]">
                         {Math.round((estimate?.targetCount || getCurrentTargetCount()) * 0.032).toLocaleString()}명
                       </p>
                     </div>
                     <div>
                       <p className="text-[12px] text-[color:var(--ad-muted)]">예상 매출</p>
-                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">
+                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] adm-tnum text-[color:var(--ad-ink)]">
                         {(Math.round((estimate?.targetCount || getCurrentTargetCount()) * 0.032) * (estimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원
                       </p>
                     </div>
@@ -1642,10 +1642,10 @@ export default function MessagesPage() {
                 <span className="text-[14px] font-semibold text-[color:var(--ad-ink)]">4. 쿠폰을 보내면 이런 효과가 예상돼요</span>
               </div>
 
-              <div className="ad-card grid grid-cols-3 divide-x divide-[color:var(--ad-line)] mb-4 overflow-hidden">
+              <div className="adm-card grid grid-cols-3 divide-x divide-[color:var(--ad-line)] mb-4 overflow-hidden">
                 <div className="p-3 text-center">
                   <p className="text-[12px] text-[color:var(--ad-muted)]">발송 비용</p>
-                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원
                   </p>
                   <p className="text-[11px] text-[color:var(--ad-faint)]">
@@ -1654,14 +1654,14 @@ export default function MessagesPage() {
                 </div>
                 <div className="p-3 text-center">
                   <p className="text-[12px] text-[color:var(--ad-muted)]">예상 사용</p>
-                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {Math.max(1, Math.round(getCurrentTargetCount() * 0.05))}명
                   </p>
                   <p className="text-[11px] text-[color:var(--ad-faint)]">사용율 5%</p>
                 </div>
                 <div className="p-3 text-center">
                   <p className="text-[12px] text-[color:var(--ad-muted)]">예상 매출</p>
-                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(Math.max(1, Math.round(getCurrentTargetCount() * 0.05)) * 25000)}원
                   </p>
                   <p className="text-[11px] text-[color:var(--ad-faint)]">객단가 2.5만원</p>
@@ -1680,7 +1680,7 @@ export default function MessagesPage() {
 
               <div className="flex items-center justify-between mb-4 text-[13px]">
                 <span className="text-[color:var(--ad-muted)]">현재 잔액</span>
-                <span className={`font-semibold ad-tnum ${(couponEstimate?.walletBalance ?? 0) >= (couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)) ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
+                <span className={`font-semibold adm-tnum ${(couponEstimate?.walletBalance ?? 0) >= (couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50)) ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
                   {formatNumber(couponEstimate?.walletBalance ?? 0)}원
                 </span>
               </div>
@@ -1707,7 +1707,7 @@ export default function MessagesPage() {
                   !!sendTimeError(couponSendTime, true)
                 }
                 onClick={handleCouponSend}
-                className="ad-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
+                className="adm-press inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isCouponSending ? (
                   <>
@@ -1777,7 +1777,7 @@ export default function MessagesPage() {
                     <MessageSquare className="w-4 h-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                     <span className="text-[13px] text-[color:var(--ad-ink)]">텍스트형</span>
                   </div>
-                  <p className="mt-2 text-[14px] font-medium ad-tnum text-[color:var(--ad-ink)]">200원/건</p>
+                  <p className="mt-2 text-[14px] font-medium adm-tnum text-[color:var(--ad-ink)]">200원/건</p>
                 </button>
                 <button
                   onClick={() => setKakaoMessageType('IMAGE')}
@@ -1792,7 +1792,7 @@ export default function MessagesPage() {
                     <ImagePlus className="w-4 h-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                     <span className="text-[13px] text-[color:var(--ad-ink)]">이미지형</span>
                   </div>
-                  <p className="mt-2 text-[14px] font-medium ad-tnum text-[color:var(--ad-ink)]">230원/건</p>
+                  <p className="mt-2 text-[14px] font-medium adm-tnum text-[color:var(--ad-ink)]">230원/건</p>
                 </button>
               </div>
             </div>
@@ -1906,7 +1906,7 @@ export default function MessagesPage() {
                     { type: 'WL', name: '예약하기', linkMo: '' },
                   ]);
                 }}
-                className="ad-press inline-flex h-9 items-center gap-1.5 self-start rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press inline-flex h-9 items-center gap-1.5 self-start rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 <MessageSquare className="w-4 h-4" />
                 단골 고객 혜택 템플릿 사용하기
@@ -1975,14 +1975,14 @@ export default function MessagesPage() {
               <div className="flex items-center justify-between gap-4 mb-4">
                 <div>
                   <p className="text-[12px] text-[color:var(--ad-muted)]">예상 비용</p>
-                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {formatNumber(kakaoEstimate?.targetCount || getCurrentTargetCount())}명 × {kakaoMessageType === 'IMAGE' ? '230' : '200'}원 ={' '}
                     <span className="text-[color:var(--ad-ink)]">{formatNumber(kakaoEstimate?.totalCost || (getCurrentTargetCount() * (kakaoMessageType === 'IMAGE' ? 230 : 200)))}원</span>
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-[12px] text-[color:var(--ad-muted)]">현재 잔액</p>
-                  <p className={`mt-0.5 text-[20px] font-medium tracking-[-0.03em] ad-tnum ${kakaoEstimate?.canSend !== false ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
+                  <p className={`mt-0.5 text-[20px] font-medium tracking-[-0.03em] adm-tnum ${kakaoEstimate?.canSend !== false ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'}`}>
                     {formatNumber(kakaoEstimate?.walletBalance || 0)}원
                   </p>
                 </div>
@@ -1991,7 +1991,7 @@ export default function MessagesPage() {
                   <button
                     disabled={!kakaoContent.trim()}
                     onClick={() => setShowKakaoTestModal(true)}
-                    className="ad-press inline-flex h-10 w-full sm:w-auto items-center justify-center gap-1.5 rounded-[12px] bg-white px-4 text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg)] disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="adm-press inline-flex h-10 w-full sm:w-auto items-center justify-center gap-1.5 rounded-[12px] bg-white px-4 text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg)] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     테스트 발송
                   </button>
@@ -2003,7 +2003,7 @@ export default function MessagesPage() {
                       (kakaoEstimate !== null && !kakaoEstimate.canSend)
                     }
                     onClick={() => setShowKakaoConfirmModal(true)}
-                    className="ad-press inline-flex h-10 w-full sm:w-auto items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="adm-press inline-flex h-10 w-full sm:w-auto items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     메시지 발송하기
                   </button>
@@ -2024,17 +2024,17 @@ export default function MessagesPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <p className="text-[12px] text-[color:var(--ad-muted)]">예상 방문율</p>
-                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">4.6%</p>
+                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] adm-tnum text-[color:var(--ad-ink)]">4.6%</p>
                     </div>
                     <div>
                       <p className="text-[12px] text-[color:var(--ad-muted)]">예상 방문</p>
-                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">
+                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] adm-tnum text-[color:var(--ad-ink)]">
                         {Math.round((kakaoEstimate?.targetCount || getCurrentTargetCount()) * 0.046).toLocaleString()}명
                       </p>
                     </div>
                     <div>
                       <p className="text-[12px] text-[color:var(--ad-muted)]">예상 매출</p>
-                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">
+                      <p className="mt-0.5 text-[16px] font-medium tracking-[-0.02em] adm-tnum text-[color:var(--ad-ink)]">
                         {(Math.round((kakaoEstimate?.targetCount || getCurrentTargetCount()) * 0.046) * (kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원
                       </p>
                     </div>
@@ -2316,7 +2316,7 @@ export default function MessagesPage() {
                       </div>
                       <div className="text-right flex-shrink-0">
                         <div className="text-[12px] text-[color:var(--ad-muted)]">고객 수</div>
-                        <div className="text-[15px] font-medium ad-tnum text-[color:var(--ad-ink)]">
+                        <div className="text-[15px] font-medium adm-tnum text-[color:var(--ad-ink)]">
                           {formatNumber(store.customerCount)}명
                         </div>
                       </div>
@@ -2439,7 +2439,7 @@ export default function MessagesPage() {
                               </span>
                             )}
                           </div>
-                          <div className="text-[12.5px] text-[color:var(--ad-muted)] ad-tnum">
+                          <div className="text-[12.5px] text-[color:var(--ad-muted)] adm-tnum">
                             {customer.phone ? formatPhone(customer.phone) : ''}
                           </div>
                         </div>
@@ -2450,7 +2450,7 @@ export default function MessagesPage() {
                               <span className="ml-1 text-[color:var(--ad-faint)]">· 수신 {customer.messageCount}회</span>
                             )}
                           </div>
-                          <div className="font-medium ad-tnum text-[color:var(--ad-ink)]">{formatNumber(customer.totalPoints)}P</div>
+                          <div className="font-medium adm-tnum text-[color:var(--ad-ink)]">{formatNumber(customer.totalPoints)}P</div>
                         </div>
                       </button>
                     );

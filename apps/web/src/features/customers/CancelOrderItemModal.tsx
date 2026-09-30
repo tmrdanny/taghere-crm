@@ -94,14 +94,14 @@ export function CancelOrderItemModal({
           <Button
             variant="secondary"
             onClick={onClose}
-            className="flex-1 ad-press h-10 rounded-[12px] border-0 bg-white text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+            className="flex-1 adm-press h-10 rounded-[12px] border-0 bg-white text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
           >
             취소
           </Button>
           <Button
             variant="destructive"
             onClick={onConfirm}
-            className="flex-1 ad-press h-10 rounded-[12px] bg-[#cc0832] text-[13.5px] font-semibold text-white hover:bg-[#b0072b] disabled:opacity-50"
+            className="flex-1 adm-press h-10 rounded-[12px] bg-[#cc0832] text-[13.5px] font-semibold text-white hover:bg-[#b0072b] disabled:opacity-50"
           >
             {itemInfo && itemInfo.remainingQty > 1
               ? `${cancelQuantity}개 취소`
