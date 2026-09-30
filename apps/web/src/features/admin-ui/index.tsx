@@ -1,6 +1,6 @@
 'use client';
 
-// 관리자 공통 UI 조각 — app/admin/admin-theme.css 의 .ad 토큰을 사용
+// 관리자 공통 UI 조각 — app/admin/admin-theme.css 의 .adm 토큰을 사용
 
 import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
@@ -31,7 +31,7 @@ export const CountUp = memo(function CountUp({ value, duration = 1000 }: { value
     return () => cancelAnimationFrame(raf);
   }, [value, duration]);
 
-  return <span ref={ref} className="ad-tnum">{won(value)}</span>;
+  return <span ref={ref} className="adm-tnum">{won(value)}</span>;
 });
 
 // 글자 폭이 달라도 인디케이터가 정확히 따라가는 탭
@@ -60,7 +60,7 @@ export function Tabs<T extends string>({
     <div role="tablist" aria-label={label} className="relative flex items-center rounded-[10px] bg-[rgba(29,32,34,0.045)] p-[3px]">
       <span
         aria-hidden
-        className="ad-seg-indicator absolute bottom-[3px] left-0 top-[3px] rounded-[8px] bg-white shadow-[0_1px_2px_rgba(29,32,34,0.08),0_0_0_1px_rgba(29,32,34,0.04)]"
+        className="adm-seg-indicator absolute bottom-[3px] left-0 top-[3px] rounded-[8px] bg-white shadow-[0_1px_2px_rgba(29,32,34,0.08),0_0_0_1px_rgba(29,32,34,0.04)]"
         style={{ width: box.w, transform: `translateX(${box.x}px)` }}
       />
       {options.map((o) => (
@@ -74,7 +74,7 @@ export function Tabs<T extends string>({
           aria-selected={o === value}
           onClick={() => onChange(o)}
           className={cn(
-            'ad-press relative z-[1] whitespace-nowrap rounded-[8px] px-2.5 py-1 text-[12.5px] font-medium',
+            'adm-press relative z-[1] whitespace-nowrap rounded-[8px] px-2.5 py-1 text-[12.5px] font-medium',
             o === value ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink-2)]'
           )}
         >
@@ -98,7 +98,7 @@ export function SectionHead({ title, meta, action }: { title: string; meta?: Rea
 }
 
 export function Skel({ className }: { className?: string }) {
-  return <div className={cn('ad-skel', className)} aria-hidden />;
+  return <div className={cn('adm-skel', className)} aria-hidden />;
 }
 
 export function Empty({ children = '데이터가 없습니다', className }: { children?: ReactNode; className?: string }) {

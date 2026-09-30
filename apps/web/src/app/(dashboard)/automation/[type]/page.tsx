@@ -366,7 +366,7 @@ export default function AutomationSettingPage() {
 
       <div className="space-y-4">
         {/* 발송 조건 */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -508,7 +508,7 @@ export default function AutomationSettingPage() {
                             : [...prev, idx].sort()
                         );
                       }}
-                      className={`ad-press h-10 w-10 rounded-[10px] text-[13px] font-medium transition-colors ${
+                      className={`adm-press h-10 w-10 rounded-[10px] text-[13px] font-medium transition-colors ${
                         slowDays.includes(idx)
                           ? 'bg-[color:var(--ad-ink)] text-white'
                           : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-line)]'
@@ -545,7 +545,7 @@ export default function AutomationSettingPage() {
         </div>
 
         {/* 쿠폰 설정 */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -652,7 +652,7 @@ export default function AutomationSettingPage() {
 
         {/* 쿠폰 문자 미리보기 */}
         {couponEnabled && (
-          <div className="ad-card">
+          <div className="adm-card">
             <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
               <div className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -693,7 +693,7 @@ export default function AutomationSettingPage() {
 
         {/* 대상 미리보기 */}
         {preview && (
-          <div className="ad-card">
+          <div className="adm-card">
             <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -712,7 +712,7 @@ export default function AutomationSettingPage() {
                      type === 'WINBACK' ? '장기 미방문 고객' :
                      '프로모션 대상 고객'}
                   </div>
-                  <div className="ad-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                  <div className="adm-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                     {preview.totalEligible}명
                   </div>
                 </div>
@@ -720,7 +720,7 @@ export default function AutomationSettingPage() {
                   <div className="text-[12px] text-[color:var(--ad-muted)]">
                     {(type === 'CHURN_PREVENTION' || type === 'WINBACK') ? '현재 대상' : '이번 달 예상 발송'}
                   </div>
-                  <div className="ad-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                  <div className="adm-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                     ~{(type === 'CHURN_PREVENTION' || type === 'WINBACK')
                       ? preview.currentChurnRisk
                       : preview.thisMonthEstimate}건
@@ -736,7 +736,7 @@ export default function AutomationSettingPage() {
 
         {/* 최근 발송 이력 */}
         {logs.length > 0 && (
-          <div className="ad-card">
+          <div className="adm-card">
             <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
               <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">최근 발송 이력</h2>
             </div>
@@ -747,7 +747,7 @@ export default function AutomationSettingPage() {
                     key={log.id}
                     className="flex items-center gap-3 py-2.5 text-[13px]"
                   >
-                    <span className="ad-tnum w-16 flex-shrink-0 text-[color:var(--ad-faint)]">
+                    <span className="adm-tnum w-16 flex-shrink-0 text-[color:var(--ad-faint)]">
                       {new Date(log.sentAt).toLocaleDateString('ko-KR', {
                         month: 'numeric',
                         day: 'numeric',
@@ -766,7 +766,7 @@ export default function AutomationSettingPage() {
                         <Check className="w-3.5 h-3.5" />
                         사용
                         {log.resultAmount && (
-                          <span className="ad-tnum text-[color:var(--ad-muted)]">
+                          <span className="adm-tnum text-[color:var(--ad-muted)]">
                             ({log.resultAmount.toLocaleString()}원)
                           </span>
                         )}
@@ -777,7 +777,7 @@ export default function AutomationSettingPage() {
                     <button
                       onClick={() => handleResend(log.id)}
                       disabled={resendingLogId === log.id}
-                      className="ad-press inline-flex h-8 flex-shrink-0 items-center justify-center rounded-[10px] bg-white px-2.5 text-[12px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
+                      className="adm-press inline-flex h-8 flex-shrink-0 items-center justify-center rounded-[10px] bg-white px-2.5 text-[12px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
                       title="현재 저장된 쿠폰 문구로 이 고객에게 다시 발송합니다"
                     >
                       {resendingLogId === log.id ? '발송 중...' : '문구 재발송'}
@@ -803,7 +803,7 @@ export default function AutomationSettingPage() {
           {saveState === 'error' && (
             <>
               <span className="text-[13px] text-[color:var(--ad-neg)]">저장에 실패했습니다</span>
-              <button onClick={() => handleSave(false)} disabled={isSaving} className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
+              <button onClick={() => handleSave(false)} disabled={isSaving} className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
                 다시 저장
               </button>
             </>

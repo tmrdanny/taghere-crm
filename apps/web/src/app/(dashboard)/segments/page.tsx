@@ -158,7 +158,7 @@ export default function SegmentsPage() {
         </div>
         <button
           onClick={fetchSegments}
-          className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+          className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
         >
           <RefreshCw className="w-4 h-4" />
           새로고침
@@ -176,7 +176,7 @@ export default function SegmentsPage() {
             <Card
               key={seg.type}
               className={cn(
-                'ad-card ad-press cursor-pointer border-0 transition-shadow hover:shadow-[0_0_0_1px_var(--ad-line-strong)]',
+                'adm-card adm-press cursor-pointer border-0 transition-shadow hover:shadow-[0_0_0_1px_var(--ad-line-strong)]',
                 isSelected && 'shadow-[0_0_0_1px_var(--ad-ink)] hover:shadow-[0_0_0_1px_var(--ad-ink)]'
               )}
               onClick={() => fetchSegmentCustomers(seg.type)}
@@ -184,8 +184,8 @@ export default function SegmentsPage() {
               <CardContent className="p-4">
                 <Icon className={cn('mb-2 h-4 w-4', meta?.color)} strokeWidth={1.8} />
                 <div className="mb-0.5 text-[12px] text-[color:var(--ad-muted)]">{seg.label}</div>
-                <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{seg.count}명</div>
-                <div className="ad-tnum text-[11.5px] text-[color:var(--ad-faint)]">{seg.percentage}%</div>
+                <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{seg.count}명</div>
+                <div className="adm-tnum text-[11.5px] text-[color:var(--ad-faint)]">{seg.percentage}%</div>
               </CardContent>
             </Card>
           );
@@ -193,7 +193,7 @@ export default function SegmentsPage() {
       </div>
 
       {/* 자동 분류 분포 도넛 차트 */}
-      <Card className="ad-card mb-4 border-0">
+      <Card className="adm-card mb-4 border-0">
         <CardContent className="p-5">
           <h3 className="mb-4 text-[14px] font-semibold text-[color:var(--ad-ink)]">자동 분류 분포</h3>
           <div className="flex items-center justify-center gap-8">
@@ -238,8 +238,8 @@ export default function SegmentsPage() {
                     style={{ backgroundColor: donutColors[seg.type] }}
                   />
                   <span className="text-[13px] text-[color:var(--ad-ink-2)]">{seg.label}</span>
-                  <span className="ad-tnum text-[13px] font-medium text-[color:var(--ad-ink)]">{seg.count}명</span>
-                  <span className="ad-tnum text-[11.5px] text-[color:var(--ad-faint)]">({seg.percentage}%)</span>
+                  <span className="adm-tnum text-[13px] font-medium text-[color:var(--ad-ink)]">{seg.count}명</span>
+                  <span className="adm-tnum text-[11.5px] text-[color:var(--ad-faint)]">({seg.percentage}%)</span>
                 </div>
               ))}
             </div>
@@ -249,7 +249,7 @@ export default function SegmentsPage() {
 
       {/* 분류별 상세 (선택 시) */}
       {selectedSegment && selectedMeta && (
-        <Card className="ad-card overflow-hidden border-0">
+        <Card className="adm-card overflow-hidden border-0">
           <CardContent className="p-0">
             <div className="flex items-center gap-2 px-5 pb-3 pt-5">
               <selectedMeta.icon className={cn('h-4 w-4', selectedMeta.color)} strokeWidth={1.8} />
@@ -278,11 +278,11 @@ export default function SegmentsPage() {
                     {customers.map((c) => (
                       <tr key={c.id} className="hover:bg-[color:var(--ad-bg-alt)]">
                         <td className="py-2.5 px-4 text-[color:var(--ad-ink)]">{c.name || '-'}</td>
-                        <td className="ad-tnum py-2.5 px-4 text-[color:var(--ad-ink-2)]">
+                        <td className="adm-tnum py-2.5 px-4 text-[color:var(--ad-ink-2)]">
                           {c.phone ? `${c.phone.slice(0, 3)}****${c.phone.slice(-4)}` : '-'}
                         </td>
-                        <td className="ad-tnum py-2.5 px-4 text-right text-[color:var(--ad-ink)]">{c.visitCount}회</td>
-                        <td className="ad-tnum py-2.5 px-4 text-right text-[color:var(--ad-ink)]">
+                        <td className="adm-tnum py-2.5 px-4 text-right text-[color:var(--ad-ink)]">{c.visitCount}회</td>
+                        <td className="adm-tnum py-2.5 px-4 text-right text-[color:var(--ad-ink)]">
                           {c.totalPoints.toLocaleString()}P
                         </td>
                         <td className="py-2.5 px-4 text-right text-[color:var(--ad-muted)]">
@@ -299,7 +299,7 @@ export default function SegmentsPage() {
       )}
 
       {/* 분류 설명 */}
-      <div className="ad-card mt-4 p-5">
+      <div className="adm-card mt-4 p-5">
         <h4 className="mb-2 text-[14px] font-semibold text-[color:var(--ad-ink)]">자동 분류 기준</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[12px] text-[color:var(--ad-muted)]">
           <div><span className="font-medium">VIP:</span> 30일 내 방문, 10회+ 방문, 소비 상위 20%</div>

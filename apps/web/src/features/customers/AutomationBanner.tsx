@@ -16,7 +16,7 @@ export function AutomationBanner({
   if (!automationStatus || automationStatus.hasActiveRules) return null;
   return (
     <div
-      className="ad-card ad-press mb-4 cursor-pointer transition-shadow hover:shadow-[0_0_0_1px_var(--ad-line-strong)]"
+      className="adm-card adm-press mb-4 cursor-pointer transition-shadow hover:shadow-[0_0_0_1px_var(--ad-line-strong)]"
       onClick={onNavigate}
     >
       {/* 상단: 타이틀 + CTA */}
@@ -38,17 +38,17 @@ export function AutomationBanner({
       <div className="mx-5 mb-4 mt-1 grid grid-cols-3 rounded-[12px] bg-[color:var(--ad-bg-alt)]">
         <div className="p-3 text-center [&+&]:border-l [&+&]:border-[color:var(--ad-line)]">
           <HandMetal className="mx-auto mb-1 h-4 w-4 text-[color:var(--ad-faint)]" />
-          <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{automationStatus.previews?.FIRST_VISIT_FOLLOWUP?.thisMonthEstimate ?? 0}명</p>
+          <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{automationStatus.previews?.FIRST_VISIT_FOLLOWUP?.thisMonthEstimate ?? 0}명</p>
           <p className="mt-0.5 text-[12px] text-[color:var(--ad-muted)]">첫 방문 · 재방문 쿠폰 미발송</p>
         </div>
         <div className="p-3 text-center [&+&]:border-l [&+&]:border-[color:var(--ad-line)]">
           <Cake className="mx-auto mb-1 h-4 w-4 text-[color:var(--ad-faint)]" />
-          <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{automationStatus.previews?.BIRTHDAY?.thisMonthEstimate ?? 0}명</p>
+          <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{automationStatus.previews?.BIRTHDAY?.thisMonthEstimate ?? 0}명</p>
           <p className="mt-0.5 text-[12px] text-[color:var(--ad-muted)]">이번 달 생일 · 축하 미발송</p>
         </div>
         <div className="p-3 text-center [&+&]:border-l [&+&]:border-[color:var(--ad-line)]">
           <Bell className="mx-auto mb-1 h-4 w-4 text-[color:var(--ad-faint)]" />
-          <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{automationStatus.previews?.CHURN_PREVENTION?.thisMonthEstimate ?? 0}명</p>
+          <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{automationStatus.previews?.CHURN_PREVENTION?.thisMonthEstimate ?? 0}명</p>
           <p className="mt-0.5 text-[12px] text-[color:var(--ad-muted)]">이탈 위험 · 쿠폰 없이 이탈 중</p>
         </div>
       </div>

@@ -370,13 +370,13 @@ export default function AdminHomePage() {
 
   return (
     <div>
-      <div className="ad-rise mb-3 flex items-baseline gap-2" style={rise(0)}>
+      <div className="adm-rise mb-3 flex items-baseline gap-2" style={rise(0)}>
         <h2 className="text-[14px] font-semibold">핵심 지표</h2>
         <span className="text-[12px] text-[color:var(--ad-faint)]">{currentMonth} 기준</span>
       </div>
 
       {isLoading ? (
-        <div className="ad-card grid gap-6 p-5 lg:grid-cols-4">
+        <div className="adm-card grid gap-6 p-5 lg:grid-cols-4">
           {[0, 1, 2, 3].map((k) => (
             <div key={k}>
               <Skel className="h-3 w-24" />
@@ -429,7 +429,7 @@ export default function AdminHomePage() {
               <button
                 onClick={() => setShowRevenueModal(false)}
                 aria-label="닫기"
-                className="ad-press grid h-8 w-8 place-items-center rounded-lg text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg)]"
+                className="adm-press grid h-8 w-8 place-items-center rounded-lg text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg)]"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -469,14 +469,14 @@ export default function AdminHomePage() {
             <div className="mt-6 flex gap-2">
               <button
                 onClick={() => setShowRevenueModal(false)}
-                className="ad-press h-11 flex-1 rounded-[10px] bg-[color:var(--ad-bg)] text-[14px] font-medium text-[color:var(--ad-ink-2)] hover:bg-[#ebeced]"
+                className="adm-press h-11 flex-1 rounded-[10px] bg-[color:var(--ad-bg)] text-[14px] font-medium text-[color:var(--ad-ink-2)] hover:bg-[#ebeced]"
               >
                 취소
               </button>
               <button
                 onClick={addExternalRevenue}
                 disabled={isAddingRevenue || !revenueAmount}
-                className="ad-press flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] bg-[color:var(--ad-yellow)] text-[14px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="adm-press flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] bg-[color:var(--ad-yellow)] text-[14px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isAddingRevenue ? (
                   <>

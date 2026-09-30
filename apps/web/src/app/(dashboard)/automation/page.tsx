@@ -332,7 +332,7 @@ export default function AutomationPage() {
 
       {/* 히어로 섹션 - 활성 룰이 없을 때만 */}
       {!hasActiveRules && (
-        <div className="ad-card mb-4 p-5">
+        <div className="adm-card mb-4 p-5">
           <div className="mb-5">
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--ad-bg)] px-2.5 py-1 text-[12px] font-medium text-[color:var(--ad-muted)]">
@@ -352,19 +352,19 @@ export default function AutomationPage() {
           <div className="mb-2 grid grid-cols-3 rounded-[12px] border border-[color:var(--ad-line)]">
             <div className="p-4 text-center">
               <div className="mb-1 text-[12px] text-[color:var(--ad-muted)]">쿠폰 사용률</div>
-              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+              <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                 {PLATFORM_BENCHMARKS.couponUsageRate}%
               </div>
             </div>
             <div className="border-l border-[color:var(--ad-line)] p-4 text-center">
               <div className="mb-1 text-[12px] text-[color:var(--ad-muted)]">재방문 전환</div>
-              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+              <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                 {PLATFORM_BENCHMARKS.revisitConversion}%
               </div>
             </div>
             <div className="border-l border-[color:var(--ad-line)] p-4 text-center">
               <div className="mb-1 text-[12px] text-[color:var(--ad-muted)]">투자 대비 효과</div>
-              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+              <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                 ROI {PLATFORM_BENCHMARKS.roiMultiplier}x
               </div>
             </div>
@@ -376,7 +376,7 @@ export default function AutomationPage() {
           {/* 빠른 시작 CTA */}
           <button
             onClick={() => setShowQuickStartModal(true)}
-            className="ad-press inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-5 text-[14px] font-semibold text-white hover:bg-[#383c40]"
+            className="adm-press inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-5 text-[14px] font-semibold text-white hover:bg-[#383c40]"
           >
             <Zap className="h-4 w-4" />
             추천 시나리오 한번에 켜기
@@ -386,14 +386,14 @@ export default function AutomationPage() {
 
       {/* 이번 달 성과 대시보드 - 활성 룰이 있을 때 */}
       {hasActiveRules && dashboard && (dashboard.totalSent > 0 || rules.some((r) => r.enabled)) && (
-        <div className="ad-card mb-4">
+        <div className="adm-card mb-4">
           <div className="grid grid-cols-3">
             <div className="p-5">
               <div className="mb-1 flex items-center gap-1.5 text-[12px] text-[color:var(--ad-muted)]">
                 <Send className="h-3.5 w-3.5" />
                 <span>자동 발송</span>
               </div>
-              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+              <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                 {dashboard.totalSent}건
               </div>
             </div>
@@ -402,7 +402,7 @@ export default function AutomationPage() {
                 <Gift className="h-3.5 w-3.5" />
                 <span>쿠폰 사용</span>
               </div>
-              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+              <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                 {dashboard.totalCouponUsed}건
                 <span className="ml-1 text-[13px] font-normal text-[color:var(--ad-muted)]">
                   ({dashboard.usageRate}%)
@@ -414,7 +414,7 @@ export default function AutomationPage() {
                 <TrendingUp className="h-3.5 w-3.5" />
                 <span>추정 매출</span>
               </div>
-              <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+              <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                 {dashboard.estimatedRevenue > 0
                   ? `${dashboard.estimatedRevenue.toLocaleString()}원`
                   : '-'}
@@ -444,7 +444,7 @@ export default function AutomationPage() {
       )}
 
       {/* 시나리오 목록 */}
-      <div className="ad-card overflow-hidden">
+      <div className="adm-card overflow-hidden">
         <div className="divide-y divide-[color:var(--ad-line)]">
         {SCENARIOS.map((scenario) => {
           const rule = getRuleByType(scenario.type);
@@ -516,7 +516,7 @@ export default function AutomationPage() {
                         onClick={() =>
                           router.push(`/automation/${scenario.type}`)
                         }
-                        className="ad-press rounded-[8px] p-1.5 text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]"
+                        className="adm-press rounded-[8px] p-1.5 text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]"
                       >
                         <ChevronRight className="h-5 w-5" />
                       </button>
@@ -605,14 +605,14 @@ export default function AutomationPage() {
           <ModalFooter>
             <button
               onClick={() => setShowQuickStartModal(false)}
-              className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+              className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
             >
               취소
             </button>
             <button
               onClick={handleQuickStart}
               disabled={quickStarting || !previewAll?.hasNaverPlaceUrl}
-              className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+              className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
             >
               {quickStarting ? '활성화 중...' : '3개 시나리오 켜기'}
             </button>

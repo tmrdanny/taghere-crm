@@ -141,7 +141,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
         href={item.href}
         onClick={isMobile ? closeMobileMenu : undefined}
         aria-current={active ? 'page' : undefined}
-        className={`ad-press relative mx-2 flex items-center gap-3 rounded-[10px] px-3 text-[13.5px] transition-colors ${
+        className={`adm-press relative mx-2 flex items-center gap-3 rounded-[10px] px-3 text-[13.5px] transition-colors ${
           isMobile ? 'h-11' : 'h-10 [@media(max-height:860px)]:h-[34px]'
         } ${
           active
@@ -177,7 +177,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
   return (
     <>
       {/* Mobile Header */}
-      <header className="ad-topbar fixed left-0 right-0 top-0 z-40 lg:hidden">
+      <header className="adm-topbar fixed left-0 right-0 top-0 z-40 lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <div className="flex min-w-0 items-center gap-2">
             <BrandLogo name={user.franchise.name} className="h-7 w-auto object-contain" />
@@ -185,7 +185,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
           </div>
           <button
             onClick={() => setIsMobileMenuOpen(true)}
-            className="ad-press grid h-9 w-9 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70"
+            className="adm-press grid h-9 w-9 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70"
             aria-label="메뉴 열기"
           >
             <Menu className="h-5 w-5" strokeWidth={1.7} />
@@ -198,7 +198,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
 
       {/* Mobile Slide-out Menu */}
       <div
-        className={`ad-side !fixed left-0 top-0 z-50 flex !h-full w-72 flex-col transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`adm-side !fixed left-0 top-0 z-50 flex !h-full w-72 flex-col transition-transform duration-300 ease-in-out lg:hidden ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -209,7 +209,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
           </div>
           <button
             onClick={closeMobileMenu}
-            className="ad-press grid h-9 w-9 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70"
+            className="adm-press grid h-9 w-9 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70"
             aria-label="메뉴 닫기"
           >
             <X className="h-5 w-5" strokeWidth={1.7} />
@@ -225,7 +225,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
         <div className="border-t border-[color:var(--ad-line)] p-3">
           <button
             onClick={handleLogout}
-            className="ad-press flex h-10 w-full items-center gap-3 rounded-[10px] px-3 text-[13.5px] text-[color:var(--ad-muted)] hover:bg-white/60 hover:text-[color:var(--ad-ink)]"
+            className="adm-press flex h-10 w-full items-center gap-3 rounded-[10px] px-3 text-[13.5px] text-[color:var(--ad-muted)] hover:bg-white/60 hover:text-[color:var(--ad-ink)]"
           >
             <LogOut className="h-4 w-4" strokeWidth={1.7} />
             로그아웃
@@ -234,14 +234,14 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
       </div>
 
       {/* Desktop Sidebar */}
-      <aside className="ad-side hidden w-[248px] shrink-0 flex-col lg:flex">
+      <aside className="adm-side hidden w-[248px] shrink-0 flex-col lg:flex">
         <div className="flex h-14 items-center gap-2 px-5">
           <BrandLogo name={user.franchise.name} className="h-7 w-auto max-w-[140px] object-contain" />
           {franchiseTag}
         </div>
 
         {/* 포스기처럼 휠이 없는 환경 대비: 스크롤바를 얇게 보이고, 넘칠 때 아래쪽을 흐리게 표시 */}
-        <nav className="ad-scroll flex-1 overflow-y-auto py-3">
+        <nav className="adm-scroll flex-1 overflow-y-auto py-3">
           {renderNav()}
           <div className="pointer-events-none sticky bottom-0 -mt-6 h-6 bg-gradient-to-t from-[rgba(250,251,252,0.95)] to-transparent" aria-hidden />
         </nav>
@@ -263,7 +263,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
                     href={item.href}
                     role="menuitem"
                     onClick={() => setAccountOpen(false)}
-                    className={`ad-press flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] ${
+                    className={`adm-press flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] ${
                       active ? 'bg-[color:var(--ad-bg)] font-semibold text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]'
                     }`}
                   >
@@ -276,7 +276,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
               <button
                 onClick={handleLogout}
                 role="menuitem"
-                className="ad-press flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 <LogOut strokeWidth={1.7} className="h-4 w-4 text-[color:var(--ad-faint)]" />
                 로그아웃
@@ -287,7 +287,7 @@ export function FranchiseSidebar({ user }: FranchiseSidebarProps) {
             onClick={() => setAccountOpen((v) => !v)}
             aria-expanded={accountOpen}
             aria-haspopup="menu"
-            className={`ad-press flex h-11 w-full items-center gap-2.5 rounded-[12px] px-2 text-left hover:bg-white/60 ${
+            className={`adm-press flex h-11 w-full items-center gap-2.5 rounded-[12px] px-2 text-left hover:bg-white/60 ${
               accountOpen ? 'bg-white shadow-[0_0_0_1px_var(--ad-line)]' : ''
             }`}
           >

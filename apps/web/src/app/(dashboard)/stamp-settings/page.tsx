@@ -70,7 +70,7 @@ function RewardTierEditor({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-white shadow-[inset_0_0_0_1px_var(--ad-line)] flex items-center justify-center">
-            <span className="text-[13px] font-medium ad-tnum text-[color:var(--ad-ink-2)]">{tier}</span>
+            <span className="text-[13px] font-medium adm-tnum text-[color:var(--ad-ink-2)]">{tier}</span>
           </div>
           <label className="text-[13.5px] font-semibold text-[color:var(--ad-ink)]">
             스탬프 {tier}개 보상
@@ -85,7 +85,7 @@ function RewardTierEditor({
         <button
           onClick={onRemove}
           disabled={disabled}
-          className="ad-press p-1.5 rounded-[8px] text-[color:var(--ad-faint)] hover:text-[color:var(--ad-neg)] transition-colors"
+          className="adm-press p-1.5 rounded-[8px] text-[color:var(--ad-faint)] hover:text-[color:var(--ad-neg)] transition-colors"
           title="이 보상 단계 삭제"
         >
           <X className="w-4 h-4" />
@@ -97,7 +97,7 @@ function RewardTierEditor({
         <button
           onClick={addOption}
           disabled={disabled}
-          className="ad-press w-full h-10 border border-dashed border-[color:var(--ad-line-strong)] rounded-[10px] bg-white text-[13px] text-[color:var(--ad-muted)] hover:border-[color:var(--ad-ink)] hover:text-[color:var(--ad-ink)] transition-colors"
+          className="adm-press w-full h-10 border border-dashed border-[color:var(--ad-line-strong)] rounded-[10px] bg-white text-[13px] text-[color:var(--ad-muted)] hover:border-[color:var(--ad-ink)] hover:text-[color:var(--ad-ink)] transition-colors"
         >
           + 보상 추가
         </button>
@@ -119,7 +119,7 @@ function RewardTierEditor({
                     value={opt.probability || ''}
                     onChange={(e) => updateOption(idx, 'probability', e.target.value)}
                     disabled={disabled}
-                    className="w-20 text-right bg-white ad-tnum rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] focus-visible:ring-0 focus:border-[color:var(--ad-navy)]"
+                    className="w-20 text-right bg-white adm-tnum rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] focus-visible:ring-0 focus:border-[color:var(--ad-navy)]"
                     step="0.1"
                     min="0"
                     max="100"
@@ -131,7 +131,7 @@ function RewardTierEditor({
               <button
                 onClick={() => removeOption(idx)}
                 disabled={disabled}
-                className="ad-press p-1.5 rounded-[8px] text-[color:var(--ad-faint)] hover:text-[color:var(--ad-neg)] transition-colors shrink-0"
+                className="adm-press p-1.5 rounded-[8px] text-[color:var(--ad-faint)] hover:text-[color:var(--ad-neg)] transition-colors shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -149,7 +149,7 @@ function RewardTierEditor({
               {isMultiple ? '랜덤 보상 추가' : '랜덤 보상 추가 (확률 설정)'}
             </button>
             {isMultiple && (
-              <span className={`inline-flex items-center gap-1 text-[12px] font-medium ad-tnum ${isValid ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-neg)]'}`}>
+              <span className={`inline-flex items-center gap-1 text-[12px] font-medium adm-tnum ${isValid ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-neg)]'}`}>
                 합계: {totalProbability.toFixed(1)}%{isValid ? <Check className="h-3.5 w-3.5" strokeWidth={2.2} /> : ' (100% 필요)'}
               </span>
             )}
@@ -427,7 +427,7 @@ export default function StampSettingsPage() {
         <Button
           variant="outline"
           onClick={() => window.open('/stamp-tablet', '_blank')}
-          className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] shrink-0"
+          className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] shrink-0"
         >
           <Tablet className="h-4 w-4" strokeWidth={1.8} />
           태블릿 모드
@@ -449,7 +449,7 @@ export default function StampSettingsPage() {
 
       <div className={cn('space-y-4', locked && 'opacity-60 pointer-events-none select-none')}>
         {/* 사용 안내 카드 */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="px-5 pt-5 pb-4">
             <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">스탬프 사용 안내</h2>
           </div>
@@ -457,7 +457,7 @@ export default function StampSettingsPage() {
             <div className="space-y-3 text-[13px] text-[color:var(--ad-ink-2)]">
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)] flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-[11.5px] font-semibold ad-tnum">1</span>
+                  <span className="text-[11.5px] font-semibold adm-tnum">1</span>
                 </div>
                 <p>
                   고객이 태그히어를 통해 로그인하면 스탬프가 적립됩니다.
@@ -465,7 +465,7 @@ export default function StampSettingsPage() {
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)] flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-[11.5px] font-semibold ad-tnum">2</span>
+                  <span className="text-[11.5px] font-semibold adm-tnum">2</span>
                 </div>
                 <p>
                   스탬프는 <strong>하루 1개씩 적립</strong>되며, 설정한 개수에 도달하면 보상을 사용할 수 있습니다.
@@ -473,7 +473,7 @@ export default function StampSettingsPage() {
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)] flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-[11.5px] font-semibold ad-tnum">3</span>
+                  <span className="text-[11.5px] font-semibold adm-tnum">3</span>
                 </div>
                 <p>
                   고객이 보상을 요청하면, <strong>고객 리스트</strong>에서 해당 고객을 찾아 해당 단계의 &quot;사용&quot; 버튼을 눌러주세요.
@@ -492,7 +492,7 @@ export default function StampSettingsPage() {
         </div>
 
         {/* 스탬프 기능 활성화 카드 */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="px-5 pt-5 pb-4">
             <div className="flex items-center gap-2">
               <Stamp className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -519,7 +519,7 @@ export default function StampSettingsPage() {
         </div>
 
         {/* 첫 적립 스탬프 개수 */}
-        <div className={cn('ad-card', !enabled && 'opacity-50 pointer-events-none')}>
+        <div className={cn('adm-card', !enabled && 'opacity-50 pointer-events-none')}>
           <div className="px-5 pt-5 pb-4">
             <div className="flex items-center gap-2">
               <Gift className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -539,7 +539,7 @@ export default function StampSettingsPage() {
                 min={1}
                 max={10}
                 disabled={!enabled}
-                className="w-20 text-center ad-tnum rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] focus-visible:ring-0 focus:border-[color:var(--ad-navy)]"
+                className="w-20 text-center adm-tnum rounded-[10px] border-[color:var(--ad-line-strong)] text-[13.5px] focus-visible:ring-0 focus:border-[color:var(--ad-navy)]"
               />
               <span className="text-[13px] text-[color:var(--ad-ink-2)]">개 적립</span>
             </div>
@@ -551,7 +551,7 @@ export default function StampSettingsPage() {
             <div className="mt-4 flex justify-end">
               <Button
                 size="sm"
-                className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
+                className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
                 disabled={!enabled || isSavingBonus}
                 onClick={async () => {
                   setIsSavingBonus(true);
@@ -584,7 +584,7 @@ export default function StampSettingsPage() {
         </div>
 
         {/* 매번 적립 개수 직접 입력 카드 */}
-        <div className={cn('ad-card', !enabled && 'opacity-50 pointer-events-none')}>
+        <div className={cn('adm-card', !enabled && 'opacity-50 pointer-events-none')}>
           <div className="px-5 pt-5 pb-4">
             <div className="flex items-center gap-2">
               <Stamp className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -613,7 +613,7 @@ export default function StampSettingsPage() {
         </div>
 
         {/* 보상 설정 카드 */}
-        <div className={cn('ad-card', !enabled && 'opacity-50 pointer-events-none')}>
+        <div className={cn('adm-card', !enabled && 'opacity-50 pointer-events-none')}>
           <div className="px-5 pt-5 pb-4">
             <div className="flex items-center gap-2">
               <Gift className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -642,7 +642,7 @@ export default function StampSettingsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
+                  className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
                   disabled={!enabled || !newTierInput}
                   onClick={() => {
                     const num = parseInt(newTierInput);
@@ -659,7 +659,7 @@ export default function StampSettingsPage() {
                   {selectedTiers.map(tier => (
                     <span
                       key={tier}
-                      className="inline-flex items-center gap-1 rounded-full bg-[color:var(--ad-bg)] px-2.5 py-1 text-[12px] font-medium ad-tnum text-[color:var(--ad-ink-2)]"
+                      className="inline-flex items-center gap-1 rounded-full bg-[color:var(--ad-bg)] px-2.5 py-1 text-[12px] font-medium adm-tnum text-[color:var(--ad-ink-2)]"
                     >
                       {tier}개
                       <button
@@ -695,7 +695,7 @@ export default function StampSettingsPage() {
             )}
 
             <div className="flex justify-end pt-2">
-              <Button onClick={handleSave} disabled={isSaving || !enabled} className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
+              <Button onClick={handleSave} disabled={isSaving || !enabled} className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
                 {isSaving ? '저장 중...' : '보상 저장하기'}
               </Button>
             </div>

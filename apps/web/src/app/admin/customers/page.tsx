@@ -138,7 +138,7 @@ export default function AdminCustomersExportPage() {
     <div>
       <p className="mb-5 text-[13px] text-[color:var(--ad-muted)]">전체 매장의 고객 데이터를 엑셀 파일로 다운로드합니다.</p>
 
-      <div className="ad-card p-5 max-w-md">
+      <div className="adm-card p-5 max-w-md">
         <div className="space-y-4">
           <div>
             <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">
@@ -165,7 +165,7 @@ export default function AdminCustomersExportPage() {
           <button
             onClick={handleExport}
             disabled={loading}
-            className="ad-press w-full inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="adm-press w-full inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>

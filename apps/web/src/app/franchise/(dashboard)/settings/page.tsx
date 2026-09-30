@@ -185,7 +185,7 @@ export default function FranchiseSettingsPage() {
 
       <div className="mx-auto max-w-4xl space-y-4">
         {/* Organization Info Card */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -254,7 +254,7 @@ export default function FranchiseSettingsPage() {
         </div>
 
         {/* Self Claim Toggle Card */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="p-5">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-start gap-3">
@@ -288,7 +288,7 @@ export default function FranchiseSettingsPage() {
         </div>
 
         {/* Store Connection Card */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
               <Store className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -369,7 +369,7 @@ export default function FranchiseSettingsPage() {
                 <button
                   type="submit"
                   disabled={isConnecting}
-                  className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {isConnecting ? (
                     <>

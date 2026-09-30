@@ -214,7 +214,7 @@ function ComingSoonModal({
         </p>
         <button
           onClick={onClose}
-          className="ad-press h-11 w-full rounded-[10px] bg-[color:var(--ad-ink)] text-[14px] font-semibold text-white hover:bg-[#383c40]"
+          className="adm-press h-11 w-full rounded-[10px] bg-[color:var(--ad-ink)] text-[14px] font-semibold text-white hover:bg-[#383c40]"
         >
           확인
         </button>
@@ -355,7 +355,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
           <button
             onClick={() => toggleItem(item.label)}
             className={cn(
-              'ad-press flex items-center gap-2.5 w-full mx-2 px-2.5 h-9 rounded-[10px] text-[13px] transition-colors',
+              'adm-press flex items-center gap-2.5 w-full mx-2 px-2.5 h-9 rounded-[10px] text-[13px] transition-colors',
               itemActive
                 ? 'bg-white font-semibold text-[color:var(--ad-ink)] shadow-[0_0_0_1px_var(--ad-line)]'
                 : 'text-[color:var(--ad-ink-2)] hover:bg-white/60',
@@ -397,7 +397,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
         href={item.isExternal || item.isComingSoon ? '#' : item.href}
         onClick={(e) => handleNavClick(e, item)}
         className={cn(
-          'ad-press relative flex items-center gap-3 mx-2 px-3 h-10 [@media(max-height:860px)]:h-[33px] rounded-[10px] text-[13.5px] transition-colors',
+          'adm-press relative flex items-center gap-3 mx-2 px-3 h-10 [@media(max-height:860px)]:h-[33px] rounded-[10px] text-[13.5px] transition-colors',
           active
             ? 'bg-white font-semibold text-[color:var(--ad-ink)] shadow-[0_0_0_1px_var(--ad-line)]'
             : 'text-[color:var(--ad-ink-2)] hover:bg-white/60',
@@ -472,7 +472,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
     <>
       <aside
         className={cn(
-          'ad-side hidden lg:flex flex-col transition-[width] duration-300',
+          'adm-side hidden lg:flex flex-col transition-[width] duration-300',
           isCollapsed ? 'w-[76px]' : 'w-[248px]'
         )}
       >
@@ -497,7 +497,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
           )}
           <button
             onClick={onToggleCollapse}
-            className="ad-press grid h-7 w-7 place-items-center rounded-md text-[color:var(--ad-faint)] hover:bg-white/70 hover:text-[color:var(--ad-ink)]"
+            className="adm-press grid h-7 w-7 place-items-center rounded-md text-[color:var(--ad-faint)] hover:bg-white/70 hover:text-[color:var(--ad-ink)]"
             title={isCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
           >
             {isCollapsed ? (
@@ -510,7 +510,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
 
         {/* Navigation */}
         {/* 포스기처럼 휠이 없는 환경 대비: 스크롤바를 얇게 보이고, 넘칠 때 아래쪽을 흐리게 표시 */}
-        <nav className="ad-scroll flex-1 overflow-y-auto py-3">
+        <nav className="adm-scroll flex-1 overflow-y-auto py-3">
           {/* 상단 홈 메뉴 */}
           <div className="space-y-0.5">{topNavItems.map(item => renderNavItem(item))}</div>
 
@@ -544,7 +544,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
                       setAccountOpen(false);
                     }}
                     className={cn(
-                      'ad-press flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-[13px]',
+                      'adm-press flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-[13px]',
                       active ? 'bg-[color:var(--ad-bg)] font-semibold text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]'
                     )}
                   >
@@ -566,7 +566,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
                       handleInstall();
                       setAccountOpen(false);
                     }}
-                    className="ad-press flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]"
+                    className="adm-press flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-bg-alt)]"
                   >
                     <Download strokeWidth={1.7} className="h-4 w-4 text-[color:var(--ad-faint)]" />
                     앱 설치
@@ -581,7 +581,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, taghereVersion, stampEn
             aria-haspopup="menu"
             title={isCollapsed ? '관리 메뉴' : undefined}
             className={cn(
-              'ad-press flex h-11 w-full items-center gap-2.5 rounded-[12px] px-2 text-left hover:bg-white/60',
+              'adm-press flex h-11 w-full items-center gap-2.5 rounded-[12px] px-2 text-left hover:bg-white/60',
               accountOpen && 'bg-white shadow-[0_0_0_1px_var(--ad-line)]',
               isCollapsed && 'justify-center'
             )}
@@ -727,7 +727,7 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
           <button
             onClick={() => toggleItem(item.label)}
             className={cn(
-              'ad-press flex items-center gap-2.5 w-full mx-2 px-2.5 h-10 rounded-[10px] text-[14px] transition-colors',
+              'adm-press flex items-center gap-2.5 w-full mx-2 px-2.5 h-10 rounded-[10px] text-[14px] transition-colors',
               itemActive
                 ? 'bg-white font-semibold text-[color:var(--ad-ink)] shadow-[0_0_0_1px_var(--ad-line)]'
                 : 'text-[color:var(--ad-ink-2)] hover:bg-white/60',
@@ -769,7 +769,7 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
         href={item.isExternal || item.isComingSoon ? '#' : item.href}
         onClick={(e) => handleNavClick(e, item)}
         className={cn(
-          'ad-press relative flex items-center gap-2.5 mx-2 px-2.5 h-10 rounded-[10px] text-[14px] transition-colors',
+          'adm-press relative flex items-center gap-2.5 mx-2 px-2.5 h-10 rounded-[10px] text-[14px] transition-colors',
           active
             ? 'bg-white font-semibold text-[color:var(--ad-ink)] shadow-[0_0_0_1px_var(--ad-line)]'
             : 'text-[color:var(--ad-ink-2)] hover:bg-white/60',
@@ -817,7 +817,7 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
   return (
     <>
       {/* Mobile Header */}
-      <header className="ad-topbar lg:hidden sticky top-0 z-40 w-full">
+      <header className="adm-topbar lg:hidden sticky top-0 z-40 w-full">
         <div className="flex h-14 items-center justify-between px-4">
           <Link href="/home" className="flex items-center gap-2">
             <Image
@@ -830,7 +830,7 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
           </Link>
 
           <button
-            className="ad-press grid h-9 w-9 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70"
+            className="adm-press grid h-9 w-9 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70"
             onClick={toggleMobileMenu}
             aria-label="메뉴 열기"
           >
@@ -850,7 +850,7 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
       {/* Mobile Slide-out Menu */}
       <div
         className={cn(
-          'ad-side !fixed top-0 left-0 !h-full w-72 z-50 transform transition-transform duration-300 ease-in-out lg:hidden overflow-y-auto',
+          'adm-side !fixed top-0 left-0 !h-full w-72 z-50 transform transition-transform duration-300 ease-in-out lg:hidden overflow-y-auto',
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -866,7 +866,7 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
             />
           </Link>
           <button
-            className="ad-press grid h-9 w-9 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70"
+            className="adm-press grid h-9 w-9 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70"
             onClick={closeMobileMenu}
             aria-label="메뉴 닫기"
           >
@@ -892,7 +892,7 @@ export function MobileHeader({ taghereVersion, stampEnabled }: { taghereVersion?
                 handleInstall();
                 closeMobileMenu();
               }}
-              className="ad-press mx-2 mt-2 flex items-center gap-2.5 rounded-[10px] px-2.5 h-10 text-[14px] text-[color:var(--ad-muted)] hover:bg-white/60"
+              className="adm-press mx-2 mt-2 flex items-center gap-2.5 rounded-[10px] px-2.5 h-10 text-[14px] text-[color:var(--ad-muted)] hover:bg-white/60"
             >
               <Download className="w-5 h-5" />
               <span>앱 설치</span>

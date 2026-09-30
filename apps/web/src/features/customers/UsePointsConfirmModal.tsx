@@ -36,7 +36,7 @@ export function UsePointsConfirmModal({
           <p className="text-[#383c40]">
             <span className="font-semibold text-[#1d2022]">{maskNickname(customer?.name)}</span> 님의 포인트를
           </p>
-          <p className="text-[20px] font-semibold ad-tnum text-[#cc0832]">
+          <p className="text-[20px] font-semibold adm-tnum text-[#cc0832]">
             {formatNumber(parseInt(useAmount) || 0)} p 사용
           </p>
           <p className="text-[13px] text-[#55595e]">
@@ -47,14 +47,14 @@ export function UsePointsConfirmModal({
           <Button
             variant="secondary"
             onClick={onBack}
-            className="flex-1 ad-press h-10 rounded-[12px] border-0 bg-white text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+            className="flex-1 adm-press h-10 rounded-[12px] border-0 bg-white text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
           >
             돌아가기
           </Button>
           <Button
             onClick={onConfirm}
             disabled={submitting}
-            className="flex-1 ad-press h-10 rounded-[12px] bg-[#cc0832] text-[13.5px] font-semibold text-white hover:bg-[#b0072b] disabled:opacity-50"
+            className="flex-1 adm-press h-10 rounded-[12px] bg-[#cc0832] text-[13.5px] font-semibold text-white hover:bg-[#b0072b] disabled:opacity-50"
           >
             {submitting ? '처리 중...' : '확인'}
           </Button>

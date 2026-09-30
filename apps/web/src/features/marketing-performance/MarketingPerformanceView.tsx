@@ -52,9 +52,9 @@ const date = (iso: string) => new Date(iso).toLocaleDateString('ko-KR', { month:
 
 function Kpi({ label, value, sub, hint }: { label: string; value: string; sub?: React.ReactNode; hint?: string }) {
   return (
-    <div className="ad-card grid content-start gap-1 p-5">
+    <div className="adm-card grid content-start gap-1 p-5">
       <span className="text-[12.5px] text-[color:var(--ad-muted)]" title={hint}>{label}</span>
-      <span className="ad-tnum text-[26px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{value}</span>
+      <span className="adm-tnum text-[26px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{value}</span>
       {sub && <span className="text-[12px] text-[color:var(--ad-faint)]">{sub}</span>}
     </div>
   );
@@ -157,7 +157,7 @@ export function MarketingPerformanceView({
       {!data ? (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-hidden>
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="ad-card h-[112px] animate-pulse" />
+            <div key={i} className="adm-card h-[112px] animate-pulse" />
           ))}
         </div>
       ) : (
@@ -185,7 +185,7 @@ export function MarketingPerformanceView({
           </div>
 
           {/* 추천 */}
-          <section className="ad-card p-5 sm:p-6">
+          <section className="adm-card p-5 sm:p-6">
             <div className="mb-4 flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-[color:var(--ad-ink)]" strokeWidth={1.8} />
               <h2 className="text-[15px] font-semibold text-[color:var(--ad-ink)]">다음 캠페인 추천</h2>
@@ -201,7 +201,7 @@ export function MarketingPerformanceView({
                     </span>
                   </div>
                   <p className="text-[13px] leading-[1.6] text-[color:var(--ad-ink-2)]">{r.body}</p>
-                  {r.evidence && <p className="ad-tnum text-[12px] text-[color:var(--ad-muted)]">근거 · {r.evidence}</p>}
+                  {r.evidence && <p className="adm-tnum text-[12px] text-[color:var(--ad-muted)]">근거 · {r.evidence}</p>}
                   {r.copyIdeas && (
                     <div className="grid gap-1.5 pt-1">
                       <span className="text-[12px] font-medium text-[color:var(--ad-ink-2)]">써 볼 만한 문구</span>
@@ -223,7 +223,7 @@ export function MarketingPerformanceView({
 
           {/* 채널 비교 */}
           {data.channels.some((c) => c.recipients > 0) && (
-            <section className="ad-card p-5 sm:p-6">
+            <section className="adm-card p-5 sm:p-6">
               <h2 className="mb-1 text-[15px] font-semibold text-[color:var(--ad-ink)]">채널별 재방문율</h2>
               <p className="mb-4 text-[12px] text-[color:var(--ad-faint)]">발송 후 14일이 지난 캠페인 기준</p>
               <div className="grid gap-3">
@@ -231,7 +231,7 @@ export function MarketingPerformanceView({
                   <div key={c.channel} className="grid grid-cols-[110px_minmax(0,1fr)_auto] items-center gap-3 sm:grid-cols-[140px_minmax(0,1fr)_260px]">
                     <span className="text-[13px] text-[color:var(--ad-ink-2)]">{c.label}</span>
                     <Bar value={c.revisitRate} max={maxRate} />
-                    <span className="ad-tnum text-right text-[12.5px] text-[color:var(--ad-muted)]">
+                    <span className="adm-tnum text-right text-[12.5px] text-[color:var(--ad-muted)]">
                       <b className="font-semibold text-[color:var(--ad-ink)]">{pct(c.revisitRate)}</b>
                       <span className="hidden sm:inline"> · 쿠폰 사용 {pct(c.couponUseRate)}{c.costPerRevisit !== null ? ` · 1명당 ${won(c.costPerRevisit)}` : ''}</span>
                     </span>
@@ -242,10 +242,10 @@ export function MarketingPerformanceView({
           )}
 
           {/* 캠페인 목록 */}
-          <section className="ad-card overflow-hidden">
+          <section className="adm-card overflow-hidden">
             <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-5 sm:px-6">
               <h2 className="text-[15px] font-semibold text-[color:var(--ad-ink)]">캠페인별 성과</h2>
-              <Link href={sendHref} className="ad-press inline-flex h-9 items-center rounded-[10px] bg-[color:var(--ad-ink)] px-3.5 text-[13px] font-semibold text-white hover:bg-[#383c40]">
+              <Link href={sendHref} className="adm-press inline-flex h-9 items-center rounded-[10px] bg-[color:var(--ad-ink)] px-3.5 text-[13px] font-semibold text-white hover:bg-[#383c40]">
                 새 캠페인 보내기
               </Link>
             </div>
@@ -271,7 +271,7 @@ export function MarketingPerformanceView({
                   <tbody>
                     {data.campaigns.map((c) => (
                       <tr key={c.id} className="border-b border-[color:var(--ad-line)] last:border-b-0">
-                        <td className="ad-tnum whitespace-nowrap px-5 py-3 text-[color:var(--ad-muted)]">{date(c.sentAt)}</td>
+                        <td className="adm-tnum whitespace-nowrap px-5 py-3 text-[color:var(--ad-muted)]">{date(c.sentAt)}</td>
                         <td className="max-w-[320px] px-3 py-3">
                           <div className="truncate text-[color:var(--ad-ink)]">{c.title}</div>
                           <div className="mt-0.5 flex flex-wrap gap-1 text-[11.5px] text-[color:var(--ad-faint)]">
@@ -280,8 +280,8 @@ export function MarketingPerformanceView({
                             {c.maturing && <span>· 집계 중</span>}
                           </div>
                         </td>
-                        <td className="ad-tnum px-3 py-3 text-right">{c.recipients.toLocaleString()}</td>
-                        <td className="ad-tnum px-3 py-3 text-right">
+                        <td className="adm-tnum px-3 py-3 text-right">{c.recipients.toLocaleString()}</td>
+                        <td className="adm-tnum px-3 py-3 text-right">
                           {c.couponEnabled ? (
                             <>
                               {c.couponUsed.toLocaleString()}
@@ -291,10 +291,10 @@ export function MarketingPerformanceView({
                             <span className="text-[color:var(--ad-faint)]">쿠폰 없음</span>
                           )}
                         </td>
-                        <td className="ad-tnum px-3 py-3 text-right">{pct(c.revisitRate)}</td>
-                        <td className="ad-tnum px-3 py-3 text-right">{won(c.revenue)}</td>
-                        <td className="ad-tnum px-3 py-3 text-right text-[color:var(--ad-muted)]">{won(c.cost)}</td>
-                        <td className="ad-tnum px-5 py-3 text-right font-medium">{c.roi !== null ? `${c.roi}배` : '-'}</td>
+                        <td className="adm-tnum px-3 py-3 text-right">{pct(c.revisitRate)}</td>
+                        <td className="adm-tnum px-3 py-3 text-right">{won(c.revenue)}</td>
+                        <td className="adm-tnum px-3 py-3 text-right text-[color:var(--ad-muted)]">{won(c.cost)}</td>
+                        <td className="adm-tnum px-5 py-3 text-right font-medium">{c.roi !== null ? `${c.roi}배` : '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -304,7 +304,7 @@ export function MarketingPerformanceView({
           </section>
 
           {/* 자동 마케팅 */}
-          <section className="ad-card overflow-hidden">
+          <section className="adm-card overflow-hidden">
             <div className="px-5 pb-3 pt-5 sm:px-6">
               <h2 className="text-[15px] font-semibold text-[color:var(--ad-ink)]">자동 마케팅</h2>
               <p className="mt-0.5 text-[12px] text-[color:var(--ad-faint)]">최근 {data.days}일 동안 자동으로 나간 쿠폰</p>
@@ -330,10 +330,10 @@ export function MarketingPerformanceView({
                           {a.enabled ? '켜짐' : '꺼짐'}
                         </span>
                       </td>
-                      <td className="ad-tnum px-3 py-3 text-right">{a.sent.toLocaleString()}</td>
-                      <td className="ad-tnum px-3 py-3 text-right">{a.couponUsed.toLocaleString()}</td>
-                      <td className="ad-tnum px-3 py-3 text-right">{pct(a.revisitRate)}</td>
-                      <td className="ad-tnum px-5 py-3 text-right">{won(a.revenue)}</td>
+                      <td className="adm-tnum px-3 py-3 text-right">{a.sent.toLocaleString()}</td>
+                      <td className="adm-tnum px-3 py-3 text-right">{a.couponUsed.toLocaleString()}</td>
+                      <td className="adm-tnum px-3 py-3 text-right">{pct(a.revisitRate)}</td>
+                      <td className="adm-tnum px-5 py-3 text-right">{won(a.revenue)}</td>
                     </tr>
                   ))}
                 </tbody>

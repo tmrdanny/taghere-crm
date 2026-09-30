@@ -17,7 +17,7 @@ export function AlimtalkSamples({ onPick }: { onPick: (couponContent: string, ex
             key={s.id}
             type="button"
             onClick={() => onPick(s.couponContent, expiry())}
-            className="ad-press inline-flex h-8 items-center gap-1.5 rounded-full border border-[color:var(--ad-line-strong)] bg-white px-3 text-[12.5px] text-[color:var(--ad-ink-2)] hover:border-[color:var(--ad-faint)]"
+            className="adm-press inline-flex h-8 items-center gap-1.5 rounded-full border border-[color:var(--ad-line-strong)] bg-white px-3 text-[12.5px] text-[color:var(--ad-ink-2)] hover:border-[color:var(--ad-faint)]"
           >
             <span className="font-medium text-[color:var(--ad-ink)]">{s.name}</span>
             <span className="text-[11px] text-[color:var(--ad-faint)]">{s.tag}</span>

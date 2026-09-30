@@ -348,14 +348,14 @@ export default function FranchiseBillingPage() {
       </div>
 
       {/* Balance Card */}
-      <div className="ad-card mb-5 p-5">
+      <div className="adm-card mb-5 p-5">
         <div className="flex items-center justify-between">
           <div>
             <p className="mb-1 text-[12px] text-[color:var(--ad-muted)]">현재 보유 충전금</p>
-            <p className="ad-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+            <p className="adm-tnum text-[24px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
               {formatWithComma(balance)}원
             </p>
-            <p className="ad-tnum mt-1 text-[12px] text-[color:var(--ad-faint)]">
+            <p className="adm-tnum mt-1 text-[12px] text-[color:var(--ad-faint)]">
               약 {Math.floor(balance / 150).toLocaleString()}건 SMS 발송 가능
             </p>
           </div>
@@ -365,7 +365,7 @@ export default function FranchiseBillingPage() {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Charge Section */}
-        <div className="ad-card p-5">
+        <div className="adm-card p-5">
           <h2 className="mb-4 text-[14px] font-semibold text-[color:var(--ad-ink)]">충전하기</h2>
           <div className="space-y-4">
             {/* Amount Input */}
@@ -377,7 +377,7 @@ export default function FranchiseBillingPage() {
                 type="text"
                 value={customAmount}
                 onChange={(e) => handleAmountChange(e.target.value)}
-                className="ad-tnum h-12 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-4 text-right text-[20px] font-medium text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)] focus:outline-none"
+                className="adm-tnum h-12 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-4 text-right text-[20px] font-medium text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)] focus:outline-none"
                 placeholder="0"
               />
             </div>
@@ -389,7 +389,7 @@ export default function FranchiseBillingPage() {
                   key={preset.amount}
                   onClick={() => handlePresetClick(preset.amount)}
                   className={cn(
-                    'ad-press relative h-9 rounded-[10px] px-3 text-[13px] font-medium transition-colors',
+                    'adm-press relative h-9 rounded-[10px] px-3 text-[13px] font-medium transition-colors',
                     amount === preset.amount
                       ? 'bg-[color:var(--ad-ink)] text-white'
                       : 'bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'
@@ -412,7 +412,7 @@ export default function FranchiseBillingPage() {
             <div className="border-t border-[color:var(--ad-line)] pt-3">
               <div className="flex items-center justify-between">
                 <span className="text-[13px] text-[color:var(--ad-muted)]">결제 금액</span>
-                <span className="ad-tnum text-[14px] font-medium text-[color:var(--ad-ink-2)]">
+                <span className="adm-tnum text-[14px] font-medium text-[color:var(--ad-ink-2)]">
                   {formatWithComma(totalAmount)}원
                 </span>
               </div>
@@ -421,14 +421,14 @@ export default function FranchiseBillingPage() {
                   <span className="text-[13px] text-[color:var(--ad-pos)]">
                     보너스 충전 (+{getBonusRate(amount)}%)
                   </span>
-                  <span className="ad-tnum text-[14px] font-medium text-[color:var(--ad-pos)]">
+                  <span className="adm-tnum text-[14px] font-medium text-[color:var(--ad-pos)]">
                     +{formatWithComma(getChargeAmountWithBonus(amount) - amount)}원
                   </span>
                 </div>
               )}
               <div className="mt-2 flex items-center justify-between border-t border-[color:var(--ad-line)] pt-2">
                 <span className="text-[13px] font-semibold text-[color:var(--ad-ink)]">실제 충전 금액</span>
-                <span className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                <span className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                   {formatWithComma(getChargeAmountWithBonus(amount))}원
                 </span>
               </div>
@@ -444,7 +444,7 @@ export default function FranchiseBillingPage() {
             <button
               onClick={handlePayment}
               disabled={!isPaymentReady || isProcessing || amount < 100000}
-              className="ad-press inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40"
+              className="adm-press inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isProcessing ? (
                 <>
@@ -465,7 +465,7 @@ export default function FranchiseBillingPage() {
         </div>
 
         {/* Transaction History */}
-        <div className="ad-card flex flex-col overflow-hidden lg:max-h-[calc(100vh-20rem)]">
+        <div className="adm-card flex flex-col overflow-hidden lg:max-h-[calc(100vh-20rem)]">
           <div className="flex-shrink-0 border-b border-[color:var(--ad-line)] px-5 py-4">
             <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">거래 내역</h2>
           </div>
@@ -484,7 +484,7 @@ export default function FranchiseBillingPage() {
                           {getTransactionLabel(tx.type)}
                         </span>
                         {tx.bonusAmount && (
-                          <span className="ad-tnum inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">
+                          <span className="adm-tnum inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">
                             +{formatWithComma(tx.bonusAmount)} 보너스
                           </span>
                         )}
@@ -495,9 +495,9 @@ export default function FranchiseBillingPage() {
                       <p className="mb-1 text-[12px] text-[color:var(--ad-muted)]">{tx.description}</p>
                     )}
                     <div className="flex items-center justify-between">
-                      <span className="ad-tnum text-[12px] text-[color:var(--ad-faint)]">{formatDate(tx.createdAt)}</span>
+                      <span className="adm-tnum text-[12px] text-[color:var(--ad-faint)]">{formatDate(tx.createdAt)}</span>
                       <span className={cn(
-                        'ad-tnum text-[14px] font-medium',
+                        'adm-tnum text-[14px] font-medium',
                         tx.type === 'TOPUP' ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]'
                       )}>
                         {tx.type === 'TOPUP' ? '+' : '-'}{formatWithComma(tx.amount)}원

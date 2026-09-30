@@ -85,7 +85,7 @@ export function ReservationsPanel({
               <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-[color:var(--ad-muted)]">
                 <span className="rounded bg-[color:var(--ad-bg)] px-1.5 text-[color:var(--ad-ink-2)]">{r.channelLabel}</span>
                 <b className="font-semibold text-[color:var(--ad-ink)]">{when(r.sentAt)}</b>
-                <span className="ad-tnum">· {formatNumber(r.recipientCount)}명 · {formatNumber(r.cost)}원</span>
+                <span className="adm-tnum">· {formatNumber(r.recipientCount)}명 · {formatNumber(r.cost)}원</span>
               </div>
               <p className="mt-0.5 truncate text-[13px] text-[color:var(--ad-ink-2)]">{r.title}</p>
             </div>
@@ -101,7 +101,7 @@ export function ReservationsPanel({
                   type="button"
                   onClick={() => cancel(r.id)}
                   disabled={busyId === r.id}
-                  className="ad-press h-8 rounded-[8px] bg-[color:var(--ad-ink)] px-3 text-[12.5px] font-semibold text-white disabled:opacity-50"
+                  className="adm-press h-8 rounded-[8px] bg-[color:var(--ad-ink)] px-3 text-[12.5px] font-semibold text-white disabled:opacity-50"
                 >
                   {busyId === r.id ? '취소 중...' : '예약 취소'}
                 </button>
@@ -110,7 +110,7 @@ export function ReservationsPanel({
               <button
                 type="button"
                 onClick={() => setConfirmId(r.id)}
-                className={cn('ad-press h-8 rounded-[8px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]')}
+                className={cn('adm-press h-8 rounded-[8px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]')}
               >
                 예약 취소
               </button>

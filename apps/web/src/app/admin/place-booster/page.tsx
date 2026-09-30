@@ -140,11 +140,11 @@ export default function AdminPlaceBoosterPage() {
   const pages = Math.max(1, Math.ceil(total / 20));
 
   return (
-    // ad-booster: 공용 부스터 컴포넌트(점주·프랜차이즈와 공유)를 관리자 화면에서만 v2 톤으로 보이게 하는 범위
-    <div className="ad-booster">
+    // adm-booster: 공용 부스터 컴포넌트(점주·프랜차이즈와 공유)를 관리자 화면에서만 v2 톤으로 보이게 하는 범위
+    <div className="adm-booster">
       {!showCreate && !detailId && !editId && (
         <div className="flex flex-wrap items-center justify-end gap-3 mb-5">
-          <button className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50" onClick={startCreate}>
+          <button className="adm-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50" onClick={startCreate}>
             + 캠페인 생성
           </button>
         </div>
@@ -202,14 +202,14 @@ export default function AdminPlaceBoosterPage() {
       ) : (
       <>
       {analytics && (
-        <div className="ad-card grid grid-cols-3 overflow-hidden mb-4">
+        <div className="adm-card grid grid-cols-3 overflow-hidden mb-4">
           <Stat label="전체 캠페인" value={won(analytics.totalCampaigns)} />
           <Stat label="진행 중" value={won(analytics.activeCampaigns)} />
           <Stat label="승인 대기" value={won(analytics.pendingApproval)} highlight={analytics.pendingApproval > 0} />
         </div>
       )}
       {drafts.length > 0 && (
-        <div className="ad-card mb-4 divide-y divide-[color:var(--ad-line)]">
+        <div className="adm-card mb-4 divide-y divide-[color:var(--ad-line)]">
           {drafts.map((d) => (
             <div key={d.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
               <button className="text-left flex-1 min-w-0" onClick={() => resumeDraft(d)}>
@@ -217,7 +217,7 @@ export default function AdminPlaceBoosterPage() {
                 <span className="ml-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]">임시 저장됨</span>
                 <span className="ml-2 text-[12px] text-[color:var(--ad-faint)]">이어서 작성</span>
               </button>
-              <button className="ad-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[color:var(--ad-neg)]" onClick={() => deleteDraft(d.id)}>삭제</button>
+              <button className="adm-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[color:var(--ad-neg)]" onClick={() => deleteDraft(d.id)}>삭제</button>
             </div>
           ))}
         </div>
@@ -236,7 +236,7 @@ export default function AdminPlaceBoosterPage() {
         </select>
       </div>
 
-      <div className="ad-card overflow-hidden">
+      <div className="adm-card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px]">
           <thead>
@@ -263,21 +263,21 @@ export default function AdminPlaceBoosterPage() {
                 <td className="px-4 py-3">{r.keyword}</td>
                 <td className="px-4 py-3"><span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${(STATUS[r.status] || STATUS.DRAFT).cls}`}>{(STATUS[r.status] || STATUS.DRAFT).label}</span></td>
                 <td className="px-4 py-3 text-[12px] text-[color:var(--ad-ink-2)]">{r.paymentStatus === 'PAID' ? '완료' : r.paymentStatus === 'PENDING_APPROVAL' ? '승인 대기' : '미결제'}</td>
-                <td className="px-4 py-3 text-right text-[12px] ad-tnum">{r.sentBatches}/{r.totalBatches}주</td>
-                <td className="px-4 py-3 text-right ad-tnum">{won(r.sentCount)}</td>
+                <td className="px-4 py-3 text-right text-[12px] adm-tnum">{r.sentBatches}/{r.totalBatches}주</td>
+                <td className="px-4 py-3 text-right adm-tnum">{won(r.sentCount)}</td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
                   <div className="flex justify-end gap-1">
-                    <button className="ad-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[color:var(--ad-link)]" onClick={() => setDetailId(r.id)}>상세</button>
+                    <button className="adm-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[color:var(--ad-link)]" onClick={() => setDetailId(r.id)}>상세</button>
                     {EDITABLE_STATUSES.includes(r.status) && (
-                      <button disabled={acting} className="ad-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[color:var(--ad-ink-2)]" onClick={() => setEditId(r.id)}>수정</button>
+                      <button disabled={acting} className="adm-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[color:var(--ad-ink-2)]" onClick={() => setEditId(r.id)}>수정</button>
                     )}
                     {r.paymentStatus === 'PENDING_APPROVAL' && (
-                      <button disabled={acting} className="ad-press text-[12px] font-semibold px-2.5 h-7 rounded-[8px] bg-[color:var(--ad-yellow)] text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-40" onClick={() => act(`/api/admin/place-booster/campaigns/${r.id}/approve`, 'POST', '승인되었습니다.')}>승인</button>
+                      <button disabled={acting} className="adm-press text-[12px] font-semibold px-2.5 h-7 rounded-[8px] bg-[color:var(--ad-yellow)] text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-40" onClick={() => act(`/api/admin/place-booster/campaigns/${r.id}/approve`, 'POST', '승인되었습니다.')}>승인</button>
                     )}
                     {r.status !== 'CANCELLED' && r.status !== 'COMPLETED' && (
-                      <button disabled={acting} className="ad-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[#993d1f]" onClick={() => { if (confirm('취소(중지)하시겠습니까?')) act(`/api/admin/place-booster/campaigns/${r.id}/cancel`, 'POST', (d) => d.failed?.length ? `취소했습니다. 단, ${d.failed.length}개 회차(${d.failed.map((f: any) => `${f.weekNo}주`).join(', ')})는 발송 5분 이내라 취소되지 않고 발송됩니다.` : '취소되었습니다.'); }}>취소</button>
+                      <button disabled={acting} className="adm-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[#993d1f]" onClick={() => { if (confirm('취소(중지)하시겠습니까?')) act(`/api/admin/place-booster/campaigns/${r.id}/cancel`, 'POST', (d) => d.failed?.length ? `취소했습니다. 단, ${d.failed.length}개 회차(${d.failed.map((f: any) => `${f.weekNo}주`).join(', ')})는 발송 5분 이내라 취소되지 않고 발송됩니다.` : '취소되었습니다.'); }}>취소</button>
                     )}
-                    <button disabled={acting} className="ad-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[color:var(--ad-neg)]" onClick={() => { if (confirm('삭제(숨김)하시겠습니까?')) act(`/api/admin/place-booster/campaigns/${r.id}`, 'DELETE', '삭제되었습니다.'); }}>삭제</button>
+                    <button disabled={acting} className="adm-press text-[12px] font-medium px-2.5 h-7 rounded-[8px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 text-[color:var(--ad-neg)]" onClick={() => { if (confirm('삭제(숨김)하시겠습니까?')) act(`/api/admin/place-booster/campaigns/${r.id}`, 'DELETE', '삭제되었습니다.'); }}>삭제</button>
                   </div>
                 </td>
               </tr>
@@ -289,9 +289,9 @@ export default function AdminPlaceBoosterPage() {
       </div>
 
       <div className="flex items-center justify-center gap-2 mt-4 text-[13px] text-[color:var(--ad-ink-2)]">
-        <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="ad-press inline-flex items-center justify-center h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">이전</button>
-        <span className="px-2 py-1 ad-tnum">{page} / {pages}</span>
-        <button disabled={page >= pages} onClick={() => setPage((p) => p + 1)} className="ad-press inline-flex items-center justify-center h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">다음</button>
+        <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="adm-press inline-flex items-center justify-center h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">이전</button>
+        <span className="px-2 py-1 adm-tnum">{page} / {pages}</span>
+        <button disabled={page >= pages} onClick={() => setPage((p) => p + 1)} className="adm-press inline-flex items-center justify-center h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">다음</button>
       </div>
       </>
       )}
@@ -304,7 +304,7 @@ function Stat({ label, value, highlight }: { label: string; value: string; highl
   return (
     <div className={`p-5 border-l border-[color:var(--ad-line)] first:border-l-0 ${highlight ? 'bg-[color:var(--ad-yellow-soft)]' : ''}`}>
       <div className="text-[12px] text-[color:var(--ad-muted)]">{label}</div>
-      <div className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)] mt-1">{value}</div>
+      <div className="text-[22px] font-semibold tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)] mt-1">{value}</div>
     </div>
   );
 }
@@ -374,7 +374,7 @@ function AdminReportView({ id, af, onBack, onChanged }: { id: string; af: (p: st
           <ChevronLeft className="w-4 h-4" /> 목록으로
         </button>
         {data && (
-          <button type="button" className="ad-press inline-flex items-center justify-center h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50" onClick={exportPdf} disabled={exporting}>
+          <button type="button" className="adm-press inline-flex items-center justify-center h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50" onClick={exportPdf} disabled={exporting}>
             {exporting ? 'PDF 생성 중…' : 'PDF 다운로드'}
           </button>
         )}
@@ -385,7 +385,7 @@ function AdminReportView({ id, af, onBack, onChanged }: { id: string; af: (p: st
       ) : (
         <>
           {/* 테스트 발송 (PDF 캡처 영역 밖) */}
-          <div className="ad-card p-5 mb-4">
+          <div className="adm-card p-5 mb-4">
             <div className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-1">테스트 발송</div>
             <p className="text-[12px] text-[color:var(--ad-faint)] mb-3">입력한 번호로 실제와 똑같은 알림톡 1건을 즉시 보냅니다. (발송 대상·회차·결제와 무관)</p>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -396,7 +396,7 @@ function AdminReportView({ id, af, onBack, onChanged }: { id: string; af: (p: st
                 placeholder="받을 휴대폰 번호 (예: 01012345678)"
                 inputMode="numeric"
               />
-              <button type="button" className="ad-press inline-flex items-center justify-center h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50 shrink-0" onClick={sendTest} disabled={testSending}>
+              <button type="button" className="adm-press inline-flex items-center justify-center h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50 shrink-0" onClick={sendTest} disabled={testSending}>
                 {testSending ? '발송 중…' : '테스트 발송'}
               </button>
             </div>
@@ -405,7 +405,7 @@ function AdminReportView({ id, af, onBack, onChanged }: { id: string; af: (p: st
 
           {/* 성과 리포트 (화면용 — PDF는 데이터로 별도 렌더) */}
           <div>
-            <div className="ad-card p-5 mb-4">
+            <div className="adm-card p-5 mb-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -413,7 +413,7 @@ function AdminReportView({ id, af, onBack, onChanged }: { id: string; af: (p: st
                     {data.isExternal && <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-[color:var(--ad-blue-soft)] text-[color:var(--ad-link)]">외부</span>}
                   </div>
                   <p className="text-[13px] text-[color:var(--ad-muted)] mt-1.5">유입 키워드: {data.campaign.keyword} · {data.campaign.couponContent}</p>
-                  <div className="text-[12px] text-[color:var(--ad-faint)] mt-1 ad-tnum">
+                  <div className="text-[12px] text-[color:var(--ad-faint)] mt-1 adm-tnum">
                     {data.campaign.perBatchCount.toLocaleString()}명 × {data.campaign.totalWeeks}주 (총 {data.campaign.totalTargetCount.toLocaleString()}명)
                   </div>
                 </div>
@@ -484,7 +484,7 @@ function useAdminTarget(
           <button
             key={m}
             type="button"
-            className={`ad-press py-2 rounded-[8px] text-[13px] font-medium transition-colors ${mode === m ? 'bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-muted)]'}`}
+            className={`adm-press py-2 rounded-[8px] text-[13px] font-medium transition-colors ${mode === m ? 'bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-muted)]'}`}
             onClick={() => setMode(m)}
           >
             {label}

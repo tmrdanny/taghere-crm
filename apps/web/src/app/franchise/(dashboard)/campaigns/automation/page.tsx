@@ -270,7 +270,7 @@ export default function FranchiseAutomationPage() {
                       <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">네이버 미설정</span>
                     )}
                   </div>
-                  <span className="ad-tnum text-[12px] text-[color:var(--ad-faint)]">
+                  <span className="adm-tnum text-[12px] text-[color:var(--ad-faint)]">
                     활성 {store.activeRuleCount}개
                   </span>
                 </button>
@@ -282,7 +282,7 @@ export default function FranchiseAutomationPage() {
 
       {/* 가맹점 미선택 */}
       {!selectedStoreId && (
-        <div className="ad-card py-16 text-center">
+        <div className="adm-card py-16 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--ad-bg)]">
             <Store className="h-5 w-5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
           </div>
@@ -301,7 +301,7 @@ export default function FranchiseAutomationPage() {
             </p>
           </div>
 
-          <div className="ad-card overflow-hidden">
+          <div className="adm-card overflow-hidden">
             <div className="divide-y divide-[color:var(--ad-line)]">
               {SCENARIOS.map((scenario) => {
                 const Icon = scenario.icon;
@@ -317,20 +317,20 @@ export default function FranchiseAutomationPage() {
                         <button
                           onClick={() => handleToggle(scenario.type, true)}
                           disabled={togglingType === scenario.type}
-                          className="ad-press inline-flex h-8 items-center justify-center rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
+                          className="adm-press inline-flex h-8 items-center justify-center rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
                         >
                           전체 ON
                         </button>
                         <button
                           onClick={() => handleToggle(scenario.type, false)}
                           disabled={togglingType === scenario.type}
-                          className="ad-press inline-flex h-8 items-center justify-center rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
+                          className="adm-press inline-flex h-8 items-center justify-center rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
                         >
                           전체 OFF
                         </button>
                         <button
                           onClick={() => router.push(`/franchise/campaigns/automation/${scenario.type}?storeId=ALL`)}
-                          className="ad-press rounded-[8px] p-1.5 text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]"
+                          className="adm-press rounded-[8px] p-1.5 text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]"
                         >
                           <ChevronRight className="h-5 w-5" />
                         </button>
@@ -353,21 +353,21 @@ export default function FranchiseAutomationPage() {
             <>
               {/* 대시보드 */}
               {dashboard && (dashboard.totalSent > 0 || rules.some((r) => r.enabled)) && (
-                <div className="ad-card mb-4">
+                <div className="adm-card mb-4">
                   <div className="grid grid-cols-3">
                     <div className="p-5">
                       <div className="mb-1 flex items-center gap-1.5 text-[12px] text-[color:var(--ad-muted)]">
                         <Send className="h-3.5 w-3.5" />
                         <span>자동 발송</span>
                       </div>
-                      <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{dashboard.totalSent}건</div>
+                      <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{dashboard.totalSent}건</div>
                     </div>
                     <div className="border-l border-[color:var(--ad-line)] p-5">
                       <div className="mb-1 flex items-center gap-1.5 text-[12px] text-[color:var(--ad-muted)]">
                         <Gift className="h-3.5 w-3.5" />
                         <span>쿠폰 사용</span>
                       </div>
-                      <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                      <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                         {dashboard.totalCouponUsed}건
                         <span className="ml-1 text-[13px] font-normal text-[color:var(--ad-muted)]">({dashboard.usageRate}%)</span>
                       </div>
@@ -377,7 +377,7 @@ export default function FranchiseAutomationPage() {
                         <TrendingUp className="h-3.5 w-3.5" />
                         <span>추정 매출</span>
                       </div>
-                      <div className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                      <div className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                         {dashboard.estimatedRevenue > 0 ? `${dashboard.estimatedRevenue.toLocaleString()}원` : '-'}
                       </div>
                     </div>
@@ -386,7 +386,7 @@ export default function FranchiseAutomationPage() {
               )}
 
               {/* 시나리오 목록 */}
-              <div className="ad-card overflow-hidden">
+              <div className="adm-card overflow-hidden">
                 <div className="divide-y divide-[color:var(--ad-line)]">
                   {SCENARIOS.map((scenario) => {
                     const rule = getRuleByType(scenario.type);
@@ -421,7 +421,7 @@ export default function FranchiseAutomationPage() {
                               onClick={() =>
                                 router.push(`/franchise/campaigns/automation/${scenario.type}?storeId=${selectedStoreId}`)
                               }
-                              className="ad-press rounded-[8px] p-1.5 text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]"
+                              className="adm-press rounded-[8px] p-1.5 text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]"
                             >
                               <ChevronRight className="h-5 w-5" />
                             </button>

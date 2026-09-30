@@ -73,7 +73,7 @@ export function SegmentPicker({
             {active && selected ? (
               <>
                 <span className="text-[color:var(--ad-ink-2)]">{selected.name}</span> · 발송 가능{' '}
-                <span className="ad-tnum font-semibold text-[color:var(--ad-ink)]">{selected.reachable.toLocaleString()}명</span>
+                <span className="adm-tnum font-semibold text-[color:var(--ad-ink)]">{selected.reachable.toLocaleString()}명</span>
               </>
             ) : (
               '단골, 한동안 안 온 손님처럼 조건으로 묶어 둔 손님에게 보내요'
@@ -115,7 +115,7 @@ export function SegmentPicker({
                 aria-checked={on}
                 onClick={() => onSelect(on ? '' : sg.id)}
                 className={cn(
-                  'ad-press h-8 max-w-full truncate rounded-full border px-3.5 text-[12.5px] transition-colors',
+                  'adm-press h-8 max-w-full truncate rounded-full border px-3.5 text-[12.5px] transition-colors',
                   on
                     ? 'border-[color:var(--ad-ink)] bg-[color:var(--ad-ink)] font-medium text-white'
                     : 'border-[color:var(--ad-line-strong)] bg-white text-[color:var(--ad-ink-2)] hover:border-[color:var(--ad-faint)]'

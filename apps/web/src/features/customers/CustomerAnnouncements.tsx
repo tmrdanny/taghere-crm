@@ -10,7 +10,7 @@ export function CustomerAnnouncements({ announcements }: { announcements: Announ
       {announcements.map((announcement) => (
         <div
           key={announcement.id}
-          className="ad-card flex items-start gap-3 p-4"
+          className="adm-card flex items-start gap-3 p-4"
         >
           <div className="flex-shrink-0 mt-0.5">
             <Megaphone className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />

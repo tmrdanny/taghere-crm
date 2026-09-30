@@ -83,7 +83,7 @@ export function CustomerFilters({
   onResetColumns: () => void;
 }) {
   return (
-    <Card className="ad-card mb-4 p-4">
+    <Card className="adm-card mb-4 p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[color:var(--ad-faint)]" />
@@ -95,7 +95,7 @@ export function CustomerFilters({
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" size="sm" onClick={onResetFilters} className="ad-press flex h-9 items-center gap-1 rounded-[10px] border-0 bg-white px-3 text-[13px] font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]">
+          <Button variant="secondary" size="sm" onClick={onResetFilters} className="adm-press flex h-9 items-center gap-1 rounded-[10px] border-0 bg-white px-3 text-[13px] font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]">
             전체 보기
           </Button>
 
@@ -142,12 +142,12 @@ export function CustomerFilters({
                 onDateRangeToggle();
               }}
               className={(startDate || endDate)
-                ? 'ad-press flex h-9 items-center gap-1 rounded-[10px] border-0 bg-white px-3 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-ink)] hover:bg-[color:var(--ad-bg-alt)]'
-                : 'ad-press flex h-9 items-center gap-1 rounded-[10px] border-0 bg-white px-3 text-[13px] font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'}
+                ? 'adm-press flex h-9 items-center gap-1 rounded-[10px] border-0 bg-white px-3 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-ink)] hover:bg-[color:var(--ad-bg-alt)]'
+                : 'adm-press flex h-9 items-center gap-1 rounded-[10px] border-0 bg-white px-3 text-[13px] font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'}
             >
               <Calendar className="w-3.5 h-3.5" />
               {(startDate || endDate) ? (
-                <span className="ad-tnum text-[12.5px]">
+                <span className="adm-tnum text-[12.5px]">
                   {startDate && endDate ? `${startDate.slice(5)} ~ ${endDate.slice(5)}` : startDate ? `${startDate.slice(5)} ~` : `~ ${endDate.slice(5)}`}
                 </span>
               ) : (
@@ -219,7 +219,7 @@ export function CustomerFilters({
                       e.stopPropagation();
                       onDateRangeReset();
                     }}
-                    className="ad-press h-9 flex-1 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                    className="adm-press h-9 flex-1 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                   >
                     초기화
                   </Button>
@@ -229,7 +229,7 @@ export function CustomerFilters({
                       e.stopPropagation();
                       onDateRangeApply();
                     }}
-                    className="ad-press h-9 flex-1 rounded-[10px] bg-[color:var(--ad-ink)] text-[13px] font-semibold text-white hover:bg-[#383c40]"
+                    className="adm-press h-9 flex-1 rounded-[10px] bg-[color:var(--ad-ink)] text-[13px] font-semibold text-white hover:bg-[#383c40]"
                   >
                     적용
                   </Button>
@@ -247,7 +247,7 @@ export function CustomerFilters({
                 e.stopPropagation();
                 onColumnSettingsToggle();
               }}
-              className="ad-press flex h-9 items-center gap-1 rounded-[10px] border-0 bg-white px-3 text-[13px] font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+              className="adm-press flex h-9 items-center gap-1 rounded-[10px] border-0 bg-white px-3 text-[13px] font-normal text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
             >
               <Settings2 className="w-3.5 h-3.5" />
               컬럼
