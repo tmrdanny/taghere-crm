@@ -43,7 +43,7 @@ export function PointHistoryTab({
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-[13px] font-medium ad-tnum ${
+                        className={`text-[13px] font-medium adm-tnum ${
                           entry.delta > 0 ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-muted)]'
                         }`}
                       >

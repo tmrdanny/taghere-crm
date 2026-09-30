@@ -124,15 +124,15 @@ export default function FeedbackPage() {
       </div>
 
       {/* 통계 카드 */}
-      <div className="ad-card grid grid-cols-2">
+      <div className="adm-card grid grid-cols-2">
         <div className="p-5">
           <div className="text-[12px] text-[color:var(--ad-muted)]">전체 피드백</div>
-          <div className="ad-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{total}개</div>
+          <div className="adm-tnum mt-1 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{total}개</div>
         </div>
         <div className="border-l border-[color:var(--ad-line)] p-5">
           <div className="text-[12px] text-[color:var(--ad-muted)]">평균 평점</div>
           <div className="mt-1 flex items-center gap-2">
-            <span className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{stats.averageRating}</span>
+            <span className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{stats.averageRating}</span>
             <Star className="h-4 w-4 fill-none text-[color:var(--ad-faint)]" strokeWidth={1.8} />
           </div>
         </div>
@@ -145,7 +145,7 @@ export default function FeedbackPage() {
             <Button
               variant="outline"
               onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-              className="ad-press h-9 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] flex items-center gap-2"
+              className="adm-press h-9 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] flex items-center gap-2"
             >
               <Filter className="w-3.5 h-3.5" strokeWidth={1.8} />
               {ratingFilter !== null ? (
@@ -185,20 +185,20 @@ export default function FeedbackPage() {
           <Button
             variant={hasTextFilter ? 'default' : 'outline'}
             onClick={handleHasTextFilter}
-            className={`ad-press flex h-9 items-center gap-2 rounded-[10px] px-3.5 text-[13px] ${hasTextFilter ? 'border-0 bg-[color:var(--ad-ink)] font-medium text-white hover:bg-[#383c40]' : 'border-0 bg-white font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'}`}
+            className={`adm-press flex h-9 items-center gap-2 rounded-[10px] px-3.5 text-[13px] ${hasTextFilter ? 'border-0 bg-[color:var(--ad-ink)] font-medium text-white hover:bg-[#383c40]' : 'border-0 bg-white font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'}`}
           >
             <MessageSquare className="w-3.5 h-3.5" strokeWidth={1.8} />
             텍스트 리뷰만
           </Button>
         </div>
 
-        <div className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">
+        <div className="adm-tnum text-[12.5px] text-[color:var(--ad-muted)]">
           총 {total}개의 피드백
         </div>
       </div>
 
       {/* 피드백 목록 */}
-      <div className="ad-card overflow-hidden">
+      <div className="adm-card overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center text-[13px] text-[color:var(--ad-faint)]">
             <div className="animate-spin w-8 h-8 border-2 border-[color:var(--ad-ink)] border-t-transparent rounded-full mx-auto mb-2" />
@@ -257,19 +257,19 @@ export default function FeedbackPage() {
           <Button
             variant="outline"
             size="sm"
-            className="ad-press h-9 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] px-2.5"
+            className="adm-press h-9 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] px-2.5"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <span className="ad-tnum text-[13px] text-[color:var(--ad-muted)]">
+          <span className="adm-tnum text-[13px] text-[color:var(--ad-muted)]">
             {page} / {totalPages}
           </span>
           <Button
             variant="outline"
             size="sm"
-            className="ad-press h-9 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] px-2.5"
+            className="adm-press h-9 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] px-2.5"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
           >

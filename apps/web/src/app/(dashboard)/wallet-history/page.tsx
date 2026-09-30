@@ -118,7 +118,7 @@ export default function WalletHistoryPage() {
             type="button"
             aria-label="새로고침"
             onClick={fetchHistory}
-            className="ad-press inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+            className="adm-press inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
           >
             <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
           </button>
@@ -126,7 +126,7 @@ export default function WalletHistoryPage() {
       </div>
 
       {/* Usage Summary */}
-      <div className="ad-card grid grid-cols-1 md:grid-cols-3">
+      <div className="adm-card grid grid-cols-1 md:grid-cols-3">
         {summaryItems.map(({ label, icon: Icon, stat }, i) => (
           <div
             key={label}
@@ -136,8 +136,8 @@ export default function WalletHistoryPage() {
               <Icon className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.7} />
               <span className="text-[12px] text-[color:var(--ad-muted)]">{label}</span>
             </div>
-            <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{stat.amount.toLocaleString()}원</p>
-            <p className="ad-tnum mt-1 text-[12px] text-[color:var(--ad-faint)]">{stat.count.toLocaleString()}건</p>
+            <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{stat.amount.toLocaleString()}원</p>
+            <p className="adm-tnum mt-1 text-[12px] text-[color:var(--ad-faint)]">{stat.count.toLocaleString()}건</p>
           </div>
         ))}
       </div>
@@ -157,7 +157,7 @@ export default function WalletHistoryPage() {
           >
             {f.label}
             {data?.summary.byCategory[f.value] && f.value !== 'all' && (
-              <span className="ad-tnum ml-1 text-[11px] opacity-70">
+              <span className="adm-tnum ml-1 text-[11px] opacity-70">
                 {data.summary.byCategory[f.value].count.toLocaleString()}
               </span>
             )}
@@ -166,7 +166,7 @@ export default function WalletHistoryPage() {
       </div>
 
       {/* Transaction Table */}
-      <div className="ad-card overflow-hidden">
+      <div className="adm-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -185,7 +185,7 @@ export default function WalletHistoryPage() {
               ) : (
                 data.transactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-[color:var(--ad-bg-alt)]">
-                    <td className="ad-tnum whitespace-nowrap px-4 py-3 text-[color:var(--ad-ink-2)]">
+                    <td className="adm-tnum whitespace-nowrap px-4 py-3 text-[color:var(--ad-ink-2)]">
                       {new Date(tx.createdAt).toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                     </td>
                     <td className="px-4 py-3">
@@ -194,7 +194,7 @@ export default function WalletHistoryPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-[color:var(--ad-muted)]">{tx.description || '-'}</td>
-                    <td className={cn('ad-tnum whitespace-nowrap px-4 py-3 text-right font-medium', tx.amount > 0 ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-ink)]')}>
+                    <td className={cn('adm-tnum whitespace-nowrap px-4 py-3 text-right font-medium', tx.amount > 0 ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-ink)]')}>
                       {formatAmount(tx.amount)}
                     </td>
                   </tr>
@@ -207,15 +207,15 @@ export default function WalletHistoryPage() {
         {/* Pagination */}
         {data && data.pagination.totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-[color:var(--ad-line)] px-4 py-3">
-            <span className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">
+            <span className="adm-tnum text-[12.5px] text-[color:var(--ad-muted)]">
               총 {data.pagination.total.toLocaleString()}건
             </span>
             <div className="flex items-center gap-2">
-              <button type="button" className="ad-press h-8 rounded-[10px] bg-white px-3 text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <button type="button" className="adm-press h-8 rounded-[10px] bg-white px-3 text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                 이전
               </button>
-              <span className="ad-tnum text-[13px] text-[color:var(--ad-ink-2)]">{page} / {data.pagination.totalPages}</span>
-              <button type="button" className="ad-press h-8 rounded-[10px] bg-white px-3 text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40" disabled={page >= data.pagination.totalPages} onClick={() => setPage((p) => p + 1)}>
+              <span className="adm-tnum text-[13px] text-[color:var(--ad-ink-2)]">{page} / {data.pagination.totalPages}</span>
+              <button type="button" className="adm-press h-8 rounded-[10px] bg-white px-3 text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40" disabled={page >= data.pagination.totalPages} onClick={() => setPage((p) => p + 1)}>
                 다음
               </button>
             </div>

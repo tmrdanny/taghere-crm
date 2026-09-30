@@ -299,7 +299,7 @@ export default function CouponLinksPage() {
             쿠폰을 직접 만들고 QR코드로 출력하여 설문을 제출하신 손님들에게 자동으로 쿠폰을 발송해요
           </p>
         </div>
-        <button onClick={openCreate} className="shrink-0 ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
+        <button onClick={openCreate} className="shrink-0 adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
           <Plus className="w-4 h-4" />
           새 링크 만들기
         </button>
@@ -321,14 +321,14 @@ export default function CouponLinksPage() {
           ))}
         </div>
       ) : forms.length === 0 ? (
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="px-5 py-16 text-center">
             <Ticket className="mx-auto mb-3 h-8 w-8 text-[color:var(--ad-faint)]" />
             <p className="mb-1 text-[14px] font-medium text-[color:var(--ad-ink)]">아직 만든 쿠폰 발행 링크가 없어요</p>
             <p className="mb-5 text-[13px] text-[color:var(--ad-faint)]">
               첫 링크를 만들고 QR을 매장에 붙여보세요. 손님이 설문을 제출하면 쿠폰이 자동 발송돼요.
             </p>
-            <button onClick={openCreate} className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]">
+            <button onClick={openCreate} className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]">
               <Plus className="w-4 h-4" />
               새 링크 만들기
             </button>
@@ -339,7 +339,7 @@ export default function CouponLinksPage() {
           {forms.map((f) => {
             const rate = f.submissionCount > 0 ? Math.round((f.usedCount / f.submissionCount) * 100) : 0;
             return (
-              <div key={f.id} className={`ad-card ${!f.enabled ? 'opacity-60' : ''}`}>
+              <div key={f.id} className={`adm-card ${!f.enabled ? 'opacity-60' : ''}`}>
                 <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -361,17 +361,17 @@ export default function CouponLinksPage() {
                       <div className="mb-0.5 flex items-center gap-1 text-[12px] text-[color:var(--ad-muted)]">
                         <Users className="w-3.5 h-3.5" /> 쿠폰 발급
                       </div>
-                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{f.submissionCount.toLocaleString()}명</p>
+                      <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{f.submissionCount.toLocaleString()}명</p>
                     </div>
                     <div className="border-l border-[color:var(--ad-line)] p-3.5">
                       <div className="mb-0.5 flex items-center gap-1 text-[12px] text-[color:var(--ad-muted)]">
                         <CheckCircle2 className="w-3.5 h-3.5" /> 사용 완료
                       </div>
-                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{f.usedCount.toLocaleString()}명</p>
+                      <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{f.usedCount.toLocaleString()}명</p>
                     </div>
                     <div className="border-l border-[color:var(--ad-line)] p-3.5">
                       <p className="mb-0.5 text-[12px] text-[color:var(--ad-muted)]">사용률</p>
-                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{rate}%</p>
+                      <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{rate}%</p>
                     </div>
                   </div>
 
@@ -380,18 +380,18 @@ export default function CouponLinksPage() {
                     <code className="min-w-[200px] flex-1 truncate rounded-[10px] border border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)] px-3 py-2 font-mono text-[12px] text-[color:var(--ad-ink-2)]">
                       {formUrl(f.slug)}
                     </code>
-                    <button onClick={() => copyUrl(f.slug)} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
+                    <button onClick={() => copyUrl(f.slug)} className="adm-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
                       <Link2 className="w-4 h-4" /> 링크 복사
                     </button>
-                    <button onClick={() => setQrForm(f)} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
+                    <button onClick={() => setQrForm(f)} className="adm-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
                       QR 코드
                     </button>
-                    <button onClick={() => openEdit(f)} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
+                    <button onClick={() => openEdit(f)} className="adm-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
                       <Pencil className="w-4 h-4" /> 수정
                     </button>
                     <button
                       onClick={() => handleDelete(f)}
-                      className="ad-press rounded-[8px] p-2 text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)]"
+                      className="adm-press rounded-[8px] p-2 text-[color:var(--ad-faint)] transition-colors hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)]"
                       title="삭제"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -435,10 +435,10 @@ export default function CouponLinksPage() {
                     className="aspect-[860/260] w-full rounded-[10px] border border-[color:var(--ad-line)] object-cover"
                   />
                   <div className="mt-2 flex gap-2">
-                    <button type="button" onClick={() => bannerInputRef.current?.click()} disabled={isUploadingBanner} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
+                    <button type="button" onClick={() => bannerInputRef.current?.click()} disabled={isUploadingBanner} className="adm-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
                       {isUploadingBanner ? '업로드 중...' : '이미지 변경'}
                     </button>
-                    <button type="button" onClick={() => setBannerUrl('')} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
+                    <button type="button" onClick={() => setBannerUrl('')} className="adm-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
                       제거
                     </button>
                   </div>
@@ -498,9 +498,9 @@ export default function CouponLinksPage() {
               <div className="flex items-center justify-between">
                 <label className="mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]">설문 항목</label>
                 <div className="flex gap-1.5">
-                  <button type="button" onClick={() => addPreset('name')} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">+ 이름</button>
-                  <button type="button" onClick={() => addPreset('gender')} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">+ 성별</button>
-                  <button type="button" onClick={() => addPreset('custom')} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">+ 직접 추가</button>
+                  <button type="button" onClick={() => addPreset('name')} className="adm-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">+ 이름</button>
+                  <button type="button" onClick={() => addPreset('gender')} className="adm-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">+ 성별</button>
+                  <button type="button" onClick={() => addPreset('custom')} className="adm-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">+ 직접 추가</button>
                 </div>
               </div>
 
@@ -537,7 +537,7 @@ export default function CouponLinksPage() {
                       필수
                       <Switch checked={f.required} onCheckedChange={(v) => updateField(f.id, { required: v })} />
                     </label>
-                    <button onClick={() => removeField(f.id)} className="ad-press rounded-[8px] p-1.5 text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)]">
+                    <button onClick={() => removeField(f.id)} className="adm-press rounded-[8px] p-1.5 text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)]">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -559,8 +559,8 @@ export default function CouponLinksPage() {
           </div>
 
           <ModalFooter>
-            <button onClick={() => setIsEditorOpen(false)} className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]">취소</button>
-            <button onClick={handleSave} disabled={isSaving} className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
+            <button onClick={() => setIsEditorOpen(false)} className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]">취소</button>
+            <button onClick={handleSave} disabled={isSaving} className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
               {isSaving ? '저장 중...' : editingId ? '수정하기' : '만들기'}
             </button>
           </ModalFooter>
@@ -581,10 +581,10 @@ export default function CouponLinksPage() {
               <p className="mt-3 text-[14px] font-medium text-[color:var(--ad-ink)]">{qrForm.title}</p>
               <p className="mt-0.5 break-all px-4 text-center text-[12px] text-[color:var(--ad-faint)]">{formUrl(qrForm.slug)}</p>
               <div className="flex gap-2 mt-4">
-                <button onClick={copyQr} className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
+                <button onClick={copyQr} className="adm-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50">
                   <Copy className="w-4 h-4" /> 이미지 복사
                 </button>
-                <button onClick={downloadQr} className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
+                <button onClick={downloadQr} className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
                   <Download className="w-4 h-4" /> 다운로드
                 </button>
               </div>

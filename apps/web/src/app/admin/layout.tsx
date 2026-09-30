@@ -146,26 +146,26 @@ export default function AdminLayout({
   );
 
   return (
-    <div className="ad">
-      <div className="ad-sky" aria-hidden>
-        <span className="ad-cloud" />
-        <span className="ad-cloud" />
-        <span className="ad-cloud" />
-        <span className="ad-cloud" />
+    <div className="adm">
+      <div className="adm-sky" aria-hidden>
+        <span className="adm-cloud" />
+        <span className="adm-cloud" />
+        <span className="adm-cloud" />
+        <span className="adm-cloud" />
       </div>
 
-      <div className="ad-shell">
+      <div className="adm-shell">
         {/* 데스크톱 사이드바 */}
         {isSidebarOpen && <div className="hidden lg:flex">{sidebar}</div>}
 
         {/* 모바일 사이드바 서랍 */}
         <div
-          className={`ad-scrim fixed inset-0 z-40 bg-[rgba(0,0,0,0.4)] lg:hidden ${isMobileMenuOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+          className={`adm-scrim fixed inset-0 z-40 bg-[rgba(0,0,0,0.4)] lg:hidden ${isMobileMenuOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
           onClick={() => setIsMobileMenuOpen(false)}
           aria-hidden
         />
         <div
-          className={`ad-drawer fixed inset-y-0 left-0 z-50 flex lg:hidden ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          className={`adm-drawer fixed inset-y-0 left-0 z-50 flex lg:hidden ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
           aria-hidden={!isMobileMenuOpen}
         >
           {sidebar}
@@ -173,11 +173,11 @@ export default function AdminLayout({
 
         <div className="flex min-w-0 flex-1 flex-col">
           {/* 상단 바 */}
-          <header className="ad-topbar sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 px-4 sm:px-6">
+          <header className="adm-topbar sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 px-4 sm:px-6">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
               aria-label="메뉴 열기"
-              className="ad-press grid h-8 w-8 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70 lg:hidden"
+              className="adm-press grid h-8 w-8 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70 lg:hidden"
             >
               <Menu size={17} strokeWidth={1.7} />
             </button>
@@ -186,7 +186,7 @@ export default function AdminLayout({
                 onClick={() => setIsSidebarOpen(true)}
                 aria-label="사이드바 열기"
                 title="사이드바 열기"
-                className="ad-press hidden h-8 w-8 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70 lg:grid"
+                className="adm-press hidden h-8 w-8 place-items-center rounded-md text-[color:var(--ad-muted)] hover:bg-white/70 lg:grid"
               >
                 <PanelLeft size={16} strokeWidth={1.6} />
               </button>
@@ -261,7 +261,7 @@ function AdminSidebar({
   const isActive = (href: string) => (href === '/admin' ? pathname === href : pathname === href || pathname.startsWith(href + '/'));
 
   return (
-    <aside className="ad-side flex w-[240px] shrink-0 flex-col">
+    <aside className="adm-side flex w-[240px] shrink-0 flex-col">
       <div className="flex h-14 items-center justify-between px-4">
         <Link href="/admin" onClick={onNavigate} className="flex items-center gap-2">
           <Image src="/Taghere-logo.png" alt="태그히어" width={24} height={24} className="h-6 w-6" priority />
@@ -271,13 +271,13 @@ function AdminSidebar({
           onClick={onCollapse}
           aria-label="사이드바 접기"
           title="사이드바 접기"
-          className="ad-press hidden h-7 w-7 place-items-center rounded-md text-[color:var(--ad-faint)] hover:bg-white/70 hover:text-[color:var(--ad-ink)] lg:grid"
+          className="adm-press hidden h-7 w-7 place-items-center rounded-md text-[color:var(--ad-faint)] hover:bg-white/70 hover:text-[color:var(--ad-ink)] lg:grid"
         >
           <PanelLeft size={15} strokeWidth={1.6} />
         </button>
       </div>
 
-      <nav className="ad-noscroll flex-1 overflow-y-auto px-3 pb-3">
+      <nav className="adm-noscroll flex-1 overflow-y-auto px-3 pb-3">
         {menuGroups.map((group, gi) => (
           <div key={group.title} className={gi > 0 ? 'mt-5' : 'mt-1'}>
             <p className="mb-1 px-2.5 text-[11px] font-medium text-[color:var(--ad-faint)]">{group.title}</p>
@@ -291,7 +291,7 @@ function AdminSidebar({
                       href={item.href}
                       onClick={onNavigate}
                       aria-current={active ? 'page' : undefined}
-                      className={`ad-press relative flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] ${
+                      className={`adm-press relative flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] ${
                         active
                           ? 'bg-white font-semibold text-[color:var(--ad-ink)] shadow-[0_0_0_1px_var(--ad-line)]'
                           : 'text-[color:var(--ad-ink-2)] hover:bg-white/60'
@@ -312,7 +312,7 @@ function AdminSidebar({
       <div className="border-t border-[color:var(--ad-line)] p-3">
         <button
           onClick={onLogout}
-          className="ad-press flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] text-[color:var(--ad-muted)] hover:bg-white/60 hover:text-[color:var(--ad-ink)]"
+          className="adm-press flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] text-[color:var(--ad-muted)] hover:bg-white/60 hover:text-[color:var(--ad-ink)]"
         >
           <LogOut size={16} strokeWidth={1.7} />
           로그아웃

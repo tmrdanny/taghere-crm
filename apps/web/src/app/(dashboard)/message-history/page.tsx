@@ -219,9 +219,9 @@ export default function MessageHistoryPage() {
   };
 
   const btnSecondary =
-    'ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]';
+    'adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]';
   const btnFilterActive =
-    'ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-[color:var(--ad-ink)] px-3.5 text-[13px] font-medium text-white hover:bg-[#383c40]';
+    'adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-[color:var(--ad-ink)] px-3.5 text-[13px] font-medium text-white hover:bg-[#383c40]';
   const dateInputCls =
     'flex-1 h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-2.5 text-[13px] focus:border-[color:var(--ad-navy)] focus:outline-none';
 
@@ -245,27 +245,27 @@ export default function MessageHistoryPage() {
 
       <div className="space-y-4">
       {/* Summary Cards */}
-      <div className="ad-card grid grid-cols-2 md:grid-cols-4">
+      <div className="adm-card grid grid-cols-2 md:grid-cols-4">
         <div className="p-5">
           <p className="text-[12px] text-[color:var(--ad-muted)]">전체 발송</p>
-          <p className="mt-1 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{formatNumber(summary.total)}건</p>
+          <p className="mt-1 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">{formatNumber(summary.total)}건</p>
         </div>
         <div className="p-5 border-l border-[color:var(--ad-line)]">
           <p className="text-[12px] text-[color:var(--ad-muted)]">성공</p>
-          <p className="mt-1 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{formatNumber(summary.sent)}건</p>
+          <p className="mt-1 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">{formatNumber(summary.sent)}건</p>
         </div>
         <div className="p-5 border-t md:border-t-0 md:border-l border-[color:var(--ad-line)]">
           <p className="text-[12px] text-[color:var(--ad-muted)]">실패</p>
-          <p className="mt-1 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-neg)]">{formatNumber(summary.failed)}건</p>
+          <p className="mt-1 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-neg)]">{formatNumber(summary.failed)}건</p>
         </div>
         <div className="p-5 border-t border-l md:border-t-0 border-[color:var(--ad-line)]">
           <p className="text-[12px] text-[color:var(--ad-muted)]">대기</p>
-          <p className="mt-1 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-faint)]">{formatNumber(summary.pending)}건</p>
+          <p className="mt-1 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-faint)]">{formatNumber(summary.pending)}건</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="ad-card p-4">
+      <div className="adm-card p-4">
         <div className="flex flex-col lg:flex-row gap-3">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--ad-faint)]" />
@@ -388,7 +388,7 @@ export default function MessageHistoryPage() {
                         setDateRangeDropdownOpen(false);
                         setPage(1);
                       }}
-                      className="flex-1 ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-[color:var(--ad-ink)] px-4 text-[13px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+                      className="flex-1 adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-[color:var(--ad-ink)] px-4 text-[13px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
                     >
                       적용
                     </Button>
@@ -401,7 +401,7 @@ export default function MessageHistoryPage() {
       </div>
 
       {/* Table */}
-      <div className="ad-card overflow-hidden">
+      <div className="adm-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -432,7 +432,7 @@ export default function MessageHistoryPage() {
               {!isLoading &&
                 messages.map((msg) => (
                   <tr key={msg.id} className="hover:bg-[color:var(--ad-bg-alt)]">
-                    <td className="px-4 py-3 text-[color:var(--ad-ink-2)] whitespace-nowrap ad-tnum">
+                    <td className="px-4 py-3 text-[color:var(--ad-ink-2)] whitespace-nowrap adm-tnum">
                       <div>{formatDate(msg.createdAt)}</div>
                       <div className="text-[11.5px] text-[color:var(--ad-faint)]">
                         {new Date(msg.createdAt).toLocaleTimeString('ko-KR', {
@@ -469,7 +469,7 @@ export default function MessageHistoryPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-[color:var(--ad-ink-2)] ad-tnum whitespace-nowrap">
+                    <td className="px-4 py-3 text-[color:var(--ad-ink-2)] adm-tnum whitespace-nowrap">
                       {formatPhone(msg.phone)}
                     </td>
                     <td className="px-4 py-3 text-[color:var(--ad-ink)]">
@@ -488,7 +488,7 @@ export default function MessageHistoryPage() {
 
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-[color:var(--ad-line)]">
-          <span className="text-[12.5px] text-[color:var(--ad-muted)] ad-tnum">
+          <span className="text-[12.5px] text-[color:var(--ad-muted)] adm-tnum">
             {formatNumber((page - 1) * pageSize + (messages.length ? 1 : 0))}-
             {formatNumber((page - 1) * pageSize + messages.length)} of {formatNumber(total)}
           </span>
@@ -502,7 +502,7 @@ export default function MessageHistoryPage() {
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            <span className="text-[12.5px] text-[color:var(--ad-ink-2)] ad-tnum">
+            <span className="text-[12.5px] text-[color:var(--ad-ink-2)] adm-tnum">
               {page} / {totalPages}
             </span>
             <Button

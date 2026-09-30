@@ -489,10 +489,10 @@ export default function WaitingPage() {
           <p className="text-[13.5px] leading-relaxed text-[color:var(--ad-muted)] mb-6">
             웨이팅 서비스는 충전금이 10,000원 이상일 때 사용 가능합니다.
             <br />
-            현재 잔액: <span className="font-semibold text-[color:var(--ad-neg)] ad-tnum">0원</span>
+            현재 잔액: <span className="font-semibold text-[color:var(--ad-neg)] adm-tnum">0원</span>
           </p>
           <Link href="/billing">
-            <Button className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 border-0">
+            <Button className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 border-0">
               충전하러 가기
             </Button>
           </Link>
@@ -520,11 +520,11 @@ export default function WaitingPage() {
               <Users className="w-4 h-4" />
               <span>
                 총 웨이팅{' '}
-                <span className="font-semibold text-[color:var(--ad-ink)] ad-tnum">
+                <span className="font-semibold text-[color:var(--ad-ink)] adm-tnum">
                   {stats?.totalTeams || 0}팀
                 </span>
                 {' / '}
-                <span className="font-semibold text-[color:var(--ad-ink)] ad-tnum">
+                <span className="font-semibold text-[color:var(--ad-ink)] adm-tnum">
                   {stats?.totalGuests || 0}명
                 </span>
               </span>
@@ -533,7 +533,7 @@ export default function WaitingPage() {
               <Clock className="w-4 h-4" />
               <span>
                 예상시간{' '}
-                <span className="font-semibold text-[color:var(--ad-ink)] ad-tnum">
+                <span className="font-semibold text-[color:var(--ad-ink)] adm-tnum">
                   {stats?.estimatedMinutes || 0}분
                 </span>
               </span>
@@ -545,7 +545,7 @@ export default function WaitingPage() {
           <Button
             variant="outline"
             size="sm"
-            className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0"
+            className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0"
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
@@ -553,13 +553,13 @@ export default function WaitingPage() {
             새로고침
           </Button>
           <Link href="/waiting/settings">
-            <Button variant="outline" size="sm" className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0">
+            <Button variant="outline" size="sm" className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0">
               <Settings className="w-4 h-4 mr-1" />
               설정
             </Button>
           </Link>
           <Button
-            className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 border-0"
+            className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40 border-0"
             onClick={() => {
               setPreSelectedTypeId(null);
               setAddModalOpen(true);
@@ -573,7 +573,7 @@ export default function WaitingPage() {
 
       {/* CTA: 웨이팅 화면 켜기 */}
       {storeSlug && (
-        <div className="ad-card mb-5 p-5">
+        <div className="adm-card mb-5 p-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
               <Tablet className="h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -586,7 +586,7 @@ export default function WaitingPage() {
             </div>
             <Button
               onClick={() => window.open(`/w/${storeSlug}/tablet`, '_blank')}
-              className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0"
+              className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0"
             >
               <ExternalLink className="w-4 h-4" />
               웨이팅 화면 열기
@@ -610,7 +610,7 @@ export default function WaitingPage() {
             </div>
           </div>
           <Link href="/billing">
-            <Button variant="outline" size="sm" className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0">
+            <Button variant="outline" size="sm" className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] border-0">
               충전하기
             </Button>
           </Link>
@@ -648,7 +648,7 @@ export default function WaitingPage() {
       </div>
 
       {/* Filters */}
-      <Card className="ad-card overflow-hidden border-0">
+      <Card className="adm-card overflow-hidden border-0">
         {/* Type Tabs */}
         <div className="p-4 border-b border-[color:var(--ad-line)]">
           <WaitingTypeTabs

@@ -301,7 +301,7 @@ export default function VisitSourcePage() {
 
           <div className="space-y-4">
         {/* 사용 안내 카드 */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
             <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">방문 경로 추적 안내</h3>
           </div>
@@ -309,7 +309,7 @@ export default function VisitSourcePage() {
             <div className="space-y-3 text-[13px] text-[color:var(--ad-ink-2)]">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]">
-                  <span className="ad-tnum text-[11.5px] font-medium">1</span>
+                  <span className="adm-tnum text-[11.5px] font-medium">1</span>
                 </div>
                 <p>
                   기능을 활성화하면 고객이 포인트/스탬프 적립 시 &quot;저희 매장을 어떻게 알게 되셨나요?&quot; 질문이 표시됩니다.
@@ -317,7 +317,7 @@ export default function VisitSourcePage() {
               </div>
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]">
-                  <span className="ad-tnum text-[11.5px] font-medium">2</span>
+                  <span className="adm-tnum text-[11.5px] font-medium">2</span>
                 </div>
                 <p>
                   고객이 선택한 방문 경로는 <strong>고객 리스트</strong>에서 확인할 수 있습니다.
@@ -325,7 +325,7 @@ export default function VisitSourcePage() {
               </div>
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]">
-                  <span className="ad-tnum text-[11.5px] font-medium">3</span>
+                  <span className="adm-tnum text-[11.5px] font-medium">3</span>
                 </div>
                 <p>
                   아래에서 고객에게 보여줄 방문 경로 옵션을 추가/삭제하거나 이름을 수정할 수 있습니다.
@@ -336,7 +336,7 @@ export default function VisitSourcePage() {
         </div>
 
         {/* 기능 활성화 카드 */}
-        <div className="ad-card">
+        <div className="adm-card">
           <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
@@ -360,11 +360,11 @@ export default function VisitSourcePage() {
         </div>
 
         {/* 항목 관리 카드 */}
-        <div className={`ad-card ${!enabled ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className={`adm-card ${!enabled ? 'opacity-50 pointer-events-none' : ''}`}>
           <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
             <div className="flex items-center justify-between">
               <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">항목 관리</h3>
-              <span className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">
+              <span className="adm-tnum text-[12.5px] text-[color:var(--ad-muted)]">
                 {options.length} / {MAX_OPTIONS}
               </span>
             </div>
@@ -431,7 +431,7 @@ export default function VisitSourcePage() {
                 onClick={handleAddOption}
                 disabled={!enabled || options.length >= MAX_OPTIONS}
                 variant="outline"
-                className="ad-press h-10 shrink-0 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press h-10 shrink-0 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" strokeWidth={1.8} />
                 추가
@@ -445,7 +445,7 @@ export default function VisitSourcePage() {
 
             {/* 저장 버튼 */}
             <div className="flex justify-end border-t border-[color:var(--ad-line)] pt-4">
-              <Button onClick={handleSaveLabels} disabled={isSaving || !enabled} className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
+              <Button onClick={handleSaveLabels} disabled={isSaving || !enabled} className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
                 {isSaving ? '저장 중...' : '변경사항 저장'}
               </Button>
             </div>

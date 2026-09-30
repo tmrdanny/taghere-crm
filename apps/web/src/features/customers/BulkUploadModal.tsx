@@ -67,7 +67,7 @@ export function BulkUploadModal({
               variant="outline"
               size="sm"
               onClick={onDownloadSample}
-              className="ad-press inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+              className="adm-press inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
             >
               <Download className="h-4 w-4" />
               샘플 다운로드
@@ -223,7 +223,7 @@ export function BulkUploadModal({
                 <div className="p-3 bg-[#fff2f5] rounded-[10px]">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-[13px] font-medium text-[#cc0832]">오류 목록:</p>
-                    <Button variant="outline" size="sm" onClick={onDownloadErrors} className="ad-press inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]">
+                    <Button variant="outline" size="sm" onClick={onDownloadErrors} className="adm-press inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]">
                       <Download className="h-4 w-4" />
                       오류 행 다운로드
                     </Button>
@@ -247,7 +247,7 @@ export function BulkUploadModal({
             variant="secondary"
             onClick={() => onOpenChange(false)}
             disabled={uploading}
-            className="flex-1 ad-press h-10 rounded-[12px] border-0 bg-white text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+            className="flex-1 adm-press h-10 rounded-[12px] border-0 bg-white text-[13.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
           >
             {result ? '닫기' : '취소'}
           </Button>
@@ -255,7 +255,7 @@ export function BulkUploadModal({
             <Button
               onClick={onUpload}
               disabled={parsedData.length === 0 || uploading}
-              className="flex-1 ad-press h-10 rounded-[12px] bg-[color:var(--ad-ink)] text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+              className="flex-1 adm-press h-10 rounded-[12px] bg-[color:var(--ad-ink)] text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
             >
               {uploading ? `등록 중... ${progressPct}%` : `${parsedData.length.toLocaleString()}건 등록하기`}
             </Button>

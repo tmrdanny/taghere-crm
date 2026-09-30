@@ -52,7 +52,7 @@ export function CustomerTable({
   onPageChange: (updater: (p: number) => number) => void;
 }) {
   return (
-    <Card className="ad-card overflow-hidden">
+    <Card className="adm-card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full min-w-max text-[13px] [&_td]:whitespace-nowrap">
           <thead>
@@ -199,7 +199,7 @@ export function CustomerTable({
                       </td>
                     )}
                     {isColumnVisible('points') && (
-                      <td className="ad-tnum px-4 py-3 font-medium text-[color:var(--ad-ink)]">
+                      <td className="adm-tnum px-4 py-3 font-medium text-[color:var(--ad-ink)]">
                         {formatNumber(customer.totalPoints)} p
                       </td>
                     )}
@@ -339,7 +339,7 @@ export function CustomerTable({
 
       {/* Pagination */}
       <div className="flex items-center justify-between border-t border-[color:var(--ad-line)] px-4 py-3">
-        <span className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">
+        <span className="adm-tnum text-[12.5px] text-[color:var(--ad-muted)]">
           {formatNumber((page - 1) * pageSize + (customers.length ? 1 : 0))}-
           {formatNumber((page - 1) * pageSize + customers.length)} of{' '}
           {formatNumber(pagination.total)} customers

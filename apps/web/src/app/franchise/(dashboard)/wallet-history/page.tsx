@@ -125,7 +125,7 @@ export default function FranchiseWalletHistoryPage() {
             type="button"
             aria-label="새로고침"
             onClick={fetchSummary}
-            className="ad-press inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+            className="adm-press inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
           >
             <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
           </button>
@@ -133,7 +133,7 @@ export default function FranchiseWalletHistoryPage() {
       </div>
 
       {/* Totals */}
-      <div className="ad-card grid grid-cols-2 md:grid-cols-4">
+      <div className="adm-card grid grid-cols-2 md:grid-cols-4">
         {[
           { label: '알림톡', stat: totals?.alimtalk, icon: MessagesSquare },
           { label: '광고톡', stat: totals?.brandMessage, icon: Megaphone },
@@ -155,15 +155,15 @@ export default function FranchiseWalletHistoryPage() {
                 <Icon className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.7} />
                 <span className="text-[12px] text-[color:var(--ad-muted)]">{c.label}</span>
               </div>
-              <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{won(c.stat?.amount ?? 0)}</p>
-              <p className="ad-tnum mt-1 text-[12px] text-[color:var(--ad-faint)]">{(c.stat?.count ?? 0).toLocaleString()}건</p>
+              <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{won(c.stat?.amount ?? 0)}</p>
+              <p className="adm-tnum mt-1 text-[12px] text-[color:var(--ad-faint)]">{(c.stat?.count ?? 0).toLocaleString()}건</p>
             </div>
           );
         })}
       </div>
 
       {/* Per-store table */}
-      <div className="ad-card overflow-hidden">
+      <div className="adm-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -189,10 +189,10 @@ export default function FranchiseWalletHistoryPage() {
                     onClick={() => openDetail(s)}
                   >
                     <td className="px-4 py-3 font-medium text-[color:var(--ad-ink)]">{s.storeName}</td>
-                    <td className="ad-tnum px-4 py-3 text-right text-[color:var(--ad-ink-2)]">{cell(s.alimtalk)}</td>
-                    <td className="ad-tnum px-4 py-3 text-right text-[color:var(--ad-ink-2)]">{cell(s.brandMessage)}</td>
-                    <td className="ad-tnum px-4 py-3 text-right text-[color:var(--ad-ink-2)]">{cell(s.sms)}</td>
-                    <td className="ad-tnum px-4 py-3 text-right font-medium text-[color:var(--ad-ink)]">{cell(s.total)}</td>
+                    <td className="adm-tnum px-4 py-3 text-right text-[color:var(--ad-ink-2)]">{cell(s.alimtalk)}</td>
+                    <td className="adm-tnum px-4 py-3 text-right text-[color:var(--ad-ink-2)]">{cell(s.brandMessage)}</td>
+                    <td className="adm-tnum px-4 py-3 text-right text-[color:var(--ad-ink-2)]">{cell(s.sms)}</td>
+                    <td className="adm-tnum px-4 py-3 text-right font-medium text-[color:var(--ad-ink)]">{cell(s.total)}</td>
                     <td className="px-4 py-3"><ChevronRight className="h-4 w-4 text-[color:var(--ad-faint)]" /></td>
                   </tr>
                 ))
@@ -213,9 +213,9 @@ export default function FranchiseWalletHistoryPage() {
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <MessagesSquare className="h-4 w-4 flex-shrink-0 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                 <h2 className="text-[17px] font-semibold text-[color:var(--ad-ink)]">{detailStore.storeName}</h2>
-                <span className="ad-tnum text-[13px] text-[color:var(--ad-muted)]">총 사용 {cell(detailStore.total)}</span>
+                <span className="adm-tnum text-[13px] text-[color:var(--ad-muted)]">총 사용 {cell(detailStore.total)}</span>
               </div>
-              <button onClick={() => setDetailStore(null)} className="ad-press rounded-[8px] p-1 text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]">
+              <button onClick={() => setDetailStore(null)} className="adm-press rounded-[8px] p-1 text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -229,7 +229,7 @@ export default function FranchiseWalletHistoryPage() {
                   <tbody className="divide-y divide-[color:var(--ad-line)] text-[13px]">
                     {detailTxs.map((tx) => (
                       <tr key={tx.id}>
-                        <td className="ad-tnum whitespace-nowrap px-5 py-3 text-[color:var(--ad-ink-2)]">
+                        <td className="adm-tnum whitespace-nowrap px-5 py-3 text-[color:var(--ad-ink-2)]">
                           {new Date(tx.createdAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         </td>
                         <td className="px-3 py-3">
@@ -238,7 +238,7 @@ export default function FranchiseWalletHistoryPage() {
                           </span>
                         </td>
                         <td className="px-3 py-3 text-[12px] text-[color:var(--ad-faint)]">{tx.description || ''}</td>
-                        <td className={cn('ad-tnum whitespace-nowrap px-5 py-3 text-right font-medium', tx.amount > 0 ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-ink)]')}>
+                        <td className={cn('adm-tnum whitespace-nowrap px-5 py-3 text-right font-medium', tx.amount > 0 ? 'text-[color:var(--ad-pos)]' : 'text-[color:var(--ad-ink)]')}>
                           {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString()}원
                         </td>
                       </tr>

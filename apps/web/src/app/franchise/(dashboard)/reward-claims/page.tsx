@@ -136,7 +136,7 @@ export default function RewardClaimsPage() {
           <button
             key={filter.value}
             onClick={() => { setStatusFilter(filter.value); setPage(1); }}
-            className={`ad-press inline-flex h-9 items-center rounded-full px-3.5 text-[13px] font-medium transition-colors ${
+            className={`adm-press inline-flex h-9 items-center rounded-full px-3.5 text-[13px] font-medium transition-colors ${
               statusFilter === filter.value
                 ? 'bg-[color:var(--ad-ink)] text-white'
                 : 'bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'
@@ -144,7 +144,7 @@ export default function RewardClaimsPage() {
           >
             {filter.label}
             {filter.value === 'PENDING' && total > 0 && statusFilter === 'PENDING' && (
-              <span className="ad-tnum ml-1.5 rounded-full bg-white/20 px-1.5 py-0.5 text-[11px] font-medium">
+              <span className="adm-tnum ml-1.5 rounded-full bg-white/20 px-1.5 py-0.5 text-[11px] font-medium">
                 {total}
               </span>
             )}
@@ -153,7 +153,7 @@ export default function RewardClaimsPage() {
       </div>
 
       {/* Table */}
-      <div className="ad-card overflow-hidden">
+      <div className="adm-card overflow-hidden">
         {loading ? (
           <div className="p-12 text-center">
             <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-[color:var(--ad-ink)] border-t-transparent" />
@@ -194,7 +194,7 @@ export default function RewardClaimsPage() {
                       <td className="px-4 py-3 font-medium text-[color:var(--ad-ink)]">
                         {claim.customerName || '-'}
                       </td>
-                      <td className="ad-tnum px-4 py-3 text-[color:var(--ad-ink-2)]">
+                      <td className="adm-tnum px-4 py-3 text-[color:var(--ad-ink-2)]">
                         <div className="flex items-center gap-1.5">
                           {claim.customerPhone ? (
                             <>
@@ -215,10 +215,10 @@ export default function RewardClaimsPage() {
                       <td className="px-4 py-3 font-medium text-[color:var(--ad-ink)]">
                         {claim.rewardDescription}
                       </td>
-                      <td className="ad-tnum px-4 py-3 text-center text-[color:var(--ad-ink-2)]">
+                      <td className="adm-tnum px-4 py-3 text-center text-[color:var(--ad-ink-2)]">
                         {claim.tier}개
                       </td>
-                      <td className="ad-tnum px-4 py-3 text-[12.5px] text-[color:var(--ad-muted)]">
+                      <td className="adm-tnum px-4 py-3 text-[12.5px] text-[color:var(--ad-muted)]">
                         {formatDate(claim.createdAt)}
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -233,7 +233,7 @@ export default function RewardClaimsPage() {
                               <button
                                 onClick={() => handleStatusChange(claim.id, 'COMPLETED')}
                                 disabled={isProcessing}
-                                className="ad-press inline-flex h-8 w-8 items-center justify-center rounded-[8px] bg-white text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] transition-colors hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
+                                className="adm-press inline-flex h-8 w-8 items-center justify-center rounded-[8px] bg-white text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] transition-colors hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
                                 title="수령 완료"
                               >
                                 <Check className="h-4 w-4" strokeWidth={1.8} />
@@ -241,7 +241,7 @@ export default function RewardClaimsPage() {
                               <button
                                 onClick={() => handleStatusChange(claim.id, 'REJECTED')}
                                 disabled={isProcessing}
-                                className="ad-press inline-flex h-8 w-8 items-center justify-center rounded-[8px] bg-white text-[color:var(--ad-neg)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] transition-colors hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
+                                className="adm-press inline-flex h-8 w-8 items-center justify-center rounded-[8px] bg-white text-[color:var(--ad-neg)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] transition-colors hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
                                 title="거절 (스탬프 복원)"
                               >
                                 <X className="h-4 w-4" strokeWidth={1.8} />
@@ -261,7 +261,7 @@ export default function RewardClaimsPage() {
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-[color:var(--ad-line)] px-4 py-3">
-            <p className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">총 {total}건</p>
+            <p className="adm-tnum text-[12.5px] text-[color:var(--ad-muted)]">총 {total}건</p>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -270,7 +270,7 @@ export default function RewardClaimsPage() {
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <span className="ad-tnum px-3 text-[12.5px] text-[color:var(--ad-muted)]">
+              <span className="adm-tnum px-3 text-[12.5px] text-[color:var(--ad-muted)]">
                 {page} / {totalPages}
               </span>
               <button

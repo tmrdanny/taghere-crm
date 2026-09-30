@@ -45,15 +45,15 @@ export default function AdminLoginPage() {
     'h-11 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3.5 text-[14px] text-[color:var(--ad-ink)] placeholder:text-[color:var(--ad-faint)] transition-colors focus:border-[color:var(--ad-navy)] focus:outline-none';
 
   return (
-    <div className="ad flex items-center justify-center p-4">
-      <div className="ad-sky" aria-hidden>
-        <span className="ad-cloud" />
-        <span className="ad-cloud" />
-        <span className="ad-cloud" />
-        <span className="ad-cloud" />
+    <div className="adm flex items-center justify-center p-4">
+      <div className="adm-sky" aria-hidden>
+        <span className="adm-cloud" />
+        <span className="adm-cloud" />
+        <span className="adm-cloud" />
+        <span className="adm-cloud" />
       </div>
 
-      <div className="ad-rise relative w-full max-w-[380px] rounded-[24px] border border-white/70 bg-white/70 p-8 shadow-[0_30px_80px_-30px_rgba(19,22,81,0.35)] backdrop-blur-2xl">
+      <div className="adm-rise relative w-full max-w-[380px] rounded-[24px] border border-white/70 bg-white/70 p-8 shadow-[0_30px_80px_-30px_rgba(19,22,81,0.35)] backdrop-blur-2xl">
         <div className="mb-7 text-center">
           <Image src="/Taghere-logo.png" alt="태그히어" width={48} height={48} className="mx-auto mb-4 h-12 w-12" priority />
           <h1 className="text-[20px] font-bold tracking-[-0.4px]">TagHere Admin</h1>
@@ -94,7 +94,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="ad-press h-11 w-full rounded-[10px] bg-[color:var(--ad-yellow)] text-[14px] font-semibold text-[color:var(--ad-ink)] transition-colors hover:bg-[color:var(--ad-yellow-strong)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="adm-press h-11 w-full rounded-[10px] bg-[color:var(--ad-yellow)] text-[14px] font-semibold text-[color:var(--ad-ink)] transition-colors hover:bg-[color:var(--ad-yellow-strong)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? '로그인 중...' : '로그인'}
           </button>

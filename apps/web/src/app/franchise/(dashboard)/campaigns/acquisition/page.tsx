@@ -751,7 +751,7 @@ export default function LocalCustomersPage() {
   return (
     <div className="flex-1 flex flex-col lg:flex-row lg:items-start gap-6 mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8 lg:justify-center">
       {/* Left Panel - Settings */}
-      <div className="ad-card flex-1 lg:max-w-[720px] p-5 md:p-6 flex flex-col gap-6">
+      <div className="adm-card flex-1 lg:max-w-[720px] p-5 md:p-6 flex flex-col gap-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[color:var(--ad-line)]">
           <div className="flex items-center gap-2">
@@ -813,7 +813,7 @@ export default function LocalCustomersPage() {
           <div className="grid grid-cols-3 rounded-[14px] bg-white shadow-[inset_0_0_0_1px_var(--ad-line)] overflow-hidden">
             <div className="p-4">
               <p className="text-[12px] text-[color:var(--ad-muted)]">전체 고객</p>
-              <p className="mt-1 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+              <p className="mt-1 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                 {globalTotalCount.toLocaleString()}명
               </p>
             </div>
@@ -826,13 +826,13 @@ export default function LocalCustomersPage() {
               )}
             >
               <p className="text-[12px] text-[color:var(--ad-muted)]">선택 지역</p>
-              <p className="mt-1 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+              <p className="mt-1 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                 {isLoading ? '...' : availableCount.toLocaleString()}명
               </p>
             </div>
             <div className="p-4 border-l border-[color:var(--ad-line)]">
               <p className="text-[12px] text-[color:var(--ad-muted)]">발송 예정</p>
-              <p className="mt-1 text-[20px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{sendCount.toLocaleString()}명</p>
+              <p className="mt-1 text-[20px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">{sendCount.toLocaleString()}명</p>
             </div>
           </div>
         </div>
@@ -947,7 +947,7 @@ export default function LocalCustomersPage() {
                   {filteredSidos.length > 0 && selectedSidos.length < KOREA_SIDOS.length && (
                     <button onClick={() => { setSelectedSidos(KOREA_SIDOS); setIsRegionDropdownOpen(false); setRegionSearchQuery(''); }} className="w-full px-4 py-2.5 text-left text-[13px] flex items-center justify-between transition-colors bg-white hover:bg-[color:var(--ad-bg-alt)] text-[color:var(--ad-ink)] border-b border-[color:var(--ad-line)]">
                       <span className="font-semibold">전체 선택</span>
-                      <span className="text-[12px] text-[color:var(--ad-muted)] ad-tnum">+{globalTotalCount.toLocaleString()}명</span>
+                      <span className="text-[12px] text-[color:var(--ad-muted)] adm-tnum">+{globalTotalCount.toLocaleString()}명</span>
                     </button>
                   )}
                   {filteredSidos.length > 0 ? filteredSidos.map((sido) => {
@@ -957,7 +957,7 @@ export default function LocalCustomersPage() {
                       <button key={sido} onClick={() => !isSelected && addSido(sido)} disabled={isSelected} className={cn("w-full px-4 py-2.5 text-left text-[13px] flex items-center justify-between transition-colors", isSelected ? "bg-[color:var(--ad-bg-alt)] text-[color:var(--ad-faint)]" : "hover:bg-[color:var(--ad-bg-alt)] text-[color:var(--ad-ink-2)]")}>
                         <span className="font-medium">{sido}</span>
                         <div className="flex items-center gap-2">
-                          {count > 0 && !isSelected && <span className="text-[12px] text-[color:var(--ad-muted)] ad-tnum">+{count.toLocaleString()}명</span>}
+                          {count > 0 && !isSelected && <span className="text-[12px] text-[color:var(--ad-muted)] adm-tnum">+{count.toLocaleString()}명</span>}
                           {isSelected ? <span className="text-[12px] text-[color:var(--ad-faint)]">선택됨</span> : <Plus className="w-4 h-4 text-[color:var(--ad-faint)]" />}
                         </div>
                       </button>
@@ -1014,7 +1014,7 @@ export default function LocalCustomersPage() {
                 key={option.value}
                 onClick={() => setGender(option.value)}
                 className={cn(
-                  'ad-press px-3.5 h-9 rounded-full text-[13px] font-medium transition-colors border',
+                  'adm-press px-3.5 h-9 rounded-full text-[13px] font-medium transition-colors border',
                   gender === option.value
                     ? 'bg-[color:var(--ad-ink)] text-white border-[color:var(--ad-ink)]'
                     : 'bg-white text-[color:var(--ad-ink-2)] border-[color:var(--ad-line-strong)] hover:border-[color:var(--ad-ink)]'
@@ -1030,7 +1030,7 @@ export default function LocalCustomersPage() {
                 key={option.value}
                 onClick={() => toggleAgeGroup(option.value)}
                 className={cn(
-                  'ad-press px-3.5 h-9 rounded-full text-[13px] font-medium transition-colors border',
+                  'adm-press px-3.5 h-9 rounded-full text-[13px] font-medium transition-colors border',
                   selectedAgeGroups.includes(option.value)
                     ? 'bg-[color:var(--ad-ink)] text-white border-[color:var(--ad-ink)]'
                     : 'bg-white text-[color:var(--ad-ink-2)] border-[color:var(--ad-line-strong)] hover:border-[color:var(--ad-ink)]'
@@ -1056,7 +1056,7 @@ export default function LocalCustomersPage() {
               value={sendCount}
               onChange={(e) => setSendCount(Math.max(0, parseInt(e.target.value) || 0))}
               className={cn(
-                'w-32 h-10 border rounded-[10px] px-3 text-right text-[13.5px] ad-tnum focus:outline-none focus:border-[color:var(--ad-navy)]',
+                'w-32 h-10 border rounded-[10px] px-3 text-right text-[13.5px] adm-tnum focus:outline-none focus:border-[color:var(--ad-navy)]',
                 isOverLimit ? 'border-[color:var(--ad-neg)] bg-[#fff2f5]' : 'border-[color:var(--ad-line-strong)]'
               )}
             />
@@ -1257,7 +1257,7 @@ export default function LocalCustomersPage() {
             rows={8}
             className="w-full px-3 py-2.5 text-[color:var(--ad-ink)] leading-relaxed rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none resize-none"
           />
-          <div className="flex justify-between text-[12px] text-[color:var(--ad-muted)] ad-tnum mt-2">
+          <div className="flex justify-between text-[12px] text-[color:var(--ad-muted)] adm-tnum mt-2">
             {activeTab === 'sms' ? (
               <>
                 <span>
@@ -1285,7 +1285,7 @@ export default function LocalCustomersPage() {
               {kakaoButtons.length < 5 && (
                 <button
                   onClick={addKakaoButton}
-                  className="ad-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                  className="adm-press inline-flex h-8 items-center justify-center gap-1 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                 >
                   <Plus className="w-4 h-4" />
                   버튼 추가
@@ -1351,14 +1351,14 @@ export default function LocalCustomersPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-[12px] text-[color:var(--ad-muted)]">예상 비용</p>
-              <p className="mt-1 text-[18px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+              <p className="mt-1 text-[18px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                 {sendCount.toLocaleString()}명 × {getCostPerMessage()}원 ={' '}
                 <span className="font-semibold text-[color:var(--ad-ink)]">{estimatedCost.toLocaleString()}원</span>
               </p>
             </div>
             <div className="text-right">
               <p className="text-[12px] text-[color:var(--ad-muted)]">현재 잔액</p>
-              <p className={cn('mt-1 text-[18px] font-medium tracking-[-0.03em] ad-tnum', canAfford ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]')}>
+              <p className={cn('mt-1 text-[18px] font-medium tracking-[-0.03em] adm-tnum', canAfford ? 'text-[color:var(--ad-ink)]' : 'text-[color:var(--ad-neg)]')}>
                 {walletBalance.toLocaleString()}원
               </p>
             </div>
@@ -1374,17 +1374,17 @@ export default function LocalCustomersPage() {
               <div className="grid grid-cols-3 gap-y-3">
                 <div className="px-3 py-1">
                   <p className="text-[12px] text-[color:var(--ad-muted)] mb-1">예상 방문율</p>
-                  <p className="text-[18px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">3.4%</p>
+                  <p className="text-[18px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">3.4%</p>
                 </div>
                 <div className="px-3 py-1 border-l border-[color:var(--ad-line)]">
                   <p className="text-[12px] text-[color:var(--ad-muted)] mb-1">예상 방문</p>
-                  <p className="text-[18px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="text-[18px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {Math.round(sendCount * 0.034).toLocaleString()}명
                   </p>
                 </div>
                 <div className="px-3 py-1 border-l border-[color:var(--ad-line)]">
                   <p className="text-[12px] text-[color:var(--ad-muted)] mb-1">예상 매출</p>
-                  <p className="text-[18px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="text-[18px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {(Math.round(sendCount * 0.034) * (kakaoEstimate?.estimatedRevenue?.avgOrderValue || 25000)).toLocaleString()}원
                   </p>
                 </div>
@@ -1405,17 +1405,17 @@ export default function LocalCustomersPage() {
               <div className="grid grid-cols-3 gap-y-3">
                 <div className="px-3 py-1">
                   <p className="text-[12px] text-[color:var(--ad-muted)] mb-1">예상 방문율</p>
-                  <p className="text-[18px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">2.7%</p>
+                  <p className="text-[18px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">2.7%</p>
                 </div>
                 <div className="px-3 py-1 border-l border-[color:var(--ad-line)]">
                   <p className="text-[12px] text-[color:var(--ad-muted)] mb-1">예상 방문</p>
-                  <p className="text-[18px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="text-[18px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {Math.round(sendCount * 0.027).toLocaleString()}명
                   </p>
                 </div>
                 <div className="px-3 py-1 border-l border-[color:var(--ad-line)]">
                   <p className="text-[12px] text-[color:var(--ad-muted)] mb-1">예상 매출</p>
-                  <p className="text-[18px] font-medium tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+                  <p className="text-[18px] font-medium tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
                     {(Math.round(sendCount * 0.027) * 25000).toLocaleString()}원
                   </p>
                 </div>
@@ -1443,7 +1443,7 @@ export default function LocalCustomersPage() {
                 <button
                   onClick={handleTestSend}
                   disabled={isTestSending || !content.trim() || !testPhone}
-                  className="ad-press inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] h-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="adm-press inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] h-10 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isTestSending ? '발송 중...' : '테스트 발송'}
                 </button>
@@ -1456,7 +1456,7 @@ export default function LocalCustomersPage() {
             onClick={handleSend}
             disabled={!canSend}
             className={cn(
-              'ad-press w-full h-12 rounded-[12px] text-[14px] font-semibold flex items-center justify-center gap-2 transition-colors',
+              'adm-press w-full h-12 rounded-[12px] text-[14px] font-semibold flex items-center justify-center gap-2 transition-colors',
               canSend ? 'bg-[color:var(--ad-ink)] text-white hover:bg-[#383c40]' : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-faint)] cursor-not-allowed'
             )}
           >

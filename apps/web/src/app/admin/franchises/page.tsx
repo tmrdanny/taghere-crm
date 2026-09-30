@@ -538,14 +538,14 @@ export default function FranchisesPage() {
         </p>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
+          className="adm-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
         >
           + 프랜차이즈 추가
         </button>
       </div>
 
       {/* 프랜차이즈 목록 */}
-      <div className="ad-card overflow-hidden">
+      <div className="adm-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -592,13 +592,13 @@ export default function FranchisesPage() {
                         <div className="font-medium text-[color:var(--ad-ink)]">{franchise.name}</div>
                       </td>
                       <td className="px-4 py-3 text-[color:var(--ad-muted)]">{franchise.slug}</td>
-                      <td className="px-4 py-3 font-medium text-[color:var(--ad-ink)] ad-tnum">
+                      <td className="px-4 py-3 font-medium text-[color:var(--ad-ink)] adm-tnum">
                         {franchise._count.stores}개
                       </td>
-                      <td className="px-4 py-3 text-[color:var(--ad-ink)] ad-tnum">
+                      <td className="px-4 py-3 text-[color:var(--ad-ink)] adm-tnum">
                         {franchise._count.users}명
                       </td>
-                      <td className="px-4 py-3 text-[color:var(--ad-ink)] ad-tnum">
+                      <td className="px-4 py-3 text-[color:var(--ad-ink)] adm-tnum">
                         {formatCurrency(franchise.wallet?.balance || 0)}원
                       </td>
                       <td className="px-4 py-3">
@@ -611,7 +611,7 @@ export default function FranchisesPage() {
                           <span className="text-[color:var(--ad-faint)]">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-[color:var(--ad-muted)] ad-tnum">
+                      <td className="px-4 py-3 text-[color:var(--ad-muted)] adm-tnum">
                         {formatDate(franchise.createdAt)}
                       </td>
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -791,13 +791,13 @@ export default function FranchisesPage() {
                     });
                     setLogoFile(null);
                   }}
-                  className="flex-1 ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium disabled:opacity-50"
+                  className="flex-1 adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium disabled:opacity-50"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="ad-press flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="adm-press flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   생성하기
                 </button>
@@ -841,7 +841,7 @@ export default function FranchisesPage() {
                     <button
                       onClick={handleBulkLinkStores}
                       disabled={bulkLinking}
-                      className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
+                      className="adm-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
                     >
                       {bulkLinking ? '연결 중...' : `${selectedStoreIds.size}개 매장 일괄 연결`}
                     </button>
@@ -889,7 +889,7 @@ export default function FranchisesPage() {
                   setSelectedFranchise(null);
                   setSelectedStoreIds(new Set());
                 }}
-                className="w-full ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium"
+                className="w-full adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium"
               >
                 닫기
               </button>
@@ -907,7 +907,7 @@ export default function FranchisesPage() {
             </h2>
             <div className="mb-4 p-3 bg-[color:var(--ad-bg-alt)] rounded-[12px]">
               <div className="text-[12px] text-[color:var(--ad-muted)]">현재 잔액</div>
-              <div className="text-[20px] font-semibold tracking-[-0.03em] text-[color:var(--ad-ink)] ad-tnum">
+              <div className="text-[20px] font-semibold tracking-[-0.03em] text-[color:var(--ad-ink)] adm-tnum">
                 {formatCurrency(selectedFranchise.wallet?.balance || 0)}원
               </div>
             </div>
@@ -921,7 +921,7 @@ export default function FranchisesPage() {
                     type="text"
                     value={walletAmount}
                     onChange={(e) => setWalletAmount(formatNumberInput(e.target.value))}
-                    className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 pr-8 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none text-right ad-tnum"
+                    className="h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 pr-8 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none text-right adm-tnum"
                     placeholder="0"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-[color:var(--ad-muted)]">원</span>
@@ -961,14 +961,14 @@ export default function FranchisesPage() {
                     setWalletPassword('');
                     setSelectedFranchise(null);
                   }}
-                  className="flex-1 ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium disabled:opacity-50"
+                  className="flex-1 adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium disabled:opacity-50"
                   disabled={walletLoading}
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className={`ad-press flex-1 inline-flex items-center justify-center h-9 px-4 rounded-[10px] text-[13px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`adm-press flex-1 inline-flex items-center justify-center h-9 px-4 rounded-[10px] text-[13px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed ${
                     walletAction === 'topup'
                       ? 'bg-[color:var(--ad-yellow)] text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)]'
                       : 'bg-[#cc0832] text-white hover:bg-[#b0072b]'
@@ -1026,14 +1026,14 @@ export default function FranchisesPage() {
                     setSelectedFranchise(null);
                     setLogoFile(null);
                   }}
-                  className="flex-1 ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium disabled:opacity-50"
+                  className="flex-1 adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium disabled:opacity-50"
                   disabled={uploadingLogo}
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="ad-press flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="adm-press flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={uploadingLogo || !logoFile}
                 >
                   {uploadingLogo ? '업로드 중...' : '업로드'}
@@ -1081,14 +1081,14 @@ export default function FranchisesPage() {
                 <button
                   type="button"
                   onClick={() => { setShowPricingModal(false); setSelectedFranchise(null); }}
-                  className="flex-1 ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium"
+                  className="flex-1 adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
                   disabled={pricingLoading}
-                  className="ad-press flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="adm-press flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {pricingLoading ? '저장 중...' : '단가 저장'}
                 </button>
@@ -1179,14 +1179,14 @@ export default function FranchisesPage() {
                     setShowEditModal(false);
                     setSelectedFranchise(null);
                   }}
-                  className="flex-1 ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium disabled:opacity-50"
+                  className="flex-1 adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium disabled:opacity-50"
                   disabled={editLoading}
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="ad-press flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="adm-press flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={editLoading}
                 >
                   {editLoading ? '저장 중...' : '저장'}

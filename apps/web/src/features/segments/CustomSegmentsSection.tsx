@@ -76,7 +76,7 @@ export function CustomSegmentsSection() {
             setEditing(null);
             setBuilderOpen(true);
           }}
-          className="ad-press inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
+          className="adm-press inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40"
         >
           <Plus className="h-4 w-4" />
           고객 그룹 만들기
@@ -86,7 +86,7 @@ export function CustomSegmentsSection() {
       {loading ? (
         <div className="py-10 text-center text-[13px] text-[color:var(--ad-faint)]">불러오는 중...</div>
       ) : segments.length === 0 ? (
-        <Card className="ad-card border-0">
+        <Card className="adm-card border-0">
           <CardContent className="py-10 text-center">
             <p className="text-[13px] text-[color:var(--ad-ink-2)]">아직 만든 고객 그룹이 없습니다.</p>
             <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">예: 아메리카노를 3회 이상 주문했지만 60일 넘게 오지 않은 고객</p>
@@ -97,7 +97,7 @@ export function CustomSegmentsSection() {
           {segments.map((segment) => {
             const count = reachable[segment.id];
             return (
-              <Card key={segment.id} className="ad-card border-0">
+              <Card key={segment.id} className="adm-card border-0">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -123,12 +123,12 @@ export function CustomSegmentsSection() {
                   <div className="mt-4 flex items-end justify-between border-t border-[color:var(--ad-line)] pt-3">
                     <div>
                       <p className="text-[12px] text-[color:var(--ad-muted)]">발송 가능</p>
-                      <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{count === null || count === undefined ? '-' : `${count.toLocaleString()}명`}</p>
+                      <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">{count === null || count === undefined ? '-' : `${count.toLocaleString()}명`}</p>
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="ad-press h-8 gap-1 rounded-[10px] border-0 bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                      className="adm-press h-8 gap-1 rounded-[10px] border-0 bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                       disabled={!count}
                       onClick={() => router.push(`/messages?segmentId=${segment.id}`)}
                     >

@@ -67,7 +67,7 @@ const DEMO_DATA: OverviewData = {
 // Skeleton component for loading state
 function KpiCardSkeleton() {
   return (
-    <div className="ad-card p-5">
+    <div className="adm-card p-5">
       <Skel className="h-3.5 w-20" />
       <Skel className="mt-3 h-[26px] w-28" />
       <Skel className="mt-3 h-3.5 w-24" />
@@ -88,12 +88,12 @@ interface KpiCardProps {
 
 function KpiCard({ title, value, unit, icon: Icon, growth, growthLabel, index }: KpiCardProps) {
   return (
-    <section className="ad-card ad-rise p-5" style={rise(index)}>
+    <section className="adm-card adm-rise p-5" style={rise(index)}>
       <p className="flex items-center gap-2 text-[12.5px] font-medium text-[color:var(--ad-muted)]">
         <Icon className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
         {title}
       </p>
-      <p className="ad-tnum mt-2 text-[24px] font-medium leading-none tracking-[-0.03em] text-[color:var(--ad-ink)]">
+      <p className="adm-tnum mt-2 text-[24px] font-medium leading-none tracking-[-0.03em] text-[color:var(--ad-ink)]">
         {typeof value === 'number' ? value.toLocaleString() : value}
         {unit && <span className="ml-0.5 text-[14px] font-medium text-[color:var(--ad-muted)]">{unit}</span>}
       </p>
@@ -117,7 +117,7 @@ function KpiCard({ title, value, unit, icon: Icon, growth, growthLabel, index }:
 // Empty state component
 function EmptyState() {
   return (
-    <div className="ad-card ad-rise flex flex-col items-center gap-2 px-6 py-14 text-center" style={rise(1)}>
+    <div className="adm-card adm-rise flex flex-col items-center gap-2 px-6 py-14 text-center" style={rise(1)}>
       <span className="grid h-10 w-10 place-items-center rounded-full bg-[color:var(--ad-bg)]">
         <AlertCircle className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
       </span>
@@ -288,16 +288,16 @@ export default function FranchiseHomePage() {
 
   const hasData = !!data && (data.totalStores > 0 || data.totalCustomers > 0);
   const secondaryBtn =
-    'ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40';
+    'adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40';
   const iconBtn =
-    'ad-press grid h-9 w-9 place-items-center rounded-[10px] bg-white text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink)] disabled:opacity-50';
+    'adm-press grid h-9 w-9 place-items-center rounded-[10px] bg-white text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink)] disabled:opacity-50';
   const dateInput =
     'h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] text-[color:var(--ad-ink)] focus:border-[color:var(--ad-navy)] focus:outline-none';
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {/* Page Header */}
-      <header className="ad-rise" style={rise(0)}>
+      <header className="adm-rise" style={rise(0)}>
         <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">홈</h1>
         <p className="mt-1 text-[13px] text-[color:var(--ad-muted)]">
           프랜차이즈 전체 현황을 한눈에 확인하세요
@@ -347,7 +347,7 @@ export default function FranchiseHomePage() {
         {!isLoading && hasData && data && (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Recent Activity Card */}
-            <section className="ad-card ad-rise p-5" style={rise(4)}>
+            <section className="adm-card adm-rise p-5" style={rise(4)}>
               <h3 className="text-[14px] font-semibold tracking-[-0.015em] text-[color:var(--ad-ink)]">최근 활동</h3>
               <div className="mt-3 divide-y divide-[color:var(--ad-line)]">
                 <div className="flex items-center gap-3 py-3">
@@ -357,7 +357,7 @@ export default function FranchiseHomePage() {
                   <div className="min-w-0 flex-1">
                     <p className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">가맹점 현황</p>
                     <p className="mt-0.5 text-[12.5px] text-[color:var(--ad-muted)]">
-                      <span className="ad-tnum">{data.totalStores}</span>개의 가맹점이 연동되어 있습니다.
+                      <span className="adm-tnum">{data.totalStores}</span>개의 가맹점이 연동되어 있습니다.
                     </p>
                   </div>
                 </div>
@@ -368,7 +368,7 @@ export default function FranchiseHomePage() {
                   <div className="min-w-0 flex-1">
                     <p className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">고객 현황</p>
                     <p className="mt-0.5 text-[12.5px] text-[color:var(--ad-muted)]">
-                      총 <span className="ad-tnum">{data.totalCustomers.toLocaleString()}</span>명의 고객 데이터가 있습니다.
+                      총 <span className="adm-tnum">{data.totalCustomers.toLocaleString()}</span>명의 고객 데이터가 있습니다.
                     </p>
                   </div>
                 </div>
@@ -376,7 +376,7 @@ export default function FranchiseHomePage() {
             </section>
 
             {/* Quick Actions Card */}
-            <section className="ad-card ad-rise flex flex-col p-5" style={rise(5)}>
+            <section className="adm-card adm-rise flex flex-col p-5" style={rise(5)}>
               <h3 className="text-[14px] font-semibold tracking-[-0.015em] text-[color:var(--ad-ink)]">빠른 작업</h3>
               <div className="mt-3 divide-y divide-[color:var(--ad-line)]">
                 <a
@@ -404,7 +404,7 @@ export default function FranchiseHomePage() {
                 <p className="text-[12.5px] text-[color:var(--ad-muted)]">새 가맹점을 연결하면 고객 데이터가 함께 모여요</p>
                 <a
                   href="/franchise/settings"
-                  className="ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40]"
+                  className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40]"
                 >
                   <Link2 className="h-4 w-4" strokeWidth={1.8} />
                   가맹점 연동하기
@@ -417,7 +417,7 @@ export default function FranchiseHomePage() {
 
         {/* 방문경로 분석 섹션 */}
         {!isLoading && data && (data.totalStores > 0 || data.totalCustomers > 0) && (
-          <section className="ad-rise pt-2" style={rise(6)}>
+          <section className="adm-rise pt-2" style={rise(6)}>
             {/* 섹션 헤더 + 날짜 선택 */}
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-[15px] font-semibold tracking-[-0.015em] text-[color:var(--ad-ink)]">방문경로 분석</h2>
@@ -433,7 +433,7 @@ export default function FranchiseHomePage() {
                     className={secondaryBtn}
                   >
                     <Calendar className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
-                    <span className="ad-tnum">{formatDateRange()}</span>
+                    <span className="adm-tnum">{formatDateRange()}</span>
                   </button>
 
                   {showDatePicker && (
@@ -466,7 +466,7 @@ export default function FranchiseHomePage() {
                           </button>
                           <button
                             onClick={applyDateRange}
-                            className="ad-press inline-flex h-9 flex-1 items-center justify-center rounded-[10px] bg-[color:var(--ad-ink)] px-3.5 text-[13px] font-semibold text-white hover:bg-[#383c40]"
+                            className="adm-press inline-flex h-9 flex-1 items-center justify-center rounded-[10px] bg-[color:var(--ad-ink)] px-3.5 text-[13px] font-semibold text-white hover:bg-[#383c40]"
                           >
                             적용
                           </button>
@@ -491,7 +491,7 @@ export default function FranchiseHomePage() {
             {/* 방문경로 그래프 카드 */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {/* 방문경로 분포 (원형 차트) */}
-              <div className="ad-card p-5">
+              <div className="adm-card p-5">
                 <div className="flex items-center gap-2">
                   <ChartPie className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                   <h3 className="text-[14px] font-semibold tracking-[-0.015em] text-[color:var(--ad-ink)]">방문경로 분포</h3>
@@ -528,7 +528,7 @@ export default function FranchiseHomePage() {
                       }}
                     >
                       <div className="absolute inset-3 flex flex-col items-center justify-center rounded-full bg-white">
-                        <span className="ad-tnum text-[22px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                        <span className="adm-tnum text-[22px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                           {visitSourceData.reduce((sum, item) => sum + item.count, 0)}
                         </span>
                         <span className="text-[11.5px] text-[color:var(--ad-muted)]">총 응답</span>
@@ -546,7 +546,7 @@ export default function FranchiseHomePage() {
                             />
                             <span className="truncate text-[color:var(--ad-ink-2)]">{item.label}</span>
                           </div>
-                          <span className="ad-tnum font-medium text-[color:var(--ad-ink)]">{item.percentage}%</span>
+                          <span className="adm-tnum font-medium text-[color:var(--ad-ink)]">{item.percentage}%</span>
                         </div>
                       ))}
                       {visitSourceData.length > 5 && (
@@ -558,7 +558,7 @@ export default function FranchiseHomePage() {
               </div>
 
               {/* 방문경로별 고객 수 (막대 그래프) */}
-              <div className="ad-card p-5">
+              <div className="adm-card p-5">
                 <div className="flex items-center gap-2">
                   <BarChart3 className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                   <h3 className="text-[14px] font-semibold tracking-[-0.015em] text-[color:var(--ad-ink)]">방문경로별 고객 수</h3>
@@ -585,7 +585,7 @@ export default function FranchiseHomePage() {
                           <span className="truncate text-[13px] text-[color:var(--ad-ink-2)]">{item.label}</span>
                           <div className="h-2 overflow-hidden rounded-full bg-[rgba(29,32,34,0.05)]">
                             <div
-                              className="ad-grow-x h-full rounded-full"
+                              className="adm-grow-x h-full rounded-full"
                               style={{
                                 ...rise(index),
                                 width: `${barWidth}%`,
@@ -593,7 +593,7 @@ export default function FranchiseHomePage() {
                               }}
                             />
                           </div>
-                          <span className="ad-tnum whitespace-nowrap text-right text-[12.5px]">
+                          <span className="adm-tnum whitespace-nowrap text-right text-[12.5px]">
                             <span className="font-semibold text-[color:var(--ad-ink)]">{item.count}</span>
                             <span className="ml-1.5 text-[color:var(--ad-faint)]">{item.percentage}%</span>
                           </span>

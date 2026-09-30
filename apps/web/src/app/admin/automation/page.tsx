@@ -230,10 +230,10 @@ export default function AdminAutomationPage() {
   return (
     <div>
       {/* KPI 카드 */}
-      <div className="ad-card mb-6 grid grid-cols-2 lg:grid-cols-4 overflow-hidden">
+      <div className="adm-card mb-6 grid grid-cols-2 lg:grid-cols-4 overflow-hidden">
         <div className="p-5">
           <p className="text-[12px] text-[color:var(--ad-muted)] mb-1.5">유효 활성 매장</p>
-          <p className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+          <p className="text-[22px] font-semibold tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
             {stats?.effectiveActiveStores ?? 0}
             <span className="text-[13px] font-medium text-[color:var(--ad-muted)] ml-1">/ {stats?.totalStores ?? 0}</span>
           </p>
@@ -246,7 +246,7 @@ export default function AdminAutomationPage() {
         </div>
         <div className="p-5 border-l border-[color:var(--ad-line)]">
           <p className="text-[12px] text-[color:var(--ad-muted)] mb-1.5">최근 30일 활성화 변동</p>
-          <p className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum">
+          <p className="text-[22px] font-semibold tracking-[-0.03em] adm-tnum">
             <span className="text-[color:var(--ad-pos)]">+{recentChange.newActivations}</span>
             <span className="text-[16px] text-[color:var(--ad-line-strong)] mx-1">/</span>
             <span className="text-[color:var(--ad-neg)]">−{recentChange.deactivations}</span>
@@ -257,7 +257,7 @@ export default function AdminAutomationPage() {
         </div>
         <div className="p-5 border-t lg:border-t-0 lg:border-l border-[color:var(--ad-line)]">
           <p className="text-[12px] text-[color:var(--ad-muted)] mb-1.5">이번 달 발송</p>
-          <p className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+          <p className="text-[22px] font-semibold tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
             {formatNumber(stats?.totalSentThisMonth ?? 0)}
             <span className="text-[13px] font-medium text-[color:var(--ad-muted)] ml-1">건</span>
           </p>
@@ -267,7 +267,7 @@ export default function AdminAutomationPage() {
         </div>
         <div className="p-5 border-l border-t lg:border-t-0 border-[color:var(--ad-line)]">
           <p className="text-[12px] text-[color:var(--ad-muted)] mb-1.5">쿠폰 사용률</p>
-          <p className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">
+          <p className="text-[22px] font-semibold tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">
             {stats?.usageRate ?? 0}
             <span className="text-[13px] font-medium text-[color:var(--ad-muted)] ml-1">%</span>
           </p>
@@ -280,7 +280,7 @@ export default function AdminAutomationPage() {
       {/* 활성화 퍼널 + 활성화 추세 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         {/* 퍼널 */}
-        <div className="ad-card p-5">
+        <div className="adm-card p-5">
           <p className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-4">활성화 퍼널</p>
           <div className="space-y-4">
             {funnelSteps.map((step, i) => {
@@ -291,7 +291,7 @@ export default function AdminAutomationPage() {
                 <div key={step.label}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[12px] text-[color:var(--ad-ink-2)]">{step.label}</span>
-                    <span className="text-[12px] font-medium ad-tnum text-[color:var(--ad-ink)]">
+                    <span className="text-[12px] font-medium adm-tnum text-[color:var(--ad-ink)]">
                       {formatNumber(step.value)}곳
                       {prev !== null && (
                         <span className="text-[color:var(--ad-faint)] font-normal ml-1.5">{pct(step.value, prev)}%</span>
@@ -314,7 +314,7 @@ export default function AdminAutomationPage() {
         </div>
 
         {/* 활성화 추세 차트 */}
-        <div className="lg:col-span-2 ad-card p-5">
+        <div className="lg:col-span-2 adm-card p-5">
           <div className="flex items-center justify-between mb-4">
             <p className="text-[14px] font-semibold text-[color:var(--ad-ink)]">활성화 추세</p>
             <div className="flex rounded-[10px] bg-[rgba(29,32,34,0.045)] p-[3px]">
@@ -322,7 +322,7 @@ export default function AdminAutomationPage() {
                 <button
                   key={days}
                   onClick={() => setTrendDays(days)}
-                  className={`ad-press px-3 py-1 text-[12.5px] rounded-[8px] transition-colors ${
+                  className={`adm-press px-3 py-1 text-[12.5px] rounded-[8px] transition-colors ${
                     trendDays === days
                       ? 'bg-white font-medium text-[color:var(--ad-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]'
                       : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'
@@ -375,7 +375,7 @@ export default function AdminAutomationPage() {
       {/* 발송 추세 차트 + 룰 타입별 현황 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         {/* 발송 추세 차트 */}
-        <div className="lg:col-span-2 ad-card p-5">
+        <div className="lg:col-span-2 adm-card p-5">
           <div className="flex items-center justify-between mb-4">
             <p className="text-[14px] font-semibold text-[color:var(--ad-ink)]">발송 추세</p>
             <span className="text-[12px] text-[color:var(--ad-faint)]">최근 {trendDays}일</span>
@@ -484,7 +484,7 @@ export default function AdminAutomationPage() {
         </div>
 
         {/* 룰 타입별 활성화 현황 */}
-        <div className="ad-card p-5">
+        <div className="adm-card p-5">
           <p className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-4">룰 타입별 활성 매장</p>
           <div className="space-y-3">
             {ruleTypes.map(type => {
@@ -497,7 +497,7 @@ export default function AdminAutomationPage() {
                 <div key={type}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[12px] text-[color:var(--ad-ink-2)]">{RULE_TYPE_LABELS[type]}</span>
-                    <span className="text-[12px] font-medium ad-tnum text-[color:var(--ad-ink)]">
+                    <span className="text-[12px] font-medium adm-tnum text-[color:var(--ad-ink)]">
                       {effective}
                       <span className="text-[color:var(--ad-faint)] font-normal"> / {enabled}개</span>
                     </span>
@@ -584,7 +584,7 @@ const StoreTable = memo(function StoreTable({ stores }: { stores: StoreAutomatio
   const sortIndicator = (key: SortKey) => (sortKey === key ? (sortDesc ? ' ↓' : ' ↑') : '');
 
   return (
-      <div className="ad-card overflow-hidden">
+      <div className="adm-card overflow-hidden">
         <div className="p-5 border-b border-[color:var(--ad-line)]">
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-[14px] font-semibold text-[color:var(--ad-ink)]">
@@ -604,7 +604,7 @@ const StoreTable = memo(function StoreTable({ stores }: { stores: StoreAutomatio
               <button
                 key={filter}
                 onClick={() => setStatusFilter(filter)}
-                className={`ad-press px-2.5 py-1 text-[12px] rounded-full transition-colors ${
+                className={`adm-press px-2.5 py-1 text-[12px] rounded-full transition-colors ${
                   statusFilter === filter
                     ? 'bg-[color:var(--ad-navy)] text-white'
                     : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-ink-2)] hover:bg-[color:var(--ad-line)]'
@@ -695,15 +695,15 @@ const StoreTable = memo(function StoreTable({ stores }: { stores: StoreAutomatio
                         <span className="text-[13px] text-[color:var(--ad-faint)]">미사용</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-[13px] ad-tnum text-[color:var(--ad-ink)] text-right">{store.totalSent}건</td>
-                    <td className="px-4 py-3 text-[13px] ad-tnum text-right">
+                    <td className="px-4 py-3 text-[13px] adm-tnum text-[color:var(--ad-ink)] text-right">{store.totalSent}건</td>
+                    <td className="px-4 py-3 text-[13px] adm-tnum text-right">
                       {store.totalSent > 0 ? (
                         <span className="text-[color:var(--ad-pos)] font-medium">{store.usageRate}%</span>
                       ) : (
                         <span className="text-[color:var(--ad-faint)]">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-[13px] ad-tnum text-[color:var(--ad-muted)] text-right">
+                    <td className="px-4 py-3 text-[13px] adm-tnum text-[color:var(--ad-muted)] text-right">
                       {store.lastSentAt
                         ? new Date(store.lastSentAt).toLocaleDateString('ko-KR')
                         : '-'}

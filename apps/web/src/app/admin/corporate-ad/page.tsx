@@ -132,10 +132,10 @@ function BrandHorizontalBars({ data }: { data: AnalyticsData['byBrand'] }) {
               <div className="flex items-center justify-between mb-1">
                 <p className="text-[13px] font-medium text-[color:var(--ad-ink)] truncate">{b.brandName || '(이름 없음)'}</p>
                 <div className="flex items-center gap-2 text-[11.5px] flex-shrink-0">
-                  <span className="font-semibold text-[color:var(--ad-ink)] ad-tnum">{b.issued.toLocaleString()}건</span>
+                  <span className="font-semibold text-[color:var(--ad-ink)] adm-tnum">{b.issued.toLocaleString()}건</span>
                   {b.usesCodePool ? (
                     <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ad-tnum ${
+                      className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium adm-tnum ${
                         lowStock ? 'bg-[#ffc4d0] text-[color:var(--ad-neg)]' : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]'
                       }`}
                     >
@@ -214,7 +214,7 @@ function CorporateAdAnalyticsSection() {
       </div>
 
       {loading || !data ? (
-        <div className="ad-card p-12 flex items-center justify-center">
+        <div className="adm-card p-12 flex items-center justify-center">
           <div className="w-6 h-6 border-2 border-[#131651] border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
@@ -223,7 +223,7 @@ function CorporateAdAnalyticsSection() {
           <AnalyticsSummaryCards summary={data.summary} />
 
           {/* 일자별 트렌드 (브랜드별 멀티라인) */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">일자별 쿠폰 발행량</h3>
             <DailyIssuedChart
               dates={data.dailyTrend.map((d) => d.date)}
@@ -233,11 +233,11 @@ function CorporateAdAnalyticsSection() {
 
           {/* 브랜드별 + 시간대별 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">브랜드별 발행량</h3>
               <BrandHorizontalBars data={data.byBrand} />
             </div>
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">시간대별 발행량</h3>
               <HourlyBarChart data={data.byHour} />
             </div>
@@ -245,13 +245,13 @@ function CorporateAdAnalyticsSection() {
 
           {/* 인구통계 */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">성별</h3>
               <div className="h-[180px]">
                 <GenderPieChart data={data.demographics.byGender} />
               </div>
             </div>
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">연령대</h3>
               <div className="h-[180px]">
                 <CategoryBarChart
@@ -260,7 +260,7 @@ function CorporateAdAnalyticsSection() {
                 />
               </div>
             </div>
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">지역 TOP 10</h3>
               <RegionBarChart data={data.demographics.byRegion} />
             </div>
@@ -448,16 +448,16 @@ function CouponCodePoolSection({
         <div className="grid grid-cols-3 rounded-[12px] border border-[color:var(--ad-line)]">
           <div className="p-3 text-center">
             <p className="text-[12px] text-[color:var(--ad-muted)]">총</p>
-            <p className="text-[20px] font-semibold tracking-[-0.03em] text-[color:var(--ad-ink)] ad-tnum">{stats.total.toLocaleString()}</p>
+            <p className="text-[20px] font-semibold tracking-[-0.03em] text-[color:var(--ad-ink)] adm-tnum">{stats.total.toLocaleString()}</p>
           </div>
           <div className="p-3 text-center border-l border-[color:var(--ad-line)]">
             <p className="text-[12px] text-[color:var(--ad-muted)]">사용</p>
-            <p className="text-[20px] font-semibold tracking-[-0.03em] text-[color:var(--ad-ink)] ad-tnum">{stats.used.toLocaleString()}</p>
+            <p className="text-[20px] font-semibold tracking-[-0.03em] text-[color:var(--ad-ink)] adm-tnum">{stats.used.toLocaleString()}</p>
           </div>
           <div className="p-3 text-center border-l border-[color:var(--ad-line)]">
             <p className="text-[12px] text-[color:var(--ad-muted)]">남은</p>
             <p
-              className={`text-[20px] font-semibold tracking-[-0.03em] ad-tnum ${
+              className={`text-[20px] font-semibold tracking-[-0.03em] adm-tnum ${
                 stats.available < 100 ? 'text-[color:var(--ad-neg)]' : 'text-[color:var(--ad-ink)]'
               }`}
             >
@@ -550,7 +550,7 @@ function CouponCodePoolSection({
               <div key={c.id} className="px-3 py-2 flex items-center gap-2 text-[13px] hover:bg-[rgba(110,173,255,0.05)]">
                 <span className="font-mono text-[color:var(--ad-ink)] flex-1 truncate">{c.code}</span>
                 {c.usedAt ? (
-                  <span className="text-[11.5px] text-[color:var(--ad-faint)] ad-tnum">
+                  <span className="text-[11.5px] text-[color:var(--ad-faint)] adm-tnum">
                     사용됨 {new Date(c.usedAt).toLocaleString('ko-KR')}
                   </span>
                 ) : (
@@ -576,17 +576,17 @@ function CouponCodePoolSection({
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="ad-press h-8 px-3 rounded-[10px] bg-white text-[12.5px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-30"
+            className="adm-press h-8 px-3 rounded-[10px] bg-white text-[12.5px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-30"
           >
             이전
           </button>
-          <span className="text-[color:var(--ad-muted)] ad-tnum">
+          <span className="text-[color:var(--ad-muted)] adm-tnum">
             {page} / {totalPages}
           </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="ad-press h-8 px-3 rounded-[10px] bg-white text-[12.5px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-30"
+            className="adm-press h-8 px-3 rounded-[10px] bg-white text-[12.5px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-30"
           >
             다음
           </button>
@@ -747,7 +747,7 @@ export default function CorporateAdPage() {
         </p>
         <button
           onClick={handleAdd}
-          className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
+          className="adm-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
         >
           + 쿠폰 추가
         </button>
@@ -758,7 +758,7 @@ export default function CorporateAdPage() {
 
       {/* Coupons List */}
       {coupons.length === 0 ? (
-        <div className="ad-card p-12 text-center">
+        <div className="adm-card p-12 text-center">
           <p className="text-[13px] text-[color:var(--ad-faint)]">등록된 쿠폰이 없습니다.</p>
           <button
             onClick={handleAdd}
@@ -772,7 +772,7 @@ export default function CorporateAdPage() {
           {coupons.map((coupon, index) => (
             <div
               key={coupon.id}
-              className="ad-card p-4 flex items-center gap-4"
+              className="adm-card p-4 flex items-center gap-4"
             >
               {/* 순서 변경 */}
               <div className="flex flex-col gap-1">
@@ -834,13 +834,13 @@ export default function CorporateAdPage() {
               {/* 액션 */}
               <button
                 onClick={() => handleEdit(coupon)}
-                className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 편집
               </button>
               <button
                 onClick={() => handleDelete(coupon.id)}
-                className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-neg)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-neg)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 삭제
               </button>
@@ -1094,14 +1094,14 @@ export default function CorporateAdPage() {
             <div className="sticky bottom-0 bg-white border-t border-[color:var(--ad-line)] px-6 py-4 flex justify-end gap-2 rounded-b-[20px]">
               <button
                 onClick={() => setEditing(null)}
-                className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 취소
               </button>
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
+                className="adm-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
               >
                 {isSaving ? '저장 중...' : '저장'}
               </button>

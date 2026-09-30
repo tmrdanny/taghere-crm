@@ -385,7 +385,7 @@ export default function StoreProductsPage() {
         {activeTab === 'products' && (
           <button
             onClick={openCreateModal}
-            className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
+            className="adm-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -400,7 +400,7 @@ export default function StoreProductsPage() {
         <nav className="flex items-center rounded-[10px] bg-[rgba(29,32,34,0.045)] p-[3px]">
           <button
             onClick={() => setActiveTab('products')}
-            className={`ad-press h-8 px-3.5 rounded-[8px] text-[13px] font-medium transition-colors ${
+            className={`adm-press h-8 px-3.5 rounded-[8px] text-[13px] font-medium transition-colors ${
               activeTab === 'products'
                 ? 'bg-white text-[color:var(--ad-ink)] shadow-[0_1px_3px_rgba(19,22,81,0.12)]'
                 : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'
@@ -410,7 +410,7 @@ export default function StoreProductsPage() {
           </button>
           <button
             onClick={() => setActiveTab('orders')}
-            className={`ad-press h-8 px-3.5 rounded-[8px] text-[13px] font-medium transition-colors ${
+            className={`adm-press h-8 px-3.5 rounded-[8px] text-[13px] font-medium transition-colors ${
               activeTab === 'orders'
                 ? 'bg-white text-[color:var(--ad-ink)] shadow-[0_1px_3px_rgba(19,22,81,0.12)]'
                 : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'
@@ -423,7 +423,7 @@ export default function StoreProductsPage() {
 
       {/* Products Tab */}
       {activeTab === 'products' && (
-        <div className="ad-card overflow-hidden">
+        <div className="adm-card overflow-hidden">
           {products.length === 0 ? (
             <div className="p-12 text-center text-[13px] text-[color:var(--ad-faint)]">
               등록된 상품이 없습니다.
@@ -455,12 +455,12 @@ export default function StoreProductsPage() {
                           >
                             {product.isActive ? '판매중' : '판매중지'}
                           </span>
-                          <span className="text-[12px] text-[color:var(--ad-faint)] ad-tnum">정렬: {product.sortOrder}</span>
+                          <span className="text-[12px] text-[color:var(--ad-faint)] adm-tnum">정렬: {product.sortOrder}</span>
                         </div>
                         <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] truncate">
                           {product.name}
                         </h3>
-                        <p className="text-[15px] font-semibold tracking-[-0.02em] text-[color:var(--ad-ink)] mt-0.5 ad-tnum">
+                        <p className="text-[15px] font-semibold tracking-[-0.02em] text-[color:var(--ad-ink)] mt-0.5 adm-tnum">
                           {formatPrice(product.price)}
                         </p>
                         {product.description && (
@@ -468,7 +468,7 @@ export default function StoreProductsPage() {
                             {product.description}
                           </p>
                         )}
-                        <p className="text-[12px] text-[color:var(--ad-faint)] mt-2 ad-tnum">
+                        <p className="text-[12px] text-[color:var(--ad-faint)] mt-2 adm-tnum">
                           등록: {new Date(product.createdAt).toLocaleDateString('ko-KR')}
                         </p>
                       </div>
@@ -477,7 +477,7 @@ export default function StoreProductsPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => toggleActive(product)}
-                        className={`ad-press p-2 rounded-[10px] transition-colors ${
+                        className={`adm-press p-2 rounded-[10px] transition-colors ${
                           product.isActive
                             ? 'text-[color:var(--ad-pos)] hover:bg-[#d9fad3]'
                             : 'text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg)]'
@@ -494,7 +494,7 @@ export default function StoreProductsPage() {
                       </button>
                       <button
                         onClick={() => openEditModal(product)}
-                        className="ad-press p-2 text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-bg)] rounded-[10px] transition-colors"
+                        className="adm-press p-2 text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-bg)] rounded-[10px] transition-colors"
                         title="수정"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -504,7 +504,7 @@ export default function StoreProductsPage() {
                       <button
                         onClick={() => handleDelete(product.id)}
                         disabled={deletingId === product.id}
-                        className="ad-press p-2 text-[color:var(--ad-neg)] hover:bg-[#ffc4d0]/50 rounded-[10px] transition-colors disabled:opacity-50"
+                        className="adm-press p-2 text-[color:var(--ad-neg)] hover:bg-[#ffc4d0]/50 rounded-[10px] transition-colors disabled:opacity-50"
                         title="삭제"
                       >
                         {deletingId === product.id ? (
@@ -526,7 +526,7 @@ export default function StoreProductsPage() {
 
       {/* Orders Tab */}
       {activeTab === 'orders' && (
-        <div className="ad-card overflow-hidden">
+        <div className="adm-card overflow-hidden">
           {orders.length === 0 ? (
             <div className="p-12 text-center text-[13px] text-[color:var(--ad-faint)]">
               주문 내역이 없습니다.
@@ -557,11 +557,11 @@ export default function StoreProductsPage() {
                           <span className="font-medium text-[color:var(--ad-ink-2)]">상품:</span>{' '}
                           {order.items.map((item) => `${item.productName} x${item.quantity}`).join(', ')}
                         </p>
-                        <p className="text-[15px] font-semibold tracking-[-0.02em] text-[color:var(--ad-ink)] ad-tnum">
+                        <p className="text-[15px] font-semibold tracking-[-0.02em] text-[color:var(--ad-ink)] adm-tnum">
                           총 {formatPrice(order.totalAmount)}
                         </p>
                       </div>
-                      <div className="flex items-center gap-4 mt-2 text-[12px] text-[color:var(--ad-faint)] ad-tnum">
+                      <div className="flex items-center gap-4 mt-2 text-[12px] text-[color:var(--ad-faint)] adm-tnum">
                         <span>주문: {formatDate(order.createdAt)}</span>
                         {order.paidAt && <span>결제: {formatDate(order.paidAt)}</span>}
                       </div>
@@ -638,7 +638,7 @@ export default function StoreProductsPage() {
                     <button
                       type="button"
                       onClick={removeImage}
-                      className="ad-press absolute top-2 right-2 p-1.5 bg-[#cc0832] text-white rounded-full hover:opacity-90 transition-opacity"
+                      className="adm-press absolute top-2 right-2 p-1.5 bg-[#cc0832] text-white rounded-full hover:opacity-90 transition-opacity"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -714,7 +714,7 @@ export default function StoreProductsPage() {
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                    className={`ad-press w-full h-10 px-3 rounded-[10px] text-[13px] font-medium transition-colors ${
+                    className={`adm-press w-full h-10 px-3 rounded-[10px] text-[13px] font-medium transition-colors ${
                       formData.isActive
                         ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]'
                         : 'bg-white text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]'
@@ -729,14 +729,14 @@ export default function StoreProductsPage() {
             <div className="flex gap-2 mt-6">
               <button
                 onClick={() => setShowModal(false)}
-                className="ad-press flex-1 h-10 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press flex-1 h-10 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 취소
               </button>
               <button
                 onClick={handleSave}
                 disabled={isSaving || !formData.name || !formData.price}
-                className="ad-press flex-1 h-10 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                className="adm-press flex-1 h-10 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
               >
                 {isSaving ? (
                   <>

@@ -132,7 +132,7 @@ export function SurveyResults({
   const hasAnswers = !!data && data.totalAnswers > 0;
 
   return (
-    <section className="ad-card p-5">
+    <section className="adm-card p-5">
       {/* 헤더 */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-2.5">
@@ -147,7 +147,7 @@ export function SurveyResults({
         <button
           onClick={handleExport}
           disabled={!hasAnswers}
-          className="ad-press inline-flex h-9 items-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
+          className="adm-press inline-flex h-9 items-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
         >
           <Download className="h-3.5 w-3.5" strokeWidth={1.8} />
           엑셀 다운로드
@@ -156,8 +156,8 @@ export function SurveyResults({
 
       {isLoading ? (
         <div className="mt-5 space-y-3">
-          <div className="ad-skel h-16 w-full" />
-          <div className="ad-skel h-40 w-full" />
+          <div className="adm-skel h-16 w-full" />
+          <div className="adm-skel h-40 w-full" />
         </div>
       ) : error ? (
         <div className="mt-5 rounded-[12px] bg-[#fff2f5] px-4 py-3 text-[13px] text-[color:var(--ad-neg)]">
@@ -173,7 +173,7 @@ export function SurveyResults({
           {emptyAction && (
             <a
               href={emptyAction.href}
-              className="ad-press mt-2 inline-flex h-9 items-center rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+              className="adm-press mt-2 inline-flex h-9 items-center rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
             >
               {emptyAction.label}
             </a>
@@ -190,7 +190,7 @@ export function SurveyResults({
             ].map(([label, v, u], k) => (
               <div key={label as string} className={`px-4 py-3 ${k > 0 ? 'border-l border-[color:var(--ad-line)]' : ''}`}>
                 <p className="text-[12px] text-[color:var(--ad-muted)]">{label}</p>
-                <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)] ad-tnum">
+                <p className="mt-0.5 text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)] adm-tnum">
                   {(v as number).toLocaleString('ko-KR')}
                   <span className="ml-0.5 text-[12.5px] text-[color:var(--ad-muted)]">{u}</span>
                 </p>
@@ -222,7 +222,7 @@ export function SurveyResults({
                       </span>
                     </div>
                   </div>
-                  <p className="mt-1 text-[12px] text-[color:var(--ad-muted)] ad-tnum">응답 {q.answerCount.toLocaleString('ko-KR')}건</p>
+                  <p className="mt-1 text-[12px] text-[color:var(--ad-muted)] adm-tnum">응답 {q.answerCount.toLocaleString('ko-KR')}건</p>
 
                   {q.type === 'CHOICE' && q.choices && q.choices.length > 0 && (
                     <ul className="mt-3 space-y-2">
@@ -235,7 +235,7 @@ export function SurveyResults({
                               style={{ width: `${(c.count / max) * 100}%`, background: c.count === max ? '#6eadff' : '#a5ccff' }}
                             />
                           </span>
-                          <span className="text-right text-[color:var(--ad-muted)] ad-tnum">
+                          <span className="text-right text-[color:var(--ad-muted)] adm-tnum">
                             {q.answerCount ? Math.round((c.count / q.answerCount) * 100) : 0}%
                             <span className="ml-1 text-[11px] text-[color:var(--ad-faint)]">{c.count}</span>
                           </span>
@@ -291,7 +291,7 @@ export function SurveyResults({
               <tbody className="divide-y divide-[color:var(--ad-line)]">
                 {pageRows.map((r) => (
                   <tr key={r.id} className="hover:bg-[color:var(--ad-bg-alt)]">
-                    <td className="whitespace-nowrap px-4 py-2.5 text-[color:var(--ad-muted)] ad-tnum">{fmtDateTime(r.answeredAt)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-[color:var(--ad-muted)] adm-tnum">{fmtDateTime(r.answeredAt)}</td>
                     {showStore && <td className="whitespace-nowrap px-3 py-2.5 text-[color:var(--ad-ink-2)]">{r.storeName}</td>}
                     <td className="whitespace-nowrap px-3 py-2.5 text-[color:var(--ad-ink-2)]">{r.customerName}</td>
                     <td className="px-3 py-2.5 text-[color:var(--ad-ink-2)]">{r.questionLabel}</td>
@@ -306,17 +306,17 @@ export function SurveyResults({
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="ad-press h-8 rounded-[8px] bg-white px-3 shadow-[inset_0_0_0_1px_var(--ad-line-strong)] disabled:opacity-40"
+                className="adm-press h-8 rounded-[8px] bg-white px-3 shadow-[inset_0_0_0_1px_var(--ad-line-strong)] disabled:opacity-40"
               >
                 이전
               </button>
-              <span className="ad-tnum">
+              <span className="adm-tnum">
                 {page} / {pageCount}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
                 disabled={page === pageCount}
-                className="ad-press h-8 rounded-[8px] bg-white px-3 shadow-[inset_0_0_0_1px_var(--ad-line-strong)] disabled:opacity-40"
+                className="adm-press h-8 rounded-[8px] bg-white px-3 shadow-[inset_0_0_0_1px_var(--ad-line-strong)] disabled:opacity-40"
               >
                 다음
               </button>

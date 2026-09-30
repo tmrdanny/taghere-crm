@@ -79,13 +79,13 @@ export function MetricsCard({
   const monthlyTotal = monthly.reduce((s, m) => s + m.value, 0);
 
   return (
-    <section className="ad-card ad-rise grid lg:grid-cols-[1.5fr_1fr_1fr_1fr]" style={rise(1)}>
+    <section className="adm-card adm-rise grid lg:grid-cols-[1.5fr_1fr_1fr_1fr]" style={rise(1)}>
       <div className="p-5">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[12px] text-[color:var(--ad-muted)]">이번 달 CRM 매출</p>
           <button
             onClick={onAddRevenue}
-            className="ad-press inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11.5px] font-medium text-[color:var(--ad-link)] hover:bg-[color:var(--ad-bg)]"
+            className="adm-press inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11.5px] font-medium text-[color:var(--ad-link)] hover:bg-[color:var(--ad-bg)]"
           >
             <Plus size={12} strokeWidth={2} />
             외부 매출 추가
@@ -102,7 +102,7 @@ export function MetricsCard({
                 monthly.map((m, k) => (
                   <span
                     key={m.label}
-                    className="ad-grow-x h-full"
+                    className="adm-grow-x h-full"
                     style={{ ...rise(k), width: `${(m.value / monthlyTotal) * 100}%`, background: m.color }}
                   />
                 ))}
@@ -112,7 +112,7 @@ export function MetricsCard({
                 <li key={m.label} className="flex items-center gap-1.5 text-[11.5px] text-[color:var(--ad-muted)]">
                   <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.color }} />
                   {m.label}
-                  <span className="text-[color:var(--ad-ink-2)] ad-tnum">{won(m.value)}원</span>
+                  <span className="text-[color:var(--ad-ink-2)] adm-tnum">{won(m.value)}원</span>
                 </li>
               ))}
             </ul>
@@ -120,7 +120,7 @@ export function MetricsCard({
         )}
       </div>
 
-      <div className="ad-hair border-t p-5 lg:border-l lg:border-t-0">
+      <div className="adm-hair border-t p-5 lg:border-l lg:border-t-0">
         <p className="text-[12px] text-[color:var(--ad-muted)]">누적 CRM 매출</p>
         <p className="mt-1 text-[22px] font-semibold tracking-[-0.03em]">
           <CountUp value={paymentStats?.totalRealPayments || 0} />
@@ -135,25 +135,25 @@ export function MetricsCard({
             ].map(([label, v]) => (
               <div key={label as string} className="flex justify-between gap-2">
                 <dt className="text-[color:var(--ad-faint)]">{label}</dt>
-                <dd className="text-[color:var(--ad-ink-2)] ad-tnum">{won(v as number)}원</dd>
+                <dd className="text-[color:var(--ad-ink-2)] adm-tnum">{won(v as number)}원</dd>
               </div>
             ))}
           </dl>
         )}
       </div>
 
-      <div className="ad-hair border-t p-5 lg:border-l lg:border-t-0">
+      <div className="adm-hair border-t p-5 lg:border-l lg:border-t-0">
         <p className="text-[12px] text-[color:var(--ad-muted)]">누적 적립 포인트</p>
         <p className="mt-1 text-[22px] font-semibold tracking-[-0.03em]">
           <CountUp value={pointStats?.totalEarnedPoints || 0} />
           <Unit>P</Unit>
         </p>
-        <p className="mt-0.5 text-[12px] text-[color:var(--ad-muted)] ad-tnum">
+        <p className="mt-0.5 text-[12px] text-[color:var(--ad-muted)] adm-tnum">
           이번 달 +{won(pointStats?.monthlyEarnedPoints || 0)}P
         </p>
       </div>
 
-      <div className="ad-hair border-t p-5 lg:border-l lg:border-t-0">
+      <div className="adm-hair border-t p-5 lg:border-l lg:border-t-0">
         <p className="text-[12px] text-[color:var(--ad-muted)]">플랫폼 현황</p>
         <dl className="mt-2 space-y-1.5 text-[13px]">
           {[
@@ -201,7 +201,7 @@ function ChartTip({
     <div className="rounded-[10px] bg-white/95 px-3 py-2 text-[12px] shadow-[0_0_0_1px_rgba(29,32,34,0.06),0_12px_24px_-12px_rgba(19,22,81,0.3)] backdrop-blur">
       <p className="mb-1 text-[color:var(--ad-muted)]">{label}</p>
       {payload.map((p) => (
-        <p key={p.name} className="flex items-center gap-1.5 font-medium ad-tnum">
+        <p key={p.name} className="flex items-center gap-1.5 font-medium adm-tnum">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: p.color }} />
           {p.name} {won(p.value)}
           {unit}
@@ -217,7 +217,7 @@ function Summary({ items }: { items: { label: string; value: string; tone?: stri
       {items.map((it) => (
         <div key={it.label}>
           <p className="text-[12px] text-[color:var(--ad-muted)]">{it.label}</p>
-          <p className="text-[20px] font-semibold tracking-[-0.03em] ad-tnum" style={{ color: it.tone }}>
+          <p className="text-[20px] font-semibold tracking-[-0.03em] adm-tnum" style={{ color: it.tone }}>
             {it.value}
           </p>
         </div>
@@ -235,11 +235,11 @@ function PercentBars({ data, color = BLUE }: { data: (VisitSourceDistribution | 
           <span className="truncate text-[color:var(--ad-ink-2)]">{d.label}</span>
           <span className="h-2 overflow-hidden rounded-full bg-[rgba(29,32,34,0.05)]">
             <span
-              className="ad-grow-x block h-full rounded-full"
+              className="adm-grow-x block h-full rounded-full"
               style={{ ...rise(k), width: `${(d.percentage / max) * 100}%`, background: color, opacity: Math.max(0.35, 1 - k * 0.1) }}
             />
           </span>
-          <span className="text-right ad-tnum">
+          <span className="text-right adm-tnum">
             <span className="font-medium">{d.percentage.toFixed(1)}%</span>
             <span className="ml-1 text-[11px] text-[color:var(--ad-faint)]">{won(d.count)}</span>
           </span>
@@ -304,15 +304,15 @@ export function InsightsCard(props: {
     ) : null;
 
   return (
-    <section className="ad-card ad-rise flex min-h-[380px] flex-col p-5" style={rise(2)}>
+    <section className="adm-card adm-rise flex min-h-[380px] flex-col p-5" style={rise(2)}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="ad-noscroll -mx-1 max-w-full overflow-x-auto px-1">
+        <div className="adm-noscroll -mx-1 max-w-full overflow-x-auto px-1">
           <Tabs options={insightTabs} value={tab} onChange={setTab} label="인사이트" />
         </div>
-        {periodControl && <div className="ad-noscroll max-w-full overflow-x-auto">{periodControl}</div>}
+        {periodControl && <div className="adm-noscroll max-w-full overflow-x-auto">{periodControl}</div>}
       </div>
 
-      <div key={tab} className="ad-rise mt-5 flex flex-1 flex-col">
+      <div key={tab} className="adm-rise mt-5 flex flex-1 flex-col">
         {tab === '고객 추이' &&
           (props.isTrendLoading && !customerTrend ? (
             <ChartSkeleton />
@@ -491,7 +491,7 @@ const quickLinks: { href?: string; label: string; detail: string; icon: LucideIc
 
 export function QuickLinks() {
   return (
-    <section className="ad-card ad-rise flex flex-col p-5" style={rise(3)}>
+    <section className="adm-card adm-rise flex flex-col p-5" style={rise(3)}>
       <SectionHead title="바로가기" />
       <ul className="mt-3 divide-y divide-[color:var(--ad-line)]">
         {quickLinks.map((q) => {
@@ -517,7 +517,7 @@ export function QuickLinks() {
           return (
             <li key={q.label}>
               {q.href ? (
-                <Link href={q.href} className="ad-press group flex items-center gap-3 py-3">
+                <Link href={q.href} className="adm-press group flex items-center gap-3 py-3">
                   {body}
                   <ChevronRight size={15} strokeWidth={1.7} className="text-[color:var(--ad-faint)] transition-transform group-hover:translate-x-0.5" />
                 </Link>
@@ -544,7 +544,7 @@ const statusStyle = {
 
 export function StoreOrdersCard({ orders, isLoading }: { orders: StoreOrder[]; isLoading: boolean }) {
   return (
-    <section className="ad-card ad-rise overflow-hidden" style={rise(4)}>
+    <section className="adm-card adm-rise overflow-hidden" style={rise(4)}>
       <div className="p-5 pb-3">
         <SectionHead
           title="스토어 주문 내역"
@@ -588,16 +588,16 @@ export function StoreOrdersCard({ orders, isLoading }: { orders: StoreOrder[]; i
                     <td className="px-5 py-2.5 font-mono text-[12px] text-[color:var(--ad-ink-2)]">{o.orderNumber}</td>
                     <td className="px-3 py-2.5 font-medium">{o.store?.name || '-'}</td>
                     <td className="px-3 py-2.5">
-                      {o.customerName} <span className="text-[color:var(--ad-faint)] ad-tnum">{o.customerPhone}</span>
+                      {o.customerName} <span className="text-[color:var(--ad-faint)] adm-tnum">{o.customerPhone}</span>
                     </td>
                     <td className="max-w-[220px] truncate px-3 py-2.5 text-[color:var(--ad-ink-2)]">
                       {o.items.map((item) => `${item.productName} x${item.quantity}`).join(', ')}
                     </td>
-                    <td className="px-3 py-2.5 text-right font-medium ad-tnum">{won(o.totalAmount)}원</td>
+                    <td className="px-3 py-2.5 text-right font-medium adm-tnum">{won(o.totalAmount)}원</td>
                     <td className="px-3 py-2.5">
                       <span className={cn('inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium', st.cls)}>{st.label}</span>
                     </td>
-                    <td className="whitespace-nowrap px-5 py-2.5 text-right text-[color:var(--ad-muted)] ad-tnum">
+                    <td className="whitespace-nowrap px-5 py-2.5 text-right text-[color:var(--ad-muted)] adm-tnum">
                       {created.toLocaleDateString('ko-KR')}{' '}
                       {created.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                     </td>

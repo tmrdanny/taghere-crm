@@ -285,17 +285,17 @@ export default function StoreListPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="ad-card p-5">
+      <div className="adm-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-[13px] text-[color:var(--ad-muted)] ad-tnum">
+            <p className="text-[13px] text-[color:var(--ad-muted)] adm-tnum">
               {searchQuery || categoryFilter ? '검색 결과 ' : '총 '}{total.toLocaleString()}개 매장
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => { setBulkModal(true); setBulkParsedData([]); setBulkResult(null); setBulkEnrollmentMode('POINTS'); }}
-              className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)]"
+              className="adm-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)]"
             >
               <UploadIcon className="w-4 h-4" />
               매장 대량등록
@@ -303,7 +303,7 @@ export default function StoreListPage() {
             <button
               onClick={handleDownloadExcel}
               disabled={total === 0}
-              className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="adm-press inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <DownloadIcon className="w-4 h-4" />
               Excel 다운로드
@@ -338,7 +338,7 @@ export default function StoreListPage() {
       </div>
 
       {/* Table */}
-      <div className="ad-card overflow-hidden">
+      <div className="adm-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1200px]">
             <thead>
@@ -412,13 +412,13 @@ export default function StoreListPage() {
                     <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink-2)]">
                       {store.category ? STORE_CATEGORIES[store.category as keyof typeof STORE_CATEGORIES] || store.category : '-'}
                     </td>
-                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink)] text-right font-medium ad-tnum">
+                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink)] text-right font-medium adm-tnum">
                       {formatNumber(store.customerCount)}
                     </td>
-                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink)] text-right font-medium ad-tnum">
+                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink)] text-right font-medium adm-tnum">
                       {formatNumber(store.walletBalance)}원
                     </td>
-                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink)] text-right ad-tnum">
+                    <td className="px-4 py-3 text-[13px] text-[color:var(--ad-ink)] text-right adm-tnum">
                       {store.pointRatePercent}%
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -432,7 +432,7 @@ export default function StoreListPage() {
                         {store.crmEnabled ? 'ON' : 'OFF'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-[13px] ad-tnum text-[color:var(--ad-muted)]">
+                    <td className="px-4 py-3 text-[13px] adm-tnum text-[color:var(--ad-muted)]">
                       {new Date(store.createdAt).toLocaleDateString('ko-KR')}
                     </td>
                   </tr>
@@ -445,7 +445,7 @@ export default function StoreListPage() {
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-[color:var(--ad-line)] bg-[color:var(--ad-bg-alt)]">
-            <p className="text-[12.5px] ad-tnum text-[color:var(--ad-muted)]">
+            <p className="text-[12.5px] adm-tnum text-[color:var(--ad-muted)]">
               {(currentPage - 1) * ITEMS_PER_PAGE + 1}-
               {Math.min(currentPage * ITEMS_PER_PAGE, total)} / {total.toLocaleString()}개
             </p>
@@ -453,17 +453,17 @@ export default function StoreListPage() {
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="ad-press p-2 rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="adm-press p-2 rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronLeftIcon className="w-4 h-4" />
               </button>
-              <span className="text-[13px] ad-tnum text-[color:var(--ad-ink-2)] min-w-[80px] text-center">
+              <span className="text-[13px] adm-tnum text-[color:var(--ad-ink-2)] min-w-[80px] text-center">
                 {currentPage} / {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="ad-press p-2 rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="adm-press p-2 rounded-[10px] bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronRightIcon className="w-4 h-4" />
               </button>
@@ -494,7 +494,7 @@ export default function StoreListPage() {
               <div className="flex gap-2">
                 <button
                   onClick={handleDownloadBulkSample}
-                  className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium !text-[color:var(--ad-link)]"
+                  className="adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium !text-[color:var(--ad-link)]"
                 >
                   샘플 다운로드
                 </button>
@@ -507,7 +507,7 @@ export default function StoreListPage() {
                 />
                 <button
                   onClick={() => bulkFileInputRef.current?.click()}
-                  className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                  className="adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                 >
                   {bulkParsedData.length > 0
                     ? `${bulkParsedData.length}건 로드됨 (다시 선택하려면 클릭)`
@@ -528,7 +528,7 @@ export default function StoreListPage() {
                       key={mode.value}
                       type="button"
                       onClick={() => setBulkEnrollmentMode(mode.value)}
-                      className={`ad-press py-2.5 px-3 rounded-[10px] text-[13px] font-medium transition-colors ${
+                      className={`adm-press py-2.5 px-3 rounded-[10px] text-[13px] font-medium transition-colors ${
                         bulkEnrollmentMode === mode.value
                           ? 'bg-[color:var(--ad-navy)] text-white'
                           : 'bg-white text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'
@@ -560,7 +560,7 @@ export default function StoreListPage() {
                       <tbody className="divide-y divide-[color:var(--ad-line)]">
                         {bulkParsedData.slice(0, 20).map((row, idx) => (
                           <tr key={idx} className="hover:bg-[rgba(110,173,255,0.05)]">
-                            <td className="px-3 py-1.5 ad-tnum text-[color:var(--ad-faint)]">{idx + 1}</td>
+                            <td className="px-3 py-1.5 adm-tnum text-[color:var(--ad-faint)]">{idx + 1}</td>
                             <td className="px-3 py-1.5 text-[color:var(--ad-ink)] font-medium">{row.storeName}</td>
                             <td className="px-3 py-1.5 text-[color:var(--ad-ink-2)]">{row.ownerName || '-'}</td>
                             <td className="px-3 py-1.5 text-[color:var(--ad-ink-2)]">{row.phone || '-'}</td>
@@ -587,11 +587,11 @@ export default function StoreListPage() {
                   <div className="grid grid-cols-3 rounded-[12px] border border-[color:var(--ad-line)]">
                     <div className="p-3 text-center">
                       <p className="text-[12px] text-[color:var(--ad-muted)]">등록 성공</p>
-                      <p className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-pos)]">{bulkResult.created}</p>
+                      <p className="text-[22px] font-semibold tracking-[-0.03em] adm-tnum text-[color:var(--ad-pos)]">{bulkResult.created}</p>
                     </div>
                     <div className="p-3 text-center border-l border-[color:var(--ad-line)]">
                       <p className="text-[12px] text-[color:var(--ad-muted)]">등록 실패</p>
-                      <p className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-neg)]">{bulkResult.errors.length}</p>
+                      <p className="text-[22px] font-semibold tracking-[-0.03em] adm-tnum text-[color:var(--ad-neg)]">{bulkResult.errors.length}</p>
                     </div>
                     <div className={`p-3 text-center border-l border-[color:var(--ad-line)] ${
                       bulkResult.crmOn && bulkResult.crmOn.failed > 0 ? 'bg-[#fff4ef]' : ''
@@ -599,7 +599,7 @@ export default function StoreListPage() {
                       <p className={`text-[12px] ${
                         bulkResult.crmOn && bulkResult.crmOn.failed > 0 ? 'text-[#993d1f]' : 'text-[color:var(--ad-muted)]'
                       }`}>CRM ON</p>
-                      <p className={`text-[22px] font-semibold tracking-[-0.03em] ad-tnum ${
+                      <p className={`text-[22px] font-semibold tracking-[-0.03em] adm-tnum ${
                         bulkResult.crmOn && bulkResult.crmOn.failed > 0 ? 'text-[#993d1f]' : 'text-[color:var(--ad-link)]'
                       }`}>
                         {bulkResult.crmOn ? `${bulkResult.crmOn.success}/${bulkResult.created}` : '-'}
@@ -636,7 +636,7 @@ export default function StoreListPage() {
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[color:var(--ad-line)]">
               <button
                 onClick={() => setBulkModal(false)}
-                className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 {bulkResult ? '닫기' : '취소'}
               </button>
@@ -644,7 +644,7 @@ export default function StoreListPage() {
                 <button
                   onClick={handleBulkUpload}
                   disabled={bulkParsedData.length === 0 || bulkUploading}
-                  className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="adm-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {bulkUploading ? '등록 중...' : `${bulkParsedData.length}건 등록하기`}
                 </button>

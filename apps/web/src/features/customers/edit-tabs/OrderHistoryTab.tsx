@@ -41,7 +41,7 @@ export function OrderHistoryTab({
           variant={showDateFilter ? 'default' : 'secondary'}
           size="sm"
           onClick={onToggleDateFilter}
-          className={showDateFilter ? 'ad-press inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-[color:var(--ad-ink)] px-3 text-[12.5px] font-medium text-white hover:bg-[#383c40]' : 'ad-press inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'}
+          className={showDateFilter ? 'adm-press inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-[color:var(--ad-ink)] px-3 text-[12.5px] font-medium text-white hover:bg-[#383c40]' : 'adm-press inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'}
         >
           <Calendar className="w-3.5 h-3.5" />
           날짜 조회
@@ -50,7 +50,7 @@ export function OrderHistoryTab({
           variant={cancelMode ? 'destructive' : 'secondary'}
           size="sm"
           onClick={onToggleCancelMode}
-          className={cancelMode ? 'ad-press inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-[color:var(--ad-ink)] px-3 text-[12.5px] font-medium text-white hover:bg-[#383c40]' : 'ad-press inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'}
+          className={cancelMode ? 'adm-press inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-[color:var(--ad-ink)] px-3 text-[12.5px] font-medium text-white hover:bg-[#383c40]' : 'adm-press inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]'}
         >
           <X className="w-3.5 h-3.5" />
           적립 취소
@@ -81,7 +81,7 @@ export function OrderHistoryTab({
               size="sm"
               onClick={onApplyFilter}
               disabled={loadingHistory}
-              className="ad-press inline-flex h-9 flex-1 items-center justify-center rounded-[10px] border-0 bg-white px-4 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
+              className="adm-press inline-flex h-9 flex-1 items-center justify-center rounded-[10px] border-0 bg-white px-4 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40"
             >
               조회
             </Button>
@@ -89,7 +89,7 @@ export function OrderHistoryTab({
               variant="ghost"
               size="sm"
               onClick={onResetFilter}
-              className="ad-press inline-flex h-9 flex-1 items-center justify-center rounded-[10px] border-0 bg-transparent px-4 text-[13px] font-medium text-[color:var(--ad-muted)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink)]"
+              className="adm-press inline-flex h-9 flex-1 items-center justify-center rounded-[10px] border-0 bg-transparent px-4 text-[13px] font-medium text-[color:var(--ad-muted)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink)]"
             >
               초기화
             </Button>

@@ -25,7 +25,7 @@ export function MobilePreviewSheet({ children, label = '미리보기' }: { child
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="ad-press fixed bottom-[calc(16px+env(safe-area-inset-bottom,0px))] left-1/2 z-40 inline-flex h-11 -translate-x-1/2 items-center gap-1.5 rounded-full bg-[color:var(--ad-ink)] px-5 text-[14px] font-semibold text-white shadow-[0_10px_30px_-8px_rgba(0,0,0,0.45)] lg:hidden"
+        className="adm-press fixed bottom-[calc(16px+env(safe-area-inset-bottom,0px))] left-1/2 z-40 inline-flex h-11 -translate-x-1/2 items-center gap-1.5 rounded-full bg-[color:var(--ad-ink)] px-5 text-[14px] font-semibold text-white shadow-[0_10px_30px_-8px_rgba(0,0,0,0.45)] lg:hidden"
       >
         <Eye className="h-4 w-4" strokeWidth={2} />
         {label}

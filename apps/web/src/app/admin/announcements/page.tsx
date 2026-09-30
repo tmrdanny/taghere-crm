@@ -236,7 +236,7 @@ export default function AnnouncementsPage() {
         <p className="text-[13px] text-[color:var(--ad-muted)]">전체 매장에 표시되는 공지사항을 관리합니다.</p>
         <button
           onClick={openCreateModal}
-          className="ad-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
+          className="adm-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -246,7 +246,7 @@ export default function AnnouncementsPage() {
       </div>
 
       {/* Announcements List */}
-      <div className="ad-card overflow-hidden">
+      <div className="adm-card overflow-hidden">
         {announcements.length === 0 ? (
           <div className="p-12 text-center text-[13px] text-[color:var(--ad-faint)]">
             등록된 공지사항이 없습니다.
@@ -282,7 +282,7 @@ export default function AnnouncementsPage() {
                     <p className="text-[13px] text-[color:var(--ad-muted)] mt-1 line-clamp-2">
                       {announcement.content}
                     </p>
-                    <div className="flex items-center gap-4 mt-2 text-[12px] text-[color:var(--ad-faint)] ad-tnum">
+                    <div className="flex items-center gap-4 mt-2 text-[12px] text-[color:var(--ad-faint)] adm-tnum">
                       <span>
                         생성: {new Date(announcement.createdAt).toLocaleDateString('ko-KR')}
                       </span>
@@ -302,7 +302,7 @@ export default function AnnouncementsPage() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => toggleActive(announcement)}
-                      className={`ad-press p-2 rounded-[10px] transition-colors ${
+                      className={`adm-press p-2 rounded-[10px] transition-colors ${
                         announcement.isActive
                           ? 'text-[color:var(--ad-pos)] hover:bg-[#d9fad3]'
                           : 'text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg)]'
@@ -319,7 +319,7 @@ export default function AnnouncementsPage() {
                     </button>
                     <button
                       onClick={() => openEditModal(announcement)}
-                      className="ad-press p-2 text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-bg)] rounded-[10px] transition-colors"
+                      className="adm-press p-2 text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-bg)] rounded-[10px] transition-colors"
                       title="수정"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -329,7 +329,7 @@ export default function AnnouncementsPage() {
                     <button
                       onClick={() => handleDelete(announcement.id)}
                       disabled={deletingId === announcement.id}
-                      className="ad-press p-2 text-[color:var(--ad-neg)] hover:bg-[#ffc4d0]/50 rounded-[10px] transition-colors disabled:opacity-50"
+                      className="adm-press p-2 text-[color:var(--ad-neg)] hover:bg-[#ffc4d0]/50 rounded-[10px] transition-colors disabled:opacity-50"
                       title="삭제"
                     >
                       {deletingId === announcement.id ? (
@@ -405,7 +405,7 @@ export default function AnnouncementsPage() {
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                    className={`ad-press w-full h-10 px-3 rounded-[10px] text-[13px] font-medium transition-colors ${
+                    className={`adm-press w-full h-10 px-3 rounded-[10px] text-[13px] font-medium transition-colors ${
                       formData.isActive
                         ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]'
                         : 'bg-white text-[color:var(--ad-muted)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)]'
@@ -446,14 +446,14 @@ export default function AnnouncementsPage() {
             <div className="flex gap-2 mt-6">
               <button
                 onClick={() => setShowModal(false)}
-                className="ad-press flex-1 h-10 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press flex-1 h-10 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 취소
               </button>
               <button
                 onClick={handleSave}
                 disabled={isSaving || !formData.title || !formData.content}
-                className="ad-press flex-1 h-10 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                className="adm-press flex-1 h-10 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
               >
                 {isSaving ? (
                   <>

@@ -413,7 +413,7 @@ export default function AdminFoodCourtPage() {
       {selectedStore && settings && !isLoadingSettings && (
         <div className="space-y-4">
           {/* 활성화 토글 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">서비스 활성화</h3>
@@ -435,7 +435,7 @@ export default function AdminFoodCourtPage() {
           </div>
 
           {/* 랜덤 배치 토글 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">매장 랜덤 배치</h3>
@@ -458,7 +458,7 @@ export default function AdminFoodCourtPage() {
 
           {/* QR 링크 안내 */}
           {settings.customerPageBaseUrl && (
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-1">테이블별 QR 링크</h3>
               <p className="text-[12px] text-[color:var(--ad-faint)] mb-3">
                 테이블마다 번호가 들어간 QR을 부착하세요. 아래에서 테이블 번호를 입력하면 전체 URL을 만들 수 있습니다.
@@ -471,7 +471,7 @@ export default function AdminFoodCourtPage() {
                   onChange={(e) => setQrTableNumber(e.target.value)}
                   placeholder="3"
                   min="1"
-                  className="h-10 w-24 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] ad-tnum placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
+                  className="h-10 w-24 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] adm-tnum placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none"
                 />
               </div>
               {fullQrUrl && (
@@ -484,7 +484,7 @@ export default function AdminFoodCourtPage() {
                   />
                   <button
                     onClick={() => copyText(fullQrUrl)}
-                    className="ad-press h-10 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] whitespace-nowrap"
+                    className="adm-press h-10 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] whitespace-nowrap"
                   >
                     복사
                   </button>
@@ -494,7 +494,7 @@ export default function AdminFoodCourtPage() {
           )}
 
           {/* 고객 안내 문구 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-1">고객 페이지 안내 문구</h3>
             <p className="text-[12px] text-[color:var(--ad-faint)] mb-4">비워두면 기본 문구가 사용됩니다.</p>
             <div className="space-y-3">
@@ -522,7 +522,7 @@ export default function AdminFoodCourtPage() {
           </div>
 
           {/* 공지 배너 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <h3 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-1">공지 배너 (검정 박스)</h3>
             <p className="text-[12px] text-[color:var(--ad-faint)] mb-4">본문을 비워두면 배너가 표시되지 않습니다.</p>
             <div className="space-y-3">
@@ -536,7 +536,7 @@ export default function AdminFoodCourtPage() {
                       className="h-10 object-contain bg-[color:var(--ad-ink)] rounded-[8px] px-2"
                     />
                   )}
-                  <label className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] inline-flex items-center cursor-pointer">
+                  <label className="adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] inline-flex items-center cursor-pointer">
                     이미지 업로드
                     <input
                       type="file"
@@ -577,14 +577,14 @@ export default function AdminFoodCourtPage() {
               </div>
               <button
                 onClick={handleAddBooth}
-                className="ad-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                className="adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
               >
                 + 매장 추가
               </button>
             </div>
 
             {booths.length === 0 ? (
-              <div className="ad-card text-center py-10 text-[color:var(--ad-faint)]">
+              <div className="adm-card text-center py-10 text-[color:var(--ad-faint)]">
                 <p className="text-[13px]">등록된 매장이 없습니다.</p>
                 <p className="text-[12px] mt-1">"매장 추가" 버튼으로 부스를 등록하세요.</p>
               </div>
@@ -613,7 +613,7 @@ export default function AdminFoodCourtPage() {
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="ad-press inline-flex items-center justify-center gap-1.5 h-10 px-5 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
+              className="adm-press inline-flex items-center justify-center gap-1.5 h-10 px-5 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
             >
               {isSaving ? '저장 중...' : '저장하기'}
             </button>
@@ -655,7 +655,7 @@ function BoothCard({
   const [bulkTemplate, setBulkTemplate] = useState('');
 
   return (
-    <div className="ad-card p-5">
+    <div className="adm-card p-5">
       <div className="flex items-start gap-4">
         {/* Image */}
         <div className="flex-shrink-0">
@@ -761,7 +761,7 @@ function BoothCard({
                   onChange={(e) => setBulkStart(e.target.value)}
                   placeholder="시작"
                   min="1"
-                  className="w-16 px-2 h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none text-center ad-tnum"
+                  className="w-16 px-2 h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none text-center adm-tnum"
                 />
                 <span className="text-[color:var(--ad-faint)]">~</span>
                 <input
@@ -770,7 +770,7 @@ function BoothCard({
                   onChange={(e) => setBulkEnd(e.target.value)}
                   placeholder="끝"
                   min="1"
-                  className="w-16 px-2 h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none text-center ad-tnum"
+                  className="w-16 px-2 h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none text-center adm-tnum"
                 />
                 <input
                   value={bulkTemplate}
@@ -785,7 +785,7 @@ function BoothCard({
                     setBulkEnd('');
                     setBulkTemplate('');
                   }}
-                  className="ad-press inline-flex items-center justify-center h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)]"
+                  className="adm-press inline-flex items-center justify-center h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)]"
                 >
                   추가
                 </button>
@@ -806,7 +806,7 @@ function BoothCard({
                       value={table.tableNumber}
                       onChange={(e) => onUpdateTable(booth.id, i, 'tableNumber', e.target.value)}
                       placeholder="번호"
-                      className="px-2 h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none text-center ad-tnum"
+                      className="px-2 h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white text-[13px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none text-center adm-tnum"
                     />
                     <input
                       value={table.url}

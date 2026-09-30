@@ -452,11 +452,11 @@ export default function HomePage() {
               </span>
               <div className="h-2 overflow-hidden rounded-full bg-[rgba(29,32,34,0.05)]">
                 <div
-                  className="ad-grow-x h-full rounded-full"
+                  className="adm-grow-x h-full rounded-full"
                   style={{ ...rise(idx), backgroundColor: color, width: maxCount > 0 ? `${(item.count / maxCount) * 100}%` : '0%' }}
                 />
               </div>
-              <span className="ad-tnum whitespace-nowrap text-right text-[12.5px]">
+              <span className="adm-tnum whitespace-nowrap text-right text-[12.5px]">
                 <span className="font-semibold text-[color:var(--ad-ink)]">{pct}%</span>
                 <span className="ml-1.5 text-[color:var(--ad-faint)]">{formatNumber(item.count)}명</span>
               </span>
@@ -519,14 +519,14 @@ export default function HomePage() {
   ];
   const automationTotal = automationTargets.reduce((sum, t) => sum + t.count, 0);
   const iconBtn =
-    'ad-press grid h-8 w-8 place-items-center rounded-[10px] text-[color:var(--ad-muted)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink)] disabled:opacity-50';
+    'adm-press grid h-8 w-8 place-items-center rounded-[10px] text-[color:var(--ad-muted)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink)] disabled:opacity-50';
   const ghostBtn =
-    'ad-press inline-flex h-8 items-center gap-1.5 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 disabled:hover:bg-white';
+    'adm-press inline-flex h-8 items-center gap-1.5 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-40 disabled:hover:bg-white';
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {/* 헤더: 오늘 날짜 + 가맹점 상호명 */}
-      <header className="ad-rise" style={rise(0)}>
+      <header className="adm-rise" style={rise(0)}>
         <p className="text-[12.5px] font-medium text-[color:var(--ad-muted)]" suppressHydrationWarning>
           {todayLabel}
         </p>
@@ -537,7 +537,7 @@ export default function HomePage() {
 
       {/* Announcements */}
       {announcements.length > 0 && (
-        <div className="ad-rise mt-4 flex flex-col gap-2" style={rise(1)}>
+        <div className="adm-rise mt-4 flex flex-col gap-2" style={rise(1)}>
           {announcements.map((announcement) => (
             <div
               key={announcement.id}
@@ -566,7 +566,7 @@ export default function HomePage() {
         {/* KPI Cards */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {/* Total Customers */}
-          <section className="ad-card ad-rise p-5" style={rise(2)}>
+          <section className="adm-card adm-rise p-5" style={rise(2)}>
             <p className="flex items-center gap-2 text-[12.5px] font-medium text-[color:var(--ad-muted)]">
               <span className="grid h-4 w-4 place-items-center text-[color:var(--ad-faint)]">
                 <Users className="h-3 w-3 text-[color:var(--ad-link)]" />
@@ -591,21 +591,21 @@ export default function HomePage() {
 
           {/* Retarget Message Credits */}
           <section
-            className="ad-card ad-lift ad-rise flex cursor-pointer items-center gap-4 p-5"
+            className="adm-card adm-lift adm-rise flex cursor-pointer items-center gap-4 p-5"
             style={rise(3)}
             onClick={() => router.push('/messages')}
           >
             <div className="relative shrink-0">
               <Ring value={retargetCredits?.remainingCredits ?? 0} total={retargetCredits?.totalCredits ?? 30} />
-              <span className="ad-tnum absolute inset-0 grid place-items-center text-[16px] font-semibold text-[color:var(--ad-ink)]">
+              <span className="adm-tnum absolute inset-0 grid place-items-center text-[16px] font-semibold text-[color:var(--ad-ink)]">
                 {formatNumber(retargetCredits?.remainingCredits ?? 0)}
               </span>
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[12.5px] font-medium text-[color:var(--ad-muted)]">[무료 지원] 리타겟 메시지 잔여</p>
               <p className="mt-1 text-[14px] font-medium text-[color:var(--ad-ink)]">
-                이번 달 <span className="ad-tnum">{retargetCredits?.totalCredits ?? 30}</span>건 중{' '}
-                <span className="ad-tnum">{formatNumber(retargetCredits?.remainingCredits ?? 0)}</span>건 남았어요
+                이번 달 <span className="adm-tnum">{retargetCredits?.totalCredits ?? 30}</span>건 중{' '}
+                <span className="adm-tnum">{formatNumber(retargetCredits?.remainingCredits ?? 0)}</span>건 남았어요
               </p>
               <span className="mt-1.5 inline-flex items-center gap-0.5 text-[12.5px] font-medium text-[color:var(--ad-link)]">
                 지금 보내기
@@ -616,7 +616,7 @@ export default function HomePage() {
 
           {/* Review Balance */}
           <section
-            className="ad-card ad-lift ad-rise cursor-pointer p-5 md:col-span-2 lg:col-span-1"
+            className="adm-card adm-lift adm-rise cursor-pointer p-5 md:col-span-2 lg:col-span-1"
             style={rise(4)}
             onClick={() => router.push('/billing')}
           >
@@ -658,7 +658,7 @@ export default function HomePage() {
         {/* Automation Marketing CTA — 목적: 자동 마케팅을 켜게 하기. 결과 한 문장 + 단 하나의 주요 버튼, 대상 구성은 보조 정보로 */}
         {automationStatus && !automationStatus.hasActiveRules && (
           <section
-            className="ad-card ad-rise cursor-pointer p-6 sm:p-7"
+            className="adm-card adm-rise cursor-pointer p-6 sm:p-7"
             style={rise(5)}
             onClick={() => router.push('/automation')}
           >
@@ -670,7 +670,7 @@ export default function HomePage() {
                 </span>
                 <h2 className="mt-3 text-[22px] font-semibold leading-[31px] tracking-[-0.03em] text-[color:var(--ad-ink)]">
                   이번 달{' '}
-                  <span className="ad-tnum">
+                  <span className="adm-tnum">
                     <CountUp value={automationTotal} />명
                   </span>
                   에게 쿠폰을 자동으로 보낼 수 있어요
@@ -680,7 +680,7 @@ export default function HomePage() {
                 </p>
               </div>
               <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                <span className="ad-press inline-flex h-11 items-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-5 text-[14px] font-semibold text-white hover:bg-[#383c40]">
+                <span className="adm-press inline-flex h-11 items-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-5 text-[14px] font-semibold text-white hover:bg-[#383c40]">
                   자동 마케팅 켜기
                   <ArrowRight className="h-4 w-4" />
                 </span>
@@ -696,7 +696,7 @@ export default function HomePage() {
                     t.count > 0 ? (
                       <span
                         key={t.key}
-                        className="ad-grow-x h-full rounded-full"
+                        className="adm-grow-x h-full rounded-full"
                         style={{ ...rise(k), width: `${(t.count / automationTotal) * 100}%`, background: ['#1d2022', '#91959a', '#d1d3d6'][k] }}
                       />
                     ) : null
@@ -714,7 +714,7 @@ export default function HomePage() {
                             <Icon className="h-3.5 w-3.5 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
                             {t.label}
                           </p>
-                          <p className="ad-tnum text-[17px] font-semibold tracking-[-0.02em] text-[color:var(--ad-ink)]">
+                          <p className="adm-tnum text-[17px] font-semibold tracking-[-0.02em] text-[color:var(--ad-ink)]">
                             <CountUp value={t.count} />
                             <span className="ml-0.5 text-[12.5px] font-medium text-[color:var(--ad-muted)]">명</span>
                           </p>
@@ -732,7 +732,7 @@ export default function HomePage() {
         {/* Automation Active Banner (State C) */}
         {automationStatus && automationStatus.hasActiveRules && automationStatus.dashboard && automationStatus.dashboard.totalSent > 0 && (
           <section
-            className="ad-card ad-lift ad-rise flex cursor-pointer flex-wrap items-center justify-between gap-4 p-5"
+            className="adm-card adm-lift adm-rise flex cursor-pointer flex-wrap items-center justify-between gap-4 p-5"
             style={rise(5)}
             onClick={() => router.push('/automation')}
           >
@@ -753,7 +753,7 @@ export default function HomePage() {
             <div className="flex items-center gap-6">
               <div>
                 <p className="text-[12px] text-[color:var(--ad-muted)]">발송</p>
-                <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                   {automationStatus.dashboard.totalSent}
                   <span className="ml-0.5 text-[13px] font-medium text-[color:var(--ad-muted)]">건</span>
                 </p>
@@ -761,7 +761,7 @@ export default function HomePage() {
               {automationStatus.dashboard.totalCouponUsed > 0 && (
                 <div className="border-l border-[color:var(--ad-line)] pl-6">
                   <p className="text-[12px] text-[color:var(--ad-muted)]">쿠폰 사용</p>
-                  <p className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-pos)]">
+                  <p className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-pos)]">
                     {automationStatus.dashboard.totalCouponUsed}
                     <span className="ml-0.5 text-[13px] font-medium">건 ({Math.round(automationStatus.dashboard.usageRate)}%)</span>
                   </p>
@@ -778,7 +778,7 @@ export default function HomePage() {
         {/* Charts Row */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)]">
           {/* Visitor Chart */}
-          <section className="ad-card ad-rise flex min-w-0 flex-col p-5" style={rise(6)}>
+          <section className="adm-card adm-rise flex min-w-0 flex-col p-5" style={rise(6)}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-1.5">
                 <span className="mr-0.5 grid h-4 w-4 place-items-center text-[color:var(--ad-faint)]">
@@ -803,7 +803,7 @@ export default function HomePage() {
                       role="tab"
                       aria-selected={chartPeriod === period}
                       onClick={() => setChartPeriod(period)}
-                      className={`ad-press whitespace-nowrap rounded-[8px] px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
+                      className={`adm-press whitespace-nowrap rounded-[8px] px-2.5 py-1 text-[12.5px] font-medium transition-colors ${
                         chartPeriod === period
                           ? 'bg-white text-[color:var(--ad-ink)] shadow-[0_1px_2px_rgba(29,32,34,0.08),0_0_0_1px_rgba(29,32,34,0.04)]'
                           : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink-2)]'
@@ -931,7 +931,7 @@ export default function HomePage() {
 
           {/* Customer Feedback */}
           <section
-            className="ad-card ad-lift ad-rise flex cursor-pointer flex-col p-5"
+            className="adm-card adm-lift adm-rise flex cursor-pointer flex-col p-5"
             style={rise(7)}
             onClick={() => router.push('/feedback')}
           >
@@ -959,12 +959,12 @@ export default function HomePage() {
             {/* Average Rating */}
             {feedbackSummary ? (
               <div className="mt-4 flex items-end gap-3">
-                <p className="ad-tnum text-[24px] font-medium leading-none tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                <p className="adm-tnum text-[24px] font-medium leading-none tracking-[-0.03em] text-[color:var(--ad-ink)]">
                   {feedbackSummary?.averageRating?.toFixed(1) ?? '0.0'}
                 </p>
                 <div className="flex flex-col gap-0.5 pb-0.5">
                   <StarDisplay rating={feedbackSummary?.averageRating ?? 0} size="md" />
-                  <span className="ad-tnum text-[12px] text-[color:var(--ad-muted)]">
+                  <span className="adm-tnum text-[12px] text-[color:var(--ad-muted)]">
                     총 {formatNumber(feedbackSummary?.totalFeedbackCount ?? 0)}개 피드백
                   </span>
                 </div>
@@ -1003,7 +1003,7 @@ export default function HomePage() {
                           확인 필요
                         </span>
                       )}
-                      <span className="ad-tnum ml-auto text-[11.5px] text-[color:var(--ad-faint)]">
+                      <span className="adm-tnum ml-auto text-[11.5px] text-[color:var(--ad-faint)]">
                         {new Date(feedback.createdAt).toLocaleDateString('ko-KR')}
                       </span>
                     </div>
@@ -1036,7 +1036,7 @@ export default function HomePage() {
         </div>
 
         {/* Visit Source */}
-        <section className="ad-card ad-rise p-5" style={rise(8)}>
+        <section className="adm-card adm-rise p-5" style={rise(8)}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="grid h-4 w-4 place-items-center text-[color:var(--ad-faint)]">
@@ -1051,7 +1051,7 @@ export default function HomePage() {
             </div>
             <button
               onClick={() => router.push('/insights/customers')}
-              className="ad-press inline-flex items-center gap-0.5 text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
+              className="adm-press inline-flex items-center gap-0.5 text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
             >
               고객 통계
               <ChevronRight className="h-3.5 w-3.5" />
@@ -1091,13 +1091,13 @@ export default function HomePage() {
               <div className="flex flex-col gap-2">
                 <button
                   onClick={handleGoToMessages}
-                  className="ad-press inline-flex h-11 w-full items-center justify-center rounded-[10px] bg-[color:var(--ad-navy)] px-4 text-[14px] font-semibold text-white hover:bg-[#2a2d62]"
+                  className="adm-press inline-flex h-11 w-full items-center justify-center rounded-[10px] bg-[color:var(--ad-navy)] px-4 text-[14px] font-semibold text-white hover:bg-[#2a2d62]"
                 >
                   30명에게 무료로 메시지 보내기
                 </button>
                 <button
                   onClick={handleClosePromoPopup}
-                  className="ad-press h-10 w-full rounded-[10px] text-[13px] font-medium text-[color:var(--ad-muted)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]"
+                  className="adm-press h-10 w-full rounded-[10px] text-[13px] font-medium text-[color:var(--ad-muted)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-ink-2)]"
                 >
                   다음에 할게요
                 </button>
@@ -1143,7 +1143,7 @@ export default function HomePage() {
                     <div className="py-1.5 text-[color:var(--ad-ink-2)]">
                       {item.date.slice(5).replace('-', '/')} ({weekday})
                     </div>
-                    <div className="ad-tnum py-1.5 text-right text-[color:var(--ad-faint)]">
+                    <div className="adm-tnum py-1.5 text-right text-[color:var(--ad-faint)]">
                       {formatNumber(item.autoVisitors)}
                     </div>
                     <div className="py-1.5">
@@ -1155,7 +1155,7 @@ export default function HomePage() {
                         onChange={(e) =>
                           setDraftOverrides((prev) => ({ ...prev, [item.date]: e.target.value }))
                         }
-                        className="ad-tnum h-8 w-20 rounded-[8px] border border-[color:var(--ad-line-strong)] bg-white px-2 text-right text-[13px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        className="adm-tnum h-8 w-20 rounded-[8px] border border-[color:var(--ad-line-strong)] bg-white px-2 text-right text-[13px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       />
                     </div>
                     <div className="flex min-w-[52px] items-center gap-1 py-1.5">
@@ -1163,7 +1163,7 @@ export default function HomePage() {
                         <button
                           onClick={() => handleSaveOverride(item.date)}
                           disabled={savingDate !== null}
-                          className="ad-press h-7 rounded-[8px] bg-[color:var(--ad-navy)] px-2.5 text-[12px] font-semibold text-white hover:bg-[#2a2d62] disabled:opacity-50"
+                          className="adm-press h-7 rounded-[8px] bg-[color:var(--ad-navy)] px-2.5 text-[12px] font-semibold text-white hover:bg-[#2a2d62] disabled:opacity-50"
                         >
                           저장
                         </button>
@@ -1172,7 +1172,7 @@ export default function HomePage() {
                         <button
                           onClick={() => handleDeleteOverride(item.date)}
                           disabled={savingDate !== null}
-                          className="ad-press grid h-7 w-7 place-items-center rounded-[8px] text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)] disabled:opacity-50"
+                          className="adm-press grid h-7 w-7 place-items-center rounded-[8px] text-[color:var(--ad-faint)] hover:bg-[color:var(--ad-bg-alt)] hover:text-[color:var(--ad-neg)] disabled:opacity-50"
                           title={
                             visitorStats?.countingMode === 'customer_size'
                               ? '직접입력 삭제 (주문 인원으로 복귀)'

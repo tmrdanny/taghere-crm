@@ -37,7 +37,7 @@ function Stat({ label, value, sub }: { label: string; value: number; sub?: strin
   return (
     <div className="rounded-[10px] bg-[color:var(--ad-bg-alt)] p-3">
       <div className="text-[12px] text-[color:var(--ad-muted)]">{label}</div>
-      <div className="text-[18px] font-semibold tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">{value.toLocaleString()}</div>
+      <div className="text-[18px] font-semibold tracking-[-0.02em] adm-tnum text-[color:var(--ad-ink)]">{value.toLocaleString()}</div>
       {sub && <div className="text-[12px] text-[color:var(--ad-faint)] mt-0.5">{sub}</div>}
     </div>
   );
@@ -61,9 +61,9 @@ function SegTable({ rows }: { rows: SegmentRow[] }) {
           return (
             <tr key={r.segment} className="border-b border-[color:var(--ad-line)]">
               <td className="py-1.5 text-[color:var(--ad-ink)] break-all">{r.segment}</td>
-              <td className="py-1.5 text-right ad-tnum text-[color:var(--ad-ink-2)]">{st.toLocaleString()}</td>
-              <td className="py-1.5 text-right ad-tnum text-[color:var(--ad-ink-2)]">{su.toLocaleString()}</td>
-              <td className="py-1.5 text-right ad-tnum font-medium text-[color:var(--ad-ink)]">{c}%</td>
+              <td className="py-1.5 text-right adm-tnum text-[color:var(--ad-ink-2)]">{st.toLocaleString()}</td>
+              <td className="py-1.5 text-right adm-tnum text-[color:var(--ad-ink-2)]">{su.toLocaleString()}</td>
+              <td className="py-1.5 text-right adm-tnum font-medium text-[color:var(--ad-ink)]">{c}%</td>
             </tr>
           );
         })}
@@ -212,7 +212,7 @@ export default function InsightsPage() {
           <label className="text-[12px] font-medium text-[color:var(--ad-ink-2)]">종료
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1 block h-10 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-navy)] focus:outline-none" />
           </label>
-          <button onClick={fetchAll} className="ad-press inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50">새로고침</button>
+          <button onClick={fetchAll} className="adm-press inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50">새로고침</button>
         </div>
       </div>
 
@@ -227,7 +227,7 @@ export default function InsightsPage() {
         <>
           {/* 0. KPI 요약 (+WoW) */}
           {funnel && retention && (
-            <div className="ad-card grid grid-cols-2 md:grid-cols-4 gap-px overflow-hidden bg-[color:var(--ad-line)]">
+            <div className="adm-card grid grid-cols-2 md:grid-cols-4 gap-px overflow-hidden bg-[color:var(--ad-line)]">
               {(() => {
                 const cur = { earn: n(funnel.success), conv: pct(n(funnel.success), n(funnel.flow_start)), nv: n(retention.visitors.new_visitors), re: pct(n(retention.earners.twice) + n(retention.earners.three_plus), n(retention.earners.total)) };
                 const prev = prevFunnel && prevRetention
@@ -244,7 +244,7 @@ export default function InsightsPage() {
                   return (
                     <div key={c.label} className="bg-white p-5">
                       <div className="text-[12px] text-[color:var(--ad-muted)]">{c.label}</div>
-                      <div className="text-[22px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)] mt-1">{c.value.toLocaleString()}{c.unit}</div>
+                      <div className="text-[22px] font-semibold tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)] mt-1">{c.value.toLocaleString()}{c.unit}</div>
                       {dp != null && (
                         <div className={`text-[12px] mt-0.5 ${dp > 0 ? 'text-[color:var(--ad-pos)]' : dp < 0 ? 'text-[color:var(--ad-neg)]' : 'text-[color:var(--ad-faint)]'}`}>
                           {dp > 0 ? '▲' : dp < 0 ? '▼' : '–'} {Math.abs(dp)}% <span className="text-[color:var(--ad-faint)]">vs 직전</span>
@@ -258,13 +258,13 @@ export default function InsightsPage() {
           )}
 
           {/* 1. 적립 퍼널 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">적립 퍼널 (이탈 지점)</h2>
               <div className="flex rounded-[10px] bg-[rgba(29,32,34,0.045)] p-[3px]">
                 {['', 'points', 'membership', 'stamp'].map((ft) => (
                   <button key={ft} onClick={() => setFlowType(ft)}
-                    className={`ad-press px-2.5 py-1 rounded-[8px] text-[12px] ${flowType === ft ? 'bg-white font-medium text-[color:var(--ad-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]' : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'}`}>
+                    className={`adm-press px-2.5 py-1 rounded-[8px] text-[12px] ${flowType === ft ? 'bg-white font-medium text-[color:var(--ad-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]' : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'}`}>
                     {ft === '' ? '전체' : FLOW_LABEL[ft]}
                   </button>
                 ))}
@@ -301,7 +301,7 @@ export default function InsightsPage() {
 
           {/* 1b. 이탈 상세 (동의/실패) */}
           {dropoff && (
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">이탈 상세</h2>
               <div className="grid sm:grid-cols-2 gap-5">
                 <div>
@@ -310,7 +310,7 @@ export default function InsightsPage() {
                     const a = n(dropoff.consent.agreed), na = n(dropoff.consent.not_agreed), tot = a + na;
                     return (
                       <>
-                        <div className="text-[24px] font-semibold tracking-[-0.03em] ad-tnum text-[color:var(--ad-ink)]">{pct(na, tot)}%</div>
+                        <div className="text-[24px] font-semibold tracking-[-0.03em] adm-tnum text-[color:var(--ad-ink)]">{pct(na, tot)}%</div>
                         <div className="text-[12px] text-[color:var(--ad-faint)]">미동의 {na.toLocaleString()} / 클릭 {tot.toLocaleString()}</div>
                       </>
                     );
@@ -331,7 +331,7 @@ export default function InsightsPage() {
           )}
 
           {/* 2. 기능별 사용 (적립방식) */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-1">적립방식별 사용 · 전환율</h2>
             <p className="text-[12px] text-[color:var(--ad-faint)] mb-3">어떤 적립 방식이 많이 시작되고, 완주가 잘 되나</p>
             <ResponsiveContainer width="100%" height={240}>
@@ -353,7 +353,7 @@ export default function InsightsPage() {
 
           {/* 2b. 신규/재방문 + 재적립 */}
           {retention && (
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-1">신규 · 재방문 · 재적립</h2>
               <p className="text-[12px] text-[color:var(--ad-faint)] mb-3">user_id 기반 — 같은 고객이 다시 적립하나(충성도)</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -379,13 +379,13 @@ export default function InsightsPage() {
           )}
 
           {/* 3. 핵심 액션 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">핵심 액션 사용량</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {Object.keys(ACTION_LABEL).map((key) => (
                 <div key={key} className="rounded-[10px] bg-[color:var(--ad-bg-alt)] p-3">
                   <div className="text-[12px] text-[color:var(--ad-muted)]">{ACTION_LABEL[key]}</div>
-                  <div className="text-[18px] font-semibold tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">{n(actions[key]).toLocaleString()}</div>
+                  <div className="text-[18px] font-semibold tracking-[-0.02em] adm-tnum text-[color:var(--ad-ink)]">{n(actions[key]).toLocaleString()}</div>
                 </div>
               ))}
             </div>
@@ -396,7 +396,7 @@ export default function InsightsPage() {
           </div>
 
           {/* 4. 일별 추이 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">일별 추이 (진입 · 성공)</h2>
             <ResponsiveContainer width="100%" height={240}>
               <LineChart data={dailyChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -411,7 +411,7 @@ export default function InsightsPage() {
           </div>
 
           {/* 4b. 시간대·요일 히트맵 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-1">시간대 · 요일 히트맵 (적립 진입)</h2>
             <p className="text-[12px] text-[color:var(--ad-faint)] mb-3">KST 기준 · 진한 칸 = 진입 많음</p>
             <div className="overflow-x-auto">
@@ -433,12 +433,12 @@ export default function InsightsPage() {
           </div>
 
           {/* 5. 매장별 전환율 (개선 타겟) */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">매장별 전환율 {storeSort === 'asc' ? '(개선 타겟)' : '(우수 매장)'}</h2>
               <div className="flex rounded-[10px] bg-[rgba(29,32,34,0.045)] p-[3px]">
-                <button onClick={() => setStoreSort('asc')} className={`ad-press px-2.5 py-1 rounded-[8px] text-[12px] ${storeSort === 'asc' ? 'bg-white font-medium text-[color:var(--ad-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]' : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'}`}>개선 타겟</button>
-                <button onClick={() => setStoreSort('desc')} className={`ad-press px-2.5 py-1 rounded-[8px] text-[12px] ${storeSort === 'desc' ? 'bg-white font-medium text-[color:var(--ad-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]' : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'}`}>우수 매장</button>
+                <button onClick={() => setStoreSort('asc')} className={`adm-press px-2.5 py-1 rounded-[8px] text-[12px] ${storeSort === 'asc' ? 'bg-white font-medium text-[color:var(--ad-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]' : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'}`}>개선 타겟</button>
+                <button onClick={() => setStoreSort('desc')} className={`adm-press px-2.5 py-1 rounded-[8px] text-[12px] ${storeSort === 'desc' ? 'bg-white font-medium text-[color:var(--ad-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]' : 'text-[color:var(--ad-muted)] hover:text-[color:var(--ad-ink)]'}`}>우수 매장</button>
               </div>
             </div>
             <p className="text-[12px] text-[color:var(--ad-faint)] mb-3">시작 20건 이상 · {storeSort === 'asc' ? '전환율 낮은 순(개선 후보)' : '전환율 높은 순(잘 쓰는 매장)'}</p>
@@ -461,9 +461,9 @@ export default function InsightsPage() {
                           {r.name}
                           {r.name !== r.slug && <span className="block text-[12px] text-[color:var(--ad-faint)] ml-4">{r.slug}</span>}
                         </td>
-                        <td className="px-3 py-2.5 text-right ad-tnum text-[color:var(--ad-ink-2)]">{r.starts.toLocaleString()}</td>
-                        <td className="px-3 py-2.5 text-right ad-tnum text-[color:var(--ad-ink-2)]">{r.success.toLocaleString()}</td>
-                        <td className={`px-3 py-2.5 text-right ad-tnum font-medium ${r.conv < 10 ? 'text-[color:var(--ad-neg)]' : 'text-[color:var(--ad-ink)]'}`}>{r.conv}%</td>
+                        <td className="px-3 py-2.5 text-right adm-tnum text-[color:var(--ad-ink-2)]">{r.starts.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right adm-tnum text-[color:var(--ad-ink-2)]">{r.success.toLocaleString()}</td>
+                        <td className={`px-3 py-2.5 text-right adm-tnum font-medium ${r.conv < 10 ? 'text-[color:var(--ad-neg)]' : 'text-[color:var(--ad-ink)]'}`}>{r.conv}%</td>
                       </tr>
                       {openStore === r.slug && (
                         <tr className="bg-[color:var(--ad-bg-alt)]">
@@ -496,7 +496,7 @@ export default function InsightsPage() {
 
           {/* 6. 별점 분포 */}
           {ratings.length > 0 && (
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">피드백 별점 분포</h2>
               {(() => {
                 const tot = ratings.reduce((s, r) => s + n(r.cnt), 0);
@@ -530,7 +530,7 @@ export default function InsightsPage() {
 
           {/* 7. 쿠폰 효과 */}
           {coupon && (
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">쿠폰 효과 (다운 → 사용)</h2>
               <div className="grid grid-cols-3 gap-3 mb-3">
                 <Stat label="다운로드" value={n(coupon.total.download)} />
@@ -548,7 +548,7 @@ export default function InsightsPage() {
           )}
 
           {/* 8. 기기/유입경로별 전환 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">기기 · 유입경로별 전환</h2>
             <div className="grid md:grid-cols-2 gap-5">
               <div>
@@ -563,7 +563,7 @@ export default function InsightsPage() {
           </div>
 
           {/* 9. 신규 고객 획득 추이 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-3">신규 고객 획득 추이 (first_visit)</h2>
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={newCust.map((r) => ({ date: `${r.event_date.slice(4, 6)}/${r.event_date.slice(6, 8)}`, 신규: n(r.cnt) }))} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -574,7 +574,7 @@ export default function InsightsPage() {
           </div>
 
           {/* 10. 사장님 기능 사용 현황 */}
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)] mb-1">사장님 기능 사용 현황</h2>
             <p className="text-[12px] text-[color:var(--ad-faint)] mb-3">owner 이벤트 · 부스터는 06-30부터 데이터 · 채택률 = 쓴 사장님 / 전체 매장({totalStores.toLocaleString()})</p>
             {ownerUsage.length === 0 ? (
@@ -585,7 +585,7 @@ export default function InsightsPage() {
                   {ownerUsage.map((r) => (
                     <div key={r.event_name} className="rounded-[10px] bg-[color:var(--ad-bg-alt)] p-3">
                       <div className="text-[12px] text-[color:var(--ad-muted)]">{OWNER_LABEL[r.event_name] || r.event_name}</div>
-                      <div className="text-[18px] font-semibold tracking-[-0.02em] ad-tnum text-[color:var(--ad-ink)]">{n(r.cnt).toLocaleString()}</div>
+                      <div className="text-[18px] font-semibold tracking-[-0.02em] adm-tnum text-[color:var(--ad-ink)]">{n(r.cnt).toLocaleString()}</div>
                       <div className="text-[12px] text-[color:var(--ad-faint)]">사장님 {n(r.owners)} · 채택 {pct(n(r.owners), totalStores)}%</div>
                     </div>
                   ))}

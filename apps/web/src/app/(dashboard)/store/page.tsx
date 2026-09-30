@@ -342,9 +342,9 @@ export default function StorePage() {
   };
 
   const primaryBtn =
-    'ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40';
+    'adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:cursor-not-allowed disabled:opacity-40';
   const secondaryBtn =
-    'ad-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]';
+    'adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]';
   const inputCls =
     'h-10 rounded-[10px] border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)] focus:outline-none';
   const labelCls = 'mb-1.5 block text-[13px] font-medium text-[color:var(--ad-ink-2)]';
@@ -364,7 +364,7 @@ export default function StorePage() {
     return (
       <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
         <div className="mx-auto max-w-md py-12">
-          <div className="ad-card p-8 text-center">
+          <div className="adm-card p-8 text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--ad-bg)]">
               <CheckCircle2 className="h-6 w-6 text-[color:var(--ad-ink-2)]" strokeWidth={1.7} />
             </div>
@@ -406,14 +406,14 @@ export default function StorePage() {
           <h2 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">상품 목록</h2>
 
           {products.length === 0 ? (
-            <div className="ad-card py-12 text-center">
+            <div className="adm-card py-12 text-center">
               <Package className="mx-auto mb-3 h-10 w-10 text-[color:var(--ad-line-strong)]" strokeWidth={1.5} />
               <p className="text-[13px] text-[color:var(--ad-faint)]">등록된 상품이 없습니다.</p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {products.map(product => (
-                <div key={product.id} className="ad-card overflow-hidden transition-shadow hover:shadow-[0_8px_24px_-12px_rgba(29,32,34,0.18)]">
+                <div key={product.id} className="adm-card overflow-hidden transition-shadow hover:shadow-[0_8px_24px_-12px_rgba(29,32,34,0.18)]">
                   {/* 상품 이미지 또는 플레이스홀더 */}
                   <div className="relative aspect-square bg-[color:var(--ad-bg)]">
                     {product.imageUrl ? (
@@ -440,13 +440,13 @@ export default function StorePage() {
                       <div className="mb-4" />
                     )}
                     <div className="flex items-center justify-between">
-                      <span className="ad-tnum text-[17px] font-semibold tracking-[-0.02em] text-[color:var(--ad-ink)]">
+                      <span className="adm-tnum text-[17px] font-semibold tracking-[-0.02em] text-[color:var(--ad-ink)]">
                         {formatPrice(product.price)}
                       </span>
                       <button
                         type="button"
                         onClick={() => addToCart(product)}
-                        className="ad-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
+                        className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
                       >
                         <Plus className="h-4 w-4" />
                         담기
@@ -461,12 +461,12 @@ export default function StorePage() {
 
         {/* Cart & Checkout */}
         <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-          <div className="ad-card p-5">
+          <div className="adm-card p-5">
             <h2 className="mb-4 flex items-center gap-2 text-[14px] font-semibold text-[color:var(--ad-ink)]">
               <ShoppingBag className="h-4 w-4 text-[color:var(--ad-faint)]" strokeWidth={1.8} />
               장바구니
               {cart.length > 0 && (
-                <span className="ad-tnum ml-auto text-[12px] font-normal text-[color:var(--ad-muted)]">
+                <span className="adm-tnum ml-auto text-[12px] font-normal text-[color:var(--ad-muted)]">
                   {cart.length}개 상품
                 </span>
               )}
@@ -500,22 +500,22 @@ export default function StorePage() {
                           <p className="truncate text-[13px] font-medium text-[color:var(--ad-ink)]">
                             {item.product.name}
                           </p>
-                          <p className="ad-tnum text-[12.5px] text-[color:var(--ad-muted)]">
+                          <p className="adm-tnum text-[12.5px] text-[color:var(--ad-muted)]">
                             {formatPrice(item.product.price)}
                           </p>
                           <div className="mt-2 flex items-center gap-2">
                             <button
                               onClick={() => updateQuantity(item.product.id, -1)}
-                              className="ad-press rounded-[8px] bg-white p-1.5 text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] transition-colors hover:bg-[color:var(--ad-bg-alt)]"
+                              className="adm-press rounded-[8px] bg-white p-1.5 text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] transition-colors hover:bg-[color:var(--ad-bg-alt)]"
                             >
                               <Minus className="h-3.5 w-3.5" />
                             </button>
-                            <span className="ad-tnum w-6 text-center text-[13px] font-medium text-[color:var(--ad-ink)]">
+                            <span className="adm-tnum w-6 text-center text-[13px] font-medium text-[color:var(--ad-ink)]">
                               {item.quantity}
                             </span>
                             <button
                               onClick={() => updateQuantity(item.product.id, 1)}
-                              className="ad-press rounded-[8px] bg-white p-1.5 text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] transition-colors hover:bg-[color:var(--ad-bg-alt)]"
+                              className="adm-press rounded-[8px] bg-white p-1.5 text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] transition-colors hover:bg-[color:var(--ad-bg-alt)]"
                             >
                               <Plus className="h-3.5 w-3.5" />
                             </button>
@@ -534,7 +534,7 @@ export default function StorePage() {
                   <div className="border-t border-[color:var(--ad-line)] pt-4">
                     <div className="flex items-center justify-between rounded-[12px] bg-[color:var(--ad-bg-alt)] p-3">
                       <span className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">총 결제금액</span>
-                      <span className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                      <span className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                         {formatPrice(totalAmount)}
                       </span>
                     </div>
@@ -546,7 +546,7 @@ export default function StorePage() {
 
           {/* Customer Info */}
           {cart.length > 0 && (
-            <div className="ad-card p-5">
+            <div className="adm-card p-5">
               <h2 className="mb-4 text-[14px] font-semibold text-[color:var(--ad-ink)]">구매자 정보</h2>
               <div className="space-y-3">
                 <div>
@@ -609,7 +609,7 @@ export default function StorePage() {
             <div className="mb-4 rounded-[12px] bg-[color:var(--ad-bg-alt)] p-3">
               <div className="flex items-center justify-between">
                 <span className="text-[13px] text-[color:var(--ad-muted)]">결제 금액</span>
-                <span className="ad-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
+                <span className="adm-tnum text-[20px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)]">
                   {formatPrice(totalAmount)}
                 </span>
               </div>
