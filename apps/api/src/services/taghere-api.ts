@@ -710,7 +710,7 @@ export async function fetchOrderStayTimesFromV2(params: {
 }
 
 /**
- * 매장의 기간 평균 체류 시간을 V2 에서 가져온다. from 을 생략하면 전체 기간이다.
+ * 매장의 기간 평균 체류 시간을 V2 에서 가져온다. from 을 생략하면 V2 가 최근 1년(to−365일)로 잡는다. 기간은 최대 365일.
  * 데이터 분석 페이지가 V2 장애에 묶이지 않도록 throw 하지 않고, 실패는 전부 null 로 반환한다.
  */
 export async function fetchStayTimeStatsFromV2(params: {

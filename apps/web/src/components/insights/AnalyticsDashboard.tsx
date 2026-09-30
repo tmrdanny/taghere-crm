@@ -389,7 +389,10 @@ export function AnalyticsDashboard({
           {stayTime?.supported && (
             <Card className={cardCls}>
               <CardContent className="p-5">
-                <CardHead title="평균 체류 시간" desc="첫 태그부터 POS 결제완료까지 · 후불 POS 매장 기준" />
+                <CardHead
+                  title="평균 체류 시간"
+                  desc={`첫 태그부터 POS 결제완료까지 · 후불 POS 매장 기준${days === 0 ? ' · 최근 1년' : ''}`}
+                />
                 {!stayTime.available ? (
                   <p className="text-[12.5px] text-[#91959a]">데이터를 불러오지 못했습니다</p>
                 ) : stayTime.averageStayMinutes === null ? (
