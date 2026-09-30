@@ -239,23 +239,19 @@ router.post('/franchises/:franchiseId/stores', adminAuthMiddleware, async (req: 
       return res.status(400).json({ error: '이미 다른 프랜차이즈에 연결된 매장입니다.' });
     }
 
-    // 매장을 프랜차이즈에 연결
+    // 매장을 프랜차이즈에 연결 (응답에 필요한 필드만 조회)
     const updatedStore = await prisma.store.update({
       where: { id: storeId },
       data: {
         franchiseId,
       },
-      include: {
-        _count: {
-          select: {
-            customers: true,
-          },
-        },
-        wallet: {
-          select: {
-            balance: true,
-          },
-        },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        franchiseId: true,
+        _count: { select: { customers: true } },
+        wallet: { select: { balance: true } },
       },
     });
 
@@ -266,6 +262,70 @@ router.post('/franchises/:franchiseId/stores', adminAuthMiddleware, async (req: 
   } catch (error: any) {
     console.error('Failed to connect store to franchise:', error);
     res.status(500).json({ error: '매장 연결에 실패했습니다.' });
+  }
+});
+
+// POST /api/admin/franchises/:franchiseId/stores/bulk - 여러 매장을 한 번에 연결
+// 매장마다 요청을 보내던 방식은 실패 이유가 화면에 전달되지 않아 "연결이 안 된다"로만 보였다.
+// 한 번에 처리하고, 연결하지 못한 매장은 이유와 함께 돌려준다.
+const BULK_LINK_MAX = 2000;
+
+router.post('/franchises/:franchiseId/stores/bulk', adminAuthMiddleware, async (req: AdminRequest, res: Response) => {
+  try {
+    const { franchiseId } = req.params;
+    const rawIds: unknown = req.body?.storeIds;
+
+    if (!Array.isArray(rawIds) || rawIds.length === 0) {
+      return res.status(400).json({ error: '연결할 매장을 선택해주세요.' });
+    }
+    const storeIds = [...new Set(rawIds.filter((id): id is string => typeof id === 'string' && id.length > 0))];
+    if (storeIds.length > BULK_LINK_MAX) {
+      return res.status(400).json({ error: `한 번에 최대 ${BULK_LINK_MAX.toLocaleString()}개 매장까지 연결할 수 있습니다.` });
+    }
+
+    const franchise = await prisma.franchise.findUnique({ where: { id: franchiseId }, select: { id: true } });
+    if (!franchise) {
+      return res.status(404).json({ error: '프랜차이즈를 찾을 수 없습니다.' });
+    }
+
+    const stores = await prisma.store.findMany({
+      where: { id: { in: storeIds } },
+      select: { id: true, name: true, franchiseId: true },
+    });
+    const found = new Map(stores.map((st) => [st.id, st]));
+
+    const failed: Array<{ storeId: string; name: string | null; reason: string }> = [];
+    const toLink: string[] = [];
+    let alreadyLinked = 0;
+    for (const id of storeIds) {
+      const st = found.get(id);
+      if (!st) failed.push({ storeId: id, name: null, reason: '매장을 찾을 수 없습니다.' });
+      else if (st.franchiseId === franchiseId) alreadyLinked++;
+      else if (st.franchiseId) failed.push({ storeId: id, name: st.name, reason: '이미 다른 프랜차이즈에 연결된 매장입니다.' });
+      else toLink.push(id);
+    }
+
+    // franchiseId: null 조건을 함께 걸어, 그사이 다른 프랜차이즈에 연결된 매장을 덮어쓰지 않는다
+    const result = toLink.length
+      ? await prisma.store.updateMany({ where: { id: { in: toLink }, franchiseId: null }, data: { franchiseId } })
+      : { count: 0 };
+
+    if (result.count < toLink.length) {
+      const nowLinked = await prisma.store.findMany({
+        where: { id: { in: toLink } },
+        select: { id: true, name: true, franchiseId: true },
+      });
+      for (const st of nowLinked) {
+        if (st.franchiseId !== franchiseId) {
+          failed.push({ storeId: st.id, name: st.name, reason: '연결하는 사이 다른 프랜차이즈에 연결되었습니다.' });
+        }
+      }
+    }
+
+    res.json({ success: true, linked: result.count, alreadyLinked, failed });
+  } catch (error: any) {
+    console.error('Failed to bulk connect stores to franchise:', error);
+    res.status(500).json({ error: `매장 연결에 실패했습니다. (${error?.code || error?.message || 'unknown'})` });
   }
 });
 

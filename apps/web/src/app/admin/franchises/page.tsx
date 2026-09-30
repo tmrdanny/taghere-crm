@@ -1,7 +1,8 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { matchesStoreKeyword, normalizeForSearch } from '@/lib/store-search';
 import { useRouter } from 'next/navigation';
 
 interface FranchiseUser {
@@ -94,6 +95,16 @@ export default function FranchisesPage() {
   // 매장 다중 선택 상태
   const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set());
   const [bulkLinking, setBulkLinking] = useState(false);
+  const [storesLoading, setStoresLoading] = useState(false);
+  const [storeSearch, setStoreSearch] = useState('');
+  // 브라우저 확인창(confirm) 대신 모달 안에서 한 번 더 확인한다 — 크롬에서 "대화상자 차단"이
+  // 켜지면 confirm 이 바로 취소로 처리돼 버튼을 눌러도 아무 일도 일어나지 않았다.
+  const [confirmingLink, setConfirmingLink] = useState(false);
+  const [linkResult, setLinkResult] = useState<{
+    type: 'success' | 'error';
+    message: string;
+    failed?: Array<{ storeId: string; name: string | null; reason: string }>;
+  } | null>(null);
 
   // 프랜차이즈 생성 폼 데이터
   const [formData, setFormData] = useState({
@@ -136,6 +147,7 @@ export default function FranchisesPage() {
   };
 
   const fetchAvailableStores = async () => {
+    setStoresLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
       const res = await fetch(`${API_URL}/api/admin/stores/available`, {
@@ -150,7 +162,29 @@ export default function FranchisesPage() {
       setAvailableStores(data.stores);
     } catch (error) {
       console.error('Failed to fetch available stores:', error);
+      setLinkResult({ type: 'error', message: '매장 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.' });
+    } finally {
+      setStoresLoading(false);
     }
+  };
+
+  // 매장 추가 모달 열기 — 열 때마다 최신 미연결 매장 목록을 다시 불러온다
+  const openAddStoreModal = (franchise: Franchise) => {
+    setSelectedFranchise(franchise);
+    setSelectedStoreIds(new Set());
+    setStoreSearch('');
+    setConfirmingLink(false);
+    setLinkResult(null);
+    setShowAddStoreModal(true);
+    fetchAvailableStores();
+  };
+
+  const closeAddStoreModal = () => {
+    setShowAddStoreModal(false);
+    setSelectedFranchise(null);
+    setSelectedStoreIds(new Set());
+    setConfirmingLink(false);
+    setLinkResult(null);
   };
 
   const handleCreateFranchise = async (e: React.FormEvent) => {
@@ -214,40 +248,6 @@ export default function FranchisesPage() {
     }
   };
 
-  const handleAddStore = async (storeId: string) => {
-    if (!selectedFranchise) return;
-
-    if (!confirm('이 매장을 선택한 프랜차이즈에 연결하시겠습니까?')) {
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${API_URL}/api/admin/franchises/${selectedFranchise.id}/stores`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ storeId }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || '매장 연결에 실패했습니다.');
-      }
-
-      alert('매장이 연결되었습니다.');
-      setShowAddStoreModal(false);
-      setSelectedFranchise(null);
-      fetchFranchises();
-      fetchAvailableStores();
-    } catch (error: any) {
-      alert(error.message);
-    }
-  };
-
   // 매장 다중 선택 토글
   const toggleStoreSelection = (storeId: string) => {
     setSelectedStoreIds(prev => {
@@ -261,52 +261,76 @@ export default function FranchisesPage() {
     });
   };
 
+  // 검색어로 좁힌 목록 (매장명·slug·점주명·주소)
+  const filteredAvailableStores = useMemo(() => {
+    const keyword = storeSearch.trim();
+    if (!keyword) return availableStores;
+    const normalized = normalizeForSearch(keyword);
+    return availableStores.filter(
+      (st) => matchesStoreKeyword(st, keyword) || normalizeForSearch(st.address).includes(normalized)
+    );
+  }, [availableStores, storeSearch]);
+
+  const allFilteredSelected =
+    filteredAvailableStores.length > 0 && filteredAvailableStores.every((st) => selectedStoreIds.has(st.id));
+
+  // 전체 선택은 지금 보이는(검색된) 매장에만 적용
   const toggleSelectAll = () => {
-    if (selectedStoreIds.size === availableStores.length) {
-      setSelectedStoreIds(new Set());
-    } else {
-      setSelectedStoreIds(new Set(availableStores.map(s => s.id)));
-    }
+    setSelectedStoreIds((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) filteredAvailableStores.forEach((st) => next.delete(st.id));
+      else filteredAvailableStores.forEach((st) => next.add(st.id));
+      return next;
+    });
   };
 
-  // 선택된 매장 일괄 연결
+  // 선택된 매장 일괄 연결 — 한 번의 요청으로 처리하고 실패 이유를 모달에 보여준다
   const handleBulkLinkStores = async () => {
     if (!selectedFranchise || selectedStoreIds.size === 0) return;
-    if (!confirm(`${selectedStoreIds.size}개 매장을 ${selectedFranchise.name}에 연결하시겠습니까?`)) return;
 
     setBulkLinking(true);
-    const token = localStorage.getItem('adminToken');
-    let successCount = 0;
-    let failCount = 0;
+    setLinkResult(null);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/api/admin/franchises/${selectedFranchise.id}/stores/bulk`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ storeIds: [...selectedStoreIds] }),
+      });
+      const data = await res.json().catch(() => ({}));
 
-    for (const storeId of selectedStoreIds) {
-      try {
-        const res = await fetch(`${API_URL}/api/admin/franchises/${selectedFranchise.id}/stores`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ storeId }),
-        });
-        if (res.ok) {
-          successCount++;
-        } else {
-          failCount++;
-        }
-      } catch {
-        failCount++;
+      if (!res.ok) {
+        const reason =
+          res.status === 401 || res.status === 403
+            ? '관리자 로그인이 만료되었습니다. 다시 로그인한 뒤 시도해주세요.'
+            : data.error || `매장 연결에 실패했습니다. (오류 ${res.status})`;
+        setLinkResult({ type: 'error', message: reason });
+        return;
       }
-    }
 
-    setBulkLinking(false);
-    setSelectedStoreIds(new Set());
-    const failMsg = failCount > 0 ? `, ${failCount}개 실패` : '';
-    alert(`${successCount}개 매장 연결 완료${failMsg}`);
-    setShowAddStoreModal(false);
-    setSelectedFranchise(null);
-    fetchFranchises();
-    fetchAvailableStores();
+      const failed = data.failed || [];
+      const linkedTotal = (data.linked || 0) + (data.alreadyLinked || 0);
+      setLinkResult({
+        type: failed.length > 0 ? 'error' : 'success',
+        message:
+          failed.length > 0
+            ? `${linkedTotal}개 매장을 연결했고, ${failed.length}개는 연결하지 못했습니다.`
+            : `${linkedTotal}개 매장을 ${selectedFranchise.name}에 연결했습니다.`,
+        failed,
+      });
+      setSelectedStoreIds(new Set());
+      fetchFranchises();
+      fetchAvailableStores();
+    } catch (error) {
+      console.error('Failed to bulk link stores:', error);
+      setLinkResult({ type: 'error', message: '네트워크 오류로 매장을 연결하지 못했습니다. 잠시 후 다시 시도해주세요.' });
+    } finally {
+      setBulkLinking(false);
+      setConfirmingLink(false);
+    }
   };
 
   const handleLogoUpload = async (e: React.FormEvent) => {
@@ -637,10 +661,7 @@ export default function FranchisesPage() {
                             차감
                           </button>
                           <button
-                            onClick={() => {
-                              setSelectedFranchise(franchise);
-                              setShowAddStoreModal(true);
-                            }}
+                            onClick={() => openAddStoreModal(franchise)}
                             className="text-[12.5px] font-medium text-[color:var(--ad-link)] hover:underline"
                           >
                             매장 추가
@@ -818,77 +839,141 @@ export default function FranchisesPage() {
               프랜차이즈에 연결되지 않은 매장 목록입니다. 체크박스로 여러 매장을 선택한 후 일괄 연결할 수 있습니다.
             </p>
 
-            {availableStores.length === 0 ? (
+            {/* 연결 결과 */}
+            {linkResult && (
+              <div
+                className={`mb-3 rounded-[12px] px-4 py-3 text-[13px] ${
+                  linkResult.type === 'success'
+                    ? 'bg-[color:var(--ad-blue-soft)] text-[color:var(--ad-ink)]'
+                    : 'bg-[#fff2f5] text-[color:var(--ad-neg)]'
+                }`}
+              >
+                <p className="font-medium">{linkResult.message}</p>
+                {linkResult.failed && linkResult.failed.length > 0 && (
+                  <ul className="mt-1.5 space-y-0.5 text-[12.5px]">
+                    {linkResult.failed.slice(0, 10).map((f) => (
+                      <li key={f.storeId}>
+                        {f.name || f.storeId}: {f.reason}
+                      </li>
+                    ))}
+                    {linkResult.failed.length > 10 && <li>외 {linkResult.failed.length - 10}개</li>}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {storesLoading && availableStores.length === 0 ? (
+              <div className="py-12 text-center text-[13px] text-[color:var(--ad-faint)]">매장 목록을 불러오는 중...</div>
+            ) : availableStores.length === 0 ? (
               <div className="py-12 text-center text-[13px] text-[color:var(--ad-faint)]">
                 연결 가능한 매장이 없습니다.
               </div>
             ) : (
               <>
-                {/* 전체 선택 + 일괄 연결 바 */}
-                <div className="flex items-center justify-between mb-3 p-3 bg-[color:var(--ad-bg-alt)] rounded-[12px]">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedStoreIds.size === availableStores.length && availableStores.length > 0}
-                      onChange={toggleSelectAll}
-                      className="w-4 h-4 rounded border-[color:var(--ad-line-strong)] accent-[#131651]"
-                    />
-                    <span className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">
-                      전체 선택 ({selectedStoreIds.size}/{availableStores.length})
-                    </span>
-                  </label>
-                  {selectedStoreIds.size > 0 && (
-                    <button
-                      onClick={handleBulkLinkStores}
-                      disabled={bulkLinking}
-                      className="adm-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
-                    >
-                      {bulkLinking ? '연결 중...' : `${selectedStoreIds.size}개 매장 일괄 연결`}
-                    </button>
+                {/* 매장 검색 */}
+                <input
+                  type="text"
+                  value={storeSearch}
+                  onChange={(e) => setStoreSearch(e.target.value)}
+                  placeholder="매장명 · slug · 점주명 · 주소로 검색"
+                  className="mb-3 h-10 w-full rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)] focus:outline-none"
+                />
+
+                {/* 전체 선택 + 일괄 연결 바 (스크롤해도 위에 고정) */}
+                <div className="sticky top-0 z-10 mb-3 rounded-[12px] bg-[color:var(--ad-bg-alt)] p-3 shadow-[0_1px_0_var(--ad-line)]">
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={allFilteredSelected}
+                        onChange={toggleSelectAll}
+                        disabled={filteredAvailableStores.length === 0}
+                        className="w-4 h-4 rounded border-[color:var(--ad-line-strong)] accent-[#131651]"
+                      />
+                      <span className="text-[13px] font-medium text-[color:var(--ad-ink-2)]">
+                        {storeSearch.trim() ? '검색 결과 전체 선택' : '전체 선택'} ({selectedStoreIds.size}/
+                        {storeSearch.trim() ? `${filteredAvailableStores.length}` : availableStores.length})
+                      </span>
+                    </label>
+                    {selectedStoreIds.size > 0 && !confirmingLink && (
+                      <button
+                        onClick={() => {
+                          setLinkResult(null);
+                          setConfirmingLink(true);
+                        }}
+                        disabled={bulkLinking}
+                        className="adm-press inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
+                      >
+                        {selectedStoreIds.size}개 매장 일괄 연결
+                      </button>
+                    )}
+                  </div>
+                  {confirmingLink && (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[color:var(--ad-line)] pt-3">
+                      <p className="text-[13px] text-[color:var(--ad-ink)]">
+                        <strong>{selectedStoreIds.size}개 매장</strong>을 {selectedFranchise.name}에 연결할까요?
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setConfirmingLink(false)}
+                          disabled={bulkLinking}
+                          className="adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] font-medium text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] disabled:opacity-50"
+                        >
+                          취소
+                        </button>
+                        <button
+                          onClick={handleBulkLinkStores}
+                          disabled={bulkLinking}
+                          className="adm-press h-9 px-4 rounded-[10px] bg-[color:var(--ad-yellow)] text-[13px] font-semibold text-[color:var(--ad-ink)] hover:bg-[color:var(--ad-yellow-strong)] disabled:opacity-50"
+                        >
+                          {bulkLinking ? '연결 중...' : '연결하기'}
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  {availableStores.map((store) => (
-                    <div
-                      key={store.id}
-                      onClick={() => toggleStoreSelection(store.id)}
-                      className={`flex items-center gap-3 p-4 border rounded-[12px] cursor-pointer transition-colors ${
-                        selectedStoreIds.has(store.id)
-                          ? 'border-[color:var(--ad-blue)] bg-[color:var(--ad-blue-soft)]'
-                          : 'border-[color:var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)]'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedStoreIds.has(store.id)}
-                        onChange={() => toggleStoreSelection(store.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-4 h-4 rounded border-[color:var(--ad-line-strong)] accent-[#131651] flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">{store.name}</div>
-                        <div className="text-[12.5px] text-[color:var(--ad-muted)] mt-1">
-                          {store.ownerName && `${store.ownerName} · `}
-                          {store.address || '주소 없음'} · 고객 {store._count.customers}명
+                {filteredAvailableStores.length === 0 ? (
+                  <div className="py-8 text-center text-[13px] text-[color:var(--ad-faint)]">검색 결과가 없습니다.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredAvailableStores.map((store) => (
+                      <div
+                        key={store.id}
+                        onClick={() => toggleStoreSelection(store.id)}
+                        className={`flex items-center gap-3 p-4 border rounded-[12px] cursor-pointer transition-colors ${
+                          selectedStoreIds.has(store.id)
+                            ? 'border-[color:var(--ad-blue)] bg-[color:var(--ad-blue-soft)]'
+                            : 'border-[color:var(--ad-line)] hover:bg-[color:var(--ad-bg-alt)]'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedStoreIds.has(store.id)}
+                          onChange={() => toggleStoreSelection(store.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 rounded border-[color:var(--ad-line-strong)] accent-[#131651] flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">{store.name}</div>
+                          <div className="text-[12.5px] text-[color:var(--ad-muted)] mt-1">
+                            {store.ownerName && `${store.ownerName} · `}
+                            {store.address || '주소 없음'} · 고객 {store._count.customers}명
+                          </div>
+                          {store.slug && (
+                            <div className="text-[11.5px] text-[color:var(--ad-faint)] mt-1">Slug: {store.slug}</div>
+                          )}
                         </div>
-                        {store.slug && (
-                          <div className="text-[11.5px] text-[color:var(--ad-faint)] mt-1">Slug: {store.slug}</div>
-                        )}
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </>
             )}
 
             <div className="mt-6">
               <button
-                onClick={() => {
-                  setShowAddStoreModal(false);
-                  setSelectedFranchise(null);
-                  setSelectedStoreIds(new Set());
-                }}
+                onClick={closeAddStoreModal}
                 className="w-full adm-press h-9 px-3.5 rounded-[10px] bg-white text-[13px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)] font-medium"
               >
                 닫기
