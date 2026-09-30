@@ -9,6 +9,8 @@ import { refundAcquisitionCoupons } from './acquisition-coupon.js';
 import { refundGroupCouponFailures } from './retarget-coupon-group.js';
 import { finalizePremiumKakaoCampaigns } from './premium-kakao/send.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
+import { isSmsOnlyTemplate } from './kakao-channel-templates.js';
+import { isSendableTime, getNextSendableTime } from '../utils/send-window.js';
 
 const BATCH_SIZE = 10;
 const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
@@ -120,6 +122,14 @@ async function processMessage(messageId: string): Promise<void> {
   // 네이버 플레이스 부스터: 알리고(Aligo)로 발송, 지갑/크레딧 미경유 (캠페인 선결제)
   if (msg.messageType === 'PLACE_BOOSTER') {
     await processPlaceBoosterViaAligo(msg);
+    return;
+  }
+
+  // 리타겟 쿠폰·자동 마케팅은 광고 문자로 나간다 — 야간(20:50~08:00)이면 차감 없이 다음 오전 8시로 미룬다
+  if (!msg.solapiMessageId && isSmsOnlyTemplate(msg.templateId) && !isSendableTime()) {
+    const at = getNextSendableTime();
+    await prisma.alimTalkOutbox.update({ where: { id: messageId }, data: { status: 'PENDING', scheduledAt: at, updatedAt: new Date() } });
+    console.log(`[Worker] Ad SMS ${messageId} (${msg.messageType}) deferred to ${at.toISOString()}`);
     return;
   }
 

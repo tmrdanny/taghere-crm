@@ -1,5 +1,6 @@
 'use client';
 
+import { CouponSmsBodyField } from '@/features/kakao-composer';
 import { API_BASE } from '@/lib/api-config';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { Fragment, useState, useEffect, useCallback } from 'react';
@@ -97,6 +98,8 @@ export default function MessagesPage() {
   // 리타겟 쿠폰 상태
   const [couponContent, setCouponContent] = useState('');
   const [couponExpiryDate, setCouponExpiryDate] = useState('');
+  // 쿠폰 문자 본문 — null 이면 기본 문구 (리타겟 쿠폰은 광고 문자로 나간다)
+  const [couponSmsBody, setCouponSmsBody] = useState<string | null>(null);
   const [couponNaverPlaceUrl, setCouponNaverPlaceUrl] = useState('');
   const [couponStoreName, setCouponStoreName] = useState('');
   const [isCouponSending, setIsCouponSending] = useState(false);
@@ -1578,7 +1581,7 @@ export default function MessagesPage() {
           <PremiumKakaoComposer
             leadingType={{
               name: '템플릿 기본형',
-              tip: '쿠폰 알림톡',
+              tip: '쿠폰 문자로 발송',
               priceLabel: '건당 50원',
               selected: kakaoMode === 'ALIMTALK',
               onSelect: () => setKakaoMode('ALIMTALK'),
@@ -1618,6 +1621,9 @@ export default function MessagesPage() {
                   className="w-full h-10 px-3 border border-[color:var(--ad-line-strong)] bg-white rounded-[10px] text-[13.5px] placeholder:text-[color:var(--ad-faint)] focus:outline-none focus:border-[color:var(--ad-navy)]"
                 />
               </div>
+
+              {/* 문자 내용 — 기본 문구 / 직접 쓰기 */}
+              <CouponSmsBodyField value={couponSmsBody} onChange={setCouponSmsBody} />
 
               {/* 네이버 플레이스 URL - 선택사항 표시 */}
               {showAdvancedSettings && (
@@ -1753,6 +1759,7 @@ export default function MessagesPage() {
                     const body: any = {
                       couponContent: couponContent.trim(),
                       expiryDate: couponExpiryDate.trim(),
+                      smsBody: couponSmsBody,
                       naverPlaceUrl: couponNaverPlaceUrl.trim() || null,
                       targetType: selectedTarget,
                       genderFilter: genderFilter !== 'all' ? genderFilter : undefined,
@@ -1785,7 +1792,7 @@ export default function MessagesPage() {
 
                     const result = await sendRes.json();
                     if (sendRes.ok) {
-                      showToast(result.message || '쿠폰 알림톡이 발송되었습니다.', 'success');
+                      showToast(result.message || '쿠폰 문자가 발송되었습니다.', 'success');
                       bumpReservations();
                       setCouponContent('');
                       setCouponExpiryDate('');
@@ -1809,7 +1816,7 @@ export default function MessagesPage() {
                 ) : (
                   <>
                     <Send className="h-4 w-4" />
-                    {couponSendTime.mode === 'schedule' ? `${formatSendTime(couponSendTime)} 예약하기` : '쿠폰 알림톡 발송하기'} ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
+                    {couponSendTime.mode === 'schedule' ? `${formatSendTime(couponSendTime)} 예약하기` : '쿠폰 문자 발송하기'} ({formatNumber(couponEstimate?.totalCost ?? (getCurrentTargetCount() * 50))}원)
                   </>
                 )}
               </button>
@@ -1867,6 +1874,7 @@ export default function MessagesPage() {
               couponStoreName={couponStoreName}
               couponContent={couponContent}
               couponExpiryDate={couponExpiryDate}
+              couponSmsBody={couponSmsBody}
               inline={inline}
             />
           );

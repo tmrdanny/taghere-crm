@@ -1,7 +1,7 @@
 import { ChevronLeft, Users, Camera, ArrowUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { API_BASE } from '@/lib/api-config';
-import { CouponAlimtalkPreview } from '@/features/kakao-composer';
+import { CouponSmsPreview } from '@/features/kakao-composer';
 import { UploadedImage } from './types';
 import { IPhoneFrame } from '@/components/ui/iphone-frame';
 
@@ -15,6 +15,7 @@ export function MessagePreview({
   couponStoreName,
   couponContent,
   couponExpiryDate,
+  couponSmsBody = null,
   inline = false,
 }: {
   activeTab: 'sms' | 'kakao';
@@ -24,6 +25,8 @@ export function MessagePreview({
   couponStoreName: string;
   couponContent: string;
   couponExpiryDate: string;
+  /** 쿠폰 문자 본문 (null 이면 기본 문구) */
+  couponSmsBody?: string | null;
   /** 모바일 시트 안에서 쓸 때 — 데스크톱 전용 숨김 없이 그린다 */
   inline?: boolean;
 }) {
@@ -99,10 +102,11 @@ export function MessagePreview({
 
                 {/* Kakao Preview - 쿠폰 알림톡 */}
                 {activeTab === 'kakao' && (
-                  <CouponAlimtalkPreview
+                  <CouponSmsPreview
                     couponStoreName={couponStoreName}
                     couponContent={couponContent}
                     couponExpiryDate={couponExpiryDate}
+                    customBody={couponSmsBody}
                   />
                 )}
           </IPhoneFrame>

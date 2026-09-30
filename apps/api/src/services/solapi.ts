@@ -1,6 +1,7 @@
 import { SolapiMessageService } from 'solapi';
 import * as crypto from 'crypto';
 import { normalizePhoneNumber } from '../utils/phone.js';
+import { isSmsOnlyTemplate, renderRetargetCouponSms, templateForChannel } from './kakao-channel-templates.js';
 
 // 알림톡 템플릿/enqueue 함수는 alimtalk-templates.ts 로 이동됨.
 // 기존 import 경로('./solapi.js') 호환을 위해 그대로 재-export 한다.
@@ -69,17 +70,19 @@ export class SolapiService {
       // 전화번호 정규화
       const normalizedPhone = this.normalizePhoneNumber(params.to);
 
-      // 알림톡(ATA) 발송 요청 구성
-      const sendParams: any = {
-        to: normalizedPhone,
-        from: '07041380263', // 발신번호 고정
-        type: 'ATA', // 알림톡 타입 명시
-        kakaoOptions: {
-          pfId: params.pfId,
-          templateId: params.templateId,
-          variables: params.variables,
-        },
-      };
+      // 알림톡(ATA) 발송 요청 구성 — 리타겟 쿠폰 템플릿은 광고 문자(LMS)로 대신 보낸다 (kakao-channel-templates.ts)
+      const sendParams: any = isSmsOnlyTemplate(params.templateId)
+        ? { to: normalizedPhone, from: '07041380263', type: 'LMS', text: renderRetargetCouponSms(params.variables) }
+        : {
+            to: normalizedPhone,
+            from: '07041380263', // 발신번호 고정
+            type: 'ATA', // 알림톡 타입 명시
+            kakaoOptions: {
+              pfId: params.pfId,
+              templateId: templateForChannel(params.pfId, params.templateId),
+              variables: params.variables,
+            },
+          };
 
       console.log('[SOLAPI] Sending ATA message:', JSON.stringify(sendParams, null, 2));
 
@@ -503,16 +506,21 @@ export class SolapiService {
     const { messages, pfId, scheduledAt } = params;
 
     for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
-      const chunk = messages.slice(i, i + CHUNK_SIZE).map((msg) => ({
-        to: this.normalizePhoneNumber(msg.to),
-        from: '07041380263',
-        type: 'ATA',
-        kakaoOptions: {
-          pfId,
-          templateId: msg.templateId,
-          variables: msg.variables,
-        },
-      }));
+      // 리타겟 쿠폰 템플릿은 광고 문자(LMS)로 대신 보낸다 (kakao-channel-templates.ts)
+      const chunk = messages.slice(i, i + CHUNK_SIZE).map((msg) =>
+        isSmsOnlyTemplate(msg.templateId)
+          ? { to: this.normalizePhoneNumber(msg.to), from: '07041380263', type: 'LMS', text: renderRetargetCouponSms(msg.variables) }
+          : {
+              to: this.normalizePhoneNumber(msg.to),
+              from: '07041380263',
+              type: 'ATA',
+              kakaoOptions: {
+                pfId,
+                templateId: templateForChannel(pfId, msg.templateId),
+                variables: msg.variables,
+              },
+            }
+      );
 
       try {
         const result = await this.messageService.send(

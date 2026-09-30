@@ -5,6 +5,7 @@
 // 지금은 솔라피 그룹 발송(10,000건/1회)으로 직접 접수하고, 접수된 건만 한 번 과금한다.
 // 아웃박스 행은 그룹 ID·과금 방식(billing)·건당 금액(unitCost)을 들고 PENDING 으로 남고,
 // 최종 상태(SENT/FAILED)와 실패분 환불은 워커의 그룹 단위 조회가 확정한다.
+import { SMS_BODY_VAR, normalizeSmsBody } from './kakao-channel-templates.js';
 import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { getSolapiService } from './solapi-instance.js';
@@ -43,8 +44,11 @@ export async function sendRetargetCouponGroup(params: {
   campaignId?: string;
   /** 예약 발송 시각 (없으면 즉시) */
   scheduledAt?: Date;
+  /** 매장이 직접 쓴 문자 본문 (없으면 기본 문구) — 리타겟 쿠폰은 광고 문자로 나간다 */
+  smsBody?: string | null;
 }): Promise<CouponGroupResult> {
   const { recipients, couponContent, expiryDate, billing, logTag, campaignId, scheduledAt } = params;
+  const smsBody = normalizeSmsBody(params.smsBody);
 
   const templateId = env.SOLAPI_TEMPLATE_ID_RETARGET_COUPON;
   if (!templateId) throw new Error('알림톡 템플릿이 설정되지 않았습니다.');
@@ -82,6 +86,7 @@ export async function sendRetargetCouponGroup(params: {
       '#{유효기간}': expiryDate,
       '#{네이버플레이스}': (r.naverPlaceUrl || '').replace(/^https?:\/\//, ''),
       '#{직원확인}': `${domain}/coupon/verify/${r.code}`,
+      ...(smsBody ? { [SMS_BODY_VAR]: smsBody } : {}),
     });
 
     // 1) 쿠폰 + 아웃박스(PROCESSING) 선기록 — 발송된 링크가 항상 유효한 쿠폰을 가리키도록 접수 전에 만든다

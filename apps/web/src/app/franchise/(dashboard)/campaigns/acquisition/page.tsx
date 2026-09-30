@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { KakaoButton } from '@/features/messages';
-import { CouponAlimtalkPreview } from '@/features/kakao-composer';
+import { CouponSmsPreview } from '@/features/kakao-composer';
 import { IPhoneFrame } from '@/components/ui/iphone-frame';
 
 
@@ -1480,7 +1480,7 @@ export default function LocalCustomersPage() {
             /* 카카오톡 미리보기 - 쿠폰 알림톡 (messages 페이지와 동일) */
             <IPhoneFrame screenClassName="bg-[#B2C7D9]" className="w-full max-w-[320px]">
 
-                  <CouponAlimtalkPreview
+                  <CouponSmsPreview
                     couponStoreName={(franchiseStores.find((s) => s.id === representativeStoreId)?.name) || ''}
                     couponContent={couponContent}
                     couponExpiryDate={couponExpiryDate}

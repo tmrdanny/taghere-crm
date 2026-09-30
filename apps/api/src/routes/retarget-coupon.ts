@@ -213,6 +213,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res: Response) => 
     const result = await sendRetargetCouponGroup({
       campaignId,
       scheduledAt,
+      smsBody: req.body.smsBody,
       recipients: resolved
         .filter((c) => c.phone)
         .map((c) => ({

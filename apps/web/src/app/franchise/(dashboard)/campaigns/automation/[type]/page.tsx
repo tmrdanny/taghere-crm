@@ -1,5 +1,7 @@
 'use client';
 
+import { CouponSmsBodyField, CouponSmsPreview } from '@/features/kakao-composer';
+import { IPhoneFrame } from '@/components/ui/iphone-frame';
 import { API_BASE } from '@/lib/api-config';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
@@ -102,6 +104,14 @@ export default function FranchiseAutomationSettingPage() {
   const [couponEnabled, setCouponEnabled] = useState(true);
   const [couponContent, setCouponContent] = useState('');
   const [couponValidDays, setCouponValidDays] = useState(14);
+  // 쿠폰 문자 본문 — null 이면 기본 문구 (자동 마케팅은 광고 문자로 나간다).
+  // 전 매장 일괄 설정은 문구를 직접 바꿨을 때만 보낸다 (다른 설정 저장이 매장별 문구를 덮지 않게)
+  const [smsBody, setSmsBodyState] = useState<string | null>(null);
+  const smsBodyTouched = useRef(false);
+  const setSmsBody = (v: string | null) => {
+    smsBodyTouched.current = true;
+    setSmsBodyState(v);
+  };
   const [storeName, setStoreName] = useState('');
   const [naverPlaceUrl, setNaverPlaceUrl] = useState('');
   const [naverPlaceUrlInput, setNaverPlaceUrlInput] = useState('');
@@ -152,6 +162,7 @@ export default function FranchiseAutomationSettingPage() {
           setCouponEnabled(r.couponEnabled);
           setCouponContent(r.couponContent || '');
           setCouponValidDays(r.couponValidDays);
+          setSmsBodyState(r.messageTemplate ?? null);
           setSendTimeHour(r.sendTimeHour);
           if (type === 'BIRTHDAY' && r.triggerConfig?.daysBefore) setDaysBefore(r.triggerConfig.daysBefore);
           if (type === 'CHURN_PREVENTION' && r.triggerConfig?.daysInactive) setDaysInactive(r.triggerConfig.daysInactive);
@@ -260,6 +271,7 @@ export default function FranchiseAutomationSettingPage() {
         couponContent: couponContent.trim() || null,
         couponValidDays,
         sendTimeHour,
+        ...(!isBulk || smsBodyTouched.current ? { messageTemplate: smsBody?.trim() ? smsBody : null } : {}),
       };
 
       const url = isBulk
@@ -321,7 +333,7 @@ export default function FranchiseAutomationSettingPage() {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, couponEnabled, couponContent, couponValidDays, sendTimeHour,
+  }, [enabled, couponEnabled, couponContent, couponValidDays, smsBody, sendTimeHour,
       daysBefore, daysInactive, daysAfterFirstVisit, milestones, winbackDaysInactive, slowDays, isLoading, isBulk]);
 
   // 이탈 시 대기 중 변경사항 즉시 저장
@@ -550,6 +562,9 @@ export default function FranchiseAutomationSettingPage() {
                 </div>
               </div>
 
+              {/* 문자 내용 — 기본 문구 / 직접 쓰기 */}
+              <CouponSmsBodyField value={smsBody} onChange={setSmsBody} label={isBulk ? '문자 내용 (전 매장)' : '문자 내용'} />
+
               {/* 네이버 플레이스 링크 */}
               {!isBulk && (
                 <div>
@@ -587,14 +602,14 @@ export default function FranchiseAutomationSettingPage() {
                       </div>
                     </div>
                   )}
-                  <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">알림톡에 포함되는 네이버 길찾기 링크입니다</p>
+                  <p className="mt-1 text-[12px] text-[color:var(--ad-faint)]">문자에 포함되는 네이버 길찾기 링크입니다</p>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* 카카오톡 메시지 미리보기 */}
+        {/* 쿠폰 문자 미리보기 */}
         {couponEnabled && !isBulk && (
           <div className="ad-card">
             <div className="border-b border-[color:var(--ad-line)] px-5 py-4">
@@ -605,75 +620,29 @@ export default function FranchiseAutomationSettingPage() {
             </div>
             <div className="p-5">
               <div className="flex justify-center">
-                <div className="w-56 h-[440px] bg-slate-800 rounded-[2rem] p-1.5 shadow-xl">
-                  <div className="w-full h-full bg-[#B2C7D9] rounded-[1.5rem] overflow-hidden flex flex-col">
-                    <div className="flex items-center justify-between px-3 pt-8 pb-1.5">
-                      <ChevronLeft className="w-3.5 h-3.5 text-slate-700" />
-                      <span className="font-medium text-[10px] text-slate-800">태그히어</span>
-                      <div className="w-3.5" />
-                    </div>
-                    <div className="flex justify-center mb-2">
-                      <span className="text-[8px] bg-slate-500/30 text-slate-700 px-1.5 py-0.5 rounded-full">
-                        {new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
-                      </span>
-                    </div>
-                    <div className="flex-1 pl-1.5 pr-3 overflow-auto">
-                      <div className="flex gap-1">
-                        <div className="flex-shrink-0">
-                          <div className="w-5 h-5 rounded-full bg-slate-300" />
-                        </div>
-                        <div className="flex-1 min-w-0 mr-2">
-                          <p className="text-[8px] text-slate-600 mb-0.5">태그히어</p>
-                          <div className="relative">
-                            <div className="absolute -top-1 -right-1 z-10">
-                              <span className="bg-slate-700 text-white text-[6px] px-0.5 py-px rounded-full font-medium">kakao</span>
-                            </div>
-                            <div className="bg-[#FEE500] rounded-t-md px-1.5 py-1">
-                              <span className="text-[9px] font-medium text-slate-800">알림톡 도착</span>
-                            </div>
-                            <div className="bg-white rounded-b-md shadow-sm overflow-hidden">
-                              <img src="/images/coupon_kakao.png" alt="쿠폰 이미지" className="w-full h-auto" />
-                              <div className="px-2.5 py-2.5">
-                                <p className="text-[9px] font-semibold text-slate-800 mb-2">태그히어 고객 대상 쿠폰</p>
-                                <div className="space-y-0.5 text-[9px] text-slate-700">
-                                  <p><span className="text-[#6BA3FF]">{storeName || '매장명'}</span>에서 쿠폰을 보냈어요!</p>
-                                  <p className="text-slate-500 mb-2">태그히어 이용 고객에게만 제공되는 쿠폰이에요.</p>
-                                  <div className="space-y-0.5 mb-2">
-                                    <p className="whitespace-pre-line">📌 {couponContent || (
-                                      type === 'BIRTHDAY' ? '생일 축하 10% 할인' :
-                                      type === 'ANNIVERSARY' ? '가입 기념일 축하 10% 할인' :
-                                      type === 'FIRST_VISIT_FOLLOWUP' ? '첫 방문 감사 10% 할인' :
-                                      type === 'VIP_MILESTONE' ? 'VIP 감사 특별 할인' :
-                                      type === 'WINBACK' ? '다시 만나고 싶어요! 20% 할인' :
-                                      type === 'SLOW_DAY' ? '오늘만의 특별 할인 10%' :
-                                      '재방문 감사 10% 할인'
-                                    )}</p>
-                                    <p>📌 {(() => {
-                                      const d = new Date();
-                                      d.setDate(d.getDate() + couponValidDays);
-                                      return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}까지`;
-                                    })()}</p>
-                                  </div>
-                                  <p className="text-slate-500">결제 시 직원 확인을 통해 사용할 수 있어요.</p>
-                                </div>
-                              </div>
-                              <div className="px-2.5 pb-2.5 space-y-1">
-                                <div className={`w-full py-1.5 text-center text-[8px] font-medium rounded border ${
-                                  naverPlaceUrl ? 'bg-white text-slate-800 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200'
-                                }`}>네이버 길찾기</div>
-                                <div className="w-full py-1.5 bg-white text-slate-800 text-[8px] font-medium rounded border border-slate-300 text-center">직원 확인</div>
-                              </div>
-                            </div>
-                          </div>
-                          <p className="text-[7px] text-slate-500 mt-0.5 text-right">오후 12:30</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="h-4" />
-                  </div>
-                </div>
+                <IPhoneFrame className="w-[260px]">
+                  <CouponSmsPreview
+                    couponStoreName={storeName}
+                    couponContent={couponContent || (
+                    type === 'BIRTHDAY' ? '생일 축하 10% 할인' :
+                    type === 'ANNIVERSARY' ? '가입 기념일 축하 10% 할인' :
+                    type === 'FIRST_VISIT_FOLLOWUP' ? '첫 방문 감사 10% 할인' :
+                    type === 'VIP_MILESTONE' ? 'VIP 감사 특별 할인' :
+                    type === 'WINBACK' ? '다시 만나고 싶어요! 20% 할인' :
+                    type === 'SLOW_DAY' ? '오늘만의 특별 할인 10%' :
+                    '재방문 감사 10% 할인'
+                  )}
+                    couponExpiryDate={(() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + couponValidDays);
+                      return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}까지`;
+                    })()}
+                    showNaverLink={!!naverPlaceUrl}
+                    customBody={smsBody}
+                  />
+                </IPhoneFrame>
               </div>
-              <p className="mt-3 text-center text-[12px] text-[color:var(--ad-faint)]">실제 고객에게 발송되는 카카오 알림톡 형태입니다</p>
+              <p className="mt-3 text-center text-[12px] text-[color:var(--ad-faint)]">실제 고객에게 발송되는 문자 메시지 형태입니다</p>
             </div>
           </div>
         )}

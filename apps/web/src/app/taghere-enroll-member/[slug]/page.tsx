@@ -447,17 +447,19 @@ function TaghereMemberEnrollContent() {
   // - 단일 기업(쿠폰 1개): 시트 없이 즉시 발급 후 다음 단계로
   // - 복수 기업: 기존 쿠폰 시트 표시
   // - 광고 쿠폰 없음: 발급 없이 다음 단계로
+  // 고객 ID 는 resolvedCustomerId — 재방문 자동등록(auto-earn)은 URL 에 customerId 가 없고 successData 에만 있다.
   useEffect(() => {
-    if (!enterCouponFlow || !customerId || !couponsLoaded) return;
-    if (coupons.length === 1) {
-      issueSingleCouponAndProceed(customerId, coupons[0]);
-    } else if (coupons.length === 0) {
+    if (!enterCouponFlow || !couponsLoaded) return;
+    // 고객을 특정할 수 없으면 발급 없이 다음 단계로 (로딩에 갇히지 않게)
+    if (!resolvedCustomerId || coupons.length === 0) {
       setProceedToNext(true);
+    } else if (coupons.length === 1) {
+      issueSingleCouponAndProceed(resolvedCustomerId, coupons[0]);
     } else {
       setShowCouponSheet(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enterCouponFlow, customerId, couponsLoaded, coupons]);
+  }, [enterCouponFlow, resolvedCustomerId, couponsLoaded, coupons]);
 
   // 방문 경로 옵션 + 설문 조회
   useEffect(() => {
