@@ -1899,6 +1899,7 @@ enum SurveyQuestionType {
   DATE
   TEXT
   CHOICE
+  SCALE  // 척도형 (1~5점) — 답은 valueText 에 "1"~"5" 정수 문자열로 저장
 }
 
 model SurveyQuestion {
@@ -1912,6 +1913,7 @@ model SurveyQuestion {
   order       Int                @default(0)
   dateConfig    Json?              // { autoSendEnabled, autoSendDaysBefore, autoSendTemplateId }
   choiceOptions Json?              // CHOICE 타입 선택지 배열: ["옵션1", "옵션2", ...]
+  scaleConfig   Json?              // SCALE 타입 설정: { min: 1, max: 5, minLabel: "매우 별로였다", maxLabel: "매우 좋았다" }
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

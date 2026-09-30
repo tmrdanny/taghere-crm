@@ -4,6 +4,7 @@ import { trackEvent } from '@/lib/analytics';
 import { StarRating } from '@/features/enroll/StarRating';
 import { CATEGORY_OPTIONS, ALL_CATEGORIES_VALUE } from '@/features/enroll/constants';
 import type { VisitSourceOption, SurveyQuestion } from '@/features/enroll/types';
+import { ScaleQuestionInput } from '@/features/enroll/ScaleQuestionInput';
 
 // 적립 완료 후 피드백 화면 (2단계 위저드: 방문 경로 → 선호 업종).
 // taghere-enroll(포인트) / taghere-enroll-member(멤버십) 공용 —
@@ -393,7 +394,10 @@ export function SuccessPopup({
                     추가 정보를 알려주세요
                   </p>
                   <p className="text-[13px] text-neutral-500 mb-5 text-center">
-                    특별한 날에 혜택을 보내드릴게요
+                    {/* 날짜(생일·기념일) 질문이 있을 때만 혜택 문구, 아니면 의견 요청 문구 */}
+                    {surveyQuestions.some((sq) => sq.type === 'DATE')
+                      ? '특별한 날에 혜택을 보내드릴게요'
+                      : '더 나은 매장을 위해 의견을 들려주세요'}
                   </p>
                   <div className="space-y-3 mb-6">
                     {surveyQuestions.map((q) => (
@@ -423,6 +427,13 @@ export function SuccessPopup({
                             }
                             placeholder="답변을 입력해주세요"
                             className="w-full max-w-[280px] px-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[14px] text-neutral-900 text-center focus:outline-none focus:ring-2 focus:ring-[#FFD541] focus:border-transparent"
+                          />
+                        )}
+                        {q.type === 'SCALE' && (
+                          <ScaleQuestionInput
+                            config={q.scaleConfig}
+                            value={surveyAnswers[q.id]}
+                            onChange={(v) => setSurveyAnswers((prev) => ({ ...prev, [q.id]: v }))}
                           />
                         )}
                         {q.type === 'CHOICE' && q.choiceOptions && (

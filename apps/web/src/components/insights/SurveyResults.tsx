@@ -7,7 +7,21 @@ import { ClipboardList, Download, Inbox } from 'lucide-react';
 // 데이터 분석 탭 — "고객 설문 결과 지표" (사장님 CRM·프랜차이즈 공용)
 // 응답 목록은 1응답 = 1행. 고객 이름은 서버에서 가운데를 가린 값으로 내려오고 연락처는 포함하지 않는다.
 
-type QType = 'DATE' | 'TEXT' | 'CHOICE';
+type QType = 'DATE' | 'TEXT' | 'CHOICE' | 'SCALE';
+
+type ScaleBucket = 'negative' | 'neutral' | 'positive';
+
+interface ScaleSummary {
+  min: number;
+  max: number;
+  minLabel: string;
+  maxLabel: string;
+  average: number | null;
+  distribution: { score: number; count: number }[];
+  buckets: Record<ScaleBucket, number>;
+  previous: { average: number | null; count: number } | null;
+  revisit: Record<ScaleBucket, { respondents: number; revisited: number }>;
+}
 
 interface QuestionSummary {
   id: string;
@@ -18,6 +32,7 @@ interface QuestionSummary {
   enabled: boolean;
   answerCount: number;
   choices?: { label: string; count: number }[];
+  scale?: ScaleSummary;
 }
 
 interface AnswerRow {
@@ -28,6 +43,7 @@ interface AnswerRow {
   questionLabel: string;
   type: QType;
   answer: string;
+  score?: number;
 }
 
 interface SurveyResultsData {
@@ -38,7 +54,7 @@ interface SurveyResultsData {
   truncated: boolean;
 }
 
-const TYPE_LABEL: Record<QType, string> = { DATE: '날짜', TEXT: '텍스트', CHOICE: '선택' };
+const TYPE_LABEL: Record<QType, string> = { DATE: '날짜', TEXT: '텍스트', CHOICE: '선택', SCALE: '척도' };
 const PAGE_SIZE = 20;
 
 const fmtDateTime = (iso: string) => {
@@ -114,6 +130,16 @@ export function SurveyResults({
     }));
     const summarySheet = data.questions.flatMap((q): Record<string, unknown>[] => {
       const base = { ...(showStore ? { 매장: q.storeName } : {}), 질문: q.label, 유형: TYPE_LABEL[q.type], 응답수: q.answerCount };
+      if (q.type === 'SCALE' && q.scale) {
+        const sc = q.scale;
+        return sc.distribution.map((d) => ({
+          ...base,
+          평균: sc.average ?? '',
+          선택지: `${d.score}점${d.score === sc.min ? ` (${sc.minLabel})` : d.score === sc.max ? ` (${sc.maxLabel})` : ''}`,
+          선택수: d.count,
+          비율: q.answerCount ? `${((d.count / q.answerCount) * 100).toFixed(1)}%` : '0%',
+        }));
+      }
       if (q.type === 'CHOICE' && q.choices?.length) {
         return q.choices.map((c) => ({
           ...base,
@@ -206,6 +232,12 @@ export function SurveyResults({
             {data!.questions.map((q) => {
               const max = Math.max(1, ...(q.choices || []).map((c) => c.count));
               const recent = q.type === 'TEXT' ? data!.rows.filter((r) => r.questionLabel === q.label && (!showStore || r.storeName === q.storeName)).slice(0, 3) : [];
+              if (q.type === 'SCALE' && q.scale) {
+                const lowRows = data!.rows
+                  .filter((r) => r.questionLabel === q.label && (!showStore || r.storeName === q.storeName) && (r.score ?? 99) <= 2)
+                  .slice(0, 3);
+                return <ScaleCard key={q.id} q={q} scale={q.scale} showStore={showStore} lowRows={lowRows} />;
+              }
               return (
                 <div key={q.id} className="rounded-[12px] border border-[color:var(--ad-line)] p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -325,5 +357,176 @@ export function SurveyResults({
         </>
       )}
     </section>
+  );
+}
+
+const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
+
+// 척도형 결과 카드 — 평균·이전 기간 대비·분포·긍정/부정 비율·점수대별 재방문율·최근 낮은 점수
+function ScaleCard({
+  q,
+  scale,
+  showStore,
+  lowRows,
+}: {
+  q: QuestionSummary;
+  scale: ScaleSummary;
+  showStore: boolean;
+  lowRows: AnswerRow[];
+}) {
+  const total = q.answerCount;
+  const maxCount = Math.max(1, ...scale.distribution.map((d) => d.count));
+  const prev = scale.previous;
+  const delta =
+    scale.average !== null && prev && prev.average !== null && prev.count > 0
+      ? Math.round((scale.average - prev.average) * 100) / 100
+      : null;
+  const bucketMeta: { key: ScaleBucket; label: string; color: string }[] = [
+    { key: 'positive', label: `긍정 (4~${scale.max}점)`, color: '#6eadff' },
+    { key: 'neutral', label: '보통 (3점)', color: '#c9d3de' },
+    { key: 'negative', label: `부정 (${scale.min}~2점)`, color: '#ff8a9a' },
+  ];
+  const rv = scale.revisit;
+  const hasRevisit = rv.positive.respondents + rv.negative.respondents + rv.neutral.respondents > 0;
+
+  return (
+    <div className="rounded-[12px] border border-[color:var(--ad-line)] p-4 md:col-span-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          {showStore && <p className="mb-0.5 truncate text-[11.5px] text-[color:var(--ad-faint)]">{q.storeName}</p>}
+          <p className="text-[13.5px] font-medium text-[color:var(--ad-ink)]">{q.label}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {!q.enabled && (
+            <span className="rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-faint)]">비활성</span>
+          )}
+          <span className="rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">척도</span>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-5 md:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]">
+        {/* 평균 점수 */}
+        <div>
+          <p className="text-[12px] text-[color:var(--ad-muted)]">평균 점수</p>
+          <p className="mt-0.5 text-[28px] font-medium tracking-[-0.03em] text-[color:var(--ad-ink)] adm-tnum">
+            {scale.average !== null ? scale.average.toFixed(1) : '-'}
+            <span className="ml-1 text-[13px] text-[color:var(--ad-muted)]">/ {scale.max}</span>
+          </p>
+          <p className="text-[12px] text-[color:var(--ad-muted)] adm-tnum">응답 {total.toLocaleString('ko-KR')}건</p>
+          {prev && (
+            <p className="mt-1.5 text-[12px] adm-tnum">
+              {delta === null ? (
+                <span className="text-[color:var(--ad-faint)]">이전 기간 응답 없음</span>
+              ) : (
+                <>
+                  <span className={delta > 0 ? 'text-[#2f7de1]' : delta < 0 ? 'text-[color:var(--ad-neg)]' : 'text-[color:var(--ad-muted)]'}>
+                    {delta > 0 ? '▲' : delta < 0 ? '▼' : '–'} {Math.abs(delta).toFixed(2)}
+                  </span>
+                  <span className="ml-1 text-[color:var(--ad-faint)]">이전 기간 {prev.average!.toFixed(1)}점</span>
+                </>
+              )}
+            </p>
+          )}
+        </div>
+
+        {/* 점수 분포 */}
+        <div>
+          <p className="text-[12px] text-[color:var(--ad-muted)]">점수 분포</p>
+          <ul className="mt-2 space-y-1.5">
+            {[...scale.distribution].reverse().map((d) => (
+              <li key={d.score} className="grid grid-cols-[34px_minmax(0,1fr)_64px] items-center gap-2.5 text-[12.5px]">
+                <span className="text-[color:var(--ad-ink-2)] adm-tnum">{d.score}점</span>
+                <span className="h-1.5 overflow-hidden rounded-full bg-[color:var(--ad-bg)]">
+                  <span
+                    className="block h-full rounded-full"
+                    style={{ width: `${(d.count / maxCount) * 100}%`, background: d.count === maxCount ? '#6eadff' : '#a5ccff' }}
+                  />
+                </span>
+                <span className="text-right text-[color:var(--ad-muted)] adm-tnum">
+                  {pct(d.count, total)}%<span className="ml-1 text-[11px] text-[color:var(--ad-faint)]">{d.count}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1.5 text-[11px] text-[color:var(--ad-faint)]">
+            {scale.max}점 {scale.maxLabel} · {scale.min}점 {scale.minLabel}
+          </p>
+        </div>
+
+        {/* 긍정/부정 비율 */}
+        <div>
+          <p className="text-[12px] text-[color:var(--ad-muted)]">긍정 · 부정 비율</p>
+          <div className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-[color:var(--ad-bg)]">
+            {bucketMeta.map((b) =>
+              scale.buckets[b.key] > 0 ? (
+                <span key={b.key} style={{ width: `${pct(scale.buckets[b.key], total)}%`, background: b.color }} />
+              ) : null
+            )}
+          </div>
+          <ul className="mt-2.5 space-y-1 text-[12.5px]">
+            {bucketMeta.map((b) => (
+              <li key={b.key} className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-[color:var(--ad-ink-2)]">
+                  <span className="h-2 w-2 rounded-full" style={{ background: b.color }} />
+                  {b.label}
+                </span>
+                <span className="text-[color:var(--ad-muted)] adm-tnum">
+                  {pct(scale.buckets[b.key], total)}%<span className="ml-1 text-[11px] text-[color:var(--ad-faint)]">{scale.buckets[b.key]}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* 점수대별 재방문율 */}
+      {hasRevisit && (
+        <div className="mt-5 rounded-[10px] bg-[color:var(--ad-bg-alt)] px-4 py-3">
+          <p className="text-[12.5px] font-medium text-[color:var(--ad-ink)]">응답 후 재방문율</p>
+          <p className="mt-0.5 text-[11.5px] text-[color:var(--ad-faint)]">
+            응답한 뒤 다시 방문(주문·적립)한 고객 비율 · 최근 응답은 아직 재방문할 시간이 짧아 낮게 나올 수 있어요
+          </p>
+          <div className="mt-2.5 grid grid-cols-3 gap-3">
+            {bucketMeta.map((b) => {
+              const r = rv[b.key];
+              return (
+                <div key={b.key}>
+                  <p className="text-[11.5px] text-[color:var(--ad-muted)]">{b.label}</p>
+                  <p className="text-[17px] font-medium text-[color:var(--ad-ink)] adm-tnum">
+                    {r.respondents > 0 ? `${pct(r.revisited, r.respondents)}%` : '-'}
+                  </p>
+                  <p className="text-[11px] text-[color:var(--ad-faint)] adm-tnum">
+                    {r.revisited.toLocaleString('ko-KR')} / {r.respondents.toLocaleString('ko-KR')}명
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 최근 낮은 점수 */}
+      {lowRows.length > 0 && (
+        <div className="mt-4">
+          <p className="text-[12px] text-[color:var(--ad-muted)]">최근 낮은 점수 응답</p>
+          <ul className="mt-1.5 space-y-1.5">
+            {lowRows.map((r) => (
+              <li
+                key={r.id}
+                className="flex items-center justify-between gap-3 rounded-[8px] bg-[#fff2f5] px-2.5 py-1.5 text-[12.5px] text-[color:var(--ad-ink-2)]"
+              >
+                <span className="truncate">
+                  {r.customerName}
+                  {showStore && <span className="ml-1 text-[color:var(--ad-faint)]">· {r.storeName}</span>}
+                </span>
+                <span className="shrink-0 text-[color:var(--ad-neg)] adm-tnum">
+                  {r.answer} <span className="ml-1 text-[color:var(--ad-faint)]">{fmtDateTime(r.answeredAt).slice(0, 10)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }

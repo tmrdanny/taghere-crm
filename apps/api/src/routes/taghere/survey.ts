@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../../lib/prisma.js';
+import { normalizeScaleConfig, saveSurveyAnswers } from '../../services/survey-answers.js';
 
 const router = Router();
 
@@ -76,10 +77,15 @@ router.get('/survey-questions/:slug', async (req, res) => {
         description: true,
         required: true,
         choiceOptions: true,
+        scaleConfig: true,
       },
     });
 
-    res.json({ questions });
+    res.json({
+      questions: questions.map((q) =>
+        q.type === 'SCALE' ? { ...q, scaleConfig: normalizeScaleConfig(q.scaleConfig) } : q
+      ),
+    });
   } catch (error: any) {
     console.error('[TagHere] Survey questions error:', error);
     res.status(500).json({ error: '설문 질문 조회 중 오류가 발생했습니다.' });
@@ -104,29 +110,8 @@ router.post('/survey-answers', async (req, res) => {
       return res.status(404).json({ error: '고객을 찾을 수 없습니다.' });
     }
 
-    for (const answer of answers) {
-      if (!answer.questionId) continue;
-
-      await prisma.surveyAnswer.upsert({
-        where: {
-          questionId_customerId: {
-            questionId: answer.questionId,
-            customerId,
-          },
-        },
-        create: {
-          questionId: answer.questionId,
-          customerId,
-          storeId: customer.storeId,
-          valueDate: answer.valueDate ? new Date(answer.valueDate) : null,
-          valueText: answer.valueText || null,
-        },
-        update: {
-          valueDate: answer.valueDate ? new Date(answer.valueDate) : null,
-          valueText: answer.valueText || null,
-        },
-      });
-    }
+    // 이 고객 매장의 질문만 저장하고, 척도형은 1~5 정수만 받는다
+    await saveSurveyAnswers(customer.storeId, customerId, answers);
 
     res.json({ success: true });
   } catch (error: any) {

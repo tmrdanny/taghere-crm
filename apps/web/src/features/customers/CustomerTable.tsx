@@ -283,7 +283,9 @@ export function CustomerTable({
                           <span className="block truncate text-[color:var(--ad-ink-2)]">
                             {answer?.valueDate
                               ? new Date(answer.valueDate).toLocaleDateString('ko-KR')
-                              : answer?.valueText || '-'}
+                              : answer?.type === 'SCALE' && answer.valueText
+                                ? `${answer.valueText}점`
+                                : answer?.valueText || '-'}
                           </span>
                         </td>
                       );

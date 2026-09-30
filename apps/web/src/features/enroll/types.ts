@@ -5,11 +5,19 @@ export interface VisitSourceOption {
   label: string;
 }
 
+export interface ScaleConfig {
+  min: number;
+  max: number;
+  minLabel: string;
+  maxLabel: string;
+}
+
 export interface SurveyQuestion {
   id: string;
-  type: 'DATE' | 'TEXT' | 'CHOICE';
+  type: 'DATE' | 'TEXT' | 'CHOICE' | 'SCALE';
   label: string;
   description: string | null;
   required: boolean;
   choiceOptions?: string[] | null;
+  scaleConfig?: ScaleConfig | null;
 }

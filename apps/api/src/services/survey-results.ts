@@ -1,4 +1,6 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
+import { normalizeScaleConfig, parseScaleValue } from './survey-answers.js';
 
 /**
  * 고객 설문 결과 — 데이터 분석 탭의 "고객 설문 결과 지표" 섹션용.
@@ -9,16 +11,45 @@ import { prisma } from '../lib/prisma.js';
 
 const MAX_ROWS = 20000;
 
+type QType = 'DATE' | 'TEXT' | 'CHOICE' | 'SCALE';
+
+/** 척도형 점수 구간 — 1~2 부정 / 3 보통 / 4~5 긍정 */
+type ScaleBucket = 'negative' | 'neutral' | 'positive';
+function scaleBucket(score: number): ScaleBucket {
+  if (score >= 4) return 'positive';
+  if (score <= 2) return 'negative';
+  return 'neutral';
+}
+
+export interface ScaleSummary {
+  min: number;
+  max: number;
+  minLabel: string;
+  maxLabel: string;
+  /** 평균 점수 (응답 없으면 null) */
+  average: number | null;
+  /** 점수별 응답 수 (min~max 전부 포함) */
+  distribution: { score: number; count: number }[];
+  /** 구간별 응답 수 */
+  buckets: Record<ScaleBucket, number>;
+  /** 직전 같은 길이 기간의 평균/응답 수 (기간을 지정했을 때만) */
+  previous: { average: number | null; count: number } | null;
+  /** 응답 이후 재방문 — 구간별 응답 고객 수와 그중 다시 방문한 수 */
+  revisit: Record<ScaleBucket, { respondents: number; revisited: number }>;
+}
+
 export interface SurveyQuestionSummary {
   id: string;
   storeId: string;
   storeName: string;
   label: string;
-  type: 'DATE' | 'TEXT' | 'CHOICE';
+  type: QType;
   enabled: boolean;
   answerCount: number;
   /** CHOICE: 선택지별 응답 수 (설정된 선택지 순서 + 그 외 응답) */
   choices?: { label: string; count: number }[];
+  /** SCALE: 평균·분포·구간·이전 기간 비교·재방문 */
+  scale?: ScaleSummary;
 }
 
 export interface SurveyAnswerRow {
@@ -27,8 +58,10 @@ export interface SurveyAnswerRow {
   storeName: string;
   customerName: string;
   questionLabel: string;
-  type: 'DATE' | 'TEXT' | 'CHOICE';
+  type: QType;
   answer: string;
+  /** SCALE: 점수 */
+  score?: number;
 }
 
 export interface SurveyResults {
@@ -53,6 +86,10 @@ function kstDate(d: Date): string {
 }
 
 function answerText(a: { valueDate: Date | null; valueText: string | null; valueJson: unknown }, type: string): string {
+  if (type === 'SCALE') {
+    const score = parseScaleValue(a.valueText);
+    return score === null ? '' : `${score}점`;
+  }
   if (type === 'DATE' && a.valueDate) return kstDate(a.valueDate);
   if (a.valueText && a.valueText.trim()) return a.valueText.trim();
   if (a.valueJson !== null && a.valueJson !== undefined) {
@@ -76,7 +113,7 @@ export async function computeSurveyResults(
     prisma.surveyQuestion.findMany({
       where: { storeId: { in: storeIds } },
       orderBy: [{ storeId: 'asc' }, { order: 'asc' }, { createdAt: 'asc' }],
-      select: { id: true, storeId: true, label: true, type: true, enabled: true, choiceOptions: true },
+      select: { id: true, storeId: true, label: true, type: true, enabled: true, choiceOptions: true, scaleConfig: true },
     }),
   ]);
   const storeName = new Map(stores.map((s) => [s.id, s.name]));
@@ -104,6 +141,7 @@ export async function computeSurveyResults(
   // 질문별 집계
   const countByQuestion = new Map<string, number>();
   const choiceCounts = new Map<string, Map<string, number>>();
+  const scaleScores = new Map<string, number[]>();
   const respondents = new Set<string>();
   const rows: SurveyAnswerRow[] = [];
 
@@ -122,6 +160,12 @@ export async function computeSurveyResults(
       }
       choiceCounts.set(q.id, m);
     }
+    const score = q.type === 'SCALE' ? parseScaleValue(a.valueText) : null;
+    if (score !== null) {
+      const list = scaleScores.get(q.id) || [];
+      list.push(score);
+      scaleScores.set(q.id, list);
+    }
     rows.push({
       id: a.id,
       answeredAt: a.updatedAt.toISOString(),
@@ -130,8 +174,17 @@ export async function computeSurveyResults(
       questionLabel: q.label,
       type: q.type,
       answer: text,
+      ...(score !== null ? { score } : {}),
     });
   }
+
+  const scaleQuestionIds = questions.filter((q) => q.type === 'SCALE').map((q) => q.id);
+  const [previousByQuestion, revisitByQuestion] = scaleQuestionIds.length
+    ? await Promise.all([
+        computePreviousScale(scaleQuestionIds, range),
+        computeScaleRevisit(scaleQuestionIds, dateFilter),
+      ])
+    : [new Map(), new Map()];
 
   const summaries: SurveyQuestionSummary[] = questions.map((q) => {
     const base: SurveyQuestionSummary = {
@@ -152,6 +205,26 @@ export async function computeSurveyResults(
       }
       base.choices = choices;
     }
+    if (q.type === 'SCALE') {
+      const cfg = normalizeScaleConfig(q.scaleConfig);
+      const scores = scaleScores.get(q.id) || [];
+      const buckets: Record<ScaleBucket, number> = { negative: 0, neutral: 0, positive: 0 };
+      for (const sc of scores) buckets[scaleBucket(sc)]++;
+      base.scale = {
+        min: cfg.min,
+        max: cfg.max,
+        minLabel: cfg.minLabel,
+        maxLabel: cfg.maxLabel,
+        average: average(scores),
+        distribution: Array.from({ length: cfg.max - cfg.min + 1 }, (_, i) => {
+          const score = cfg.min + i;
+          return { score, count: scores.filter((x) => x === score).length };
+        }),
+        buckets,
+        previous: previousByQuestion.get(q.id) ?? (range.startDate && range.endDate ? { average: null, count: 0 } : null),
+        revisit: revisitByQuestion.get(q.id) ?? emptyRevisit(),
+      };
+    }
     return base;
   });
 
@@ -162,4 +235,90 @@ export async function computeSurveyResults(
     totalAnswers: rows.length,
     truncated,
   };
+}
+
+function average(scores: number[]): number | null {
+  if (scores.length === 0) return null;
+  return Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100;
+}
+
+function emptyRevisit(): ScaleSummary['revisit'] {
+  return {
+    negative: { respondents: 0, revisited: 0 },
+    neutral: { respondents: 0, revisited: 0 },
+    positive: { respondents: 0, revisited: 0 },
+  };
+}
+
+/**
+ * 직전 같은 길이 기간의 척도 평균 (기간 비교용).
+ * 시작·종료일이 모두 있을 때만 계산한다 — 전체 기간 조회는 비교 대상이 없다.
+ */
+async function computePreviousScale(
+  questionIds: string[],
+  range: { startDate?: string; endDate?: string }
+): Promise<Map<string, { average: number | null; count: number }>> {
+  const out = new Map<string, { average: number | null; count: number }>();
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  if (!range.startDate || !range.endDate || !re.test(range.startDate) || !re.test(range.endDate)) return out;
+
+  const start = new Date(`${range.startDate}T00:00:00+09:00`);
+  const end = new Date(`${range.endDate}T23:59:59.999+09:00`);
+  const lengthMs = end.getTime() - start.getTime() + 1;
+  const prevEnd = new Date(start.getTime() - 1);
+  const prevStart = new Date(start.getTime() - lengthMs);
+
+  const prev = await prisma.surveyAnswer.findMany({
+    where: { questionId: { in: questionIds }, updatedAt: { gte: prevStart, lte: prevEnd } },
+    select: { questionId: true, valueText: true },
+  });
+  const byQuestion = new Map<string, number[]>();
+  for (const a of prev) {
+    const score = parseScaleValue(a.valueText);
+    if (score === null) continue;
+    const list = byQuestion.get(a.questionId) || [];
+    list.push(score);
+    byQuestion.set(a.questionId, list);
+  }
+  for (const id of questionIds) {
+    const scores = byQuestion.get(id) || [];
+    out.set(id, { average: average(scores), count: scores.length });
+  }
+  return out;
+}
+
+/**
+ * 응답 이후 재방문 — 점수 구간별로 "응답한 뒤 같은 매장에 다시 방문(주문/적립)한 고객" 비율.
+ * 응답은 방문 직후에 받으므로 같은 방문을 재방문으로 세지 않도록 응답 시각 + 1시간 이후 방문만 센다.
+ */
+async function computeScaleRevisit(
+  questionIds: string[],
+  dateFilter: { gte?: Date; lte?: Date }
+): Promise<Map<string, ScaleSummary['revisit']>> {
+  const conds: Prisma.Sql[] = [Prisma.sql`a."questionId" IN (${Prisma.join(questionIds)})`];
+  if (dateFilter.gte) conds.push(Prisma.sql`a."updatedAt" >= ${dateFilter.gte}`);
+  if (dateFilter.lte) conds.push(Prisma.sql`a."updatedAt" <= ${dateFilter.lte}`);
+
+  const rows = await prisma.$queryRaw<Array<{ questionId: string; valueText: string | null; revisited: boolean }>>`
+    SELECT a."questionId", a."valueText",
+           EXISTS (
+             SELECT 1 FROM visits_orders v
+             WHERE v."customerId" = a."customerId"
+               AND v."storeId" = a."storeId"
+               AND v."visitedAt" > a."updatedAt" + interval '1 hour'
+           ) AS revisited
+    FROM survey_answers a
+    WHERE ${Prisma.join(conds, ' AND ')}`;
+
+  const out = new Map<string, ScaleSummary['revisit']>();
+  for (const r of rows) {
+    const score = parseScaleValue(r.valueText);
+    if (score === null) continue;
+    const agg = out.get(r.questionId) || emptyRevisit();
+    const b = agg[scaleBucket(score)];
+    b.respondents++;
+    if (r.revisited) b.revisited++;
+    out.set(r.questionId, agg);
+  }
+  return out;
 }
