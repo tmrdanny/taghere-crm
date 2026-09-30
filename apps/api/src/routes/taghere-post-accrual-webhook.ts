@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { webhookAuthMiddleware, WebhookRequest } from '../middleware/webhook-auth.js';
 import { findStoreByV2Ref } from '../services/store-ref.js';
 import { isVisitSourceRecent } from '../services/stamps.js';
+import { normalizeScaleConfig, saveSurveyAnswers, SCALE_MAX, SCALE_MIN } from '../services/survey-answers.js';
 
 const router = Router();
 
@@ -110,7 +111,25 @@ router.post('/info', webhookAuthMiddleware, async (req: WebhookRequest, res) => 
         description: true,
         required: true,
         choiceOptions: true,
+        scaleConfig: true,
       },
+    });
+
+    // 척도형(SCALE)은 주문 서비스가 아직 그릴 줄 모르므로, 숫자 선택지(1~5)의 선택형으로 바꿔 내려준다.
+    // 선택값이 "1"~"5" 로 제출되므로 SCALE 답변으로 그대로 저장된다(saveSurveyAnswers).
+    // 양끝 라벨은 보조 설명으로 붙이고, 네이티브 지원용으로 원래 타입/설정도 함께 싣는다.
+    const surveyQuestionsForApp = surveyQuestions.map((q) => {
+      if (q.type !== 'SCALE') return q;
+      const scale = normalizeScaleConfig(q.scaleConfig);
+      const hint = `${scale.min}점 ${scale.minLabel} ~ ${scale.max}점 ${scale.maxLabel}`;
+      return {
+        ...q,
+        type: 'CHOICE' as const,
+        nativeType: 'SCALE' as const,
+        description: q.description ? `${q.description}\n${hint}` : hint,
+        choiceOptions: Array.from({ length: SCALE_MAX - SCALE_MIN + 1 }, (_, i) => String(SCALE_MIN + i)),
+        scaleConfig: scale,
+      };
     });
 
     res.json({
@@ -119,7 +138,7 @@ router.post('/info', webhookAuthMiddleware, async (req: WebhookRequest, res) => 
         pending: visitSourcePending,
         options: visitSourcePending ? visitSourceOptions : [],
       },
-      surveyQuestions,
+      surveyQuestions: surveyQuestionsForApp,
     });
   } catch (error: any) {
     console.error('[PostAccrual Webhook] info error:', error);
@@ -183,39 +202,8 @@ router.post('/submit', webhookAuthMiddleware, async (req: WebhookRequest, res) =
     }
 
     if (Array.isArray(surveyAnswers) && surveyAnswers.length > 0) {
-      // 공개 API 와 달리 질문이 이 매장 소속인지 검증하고, 아닌 것은 조용히 버린다
-      const questionIds = surveyAnswers
-        .map((a: any) => a?.questionId)
-        .filter((id: any): id is string => typeof id === 'string' && id.length > 0);
-      const validQuestions = await prisma.surveyQuestion.findMany({
-        where: { id: { in: questionIds }, storeId: store.id },
-        select: { id: true },
-      });
-      const validIds = new Set(validQuestions.map(q => q.id));
-
-      for (const answer of surveyAnswers) {
-        if (!answer?.questionId || !validIds.has(answer.questionId)) continue;
-
-        await prisma.surveyAnswer.upsert({
-          where: {
-            questionId_customerId: {
-              questionId: answer.questionId,
-              customerId: customer.id,
-            },
-          },
-          create: {
-            questionId: answer.questionId,
-            customerId: customer.id,
-            storeId: store.id,
-            valueDate: answer.valueDate ? new Date(answer.valueDate) : null,
-            valueText: answer.valueText || null,
-          },
-          update: {
-            valueDate: answer.valueDate ? new Date(answer.valueDate) : null,
-            valueText: answer.valueText || null,
-          },
-        });
-      }
+      // 이 매장 질문만 저장(다른 매장 질문은 조용히 버림), 척도형은 1~5 정수만
+      await saveSurveyAnswers(store.id, customer.id, surveyAnswers);
     }
 
     res.json({ success: true });

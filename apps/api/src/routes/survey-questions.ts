@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { normalizeScaleConfig } from '../services/survey-answers.js';
+
+const QUESTION_TYPES = ['DATE', 'TEXT', 'CHOICE', 'SCALE'] as const;
 
 const router = Router();
 router.use(authMiddleware);
@@ -31,10 +34,13 @@ router.get('/', async (req: AuthRequest, res) => {
 router.post('/', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
-    const { type, label, description, required: isRequired, choiceOptions } = req.body;
+    const { type, label, description, required: isRequired, choiceOptions, scaleConfig } = req.body;
 
     if (!type || !label) {
       return res.status(400).json({ error: '질문 타입과 텍스트를 입력해주세요.' });
+    }
+    if (!QUESTION_TYPES.includes(type)) {
+      return res.status(400).json({ error: '지원하지 않는 질문 타입입니다.' });
     }
 
     if (type === 'CHOICE' && (!Array.isArray(choiceOptions) || choiceOptions.length < 2)) {
@@ -55,6 +61,7 @@ router.post('/', async (req: AuthRequest, res) => {
         required: isRequired ?? false,
         order: count,
         choiceOptions: type === 'CHOICE' ? (choiceOptions as any) : undefined,
+        scaleConfig: type === 'SCALE' ? (normalizeScaleConfig(scaleConfig) as any) : undefined,
       },
     });
 
@@ -70,7 +77,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
   try {
     const storeId = req.user!.storeId;
     const { id } = req.params;
-    const { label, description, enabled, required: isRequired, order, dateConfig, choiceOptions } = req.body;
+    const { label, description, enabled, required: isRequired, order, dateConfig, choiceOptions, scaleConfig } = req.body;
 
     const existing = await prisma.surveyQuestion.findFirst({
       where: { id, storeId },
@@ -90,6 +97,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
         ...(order !== undefined && { order }),
         ...(dateConfig !== undefined && { dateConfig }),
         ...(choiceOptions !== undefined && { choiceOptions: choiceOptions as any }),
+        ...(scaleConfig !== undefined && existing.type === 'SCALE' && { scaleConfig: normalizeScaleConfig(scaleConfig) as any }),
       },
     });
 

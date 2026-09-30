@@ -4,10 +4,19 @@ import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { ClipboardList, GripVertical, Plus, Trash2, Calendar, Type, ListChecks, X } from 'lucide-react';
+import { ClipboardList, GripVertical, Plus, Trash2, Calendar, Type, ListChecks, SlidersHorizontal, X } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
-type QuestionType = 'DATE' | 'TEXT' | 'CHOICE';
+type QuestionType = 'DATE' | 'TEXT' | 'CHOICE' | 'SCALE';
+
+interface ScaleConfig {
+  min: number;
+  max: number;
+  minLabel: string;
+  maxLabel: string;
+}
+
+const DEFAULT_SCALE_LABELS = { minLabel: '매우 별로였다', maxLabel: '매우 좋았다' };
 
 interface SurveyQuestion {
   id: string;
@@ -19,6 +28,7 @@ interface SurveyQuestion {
   order: number;
   dateConfig: { minDate?: string; maxDate?: string } | null;
   choiceOptions: string[] | null;
+  scaleConfig: ScaleConfig | null;
   _count?: { answers: number };
 }
 
@@ -28,6 +38,7 @@ const TYPE_CONFIG: Record<QuestionType, { label: string; icon: typeof Calendar; 
   DATE: { label: '날짜', icon: Calendar, color: 'text-[color:var(--ad-muted)]', bgColor: 'bg-[color:var(--ad-bg)]' },
   TEXT: { label: '텍스트', icon: Type, color: 'text-[color:var(--ad-muted)]', bgColor: 'bg-[color:var(--ad-bg)]' },
   CHOICE: { label: '선택', icon: ListChecks, color: 'text-[color:var(--ad-muted)]', bgColor: 'bg-[color:var(--ad-bg)]' },
+  SCALE: { label: '척도', icon: SlidersHorizontal, color: 'text-[color:var(--ad-muted)]', bgColor: 'bg-[color:var(--ad-bg)]' },
 };
 
 export default function SurveyPage() {
@@ -41,6 +52,7 @@ export default function SurveyPage() {
   const [newLabel, setNewLabel] = useState('');
   const [newType, setNewType] = useState<QuestionType>('DATE');
   const [newChoiceOptions, setNewChoiceOptions] = useState<string[]>(['', '']);
+  const [newScaleLabels, setNewScaleLabels] = useState(DEFAULT_SCALE_LABELS);
 
   // Track original labels for dirty check on blur
   const originalLabelsRef = useRef<Record<string, string>>({});
@@ -104,6 +116,12 @@ export default function SurveyPage() {
       if (newType === 'CHOICE') {
         body.choiceOptions = newChoiceOptions.filter((o) => o.trim());
       }
+      if (newType === 'SCALE') {
+        body.scaleConfig = {
+          minLabel: newScaleLabels.minLabel.trim() || DEFAULT_SCALE_LABELS.minLabel,
+          maxLabel: newScaleLabels.maxLabel.trim() || DEFAULT_SCALE_LABELS.maxLabel,
+        };
+      }
 
       const res = await fetch(`${API_BASE}/api/survey-questions`, {
         method: 'POST',
@@ -118,6 +136,7 @@ export default function SurveyPage() {
         setNewLabel('');
         setNewType('DATE');
         setNewChoiceOptions(['', '']);
+        setNewScaleLabels(DEFAULT_SCALE_LABELS);
         await fetchQuestions();
         showToast('질문이 추가되었습니다.', 'success');
       } else {
@@ -216,6 +235,29 @@ export default function SurveyPage() {
     } catch {
       await fetchQuestions();
       showToast('선택지 수정에 실패했습니다.', 'error');
+    }
+  };
+
+  const handleUpdateScaleLabels = async (id: string, labels: { minLabel: string; maxLabel: string }) => {
+    setQuestions((prev) =>
+      prev.map((q) => (q.id === id ? { ...q, scaleConfig: { min: 1, max: 5, ...labels } } : q))
+    );
+    try {
+      const res = await fetch(`${API_BASE}/api/survey-questions/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ scaleConfig: labels }),
+      });
+      if (!res.ok) {
+        await fetchQuestions();
+        showToast('척도 라벨 수정에 실패했습니다.', 'error');
+      }
+    } catch {
+      await fetchQuestions();
+      showToast('척도 라벨 수정에 실패했습니다.', 'error');
     }
   };
 
@@ -327,7 +369,8 @@ export default function SurveyPage() {
                   <span className="adm-tnum text-[11.5px] font-medium">2</span>
                 </div>
                 <p>
-                  <strong>날짜</strong>, <strong>텍스트</strong>, <strong>선택형</strong> 질문을 지원합니다.
+                  <strong>날짜</strong>, <strong>텍스트</strong>, <strong>선택형</strong>, <strong>척도형(1~5점)</strong> 질문을 지원합니다.
+                  척도형 결과는 <strong>데이터 분석</strong>에서 평균 점수와 재방문율로 확인할 수 있습니다.
                 </p>
               </div>
               <div className="flex items-start gap-3">
@@ -408,6 +451,16 @@ export default function SurveyPage() {
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
+                    {/* SCALE 타입 양끝 라벨 관리 */}
+                    {question.type === 'SCALE' && (
+                      <ScaleLabelsEditor
+                        labels={{
+                          minLabel: question.scaleConfig?.minLabel || DEFAULT_SCALE_LABELS.minLabel,
+                          maxLabel: question.scaleConfig?.maxLabel || DEFAULT_SCALE_LABELS.maxLabel,
+                        }}
+                        onChange={(labels) => handleUpdateScaleLabels(question.id, labels)}
+                      />
+                    )}
                     {/* CHOICE 타입 선택지 관리 */}
                     {question.type === 'CHOICE' && (
                       <ChoiceOptionsEditor
@@ -453,6 +506,7 @@ export default function SurveyPage() {
                   placeholder={
                     newType === 'DATE' ? '예: 생년월일, 결혼기념일' :
                     newType === 'TEXT' ? '예: 좋아하는 음식, 알레르기' :
+                    newType === 'SCALE' ? '예: 매장에 처음 들어섰을 때의 인테리어와 분위기는 어땠나요?' :
                     '예: 선호하는 음료'
                   }
                   disabled={questions.length >= MAX_QUESTIONS}
@@ -469,6 +523,30 @@ export default function SurveyPage() {
                   추가
                 </Button>
               </div>
+
+              {/* SCALE 양끝 라벨 입력 */}
+              {newType === 'SCALE' && (
+                <div className="space-y-2">
+                  <p className="text-[12px] text-[color:var(--ad-muted)]">1점과 5점 옆에 보여줄 설명을 입력하세요</p>
+                  <ScalePreview minLabel={newScaleLabels.minLabel} maxLabel={newScaleLabels.maxLabel} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      value={newScaleLabels.minLabel}
+                      onChange={(e) => setNewScaleLabels((p) => ({ ...p, minLabel: e.target.value }))}
+                      maxLength={20}
+                      placeholder="1점 설명 (예: 매우 별로였다)"
+                      className="h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-[13px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)] focus:outline-none"
+                    />
+                    <input
+                      value={newScaleLabels.maxLabel}
+                      onChange={(e) => setNewScaleLabels((p) => ({ ...p, maxLabel: e.target.value }))}
+                      maxLength={20}
+                      placeholder="5점 설명 (예: 매우 좋았다)"
+                      className="h-9 rounded-[10px] border border-[color:var(--ad-line-strong)] bg-white px-3 text-right text-[13px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)] focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* CHOICE 선택지 입력 */}
               {newType === 'CHOICE' && (
@@ -599,6 +677,76 @@ function ChoiceOptionsEditor({
           선택지 추가
         </button>
       )}
+    </div>
+  );
+}
+
+// 척도형 미리보기 — 고객에게 보이는 1~5 배치와 양끝 설명
+function ScalePreview({ minLabel, maxLabel }: { minLabel: string; maxLabel: string }) {
+  return (
+    <div className="rounded-[10px] bg-[color:var(--ad-bg-alt)] px-3 py-2.5">
+      <div className="flex items-center gap-2">
+        <span className="w-20 shrink-0 truncate text-right text-[11.5px] text-[color:var(--ad-muted)]">
+          {minLabel.trim() || DEFAULT_SCALE_LABELS.minLabel}
+        </span>
+        <div className="flex flex-1 justify-between">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <div key={n} className="flex flex-col items-center gap-1">
+              <span className="adm-tnum text-[11px] text-[color:var(--ad-muted)]">{n}</span>
+              <span className="h-4 w-4 rounded-full border-2 border-[color:var(--ad-line-strong)] bg-white" />
+            </div>
+          ))}
+        </div>
+        <span className="w-20 shrink-0 truncate text-[11.5px] text-[color:var(--ad-muted)]">
+          {maxLabel.trim() || DEFAULT_SCALE_LABELS.maxLabel}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// 척도형 양끝 라벨 편집 (입력 멈추면 자동 저장)
+function ScaleLabelsEditor({
+  labels,
+  onChange,
+}: {
+  labels: { minLabel: string; maxLabel: string };
+  onChange: (labels: { minLabel: string; maxLabel: string }) => void;
+}) {
+  const [local, setLocal] = useState(labels);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  const update = (patch: Partial<typeof labels>) => {
+    const next = { ...local, ...patch };
+    setLocal(next);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (next.minLabel.trim() && next.maxLabel.trim()) {
+        onChange({ minLabel: next.minLabel.trim(), maxLabel: next.maxLabel.trim() });
+      }
+    }, 800);
+  };
+
+  return (
+    <div className="ml-8 mt-2 space-y-1.5">
+      <p className="text-[12px] text-[color:var(--ad-faint)]">1점 · 5점 설명</p>
+      <ScalePreview minLabel={local.minLabel} maxLabel={local.maxLabel} />
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          value={local.minLabel}
+          onChange={(e) => update({ minLabel: e.target.value })}
+          maxLength={20}
+          placeholder="1점 설명"
+          className="h-8 rounded-[8px] border border-[color:var(--ad-line-strong)] bg-white px-2.5 text-[12.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)] focus:outline-none"
+        />
+        <input
+          value={local.maxLabel}
+          onChange={(e) => update({ maxLabel: e.target.value })}
+          maxLength={20}
+          placeholder="5점 설명"
+          className="h-8 rounded-[8px] border border-[color:var(--ad-line-strong)] bg-white px-2.5 text-right text-[12.5px] placeholder:text-[color:var(--ad-faint)] focus:border-[color:var(--ad-ink)] focus:outline-none"
+        />
+      </div>
     </div>
   );
 }
