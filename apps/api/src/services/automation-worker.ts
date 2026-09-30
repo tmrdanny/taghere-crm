@@ -14,6 +14,7 @@ import { prisma } from '../lib/prisma.js';
 import { customAlphabet } from 'nanoid';
 import type { AlimTalkType } from '@prisma/client';
 import { calculateCostWithCredits } from './credit-service.js';
+import { resolveAlimtalkCost } from './pricing-service.js';
 
 const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1시간
 const AUTOMATION_COST_PER_MESSAGE = 50; // 건당 50원
@@ -161,6 +162,8 @@ async function processChurnRule(rule: any): Promise<number> {
       consentMarketing: true,
       phone: { not: null },
     },
+    // 일부만 보낼 수 있을 때 막 발길이 끊긴 손님부터 (다시 올 가능성이 높다)
+    orderBy: { lastVisitAt: 'desc' },
     select: { id: true, name: true, phone: true },
   });
 
@@ -498,23 +501,25 @@ export async function sendAutomationMessages(
     return 0;
   }
 
-  // 비용 계산 (무료 크레딧 적용)
-  const creditResult = await calculateCostWithCredits(
-    rule.storeId,
-    targets.length,
-    AUTOMATION_COST_PER_MESSAGE,
-    true // 자동화 메시지도 무료 크레딧 적용
-  );
-
-  // 잔액 확인
+  // 보낼 수 있는 만큼만 보낸다 (무료 크레딧 + 잔액으로 감당되는 건수).
+  // 예전에는 대상 전체 비용을 감당하지 못하면 한 건도 보내지 않아, 무료 크레딧이 남아 있어도
+  // 잔액이 조금 모자란 매장은 매일 건너뛰기만 하고 영영 발송되지 않았다.
+  // (실제 차감·무료 크레딧 확보는 알림톡 워커가 건마다 원자적으로 한다 — 여기는 과다 큐잉 방지용 상한)
+  const creditResult = await calculateCostWithCredits(rule.storeId, targets.length, AUTOMATION_COST_PER_MESSAGE, true);
   if (creditResult.paidCount > 0) {
-    const wallet = await prisma.wallet.findUnique({
-      where: { storeId: rule.storeId },
-    });
-
-    if (!wallet || wallet.balance < creditResult.totalCost) {
-      console.log(`[AutoWorker] Insufficient balance for store ${rule.storeId}, needed: ${creditResult.totalCost}, have: ${wallet?.balance || 0}`);
+    const [wallet, unitCost] = await Promise.all([
+      prisma.wallet.findUnique({ where: { storeId: rule.storeId }, select: { balance: true } }),
+      resolveAlimtalkCost(rule.storeId, messageType, AUTOMATION_COST_PER_MESSAGE),
+    ]);
+    const paidAffordable = unitCost > 0 ? Math.floor(Math.max(0, wallet?.balance ?? 0) / unitCost) : creditResult.paidCount;
+    const affordable = creditResult.freeCount + Math.min(creditResult.paidCount, paidAffordable);
+    if (affordable === 0) {
+      console.log(`[AutoWorker] ${messageType} store ${rule.storeId}: no free credits and balance ${wallet?.balance ?? 0} < ${unitCost} — skipped ${targets.length}`);
       return 0;
+    }
+    if (affordable < targets.length) {
+      console.log(`[AutoWorker] ${messageType} store ${rule.storeId}: sending ${affordable}/${targets.length} (free ${creditResult.freeCount}, balance ${wallet?.balance ?? 0}) — rest next run`);
+      targets = targets.slice(0, affordable);
     }
   }
 
