@@ -9,7 +9,7 @@ import { prisma } from '../lib/prisma.js';
 import { AdminRequest, adminAuthMiddleware, ADMIN_USERNAME } from './admin-shared.js';
 import * as svc from '../services/place-booster-service.js';
 import { lookupNaverPlace } from '../services/naver-place-lookup.js';
-import { sendAligoAlimtalk } from '../services/aligo.js';
+import { sendBoosterOne } from '../services/booster-channel.js';
 import { toMobileOrEmpty } from '../utils/phone.js';
 
 const router = Router();
@@ -171,14 +171,7 @@ router.post('/place-booster/test-send-preview', adminAuthMiddleware, async (req:
     const p = (phone || '').toString().trim();
     if (!p) throw new svc.BoosterError('테스트로 받을 휴대폰 번호를 입력해주세요.');
     const al = svc.buildBoosterPreviewAlimtalk(input);
-    const result = await sendAligoAlimtalk({
-      phone: p,
-      tplCode: al.tplCode,
-      subject: al.subject,
-      message: al.message,
-      buttonName: al.buttonName,
-      buttonUrl: al.buttonUrl,
-    });
+    const result = await sendBoosterOne({ phone: p, variables: al.variables });
     if (!result.success) throw new svc.BoosterError(result.error || '테스트 발송에 실패했습니다.', 502);
     res.json({ success: true });
   } catch (error) {
@@ -285,14 +278,7 @@ router.post('/place-booster/campaigns/:id/test-send', adminAuthMiddleware, async
     const phone = (req.body.phone || '').toString().trim();
     if (!phone) throw new svc.BoosterError('테스트로 받을 휴대폰 번호를 입력해주세요.');
     const al = svc.buildBoosterAlimtalk(campaign, 1);
-    const result = await sendAligoAlimtalk({
-      phone,
-      tplCode: al.tplCode,
-      subject: al.subject,
-      message: al.message,
-      buttonName: al.buttonName,
-      buttonUrl: al.buttonUrl,
-    });
+    const result = await sendBoosterOne({ phone, variables: al.variables });
     if (!result.success) throw new svc.BoosterError(result.error || '테스트 발송에 실패했습니다.', 502);
     res.json({ success: true });
   } catch (error) {

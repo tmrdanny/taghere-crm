@@ -14,7 +14,8 @@ import {
 } from '../utils/naver-place.js';
 import { parseStoreRegion, expandRegions, TargetRegion } from '../utils/region.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
-import { cancelAligoReservation, getAligoSendResults, classifyPermanentBlock } from './aligo.js';
+import { classifyPermanentBlock } from './aligo.js';
+import { BOOSTER_TEMPLATE_ID, boosterVariables, cancelBoosterReservation, getBoosterSendResults } from './booster-channel.js';
 import type { Prisma, PlaceBoosterCampaign } from '@prisma/client';
 
 /** 결제 금액 (VAT 포함) / ROI 분모 광고비 (VAT 제외) */
@@ -30,16 +31,15 @@ export const BOOSTER_PRESETS = [
 const TOSS_SECRET_KEY = env.TOSS_SECRET_KEY || '';
 const KST_OFFSET = 9 * 60 * 60 * 1000;
 const PUBLIC_BASE_URL = env.PUBLIC_BASE_URL || '';
-// 알리고에 등록된 부스터 알림톡 템플릿 코드. env 미설정 시에도 실제 템플릿(UG_5628)으로 폴백.
-const BOOSTER_TPL_CODE = process.env.ALIGO_PLACE_BOOSTER_TPL_CODE || 'UG_5628';
 
-/** 알리고 등록 템플릿(UG_5628)용 알림톡 페이로드 — 워커/테스트발송 공유 */
+/** 부스터 알림톡 페이로드 — 워커/테스트발송 공유. 발송은 variables(솔라피 "태그히어" 채널 템플릿), message 는 미리보기용 */
 export interface BoosterAlimtalk {
   tplCode: string;
   subject: string;
   message: string;
   buttonName: string;
   buttonUrl: string;
+  variables: Record<string, string>;
 }
 
 function formatBoosterValidUntil(date: Date | null): string {
@@ -56,14 +56,16 @@ function formatBoosterValidUntil(date: Date | null): string {
 const BOOSTER_COUPON_GUIDE =
   '쿠폰 다운받기 > 네이버 길찾기 앱 진입 후 하단 스크롤 > 네이버 쿠폰 다운로드 > 매장 방문시 직원에게 보여주세요.';
 
-/** 쿠폰 4개 필드 → 알림톡 본문(등록 템플릿 UG_5628과 정확히 일치). 캠페인/미리보기 공용. */
-function buildBoosterMessage(c: {
+type BoosterCoupon = {
   couponContent: string;
   couponCode?: string | null;
   couponAmount?: string | null;
   couponValidUntil?: Date | null;
   couponValidUntilText?: string | null;
-}): string {
+};
+
+/** 유효기간 변수 값 — 자유 문구(또는 레거시 날짜) + 줄바꿈 + 고정 쿠폰 수령 안내 */
+function boosterValidText(c: BoosterCoupon): string {
   // 유효기간은 자유 문구(couponValidUntilText)를 그대로 쓴다.
   // 문구 입력 이전에 만들어진 캠페인은 날짜 컬럼(couponValidUntil)을 "YYYY.MM.DD까지"로 표기한다.
   const validPhrase = c.couponValidUntilText?.trim()
@@ -72,16 +74,37 @@ function buildBoosterMessage(c: {
       ? `${formatBoosterValidUntil(c.couponValidUntil)}까지`
       : '';
   // 유효기간 표기 뒤에 고정 안내문을 줄바꿈과 함께 덧붙인다(변수 값에 포함 → 템플릿 매칭 유지).
-  const validText = validPhrase ? `${validPhrase}\n\n${BOOSTER_COUPON_GUIDE}` : BOOSTER_COUPON_GUIDE;
-  // "[태그히어 플레이스] …" 안내문은 카카오 템플릿(UG_5628) 부가정보로 자동 첨부되므로
-  // 본문에 다시 넣지 않는다(넣으면 회색 부가정보와 중복 출력됨).
+  return validPhrase ? `${validPhrase}\n\n${BOOSTER_COUPON_GUIDE}` : BOOSTER_COUPON_GUIDE;
+}
+
+/** 미리보기용 본문 — 솔라피 "플레이스 부스터 메인" 템플릿과 같은 모양 */
+function buildBoosterMessage(c: BoosterCoupon): string {
   return [
+    '🎁 고객님, 선물을 확인하세요.',
+    '',
     `${c.couponContent} 쿠폰이 도착했어요.`,
     '',
     `▶ 쿠폰 코드: ${c.couponCode ?? ''}`,
     `▶ 쿠폰: ${c.couponAmount ?? ''}`,
-    `▶ 유효기간: ${validText}`,
+    `▶ 유효기간: ${boosterValidText(c)}`,
   ].join('\n');
+}
+
+function boosterPayload(c: BoosterCoupon, buttonUrl: string): BoosterAlimtalk {
+  return {
+    tplCode: BOOSTER_TEMPLATE_ID,
+    subject: '쿠폰 발급 완료',
+    message: buildBoosterMessage(c),
+    buttonName: '쿠폰 받기',
+    buttonUrl,
+    variables: boosterVariables({
+      couponContent: c.couponContent,
+      couponCode: c.couponCode ?? '',
+      couponAmount: c.couponAmount ?? '',
+      validText: boosterValidText(c),
+      linkUrl: buttonUrl,
+    }),
+  };
 }
 
 /** 캠페인 → 알리고 알림톡 페이로드 (버튼=추적 링크 /r/{code}/{weekNo}) */
@@ -89,13 +112,7 @@ export function buildBoosterAlimtalk(
   campaign: Pick<PlaceBoosterCampaign, 'trackingCode' | 'couponContent' | 'couponCode' | 'couponAmount' | 'couponValidUntil' | 'couponValidUntilText'>,
   weekNo: number
 ): BoosterAlimtalk {
-  return {
-    tplCode: BOOSTER_TPL_CODE,
-    subject: '쿠폰 발급 완료',
-    message: buildBoosterMessage(campaign),
-    buttonName: '쿠폰 받기',
-    buttonUrl: `${PUBLIC_BASE_URL}/r/${campaign.trackingCode}/${weekNo}`,
-  };
+  return boosterPayload(campaign, `${PUBLIC_BASE_URL}/r/${campaign.trackingCode}/${weekNo}`);
 }
 
 /**
@@ -119,19 +136,16 @@ export function buildBoosterPreviewAlimtalk(input: PreviewAlimtalkInput): Booste
   if (!input.keyword?.trim() || !placeId) {
     throw new BoosterError('키워드와 플레이스 상세 URL을 입력 후 테스트해주세요.');
   }
-  return {
-    tplCode: BOOSTER_TPL_CODE,
-    subject: '쿠폰 발급 완료',
-    message: buildBoosterMessage({
+  return boosterPayload(
+    {
       couponContent: input.couponContent.trim(),
       couponCode: input.couponCode.trim(),
       couponAmount: input.couponAmount.trim(),
       couponValidUntil: parseCouponValidUntil(input.couponValidUntil),
       couponValidUntilText: resolveValidUntilText(input),
-    }),
-    buttonName: '쿠폰 받기',
-    buttonUrl: buildNaverMapUrl(input.keyword.trim(), placeId),
-  };
+    },
+    buildNaverMapUrl(input.keyword.trim(), placeId)
+  );
 }
 
 export interface CreateCampaignInput {
@@ -557,7 +571,7 @@ async function restageBatches(
     const mids = [...b.aligoMids, ...(b.ownerAligoMid ? [b.ownerAligoMid] : [])];
     let cancelOk = true;
     for (const mid of mids) {
-      const r = await cancelAligoReservation(mid);
+      const r = await cancelBoosterReservation(mid);
       if (!r.success) {
         cancelOk = false;
         console.warn(`[PlaceBooster] restage 취소 실패 campaign=${campaignId} week=${b.weekNo} mid=${mid}: ${r.error}`);
@@ -886,7 +900,7 @@ export async function syncBatchFailures(batchId: string): Promise<{ checked: num
   const blockedPhones = new Map<string, string>(); // 정규화 phone → 차단 사유(스냅샷)
 
   for (const mid of batch.aligoMids) {
-    const rows = await getAligoSendResults(mid);
+    const rows = await getBoosterSendResults(mid);
     checked += rows.length;
     for (const row of rows) {
       if (!classifyPermanentBlock(row)) continue;
@@ -1043,7 +1057,7 @@ export async function cancelCampaign(campaignId: string): Promise<CancelCampaign
     const mids = [...b.aligoMids, ...(b.ownerAligoMid ? [b.ownerAligoMid] : [])];
     let weekFailed = false;
     for (const mid of mids) {
-      const r = await cancelAligoReservation(mid);
+      const r = await cancelBoosterReservation(mid);
       if (!r.success) {
         weekFailed = true;
         console.warn(`[PlaceBooster] 예약 취소 실패 campaign=${campaignId} week=${b.weekNo} mid=${mid}: ${r.error}`);

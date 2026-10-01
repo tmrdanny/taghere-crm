@@ -495,6 +495,8 @@ export class SolapiService {
     messages: Array<{ to: string; templateId: string; variables: Record<string, string> }>;
     pfId: string;
     scheduledAt?: Date;
+    /** 알림톡 실패 시 문자 대체 발송 막기 (광고 표기 없는 문자가 나가지 않게) */
+    disableSms?: boolean;
   }): Promise<BulkSendResult[]> {
     if (!this.messageService) {
       throw new Error('SOLAPI not configured');
@@ -503,7 +505,7 @@ export class SolapiService {
     const CHUNK_SIZE = 10000; // 솔라피 send() 1회 요청 최대 건수
     const CHUNK_DELAY_MS = 100;
     const results: BulkSendResult[] = [];
-    const { messages, pfId, scheduledAt } = params;
+    const { messages, pfId, scheduledAt, disableSms } = params;
 
     for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
       // 리타겟 쿠폰 템플릿은 광고 문자(LMS)로 대신 보낸다 (kakao-channel-templates.ts)
@@ -518,6 +520,7 @@ export class SolapiService {
                 pfId,
                 templateId: templateForChannel(pfId, msg.templateId),
                 variables: variablesForChannel(pfId, msg.templateId, msg.variables),
+                ...(disableSms ? { disableSms: true } : {}),
               },
             }
       );
