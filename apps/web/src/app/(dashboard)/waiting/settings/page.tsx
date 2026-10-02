@@ -101,9 +101,9 @@ export default function WaitingSettingsPage() {
       });
 
       if (res.ok) {
-        const updatedSettings = await res.json();
-        setSettings(updatedSettings);
-        setOriginalSettings(updatedSettings);
+        const data = await res.json();
+        setSettings(data.setting || {});
+        setOriginalSettings(data.setting || {});
         showToast('설정이 저장되었습니다.', 'success');
       } else {
         throw new Error('Failed to save settings');
