@@ -42,7 +42,7 @@ router.use(foodCourtRouter);
 // POST /api/admin/login - 어드민 로그인
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, keepSignedIn } = req.body;
 
     if (!username || !password) {
       return res.status(400).json({ error: '아이디와 비밀번호를 입력해주세요.' });
@@ -70,7 +70,8 @@ router.post('/login', async (req: Request, res: Response) => {
         username: ADMIN_USERNAME,
       },
       env.JWT_SECRET!,
-      { expiresIn: '24h' }
+      // 자동 로그인을 고르면 30일, 아니면 24시간
+      { expiresIn: keepSignedIn === true ? '30d' : '24h' }
     );
 
     res.json({
