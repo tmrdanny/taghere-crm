@@ -1,6 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
+import { readRecipients } from '@/lib/selected-recipients';
 import { AGE_GROUP_OPTIONS } from '@/lib/constants';
 import { Fragment, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -264,19 +265,12 @@ export default function MessagesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Parse selected customers from URL params
+  // 고객 리스트에서 고른 손님 (?selection=키 → sessionStorage, 이름·번호는 URL 에 싣지 않는다)
   useEffect(() => {
-    const customersParam = searchParams.get('customers');
-    if (customersParam) {
-      try {
-        const parsed = JSON.parse(decodeURIComponent(customersParam));
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setSelectedCustomers(parsed);
-          setSelectedTarget('CUSTOM');
-        }
-      } catch (e) {
-        console.error('Failed to parse customers param:', e);
-      }
+    const picked = readRecipients(searchParams.get('selection'));
+    if (picked.length > 0) {
+      setSelectedCustomers(picked);
+      setSelectedTarget('CUSTOM');
     }
   }, [searchParams]);
 

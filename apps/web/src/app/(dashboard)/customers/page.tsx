@@ -38,6 +38,7 @@ import {
   EarnStampsModal,
 } from '@/features/customers';
 import { SegmentBuilderModal } from '@/features/segments/SegmentBuilderModal';
+import { stashRecipients } from '@/lib/selected-recipients';
 import type { SegmentConditions } from '@/features/segments/segment-conditions';
 
 // 컬럼 정의 상수
@@ -1207,27 +1208,14 @@ export default function CustomersPage() {
           const selectedData = customers
             .filter(c => selectedCustomers.includes(c.id))
             .map(c => ({ id: c.id, name: c.name, phone: c.phone }));
-          const params = encodeURIComponent(JSON.stringify(selectedData));
-          router.push(`/messages?customers=${params}`);
+          // 이름·번호는 URL 이 아니라 이 탭의 sessionStorage 로 넘긴다
+          router.push(`/messages?selection=${stashRecipients(selectedData)}`);
         }}
         onAddCustomer={() => setAddModal(true)}
-        hasFilters={genderFilter !== 'all' || visitFilter !== 'all' || lastVisitFilter !== 'all'}
-        onSaveGroup={() => {
-          if (selectedCustomers.length > 0) {
-            setGroupDraft({ conditions: { includeIds: [...selectedCustomers] } });
-            return;
-          }
-          const conditions: SegmentConditions = {};
-          if (genderFilter !== 'all') conditions.genders = [genderFilter];
-          if (visitFilter === '1' || visitFilter === '2') {
-            conditions.visitCountMin = Number(visitFilter);
-            conditions.visitCountMax = Number(visitFilter);
-          } else if (visitFilter !== 'all') {
-            conditions.visitCountMin = Number(visitFilter);
-          }
-          if (lastVisitFilter !== 'all') conditions.lastVisitWithinDays = Number(lastVisitFilter);
-          setGroupDraft({ conditions });
-        }}
+        onCreateGroup={() =>
+          // 메시지 발송의 "새 그룹"과 같은 창 — 선택한 손님이 있으면 직접 추가로 미리 채운다
+          setGroupDraft(selectedCustomers.length > 0 ? { conditions: { includeIds: [...selectedCustomers] } } : { conditions: {} })
+        }
         onBulkUpload={() => {
           setBulkModal(true);
           setBulkParsedData([]);
