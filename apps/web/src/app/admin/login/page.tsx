@@ -1,7 +1,7 @@
 'use client';
 
 import { API_BASE } from '@/lib/api-config';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
@@ -9,6 +9,15 @@ export default function AdminLoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  // 자동 로그인 — 체크하면 30일 동안 로그인 유지 (선택은 이 기기에 기억)
+  const [keepSignedIn, setKeepSignedIn] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('adminKeepSignedIn') === 'false') setKeepSignedIn(false);
+    } catch {
+      // 저장소를 못 쓰면 기본값(자동 로그인) 유지
+    }
+  }, []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,7 +32,7 @@ export default function AdminLoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, keepSignedIn }),
       });
 
       const data = await res.json();
@@ -33,6 +42,7 @@ export default function AdminLoginPage() {
       }
 
       localStorage.setItem('adminToken', data.token);
+      localStorage.setItem('adminKeepSignedIn', String(keepSignedIn));
       router.push('/admin');
     } catch (err: any) {
       setError(err.message);
@@ -90,6 +100,16 @@ export default function AdminLoginPage() {
               required
             />
           </div>
+
+          <label className="flex cursor-pointer items-center gap-2 text-[13px] text-[color:var(--ad-ink-2)]">
+            <input
+              type="checkbox"
+              checked={keepSignedIn}
+              onChange={(e) => setKeepSignedIn(e.target.checked)}
+              className="h-4 w-4 accent-[color:var(--ad-ink)]"
+            />
+            자동 로그인 <span className="text-[color:var(--ad-faint)]">(30일 동안 유지)</span>
+          </label>
 
           <button
             type="submit"
