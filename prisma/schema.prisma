@@ -737,17 +737,20 @@ model Announcement {
   @@map("announcements")
 }
 
-// 공지 읽음 — 매장이 "읽음"을 누른 공지는 그 매장 CRM 에 다시 노출하지 않는다
+// 공지 읽음 — 매장(사장님 CRM) 또는 프랜차이즈 본사(프랜차이즈 CRM)가 "읽음"을 누른 공지는 다시 노출하지 않는다
 model AnnouncementRead {
   id             String       @id @default(cuid())
   announcementId String
-  storeId        String
+  storeId        String?      // 사장님 CRM 에서 읽음
+  franchiseId    String?      // 프랜차이즈 CRM 에서 읽음
   readAt         DateTime     @default(now())
 
   announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
 
   @@unique([announcementId, storeId])
+  @@unique([announcementId, franchiseId])
   @@index([storeId])
+  @@index([franchiseId])
   @@map("announcement_reads")
 }
 

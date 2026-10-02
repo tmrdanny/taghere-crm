@@ -49,6 +49,7 @@ import monthlyCreditRoutes from './routes/monthly-credit.js';
 import visitSourceSettingsRoutes from './routes/visit-source-settings.js';
 import insightsRoutes from './routes/insights.js';
 import segmentsRoutes from './routes/segments.js';
+import franchiseAnnouncementsRoutes from './routes/franchise-announcements.js';
 import franchiseSegmentsRoutes from './routes/franchise-segments.js';
 import premiumKakaoRoutes, { franchisePremiumKakaoRoutes } from './routes/premium-kakao.js';
 import { ownerRouter as marketingPerformanceRoutes, franchiseRouter as franchiseMarketingPerformanceRoutes } from './routes/marketing-performance.js';
@@ -309,6 +310,7 @@ app.use('/api/v1', v1YahwaRoutes);
 
 // Franchise routes
 app.use('/api/franchise/auth', franchiseAuthRoutes);
+app.use('/api/franchise/announcements', franchiseAnnouncementsRoutes);
 app.use('/api/franchise/segments', franchiseSegmentsRoutes);
 app.use('/api/franchise/premium-kakao', franchisePremiumKakaoRoutes);
 app.use('/api/franchise/marketing-performance', franchiseMarketingPerformanceRoutes);
