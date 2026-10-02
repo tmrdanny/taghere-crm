@@ -1419,6 +1419,10 @@ model WaitingSetting {
   maxCallCount            Int                     @default(2)      // 최대 호출 횟수
   autoCancel              Boolean                 @default(true)   // 자동 취소 여부
 
+  // 영업 마감 시각(KST 0~12시) — 이 시각에 착석·취소된 웨이팅이 목록에서 정리되고 새 영업일이 시작된다.
+  // 대기·호출 중인 웨이팅은 정리하지 않고 다음 영업일까지 이어진다.
+  dayResetHour            Int                     @default(5)
+
   // 자주 쓰는 메모
   quickMemos              Json?                   // ["창가석", "유아동반", "휠체어", "VIP"]
 

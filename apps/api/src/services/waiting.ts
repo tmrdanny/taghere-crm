@@ -55,21 +55,23 @@ function notifyYahwaIfExternal(waitingId: string): void {
     .catch((err) => console.error('[Waiting] yahwa notify failed:', err));
 }
 
-// 영업일 기준: KST 03:00 ~ 다음날 03:00 (자정~새벽 3시는 전일 영업일에 포함)
-// 영업일이 바뀌어도 아직 대기·호출 중인 손님은 목록에서 빠지지 않는다 (todayOrActiveWhere).
-export const DEFAULT_DAY_RESET_HOUR_KST = 3;
+// 영업일 기준: 매장 영업 마감 시각(웨이팅 설정 dayResetHour, KST 0~12시, 기본 05시) ~ 다음날 마감 시각.
+// 마감 시각에 착석·취소된 웨이팅만 목록에서 정리되고, 대기·호출 중인 손님은 다음 영업일까지 이어진다 (todayOrActiveWhere).
+export const DEFAULT_DAY_RESET_HOUR_KST = 5;
+export const MAX_DAY_RESET_HOUR_KST = 12;
 
 export function getTodayStartEnd(resetHour: number = DEFAULT_DAY_RESET_HOUR_KST) {
+  const hour = Number.isInteger(resetHour) && resetHour >= 0 && resetHour <= MAX_DAY_RESET_HOUR_KST ? resetHour : DEFAULT_DAY_RESET_HOUR_KST;
   const now = new Date();
   const kstOffset = 9 * 60 * 60 * 1000;
   const kstNow = new Date(now.getTime() + kstOffset);
 
-  // KST 03시 이전이면 전일 영업일에 속함
-  const businessDayShiftMs = kstNow.getUTCHours() < resetHour ? -24 * 60 * 60 * 1000 : 0;
+  // KST 마감 시각 이전이면 전일 영업일에 속함
+  const businessDayShiftMs = kstNow.getUTCHours() < hour ? -24 * 60 * 60 * 1000 : 0;
   const businessDay = new Date(kstNow.getTime() + businessDayShiftMs);
   const businessDayStr = businessDay.toISOString().split('T')[0];
 
-  const todayStart = new Date(`${businessDayStr}T${String(resetHour).padStart(2, '0')}:00:00+09:00`);
+  const todayStart = new Date(`${businessDayStr}T${String(hour).padStart(2, '0')}:00:00+09:00`);
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
   return { todayStart, todayEnd };
 }
@@ -81,9 +83,10 @@ export interface StoreBusinessDay {
   activeSince: Date;
 }
 
-/** 매장 영업일 (현재 모든 매장 KST 03시 기준) */
-export async function getStoreBusinessDay(_storeId: string): Promise<StoreBusinessDay> {
-  const { todayStart, todayEnd } = getTodayStartEnd();
+/** 매장 영업 마감 시각 기준 영업일 */
+export async function getStoreBusinessDay(storeId: string): Promise<StoreBusinessDay> {
+  const setting = await prisma.waitingSetting.findUnique({ where: { storeId }, select: { dayResetHour: true } });
+  const { todayStart, todayEnd } = getTodayStartEnd(setting?.dayResetHour ?? DEFAULT_DAY_RESET_HOUR_KST);
   return { todayStart, todayEnd, activeSince: new Date(todayStart.getTime() - 24 * 60 * 60 * 1000) };
 }
 

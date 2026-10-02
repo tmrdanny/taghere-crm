@@ -85,11 +85,21 @@ export const WaitingTableRow = memo(function WaitingTableRow({
   const isOverTime = elapsedMinutes >= 30;
   const overTimeMinutes = Math.max(0, elapsedMinutes - 30);
 
-  // Memoize formatted time to avoid recalculation
+  // 등록 시각 — 오늘이 아니면(영업일이 바뀌어도 이어진 대기) 날짜도 붙인다
   const formattedCreatedTime = useMemo(() => {
     const date = new Date(item.createdAt);
-    return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    const time = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    const sameDay = date.toDateString() === new Date().toDateString();
+    return sameDay ? time : `${date.getMonth() + 1}/${date.getDate()} ${time}`;
   }, [item.createdAt]);
+
+  // 대기 시간 표기 — 60분 이상은 "N시간 M분"
+  const formatDuration = (minutes: number) => {
+    if (minutes < 60) return `${minutes}분`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m === 0 ? `${h}시간` : `${h}시간 ${m}분`;
+  };
 
   // Format call remaining time
   const formatCallRemaining = (seconds: number) => {
@@ -178,29 +188,32 @@ export const WaitingTableRow = memo(function WaitingTableRow({
           {/* 상태 뱃지 */}
           {isCalled && (
             <div className="flex items-center gap-1.5">
-              <Badge variant="warning" className="text-xs px-2 py-0.5">
+              <Badge variant="warning" className="whitespace-nowrap text-xs px-2 py-0.5">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse mr-1" />
                 호출 중
               </Badge>
-              {callRemainingSeconds !== null && (
-                <span className="text-sm font-bold tabular-nums text-amber-700">
-                  {formatCallRemaining(callRemainingSeconds)}
-                </span>
-              )}
+              {callRemainingSeconds !== null &&
+                (callRemainingSeconds > 0 ? (
+                  <span className="whitespace-nowrap text-sm font-bold tabular-nums text-amber-700">
+                    {formatCallRemaining(callRemainingSeconds)}
+                  </span>
+                ) : (
+                  <span className="whitespace-nowrap text-xs font-semibold text-red-600">시간 초과</span>
+                ))}
             </div>
           )}
 
           {isWaiting && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className={cn(
-                'text-sm font-medium tabular-nums',
+                'whitespace-nowrap text-sm font-medium tabular-nums',
                 isOverTime ? 'text-red-600' : 'text-neutral-700'
               )}>
-                {elapsedMinutes}분 대기
+                {formatDuration(elapsedMinutes)} 대기
               </span>
               {isOverTime && (
-                <Badge variant="error" className="text-[10px] px-1.5 py-0">
-                  +{overTimeMinutes}분
+                <Badge variant="error" className="whitespace-nowrap text-[10px] px-1.5 py-0">
+                  +{formatDuration(overTimeMinutes)}
                 </Badge>
               )}
             </div>
@@ -219,7 +232,7 @@ export const WaitingTableRow = memo(function WaitingTableRow({
           )}
 
           {/* 등록 시간 */}
-          <span className="text-[11px] text-neutral-400">
+          <span className="whitespace-nowrap text-[11px] text-neutral-400">
             {formattedCreatedTime} 등록
           </span>
         </div>
