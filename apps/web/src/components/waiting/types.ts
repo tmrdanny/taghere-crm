@@ -61,8 +61,8 @@ export interface WaitingSetting {
   callTimeoutMinutes: number;
   maxCallCount: number;
   autoCancel: boolean;
-  /** 영업 마감 시각, KST 0~12시 (기본 5시) */
-  dayResetHour?: number;
+  /** 영업 마감 시각, KST 자정부터 분 (0~720, 기본 300 = 05:00) */
+  dayResetMinutes?: number;
   quickMemos?: string[] | null;
   waitingNote?: string | null;
   waitingCallNote?: string | null;

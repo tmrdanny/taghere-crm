@@ -55,23 +55,27 @@ function notifyYahwaIfExternal(waitingId: string): void {
     .catch((err) => console.error('[Waiting] yahwa notify failed:', err));
 }
 
-// 영업일 기준: 매장 영업 마감 시각(웨이팅 설정 dayResetHour, KST 0~12시, 기본 05시) ~ 다음날 마감 시각.
+// 영업일 기준: 매장 영업 마감 시각(웨이팅 설정 dayResetMinutes, KST 00:00~12:00, 기본 05:00) ~ 다음날 마감 시각.
 // 마감 시각에 착석·취소된 웨이팅만 목록에서 정리되고, 대기·호출 중인 손님은 다음 영업일까지 이어진다 (todayOrActiveWhere).
-export const DEFAULT_DAY_RESET_HOUR_KST = 5;
-export const MAX_DAY_RESET_HOUR_KST = 12;
+export const DEFAULT_DAY_RESET_MINUTES_KST = 5 * 60;
+export const MAX_DAY_RESET_MINUTES_KST = 12 * 60;
 
-export function getTodayStartEnd(resetHour: number = DEFAULT_DAY_RESET_HOUR_KST) {
-  const hour = Number.isInteger(resetHour) && resetHour >= 0 && resetHour <= MAX_DAY_RESET_HOUR_KST ? resetHour : DEFAULT_DAY_RESET_HOUR_KST;
+export function getTodayStartEnd(resetMinutes: number = DEFAULT_DAY_RESET_MINUTES_KST) {
+  const reset =
+    Number.isInteger(resetMinutes) && resetMinutes >= 0 && resetMinutes <= MAX_DAY_RESET_MINUTES_KST ? resetMinutes : DEFAULT_DAY_RESET_MINUTES_KST;
   const now = new Date();
   const kstOffset = 9 * 60 * 60 * 1000;
   const kstNow = new Date(now.getTime() + kstOffset);
 
   // KST 마감 시각 이전이면 전일 영업일에 속함
-  const businessDayShiftMs = kstNow.getUTCHours() < hour ? -24 * 60 * 60 * 1000 : 0;
+  const nowMinutes = kstNow.getUTCHours() * 60 + kstNow.getUTCMinutes();
+  const businessDayShiftMs = nowMinutes < reset ? -24 * 60 * 60 * 1000 : 0;
   const businessDay = new Date(kstNow.getTime() + businessDayShiftMs);
   const businessDayStr = businessDay.toISOString().split('T')[0];
 
-  const todayStart = new Date(`${businessDayStr}T${String(hour).padStart(2, '0')}:00:00+09:00`);
+  const hh = String(Math.floor(reset / 60)).padStart(2, '0');
+  const mm = String(reset % 60).padStart(2, '0');
+  const todayStart = new Date(`${businessDayStr}T${hh}:${mm}:00+09:00`);
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
   return { todayStart, todayEnd };
 }
@@ -85,8 +89,8 @@ export interface StoreBusinessDay {
 
 /** 매장 영업 마감 시각 기준 영업일 */
 export async function getStoreBusinessDay(storeId: string): Promise<StoreBusinessDay> {
-  const setting = await prisma.waitingSetting.findUnique({ where: { storeId }, select: { dayResetHour: true } });
-  const { todayStart, todayEnd } = getTodayStartEnd(setting?.dayResetHour ?? DEFAULT_DAY_RESET_HOUR_KST);
+  const setting = await prisma.waitingSetting.findUnique({ where: { storeId }, select: { dayResetMinutes: true } });
+  const { todayStart, todayEnd } = getTodayStartEnd(setting?.dayResetMinutes ?? DEFAULT_DAY_RESET_MINUTES_KST);
   return { todayStart, todayEnd, activeSince: new Date(todayStart.getTime() - 24 * 60 * 60 * 1000) };
 }
 

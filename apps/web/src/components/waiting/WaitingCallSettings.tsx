@@ -12,6 +12,12 @@ interface WaitingCallSettingsProps {
   errors?: Record<string, string>;
 }
 
+const minutesToTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const timeToMinutes = (v: string): number | null => {
+  const [h, m] = v.split(':').map(Number);
+  return Number.isInteger(h) && Number.isInteger(m) ? h * 60 + m : null;
+};
+
 export function WaitingCallSettings({
   settings,
   onChange,
@@ -100,28 +106,30 @@ export function WaitingCallSettings({
           {/* 영업 마감 시간 */}
           <div className="flex items-center justify-between gap-4">
             <div>
-              <label className="text-sm font-medium text-neutral-900">영업 마감 시간</label>
+              <label htmlFor="day-reset-time" className="text-sm font-medium text-neutral-900">
+                영업 마감 시간
+              </label>
               <p className="text-xs text-neutral-500 mt-0.5">
-                이 시각에 착석·취소된 웨이팅이 목록에서 정리돼요. 기다리는 손님은 정리되지 않고 다음 영업일까지 이어져요.
+                이 시각에 착석·취소된 웨이팅이 목록에서 정리돼요. 기다리는 손님은 정리되지 않고 다음 영업일까지 이어져요. (00:00~12:00)
               </p>
             </div>
-            <select
-              value={settings.dayResetHour ?? 5}
-              onChange={(e) => onChange('dayResetHour', parseInt(e.target.value))}
-              className="w-28 h-10 flex-none rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-800 focus:border-transparent"
-              aria-label="영업 마감 시간"
-            >
-              {Array.from({ length: 13 }, (_, h) => (
-                <option key={h} value={h}>
-                  {h === 0 ? '자정 (0시)' : h <= 5 ? `새벽 ${h}시` : h < 12 ? `오전 ${h}시` : '낮 12시'}
-                </option>
-              ))}
-            </select>
+            <Input
+              id="day-reset-time"
+              type="time"
+              step={60}
+              min="00:00"
+              max="12:00"
+              value={minutesToTime(settings.dayResetMinutes ?? 300)}
+              onChange={(e) => {
+                const m = timeToMinutes(e.target.value);
+                if (m !== null) onChange('dayResetMinutes', Math.min(m, 720));
+              }}
+              className="w-32 flex-none tabular-nums"
+            />
           </div>
 
-          <div className="pt-4 border-t border-neutral-100" />
           {/* Max Waiting Count */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pt-4 border-t border-neutral-100">
             <div>
               <label className="text-sm font-medium text-neutral-900">
                 최대 대기 팀 수

@@ -97,7 +97,7 @@ export default function WaitingSettingsPage() {
           genderSplitEnabled: settings.genderSplitEnabled,
           waitingNote: settings.waitingNote,
           waitingCallNote: settings.waitingCallNote,
-          dayResetHour: settings.dayResetHour,
+          dayResetMinutes: settings.dayResetMinutes,
         }),
       });
 
