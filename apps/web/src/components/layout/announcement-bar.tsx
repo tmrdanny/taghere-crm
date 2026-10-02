@@ -10,26 +10,33 @@ interface Announcement {
   content: string;
 }
 
-// 사장님 CRM 모든 탭 상단 공지 — "읽음"을 누르면 이 매장에서는 더 노출하지 않는다 (서버에 매장 단위로 기록)
-export function AnnouncementBar() {
+// CRM 모든 탭 상단 공지 — "읽음"을 누르면 더 노출하지 않는다 (서버에 매장/프랜차이즈 단위로 기록)
+// 사장님 CRM: /api/dashboard/announcements + token / 프랜차이즈 CRM: /api/franchise/announcements + franchiseToken
+export function AnnouncementBar({
+  apiUrl = '/api/dashboard/announcements',
+  tokenKey = 'token',
+}: {
+  apiUrl?: string;
+  tokenKey?: string;
+} = {}) {
   const [items, setItems] = useState<Announcement[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(tokenKey);
     if (!token) return;
-    fetch(`${API_BASE}/api/dashboard/announcements`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_BASE}${apiUrl}`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => setItems(Array.isArray(d) ? d : []))
       .catch(() => {});
-  }, []);
+  }, [apiUrl, tokenKey]);
 
   const markRead = async (id: string) => {
     setBusyId(id);
     try {
-      const res = await fetch(`${API_BASE}/api/dashboard/announcements/${id}/read`, {
+      const res = await fetch(`${API_BASE}${apiUrl}/${id}/read`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem(tokenKey) || ''}` },
       });
       if (res.ok) setItems((prev) => prev.filter((a) => a.id !== id));
     } finally {

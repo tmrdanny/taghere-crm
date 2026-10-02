@@ -1,5 +1,6 @@
 'use client';
 
+import { AnnouncementBar } from '@/components/layout/announcement-bar';
 import { API_BASE } from '@/lib/api-config';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -86,7 +87,10 @@ export default function FranchiseDashboardLayout({
       </div>
       <div className="adm-shell">
         <FranchiseSidebar user={user} />
-        <main className="relative min-w-0 flex-1 overflow-x-clip pt-14 lg:pt-0">{children}</main>
+        <main className="relative min-w-0 flex-1 overflow-x-clip pt-14 lg:pt-0">
+          <AnnouncementBar apiUrl="/api/franchise/announcements" tokenKey="franchiseToken" />
+          {children}
+        </main>
       </div>
     </div>
   );
