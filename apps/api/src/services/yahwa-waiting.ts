@@ -1,5 +1,5 @@
 import { prisma as prismaClient } from '../lib/prisma.js';
-import { getTodayStartEnd } from './waiting.js';
+import { getTodayStartEnd, getStoreBusinessDay, todayOrActiveWhere, activeRange } from './waiting.js';
 
 const prisma = prismaClient as any;
 
@@ -52,13 +52,13 @@ export async function computeWaitingState(waiting: any): Promise<ExternalWaiting
 
   // 대기 중일 때만 내 앞 팀 수를 계산. 그 외(호출/착석/취소/만료)는 0.
   if (waiting.status === 'WAITING') {
-    const { todayStart } = getTodayStartEnd();
+    const day = await getStoreBusinessDay(waiting.storeId);
     const ahead = await prisma.waitingList.count({
       where: {
         storeId: waiting.storeId,
         waitingTypeId: waiting.waitingTypeId,
         status: { in: ['WAITING', 'CALLED'] },
-        createdAt: { gte: todayStart, lt: waiting.createdAt },
+        createdAt: { gte: day.activeSince, lt: waiting.createdAt },
       },
     });
     const avg = waiting.waitingType?.avgWaitTimePerTeam ?? 5;
@@ -72,12 +72,12 @@ export async function computeWaitingState(waiting: any): Promise<ExternalWaiting
  * 매장의 현재 대기 팀 수 (WAITING + CALLED, 당일 영업일 기준).
  */
 export async function getStoreWaitingCount(storeId: string): Promise<number> {
-  const { todayStart, todayEnd } = getTodayStartEnd();
+  const day = await getStoreBusinessDay(storeId);
   return prisma.waitingList.count({
     where: {
       storeId,
       status: { in: ['WAITING', 'CALLED'] },
-      createdAt: { gte: todayStart, lte: todayEnd },
+      createdAt: activeRange(day),
     },
   });
 }
@@ -87,13 +87,13 @@ export async function getStoreWaitingCount(storeId: string): Promise<number> {
  * 대시보드 '예상시간'과 같은 기준. 지금 등록하는 손님이 기다릴 대략치.
  */
 export async function getStoreWaitingEta(storeId: string): Promise<number> {
-  const { todayStart, todayEnd } = getTodayStartEnd();
+  const day = await getStoreBusinessDay(storeId);
   const grouped = await prisma.waitingList.groupBy({
     by: ['waitingTypeId'],
     where: {
       storeId,
       status: { in: ['WAITING', 'CALLED'] },
-      createdAt: { gte: todayStart, lte: todayEnd },
+      createdAt: activeRange(day),
     },
     _count: { id: true },
   });
@@ -127,13 +127,14 @@ export async function getStoreWaitingCounts(
   const enabledIds: string[] = enabledStores.map((s: any) => s.id);
   if (enabledIds.length === 0) return [];
 
+  // 영업일이 바뀌어도 아직 대기·호출 중인 손님 포함 (직전 영업일 시작 ~ 오늘 영업일 끝)
   const { todayStart, todayEnd } = getTodayStartEnd();
   const grouped = await prisma.waitingList.groupBy({
     by: ['storeId'],
     where: {
       storeId: { in: enabledIds },
       status: { in: ['WAITING', 'CALLED'] },
-      createdAt: { gte: todayStart, lte: todayEnd },
+      createdAt: { gte: new Date(todayStart.getTime() - 24 * 60 * 60 * 1000), lte: todayEnd },
     },
     _count: { id: true },
     _max: { updatedAt: true },
@@ -229,10 +230,10 @@ export async function registerYahwaWaiting(
   });
   if (!waitingType) return { ok: false, error: 'store_closed' };
 
-  // 당일 웨이팅 번호 발급
-  const { todayStart, todayEnd } = getTodayStartEnd();
+  // 당일 웨이팅 번호 발급 (직전 영업일에서 이어진 대기 손님이 있으면 번호를 이어서)
+  const day = await getStoreBusinessDay(params.storeId);
   const lastWaiting = await prisma.waitingList.findFirst({
-    where: { storeId: params.storeId, createdAt: { gte: todayStart, lte: todayEnd } },
+    where: { storeId: params.storeId, ...todayOrActiveWhere(day) },
     orderBy: { waitingNumber: 'desc' },
     select: { waitingNumber: true },
   });

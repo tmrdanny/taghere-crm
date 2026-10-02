@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { registerWaiting, cancelWaiting, getWaitingStats, getTodayStartEnd } from '../services/waiting.js';
+import { registerWaiting, cancelWaiting, getWaitingStats, getStoreBusinessDay, todayOrActiveWhere, activeRange } from '../services/waiting.js';
 
 const router = Router();
 
@@ -203,14 +203,14 @@ router.get('/:storeSlug/status/:phone', async (req: Request, res: Response) => {
 
     const normalizedPhone = phone.replace(/[^0-9]/g, '');
 
-    // 영업일 기준 (KST 03:00 ~ 익일 03:00) — admin 로직과 일관성 유지
-    const { todayStart, todayEnd } = getTodayStartEnd();
+    // 영업일 기준(매장 마감 시각) + 아직 대기 중인 직전 영업일 웨이팅 — admin 로직과 일관성 유지
+    const day = await getStoreBusinessDay(store.id);
 
     const waiting = await (prisma as any).waitingList.findFirst({
       where: {
         storeId: store.id,
         phone: normalizedPhone,
-        createdAt: { gte: todayStart, lte: todayEnd },
+        ...todayOrActiveWhere(day),
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -234,7 +234,7 @@ router.get('/:storeSlug/status/:phone', async (req: Request, res: Response) => {
           storeId: store.id,
           waitingTypeId: waiting.waitingTypeId,
           status: { in: ['WAITING', 'CALLED'] },
-          createdAt: { gte: todayStart, lt: waiting.createdAt }, // 오늘(영업일) 내 본인 앞 순서만
+          createdAt: { gte: day.activeSince, lt: waiting.createdAt }, // 영업일(직전 영업일에서 이어진 대기 포함) 내 본인 앞 순서만
         },
       }) + 1;
     }
@@ -288,19 +288,15 @@ router.post('/:storeSlug/cancel', async (req: Request, res: Response) => {
     } else if (phone) {
       const normalizedPhone = phone.replace(/[^0-9]/g, '');
 
-      const now = new Date();
-      const kstOffset = 9 * 60 * 60 * 1000;
-      const kstNow = new Date(now.getTime() + kstOffset);
-      const kstDateStr = kstNow.toISOString().split('T')[0];
-      const todayStart = new Date(kstDateStr + 'T00:00:00+09:00');
-      const todayEnd = new Date(kstDateStr + 'T23:59:59.999+09:00');
+      // 매장 마감 시각 기준 영업일 (직전 영업일에서 이어진 대기 포함)
+      const day = await getStoreBusinessDay(store.id);
 
       waiting = await (prisma as any).waitingList.findFirst({
         where: {
           storeId: store.id,
           phone: normalizedPhone,
           status: { in: ['WAITING', 'CALLED'] },
-          createdAt: { gte: todayStart, lte: todayEnd },
+          createdAt: activeRange(day),
         },
         orderBy: { createdAt: 'desc' },
       });

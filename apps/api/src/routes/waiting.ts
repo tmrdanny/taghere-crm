@@ -11,7 +11,8 @@ import {
   restoreWaiting,
   getWaitingStats,
   getTodayStats,
-  getTodayStartEnd,
+  getStoreBusinessDay,
+  todayOrActiveWhere,
 } from '../services/waiting.js';
 
 type WaitingStatus = 'WAITING' | 'CALLED' | 'SEATED' | 'CANCELLED' | 'NO_SHOW';
@@ -24,15 +25,12 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     const storeId = req.user!.storeId;
     const { status, typeId, page = '1', limit = '50' } = req.query;
 
-    // 오늘 날짜 범위로 필터링 (KST 기준 00:00 ~ 23:59:59)
-    const { todayStart, todayEnd } = getTodayStartEnd();
+    // 오늘 영업일(매장 마감 시각 기준) + 영업일이 바뀌어도 아직 대기·호출 중인 웨이팅
+    const day = await getStoreBusinessDay(storeId);
 
     const where: any = {
       storeId,
-      createdAt: {
-        gte: todayStart,
-        lte: todayEnd,
-      },
+      ...todayOrActiveWhere(day),
     };
 
     if (status) {
