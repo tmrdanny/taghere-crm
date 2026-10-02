@@ -9,17 +9,15 @@ export function CustomerListHeader({
   onSendToSelected,
   onAddCustomer,
   onBulkUpload,
-  onSaveGroup,
-  hasFilters = false,
+  onCreateGroup,
 }: {
   total: number;
   selectedCount: number;
   onSendToSelected: () => void;
   onAddCustomer: () => void;
   onBulkUpload: () => void;
-  /** 선택한 손님 또는 지금 필터로 고객 그룹 만들기 */
-  onSaveGroup?: () => void;
-  hasFilters?: boolean;
+  /** 고객 그룹 만들기 (선택한 손님이 있으면 그 손님들로 미리 채움) */
+  onCreateGroup: () => void;
 }) {
   return (
     <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-end">
@@ -36,12 +34,10 @@ export function CustomerListHeader({
             선택 고객에게 메시지 발송 ({selectedCount}명)
           </Button>
         )}
-        {onSaveGroup && (selectedCount > 0 || hasFilters) && (
-          <Button variant="outline" onClick={onSaveGroup} className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]">
-            <Users className="h-4 w-4" />
-            {selectedCount > 0 ? `선택 고객으로 그룹 만들기 (${selectedCount}명)` : '이 조건으로 그룹 만들기'}
-          </Button>
-        )}
+        <Button variant="outline" onClick={onCreateGroup} className="adm-press inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border-0 bg-white px-3.5 text-[13px] font-medium text-[color:var(--ad-ink)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]">
+          <Users className="h-4 w-4" />
+          {selectedCount > 0 ? `선택 고객으로 그룹 만들기 (${selectedCount}명)` : '고객 그룹 만들기'}
+        </Button>
         <Button onClick={onAddCustomer} className="adm-press inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[color:var(--ad-ink)] px-4 text-[13.5px] font-semibold text-white hover:bg-[#383c40] disabled:opacity-40">
           <UserPlus className="h-4 w-4" />
           고객 등록
