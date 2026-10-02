@@ -8,7 +8,7 @@ import { formatNumber } from '@/lib/utils';
 import { CountUp, Empty, Skel, rise } from '@/features/admin-ui';
 import { Ring } from './_components/Ring';
 import { fetchJsonCached, readCache, writeCache, cacheKeyFor, invalidateCacheByUrlPart } from '@/lib/swr-cache';
-import { Users, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Megaphone, Star, MessageSquare, MapPin, Zap, Cake, UserPlus, UserMinus, ArrowRight, ChevronRight, Pencil, X, Download } from 'lucide-react';
+import { Users, TrendingUp, TrendingDown, Wallet, AlertTriangle, RefreshCw, Star, MessageSquare, MapPin, Zap, Cake, UserPlus, UserMinus, ArrowRight, ChevronRight, Pencil, X, Download } from 'lucide-react';
 import DateRangeFilter, { type DateRange } from '@/components/DateRangeFilter';
 import { exportDailyVisitors, periodLabel } from '@/lib/insights-export';
 import {
@@ -46,13 +46,6 @@ interface VisitorStats {
   growth: number;
 }
 
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  priority: number;
-  createdAt: string;
-}
 
 interface FeedbackItem {
   id: string;
@@ -93,7 +86,6 @@ export default function HomePage() {
   const [draftOverrides, setDraftOverrides] = useState<Record<string, string>>({});
   const [savingDate, setSavingDate] = useState<string | null>(null);
   const [overrideError, setOverrideError] = useState<string | null>(null);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [feedbackSummary, setFeedbackSummary] = useState<FeedbackSummary | null>(null);
   const [isRefreshingFeedback, setIsRefreshingFeedback] = useState(false);
   const [showPromoPopup, setShowPromoPopup] = useState(false);
@@ -137,14 +129,6 @@ export default function HomePage() {
     localStorage.setItem('promo-popup-dismissed', 'true');
     router.push('/messages');
   };
-
-  // Fetch announcements
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    fetchJsonCached<Announcement[]>(`${API_BASE}/api/dashboard/announcements`, token, setAnnouncements)
-      .catch((error) => console.error('Failed to fetch announcements:', error));
-  }, []);
 
   // Fetch dashboard stats
   useEffect(() => {
@@ -534,33 +518,6 @@ export default function HomePage() {
           <h1 className="mt-0.5 text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">{storeName}</h1>
         )}
       </header>
-
-      {/* Announcements */}
-      {announcements.length > 0 && (
-        <div className="adm-rise mt-4 flex flex-col gap-2" style={rise(1)}>
-          {announcements.map((announcement) => (
-            <div
-              key={announcement.id}
-              className="flex items-start gap-2.5 rounded-[14px] bg-white px-3.5 py-2.5 shadow-[inset_0_0_0_1px_var(--ad-line)]"
-            >
-              <span className="mt-px grid h-4 w-4 shrink-0 place-items-center text-[color:var(--ad-faint)]">
-                <Megaphone className="h-3 w-3 text-[color:var(--ad-muted)]" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span className="inline-flex rounded-full bg-[color:var(--ad-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ad-muted)]">
-                    공지
-                  </span>
-                  <span className="text-[13px] font-semibold text-[color:var(--ad-ink)]">{announcement.title}</span>
-                </div>
-                <p className="mt-1 whitespace-pre-wrap text-[12.5px] leading-[19px] text-[color:var(--ad-muted)]">
-                  {announcement.content}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       <div className="mt-6 space-y-4">
         {/* KPI Cards */}

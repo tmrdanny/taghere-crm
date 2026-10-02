@@ -269,14 +269,16 @@ router.delete('/visitor-overrides/:date', authMiddleware, async (req: AuthReques
   }
 });
 
-// GET /api/dashboard/announcements - 활성화된 공지사항 조회 (매장 사용자용)
+// GET /api/dashboard/announcements - 활성화된 공지사항 조회 (매장 사용자용, 이 매장이 읽음 처리한 공지는 제외)
 router.get('/announcements', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const now = new Date();
+    const storeId = req.user!.storeId;
 
     const announcements = await prisma.announcement.findMany({
       where: {
         isActive: true,
+        reads: { none: { storeId } },
         OR: [
           { startAt: null },
           { startAt: { lte: now } },
@@ -307,6 +309,24 @@ router.get('/announcements', authMiddleware, async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Announcements error:', error);
     res.status(500).json({ error: '공지사항 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/dashboard/announcements/:id/read - 공지 읽음 처리 (이 매장에서는 더 노출하지 않음)
+router.post('/announcements/:id/read', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.user!.storeId;
+    const announcement = await prisma.announcement.findUnique({ where: { id: req.params.id }, select: { id: true } });
+    if (!announcement) return res.status(404).json({ error: '공지사항을 찾을 수 없습니다.' });
+    await prisma.announcementRead.upsert({
+      where: { announcementId_storeId: { announcementId: announcement.id, storeId } },
+      update: {},
+      create: { announcementId: announcement.id, storeId },
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Announcement read error:', error);
+    res.status(500).json({ error: '공지사항 읽음 처리 중 오류가 발생했습니다.' });
   }
 });
 
