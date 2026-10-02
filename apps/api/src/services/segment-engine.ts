@@ -1,5 +1,8 @@
 /**
- * 고객 세그먼트 엔진 — 방문·결제·주문 메뉴·인구통계 조건을 하나의 SQL 로 평가한다.
+ * 고객 세그먼트 엔진 — 방문·결제·주문 메뉴·스탬프·포인트·인구통계 조건을 하나의 SQL 로 평가한다.
+ *
+ * 그룹 = 조건 + 직접 추가(includeIds) − 직접 제외(excludeIds).
+ * 조건 없이 직접 추가만 있으면 "고른 손님만"인 고정 명단 그룹이다.
  *
  * 조건은 모두 AND 로 결합된다. Prisma where + `id IN (...)` 조합 대신 SQL 한 번으로 평가해
  * 5만 명 매장에서도 바인드 파라미터 한도(32,767)에 걸리지 않고, 결제액·메뉴 조건은
@@ -33,11 +36,32 @@ export interface SegmentConditions {
   totalSpentMax?: number;
   avgSpendMin?: number;          // 방문당 평균 결제액 (원)
   menus?: MenuCondition[];
+  stampsMin?: number;            // 현재 보유 스탬프
+  stampsMax?: number;
+  pointsMin?: number;            // 현재 보유 포인트
+  pointsMax?: number;
+  earnedPointsMin?: number;      // 누적 적립 포인트 (적립 내역 합계)
+  visitSources?: string[];       // 방문 경로 옵션 ID
+  includeIds?: string[];         // 직접 추가한 손님 (조건과 상관없이 포함)
+  excludeIds?: string[];         // 직접 뺀 손님 (조건에 맞아도 제외)
+}
+
+/** 직접 추가·제외를 뺀 "조건" 필드가 하나라도 있는지 */
+export function hasFilterConditions(c: SegmentConditions): boolean {
+  return Object.keys(c).some((k) => k !== 'includeIds' && k !== 'excludeIds');
 }
 
 const MAX_DAYS = 3650;
 const MAX_MENU_CONDITIONS = 5;
 const MAX_MENU_NAMES = 50;
+const MAX_PICKED_IDS = 5000;
+const MAX_VISIT_SOURCES = 30;
+
+function toIdList(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const ids = [...new Set(value.map((v) => String(v ?? '').trim()).filter((v) => /^[a-z0-9]{10,40}$/i.test(v)))].slice(0, MAX_PICKED_IDS);
+  return ids.length ? ids : undefined;
+}
 
 function toInt(value: unknown, min: number, max: number): number | undefined {
   if (value === null || value === undefined || value === '') return undefined;
@@ -59,6 +83,17 @@ export function sanitizeConditions(input: any): SegmentConditions {
   out.totalSpentMin = toInt(c.totalSpentMin, 0, 1_000_000_000);
   out.totalSpentMax = toInt(c.totalSpentMax, 0, 1_000_000_000);
   out.avgSpendMin = toInt(c.avgSpendMin, 0, 100_000_000);
+  out.stampsMin = toInt(c.stampsMin, 0, 100000);
+  out.stampsMax = toInt(c.stampsMax, 0, 100000);
+  out.pointsMin = toInt(c.pointsMin, 0, 1_000_000_000);
+  out.pointsMax = toInt(c.pointsMax, 0, 1_000_000_000);
+  out.earnedPointsMin = toInt(c.earnedPointsMin, 0, 1_000_000_000);
+  if (Array.isArray(c.visitSources)) {
+    const v = [...new Set(c.visitSources.map((x: unknown) => String(x ?? '').trim()).filter((x: string) => x.length > 0 && x.length <= 50))].slice(0, MAX_VISIT_SOURCES) as string[];
+    if (v.length) out.visitSources = v;
+  }
+  out.includeIds = toIdList(c.includeIds);
+  out.excludeIds = toIdList(c.excludeIds);
 
   if (Array.isArray(c.genders)) {
     const g = c.genders.filter((x: unknown) => x === 'MALE' || x === 'FEMALE');
@@ -113,12 +148,16 @@ function daysAgoSql(days: number) {
  * 결제액·메뉴 조건은 고객별 상관 서브쿼리로 쓰면 플래너가 고객마다 주문 테이블을 훑어
  * 5만 명 매장에서 수십 초가 걸렸다. 매장 단위로 한 번 집계한 결과를 LEFT JOIN 한다.
  */
-function buildQuery(storeIds: string[], cond: SegmentConditions): { from: Prisma.Sql; where: Prisma.Sql } {
+function buildQuery(
+  storeIds: string[],
+  cond: SegmentConditions,
+  opts: { ignoreExclude?: boolean } = {},
+): { from: Prisma.Sql; where: Prisma.Sql; filter: Prisma.Sql } {
   const joins: Prisma.Sql[] = [];
   // 매장 1곳(사장님) 또는 여러 곳(프랜차이즈 전 가맹점)
   const inStores = (col: Prisma.Sql) =>
     storeIds.length === 1 ? Prisma.sql`${col} = ${storeIds[0]}` : Prisma.sql`${col} IN (${Prisma.join(storeIds)})`;
-  const parts: Prisma.Sql[] = [inStores(Prisma.sql`c."storeId"`)];
+  const parts: Prisma.Sql[] = [];
 
   if (cond.visitCountMin !== undefined) parts.push(Prisma.sql`c."visitCount" >= ${cond.visitCountMin}`);
   if (cond.visitCountMax !== undefined) parts.push(Prisma.sql`c."visitCount" <= ${cond.visitCountMax}`);
@@ -180,9 +219,31 @@ function buildQuery(storeIds: string[], cond: SegmentConditions): { from: Prisma
     }
   });
 
+  if (cond.stampsMin !== undefined) parts.push(Prisma.sql`c."totalStamps" >= ${cond.stampsMin}`);
+  if (cond.stampsMax !== undefined) parts.push(Prisma.sql`c."totalStamps" <= ${cond.stampsMax}`);
+  if (cond.pointsMin !== undefined) parts.push(Prisma.sql`c."totalPoints" >= ${cond.pointsMin}`);
+  if (cond.pointsMax !== undefined) parts.push(Prisma.sql`c."totalPoints" <= ${cond.pointsMax}`);
+  if (cond.visitSources?.length) parts.push(Prisma.sql`c."visitSource" IN (${Prisma.join(cond.visitSources)})`);
+  if (cond.earnedPointsMin !== undefined) {
+    joins.push(Prisma.sql`LEFT JOIN (
+      SELECT pl."customerId", SUM(pl.delta) AS earned
+      FROM point_ledger pl
+      WHERE ${inStores(Prisma.sql`pl."storeId"`)} AND pl.type = 'EARN' AND pl.delta > 0
+      GROUP BY pl."customerId"
+    ) ep ON ep."customerId" = c.id`);
+    parts.push(Prisma.sql`COALESCE(ep.earned, 0) >= ${cond.earnedPointsMin}`);
+  }
+
+  // 조건 결과 — 조건이 하나도 없으면 아무도 해당하지 않는다 (그룹 = 직접 고른 손님만, 실수로 전체 발송되지 않게)
+  const include = cond.includeIds?.length ? Prisma.sql`c.id IN (${Prisma.join(cond.includeIds)})` : null;
+  const filter = parts.length > 0 ? Prisma.join(parts, ' AND ') : Prisma.sql`FALSE`;
+  const exclude = !opts.ignoreExclude && cond.excludeIds?.length ? Prisma.sql`AND c.id NOT IN (${Prisma.join(cond.excludeIds)})` : Prisma.empty;
+  const member = include ? Prisma.sql`((${filter} ${exclude}) OR ${include})` : Prisma.sql`(${filter} ${exclude})`;
+
   return {
     from: Prisma.sql`customers c ${joins.length ? Prisma.join(joins, ' ') : Prisma.empty}`,
-    where: Prisma.join(parts, ' AND '),
+    where: Prisma.sql`${inStores(Prisma.sql`c."storeId"`)} AND ${member}`,
+    filter,
   };
 }
 
@@ -223,6 +284,114 @@ export async function resolveSegmentCustomersInStores(
 
 export function resolveSegmentCustomers(storeId: string, cond: SegmentConditions) {
   return resolveSegmentCustomersInStores([storeId], cond);
+}
+
+export interface SegmentMemberRow {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  storeId: string;
+  storeName: string | null;
+  gender: string | null;
+  visitCount: number;
+  totalStamps: number;
+  totalPoints: number;
+  visitSource: string | null;
+  lastVisitAt: Date | null;
+  reachable: boolean;
+  /** 조건(필터)에 맞는 손님 */
+  matched: boolean;
+  /** 직접 추가 */
+  picked: boolean;
+  /** 직접 제외 */
+  excluded: boolean;
+}
+
+/**
+ * 그룹 만들기 화면의 명단.
+ *  - mode 'group': 조건에 맞는 손님(제외 표시 포함) + 직접 추가한 손님
+ *  - mode 'search': 매장 전체 손님에서 검색 (직접 추가할 손님 찾기) — 각 행에 그룹 포함 여부 표시
+ */
+export async function listSegmentMembers(
+  storeIds: string[],
+  cond: SegmentConditions,
+  opts: { mode: 'group' | 'search'; q?: string; offset?: number; limit?: number },
+): Promise<{ rows: SegmentMemberRow[]; hasMore: boolean }> {
+  if (storeIds.length === 0) return { rows: [], hasMore: false };
+  const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
+  const offset = Math.max(0, opts.offset ?? 0);
+  const { from, filter } = buildQuery(storeIds, cond, { ignoreExclude: true });
+  const inStores = storeIds.length === 1 ? Prisma.sql`c."storeId" = ${storeIds[0]}` : Prisma.sql`c."storeId" IN (${Prisma.join(storeIds)})`;
+  const include = cond.includeIds?.length ? Prisma.sql`c.id IN (${Prisma.join(cond.includeIds)})` : Prisma.sql`FALSE`;
+  const exclude = cond.excludeIds?.length ? Prisma.sql`c.id IN (${Prisma.join(cond.excludeIds)})` : Prisma.sql`FALSE`;
+  const scope = opts.mode === 'group' ? Prisma.sql`AND ((${filter}) OR ${include})` : Prisma.empty;
+  // 직접 추가한 손님을 맨 위로 (상수 ORDER BY 는 Postgres 에러라 있을 때만)
+  const pickedFirst = cond.includeIds?.length ? Prisma.sql`(c.id IN (${Prisma.join(cond.includeIds)})) DESC,` : Prisma.empty;
+  const q = (opts.q ?? '').trim();
+  const digits = q.replace(/\D/g, '');
+  const search = q
+    ? Prisma.sql`AND (c.name ILIKE ${'%' + q + '%'}${digits.length >= 3 ? Prisma.sql` OR c.phone LIKE ${'%' + digits.slice(-8) + '%'} OR c."phoneLastDigits" LIKE ${'%' + digits.slice(-8) + '%'}` : Prisma.empty})`
+    : Prisma.empty;
+
+  const rows = await prisma.$queryRaw<Array<any>>`
+    SELECT c.id, c.name, c.phone, c."storeId", s.name AS "storeName", c.gender::text AS gender, c."visitCount",
+           c."totalStamps", c."totalPoints", c."visitSource", c."lastVisitAt",
+           (${REACHABLE_SQL}) AS reachable,
+           (${filter}) AS matched,
+           (${include}) AS picked,
+           (${exclude}) AS excluded
+    FROM ${from}
+    LEFT JOIN stores s ON s.id = c."storeId"
+    WHERE ${inStores} ${scope} ${search}
+    ORDER BY ${pickedFirst} c."lastVisitAt" DESC NULLS LAST, c."createdAt" DESC
+    LIMIT ${limit + 1} OFFSET ${offset}`;
+  return {
+    rows: rows.slice(0, limit).map((r) => ({
+      ...r,
+      visitCount: Number(r.visitCount ?? 0),
+      totalStamps: Number(r.totalStamps ?? 0),
+      totalPoints: Number(r.totalPoints ?? 0),
+      reachable: !!r.reachable,
+      matched: !!r.matched,
+      picked: !!r.picked,
+      excluded: !!r.excluded,
+    })),
+    hasMore: rows.length > limit,
+  };
+}
+
+/** 그룹 요약 — 조건 해당 / 직접 추가(조건 밖) / 직접 제외(조건 안) / 최종 인원·발송 가능 */
+export async function summarizeSegment(storeIds: string[], cond: SegmentConditions) {
+  if (storeIds.length === 0) return { matched: 0, pickedExtra: 0, excludedMatched: 0, total: 0, reachable: 0 };
+  const { from, filter, where } = buildQuery(storeIds, cond, { ignoreExclude: true });
+  const inStores = storeIds.length === 1 ? Prisma.sql`c."storeId" = ${storeIds[0]}` : Prisma.sql`c."storeId" IN (${Prisma.join(storeIds)})`;
+  const include = cond.includeIds?.length ? Prisma.sql`c.id IN (${Prisma.join(cond.includeIds)})` : Prisma.sql`FALSE`;
+  const exclude = cond.excludeIds?.length ? Prisma.sql`c.id IN (${Prisma.join(cond.excludeIds)})` : Prisma.sql`FALSE`;
+  const rows = await prisma.$queryRaw<Array<{ matched: bigint; picked_extra: bigint; excluded_matched: bigint }>>`
+    SELECT COUNT(*) FILTER (WHERE ${filter}) AS matched,
+           COUNT(*) FILTER (WHERE ${include} AND NOT (${filter})) AS picked_extra,
+           COUNT(*) FILTER (WHERE ${exclude} AND (${filter}) AND NOT ${include}) AS excluded_matched
+    FROM ${from}
+    WHERE ${inStores}`;
+  void where;
+  const counts = await countSegmentInStores(storeIds, cond);
+  return {
+    matched: Number(rows[0]?.matched ?? 0),
+    pickedExtra: Number(rows[0]?.picked_extra ?? 0),
+    excludedMatched: Number(rows[0]?.excluded_matched ?? 0),
+    ...counts,
+  };
+}
+
+/** 방문 경로 값 목록 (조건 선택용) — 손님 수 많은 순 */
+export async function listVisitSources(storeIds: string[]): Promise<Array<{ value: string; count: number }>> {
+  if (storeIds.length === 0) return [];
+  const rows = await prisma.$queryRaw<Array<{ value: string; n: bigint }>>`
+    SELECT c."visitSource" AS value, COUNT(*) AS n
+    FROM customers c
+    WHERE c."storeId" IN (${Prisma.join(storeIds)}) AND NULLIF(c."visitSource", '') IS NOT NULL
+    GROUP BY 1 ORDER BY 2 DESC LIMIT 50`;
+  return rows.map((r) => ({ value: r.value, count: Number(r.n) }));
 }
 
 /** 저장된 세그먼트를 매장 소유 확인 후 조건과 함께 반환 */

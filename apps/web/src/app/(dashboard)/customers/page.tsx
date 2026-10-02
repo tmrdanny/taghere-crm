@@ -37,6 +37,8 @@ import {
   EarnPointsModal,
   EarnStampsModal,
 } from '@/features/customers';
+import { SegmentBuilderModal } from '@/features/segments/SegmentBuilderModal';
+import type { SegmentConditions } from '@/features/segments/segment-conditions';
 
 // 컬럼 정의 상수
 const COLUMN_DEFINITIONS = [
@@ -125,6 +127,8 @@ export default function CustomersPage() {
 
   // Add customer modal states
   const [addModal, setAddModal] = useState(false);
+  // 고객 그룹 만들기 (선택 손님 또는 지금 필터로 미리 채움)
+  const [groupDraft, setGroupDraft] = useState<{ name?: string; conditions: SegmentConditions } | null>(null);
   const [addName, setAddName] = useState('');
   const [addPhone, setAddPhone] = useState('');
   const [addGender, setAddGender] = useState<'MALE' | 'FEMALE' | ''>('');
@@ -1207,6 +1211,23 @@ export default function CustomersPage() {
           router.push(`/messages?customers=${params}`);
         }}
         onAddCustomer={() => setAddModal(true)}
+        hasFilters={genderFilter !== 'all' || visitFilter !== 'all' || lastVisitFilter !== 'all'}
+        onSaveGroup={() => {
+          if (selectedCustomers.length > 0) {
+            setGroupDraft({ conditions: { includeIds: [...selectedCustomers] } });
+            return;
+          }
+          const conditions: SegmentConditions = {};
+          if (genderFilter !== 'all') conditions.genders = [genderFilter];
+          if (visitFilter === '1' || visitFilter === '2') {
+            conditions.visitCountMin = Number(visitFilter);
+            conditions.visitCountMax = Number(visitFilter);
+          } else if (visitFilter !== 'all') {
+            conditions.visitCountMin = Number(visitFilter);
+          }
+          if (lastVisitFilter !== 'all') conditions.lastVisitWithinDays = Number(lastVisitFilter);
+          setGroupDraft({ conditions });
+        }}
         onBulkUpload={() => {
           setBulkModal(true);
           setBulkParsedData([]);
@@ -1214,6 +1235,17 @@ export default function CustomersPage() {
           setBulkClientErrors([]);
           setBulkProgress(null);
           setBulkConsentAttested(true);
+        }}
+      />
+
+      <SegmentBuilderModal
+        open={!!groupDraft}
+        onOpenChange={(open) => !open && setGroupDraft(null)}
+        initial={null}
+        draft={groupDraft}
+        onSaved={(segment) => {
+          setSelectedCustomers([]);
+          showToast(`'${segment?.name ?? '고객'}' 그룹을 저장했어요. 메시지 발송에서 바로 고를 수 있어요.`, 'success');
         }}
       />
 

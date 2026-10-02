@@ -4,10 +4,13 @@ import { prisma } from '../lib/prisma.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
 import {
   countSegmentInStores,
+  hasFilterConditions,
   listMenusInStores,
   loadFranchiseSegment,
   sanitizeConditions,
+  summarizeSegment,
 } from '../services/segment-engine.js';
+import { mountSegmentTools } from './segment-tools.js';
 
 /**
  * 프랜차이즈 고객 그룹 — 전 가맹점 고객을 조건으로 묶어 저장하고 리타겟 발송 대상으로 쓴다.
@@ -26,6 +29,8 @@ async function franchiseStoreIds(franchiseId: string): Promise<string[]> {
   const stores = await prisma.store.findMany({ where: { franchiseId }, select: { id: true } });
   return stores.map((s) => s.id);
 }
+
+mountSegmentTools(router, (req) => franchiseStoreIds((req as FranchiseAuthRequest).franchiseUser!.franchiseId));
 
 // GET /api/franchise/segments - 저장된 고객 그룹 목록
 router.get('/', async (req: FranchiseAuthRequest, res) => {
@@ -47,8 +52,8 @@ router.post('/preview', async (req: FranchiseAuthRequest, res) => {
   try {
     const storeIds = await franchiseStoreIds(req.franchiseUser!.franchiseId);
     const conditions = sanitizeConditions(req.body?.conditions);
-    const counts = await countSegmentInStores(storeIds, conditions);
-    res.json({ ...counts, conditions });
+    const summary = await summarizeSegment(storeIds, conditions);
+    res.json({ ...summary, conditions });
   } catch (error) {
     console.error('[FranchiseSegments] preview error:', error);
     res.status(500).json({ error: '대상 고객 수를 계산하지 못했습니다.' });
@@ -90,8 +95,8 @@ router.post('/', async (req: FranchiseAuthRequest, res) => {
     if (!name) return res.status(400).json({ error: '고객 그룹 이름을 입력해주세요.' });
 
     const conditions = sanitizeConditions(req.body?.conditions);
-    if (Object.keys(conditions).length === 0) {
-      return res.status(400).json({ error: '조건을 하나 이상 설정해주세요.' });
+    if (!hasFilterConditions(conditions) && !conditions.includeIds?.length) {
+      return res.status(400).json({ error: '조건을 고르거나 손님을 직접 골라 주세요.' });
     }
 
     const count = await prisma.franchiseSegment.count({ where: { franchiseId } });
@@ -124,8 +129,8 @@ router.put('/:id', async (req: FranchiseAuthRequest, res) => {
     }
     if (req.body?.conditions !== undefined) {
       const conditions = sanitizeConditions(req.body.conditions);
-      if (Object.keys(conditions).length === 0) {
-        return res.status(400).json({ error: '조건을 하나 이상 설정해주세요.' });
+      if (!hasFilterConditions(conditions) && !conditions.includeIds?.length) {
+        return res.status(400).json({ error: '조건을 고르거나 손님을 직접 골라 주세요.' });
       }
       data.conditions = conditions as Prisma.InputJsonValue;
     }
