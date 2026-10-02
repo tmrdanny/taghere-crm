@@ -21,7 +21,6 @@ import {
   StampLedgerEntry,
   CustomerFeedbackEntry,
   VisitOrOrderEntry,
-  Announcement,
   MessageHistoryEntry,
   BulkRow,
   parseRegionText,
@@ -29,7 +28,6 @@ import {
   BulkUploadModal,
   CustomerTable,
   CustomerFilters,
-  CustomerAnnouncements,
   CustomerListHeader,
   AutomationBanner,
   EditCustomerModal,
@@ -185,8 +183,6 @@ export default function CustomersPage() {
   // 고객 주문 총액 계산
   const customerTotalOrderAmount = orderHistory.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
 
-  // Announcements
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   // 자동 마케팅 상태
   const [automationStatus, setAutomationStatus] = useState<{
@@ -222,29 +218,6 @@ export default function CustomersPage() {
     }, 300);
     return () => clearTimeout(id);
   }, [searchInput]);
-
-  // Fetch announcements
-  useEffect(() => {
-    const fetchAnnouncements = async () => {
-      try {
-        const token = getAuthToken();
-        const res = await fetch(`${API_BASE}/api/dashboard/announcements`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setAnnouncements(Array.isArray(data) ? data : []);
-        }
-      } catch (error) {
-        console.error('Failed to fetch announcements:', error);
-      }
-    };
-
-    fetchAnnouncements();
-  }, []);
 
   // Fetch automation marketing status
   useEffect(() => {
@@ -1221,8 +1194,6 @@ export default function CustomersPage() {
     <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {ToastComponent}
 
-      {/* Announcements */}
-      <CustomerAnnouncements announcements={announcements} />
 
       {/* Header */}
       <CustomerListHeader

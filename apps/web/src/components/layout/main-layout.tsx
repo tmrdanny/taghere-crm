@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Sidebar, MobileHeader } from './sidebar';
+import { AnnouncementBar } from './announcement-bar';
 import '@/app/admin/admin-theme.css';
 
 interface MainLayoutProps {
@@ -47,6 +48,7 @@ export function MainLayout({ children, taghereVersion, stampEnabled }: MainLayou
 
         {/* Main Content */}
         <main className="relative min-w-0 flex-1 overflow-x-clip">
+          <AnnouncementBar />
           {children}
         </main>
       </div>

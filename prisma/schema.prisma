@@ -730,9 +730,25 @@ model Announcement {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  reads AnnouncementRead[]
+
   @@index([isActive, priority])
   @@index([startAt, endAt])
   @@map("announcements")
+}
+
+// 공지 읽음 — 매장이 "읽음"을 누른 공지는 그 매장 CRM 에 다시 노출하지 않는다
+model AnnouncementRead {
+  id             String       @id @default(cuid())
+  announcementId String
+  storeId        String
+  readAt         DateTime     @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, storeId])
+  @@index([storeId])
+  @@map("announcement_reads")
 }
 
 // 주문완료 배너 (바텀모달용, 어드민 전용)
