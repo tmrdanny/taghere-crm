@@ -1,5 +1,5 @@
 import { prisma as prismaClient } from '../lib/prisma.js';
-import { getTodayStartEnd, getStoreBusinessDay, todayOrActiveWhere, activeRange } from './waiting.js';
+import { getTodayStartEnd, getStoreBusinessDay, todayOrActiveWhere, activeRange, DEFAULT_DAY_RESET_HOUR_KST } from './waiting.js';
 
 const prisma = prismaClient as any;
 
@@ -127,14 +127,17 @@ export async function getStoreWaitingCounts(
   const enabledIds: string[] = enabledStores.map((s: any) => s.id);
   if (enabledIds.length === 0) return [];
 
-  // 영업일이 바뀌어도 아직 대기·호출 중인 손님 포함 (직전 영업일 시작 ~ 오늘 영업일 끝)
-  const { todayStart, todayEnd } = getTodayStartEnd();
+  // 매장마다 영업 마감 시각이 달라 매장별 범위(직전 영업일 시작 ~ 오늘 영업일 끝)로 센다 — 이어진 대기 손님 포함
+  const settings = await prisma.waitingSetting.findMany({ where: { storeId: { in: enabledIds } }, select: { storeId: true, dayResetHour: true } });
+  const hourBy = new Map<string, number>(settings.map((x: any) => [x.storeId, x.dayResetHour]));
   const grouped = await prisma.waitingList.groupBy({
     by: ['storeId'],
     where: {
-      storeId: { in: enabledIds },
       status: { in: ['WAITING', 'CALLED'] },
-      createdAt: { gte: new Date(todayStart.getTime() - 24 * 60 * 60 * 1000), lte: todayEnd },
+      OR: enabledIds.map((id) => {
+        const { todayStart, todayEnd } = getTodayStartEnd(hourBy.get(id) ?? DEFAULT_DAY_RESET_HOUR_KST);
+        return { storeId: id, createdAt: { gte: new Date(todayStart.getTime() - 24 * 60 * 60 * 1000), lte: todayEnd } };
+      }),
     },
     _count: { id: true },
     _max: { updatedAt: true },

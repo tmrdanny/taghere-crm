@@ -60,7 +60,7 @@ export function WaitingTable({
             <th className="py-3 px-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-[100px]">
               정보
             </th>
-            <th className="py-3 px-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-[140px]">
+            <th className="py-3 px-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-[200px]">
               상태
             </th>
             <th className="py-3 px-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-[130px]">

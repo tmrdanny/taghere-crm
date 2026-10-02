@@ -1,3 +1,4 @@
+import { MAX_DAY_RESET_HOUR_KST } from '../services/waiting.js';
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
@@ -70,6 +71,7 @@ router.put('/', authMiddleware, async (req: AuthRequest, res) => {
       quickMemos,
       waitingNote,
       waitingCallNote,
+      dayResetHour,
     } = req.body;
 
     const updateData: any = {};
@@ -99,6 +101,13 @@ router.put('/', authMiddleware, async (req: AuthRequest, res) => {
     if (quickMemos !== undefined) updateData.quickMemos = quickMemos;
     if (waitingNote !== undefined) updateData.waitingNote = waitingNote;
     if (waitingCallNote !== undefined) updateData.waitingCallNote = waitingCallNote;
+    if (dayResetHour !== undefined) {
+      const h = Number(dayResetHour);
+      if (!Number.isInteger(h) || h < 0 || h > MAX_DAY_RESET_HOUR_KST) {
+        return res.status(400).json({ error: `영업 마감 시간은 0~${MAX_DAY_RESET_HOUR_KST}시 사이여야 합니다.` });
+      }
+      updateData.dayResetHour = h;
+    }
 
     const setting = await (prisma as any).waitingSetting.upsert({
       where: { storeId },
