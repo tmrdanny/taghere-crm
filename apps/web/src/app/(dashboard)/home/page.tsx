@@ -1,5 +1,6 @@
 'use client';
 
+import { OwnerStatusBanner } from '@/features/owner-report/OwnerStatusBanner';
 import { API_BASE } from '@/lib/api-config';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -518,6 +519,9 @@ export default function HomePage() {
           <h1 className="mt-0.5 text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">{storeName}</h1>
         )}
       </header>
+
+      {/* 충전금 부족·알림 받을 번호 안내 (필요할 때만) */}
+      <OwnerStatusBanner />
 
       <div className="mt-6 space-y-4">
         {/* KPI Cards */}

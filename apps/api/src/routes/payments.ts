@@ -10,11 +10,13 @@ const router = Router();
 const TOSS_SECRET_KEY = env.TOSS_SECRET_KEY || '';
 const TOSS_WEBHOOK_SECRET = process.env.TOSS_WEBHOOK_SECRET || '';
 
-// 금액에 따른 보너스율 계산 (프론트엔드와 동일하게 유지)
+// 금액에 따른 보너스율 계산 — 충전 화면(billing/page.tsx, ChargeModal.tsx)에 보이는 표와 같아야 한다.
+// (2026-10 이전에는 화면은 10만원 3% 인데 실제로는 20만원부터 3% 로 적립돼 화면과 달랐다)
 const getBonusRate = (amount: number): number => {
-  if (amount >= 1000000) return 7;
-  if (amount >= 500000) return 5;
-  if (amount >= 200000) return 3;
+  if (amount >= 1000000) return 10;
+  if (amount >= 500000) return 7;
+  if (amount >= 200000) return 5;
+  if (amount >= 100000) return 3;
   return 0;
 };
 
@@ -23,6 +25,55 @@ const getChargeAmountWithBonus = (amount: number): number => {
   const bonusRate = getBonusRate(amount);
   return Math.floor(amount * (1 + bonusRate / 100));
 };
+
+/**
+ * 결제 1건을 지갑에 한 번만 충전한다.
+ * 같은 결제 승인이 동시에 두 번 들어와도(새로고침·재시도·복구 경로) paymentKey 잠금 안에서
+ * 이미 기록된 결제인지 다시 확인하므로 두 번 충전되지 않는다.
+ */
+async function creditTopupOnce(p: {
+  storeId: string;
+  paymentKey: string;
+  paidAmount: number;
+  meta: Record<string, unknown>;
+}): Promise<{ chargeAmount: number; newBalance: number; already: boolean }> {
+  const chargeAmount = getChargeAmountWithBonus(p.paidAmount);
+  const bonusRate = getBonusRate(p.paidAmount);
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'topup:' + p.paymentKey}))`;
+    const existing = await tx.$queryRaw<Array<{ amount: number }>>`
+      SELECT amount FROM payment_transactions
+      WHERE "storeId" = ${p.storeId} AND type = 'TOPUP' AND meta->>'paymentKey' = ${p.paymentKey}
+      LIMIT 1`;
+    if (existing.length > 0) {
+      const wallet = await tx.wallet.findUnique({ where: { storeId: p.storeId } });
+      return { chargeAmount: existing[0].amount, newBalance: wallet?.balance ?? 0, already: true };
+    }
+    const wallet = await tx.wallet.upsert({
+      where: { storeId: p.storeId },
+      update: { balance: { increment: chargeAmount } },
+      create: { storeId: p.storeId, balance: chargeAmount },
+    });
+    await tx.paymentTransaction.create({
+      data: {
+        storeId: p.storeId,
+        amount: chargeAmount,
+        type: 'TOPUP',
+        status: 'SUCCESS',
+        meta: {
+          source: 'tosspayments',
+          paymentKey: p.paymentKey,
+          paidAmount: p.paidAmount,
+          chargedAmount: chargeAmount,
+          bonusRate,
+          bonusAmount: chargeAmount - p.paidAmount,
+          ...p.meta,
+        } as any,
+      },
+    });
+    return { chargeAmount, newBalance: wallet.balance, already: false };
+  });
+}
 
 // POST /api/payments/confirm - 토스페이먼츠 결제 승인
 router.post('/confirm', authMiddleware, async (req: AuthRequest, res) => {
@@ -117,47 +168,23 @@ router.post('/confirm', authMiddleware, async (req: AuthRequest, res) => {
           console.error('Payment status from Toss:', paymentData.status, 'amount:', paymentData.totalAmount);
 
           if (paymentData.status === 'DONE') {
-            // DB에 없지만 토스에서는 성공 - 충전 처리 (보너스 포함)
+            // DB에 없지만 토스에서는 성공 - 충전 처리 (보너스 포함, 한 번만)
             const paidAmount = paymentData.totalAmount || amount;
-            const chargeAmount = getChargeAmountWithBonus(paidAmount);
-            const recoveryBonusRate = getBonusRate(paidAmount);
-            const recoveryBonusAmount = chargeAmount - paidAmount;
-
-            const wallet = await prisma.wallet.upsert({
-              where: { storeId },
-              update: { balance: { increment: chargeAmount } },
-              create: { storeId, balance: chargeAmount },
+            const credited = await creditTopupOnce({
+              storeId,
+              paymentKey,
+              paidAmount,
+              meta: { orderId, method: paymentData.method, card: paymentData.card, recoveredFromError: confirmData.code },
             });
-
-            await prisma.paymentTransaction.create({
-              data: {
-                storeId,
-                amount: chargeAmount,
-                type: 'TOPUP',
-                status: 'SUCCESS',
-                meta: {
-                  source: 'tosspayments',
-                  paymentKey,
-                  orderId,
-                  paidAmount,
-                  chargedAmount: chargeAmount,
-                  bonusRate: recoveryBonusRate,
-                  bonusAmount: recoveryBonusAmount,
-                  method: paymentData.method,
-                  card: paymentData.card,
-                  recoveredFromError: confirmData.code,
-                },
-              },
-            });
-
-            console.error('Payment recovered successfully, paid:', paidAmount, 'charged:', chargeAmount);
+            console.error('Payment recovered successfully, paid:', paidAmount, 'charged:', credited.chargeAmount, 'already:', credited.already);
 
             return res.json({
               success: true,
-              amount: chargeAmount,
-              newBalance: wallet.balance,
+              amount: credited.chargeAmount,
+              newBalance: credited.newBalance,
               paymentKey,
               orderId,
+              alreadyProcessed: credited.already || undefined,
             });
           }
         }
@@ -170,50 +197,21 @@ router.post('/confirm', authMiddleware, async (req: AuthRequest, res) => {
       });
     }
 
-    // 결제 성공 - 지갑에 충전금 추가 (보너스 포함)
-    const chargeAmount = getChargeAmountWithBonus(amount);
-    const bonusRate = getBonusRate(amount);
-    const bonusAmount = chargeAmount - amount;
-
-    // Update wallet
-    const wallet = await prisma.wallet.upsert({
-      where: { storeId },
-      update: {
-        balance: { increment: chargeAmount },
-      },
-      create: {
-        storeId,
-        balance: chargeAmount,
-      },
-    });
-
-    // Record transaction
-    await prisma.paymentTransaction.create({
-      data: {
-        storeId,
-        amount: chargeAmount,
-        type: 'TOPUP',
-        status: 'SUCCESS',
-        meta: {
-          source: 'tosspayments',
-          paymentKey,
-          orderId,
-          paidAmount: amount,
-          chargedAmount: chargeAmount,
-          bonusRate,
-          bonusAmount,
-          method: confirmData.method,
-          card: confirmData.card,
-        },
-      },
+    // 결제 성공 - 지갑에 충전금 추가 (보너스 포함, 한 번만)
+    const credited = await creditTopupOnce({
+      storeId,
+      paymentKey,
+      paidAmount: amount,
+      meta: { orderId, method: confirmData.method, card: confirmData.card },
     });
 
     res.json({
       success: true,
-      amount: chargeAmount,
-      newBalance: wallet.balance,
+      amount: credited.chargeAmount,
+      newBalance: credited.newBalance,
       paymentKey,
       orderId,
+      alreadyProcessed: credited.already || undefined,
     });
   } catch (error) {
     console.error('Payment confirm error:', error);

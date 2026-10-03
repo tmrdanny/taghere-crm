@@ -56,6 +56,9 @@ import { ownerRouter as marketingPerformanceRoutes, franchiseRouter as franchise
 import retargetCouponRoutes from './routes/retarget-coupon.js';
 import couponFormRoutes from './routes/coupon-form.js';
 import automationRoutes from './routes/automation.js';
+import { ownerLinkRouter, ownerRouter } from './routes/owner.js';
+import adminOwnerNoticeRoutes from './routes/admin-owner-notices.js';
+import taghereOwnerRoutes from './routes/taghere-owner.js';
 import storeProductsRoutes from './routes/store-products.js';
 import storeOrdersRoutes from './routes/store-orders.js';
 import surveyQuestionsRoutes from './routes/survey-questions.js';
@@ -242,6 +245,7 @@ app.use('/api/review-automation', reviewAutomationRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/cards', cardsRoutes);
+app.use('/api/taghere/owner', taghereOwnerRoutes);
 app.use('/api/taghere', taghereRoutes);
 app.use('/api/taghere/webhook/post-accrual', tagherePostAccrualWebhookRoutes);
 app.use('/api/taghere/webhook/point', tagherePointWebhookRoutes);
@@ -251,6 +255,7 @@ app.use('/api/naver-review', naverReviewRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/stores', storesRoutes);
 app.use('/api/admin/insights', adminInsightsRoutes);
+app.use('/api/admin', adminOwnerNoticeRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/sms', smsRoutes);
 app.use('/api/local-customers', localCustomersRoutes);
@@ -293,6 +298,8 @@ app.use('/api/coupon-form', couponFormRoutes);
 
 // Automation routes
 app.use('/api/automation', automationRoutes);
+app.use('/api/owner-link', ownerLinkRouter);
+app.use('/api/owner', ownerRouter);
 
 // Store routes
 app.use('/api/store-products', storeProductsRoutes);

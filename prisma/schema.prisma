@@ -34,6 +34,8 @@ model Store {
   naverPlaceUrl          String?  // 네이버 플레이스 공유 링크
   crmEnabled             Boolean  @default(true) // CRM 기능 활성화 여부 (태그히어 연동)
   pointsAlimtalkEnabled  Boolean  @default(true) // 포인트 적립/사용 알림톡 자동 발송
+  ownerReportOptOut      Boolean  @default(false) // 사장님 주간 리포트 알림톡 받지 않기
+  ownerNotifyPhone       String?  // 사장님 안내(충전금·주간 리포트) 받을 휴대폰 — 없으면 매장 연락처(phone)가 휴대폰일 때 그 번호
   pointsAlimtalkFrequency String  @default("EVERY_ORDER") // 알림톡 발송 빈도: "EVERY_ORDER" | "FIRST_ONLY"
   // 포인트 적립률 설정 (결제금액 기반) - 항상 활성화
   pointRatePercent       Float    @default(5)     // 적립률 (%) - 소수점 한 자리까지 지원 (0.1~99.9)
@@ -605,6 +607,7 @@ enum AlimTalkType {
   CUSTOMER_COUNT        // 누적 고객 수 알림
   PLACE_BOOSTER         // 네이버 플레이스 부스터 쿠폰 알림톡
   PREMIUM_KAKAO         // 프리미엄 카카오톡 (브랜드 메시지)
+  OWNER_NOTICE           // 사장님 안내 (잔액 부족·주간 리포트) — 무료
 }
 
 enum AlimTalkStatus {
@@ -2607,4 +2610,61 @@ model FranchiseSegment {
 
   @@index([franchiseId])
   @@map("franchise_segments")
+}
+
+// ============================================
+// 사장님 안내 (잔액 부족 · 주간 리포트) — 로그인 없이 여는 링크 + 발송 기록
+// ============================================
+
+// 알림톡 버튼으로 로그인 없이 여는 링크. 토큰 원문은 저장하지 않고 sha256 만 저장한다.
+model OwnerLink {
+  id            String    @id @default(cuid())
+  storeId       String
+  tokenHash     String    @unique
+  purpose       String    // REPORT | TOPUP
+  noticeId      String?   // 이 링크를 실어 보낸 안내 (열람·충전 전환 측정)
+  expiresAt     DateTime
+  openCount     Int       @default(0)
+  firstOpenedAt DateTime?
+  lastOpenedAt  DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([storeId])
+  @@index([noticeId])
+  @@map("owner_links")
+}
+
+// 사장님에게 보낸 안내 — (매장, 종류, 기간키) 유니크로 같은 안내가 두 번 나가지 않게 막는다
+// (운영·개발 API 가 같은 DB 를 볼 때도 먼저 행을 만든 쪽만 보낸다)
+model OwnerNotice {
+  id        String    @id @default(cuid())
+  storeId   String
+  kind      String    // LOW_BALANCE_SOON | LOW_BALANCE_EMPTY | WEEKLY_REPORT
+  periodKey String    // 중복 방지 키 (주 단위)
+  phone     String?
+  payload   Json?     // 보낸 숫자 (리포트·잔액 등)
+  status    String    @default("PENDING") // PENDING | SENT | FAILED
+  error     String?
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  @@unique([storeId, kind, periodKey])
+  @@index([kind, createdAt])
+  @@index([storeId, createdAt])
+  @@map("owner_notices")
+}
+
+// 충전금이 모자라 못 나간 알림톡 수 (매장·KST 날짜·종류별) — 지금까지는 기록 없이 건너뛰었다.
+// 사장님 안내에 "손님 알림 N건이 발송되지 못했습니다" 로 쓴다.
+model AlimtalkSkipDaily {
+  id          String   @id @default(cuid())
+  storeId     String
+  date        String   // KST 날짜 2026-10-03
+  messageType String
+  count       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([storeId, date, messageType])
+  @@index([storeId, date])
+  @@map("alimtalk_skip_daily")
 }

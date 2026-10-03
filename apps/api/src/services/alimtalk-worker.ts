@@ -1,3 +1,4 @@
+import { recordBalanceSkip } from './owner-notice/skip-counter.js';
 import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { SolapiService, sendLowBalanceAlimTalk } from './solapi.js';
@@ -16,6 +17,8 @@ const BATCH_SIZE = 10;
 const POLL_INTERVAL_MS = 5000; // 5초마다 폴링
 const MAX_RETRIES = 3;
 const LOW_BALANCE_THRESHOLD = 400; // 충전금 부족 알림 기준 (400원 미만)
+// 매장 지갑에서 차감하지 않는 메시지 (우리가 사장님에게 보내는 안내·기업 광고)
+const FREE_MESSAGE_TYPES = new Set<string>(['LOW_BALANCE', 'CORPORATE_AD', 'OWNER_NOTICE']);
 
 /**
  * 발송 전 선차감한 금액을 되돌린다 (발송이 최종 실패한 경우).
@@ -166,8 +169,7 @@ async function processMessage(messageId: string): Promise<void> {
       }
 
       if (statusResult.success) {
-        const isLowBalanceMessage = msg.messageType === 'LOW_BALANCE';
-        const isFreeMsg = isLowBalanceMessage || msg.messageType === 'CORPORATE_AD';
+        const isFreeMsg = FREE_MESSAGE_TYPES.has(msg.messageType);
         // 프랜차이즈 단가 오버라이드 적용 (없으면 기본 단가)
         const cost = isFreeMsg
           ? 0
@@ -230,9 +232,8 @@ async function processMessage(messageId: string): Promise<void> {
   let charged_ = false;
 
   try {
-    // LOW_BALANCE, CORPORATE_AD 타입은 비용 없이 무료 발송
-    const isLowBalanceMessage = msg.messageType === 'LOW_BALANCE';
-    const isFreeMessage = isLowBalanceMessage || msg.messageType === 'CORPORATE_AD';
+    // LOW_BALANCE, CORPORATE_AD, OWNER_NOTICE 타입은 비용 없이 무료 발송
+    const isFreeMessage = FREE_MESSAGE_TYPES.has(msg.messageType);
 
     // 메시지 타입에 따른 비용 결정 (무료 타입은 0원, 프랜차이즈 단가 오버라이드 적용)
     cost = isFreeMessage
@@ -270,6 +271,7 @@ async function processMessage(messageId: string): Promise<void> {
         if (charged.count !== 1) {
           const wallet = await prisma.wallet.findUnique({ where: { storeId: msg.storeId } });
           console.log(`[Worker] Insufficient balance for message ${messageId}, balance: ${wallet?.balance ?? 0}, required: ${cost}`);
+          recordBalanceSkip(msg.storeId, msg.messageType);
           await prisma.alimTalkOutbox.update({
             where: { id: messageId },
             data: {

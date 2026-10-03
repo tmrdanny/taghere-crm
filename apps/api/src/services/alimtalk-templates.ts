@@ -1,3 +1,4 @@
+import { recordBalanceSkip } from './owner-notice/skip-counter.js';
 import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import type { AlimTalkType } from '@prisma/client';
@@ -130,6 +131,7 @@ export async function enqueuePointsEarnedAlimTalk(params: {
 
   if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
     console.log(`[AlimTalk] Insufficient balance for store: ${params.storeId}, balance: ${wallet?.balance ?? 0}`);
+    recordBalanceSkip(params.storeId, 'POINTS_EARNED');
     return { success: false, error: 'Insufficient wallet balance' };
   }
 
@@ -210,6 +212,7 @@ export async function enqueueNaverReviewAlimTalk(params: {
 
   if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
     console.log(`[AlimTalk] Insufficient balance for store: ${params.storeId}, balance: ${wallet?.balance ?? 0}`);
+    recordBalanceSkip(params.storeId, 'NAVER_REVIEW_REQUEST');
     return { success: false, error: 'Insufficient wallet balance' };
   }
 
@@ -301,6 +304,7 @@ export async function enqueuePointsUsedAlimTalk(params: {
 
   if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
     console.log(`[AlimTalk] Insufficient balance for store: ${params.storeId}, balance: ${wallet?.balance ?? 0}`);
+    recordBalanceSkip(params.storeId, 'POINTS_USED');
     return { success: false, error: 'Insufficient wallet balance' };
   }
 
@@ -374,6 +378,7 @@ export async function enqueueStampEarnedAlimTalk(params: {
 
   if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
     console.log(`[AlimTalk] Insufficient balance for store: ${params.storeId}, balance: ${wallet?.balance ?? 0}`);
+    recordBalanceSkip(params.storeId, 'STAMP_EARNED');
     return { success: false, error: 'Insufficient wallet balance' };
   }
 
@@ -437,6 +442,7 @@ export async function enqueueHitejinroStampEarnedAlimTalk(params: {
 
   if (!wallet || wallet.balance < MIN_BALANCE_FOR_ALIMTALK) {
     console.log(`[AlimTalk] Insufficient balance for store: ${params.storeId}`);
+    recordBalanceSkip(params.storeId, 'STAMP_EARNED');
     return { success: false, error: 'Insufficient wallet balance' };
   }
 
