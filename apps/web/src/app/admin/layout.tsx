@@ -7,6 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   BadgeCheck,
+  BellRing,
   Building2,
   ChartNoAxesColumn,
   ChevronRight,
@@ -233,6 +234,7 @@ const menuGroups: { title: string; items: MenuItem[] }[] = [
       { href: '/admin/place-booster', label: '네이버 플레이스 부스터', icon: Rocket },
       { href: '/admin/corporate-ad', label: '기업광고', icon: BadgeCheck },
       { href: '/admin/announcements', label: '공지사항', icon: Megaphone },
+      { href: '/admin/owner-notices', label: '사장님 안내', icon: BellRing },
       { href: '/admin/banners', label: '배너 관리', icon: ImageIcon },
     ],
   },

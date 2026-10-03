@@ -32,8 +32,11 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// POST /api/wallet/topup - 개발용 충전
+// POST /api/wallet/topup - 개발용 충전 (로컬 개발에서만 — 배포 서버에서는 매장이 자기 지갑에 돈을 넣을 수 있어 막는다)
 router.post('/topup', authMiddleware, async (req: AuthRequest, res) => {
+  if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+    return res.status(404).json({ error: 'Not found' });
+  }
   try {
     const storeId = req.user!.storeId;
     const { amount } = req.body;
