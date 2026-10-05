@@ -49,6 +49,8 @@ interface Store {
   metacityMembershipType?: 'INTEGRATED' | 'STANDALONE';
   // 야화 연동(웨이팅·성별통계·포인트 동기화) — /api/v1 노출 여부
   yahwaEnabled?: boolean;
+  // 고객 마이페이지 매장 지도에서 숨김 (테스트·데모 매장)
+  hiddenFromMap?: boolean;
   // 스탬프 링크 비밀 입구 secret (QR shortURL 목적지 구성용)
   scanEntrySecret?: string | null;
   // 위치 기반 적립 확인 (매장별 토글, 기본 OFF)
@@ -276,6 +278,7 @@ export default function AdminStoresPage() {
       metacityAccessCode: store.metacityAccessCode ?? '',
       metacityMembershipType: store.metacityMembershipType ?? 'INTEGRATED',
       yahwaEnabled: store.yahwaEnabled ?? false,
+      hiddenFromMap: store.hiddenFromMap ?? false,
       locationGuardEnabled: store.locationGuardEnabled ?? false,
       locationGuardRadiusM: store.locationGuardRadiusM ?? 200,
     });
@@ -1523,6 +1526,35 @@ export default function AdminStoresPage() {
                       selectedStore.yahwaEnabled ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]' : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]'
                     }`}>
                       {selectedStore.yahwaEnabled ? 'ON' : 'OFF'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* 고객 마이페이지 매장 지도 노출 카드 (기본 ON, 테스트·데모 매장만 끔) */}
+              <div className="adm-card p-5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-[14px] font-semibold text-[color:var(--ad-ink)]">고객 매장 지도 노출</h4>
+                    <p className="text-[12px] text-[color:var(--ad-muted)] mt-0.5">고객 마이페이지의 태그히어 매장 지도에 보여줍니다. 테스트·데모 매장은 꺼 주세요.</p>
+                  </div>
+                  {isEditMode ? (
+                    <button
+                      type="button"
+                      onClick={() => setEditForm({ ...editForm, hiddenFromMap: !editForm.hiddenFromMap })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
+                        !editForm.hiddenFromMap ? 'bg-[#4dbc3a]' : 'bg-[color:var(--ad-line-strong)]'
+                      }`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        !editForm.hiddenFromMap ? 'translate-x-6' : 'translate-x-1'
+                      }`} />
+                    </button>
+                  ) : (
+                    <span className={`inline-block px-2.5 py-1 text-[12px] font-medium rounded-full shrink-0 ${
+                      !selectedStore.hiddenFromMap ? 'bg-[#d9fad3] text-[color:var(--ad-pos)]' : 'bg-[color:var(--ad-bg)] text-[color:var(--ad-muted)]'
+                    }`}>
+                      {!selectedStore.hiddenFromMap ? 'ON' : 'OFF'}
                     </span>
                   )}
                 </div>

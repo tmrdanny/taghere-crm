@@ -166,6 +166,15 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Rate Limiting - 고객 마이페이지 (1분에 60요청)
+const myPageLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1분
+  max: 60,
+  message: { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Rate Limiting - 포인트 적립 (1분에 10요청)
 const earnLimiter = rateLimit({
   windowMs: 60 * 1000, // 1분
@@ -181,6 +190,7 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/admin/login', authLimiter);
 app.use('/api/franchise/auth/login', authLimiter);
 app.use('/api/taghere/auto-earn', earnLimiter);
+app.use('/api/my-page', myPageLimiter);
 
 // Static file serving for uploads (MMS images)
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
@@ -306,7 +316,7 @@ app.use('/api/store-products', storeProductsRoutes);
 app.use('/api/store-orders', storeOrdersRoutes);
 app.use('/api/survey-questions', surveyQuestionsRoutes);
 
-// My Page routes (public)
+// My Page routes (고객 로그인 증표 필요)
 app.use('/api/my-page', myPageRoutes);
 
 // External routes
