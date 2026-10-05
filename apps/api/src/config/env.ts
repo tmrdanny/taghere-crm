@@ -12,6 +12,10 @@ export const env = {
   get JWT_SECRET(): string | undefined {
     return process.env.JWT_SECRET;
   },
+  // 고객 마이페이지 로그인 증표 전용 키 (JWT_SECRET 과 분리)
+  get CUSTOMER_JWT_SECRET(): string | undefined {
+    return process.env.CUSTOMER_JWT_SECRET;
+  },
 
   // ── 솔라피 (알림톡/SMS) ──
   get SOLAPI_API_KEY(): string | undefined {

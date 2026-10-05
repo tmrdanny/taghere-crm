@@ -1,6 +1,6 @@
 import { env } from '../config/env.js';
 import { Router, Request, Response } from 'express';
-import { toPhoneLastDigits } from '../utils/phone.js';
+import { toPhoneLastDigits, toMobileOrEmpty } from '../utils/phone.js';
 import { prisma } from '../lib/prisma.js';
 import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk, enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk, enqueueCorporateAdAlimTalk } from '../services/solapi.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, buildStampUsageRule, RewardEntry } from '../utils/random-reward.js';
@@ -22,6 +22,8 @@ import {
 } from '../services/pending-stamp-accrual.js';
 import { findCustomerProfileByKakaoId } from '../services/customer-identity.js';
 import { resolveVersionForOrder } from '../services/taghere-version.js';
+import { signCustomerToken } from '../utils/customer-token.js';
+import { resolveOAuthOrigin } from '../utils/oauth-origin.js';
 
 const router = Router();
 
@@ -443,12 +445,7 @@ router.get('/taghere-start', (req, res) => {
   const ordersheetId = (req.query.ordersheetId || req.query.orderId) as string | undefined;
 
   // origin 검증: 허용된 도메인만 허용 (보안)
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'https://taghere-crm-web-dev.onrender.com',
-    'https://taghere-crm-web-g96p.onrender.com',
-  ];
-  const validOrigin = typeof origin === 'string' && allowedOrigins.includes(origin) ? origin : PUBLIC_APP_URL;
+  const validOrigin = resolveOAuthOrigin(origin, PUBLIC_APP_URL);
 
   if (!KAKAO_CLIENT_ID) {
     console.log('Kakao OAuth not configured, using dev mode');
@@ -485,7 +482,7 @@ router.get('/taghere-start', (req, res) => {
   res.redirect(kakaoAuthUrl);
 });
 
-// 마이페이지 전용 콜백 핸들러 (적립 없이 kakaoId만 추출)
+// 마이페이지 전용 콜백 핸들러 (적립 없이 카카오ID·휴대폰 번호로 로그인 증표 발급)
 async function handleMyPageCallback(
   req: Request,
   res: Response,
@@ -522,7 +519,7 @@ async function handleMyPageCallback(
       return res.redirect(`${redirectOrigin}/taghere-my?error=token_error`);
     }
 
-    // Get user info (kakaoId만 필요)
+    // Get user info (카카오ID + 휴대폰 번호)
     const userResponse = await fetch('https://kapi.kakao.com/v2/user/me', {
       headers: {
         Authorization: `Bearer ${tokenData.access_token}`,
@@ -531,18 +528,24 @@ async function handleMyPageCallback(
 
     const userData = await userResponse.json() as {
       id?: number;
+      kakao_account?: {
+        phone_number?: string;
+      };
     };
 
     if (!userData.id) {
-      console.error('[MyPage Callback] Kakao user error:', userData);
+      console.error('[MyPage Callback] Kakao user error:', { id: userData.id });
       return res.redirect(`${redirectOrigin}/taghere-my?error=user_error`);
     }
 
     const kakaoId = userData.id.toString();
-    console.log(`[MyPage Callback] kakaoId: ${kakaoId}`);
+    // 번호 제공에 동의하지 않았거나 휴대폰 번호가 아니면 번호 없이 진행 (카카오ID로 찾은 매장만 보임)
+    const phone = toMobileOrEmpty(userData.kakao_account?.phone_number) || undefined;
+    console.log(`[MyPage Callback] kakaoId: ${kakaoId}, hasPhone: ${!!phone}`);
 
-    // 적립/포인트 부여 없이 바로 마이페이지로 리다이렉트
-    return res.redirect(`${redirectOrigin}/taghere-my?kakaoId=${kakaoId}`);
+    // 적립/포인트 부여 없이 로그인 증표만 발급. 해시(#)로 넘겨 서버 로그·Referer 에 남지 않게 한다
+    const token = signCustomerToken({ provider: 'kakao', kakaoId, phone });
+    return res.redirect(`${redirectOrigin}/taghere-my#token=${encodeURIComponent(token)}`);
   } catch (error) {
     console.error('[MyPage Callback] Error:', error);
     return res.redirect(`${redirectOrigin}/taghere-my?error=server_error`);
@@ -1200,11 +1203,13 @@ async function handleStampCallback(
     }
 
     if (!franchiseCustomer) {
+      const franchisePhone = customer?.phone || kakaoAccount.phone_number || null;
       franchiseCustomer = await prisma.franchiseCustomer.create({
         data: {
           franchiseId,
           kakaoId,
-          phone: customer?.phone || kakaoAccount.phone_number || null,
+          phone: franchisePhone,
+          phoneLastDigits: franchisePhone ? toPhoneLastDigits(franchisePhone) : null,
           name: customer?.name || profile.nickname || null,
         },
       });
@@ -1259,6 +1264,9 @@ async function handleStampCallback(
           visitCount: { increment: 1 },
           lastVisitAt: new Date(),
           phone: customer?.phone || franchiseCustomer!.phone || undefined,
+          phoneLastDigits: (customer?.phone || franchiseCustomer!.phone)
+            ? toPhoneLastDigits((customer?.phone || franchiseCustomer!.phone)!)
+            : undefined,
           name: customer?.name || franchiseCustomer!.name || undefined,
         },
       });
@@ -1665,16 +1673,22 @@ router.get('/taghere-callback', async (req, res) => {
     console.error('Failed to parse state:', e);
   }
 
-  // origin이 없으면 기본값 사용
-  const redirectOrigin = stateData.origin || PUBLIC_APP_URL;
+  // state 는 서명되지 않아 위조될 수 있으므로 돌아갈 주소를 허용 목록으로 다시 검사한다
+  const redirectOrigin = resolveOAuthOrigin(stateData.origin, PUBLIC_APP_URL);
 
   try {
     if (oauthError) {
       console.error('Kakao OAuth error:', oauthError, error_description);
+      if (stateData.isMyPage) {
+        return res.redirect(`${redirectOrigin}/taghere-my?error=${encodeURIComponent(String(oauthError))}`);
+      }
       return res.redirect(`${PUBLIC_APP_URL}/taghere-enroll?error=${oauthError}`);
     }
 
     if (!code) {
+      if (stateData.isMyPage) {
+        return res.redirect(`${redirectOrigin}/taghere-my?error=no_code`);
+      }
       return res.redirect(`${PUBLIC_APP_URL}/taghere-enroll?error=no_code`);
     }
 

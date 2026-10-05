@@ -20,6 +20,9 @@ interface KakaoStatic {
 declare global {
   interface Window {
     Kakao: KakaoStatic;
+    // 카카오맵 SDK (dapi.kakao.com/v2/maps/sdk.js) — 고객 마이페이지 매장 지도에서만 불러온다
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    kakao?: any;
   }
 }
 

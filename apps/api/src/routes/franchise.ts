@@ -3,6 +3,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma.js';
+import { toPhoneLastDigits } from '../utils/phone.js';
 import { franchiseAuthMiddleware, FranchiseAuthRequest } from '../middleware/franchise-auth.js';
 import { maskName, maskPhone } from '../utils/masking.js';
 import {
@@ -376,7 +377,7 @@ router.get('/customers', async (req: FranchiseAuthRequest, res) => {
     }
 
     // 검색 조건 - 특정 가맹점 필터가 있으면 해당 매장만, 없으면 전체 매장
-    const whereCondition: any = {};
+    const whereCondition: any = { withdrawnAt: null };
 
     // 특정 가맹점 필터
     if (storeId && storeId !== 'all' && storeIds.includes(storeId as string)) {
@@ -686,12 +687,13 @@ router.get('/customers/count', async (req: FranchiseAuthRequest, res) => {
     const [total, newCustomers, regular, vip, dormant] = await Promise.all([
       // 전체 고객
       prisma.customer.count({
-        where: { storeId: { in: storeIds } },
+        where: { storeId: { in: storeIds }, withdrawnAt: null },
       }),
       // 신규 고객 (30일 이내 가입)
       prisma.customer.count({
         where: {
           storeId: { in: storeIds },
+          withdrawnAt: null,
           createdAt: { gte: thirtyDaysAgo },
         },
       }),
@@ -699,6 +701,7 @@ router.get('/customers/count', async (req: FranchiseAuthRequest, res) => {
       prisma.customer.count({
         where: {
           storeId: { in: storeIds },
+          withdrawnAt: null,
           visitCount: { gte: 5 },
         },
       }),
@@ -706,6 +709,7 @@ router.get('/customers/count', async (req: FranchiseAuthRequest, res) => {
       prisma.customer.count({
         where: {
           storeId: { in: storeIds },
+          withdrawnAt: null,
           visitCount: { gte: 10 },
         },
       }),
@@ -713,6 +717,7 @@ router.get('/customers/count', async (req: FranchiseAuthRequest, res) => {
       prisma.customer.count({
         where: {
           storeId: { in: storeIds },
+          withdrawnAt: null,
           lastVisitAt: { lt: ninetyDaysAgo },
         },
       }),
@@ -1009,6 +1014,7 @@ router.get('/customers/:customerId', franchiseAuthMiddleware, async (req: Franch
       where: {
         id: customerId,
         storeId: { in: storeIds },
+        withdrawnAt: null,
       },
       include: {
         store: {
@@ -2093,7 +2099,7 @@ router.post('/stamps/earn', async (req: FranchiseAuthRequest, res) => {
 
     if (!franchiseCustomer) {
       franchiseCustomer = await prisma.franchiseCustomer.create({
-        data: { franchiseId, kakaoId, phone, name },
+        data: { franchiseId, kakaoId, phone, phoneLastDigits: phone ? toPhoneLastDigits(phone) : null, name },
       });
     }
 
@@ -2129,6 +2135,7 @@ router.post('/stamps/earn', async (req: FranchiseAuthRequest, res) => {
           visitCount: { increment: 1 },
           lastVisitAt: new Date(),
           phone: phone || undefined,
+          phoneLastDigits: phone ? toPhoneLastDigits(phone) : undefined,
           name: name || undefined,
         },
       });
@@ -2253,7 +2260,7 @@ router.post('/points/earn', async (req: FranchiseAuthRequest, res) => {
 
     if (!customer) {
       customer = await prisma.franchiseCustomer.create({
-        data: { franchiseId, kakaoId, phone, name },
+        data: { franchiseId, kakaoId, phone, phoneLastDigits: phone ? toPhoneLastDigits(phone) : null, name },
       });
     }
 
@@ -2265,6 +2272,7 @@ router.post('/points/earn', async (req: FranchiseAuthRequest, res) => {
         data: {
           totalPoints: newBalance,
           phone: phone || undefined,
+          phoneLastDigits: phone ? toPhoneLastDigits(phone) : undefined,
           name: name || undefined,
         },
       });
@@ -2359,7 +2367,7 @@ router.get('/franchise-customers', async (req: FranchiseAuthRequest, res) => {
     const limitNum = Math.min(parseInt(limit as string, 10), 100);
     const skip = (pageNum - 1) * limitNum;
 
-    const where: any = { franchiseId };
+    const where: any = { franchiseId, withdrawnAt: null };
 
     if (search) {
       where.OR = [

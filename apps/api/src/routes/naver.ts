@@ -1,6 +1,6 @@
 import { env } from '../config/env.js';
 import { Router } from 'express';
-import { toPhoneLastDigits } from '../utils/phone.js';
+import { toPhoneLastDigits, toMobileOrEmpty } from '../utils/phone.js';
 import { prisma } from '../lib/prisma.js';
 import { enqueueNaverReviewAlimTalk, enqueuePointsEarnedAlimTalk } from '../services/solapi.js';
 import { sidoToShort } from '../utils/address-parser.js';
@@ -9,6 +9,8 @@ import {
   hasTodayEarnLedger,
   hasTodayPendingAccrual,
 } from '../services/pending-point-accrual.js';
+import { signCustomerToken } from '../utils/customer-token.js';
+import { resolveOAuthOrigin } from '../utils/oauth-origin.js';
 
 const router = Router();
 
@@ -45,10 +47,102 @@ router.get('/start', (req, res) => {
   res.redirect(naverAuthUrl);
 });
 
+// GET /auth/naver/my-page-start - 고객 마이페이지 네이버 로그인 시작
+// (V2 주문 서비스 네이버 앱을 공유한다. 콜백은 아래 /callback 을 같이 쓰고 state.isMyPage 로 분기)
+router.get('/my-page-start', (req, res) => {
+  const redirectOrigin = resolveOAuthOrigin(req.query.origin, PUBLIC_APP_URL);
+
+  if (!NAVER_CLIENT_ID) {
+    console.warn('[Naver MyPage] NAVER_CLIENT_ID 미설정');
+    return res.redirect(`${redirectOrigin}/taghere-my?error=naver_not_configured`);
+  }
+
+  const state = Buffer.from(
+    JSON.stringify({ isMyPage: true, origin: redirectOrigin })
+  ).toString('base64');
+
+  res.redirect(
+    `https://nid.naver.com/oauth2.0/authorize?client_id=${NAVER_CLIENT_ID}&redirect_uri=${encodeURIComponent(NAVER_REDIRECT_URI)}&response_type=code&state=${encodeURIComponent(state)}`
+  );
+});
+
+// 마이페이지 네이버 콜백 — 휴대폰 번호로 로그인 증표만 발급한다 (적립 없음, 프로필 로그 남기지 않음)
+async function handleNaverMyPageCallback(
+  res: import('express').Response,
+  params: { code?: unknown; state?: unknown; error?: unknown },
+  redirectOrigin: string,
+) {
+  const myPageUrl = `${redirectOrigin}/taghere-my`;
+  try {
+    if (params.error) {
+      return res.redirect(`${myPageUrl}?error=${encodeURIComponent(String(params.error))}`);
+    }
+    if (!params.code) {
+      return res.redirect(`${myPageUrl}?error=no_code`);
+    }
+
+    const tokenResponse = await fetch('https://nid.naver.com/oauth2.0/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: NAVER_CLIENT_ID,
+        client_secret: NAVER_CLIENT_SECRET,
+        code: String(params.code),
+        state: String(params.state ?? ''),
+      }),
+    });
+    const tokenData = await tokenResponse.json() as { error?: string; access_token?: string };
+    if (tokenData.error || !tokenData.access_token) {
+      console.error('[Naver MyPage] token error:', tokenData.error);
+      return res.redirect(`${myPageUrl}?error=token_error`);
+    }
+
+    const userResponse = await fetch('https://openapi.naver.com/v1/nid/me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const userData = await userResponse.json() as {
+      resultcode?: string;
+      response?: { id?: string; mobile?: string };
+    };
+    if (userData.resultcode !== '00' || !userData.response?.id) {
+      console.error('[Naver MyPage] user error:', userData.resultcode);
+      return res.redirect(`${myPageUrl}?error=user_error`);
+    }
+
+    // 네이버ID 는 앱마다 달라 CRM 기록과 맞지 않으므로 번호로만 찾는다 → 번호가 없으면 로그인 불가
+    const phone = toMobileOrEmpty(userData.response.mobile);
+    if (!phone) {
+      return res.redirect(`${myPageUrl}?error=phone_required`);
+    }
+
+    const token = signCustomerToken({ provider: 'naver', phone });
+    return res.redirect(`${myPageUrl}#token=${encodeURIComponent(token)}`);
+  } catch (err) {
+    console.error('[Naver MyPage] Error:', err);
+    return res.redirect(`${myPageUrl}?error=server_error`);
+  }
+}
+
 // GET /auth/naver/callback - 네이버 로그인 콜백
 router.get('/callback', async (req, res) => {
   try {
     const { code, state, error, error_description } = req.query;
+
+    // 마이페이지 흐름은 오류·코드 없음 분기보다 먼저 가려내야 취소해도 마이페이지로 돌아간다
+    let myPageState: { isMyPage?: boolean; origin?: string } | null = null;
+    try {
+      myPageState = JSON.parse(Buffer.from(String(state ?? ''), 'base64').toString());
+    } catch {
+      myPageState = null;
+    }
+    if (myPageState?.isMyPage) {
+      return handleNaverMyPageCallback(
+        res,
+        { code, state, error },
+        resolveOAuthOrigin(myPageState.origin, PUBLIC_APP_URL),
+      );
+    }
 
     if (error) {
       console.error('Naver OAuth error:', error, error_description);

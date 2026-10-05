@@ -1,9 +1,20 @@
 'use client';
 
-import { API_BASE } from '@/lib/api-config';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getStoredKakaoId, saveKakaoId } from '@/features/enroll/kakao-storage';
+import {
+  consumeTokenFromHash,
+  currentToken,
+  customerFetch,
+  CustomerAuthError,
+  loginErrorMessage,
+  logoutCustomer,
+  startKakaoLogin,
+  startNaverLogin,
+  takePendingWithdraw,
+} from './_lib/customer-session';
+import StoreMap, { CATEGORY_LABELS, benefitLabel } from './_components/StoreMap';
+import MyInfo from './_components/MyInfo';
 
 // ─── 타입 ───────────────────────────────────
 
@@ -11,6 +22,12 @@ interface StampReward {
   tier: number;
   description: string;
   isRandom: boolean;
+}
+
+interface NextReward {
+  tier: number;
+  description: string;
+  remaining: number;
 }
 
 interface HistoryEntry {
@@ -25,15 +42,32 @@ interface HistoryEntry {
   createdAt: string;
 }
 
+interface Coupon {
+  id: string;
+  code: string;
+  couponContent: string;
+  expiryDate: string;
+}
+
 interface StoreData {
   storeId: string;
   storeName: string;
-  totalPoints: number;
-  totalStamps: number;
+  category: string | null;
+  address: string | null;
+  enrollmentMode: string;
+  pointRatePercent: number;
+  naverPlaceUrl: string | null;
+  franchiseName: string | null;
+  totalPoints: number | null;
+  pointSource: 'CRM' | 'METACITY' | 'METACITY_UNAVAILABLE';
+  totalStamps: number | null;
+  stampManagedByFranchise: boolean;
   visitCount: number;
   lastVisitAt: string | null;
   stampEnabled: boolean;
-  stampRewards: StampReward[] | null;
+  stampRewards: StampReward[];
+  nextReward: NextReward | null;
+  coupons: Coupon[];
   recentPointHistory: HistoryEntry[];
   recentStampHistory: HistoryEntry[];
 }
@@ -53,16 +87,19 @@ interface FranchiseData {
   lastVisitAt: string | null;
   selfClaimEnabled: boolean;
   stampRewards: StampReward[];
+  nextReward: NextReward | null;
   storeBreakdown: StoreBreakdown[];
   recentStampHistory: HistoryEntry[];
   recentPointHistory: HistoryEntry[];
 }
 
 interface MyPageData {
-  customer: { name: string; phone: string } | null;
+  customer: { name: string | null; phone: string | null; provider: 'kakao' | 'naver'; hasPhone: boolean };
   franchises: FranchiseData[];
   stores: StoreData[];
 }
+
+type Tab = 'wallet' | 'map' | 'info';
 
 // ─── 유틸 ───────────────────────────────────
 
@@ -271,20 +308,34 @@ function CollapsibleHistory({
   );
 }
 
+// ─── 다음 보상 안내 ─────────────────────────
+
+function NextRewardBanner({ next }: { next: NextReward | null }) {
+  if (!next) return null;
+  return (
+    <div className="bg-[#FFF8E1] rounded-[10px] px-4 py-2.5">
+      <p className="text-sm text-[#1d2022]">
+        <span className="font-bold">{next.remaining}개</span> 더 모으면 <span className="font-bold">{next.description}</span>
+      </p>
+    </div>
+  );
+}
+
 // ─── 프랜차이즈 섹션 ────────────────────────
 
 function FranchiseSection({
   franchise,
-  kakaoId,
   onStampsUpdated,
+  onAuthExpired,
 }: {
   franchise: FranchiseData;
-  kakaoId: string;
   onStampsUpdated: (franchiseId: string, newStamps: number) => void;
+  onAuthExpired: () => void;
 }) {
   const [claimingTier, setClaimingTier] = useState<number | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ tier: number; description: string } | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleClaimRequest = (tier: number, description: string) => {
     setConfirmModal({ tier, description });
@@ -295,30 +346,26 @@ function FranchiseSection({
     const { tier, description } = confirmModal;
     setConfirmModal(null);
     setClaimingTier(tier);
+    setErrorMessage(null);
 
     try {
-      const res = await fetch(`${API_BASE}/api/my-page/reward-claim`, {
+      const res = await customerFetch('/api/my-page/reward-claim', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kakaoId,
-          franchiseId: franchise.franchiseId,
-          tier,
-        }),
+        body: JSON.stringify({ franchiseId: franchise.franchiseId, tier }),
       });
 
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
-        alert(data.error || '보상 신청에 실패했습니다.');
+        setErrorMessage(data.error || '보상 신청에 실패했습니다.');
         return;
       }
 
-      const data = await res.json();
       onStampsUpdated(franchise.franchiseId, data.currentStamps);
       setSuccessMessage(`${description} 보상 신청이 완료되었습니다.`);
       setTimeout(() => setSuccessMessage(null), 4000);
-    } catch {
-      alert('보상 신청 중 오류가 발생했습니다.');
+    } catch (e) {
+      if (e instanceof CustomerAuthError) return onAuthExpired();
+      setErrorMessage('보상 신청 중 오류가 발생했습니다.');
     } finally {
       setClaimingTier(null);
     }
@@ -337,7 +384,6 @@ function FranchiseSection({
       </div>
 
       <div className="border border-t-0 border-[#ebeced] rounded-b-[12px] p-4 space-y-4">
-        {/* 성공 메시지 */}
         {successMessage && (
           <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-[10px] px-4 py-3 flex items-center gap-2">
             <svg className="w-4 h-4 text-[#22c55e] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -346,16 +392,14 @@ function FranchiseSection({
             <p className="text-sm text-[#15803d]">{successMessage}</p>
           </div>
         )}
+        {errorMessage && <p className="text-sm text-[#ef4444]">{errorMessage}</p>}
 
-        {/* 스탬프 그리드 */}
         {franchise.stampRewards.length > 0 && (
-          <StampGrid
-            totalStamps={franchise.totalStamps}
-            rewards={franchise.stampRewards}
-          />
+          <StampGrid totalStamps={franchise.totalStamps} rewards={franchise.stampRewards} />
         )}
 
-        {/* 통합 포인트 */}
+        <NextRewardBanner next={franchise.nextReward} />
+
         {franchise.totalPoints > 0 && (
           <div className="flex items-center gap-2 px-1">
             <span className="text-sm text-[#91949a]">통합 포인트</span>
@@ -363,7 +407,6 @@ function FranchiseSection({
           </div>
         )}
 
-        {/* 보상 목록 */}
         <RewardList
           rewards={franchise.stampRewards}
           totalStamps={franchise.totalStamps}
@@ -372,7 +415,6 @@ function FranchiseSection({
           onClaim={handleClaimRequest}
         />
 
-        {/* 매장별 적립 */}
         {franchise.storeBreakdown.length > 0 && (
           <div className="bg-[#f8f9fa] rounded-[10px] px-4 py-3">
             <p className="text-xs font-medium text-[#91949a] mb-2">매장별 적립</p>
@@ -385,51 +427,29 @@ function FranchiseSection({
           </div>
         )}
 
-        {/* 최근 스탬프 내역 */}
-        <CollapsibleHistory
-          title="최근 스탬프 내역"
-          entries={franchise.recentStampHistory}
-          showStoreName
-        />
-
-        {/* 최근 포인트 내역 */}
-        <CollapsibleHistory
-          title="최근 포인트 내역"
-          entries={franchise.recentPointHistory}
-          showStoreName
-        />
+        <CollapsibleHistory title="최근 스탬프 내역" entries={franchise.recentStampHistory} showStoreName />
+        <CollapsibleHistory title="최근 포인트 내역" entries={franchise.recentPointHistory} showStoreName />
       </div>
 
-      {/* 확인 모달 */}
       {confirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6">
           <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-xl">
             <div className="w-14 h-14 rounded-full bg-[#FFF4D6] flex items-center justify-center mx-auto mb-4">
               <span className="text-2xl">&#127873;</span>
             </div>
-            <h2 className="text-base font-bold text-[#1d2022] mb-2">
-              보상 수령 신청
-            </h2>
+            <h2 className="text-base font-bold text-[#1d2022] mb-2">보상 수령 신청</h2>
             <p className="text-sm text-[#55595e] mb-1">
               스탬프 <span className="font-bold">{confirmModal.tier}개</span>를 사용하여
             </p>
             <div className="bg-[#FFF4D6] rounded-xl px-4 py-2.5 mb-4">
               <p className="text-sm font-bold text-[#1d2022]">{confirmModal.description}</p>
             </div>
-            <p className="text-xs text-[#91949a] mb-5">
-              신청 후 매장에서 보상을 수령해주세요.
-            </p>
+            <p className="text-xs text-[#91949a] mb-5">신청 후 매장에서 보상을 수령해주세요.</p>
             <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmModal(null)}
-                className="flex-1 py-3 bg-[#f0f1f2] text-[#55595e] font-semibold text-sm rounded-xl"
-              >
+              <button onClick={() => setConfirmModal(null)} className="flex-1 py-3 bg-[#f0f1f2] text-[#55595e] font-semibold text-sm rounded-xl">
                 취소
               </button>
-              <button
-                onClick={handleConfirmClaim}
-                className="flex-1 py-3 bg-[#FFD541] text-[#1d2022] font-semibold text-sm rounded-xl"
-              >
+              <button onClick={handleConfirmClaim} className="flex-1 py-3 bg-[#FFD541] text-[#1d2022] font-semibold text-sm rounded-xl">
                 신청하기
               </button>
             </div>
@@ -443,43 +463,51 @@ function FranchiseSection({
 // ─── 매장 섹션 ──────────────────────────────
 
 function StoreSection({ store }: { store: StoreData }) {
-  const hasStamps = store.stampEnabled && store.totalStamps > 0;
-  const hasPoints = store.totalPoints > 0;
+  const stamps = store.totalStamps ?? 0;
+  const hasStamps = store.stampEnabled && stamps > 0;
+  const showPoints = store.pointSource !== 'CRM' || (store.totalPoints ?? 0) > 0;
 
   return (
     <div className="mb-4 border border-[#ebeced] rounded-[12px] p-4 space-y-3">
       {/* 매장 헤더 */}
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-full bg-[#f0f1f2] flex items-center justify-center">
+      <div className="flex items-start gap-2">
+        <div className="w-8 h-8 rounded-full bg-[#f0f1f2] flex items-center justify-center flex-shrink-0">
           <svg className="w-4 h-4 text-[#91949a]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
           </svg>
         </div>
-        <div>
-          <p className="text-sm font-bold text-[#1d2022]">{store.storeName}</p>
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-[#1d2022]">
+            {store.storeName}
+            {store.category && (
+              <span className="ml-1.5 text-[11px] font-normal text-[#91949a]">{CATEGORY_LABELS[store.category] ?? ''}</span>
+            )}
+          </p>
           {store.lastVisitAt && (
-            <p className="text-[11px] text-[#b1b5b8]">
-              최근 방문 {formatDate(store.lastVisitAt)}
-            </p>
+            <p className="text-[11px] text-[#b1b5b8]">최근 방문 {formatDate(store.lastVisitAt)}</p>
           )}
         </div>
       </div>
 
       {/* 포인트/스탬프 잔액 */}
       <div className="flex gap-3">
-        {hasPoints && (
+        {showPoints && (
           <div className="flex-1 bg-[#f8f9fa] rounded-[10px] px-4 py-3 text-center">
             <p className="text-[11px] text-[#91949a] mb-0.5">포인트</p>
-            <p className="text-base font-bold text-[#1d2022]">{store.totalPoints.toLocaleString()}P</p>
+            {store.pointSource === 'METACITY_UNAVAILABLE' ? (
+              <p className="text-xs font-medium text-[#55595e] py-0.5">포스에서 확인해 주세요</p>
+            ) : (
+              <p className="text-base font-bold text-[#1d2022]">{(store.totalPoints ?? 0).toLocaleString()}P</p>
+            )}
           </div>
         )}
         {hasStamps && (
           <div className="flex-1 bg-[#f8f9fa] rounded-[10px] px-4 py-3 text-center">
             <p className="text-[11px] text-[#91949a] mb-0.5">스탬프</p>
-            <p className="text-base font-bold text-[#1d2022]">{store.totalStamps}개</p>
+            <p className="text-base font-bold text-[#1d2022]">{stamps}개</p>
           </div>
         )}
-        {!hasPoints && !hasStamps && (
+        {!showPoints && !hasStamps && (
           <div className="flex-1 bg-[#f8f9fa] rounded-[10px] px-4 py-3 text-center">
             <p className="text-[11px] text-[#91949a] mb-0.5">방문</p>
             <p className="text-base font-bold text-[#1d2022]">{store.visitCount}회</p>
@@ -487,25 +515,90 @@ function StoreSection({ store }: { store: StoreData }) {
         )}
       </div>
 
+      {store.stampManagedByFranchise && (
+        <p className="text-xs text-[#91949a]">
+          스탬프는 위의 {store.franchiseName ?? '브랜드'} 통합 스탬프에서 확인할 수 있어요.
+        </p>
+      )}
+
       {/* 스탬프 그리드 (보상이 있을 때) */}
-      {hasStamps && store.stampRewards && store.stampRewards.length > 0 && (
+      {hasStamps && store.stampRewards.length > 0 && (
         <>
-          <StampGrid totalStamps={store.totalStamps} rewards={store.stampRewards} />
+          <StampGrid totalStamps={stamps} rewards={store.stampRewards} />
+          <NextRewardBanner next={store.nextReward} />
           <RewardList rewards={store.stampRewards} />
         </>
       )}
 
-      {/* 최근 스탬프 내역 */}
-      <CollapsibleHistory
-        title="최근 스탬프 내역"
-        entries={store.recentStampHistory}
-      />
+      {/* 쿠폰함 */}
+      {store.coupons.length > 0 && (
+        <div className="rounded-[10px] border border-dashed border-[#FFD541] px-4 py-3 space-y-2">
+          <p className="text-xs font-semibold text-[#FFB800]">보유 쿠폰 {store.coupons.length}장</p>
+          {store.coupons.map((coupon) => (
+            <div key={coupon.id} className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[#1d2022]">{coupon.couponContent}</p>
+                <p className="text-[11px] text-[#91949a]">{coupon.expiryDate} · 코드 {coupon.code}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {/* 최근 포인트 내역 */}
-      <CollapsibleHistory
-        title="최근 포인트 내역"
-        entries={store.recentPointHistory}
-      />
+      {/* 매장 기본 정보 */}
+      <div className="text-xs text-[#91949a] space-y-0.5">
+        {store.address && <p>{store.address}</p>}
+        <p>
+          {benefitLabel(store)}
+          {store.naverPlaceUrl && (
+            <>
+              {' · '}
+              <a href={store.naverPlaceUrl} target="_blank" rel="noopener noreferrer" className="text-[#03A94D] font-medium">
+                네이버 플레이스
+              </a>
+            </>
+          )}
+        </p>
+      </div>
+
+      <CollapsibleHistory title="최근 스탬프 내역" entries={store.recentStampHistory} />
+      <CollapsibleHistory title="최근 포인트 내역" entries={store.recentPointHistory} />
+    </div>
+  );
+}
+
+// ─── 로그인 화면 ────────────────────────────
+
+function LoginScreen({ errorMessage, notice }: { errorMessage: string | null; notice?: string | null }) {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center px-6">
+      <div className="w-16 h-16 rounded-full bg-[#FFF4D6] flex items-center justify-center mb-5">
+        <svg className="w-8 h-8 text-[#FFB800]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      </div>
+      <h1 className="text-xl font-bold text-[#1d2022] mb-2 tracking-tight">내 멤버십</h1>
+      <p className="text-sm text-[#91949a] mb-8 text-center">
+        로그인하면 태그히어 매장에 쌓인<br />포인트와 스탬프를 한눈에 볼 수 있어요
+      </p>
+      {notice && <p className="text-sm text-[#55595e] mb-4 text-center">{notice}</p>}
+      {errorMessage && <p className="text-sm text-[#ef4444] mb-4 text-center">{errorMessage}</p>}
+      <button
+        onClick={startKakaoLogin}
+        className="w-full py-4 bg-[#FEE500] text-[#191919] font-semibold text-base rounded-[10px] flex items-center justify-center gap-2"
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M9 1C4.58 1 1 3.8 1 7.2c0 2.2 1.46 4.13 3.65 5.23-.16.58-.58 2.1-.66 2.43-.1.41.15.4.31.29.13-.08 2.04-1.38 2.87-1.94.6.09 1.21.13 1.83.13 4.42 0 8-2.8 8-6.14S13.42 1 9 1z" fill="#191919" />
+        </svg>
+        카카오로 시작하기
+      </button>
+      <button
+        onClick={startNaverLogin}
+        className="w-full mt-2.5 py-4 bg-[#03C75A] text-white font-semibold text-base rounded-[10px] flex items-center justify-center gap-2"
+      >
+        <span className="font-black text-lg leading-none">N</span>
+        네이버로 시작하기
+      </button>
     </div>
   );
 }
@@ -514,211 +607,244 @@ function StoreSection({ store }: { store: StoreData }) {
 
 function MyPageContent() {
   const searchParams = useSearchParams();
+  const [tab, setTab] = useState<Tab>('wallet');
+  const [hasToken, setHasToken] = useState<boolean | null>(null);
   const [data, setData] = useState<MyPageData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [kakaoId, setKakaoId] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginNotice, setLoginNotice] = useState<string | null>(null);
+  const [openWithdraw, setOpenWithdraw] = useState(false);
 
-  // 1. kakaoId 확보 (URL 파라미터 → localStorage)
+  // 1. 로그인 증표 확보 (콜백 해시 → 저장소). 예전 ?kakaoId= 링크는 무시한다
   useEffect(() => {
-    const urlKakaoId = searchParams.get('kakaoId');
-    const urlError = searchParams.get('error');
-
-    if (urlError) {
-      setError('로그인에 실패했습니다. 다시 시도해주세요.');
-      setLoading(false);
-      return;
+    const fromHash = consumeTokenFromHash();
+    const errorCode = searchParams.get('error');
+    if (errorCode) {
+      // 재로그인 후 탈퇴하려다 로그인이 취소·실패했으면 탈퇴 예약도 지운다 (다음 로그인 때 갑자기 뜨지 않게)
+      takePendingWithdraw();
+      setLoginError(loginErrorMessage(errorCode));
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (searchParams.get('kakaoId')) {
+      window.history.replaceState({}, '', window.location.pathname);
     }
-
-    if (urlKakaoId) {
-      // 콜백에서 돌아온 경우
-      saveKakaoId(urlKakaoId);
-      setKakaoId(urlKakaoId);
-      // URL에서 kakaoId 제거
-      window.history.replaceState({}, '', '/taghere-my');
-      return;
+    if (fromHash && takePendingWithdraw()) {
+      setTab('info');
+      setOpenWithdraw(true);
     }
-
-    // localStorage 확인
-    const storedId = getStoredKakaoId();
-    if (storedId) {
-      setKakaoId(storedId);
-      return;
-    }
-
-    // 로그인 필요
-    setLoading(false);
+    setHasToken(!!currentToken());
   }, [searchParams]);
+
+  const handleAuthExpired = useCallback(() => {
+    logoutCustomer();
+    setOpenWithdraw(false);
+    setData(null);
+    setHasToken(false);
+    setLoginError('로그인이 만료되었습니다. 다시 로그인해주세요.');
+  }, []);
 
   // 2. 데이터 조회
   useEffect(() => {
-    if (!kakaoId) return;
-
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(`${API_BASE}/api/my-page?kakaoId=${kakaoId}`);
+    if (!hasToken) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    customerFetch('/api/my-page')
+      .then(async (res) => {
         if (!res.ok) throw new Error('API error');
         const result: MyPageData = await res.json();
-        setData(result);
-      } catch (e) {
-        console.error('Failed to fetch my-page data:', e);
+        if (!cancelled) setData(result);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        if (e instanceof CustomerAuthError) return handleAuthExpired();
         setError('데이터를 불러오는데 실패했습니다.');
-      } finally {
-        setLoading(false);
-      }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
     };
+  }, [hasToken, handleAuthExpired]);
 
-    fetchData();
-  }, [kakaoId]);
-
-  // 카카오 로그인 시작
-  const handleKakaoLogin = () => {
-    const params = new URLSearchParams();
-    params.set('isMyPage', 'true');
-    params.set('origin', window.location.origin);
-    window.location.href = `${API_BASE}/auth/kakao/taghere-start?${params.toString()}`;
+  const handleLogout = () => {
+    logoutCustomer();
+    setOpenWithdraw(false);
+    setData(null);
+    setHasToken(false);
+    setLoginError(null);
+    setTab('wallet');
   };
 
-  // 로딩 상태
-  if (loading) {
-    return (
-      <div className="h-[100dvh] bg-white flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-[#91949a]">불러오는 중...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleWithdrawn = () => {
+    logoutCustomer();
+    setOpenWithdraw(false);
+    setData(null);
+    setHasToken(false);
+    setTab('wallet');
+    setLoginError(null);
+    setLoginNotice('탈퇴가 완료되었어요. 그동안 이용해 주셔서 감사합니다.');
+  };
 
-  // 로그인 필요
-  if (!kakaoId) {
-    return (
-      <div className="h-[100dvh] bg-white flex justify-center">
-        <div className="w-full max-w-[430px] flex flex-col items-center justify-center px-6">
-          <div className="w-16 h-16 rounded-full bg-[#FFF4D6] flex items-center justify-center mb-5">
-            <svg className="w-8 h-8 text-[#FFB800]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </div>
-          <h1 className="text-xl font-bold text-[#1d2022] mb-2 tracking-tight">내 멤버십</h1>
-          <p className="text-sm text-[#91949a] mb-8 text-center">
-            카카오 로그인으로<br/>적립 현황을 확인하세요
-          </p>
-          <button
-            onClick={handleKakaoLogin}
-            className="w-full py-4 bg-[#FEE500] text-[#191919] font-semibold text-base rounded-[10px] flex items-center justify-center gap-2"
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M9 1C4.58 1 1 3.8 1 7.2c0 2.2 1.46 4.13 3.65 5.23-.16.58-.58 2.1-.66 2.43-.1.41.15.4.31.29.13-.08 2.04-1.38 2.87-1.94.6.09 1.21.13 1.83.13 4.42 0 8-2.8 8-6.14S13.42 1 9 1z" fill="#191919"/>
-            </svg>
-            카카오로 시작하기
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // 에러 상태
-  if (error) {
-    return (
-      <div className="h-[100dvh] bg-white flex justify-center">
-        <div className="w-full max-w-[430px] flex flex-col items-center justify-center px-6">
-          <p className="text-sm text-[#ef4444] mb-4">{error}</p>
-          <button
-            onClick={handleKakaoLogin}
-            className="px-6 py-3 bg-[#FEE500] text-[#191919] font-semibold text-sm rounded-[10px]"
-          >
-            다시 로그인
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // 데이터 없음
-  if (!data || (data.franchises.length === 0 && data.stores.length === 0)) {
-    return (
-      <div className="h-[100dvh] bg-white flex justify-center">
-        <div className="w-full max-w-[430px] flex flex-col">
-          {/* Header */}
-          <div className="flex-shrink-0 h-[54px] border-b border-[#ebeced] flex items-center justify-center">
-            <span className="text-lg font-bold text-[#1d2022]">내 멤버십</span>
-          </div>
+  const renderWallet = () => {
+    if (!hasToken) return <LoginScreen errorMessage={loginError} notice={loginNotice} />;
+    if (loading || !data) {
+      if (error) {
+        return (
           <div className="flex-1 flex flex-col items-center justify-center px-6">
-            <div className="w-14 h-14 rounded-full bg-[#f8f9fa] flex items-center justify-center mb-4">
-              <svg className="w-7 h-7 text-[#b1b5b8]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-              </svg>
-            </div>
-            <p className="text-base font-semibold text-[#1d2022] mb-1">아직 적립 내역이 없어요</p>
-            <p className="text-sm text-[#91949a] text-center">매장에서 포인트나 스탬프를 적립하면<br/>여기에서 확인할 수 있어요</p>
+            <p className="text-sm text-[#ef4444] mb-4">{error}</p>
+            <button onClick={() => window.location.reload()} className="px-6 py-3 bg-[#f0f1f2] text-[#1d2022] font-semibold text-sm rounded-[10px]">
+              다시 시도
+            </button>
           </div>
+        );
+      }
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-8 h-8 border-3 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
         </div>
+      );
+    }
+
+    if (data.franchises.length === 0 && data.stores.length === 0) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center px-6">
+          <div className="w-14 h-14 rounded-full bg-[#f8f9fa] flex items-center justify-center mb-4">
+            <svg className="w-7 h-7 text-[#b1b5b8]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+          </div>
+          <p className="text-base font-semibold text-[#1d2022] mb-1">아직 적립 내역이 없어요</p>
+          <p className="text-sm text-[#91949a] text-center">
+            매장에서 포인트나 스탬프를 적립하면<br />여기에서 확인할 수 있어요
+          </p>
+          {!data.customer.hasPhone && (
+            <p className="text-xs text-[#91949a] text-center mt-4">
+              휴대폰 번호 제공에 동의하면 더 많은 매장이 보여요.
+            </p>
+          )}
+          <button onClick={() => setTab('map')} className="mt-6 px-5 py-2.5 bg-[#FFD541] text-[#1d2022] text-sm font-semibold rounded-[10px]">
+            태그히어 매장 둘러보기
+          </button>
+        </div>
+      );
+    }
+
+    const totalStoreCount = data.franchises.length + data.stores.length;
+    return (
+      <div className="flex-1 overflow-y-auto px-5 pt-5 pb-8">
+        <div className="mb-5">
+          <h2 className="text-lg font-bold text-[#1d2022]">{data.customer.name ? `${data.customer.name} 님` : '내 지갑'}</h2>
+          <p className="text-sm text-[#91949a] mt-0.5">방문 매장 {totalStoreCount}개</p>
+          {!data.customer.hasPhone && (
+            <p className="text-xs text-[#91949a] mt-1">휴대폰 번호 제공에 동의하면 더 많은 매장이 보여요.</p>
+          )}
+        </div>
+
+        {data.franchises.map((franchise) => (
+          <FranchiseSection
+            key={franchise.franchiseId}
+            franchise={franchise}
+            onAuthExpired={handleAuthExpired}
+            onStampsUpdated={(franchiseId, newStamps) => {
+              setData((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      franchises: prev.franchises.map((f) =>
+                        f.franchiseId === franchiseId ? { ...f, totalStamps: newStamps } : f
+                      ),
+                    }
+                  : prev
+              );
+            }}
+          />
+        ))}
+
+        {data.stores.length > 0 && (
+          <div>
+            {data.franchises.length > 0 && <h3 className="text-sm font-semibold text-[#91949a] mb-3 mt-2">매장별 내역</h3>}
+            {data.stores.map((store) => (
+              <StoreSection key={store.storeId} store={store} />
+            ))}
+          </div>
+        )}
       </div>
     );
-  }
+  };
 
-  // 메인 데이터 뷰
-  const totalStoreCount = data.franchises.length + data.stores.length;
+  const renderInfo = () => {
+    if (!hasToken) return <LoginScreen errorMessage={loginError} notice={loginNotice} />;
+    if (!data && error) {
+      // 내 정보를 못 불러와도 로그아웃은 할 수 있어야 한다
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center px-6">
+          <p className="text-sm text-[#ef4444] mb-4">{error}</p>
+          <button onClick={() => window.location.reload()} className="px-6 py-3 bg-[#f0f1f2] text-[#1d2022] font-semibold text-sm rounded-[10px]">
+            다시 시도
+          </button>
+          <button onClick={handleLogout} className="mt-4 text-sm text-[#55595e] underline underline-offset-2">
+            로그아웃
+          </button>
+        </div>
+      );
+    }
+    if (!data) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-8 h-8 border-3 border-[#FFD541] border-t-transparent rounded-full animate-spin" />
+        </div>
+      );
+    }
+    return (
+      <MyInfo
+        customer={data.customer}
+        openWithdrawOnMount={openWithdraw}
+        onWithdrawPromptShown={() => setOpenWithdraw(false)}
+        onLogout={handleLogout}
+        onWithdrawn={handleWithdrawn}
+        onAuthExpired={handleAuthExpired}
+      />
+    );
+  };
+
+  const TABS: { key: Tab; label: string }[] = [
+    { key: 'wallet', label: '내 지갑' },
+    { key: 'map', label: '매장 지도' },
+    { key: 'info', label: '내 정보' },
+  ];
+  const titles: Record<Tab, string> = { wallet: '내 멤버십', map: '태그히어 매장', info: '내 정보' };
 
   return (
     <div className="h-[100dvh] bg-white flex justify-center overflow-hidden">
       <div className="w-full max-w-[430px] h-full flex flex-col relative">
-        {/* Header */}
         <div className="flex-shrink-0 h-[54px] border-b border-[#ebeced] flex items-center justify-center">
-          <span className="text-lg font-bold text-[#1d2022]">내 멤버십</span>
+          <span className="text-lg font-bold text-[#1d2022]">{titles[tab]}</span>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 overflow-y-auto px-5 pt-5 pb-8">
-          {/* 고객 인사 */}
-          {data.customer && (
-            <div className="mb-5">
-              <h2 className="text-lg font-bold text-[#1d2022]">
-                {data.customer.name} 님
-              </h2>
-              <p className="text-sm text-[#91949a] mt-0.5">
-                방문 매장 {totalStoreCount}개
-              </p>
-            </div>
-          )}
+        {hasToken === null ? (
+          <div className="flex-1" />
+        ) : tab === 'wallet' ? (
+          renderWallet()
+        ) : tab === 'map' ? (
+          <StoreMap />
+        ) : (
+          renderInfo()
+        )}
 
-          {/* 프랜차이즈 통합 스탬프 섹션 */}
-          {data.franchises.map((franchise) => (
-            <FranchiseSection
-              key={franchise.franchiseId}
-              franchise={franchise}
-              kakaoId={kakaoId!}
-              onStampsUpdated={(franchiseId, newStamps) => {
-                setData((prev) => {
-                  if (!prev) return prev;
-                  return {
-                    ...prev,
-                    franchises: prev.franchises.map((f) =>
-                      f.franchiseId === franchiseId
-                        ? { ...f, totalStamps: newStamps }
-                        : f
-                    ),
-                  };
-                });
-              }}
-            />
+        <nav className="flex-shrink-0 border-t border-[#ebeced] grid grid-cols-3 pb-[env(safe-area-inset-bottom,0px)]">
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              aria-current={tab === key ? 'page' : undefined}
+              className={`py-3 text-sm font-semibold ${tab === key ? 'text-[#1d2022]' : 'text-[#b1b5b8]'}`}
+            >
+              {label}
+            </button>
           ))}
-
-          {/* 개별 매장 섹션 */}
-          {data.stores.length > 0 && (
-            <div>
-              {data.franchises.length > 0 && (
-                <h3 className="text-sm font-semibold text-[#91949a] mb-3 mt-2">매장별 내역</h3>
-              )}
-              {data.stores.map((store) => (
-                <StoreSection key={store.storeId} store={store} />
-              ))}
-            </div>
-          )}
-        </div>
+        </nav>
       </div>
     </div>
   );

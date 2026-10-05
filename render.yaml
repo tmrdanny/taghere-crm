@@ -19,6 +19,8 @@ services:
         sync: false  # Render Dashboard에서 직접 설정
       - key: JWT_SECRET
         generateValue: true
+      - key: CUSTOMER_JWT_SECRET  # 고객 마이페이지 로그인 증표 전용 키
+        generateValue: true
       - key: SOLAPI_API_KEY
         sync: false
       - key: SOLAPI_API_SECRET
