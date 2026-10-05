@@ -71,6 +71,11 @@ model Store {
   // 야화(외부 파트너) 연동 노출 여부 — true인 매장만 /api/v1 외부 API에서 조회/등록 가능
   yahwaEnabled          Boolean    @default(false)
 
+  // 고객 마이페이지 매장 지도 — true면 지도에서 숨김 (테스트·데모 매장)
+  hiddenFromMap         Boolean    @default(false)
+  // 좌표 작업(store-geocode-worker)이 마지막으로 좌표를 계산한 주소. 지금 주소와 다르면 다시 계산
+  geocodedAddress       String?
+
   // Relations
   staffUsers            StaffUser[]
   customerSegments      CustomerSegment[]
@@ -258,6 +263,9 @@ model Customer {
   metacityCustId   String?   // 메타씨티 통합 회원 CUST_ID (15자, CustomerInfo.asp)
   metacityCustCd   String?   // 메타씨티 단독 회원 CUST_CD (8자, 주문연동 API)
   metacitySyncedAt DateTime? // 마지막 메타씨티 동기화 시점
+
+  // 고객 마이페이지에서 탈퇴한 시점 (개인정보는 비워지고 기록만 남음)
+  withdrawnAt      DateTime?
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -1688,6 +1696,7 @@ model StampLedger {
   customer        Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([storeId, customerId])
+  @@index([storeId, type, createdAt]) // 고객 마이페이지 매장 지도 60일 활동 판정
   @@index([customerId])
   @@index([createdAt])
   @@index([customerId, createdAt])
@@ -1984,11 +1993,13 @@ model FranchiseCustomer {
   franchiseId   String
   kakaoId       String
   phone         String?
+  phoneLastDigits String? // 전화번호 뒤 8자리 (고객 마이페이지 번호 조회용)
   name          String?
   totalStamps   Int       @default(0)
   totalPoints   Int       @default(0)
   visitCount    Int       @default(0)
   lastVisitAt   DateTime?
+  withdrawnAt   DateTime? // 고객 마이페이지에서 탈퇴한 시점
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -2000,6 +2011,7 @@ model FranchiseCustomer {
   @@unique([franchiseId, kakaoId])
   @@index([franchiseId])
   @@index([kakaoId])
+  @@index([phoneLastDigits])
   @@map("franchise_customers")
 }
 
@@ -2067,6 +2079,7 @@ model FranchiseStampLedger {
 
   @@index([franchiseId, franchiseCustomerId])
   @@index([franchiseCustomerId])
+  @@index([storeId, type, createdAt]) // 고객 마이페이지 매장 지도 60일 활동 판정
   @@index([createdAt])
   @@map("franchise_stamp_ledger")
 }

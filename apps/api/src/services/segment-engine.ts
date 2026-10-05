@@ -157,7 +157,8 @@ function buildQuery(
   // 매장 1곳(사장님) 또는 여러 곳(프랜차이즈 전 가맹점)
   const inStores = (col: Prisma.Sql) =>
     storeIds.length === 1 ? Prisma.sql`${col} = ${storeIds[0]}` : Prisma.sql`${col} IN (${Prisma.join(storeIds)})`;
-  const parts: Prisma.Sql[] = [];
+  // 탈퇴한 고객(개인정보가 비워진 기록)은 세그먼트에서 항상 제외
+  const parts: Prisma.Sql[] = [Prisma.sql`c."withdrawnAt" IS NULL`];
 
   if (cond.visitCountMin !== undefined) parts.push(Prisma.sql`c."visitCount" >= ${cond.visitCountMin}`);
   if (cond.visitCountMax !== undefined) parts.push(Prisma.sql`c."visitCount" <= ${cond.visitCountMax}`);

@@ -3,6 +3,7 @@ import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma.js';
+import { clearStoreMapCache } from '../services/store-map.js';
 import { Prisma } from '@prisma/client';
 import { parseKoreanAddress } from '../utils/address-parser.js';
 import { geocodeAddress } from '../services/geocode.js';
@@ -101,6 +102,7 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
           metacityAccessCode: true,
           metacityMembershipType: true,
           yahwaEnabled: true,
+          hiddenFromMap: true,
           latitude: true,
           longitude: true,
           wallet: { select: { balance: true } },
@@ -168,6 +170,7 @@ router.get('/stores', adminAuthMiddleware, async (req: AdminRequest, res: Respon
         metacityMembershipType: (store as any).metacityMembershipType ?? 'INTEGRATED',
         // 야화 연동(웨이팅·성별통계·포인트 동기화) — /api/v1 노출 여부
         yahwaEnabled: (store as any).yahwaEnabled ?? false,
+        hiddenFromMap: (store as any).hiddenFromMap ?? false,
         // 스탬프 링크 비밀 입구 secret (QR shortURL 목적지 구성용)
         scanEntrySecret: (store as any).stampSetting?.scanEntrySecret ?? null,
         // 위치 기반 적립 확인 (매장별 토글, 기본 OFF)
@@ -279,6 +282,7 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
       metacityMembershipType,
       yahwaEnabled,
       isHitejinro,
+      hiddenFromMap,
       locationGuardEnabled,
       locationGuardRadiusM,
       ownerEmail,
@@ -420,6 +424,7 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
         ...(metacityAccessCode !== undefined && { metacityAccessCode: metacityAccessCode || null }),
         ...(normalizedMembershipType !== undefined && { metacityMembershipType: normalizedMembershipType }),
         ...(yahwaEnabled !== undefined && { yahwaEnabled: !!yahwaEnabled }),
+        ...(hiddenFromMap !== undefined && { hiddenFromMap: !!hiddenFromMap }),
         ...(isHitejinro !== undefined && { isHitejinro: !!isHitejinro }),
       } as any,
     });
@@ -461,7 +466,8 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
         if (geo) {
           await prisma.store.update({
             where: { id: storeId },
-            data: { latitude: geo.latitude, longitude: geo.longitude },
+            // geocodedAddress 를 남겨 두면 사장님이 주소를 바꿨을 때 좌표 작업이 다시 계산한다
+            data: { latitude: geo.latitude, longitude: geo.longitude, geocodedAddress: addr },
           });
           console.log(`[Admin] Store ${storeId} geocoded: ${geo.latitude},${geo.longitude} (${geo.matchedAddress})`);
         } else {
@@ -480,6 +486,11 @@ router.patch('/stores/:storeId', adminAuthMiddleware, async (req: AdminRequest, 
         where: { id: storeId },
         data: { latitude: geo?.latitude ?? null, longitude: geo?.longitude ?? null },
       });
+    }
+
+    // 지도 노출 여부·CRM 상태가 바뀌면 고객 마이페이지 매장 지도 캐시를 비운다
+    if (hiddenFromMap !== undefined || crmEnabled !== undefined) {
+      clearStoreMapCache();
     }
 
     // CRM 활성화 상태 변경, 링크 ID 변경, 또는 enrollmentMode 변경 시 태그히어 서버에 알림

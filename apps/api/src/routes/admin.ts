@@ -204,7 +204,7 @@ router.post('/customers/export', adminAuthMiddleware, async (req: AdminRequest, 
     }
 
     // 전체 건수 조회
-    const total = await prisma.customer.count();
+    const total = await prisma.customer.count({ where: { withdrawnAt: null } });
 
     // 배치 처리로 메모리 절약
     const BATCH_SIZE = 5000;
@@ -212,6 +212,7 @@ router.post('/customers/export', adminAuthMiddleware, async (req: AdminRequest, 
 
     for (let skip = 0; skip < total; skip += BATCH_SIZE) {
       const batch = await prisma.customer.findMany({
+        where: { withdrawnAt: null },
         include: {
           store: {
             select: { name: true },

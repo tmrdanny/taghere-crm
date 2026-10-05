@@ -58,6 +58,11 @@ type PointOperationType =
   | 'POINT_COMBINE_CANCEL'
   | 'POINT_ALL_CANCEL';
 
+interface MetacityCallOptions {
+  timeoutMs?: number;
+  logRaw?: boolean;
+}
+
 interface PointSyncParams {
   custId: string;
   orderNo: string;
@@ -293,8 +298,16 @@ export class MetacityService {
     };
   }
 
-  /** HTTP POST 호출 */
-  private async callApi(endpoint: string, body: MetacityBaseRequest): Promise<MetacityResponse> {
+  /**
+   * HTTP POST 호출
+   * opts.timeoutMs — 지정 시 그 시간 안에 응답이 없으면 실패 (고객 화면 조회용)
+   * opts.logRaw — false 면 응답 원본(이름·전화번호 포함)을 로그에 남기지 않음 (기본 true)
+   */
+  private async callApi(
+    endpoint: string,
+    body: MetacityBaseRequest,
+    opts: MetacityCallOptions = {},
+  ): Promise<MetacityResponse> {
     const baseUrl = TEST_MODE ? `${API_URL}/TEST` : API_URL;
     const url = `${baseUrl}/${endpoint}`;
 
@@ -302,6 +315,7 @@ export class MetacityService {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=UTF-8' },
       body: JSON.stringify(body),
+      ...(opts.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
     });
 
     if (!response.ok) {
@@ -311,7 +325,9 @@ export class MetacityService {
     const data = await response.json() as MetacityResponse;
 
     // 응답 raw body 로깅 (매직포스 측 분쟁/디버깅 대조용)
-    console.log(`[Metacity] ${body.WORK_TYPE} 응답:`, JSON.stringify(data));
+    if (opts.logRaw !== false) {
+      console.log(`[Metacity] ${body.WORK_TYPE} 응답:`, JSON.stringify(data));
+    }
 
     if (data.RESULT_CODE !== 'E0000') {
       throw new Error(`Metacity ${data.RESULT_CODE}: ${data.ERROR_MSG}`);
@@ -355,7 +371,7 @@ export class MetacityService {
   }
 
   /** 회원 조회 (CUST_SEARCH) — 전화번호로 검색 */
-  async searchCustomerByPhone(phone: string): Promise<MetacityResponse> {
+  async searchCustomerByPhone(phone: string, opts?: MetacityCallOptions): Promise<MetacityResponse> {
     const body = {
       ...this.baseRequest('CUST_SEARCH'),
       CUST_NM: '',
@@ -366,11 +382,11 @@ export class MetacityService {
       CUST_ID: '',
     };
 
-    return this.callApi('CustomerInfo.asp', body);
+    return this.callApi('CustomerInfo.asp', body, opts);
   }
 
   /** 회원 조회 (CUST_SEARCH) — 캐시된 CUST_ID 로 직접 검색 */
-  async searchCustomerByCustId(custId: string): Promise<MetacityResponse> {
+  async searchCustomerByCustId(custId: string, opts?: MetacityCallOptions): Promise<MetacityResponse> {
     const body = {
       ...this.baseRequest('CUST_SEARCH'),
       CUST_NM: '',
@@ -381,7 +397,7 @@ export class MetacityService {
       CUST_ID: custId,
     };
 
-    return this.callApi('CustomerInfo.asp', body);
+    return this.callApi('CustomerInfo.asp', body, opts);
   }
 
   /** 회원 조회 (CUST_SEARCH) — 전화번호 뒷 4자리로 검색 (CP_NO 매칭 실패 시 폴백) */
@@ -857,4 +873,58 @@ async function ensureMetacityMember(
     console.error('[Metacity] 회원 가입 실패:', err.message);
     return null;
   }
+}
+
+/**
+ * 메타씨티 잔액 조회 — 조회 전용 (고객 마이페이지용)
+ *
+ * resolveMetacityCustomer / getMetacityPoints 는 회원을 못 찾으면 메타씨티에 신규 가입(JOIN)시키고
+ * metacityCustId 캐시도 쓴다. 고객이 마이페이지를 열기만 해도 매장 회원이 생기면 안 되므로,
+ * 여기서는 검색만 하고 가입·캐시 쓰기를 하지 않는다.
+ * 응답 행은 전화번호 전체가 일치하는 것만 채택한다 (selectVerifiedCustRow). 못 찾거나 실패하면 null.
+ */
+// 고객 화면 조회는 메타씨티가 느려도 화면 전체가 멈추지 않게 짧게 끊고, 응답 원본(개인정보)은 로그에 남기지 않는다
+const READ_ONLY_CALL: MetacityCallOptions = { timeoutMs: 3000, logRaw: false };
+
+// 같은 고객이 마이페이지를 연달아 열어도 메타씨티를 매번 부르지 않도록 1분간 결과를 기억한다
+const READ_ONLY_CACHE_TTL_MS = 60 * 1000;
+const readOnlyCache = new Map<string, { at: number; value: MetacityPointBalance | null }>();
+
+export async function lookupMetacityBalanceReadOnly(
+  metacityStoreIdx: string,
+  customer: { metacityCustId: string | null; phone: string | null },
+): Promise<MetacityPointBalance | null> {
+  if (!customer.phone) return null;
+  const cacheKey = `${metacityStoreIdx}:${customer.phone}`;
+  const cached = readOnlyCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < READ_ONLY_CACHE_TTL_MS) return cached.value;
+  const value = await lookupMetacityBalanceUncached(metacityStoreIdx, customer as { metacityCustId: string | null; phone: string });
+  // 실패(null)는 기억하지 않는다 — 잠깐의 장애가 1분간 이어 보이지 않게
+  if (value) readOnlyCache.set(cacheKey, { at: Date.now(), value });
+  if (readOnlyCache.size > 5000) readOnlyCache.clear();
+  return value;
+}
+
+async function lookupMetacityBalanceUncached(
+  metacityStoreIdx: string,
+  customer: { metacityCustId: string | null; phone: string },
+): Promise<MetacityPointBalance | null> {
+  const service = new MetacityService({ metacityStoreIdx });
+
+  if (customer.metacityCustId) {
+    try {
+      const info = extractCustInfo(await service.searchCustomerByCustId(customer.metacityCustId, READ_ONLY_CALL), customer.phone);
+      if (info) return { ablePoint: info.ablePoint, totPoint: info.totPoint, usedPoint: info.usedPoint };
+    } catch (err: any) {
+      console.warn('[Metacity] 마이페이지 CUST_ID 조회 실패, 전화번호로 재시도:', err?.message);
+    }
+  }
+
+  try {
+    const info = extractCustInfo(await service.searchCustomerByPhone(customer.phone, READ_ONLY_CALL), customer.phone);
+    if (info) return { ablePoint: info.ablePoint, totPoint: info.totPoint, usedPoint: info.usedPoint };
+  } catch (err: any) {
+    console.warn('[Metacity] 마이페이지 전화번호 조회 실패:', err?.message);
+  }
+  return null;
 }

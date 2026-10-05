@@ -7,6 +7,7 @@
  */
 
 import { prisma } from '../lib/prisma.js';
+import { toPhoneLastDigits } from '../utils/phone.js';
 import { enqueueStampEarnedAlimTalk, enqueueHitejinroStampEarnedAlimTalk } from './solapi.js';
 import { checkMilestoneAndDraw, buildRewardsFromLegacy, buildStampUsageRule, RewardEntry } from '../utils/random-reward.js';
 import { fetchOrder, TaghereOrderData } from './taghere-api.js';
@@ -473,6 +474,7 @@ export async function earnStamp(input: StampEarnInput): Promise<StampEarnResult>
           franchiseId,
           kakaoId,
           phone: customer!.phone || null,
+          phoneLastDigits: customer!.phone ? toPhoneLastDigits(customer!.phone) : null,
           name: customer!.name || null,
         },
       });
@@ -527,6 +529,9 @@ export async function earnStamp(input: StampEarnInput): Promise<StampEarnResult>
           visitCount: { increment: 1 },
           lastVisitAt: new Date(),
           phone: customer!.phone || franchiseCustomer!.phone || undefined,
+          phoneLastDigits: (customer!.phone || franchiseCustomer!.phone)
+            ? toPhoneLastDigits((customer!.phone || franchiseCustomer!.phone)!)
+            : undefined,
           name: customer!.name || franchiseCustomer!.name || undefined,
         },
       });

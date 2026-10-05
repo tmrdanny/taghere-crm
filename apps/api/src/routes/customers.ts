@@ -25,7 +25,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     } = req.query;
     const storeId = req.user!.storeId;
 
-    const where: any = { storeId, AND: [] };
+    const where: any = { storeId, withdrawnAt: null, AND: [] };
     const orConditions: any[] = [];
 
     // Search by name, phone, or memo
@@ -288,7 +288,7 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
     const storeId = req.user!.storeId;
 
     const customer = await prisma.customer.findFirst({
-      where: { id, storeId },
+      where: { id, storeId, withdrawnAt: null },
       include: {
         pointLedger: {
           orderBy: { createdAt: 'desc' },

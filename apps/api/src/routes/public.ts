@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { getMapStores } from '../services/store-map.js';
 
 const router = Router();
 
@@ -265,6 +266,21 @@ router.post('/coupon/:code/use', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error using coupon:', error);
     res.status(500).json({ error: '쿠폰 사용 처리 중 오류가 발생했습니다.' });
+  }
+});
+
+/**
+ * GET /api/public/stores/map
+ * 고객 마이페이지 매장 지도 (로그인 불필요). 서버에서 5분간 결과를 저장해 둔다.
+ */
+router.get('/stores/map', async (_req: Request, res: Response) => {
+  try {
+    const stores = await getMapStores();
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({ stores });
+  } catch (error) {
+    console.error('[Public Store Map] Error:', error);
+    res.status(500).json({ error: '매장 정보를 불러오지 못했습니다.' });
   }
 });
 
