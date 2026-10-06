@@ -10,6 +10,7 @@ export function CustomerListHeader({
   onAddCustomer,
   onBulkUpload,
   onCreateGroup,
+  onClearSelection,
 }: {
   total: number;
   selectedCount: number;
@@ -18,6 +19,8 @@ export function CustomerListHeader({
   onBulkUpload: () => void;
   /** 고객 그룹 만들기 (선택한 손님이 있으면 그 손님들로 미리 채움) */
   onCreateGroup: () => void;
+  /** 여러 페이지에 걸쳐 고른 손님 선택 모두 해제 */
+  onClearSelection?: () => void;
 }) {
   return (
     <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-end">
@@ -25,6 +28,17 @@ export function CustomerListHeader({
         <h1 className="text-[22px] font-semibold tracking-[-0.4px] text-[color:var(--ad-ink)]">고객 리스트</h1>
         <p className="mt-1 text-[13px] text-[color:var(--ad-muted)] adm-tnum">
           전체 고객 {formatNumber(total)}명
+          {selectedCount > 0 && (
+            <>
+              <span className="mx-1.5 text-[color:var(--ad-faint)]">·</span>
+              <span className="font-medium text-[color:var(--ad-ink)]">{formatNumber(selectedCount)}명 선택됨</span>
+              {onClearSelection && (
+                <button type="button" onClick={onClearSelection} className="ml-2 font-medium text-[color:var(--ad-link)] underline-offset-2 hover:underline">
+                  선택 해제
+                </button>
+              )}
+            </>
+          )}
         </p>
       </div>
       <div className="flex flex-wrap gap-2">

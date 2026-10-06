@@ -60,13 +60,14 @@ export function CustomerTable({
               <th className="w-12 px-4 py-2.5">
                 <input
                   type="checkbox"
+                  aria-label="이 페이지 손님 모두 선택"
                   className="rounded border-[color:var(--ad-line-strong)] accent-[#131651]"
+                  checked={customers.length > 0 && customers.every((c) => selectedCustomers.includes(c.id))}
                   onChange={(e) => {
-                    if (e.target.checked) {
-                      onSelectedChange(customers.map((c) => c.id));
-                    } else {
-                      onSelectedChange([]);
-                    }
+                    // 이 페이지 손님만 더하거나 뺀다 (다른 페이지에서 고른 손님은 유지)
+                    const pageIds = new Set(customers.map((c) => c.id));
+                    const others = selectedCustomers.filter((id) => !pageIds.has(id));
+                    onSelectedChange(e.target.checked ? [...others, ...pageIds] : others);
                   }}
                 />
               </th>

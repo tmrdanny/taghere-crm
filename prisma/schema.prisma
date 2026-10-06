@@ -683,6 +683,7 @@ enum SmsTargetType {
   REVISIT  // 재방문 고객 (2회 이상)
   NEW      // 신규 고객 (최근 30일)
   CUSTOM   // 직접 선택
+  SEGMENT  // 고객 그룹 (저장된 조건을 발송 시점에 다시 평가)
 }
 
 enum SmsCampaignStatus {
