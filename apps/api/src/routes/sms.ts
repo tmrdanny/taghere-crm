@@ -245,6 +245,8 @@ router.get('/estimate', authMiddleware, async (req: AuthRequest, res) => {
 
 // POST /api/sms/send - 문자 발송
 router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
+  // 문자 캠페인을 만들기 전에 실패하면, 먼저 기록한 마케팅 캠페인을 취소 처리한다 (성과 화면에 안 나간 발송이 남지 않게)
+  let pendingMarketingCampaignId: string | null = null;
   try {
     const storeId = req.user!.storeId;
     const { title, content, targetType, segmentId, customerIds, genderFilter, ageGroups, imageUrl, imageId, isAdMessage = false, regionSidos, regionSigungus } = req.body;
@@ -383,6 +385,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
       recipients: customers.map((c) => ({ customerId: c.id, storeId })),
       sentAt: scheduledAt,
     });
+    pendingMarketingCampaignId = marketingCampaignId;
     const couponCodes = staffVerify
       ? await createStaffCoupons({
           campaignId: marketingCampaignId,
@@ -409,6 +412,7 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
         scheduledAt: scheduledAt ?? null,
       },
     });
+    pendingMarketingCampaignId = null;
 
     // SOLAPI 그룹 메시지 벌크 발송
     const solapiService = new SolapiService(apiKey, apiSecret);
@@ -513,6 +517,11 @@ router.post('/send', authMiddleware, async (req: AuthRequest, res) => {
     });
   } catch (error) {
     console.error('SMS send error:', error);
+    if (pendingMarketingCampaignId) {
+      await prisma.marketingCampaign
+        .update({ where: { id: pendingMarketingCampaignId }, data: { canceledAt: new Date() } })
+        .catch(() => {});
+    }
     res.status(500).json({ error: '문자 발송 중 오류가 발생했습니다.' });
   }
 });

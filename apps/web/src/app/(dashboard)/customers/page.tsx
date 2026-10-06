@@ -83,7 +83,9 @@ export default function CustomersPage() {
   const [earnStampReason, setEarnStampReason] = useState('');
   const [stampMode, setStampMode] = useState<'earn' | 'deduct'>('earn');
   const [submittingEarnStamp, setSubmittingEarnStamp] = useState(false);
-  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
+  // 선택한 손님 — 페이지를 넘기거나 목록이 새로고침돼도 유지 (id → 이름·번호, 다른 페이지 손님도 발송에 쓰려고 함께 보관)
+  const [selectedMap, setSelectedMap] = useState<Record<string, { id: string; name: string | null; phone: string | null }>>({});
+  const selectedCustomers = useMemo(() => Object.keys(selectedMap), [selectedMap]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -431,7 +433,6 @@ export default function CustomersPage() {
           total: data.pagination?.total || 0,
           totalPages: data.pagination?.totalPages || 1,
         });
-        setSelectedCustomers([]);
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
@@ -1195,6 +1196,19 @@ export default function CustomersPage() {
     { value: '90', label: '최근 90일' },
   ];
 
+  // 표에서 체크가 바뀌면 — 이 페이지 손님만 더하고 빼고, 다른 페이지에서 고른 손님은 그대로 둔다
+  const handleSelectedChange = (ids: string[]) => {
+    const keep = new Set(ids);
+    setSelectedMap((prev) => {
+      const next = { ...prev };
+      for (const c of customers) {
+        if (keep.has(c.id)) next[c.id] = next[c.id] ?? { id: c.id, name: c.name, phone: c.phone };
+        else delete next[c.id];
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 pt-6 sm:px-8 lg:pt-8">
       {ToastComponent}
@@ -1205,12 +1219,10 @@ export default function CustomersPage() {
         total={pagination.total}
         selectedCount={selectedCustomers.length}
         onSendToSelected={() => {
-          const selectedData = customers
-            .filter(c => selectedCustomers.includes(c.id))
-            .map(c => ({ id: c.id, name: c.name, phone: c.phone }));
-          // 이름·번호는 URL 이 아니라 이 탭의 sessionStorage 로 넘긴다
-          router.push(`/messages?selection=${stashRecipients(selectedData)}`);
+          // 여러 페이지에서 고른 손님 모두 — 이름·번호는 URL 이 아니라 이 탭의 sessionStorage 로 넘긴다
+          router.push(`/messages?selection=${stashRecipients(Object.values(selectedMap))}`);
         }}
+        onClearSelection={() => setSelectedMap({})}
         onAddCustomer={() => setAddModal(true)}
         onCreateGroup={() =>
           // 메시지 발송의 "새 그룹"과 같은 창 — 선택한 손님이 있으면 직접 추가로 미리 채운다
@@ -1232,7 +1244,7 @@ export default function CustomersPage() {
         initial={null}
         draft={groupDraft}
         onSaved={(segment) => {
-          setSelectedCustomers([]);
+          setSelectedMap({});
           showToast(`'${segment?.name ?? '고객'}' 그룹을 저장했어요. 메시지 발송에서 바로 고를 수 있어요.`, 'success');
         }}
       />
@@ -1320,7 +1332,7 @@ export default function CustomersPage() {
         isLoading={isLoading}
         error={error}
         selectedCustomers={selectedCustomers}
-        onSelectedChange={setSelectedCustomers}
+        onSelectedChange={handleSelectedChange}
         isColumnVisible={isColumnVisible}
         visibleColumnCount={visibleColumnCount}
         surveyQuestionLabels={surveyQuestionLabels}
