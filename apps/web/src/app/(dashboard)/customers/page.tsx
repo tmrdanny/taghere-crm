@@ -38,6 +38,7 @@ import {
   EarnStampsModal,
 } from '@/features/customers';
 import { SegmentBuilderModal } from '@/features/segments/SegmentBuilderModal';
+import { SelectionActionBar } from '@/features/customers/SelectionActionBar';
 import { stashRecipients } from '@/lib/selected-recipients';
 import type { SegmentConditions } from '@/features/segments/segment-conditions';
 
@@ -54,7 +55,6 @@ const COLUMN_DEFINITIONS = [
   { id: 'visitCount', label: '방문 횟수', required: false, defaultVisible: true },
   { id: 'region', label: '지역', required: false, defaultVisible: false },
   { id: 'consentMarketing', label: '마케팅 수신 동의', required: false, defaultVisible: false },
-  { id: 'actions', label: '액션', required: true, defaultVisible: true },
 ] as const;
 
 const DEFAULT_VISIBLE_COLUMNS = COLUMN_DEFINITIONS.filter(c => c.defaultVisible).map(c => c.id);
@@ -84,7 +84,7 @@ export default function CustomersPage() {
   const [stampMode, setStampMode] = useState<'earn' | 'deduct'>('earn');
   const [submittingEarnStamp, setSubmittingEarnStamp] = useState(false);
   // 선택한 손님 — 페이지를 넘기거나 목록이 새로고침돼도 유지 (id → 이름·번호, 다른 페이지 손님도 발송에 쓰려고 함께 보관)
-  const [selectedMap, setSelectedMap] = useState<Record<string, { id: string; name: string | null; phone: string | null }>>({});
+  const [selectedMap, setSelectedMap] = useState<Record<string, Customer>>({});
   const selectedCustomers = useMemo(() => Object.keys(selectedMap), [selectedMap]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -1196,13 +1196,28 @@ export default function CustomersPage() {
     { value: '90', label: '최근 90일' },
   ];
 
+  // 포인트·스탬프 처리 (하단 선택 바에서 호출)
+  const startEarnPoints = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setEarnPointsModal(true);
+  };
+  const startStamps = (customer: Customer, mode: 'earn' | 'deduct') => {
+    setSelectedCustomer(customer);
+    setStampMode(mode);
+    setEarnStampAmount('1');
+    setEarnStampReason('');
+    setEarnStampsModal(true);
+  };
+  // 선택한 손님 — 지금 페이지에 있으면 최신 값(포인트·스탬프)으로
+  const selectedList = Object.values(selectedMap).map((c) => customers.find((x) => x.id === c.id) ?? c);
+
   // 표에서 체크가 바뀌면 — 이 페이지 손님만 더하고 빼고, 다른 페이지에서 고른 손님은 그대로 둔다
   const handleSelectedChange = (ids: string[]) => {
     const keep = new Set(ids);
     setSelectedMap((prev) => {
       const next = { ...prev };
       for (const c of customers) {
-        if (keep.has(c.id)) next[c.id] = next[c.id] ?? { id: c.id, name: c.name, phone: c.phone };
+        if (keep.has(c.id)) next[c.id] = c;
         else delete next[c.id];
       }
       return next;
@@ -1217,17 +1232,9 @@ export default function CustomersPage() {
       {/* Header */}
       <CustomerListHeader
         total={pagination.total}
-        selectedCount={selectedCustomers.length}
-        onSendToSelected={() => {
-          // 여러 페이지에서 고른 손님 모두 — 이름·번호는 URL 이 아니라 이 탭의 sessionStorage 로 넘긴다
-          router.push(`/messages?selection=${stashRecipients(Object.values(selectedMap))}`);
-        }}
-        onClearSelection={() => setSelectedMap({})}
         onAddCustomer={() => setAddModal(true)}
-        onCreateGroup={() =>
-          // 메시지 발송의 "새 그룹"과 같은 창 — 선택한 손님이 있으면 직접 추가로 미리 채운다
-          setGroupDraft(selectedCustomers.length > 0 ? { conditions: { includeIds: [...selectedCustomers] } } : { conditions: {} })
-        }
+        // 새 그룹 (빈 상태) — 고른 손님으로 만들기는 하단 선택 바에서
+        onCreateGroup={() => setGroupDraft({ conditions: {} })}
         onBulkUpload={() => {
           setBulkModal(true);
           setBulkParsedData([]);
@@ -1339,26 +1346,6 @@ export default function CustomersPage() {
         visitSourceLabelMap={visitSourceLabelMap}
         getVisitDescription={getVisitDescription}
         onRowClick={openEditModal}
-        stampEnabled={stampEnabled}
-        onUsePoints={openUsePointsModal}
-        onEarnPoints={(customer) => {
-          setSelectedCustomer(customer);
-          setEarnPointsModal(true);
-        }}
-        onEarnStamps={(customer) => {
-          setSelectedCustomer(customer);
-          setStampMode('earn');
-          setEarnStampAmount('1');
-          setEarnStampReason('');
-          setEarnStampsModal(true);
-        }}
-        onDeductStamps={(customer) => {
-          setSelectedCustomer(customer);
-          setStampMode('deduct');
-          setEarnStampAmount('1');
-          setEarnStampReason('');
-          setEarnStampsModal(true);
-        }}
         page={page}
         pageSize={pageSize}
         pagination={pagination}
@@ -1367,6 +1354,22 @@ export default function CustomersPage() {
           setPage(1);
         }}
         onPageChange={setPage}
+      />
+
+      {/* 손님을 체크하면 아래에 붙는 선택 바 — 포인트·스탬프 · 메시지 · 그룹 */}
+      <SelectionActionBar
+        selected={selectedList}
+        stampEnabled={stampEnabled}
+        onEarnPoints={startEarnPoints}
+        onUsePoints={openUsePointsModal}
+        onEarnStamps={(c) => startStamps(c, 'earn')}
+        onDeductStamps={(c) => startStamps(c, 'deduct')}
+        onSendMessage={() => {
+          // 여러 페이지에서 고른 손님 모두 — 이름·번호는 URL 이 아니라 이 탭의 sessionStorage 로 넘긴다
+          router.push(`/messages?selection=${stashRecipients(selectedList.map((c) => ({ id: c.id, name: c.name, phone: c.phone })))}`);
+        }}
+        onCreateGroup={() => setGroupDraft({ conditions: { includeIds: selectedList.map((c) => c.id) } })}
+        onClear={() => setSelectedMap({})}
       />
 
       {/* Use Points Modal */}

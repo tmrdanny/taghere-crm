@@ -5,7 +5,7 @@ import { Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Customer, formatRegion } from './types';
 
 // 고객 목록 테이블 + 페이지네이션.
-// 컬럼 표시 여부·선택·액션·페이지 상태는 부모에서 관리하고 props로 전달.
+// 컬럼 표시 여부·선택·페이지 상태는 부모에서 관리하고 props로 전달. (포인트·스탬프는 하단 선택 바에서)
 export function CustomerTable({
   customers,
   isLoading,
@@ -18,11 +18,6 @@ export function CustomerTable({
   visitSourceLabelMap,
   getVisitDescription,
   onRowClick,
-  stampEnabled,
-  onUsePoints,
-  onEarnPoints,
-  onEarnStamps,
-  onDeductStamps,
   page,
   pageSize,
   pagination,
@@ -40,11 +35,6 @@ export function CustomerTable({
   visitSourceLabelMap: Record<string, string>;
   getVisitDescription: (customer: Customer) => string;
   onRowClick: (customer: Customer) => void;
-  stampEnabled?: boolean;
-  onUsePoints: (customer: Customer) => void;
-  onEarnPoints: (customer: Customer) => void;
-  onEarnStamps: (customer: Customer) => void;
-  onDeductStamps: (customer: Customer) => void;
   page: number;
   pageSize: number;
   pagination: { total: number; totalPages: number };
@@ -131,11 +121,6 @@ export function CustomerTable({
                   {sq.label}
                 </th>
               ))}
-              {isColumnVisible('actions') && (
-                <th className="whitespace-nowrap px-4 py-2.5 text-left font-medium">
-                  액션
-                </th>
-              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-[color:var(--ad-line)]">
@@ -291,48 +276,6 @@ export function CustomerTable({
                         </td>
                       );
                     })}
-                    {isColumnVisible('actions') && (
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex flex-col gap-1.5">
-                          {!stampEnabled && (
-                            <>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                className="h-7 rounded-[8px] border-0 text-[12px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
-                                onClick={() => onUsePoints(customer)}
-                              >
-                                포인트 사용
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                className="h-7 rounded-[8px] border-0 text-[12px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
-                                onClick={() => onEarnPoints(customer)}
-                              >
-                                포인트 적립
-                              </Button>
-                            </>
-                          )}
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="h-7 rounded-[8px] border-0 text-[12px] text-[color:var(--ad-ink-2)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
-                            onClick={() => onEarnStamps(customer)}
-                          >
-                            스탬프 적립
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="h-7 rounded-[8px] border-0 text-[12px] text-[color:var(--ad-neg)] shadow-[inset_0_0_0_1px_var(--ad-line-strong)] hover:bg-[color:var(--ad-bg-alt)]"
-                            onClick={() => onDeductStamps(customer)}
-                          >
-                            스탬프 차감
-                          </Button>
-                        </div>
-                      </td>
-                    )}
                   </tr>
                 );
               })}
